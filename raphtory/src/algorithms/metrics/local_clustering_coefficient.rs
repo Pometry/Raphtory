@@ -10,20 +10,20 @@
 //! coefficient indicates that nodes tend to be connected to nodes that are not connected
 //! to each other.
 //!
-//! In a social network of a particular community, we can compute the clustering
+//! In a social network of a particular community_detection, we can compute the clustering
 //! coefficient of each node to get an idea of how strongly connected and cohesive
 //! that node's neighborhood is.
 //!
 //! A high clustering coefficient for a node in a social network indicates that the
 //! node's neighbors tend to be strongly connected with each other, forming a tightly-knit
-//! group or community. In contrast, a low clustering coefficient for a node indicates that
+//! group or community_detection. In contrast, a low clustering coefficient for a node indicates that
 //! its neighbors are relatively less connected with each other, suggesting a more fragmented
-//! or diverse community.
+//! or diverse community_detection.
 //!
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::local_clustering_coefficient::{local_clustering_coefficient};
+//! use raphtory::algorithms::metrics::local_clustering_coefficient::local_clustering_coefficient;
 //! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();
@@ -49,7 +49,7 @@
 //! ```
 
 use crate::{
-    algorithms::local_triangle_count::local_triangle_count,
+    algorithms::motifs::local_triangle_count::local_triangle_count,
     core::entities::vertices::vertex_ref::VertexRef, db::api::view::*,
 };
 

@@ -17,7 +17,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::local_triangle_count::{local_triangle_count};
+//! use raphtory::algorithms::motifs::local_triangle_count::{local_triangle_count};
 //! use raphtory::prelude::*;
 //!
 //! let g = Graph::new();

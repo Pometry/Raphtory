@@ -134,7 +134,7 @@ pub fn balance<G: GraphViewOps>(
 #[cfg(test)]
 mod sum_weight_test {
     use crate::{
-        algorithms::balance::balance,
+        algorithms::metrics::balance::balance,
         core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
     };

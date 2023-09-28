@@ -1,5 +1,5 @@
 use crate::{
-    algorithms::k_core::k_core_set,
+    algorithms::cores::k_core::k_core_set,
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::*,
@@ -29,7 +29,7 @@ use rustc_hash::FxHashSet;
 /// # Example
 /// ```rust
 /// use std::{cmp::Reverse, iter::once};
-/// use raphtory::algorithms::triangle_count::triangle_count;
+/// use raphtory::algorithms::motifs::triangle_count::triangle_count;
 /// use raphtory::prelude::*;
 ///
 /// let graph = Graph::new();

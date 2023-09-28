@@ -1118,6 +1118,6 @@ mod test {
     fn property_name_on_vertex_does_not_crash() {
         let g = Graph::new();
         g.add_vertex(0, "test", [("name", "test")]).unwrap();
-        let gi: IndexedGraph<_> = g.into();
+        let _gi: IndexedGraph<_> = g.into();
     }
 }
