@@ -40,6 +40,7 @@ extensions = [
     "autodocsumm",
     "nbsphinx",
     "numpydoc",
+    "notfound.extension",
     "sphinx_autosummary_accessors",
     "sphinx_copybutton",
     "sphinx_design",
