@@ -83,7 +83,8 @@ impl VertexFrameBuilder {
 
     pub(crate) fn load_sources(&mut self, sources: impl IntoIterator<Item = u64>) {
         self.sorted_gids.extend(
-            sources.into_iter()
+            sources
+                .into_iter()
                 .dedup()
                 .enumerate()
                 .map(|(id, gid)| (gid, id as u64)),
