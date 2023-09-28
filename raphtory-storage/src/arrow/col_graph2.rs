@@ -1,10 +1,8 @@
-use std::{
-    io::{BufReader, Read, Seek},
-    path::Path,
-};
+use std::{io::BufReader, path::Path};
 
 use crate::arrow::{
-    edge_frame_builder::EdgeFrameBuilder, vertex_frame_builder::VertexFrameBuilder, Error,
+    edge_frame_builder::EdgeFrameBuilder, mmap::mmap_batches,
+    vertex_frame_builder::VertexFrameBuilder, Error,
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
@@ -64,6 +62,135 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = u6
 }
 
 impl TempColGraphFragment {
+    pub fn new<P: AsRef<Path>>(graph_dir: P) -> Result<Self, Error> {
+        // iterate graph dir and split into two vectors of files edge_chunk_{j}.ipc and adj_out_chunk_{i}.ipc
+
+        let iter = std::fs::read_dir(graph_dir)?
+            .into_iter()
+            .flatten()
+            .filter(|dir_entry| {
+                let file_name = dir_entry.file_name();
+                let file_name = file_name.to_str().unwrap();
+                file_name.starts_with("edge_chunk_") || file_name.starts_with("adj_out_chunk_")
+            })
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
+
+        let (edges, vertices): (Vec<_>, Vec<_>) = iter.partition(|dir_entry| {
+            let file_name = dir_entry.file_name();
+            let file_name = file_name.to_str().unwrap();
+            file_name.starts_with("edge_chunk_")
+        });
+
+        let edge_chunks = edges
+            .into_iter()
+            .flat_map(|file_path| unsafe { mmap_batches(file_path.path(), 0) })
+            .collect_vec();
+
+        let vertices_chunks = vertices
+            .into_iter()
+            .flat_map(|file_path| unsafe { mmap_batches(file_path.path(), 0) })
+            .collect_vec();
+
+
+        let chunk_size = &vertices_chunks[0][0].len();
+
+        Ok(Self {
+            chunk_size: *chunk_size,
+            adj_out_chunks: vertices_chunks,
+            edge_chunks,
+        })
+    }
+
+    pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
+        parquet_dir: P,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        chunk_size: usize,
+        graph_dir: P2,
+    ) -> Result<Self, Error> {
+        let srcs_parquet_files = std::fs::read_dir(parquet_dir.clone())?
+            .map(|res| res.unwrap())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .filter(|ext| ext == &"parquet")
+                    .is_some()
+            })
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()))
+            .map(|file| {
+                println!("reading file: {:?}", file.path());
+                file
+            });
+
+        let triplets_parquet_files2 = std::fs::read_dir(parquet_dir)?
+            .map(|res| res.unwrap())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .filter(|ext| ext == &"parquet")
+                    .is_some()
+            })
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
+
+        let srcs = srcs_parquet_files
+            .flat_map(|dir_entry| Self::read_file_sources(dir_entry.path(), src_col))
+            .flatten();
+
+        let triplets = triplets_parquet_files2
+            .flat_map(|dir_entry| {
+                println!("reading file: {:?}", dir_entry.path());
+                Self::read_file_triplets(dir_entry.path(), src_col, dst_col, time_col)
+            })
+            .flatten();
+
+        let out = Self::build_tables(graph_dir, chunk_size, srcs, triplets)?;
+        Ok(out)
+    }
+
+    pub fn from_sorted_parquet_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
+        parquet_file: P,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        chunk_size: usize,
+        graph_dir: P2,
+    ) -> Result<Self, Error> {
+        let srcs_iter = Self::read_file_sources(parquet_file.clone(), src_col)?;
+
+        let triplets = Self::read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
+
+        let out = Self::build_tables(graph_dir, chunk_size, srcs_iter, triplets)?;
+        Ok(out)
+    }
+
+    fn build_tables<P: AsRef<Path>>(
+        base_dir: P,
+        chunk_size: usize,
+        source_iter: impl IntoIterator<Item = u64>,
+        tuples_iter: impl IntoIterator<Item = (u64, u64, i64)>,
+    ) -> ArrowResult<Self> {
+        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
+
+        // initialise vertex global id table to preserve order
+        vf_builder.load_sources(source_iter);
+
+        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
+        for (src, dst, time) in tuples_iter {
+            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
+            edge_builder.push_update(time, src_id, dst_id)?;
+        }
+        vf_builder.finalise_empty_chunks()?;
+        edge_builder.finalise()?;
+        Ok(TempColGraphFragment {
+            chunk_size,
+            // sorted_gids: vf_builder.sorted_gids,
+            adj_out_chunks: vf_builder.adj_out_chunks,
+            edge_chunks: edge_builder.edge_chunks,
+        })
+    }
+
     fn read_file_sources<P: AsRef<Path>>(
         parquet_file: P,
         src_col: &str,
@@ -134,87 +261,6 @@ impl TempColGraphFragment {
                 .map(|((src, dst), time)| (src, dst, time))
         });
         Ok(out)
-    }
-
-    pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
-        parquet_dir: P,
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-        chunk_size: usize,
-        graph_dir: P2,
-    ) -> Result<Self, Error>{
-
-        let srcs_parquet_files = std::fs::read_dir(parquet_dir.clone())?
-            .map(|res| res.unwrap())
-            .filter(|e| e.path().extension().filter(|ext| ext == &"parquet").is_some())
-            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()))
-            .map(|file| {
-                println!("reading file: {:?}", file.path());
-                file
-            });
-
-        let triplets_parquet_files2 = std::fs::read_dir(parquet_dir)?
-            .map(|res| res.unwrap())
-            .filter(|e| e.path().extension().filter(|ext| ext == &"parquet").is_some())
-            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
-
-        let srcs = srcs_parquet_files
-            .flat_map(|dir_entry| Self::read_file_sources(dir_entry.path(), src_col))
-            .flatten();
-
-        let triplets = triplets_parquet_files2
-            .flat_map(|dir_entry| {
-                println!("reading file: {:?}", dir_entry.path());
-                Self::read_file_triplets(dir_entry.path(), src_col, dst_col, time_col)
-            })
-            .flatten();
-
-        let out = Self::build_tables(graph_dir, chunk_size, srcs, triplets)?;
-        Ok(out)
-    }
-
-    pub fn from_sorted_parquet_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
-        parquet_file: P,
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-        chunk_size: usize,
-        graph_dir: P2,
-    ) -> Result<Self, Error> {
-        let srcs_iter = Self::read_file_sources(parquet_file.clone(), src_col)?;
-
-        let triplets = Self::read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
-
-        let out = Self::build_tables(graph_dir, chunk_size, srcs_iter, triplets)?;
-        Ok(out)
-    }
-
-    fn build_tables<P: AsRef<Path>>(
-        base_dir: P,
-        chunk_size: usize,
-        source_iter: impl IntoIterator<Item = u64>,
-        tuples_iter: impl IntoIterator<Item = (u64, u64, i64)>,
-    ) -> ArrowResult<Self> {
-        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
-
-        // initialise vertex global id table to preserve order
-        vf_builder.load_sources(source_iter);
-
-        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for (src, dst, time) in tuples_iter {
-            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
-            edge_builder.push_update(time, src_id, dst_id)?;
-        }
-        vf_builder.finalise_empty_chunks()?;
-        edge_builder.finalise()?;
-        Ok(TempColGraphFragment {
-            chunk_size,
-            // sorted_gids: vf_builder.sorted_gids,
-            adj_out_chunks: vf_builder.adj_out_chunks,
-            edge_chunks: edge_builder.edge_chunks,
-        })
     }
 
     pub fn num_vertices(&self) -> usize {
