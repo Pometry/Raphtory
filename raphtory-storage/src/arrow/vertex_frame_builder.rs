@@ -13,9 +13,11 @@ use arrow2::{
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 
+use super::GID;
+
 pub struct VertexFrameBuilder {
     pub(crate) adj_out_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) sorted_gids: AHashMap<u64, u64>,            // the sorted global ids of the vertices
+    pub(crate) sorted_gids: AHashMap<GID, u64>,            // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -23,7 +25,7 @@ pub struct VertexFrameBuilder {
 
     chunk_size: usize,
     chunk_adj_out_offset: i64,
-    pub(crate) last_edge: Option<(u64, u64)>,
+    pub(crate) last_edge: Option<(GID, GID)>,
     last_dst_idx: usize,
     vertex_count: usize,
     e_id: u64,
@@ -73,7 +75,7 @@ impl VertexFrameBuilder {
         let schema = ArrowSchema::from(vec![ArrowField::new("adj_out", dtype, false)]);
         let file_path = self
             .location_path
-            .join(format!("adj_out_chunk_{}.ipc", self.adj_out_chunks.len()));
+            .join(format!("adj_out_chunk_{:08}.ipc", self.adj_out_chunks.len()));
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema, &chunk)?;
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
@@ -81,38 +83,53 @@ impl VertexFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn load_sources(&mut self, sources: impl IntoIterator<Item = u64>) {
+    pub(crate) fn load_sources<ID: Into<GID> + PartialEq>(
+        &mut self,
+        sources: impl IntoIterator<Item = ID>,
+    ) {
         self.sorted_gids.extend(
             sources
                 .into_iter()
                 .dedup()
                 .enumerate()
-                .map(|(id, gid)| (gid, id as u64)),
+                .map(|(id, gid)| (gid.into(), id as u64)),
         )
     }
 
-    fn find_or_push_vertex(&mut self, vertex: u64) -> usize {
+    fn find_or_push_vertex(&mut self, vertex: &GID) -> usize {
         let id = self.sorted_gids.len();
-        let id = self.sorted_gids.entry(vertex).or_insert(id as u64);
-        *id as usize
+        if let Some(id) = self.sorted_gids.get(vertex) {
+            return *id as usize;
+        } else {
+            self.sorted_gids.insert(vertex.clone(), id as u64);
+        }
+        id
     }
 
-    pub(crate) fn push_update(&mut self, src: u64, dst: u64) -> ArrowResult<(u64, u64)> {
+    pub(crate) fn push_update(&mut self, src: GID, dst: GID) -> ArrowResult<(u64, u64)> {
         if self
             .last_edge
+            .as_ref()
             .filter(|(prev_src, _)| prev_src != &src)
             .is_some()
             && (self.vertex_count + 1) % self.chunk_size == 0
         {
             self.push_chunk(self.chunk_size)?;
         }
-        if Some((src, dst)) != self.last_edge {
+
+        let same_edge = self
+            .last_edge
+            .as_ref()
+            .map(|(prev_src, prev_dst)| prev_src == &src && prev_dst == &dst)
+            .unwrap_or_default();
+
+        if !same_edge {
             self.adj_out_eid.push(self.e_id);
-            self.last_dst_idx = self.find_or_push_vertex(dst);
+            self.last_dst_idx = self.find_or_push_vertex(&dst);
             self.adj_out_dst.push(self.last_dst_idx as u64);
 
-            if let Some((prev_src, _)) = self.last_edge {
-                if prev_src != src {
+            if let Some((prev_src, _)) = self.last_edge.as_ref() {
+                if prev_src != &src {
                     self.adj_out_offsets.push(self.chunk_adj_out_offset);
                     self.vertex_count += 1;
                 }

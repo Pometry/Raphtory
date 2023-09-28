@@ -2,7 +2,7 @@ use raphtory::core::{entities::VID, Direction};
 use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
 
 fn main() {
-    let file = std::env::args()
+    let path = std::env::args()
         .nth(1)
         .expect("please supply a file to read");
 
@@ -20,19 +20,21 @@ fn main() {
         .nth(5)
         .expect("please supply a graph output directory");
 
-    let chunk_size = 65536;
+    let chunk_size = 1024;
 
     let now = std::time::Instant::now();
 
-    // let graph = TempColGraphFragment::from_sorted_parquet_edge_list(
-    //     file, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
-    // )
-    // .expect("failed to load graph");
-
-    let graph = TempColGraphFragment::from_sorted_parquet_dir_edge_list(
-        file, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
-    )
-    .expect("failed to load graph");
+    let graph = if std::fs::read_dir(path.clone()).is_ok() {
+        TempColGraphFragment::from_sorted_parquet_dir_edge_list(
+            path, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
+        )
+        .expect("failed to load graph")
+    } else {
+        TempColGraphFragment::from_sorted_parquet_edge_list(
+            path, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
+        )
+        .expect("failed to load graph")
+    };
 
     println!("loading time: {:?}", now.elapsed());
 

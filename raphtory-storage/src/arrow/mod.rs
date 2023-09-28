@@ -26,6 +26,8 @@ pub enum Error {
     IO(#[from] std::io::Error),
     #[error("Bad data type for vertex column: {0:?}")]
     DType(DataType),
+    #[error("Graph directory is not empty before loading")]
+    GraphDirNotEmpty
 }
 
 const FRAGMENT_ROW_COUNT: usize = 100_000;
@@ -48,6 +50,30 @@ pub(crate) const V_COLUMN: &str = "v";
 pub(crate) const E_COLUMN: &str = "e";
 
 type MPArr<T> = MutablePrimitiveArray<T>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum GID{
+    Num(u64),
+    Str(String),
+}
+
+impl From<u64> for GID {
+    fn from(id: u64) -> Self {
+        Self::Num(id)
+    }
+}
+
+impl From<String> for GID {
+    fn from(id: String) -> Self {
+        Self::Str(id)
+    }
+}
+
+impl From<&str> for GID {
+    fn from(id: &str) -> Self {
+        Self::Str(id.to_string())
+    }
+}
 
 #[repr(transparent)]
 struct MutEdgePair<'a>(&'a mut MutableStructArray);
