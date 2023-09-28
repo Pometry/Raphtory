@@ -1,6 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -11,6 +10,7 @@ use crate::{
         centrality::hits::hits as hits_rs,
         centrality::pagerank::unweighted_page_rank,
         community_detection::connected_components,
+        cores::k_core::{k_core as k_core_rs, k_core_set as k_core_set_rs},
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
@@ -33,6 +33,10 @@ use crate::{
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
+};
+use crate::{
+    core::entities::VID, db::graph::views::vertex_subgraph::VertexSubgraph,
+    python::graph::edge::PyDirection,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
