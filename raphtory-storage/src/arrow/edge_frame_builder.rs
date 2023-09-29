@@ -4,13 +4,15 @@ use crate::arrow::{
     DST_COLUMN, E_ADDITIONS_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
-    array::{Array, ListArray, PrimitiveArray},
+    array::{Array, ListArray, MutableArray, PrimitiveArray},
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
     offset::OffsetsBuffer,
 };
 use std::path::{Path, PathBuf};
+
+use super::{Error, LoadChunk};
 
 pub struct EdgeFrameBuilder {
     pub(crate) edge_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
@@ -19,6 +21,9 @@ pub struct EdgeFrameBuilder {
     edge_src_id: Vec<u64>,      // the src ids for the edge in the current chunk
     edge_dst_id: Vec<u64>,      // the dst ids for the edge in the current chunk
     edge_offsets: Vec<i64>,     // the offsets of the edge list for the current chunk
+
+    properties: Vec<Box<dyn MutableArray>>,
+    in_chunk_offset: usize, // where in the current chunk are we positioned?
 
     chunk_size: usize,
     chunk_offset: i64,
@@ -35,6 +40,8 @@ impl EdgeFrameBuilder {
             edge_src_id: vec![],
             edge_dst_id: vec![],
             edge_offsets: vec![],
+            properties: vec![],
+            in_chunk_offset: 0,
             chunk_size,
             chunk_offset: 0,
             last_update: None,
@@ -84,6 +91,57 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
+    pub(crate) fn append_columns(
+        &mut self,
+        sources: Vec<u64>,
+        destinations: Vec<u64>,
+        chunk: &LoadChunk,
+    ) -> Result<(), Error> {
+        for (src, dst) in sources.into_iter().zip(destinations.into_iter()) {
+            self.push_update_with_props(src, dst, &chunk)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn push_update_with_props(
+        &mut self,
+        src: u64,
+        dst: u64,
+        chunk: &LoadChunk,
+    ) -> Result<(), Error> {
+        if self
+            .last_update
+            .filter(|(prev_src, prev_dst)| prev_src != &src || prev_dst != &dst)
+            .is_some()
+            || self.last_update.is_none()
+        {
+            if (self.edge_count + 1) % self.chunk_size == 0 && self.last_update.is_some() {
+                self.push_chunk_v2(chunk)?;
+            }
+            self.edge_src_id.push(src);
+            self.edge_dst_id.push(dst);
+            self.edge_offsets.push(self.chunk_offset);
+            self.edge_count += 1;
+        }
+
+        self.chunk_offset += 1;
+        self.last_update = Some((src, dst));
+        Ok(())
+    }
+
+    pub(crate) fn push_chunk_v2(&mut self, load_chunk: &LoadChunk) -> ArrowResult<()> {
+        let mut arr = load_chunk.timestamp_arr().expect("failed to get timestamps");
+
+        let length = (self.chunk_offset as usize).min(arr.len());
+        arr.slice(self.in_chunk_offset, length);
+        self.in_chunk_offset += length;
+
+        let time_slice = arr.values();
+        self.edge_timestamps.extend_from_slice(time_slice);
+        self.push_chunk()?;
+        Ok(())
+    }
+
     pub(crate) fn push_update(&mut self, time: Time, src: u64, dst: u64) -> ArrowResult<()> {
         if self
             .last_update
@@ -109,6 +167,13 @@ impl EdgeFrameBuilder {
     pub(crate) fn finalise(&mut self) -> ArrowResult<()> {
         if self.last_update.is_some() {
             self.push_chunk()?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finalise_v2(&mut self, last_chunk: &LoadChunk) -> ArrowResult<()> {
+        if self.last_update.is_some() {
+            self.push_chunk_v2(last_chunk)?;
         }
         Ok(())
     }
