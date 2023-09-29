@@ -1,4 +1,4 @@
-use std::{io::BufReader, path::Path};
+use std::{io, io::BufReader, path::Path};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, mmap::mmap_batches,
@@ -12,10 +12,12 @@ use arrow2::{
     io::parquet::read,
 };
 use itertools::Itertools;
+use parking_lot::Mutex;
 use raphtory::core::{
     entities::{EID, VID},
     Direction,
 };
+use tempfile::{tempfile, tempfile_in};
 
 use super::GID;
 
@@ -27,6 +29,7 @@ pub struct TempColGraphFragment {
     // sorted_gids: Vec<u64>,
     adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
     edge_chunks: Vec<Chunk<Box<dyn Array>>>,
+    graph_dir: Box<Path>,
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
@@ -217,6 +220,7 @@ impl TempColGraphFragment {
             // sorted_gids: vf_builder.sorted_gids,
             adj_out_chunks: vf_builder.adj_out_chunks,
             edge_chunks: edge_builder.edge_chunks,
+            graph_dir: base_dir.as_ref().into(),
         })
     }
 
@@ -383,6 +387,16 @@ impl TempColGraphFragment {
 
     fn inbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
         todo!("inbound not done yet")
+    }
+
+    fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
+        let num_chunks = self.adj_out_chunks.len();
+        let tmp_files = (0..num_chunks)
+            .map(|_| tempfile_in(&self.graph_dir))
+            .collect::<Result<Vec<_>, io::Error>>()?;
+        let writers: Vec<_> = (0..num_chunks).map(|chunk_id| {}).collect();
+
+        todo!()
     }
 }
 
