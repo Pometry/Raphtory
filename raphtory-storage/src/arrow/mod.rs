@@ -35,10 +35,13 @@ const DST_COLUMN: &str = "dst";
 pub(crate) const V_COLUMN: &str = "v";
 pub(crate) const E_COLUMN: &str = "e";
 
-pub const ADJ_SCHEMA: DataType = DataType::Struct(vec![
-    Field::new(V_COLUMN, DataType::UInt64, false),
-    Field::new(E_COLUMN, DataType::UInt64, false),
-]);
+#[inline]
+pub fn adj_schema() -> DataType {
+    DataType::Struct(vec![
+        Field::new(V_COLUMN, DataType::UInt64, false),
+        Field::new(E_COLUMN, DataType::UInt64, false),
+    ])
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum GID {

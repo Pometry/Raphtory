@@ -1,6 +1,7 @@
 use crate::arrow::{
+    adj_schema,
     mmap::{mmap_batch, write_batches},
-    ADJ_SCHEMA, E_COLUMN, V_COLUMN,
+    E_COLUMN, V_COLUMN,
 };
 use ahash::AHashMap;
 use arrow2::{
@@ -175,7 +176,7 @@ fn new_arrow_adj_list_chunk(
     let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_dst));
     let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_eid));
 
-    let values = MutableStructArray::new(ADJ_SCHEMA, vec![dst_col, eid_col]);
+    let values = MutableStructArray::new(adj_schema(), vec![dst_col, eid_col]);
 
     let outbound2 = MutableListArray::new_from_mutable(
         values,
