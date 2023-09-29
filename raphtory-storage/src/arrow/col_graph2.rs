@@ -411,7 +411,11 @@ impl TempColGraphFragment {
 
     fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
         let num_chunks = self.outbound().len();
-        let tmp_schema = Schema::from(vec![Field::new("adj_in", adj_schema(), false)]);
+        let tmp_schema = Schema::from(vec![Field::new(
+            "adj_in",
+            <ListArray<i64>>::default_datatype(adj_schema()),
+            false,
+        )]);
         let options = WriteOptions { compression: None };
         let tmp_files = (0..num_chunks)
             .map(|_| tempfile_in(&self.graph_dir))
@@ -697,7 +701,7 @@ mod test {
 
         graph.build_inbound_adj_index().unwrap();
         let actual: Vec<_> = graph.edges(2.into(), Direction::IN).collect();
-        let expected = vec![(EID(1), VID(0)), (EID(3), VID(1))];
+        let expected = vec![(EID(1), VID(0)), (EID(2), VID(1))];
         assert_eq!(actual, expected);
 
         // check edges
