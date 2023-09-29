@@ -33,7 +33,7 @@ use raphtory::core::{
 use rayon::prelude::*;
 use tempfile::{tempfile, tempfile_in};
 
-use super::GID;
+use super::{array_as_id_iter, LoadChunk, GID};
 
 pub type Time = i64;
 
@@ -51,48 +51,6 @@ pub struct TempColGraphFragment {
     adj_in_chunks: Vec<Chunk<Box<dyn Array>>>,
     edge_chunks: Vec<Chunk<Box<dyn Array>>>,
     graph_dir: Box<Path>,
-}
-
-fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
-    match array.data_type() {
-        DataType::UInt64 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<PrimitiveArray<u64>>()
-                .unwrap()
-                .clone();
-            Ok(Box::new(array.into_iter().flatten().map(GID::U64)))
-        }
-        DataType::Int64 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap()
-                .clone();
-            Ok(Box::new(array.into_iter().flatten().map(GID::I64)))
-        }
-        DataType::Utf8 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<Utf8Array<i32>>()
-                .unwrap()
-                .clone();
-            Ok(Box::new(
-                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.into()),
-            ))
-        }
-        DataType::LargeUtf8 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<Utf8Array<i64>>()
-                .unwrap()
-                .clone();
-            Ok(Box::new(
-                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.into()),
-            ))
-        }
-        v => Err(Error::DType(v.clone())),
-    }
 }
 
 impl TempColGraphFragment {
@@ -160,11 +118,7 @@ impl TempColGraphFragment {
                     .filter(|ext| ext == &"parquet")
                     .is_some()
             })
-            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()))
-            .map(|file| {
-                println!("reading file: {:?}", file.path());
-                file
-            });
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
 
         let triplets_parquet_files2 = std::fs::read_dir(parquet_dir)?
             .map(|res| res.unwrap())
@@ -177,14 +131,11 @@ impl TempColGraphFragment {
             .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
 
         let srcs = srcs_parquet_files
-            .flat_map(|dir_entry| Self::read_file_sources(dir_entry.path(), src_col))
+            .flat_map(|dir_entry| read_file_sources(dir_entry.path(), src_col))
             .flatten();
 
         let triplets = triplets_parquet_files2
-            .flat_map(|dir_entry| {
-                println!("reading file: {:?}", dir_entry.path());
-                Self::read_file_triplets(dir_entry.path(), src_col, dst_col, time_col)
-            })
+            .flat_map(|dir_entry| read_file_triplets(dir_entry.path(), src_col, dst_col, time_col))
             .flatten();
 
         let out = Self::build_tables(graph_dir, chunk_size, srcs, triplets)?;
@@ -200,9 +151,26 @@ impl TempColGraphFragment {
         graph_dir: P2,
     ) -> Result<Self, Error> {
         Self::prepare_graph_dir(graph_dir.as_ref())?;
-        let srcs_iter = Self::read_file_sources(parquet_file.clone(), src_col)?;
+        let srcs_iter = read_file_sources(parquet_file.clone(), src_col)?;
 
-        let triplets = Self::read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
+        let chunks = read_file_chunks(parquet_file, src_col, dst_col, time_col, None)?;
+
+        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, srcs_iter, chunks)?;
+        Ok(out)
+    }
+
+    pub fn from_sorted_parquet_edge_list_v2<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
+        parquet_file: P,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        chunk_size: usize,
+        graph_dir: P2,
+    ) -> Result<Self, Error> {
+        Self::prepare_graph_dir(graph_dir.as_ref())?;
+        let srcs_iter = read_file_sources(parquet_file.clone(), src_col)?;
+
+        let triplets = read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
 
         let out = Self::build_tables(graph_dir, chunk_size, srcs_iter, triplets)?;
         Ok(out)
@@ -242,84 +210,58 @@ impl TempColGraphFragment {
         edge_builder.finalise()?;
         Ok(TempColGraphFragment {
             chunk_size,
+            adj_out_chunks: vf_builder.adj_out_chunks,
+            edge_chunks: edge_builder.edge_chunks,
+        })
+    }
+
+    fn build_tables_from_chunked<P: AsRef<Path>, ID: Into<GID> + PartialEq>(
+        base_dir: P,
+        chunk_size: usize,
+        source_iter: impl IntoIterator<Item = ID>,
+        chunks_iter: impl IntoIterator<Item = LoadChunk>,
+    ) -> Result<Self, Error> {
+        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
+
+        // initialise vertex global id table to preserve order
+        vf_builder.load_sources(source_iter);
+
+        let mut last_chunk = None;
+        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
+        for chunk in chunks_iter.into_iter() {
+            // get the source and destintion columns
+            let src_iter = chunk.sources()?;
+            let dst_iter = chunk.destinations()?;
+
+            let mut source_ids = Vec::with_capacity(chunk_size);
+            let mut destination_ids = Vec::with_capacity(chunk_size);
+
+            for (src, dst) in src_iter.zip(dst_iter) {
+                let (src_id, dst_id) = vf_builder.push_update(src.into(), dst.into())?;
+                source_ids.push(src_id);
+                destination_ids.push(dst_id);
+            }
+
+            edge_builder.append_columns(source_ids, destination_ids, &chunk)?;
+            last_chunk = Some(chunk);
+        }
+
+        vf_builder.finalise_empty_chunks()?;
+
+        // finalize edge_builder
+        if let Some(chunk) = last_chunk {
+            edge_builder.push_chunk_v2(&chunk)?;
+        }
+
+        Ok(TempColGraphFragment {
+            chunk_size,
             // sorted_gids: vf_builder.sorted_gids,
             adj_out_chunks: vf_builder.adj_out_chunks,
             adj_in_chunks: Vec::default(),
             edge_chunks: edge_builder.edge_chunks,
             graph_dir: base_dir.as_ref().into(),
         })
-    }
-
-    fn read_file_sources<P: AsRef<Path>>(
-        parquet_file: P,
-        src_col: &str,
-    ) -> Result<impl Iterator<Item = GID>, Error> {
-        let file = std::fs::File::open(&parquet_file)?;
-        let mut reader = BufReader::new(file);
-        let metadata = read::read_metadata(&mut reader)?;
-        let schema = read::infer_schema(&metadata)?;
-
-        let schema = schema.filter(|_, field| field.name == src_col);
-
-        let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-        Ok(reader
-            .flatten()
-            .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap()))
-    }
-
-    fn read_file_triplets<P: AsRef<Path>>(
-        parquet_file: P,
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-    ) -> Result<impl Iterator<Item = (GID, GID, i64)>, Error> {
-        let file = std::fs::File::open(&parquet_file)?;
-        let mut reader = BufReader::new(file);
-        let metadata = read::read_metadata(&mut reader)?;
-        let schema = read::infer_schema(&metadata)?;
-
-        let schema = schema.filter(|_, field| {
-            field.name == src_col || field.name == dst_col || field.name == time_col
-        });
-
-        let src_col_idx = schema
-            .fields
-            .iter()
-            .enumerate()
-            .find(|(_, f)| f.name == src_col)
-            .map(|(i, _)| i)
-            .unwrap();
-        let dst_col_idx = schema
-            .fields
-            .iter()
-            .enumerate()
-            .find(|(_, f)| f.name == dst_col)
-            .map(|(i, _)| i)
-            .unwrap();
-        let time_col_idx = schema
-            .fields
-            .iter()
-            .enumerate()
-            .find(|(_, f)| f.name == time_col)
-            .map(|(i, _)| i)
-            .unwrap();
-
-        let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-        let out = reader.flatten().flat_map(move |chunk| {
-            let srcs = array_as_id_iter(&chunk[src_col_idx]).unwrap();
-            let dsts = array_as_id_iter(&chunk[dst_col_idx]).unwrap();
-
-            let arr = &chunk[time_col_idx];
-            let times = arr
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap()
-                .clone();
-            srcs.zip(dsts)
-                .zip(times.into_iter().flatten())
-                .map(|((src, dst), time)| (src, dst, time))
-        });
-        Ok(out)
     }
 
     pub fn num_vertices(&self) -> usize {
@@ -572,6 +514,134 @@ fn row_from_start(
     (vertex_ids, edge_ids)
 }
 
+fn read_file_sources<P: AsRef<Path>>(
+    parquet_file: P,
+    src_col: &str,
+) -> Result<impl Iterator<Item = GID>, Error> {
+    let file = std::fs::File::open(&parquet_file)?;
+    let mut reader = BufReader::new(file);
+    let metadata = read::read_metadata(&mut reader)?;
+    let schema = read::infer_schema(&metadata)?;
+
+    let schema = schema.filter(|_, field| field.name == src_col);
+
+    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+    Ok(reader
+        .flatten()
+        .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap()))
+}
+
+fn read_file_chunks<P: AsRef<Path>>(
+    parquet_file: P,
+    src_col: &str,
+    dst_col: &str,
+    time_col: &str,
+    projection: Option<Vec<&str>>,
+) -> Result<impl Iterator<Item = LoadChunk>, Error> {
+    let file = std::fs::File::open(&parquet_file)?;
+    let mut reader = BufReader::new(file);
+    let metadata = read::read_metadata(&mut reader)?;
+    let schema = read::infer_schema(&metadata)?;
+
+    let schema = schema.filter(|_, field| {
+        field.name == src_col
+            || field.name == dst_col
+            || field.name == time_col
+            || projection.is_none()
+            || projection
+                .as_ref()
+                .filter(|proj| proj.contains(&field.name.as_str()))
+                .is_some()
+    });
+
+    let src_col_idx = schema
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, f)| f.name == src_col)
+        .map(|(i, _)| i)
+        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
+
+    let dst_col_idx = schema
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, f)| f.name == dst_col)
+        .map(|(i, _)| i)
+        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
+
+    let time_col_idx = schema
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, f)| f.name == time_col)
+        .map(|(i, _)| i)
+        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
+
+    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+    Ok(reader.flatten().map(move |chunk| LoadChunk {
+        data: chunk,
+        src_col_idx,
+        dst_col_idx,
+        time_col_idx,
+    }))
+}
+
+fn read_file_triplets<P: AsRef<Path>>(
+    parquet_file: P,
+    src_col: &str,
+    dst_col: &str,
+    time_col: &str,
+) -> Result<impl Iterator<Item = (GID, GID, i64)>, Error> {
+    let file = std::fs::File::open(&parquet_file)?;
+    let mut reader = BufReader::new(file);
+    let metadata = read::read_metadata(&mut reader)?;
+    let schema = read::infer_schema(&metadata)?;
+
+    let schema = schema.filter(|_, field| {
+        field.name == src_col || field.name == dst_col || field.name == time_col
+    });
+
+    let src_col_idx = schema
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, f)| f.name == src_col)
+        .map(|(i, _)| i)
+        .unwrap();
+    let dst_col_idx = schema
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, f)| f.name == dst_col)
+        .map(|(i, _)| i)
+        .unwrap();
+    let time_col_idx = schema
+        .fields
+        .iter()
+        .enumerate()
+        .find(|(_, f)| f.name == time_col)
+        .map(|(i, _)| i)
+        .unwrap();
+
+    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+    let out = reader.flatten().flat_map(move |chunk| {
+        let srcs = array_as_id_iter(&chunk[src_col_idx]).unwrap();
+        let dsts = array_as_id_iter(&chunk[dst_col_idx]).unwrap();
+
+        let arr = &chunk[time_col_idx];
+        let times = arr
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i64>>()
+            .unwrap()
+            .clone();
+        srcs.zip(dsts)
+            .zip(times.into_iter().flatten())
+            .map(|((src, dst), time)| (src, dst, time))
+    });
+    Ok(out)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -597,14 +667,19 @@ mod test {
     }
 
     #[test]
-    fn load_one_edge_from_sorted_adj_list_num_vertices_no_props() {
+    fn load_one_edge_from_sorted_adj_list_num_vertices_props() {
         let test_dir = TempDir::new().unwrap();
+        let srcs = PrimitiveArray::from_vec(vec![1u64]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![2u64]).boxed();
+        let time = PrimitiveArray::from_vec(vec![9i64]).boxed();
+        let weight = PrimitiveArray::from_vec(vec![3.14f64]).boxed();
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
 
-        let graph = TempColGraphFragment::build_tables(
+        let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
             vec![1u64],
-            vec![(1u64, 2u64, 9i64)],
+            vec![chunk],
         )
         .unwrap();
 
@@ -619,14 +694,20 @@ mod test {
     }
 
     #[test]
-    fn load_one_edge_from_sorted_adj_list_num_vertices_no_props_multiple_timestamps() {
+    fn load_one_edge_from_sorted_adj_list_num_vertices_multiple_timestamps() {
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::build_tables(
+        let srcs = PrimitiveArray::from_vec(vec![1u64, 1u64, 1u64]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![2u64, 2u64, 2u64]).boxed();
+        let time = PrimitiveArray::from_vec(vec![0i64, 3i64, 7i64]).boxed();
+        let weight = PrimitiveArray::from_vec(vec![1.14f64, 2.14f64, 3.14f64]).boxed();
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
             vec![1u64, 1u64, 1u64],
-            vec![(1u64, 2u64, 0i64), (1u64, 2u64, 3i64), (1u64, 2u64, 7i64)],
+            vec![chunk],
         )
         .unwrap();
 
@@ -641,29 +722,35 @@ mod test {
     }
 
     #[test]
-    fn load_muliple_sorted_edges_no_props() {
+    fn load_muliple_sorted_edges() {
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::build_tables(
+        let srcs = PrimitiveArray::from_vec(vec![
+            1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+        ])
+        .boxed();
+        let dsts = PrimitiveArray::from_vec(vec![
+            2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
+        ])
+        .boxed();
+        let time = PrimitiveArray::from_vec(vec![
+            0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
+        ])
+        .boxed();
+        let weight = PrimitiveArray::from_vec(vec![
+            1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64, 7.14f64, 8.14f64, 9.14f64,
+            10.14f64, 11.14f64, 12.14f64,
+        ])
+        .boxed();
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
             vec![
                 1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
             ],
-            vec![
-                (1u64, 2u64, 0i64),
-                (1u64, 3u64, 1i64),
-                (1u64, 4u64, 2i64),
-                (2u64, 3u64, 3i64),
-                (2u64, 4u64, 4i64),
-                (2u64, 5u64, 5i64),
-                (3u64, 4u64, 6i64),
-                (3u64, 5u64, 7i64),
-                (3u64, 6u64, 8i64),
-                (4u64, 5u64, 9i64),
-                (4u64, 6u64, 10i64),
-                (4u64, 7u64, 11i64),
-            ],
+            vec![chunk],
         )
         .unwrap();
 
@@ -694,18 +781,20 @@ mod test {
     fn load_muliple_sorted_edges_no_props_multiple_ts() {
         let test_dir = TempDir::new().unwrap();
 
-        let mut graph = TempColGraphFragment::build_tables(
+        let srcs = PrimitiveArray::from_vec(vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![2u64, 3u64, 3u64, 3u64, 4u64, 4u64]).boxed();
+        let time = PrimitiveArray::from_vec(vec![0i64, 1i64, 2i64, 3i64, 4i64, 5i64]).boxed();
+        let weight =
+            PrimitiveArray::from_vec(vec![1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64])
+                .boxed();
+
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let mut graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
-            1..=4,
-            vec![
-                (1u64, 2u64, 0i64),
-                (1u64, 3u64, 1i64),
-                (1u64, 3u64, 2i64),
-                (2u64, 3u64, 3i64),
-                (2u64, 4u64, 4i64),
-                (2u64, 4u64, 5i64),
-            ],
+            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            vec![chunk],
         )
         .unwrap();
 
