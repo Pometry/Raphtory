@@ -1,6 +1,6 @@
 use crate::arrow::{
     col_graph2::Time,
-    mmap::{mmap_batches, write_batches},
+    mmap::{mmap_batch, write_batches},
     DST_COLUMN, E_ADDITIONS_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
@@ -79,7 +79,7 @@ impl EdgeFrameBuilder {
             .location_path
             .join(format!("edge_chunk_{:08}.ipc", self.edge_chunks.len()));
         write_batches(file_path.as_path(), schema, &[chunk])?;
-        let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
+        let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
         self.edge_chunks.push(mmapped_chunk);
         Ok(())
     }

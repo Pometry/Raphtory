@@ -1,5 +1,5 @@
 use crate::arrow::{
-    mmap::{mmap_batches, write_batches},
+    mmap::{mmap_batch, write_batches},
     ADJ_SCHEMA, E_COLUMN, V_COLUMN,
 };
 use ahash::AHashMap;
@@ -79,7 +79,7 @@ impl VertexFrameBuilder {
         ));
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema, &chunk)?;
-        let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
+        let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
         self.adj_out_chunks.push(mmapped_chunk);
         Ok(())
     }

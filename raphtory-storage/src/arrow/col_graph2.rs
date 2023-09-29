@@ -1,17 +1,21 @@
 use std::{
     io,
     io::BufReader,
+    ops::Deref,
     path::Path,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crate::arrow::{
-    edge_frame_builder::EdgeFrameBuilder, mmap::mmap_batches,
-    vertex_frame_builder::VertexFrameBuilder, Error, ADJ_SCHEMA, E_COLUMN, V_COLUMN,
+    edge_frame_builder::EdgeFrameBuilder,
+    mmap::{mmap_batch, mmap_batches},
+    vertex_frame_builder::VertexFrameBuilder,
+    Error, ADJ_SCHEMA, E_COLUMN, V_COLUMN,
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
+    compute::concatenate::concatenate,
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
     io::{
@@ -43,6 +47,7 @@ pub struct TempColGraphFragment {
     chunk_size: usize,
     // sorted_gids: Vec<u64>,
     adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
+    adj_in_chunks: Vec<Chunk<Box<dyn Array>>>,
     edge_chunks: Vec<Chunk<Box<dyn Array>>>,
     graph_dir: Box<Path>,
 }
@@ -111,12 +116,12 @@ impl TempColGraphFragment {
 
         let edge_chunks = edges
             .into_iter()
-            .flat_map(|file_path| unsafe { mmap_batches(file_path.path(), 0) })
+            .flat_map(|file_path| unsafe { mmap_batch(file_path.path(), 0) })
             .collect_vec();
 
         let vertices_chunks = vertices
             .into_iter()
-            .flat_map(|file_path| unsafe { mmap_batches(file_path.path(), 0) })
+            .flat_map(|file_path| unsafe { mmap_batch(file_path.path(), 0) })
             .collect_vec();
 
         let chunk_size = &vertices_chunks[0][0].len();
@@ -124,6 +129,7 @@ impl TempColGraphFragment {
         Ok(Self {
             chunk_size: *chunk_size,
             adj_out_chunks: vertices_chunks,
+            adj_in_chunks: Vec::default(),
             edge_chunks,
             graph_dir: graph_dir.as_ref().into(),
         })
@@ -231,6 +237,7 @@ impl TempColGraphFragment {
             chunk_size,
             // sorted_gids: vf_builder.sorted_gids,
             adj_out_chunks: vf_builder.adj_out_chunks,
+            adj_in_chunks: Vec::default(),
             edge_chunks: edge_builder.edge_chunks,
             graph_dir: base_dir.as_ref().into(),
         })
@@ -509,7 +516,17 @@ impl TempColGraphFragment {
             return Err(error.into());
         }
 
-        todo!()
+        // combine the results
+        for f in tmp_files {
+            let chunks: Vec<_> = unsafe { mmap_batches(&f, 0..num_chunks)? }
+                .into_iter()
+                .flat_map(|chunk| chunk.into_arrays())
+                .collect();
+            let refs: Vec<_> = chunks.iter().map(|v| v.as_ref()).collect();
+            let res = concatenate(&refs)?;
+            self.adj_in_chunks.push(Chunk::new(vec![res]));
+        }
+        Ok(())
     }
 }
 
