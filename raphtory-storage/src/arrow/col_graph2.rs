@@ -1,27 +1,42 @@
-use std::{io, io::BufReader, path::Path};
+use std::{
+    io,
+    io::BufReader,
+    path::Path,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use crate::arrow::{
     edge_frame_builder::EdgeFrameBuilder, mmap::mmap_batches,
-    vertex_frame_builder::VertexFrameBuilder, Error,
+    vertex_frame_builder::VertexFrameBuilder, Error, ADJ_SCHEMA, E_COLUMN, V_COLUMN,
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
-    datatypes::DataType,
+    datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
-    io::parquet::read,
+    io::{
+        ipc::write::{FileWriter, WriteOptions},
+        parquet::read,
+    },
+    offset::OffsetsBuffer,
 };
 use itertools::Itertools;
-use parking_lot::Mutex;
 use raphtory::core::{
     entities::{EID, VID},
     Direction,
 };
+use rayon::prelude::*;
 use tempfile::{tempfile, tempfile_in};
 
 use super::GID;
 
 pub type Time = i64;
+
+// let fields = vec![
+//     ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
+//     ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
+// ];
+// let schema = ArrowDataType::Struct(fields);
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
@@ -75,12 +90,10 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GI
 }
 
 impl TempColGraphFragment {
-
-
     pub fn new<P: AsRef<Path>>(graph_dir: P) -> Result<Self, Error> {
         // iterate graph dir and split into two vectors of files edge_chunk_{j}.ipc and adj_out_chunk_{i}.ipc
 
-        let iter = std::fs::read_dir(graph_dir)?
+        let iter = std::fs::read_dir(&graph_dir)?
             .into_iter()
             .flatten()
             .filter(|dir_entry| {
@@ -112,6 +125,7 @@ impl TempColGraphFragment {
             chunk_size: *chunk_size,
             adj_out_chunks: vertices_chunks,
             edge_chunks,
+            graph_dir: graph_dir.as_ref().into(),
         })
     }
 
@@ -123,7 +137,6 @@ impl TempColGraphFragment {
         chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
-
         Self::prepare_graph_dir(graph_dir.as_ref())?;
 
         let srcs_parquet_files = std::fs::read_dir(parquet_dir.clone())?
@@ -173,7 +186,6 @@ impl TempColGraphFragment {
         chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
-
         Self::prepare_graph_dir(graph_dir.as_ref())?;
         let srcs_iter = Self::read_file_sources(parquet_file.clone(), src_col)?;
 
@@ -187,12 +199,12 @@ impl TempColGraphFragment {
         // create graph dir if it does not exist
         // if it exists make sure it's empty
         std::fs::create_dir_all(&graph_dir)?;
-        
+
         let mut dir_iter = std::fs::read_dir(&graph_dir)?;
         if dir_iter.next().is_some() {
             return Err(Error::GraphDirNotEmpty);
-        } 
-         
+        }
+
         return Ok(());
     }
 
@@ -390,14 +402,137 @@ impl TempColGraphFragment {
     }
 
     fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
-        let num_chunks = self.adj_out_chunks.len();
+        let num_chunks = self.outbound().len();
+        let tmp_schema = Schema::from(vec![Field::new("adj_in", ADJ_SCHEMA, false)]);
+        let options = WriteOptions { compression: None };
         let tmp_files = (0..num_chunks)
             .map(|_| tempfile_in(&self.graph_dir))
             .collect::<Result<Vec<_>, io::Error>>()?;
-        let writers: Vec<_> = (0..num_chunks).map(|chunk_id| {}).collect();
+        let mut writers: Vec<_> = tmp_files
+            .iter()
+            .map(|chunk_file| FileWriter::new(chunk_file, tmp_schema.clone(), None, options))
+            .collect();
+        if let Some(error) = writers
+            .par_iter_mut()
+            .find_map_any(|writer| writer.start().err())
+        {
+            return Err(error.into());
+        }
+
+        for outbound in self.outbound() {
+            // look at all outbound chunks sequentially
+            let outbound = outbound[0]
+                .as_any()
+                .downcast_ref::<ListArray<i64>>()
+                .unwrap();
+            let outbound_chunksize = outbound.len();
+            let mut progress = vec![0usize; outbound_chunksize]; // keeps track of how far we got for each list
+            for inbound_chunk_id in 0..num_chunks {
+                // build partial inbound chunk sequentially
+                let chunk_max_id = self.chunk_size * (inbound_chunk_id + 1); // id in this chunk less than this
+                let inbound_chunksize = self.outbound()[inbound_chunk_id].len();
+                // let offsets = vec![0i64; inbound_chunksize + 1];
+                let mut counts = Vec::with_capacity(inbound_chunksize);
+                counts.resize_with(inbound_chunksize, || AtomicUsize::new(0));
+                let new_progress: Vec<_> = progress
+                    .par_iter()
+                    .enumerate()
+                    .map(|(row, &start)| {
+                        let (vertex_ids, _) = row_from_start(outbound.value(row), start, None);
+                        let mut row_size = 0usize;
+                        for &id in vertex_ids.iter().flatten() {
+                            let id = id as usize;
+                            if id < chunk_max_id {
+                                counts[id % self.chunk_size].fetch_add(1, Ordering::Relaxed);
+                                row_size += 1;
+                            } else {
+                                break;
+                            }
+                        }
+                        row_size
+                    })
+                    .collect();
+                let mut offsets = Vec::with_capacity(inbound_chunksize + 1);
+                offsets.push(0i64);
+                let mut cum_sum = 0;
+                for v in counts {
+                    cum_sum += v.load(Ordering::Relaxed);
+                    offsets.push(cum_sum as i64);
+                }
+
+                // assemble the value vectors
+                let mut inbound_vids = vec![0u64; cum_sum];
+                let mut inbound_eids = vec![0u64; cum_sum];
+                let mut extra_offsets = vec![0usize; inbound_chunksize];
+
+                for (row, &start) in progress.iter().enumerate() {
+                    let (row_vertex_ids, row_edge_ids) =
+                        row_from_start(outbound.value(row), start, Some(new_progress[row]));
+                    // in principle we can do all these updates in parallel as they end up pointing at unique rows of the vector
+                    // this would require some careful unsafe code though
+                    for (&vid, &eid) in row_vertex_ids
+                        .iter()
+                        .flatten()
+                        .zip(row_edge_ids.iter().flatten())
+                    {
+                        let vid = vid as usize % self.chunk_size; //local index
+                        let insertion_point = offsets[vid] as usize + extra_offsets[vid];
+                        extra_offsets[vid] += 1;
+                        inbound_vids[insertion_point] = row as u64;
+                        inbound_eids[insertion_point] = eid;
+                    }
+                }
+
+                // assemble the array and write to file
+                let dtype = <ListArray<i64>>::default_datatype(ADJ_SCHEMA);
+                let offsets = OffsetsBuffer::try_from(offsets)?;
+                let vid_array = PrimitiveArray::from_vec(inbound_vids).boxed();
+                let eid_array = PrimitiveArray::from_vec(inbound_eids).boxed();
+                let values = StructArray::new(ADJ_SCHEMA, vec![vid_array, eid_array], None).boxed();
+
+                let inbound_array = ListArray::new(dtype, offsets, values, None).boxed();
+                writers[inbound_chunk_id].write(&Chunk::new(vec![inbound_array]), None)?;
+
+                // record the progress
+                progress
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(row, v)| *v += new_progress[row]);
+            }
+        }
+
+        // finalise the files
+        if let Some(error) = writers
+            .par_iter_mut()
+            .find_map_any(|writer| writer.finish().err())
+        {
+            return Err(error.into());
+        }
 
         todo!()
     }
+}
+
+#[inline]
+fn row_from_start(
+    row: Box<dyn Array>,
+    start: usize,
+    end: Option<usize>,
+) -> (PrimitiveArray<u64>, PrimitiveArray<u64>) {
+    let end = end.unwrap_or_else(|| row.len() - start);
+    let row = row.sliced(start, end);
+    let row = row.as_any().downcast_ref::<StructArray>().unwrap();
+    let vertex_ids = row.values()[0]
+        .as_any()
+        .downcast_ref::<PrimitiveArray<u64>>()
+        .unwrap()
+        .clone();
+    let edge_ids = row.values()[1]
+        .as_any()
+        .downcast_ref::<PrimitiveArray<u64>>()
+        .unwrap()
+        .clone();
+    (vertex_ids, edge_ids)
 }
 
 #[cfg(test)]
