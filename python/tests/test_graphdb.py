@@ -1126,13 +1126,13 @@ def test_edge_history():
 
     assert g.edge(1, 2).history() == [1, 3]
     assert view.edge(1, 4).history() == [4]
-    assert g.edges().history() == [[1, 3], [2], [4]]
-    assert view2.edges().history() == [[1, 3], [2]]
+    assert g.edges.history() == [[1, 3], [2], [4]]
+    assert view2.edges.history() == [[1, 3], [2]]
 
     old_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_way.append(e.history())
-    assert list(g.edges().history()) == old_way
+    assert list(g.edges.history()) == old_way
 
     assert g.vertices.edges.history().collect() == [
         [[1, 3], [2], [4]],
@@ -1395,8 +1395,8 @@ def test_layer_vertex():
         (1, 2),
         (2, 4),
     ]
-    assert sorted(g.layers(["layer1"]).edges().id) == [(1, 2), (2, 4)]
-    assert sorted(g.layers(["layer1", "layer2"]).edges().id) == [(1, 2), (2, 3), (2, 4)]
+    assert sorted(g.layers(["layer1"]).edges.id) == [(1, 2), (2, 4)]
+    assert sorted(g.layers(["layer1", "layer2"]).edges.id) == [(1, 2), (2, 3), (2, 4)]
 
 
 def test_rolling_as_iterable():
@@ -1618,9 +1618,9 @@ def test_materialize_graph():
     assert mg.vertex(1).history() == [-1, 0, 1, 2]
     assert mg.vertex(4).history() == [6, 8]
     assert mg.vertices.id.collect() == [1, 2, 3, 4]
-    assert set(mg.edges().id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
+    assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
     assert g.vertices.id.collect() == mg.vertices.id.collect()
-    assert set(g.edges().id) == set(mg.edges().id)
+    assert set(g.edges.id) == set(mg.edges.id)
     assert mg.vertex(1).properties.constant == {}
     assert mg.vertex(4).properties.constant == {"abc": "xyz"}
     assert g.edge(1, 2).id == (1, 2)
@@ -1665,7 +1665,7 @@ def test_load_from_pandas():
 
     assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
-    for e in g.edges():
+    for e in g.edges:
         weight = e["weight"]
         marbles = e["marbles"]
         edges.append((e.src.id, e.dst.id, weight, marbles))
@@ -1706,7 +1706,7 @@ def test_load_from_pandas_into_existing_graph():
 
     assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
-    for e in g.edges():
+    for e in g.edges:
         weight = e["weight"]
         marbles = e["marbles"]
         edges.append((e.src.id, e.dst.id, weight, marbles))
@@ -1767,7 +1767,7 @@ def test_load_from_pandas_vertices():
 
     assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
-    for e in g.edges():
+    for e in g.edges:
         weight = e["weight"]
         marbles = e["marbles"]
         edges.append((e.src.id, e.dst.id, weight, marbles))
@@ -1872,22 +1872,22 @@ def test_load_from_pandas_with_types():
         layer="test_layer",
     )
 
-    assert g.layers(["test_layer"]).edges().src.id.collect() == [1, 2, 3, 4, 5]
-    assert g.edges().properties.constant.get("type").collect() == [
+    assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
+    assert g.edges.properties.constant.get("type").collect() == [
         {"test_layer": "Edge"},
         {"test_layer": "Edge"},
         {"test_layer": "Edge"},
         {"test_layer": "Edge"},
         {"test_layer": "Edge"},
     ]
-    assert g.edges().properties.constant.get("tag").collect() == [
+    assert g.edges.properties.constant.get("tag").collect() == [
         {"test_layer": "test_tag"},
         {"test_layer": "test_tag"},
         {"test_layer": "test_tag"},
         {"test_layer": "test_tag"},
         {"test_layer": "test_tag"},
     ]
-    assert g.edges().properties.constant.get("marbles_const").collect() == [
+    assert g.edges.properties.constant.get("marbles_const").collect() == [
         {"test_layer": "red"},
         {"test_layer": "blue"},
         {"test_layer": "green"},
@@ -1899,14 +1899,14 @@ def test_load_from_pandas_with_types():
     g.load_edges_from_pandas(
         edges_df, "src", "dst", "time", ["weight", "marbles"], layer_in_df="layers"
     )
-    assert g.layers(["layer 1"]).edges().src.id.collect() == [1]
-    assert g.layers(["layer 1", "layer 2"]).edges().src.id.collect() == [1, 2]
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src.id.collect() == [
+    assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
+    assert g.layers(["layer 1", "layer 2"]).edges.src.id.collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.src.id.collect() == [
         1,
         2,
         3,
     ]
-    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src.id.collect() == [
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges.src.id.collect() == [
         1,
         4,
         5,
@@ -1932,7 +1932,7 @@ def test_load_from_pandas_with_types():
         "Person",
         "Person",
     ]
-    assert g.layers(["test_layer"]).edges().src.id.collect() == [1, 2, 3, 4, 5]
+    assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
 
     g = Graph.load_from_pandas(
         edges_df,
@@ -1954,14 +1954,14 @@ def test_load_from_pandas_with_types():
         "Person 5",
         "Person 6",
     ]
-    assert g.layers(["layer 1"]).edges().src.id.collect() == [1]
-    assert g.layers(["layer 1", "layer 2"]).edges().src.id.collect() == [1, 2]
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().src.id.collect() == [
+    assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
+    assert g.layers(["layer 1", "layer 2"]).edges.src.id.collect() == [1, 2]
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.src.id.collect() == [
         1,
         2,
         3,
     ]
-    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges().src.id.collect() == [
+    assert g.layers(["layer 1", "layer 4", "layer 5"]).edges.src.id.collect() == [
         1,
         4,
         5,
@@ -2008,10 +2008,10 @@ def test_load_from_pandas_with_types():
         shared_const_props={"tag": "test_tag"},
         layer_in_df="layers",
     )
-    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges().properties.constant.get(
+    assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
         "marbles_const"
     ).collect() == [{"layer 1": "red"}, {"layer 2": "blue"}, {"layer 3": "green"}]
-    assert g.edges().properties.constant.get("tag").collect() == [
+    assert g.edges.properties.constant.get("tag").collect() == [
         {"layer 1": "test_tag"},
         {"layer 2": "test_tag"},
         {"layer 3": "test_tag"},
@@ -2028,7 +2028,7 @@ def test_edge_layer():
     g.add_edge(1, 2, 3, layer="layer 2").add_constant_properties(
         {"test_prop": "test_val 2"}
     )
-    assert g.edges().properties.constant.get("test_prop") == [
+    assert g.edges.properties.constant.get("test_prop") == [
         {"layer 1": "test_val"},
         {"layer 2": "test_val 2"},
     ]
@@ -2126,30 +2126,30 @@ def test_start_end_edges():
     g.add_edge(3, 1, 2)
 
     old_start_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_start_way.append(e.start)
-    assert old_start_way == list(g.edges().start)
+    assert old_start_way == list(g.edges.start)
 
     old_end_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_end_way.append(e.end)
-    assert old_end_way == list(g.edges().end)
+    assert old_end_way == list(g.edges.end)
 
     old_time_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_time_way.append(e.time)
-    assert old_time_way == list(g.edges().time)
+    assert old_time_way == list(g.edges.time)
 
     old_latest_time_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_latest_time_way.append(e.latest_time)
 
-    assert old_latest_time_way == list(g.edges().latest_time)
+    assert old_latest_time_way == list(g.edges.latest_time)
 
     old_earliest_time_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_earliest_time_way.append(e.earliest_time)
-    assert old_earliest_time_way == list(g.edges().earliest_time)
+    assert old_earliest_time_way == list(g.edges.earliest_time)
 
     old_start_nested_way = []
     old_end_nested_way = []
@@ -2190,14 +2190,14 @@ def test_date_time_edges():
     g.add_edge("2014-02-05", 1, 2)
 
     old_start_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_start_way.append(e.start_date_time)
-    assert old_start_way == list(g.edges().start_date_time)
+    assert old_start_way == list(g.edges.start_date_time)
 
     old_end_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_end_way.append(e.end_date_time)
-    assert old_end_way == list(g.edges().end_date_time)
+    assert old_end_way == list(g.edges.end_date_time)
 
     old_date_way = []
     old_start_nested_way = []
@@ -2229,14 +2229,14 @@ def test_layer_edges():
     layer_names = ["layer 1", "layer 2", "layer 3"]
 
     old_layer_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_layer_way.append(e.layer("layer 1"))
-    assert old_layer_way == list(g.edges().layer("layer 1"))
+    assert old_layer_way == list(g.edges.layer("layer 1"))
 
     old_layers_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_layers_way.append(e.layers(layer_names))
-    assert old_layers_way == list(g.edges().layers(layer_names))
+    assert old_layers_way == list(g.edges.layers(layer_names))
 
 
 def test_window_edges():
@@ -2247,9 +2247,9 @@ def test_window_edges():
     g.add_edge(4, 1, 2)
 
     old_window_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_window_way.append(e.window(2, 3))
-    assert old_window_way == list(g.edges().window(2, 3))
+    assert old_window_way == list(g.edges.window(2, 3))
 
 
 def test_at_edges():
@@ -2260,9 +2260,9 @@ def test_at_edges():
     g.add_edge(4, 1, 2)
 
     old_at_way = []
-    for e in g.edges():
+    for e in g.edges:
         old_at_way.append(e.at(2))
-    assert old_at_way == list(g.edges().at(2))
+    assert old_at_way == list(g.edges.at(2))
 
 
 def test_time_exploded_edges():
@@ -2273,14 +2273,14 @@ def test_time_exploded_edges():
     g.add_edge(4, 1, 3)
 
     time = []
-    for e in g.edges().explode():
+    for e in g.edges.explode():
         time.append(e.time)
-    assert list(g.edges().explode().time) == time
+    assert list(g.edges.explode().time) == time
 
     date_time = []
-    for e in g.edges().explode():
+    for e in g.edges.explode():
         date_time.append(e.date_time)
-    assert list(g.edges().explode().date_time) == date_time
+    assert list(g.edges.explode().date_time) == date_time
 
     time_nested = []
     for edges in g.vertices.edges.explode():
