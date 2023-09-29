@@ -7,10 +7,11 @@ use std::{
 };
 
 use crate::arrow::{
+    adj_schema,
     edge_frame_builder::EdgeFrameBuilder,
     mmap::{mmap_batch, mmap_batches},
     vertex_frame_builder::VertexFrameBuilder,
-    Error, ADJ_SCHEMA, E_COLUMN, V_COLUMN,
+    Error, E_COLUMN, V_COLUMN,
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
@@ -405,12 +406,12 @@ impl TempColGraphFragment {
     }
 
     fn inbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
-        todo!("inbound not done yet")
+        &self.adj_in_chunks
     }
 
     fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
         let num_chunks = self.outbound().len();
-        let tmp_schema = Schema::from(vec![Field::new("adj_in", ADJ_SCHEMA, false)]);
+        let tmp_schema = Schema::from(vec![Field::new("adj_in", adj_schema(), false)]);
         let options = WriteOptions { compression: None };
         let tmp_files = (0..num_chunks)
             .map(|_| tempfile_in(&self.graph_dir))
@@ -491,11 +492,12 @@ impl TempColGraphFragment {
                 }
 
                 // assemble the array and write to file
-                let dtype = <ListArray<i64>>::default_datatype(ADJ_SCHEMA);
+                let dtype = <ListArray<i64>>::default_datatype(adj_schema());
                 let offsets = OffsetsBuffer::try_from(offsets)?;
                 let vid_array = PrimitiveArray::from_vec(inbound_vids).boxed();
                 let eid_array = PrimitiveArray::from_vec(inbound_eids).boxed();
-                let values = StructArray::new(ADJ_SCHEMA, vec![vid_array, eid_array], None).boxed();
+                let values =
+                    StructArray::new(adj_schema(), vec![vid_array, eid_array], None).boxed();
 
                 let inbound_array = ListArray::new(dtype, offsets, values, None).boxed();
                 writers[inbound_chunk_id].write(&Chunk::new(vec![inbound_array]), None)?;
@@ -674,10 +676,10 @@ mod test {
     fn load_muliple_sorted_edges_no_props_multiple_ts() {
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::build_tables(
+        let mut graph = TempColGraphFragment::build_tables(
             test_dir.path(),
             100,
-            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            1..=4,
             vec![
                 (1u64, 2u64, 0i64),
                 (1u64, 3u64, 1i64),
@@ -691,6 +693,11 @@ mod test {
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
+        assert_eq!(actual, expected);
+
+        graph.build_inbound_adj_index().unwrap();
+        let actual: Vec<_> = graph.edges(2.into(), Direction::IN).collect();
+        let expected = vec![(EID(1), VID(0)), (EID(3), VID(1))];
         assert_eq!(actual, expected);
 
         // check edges
