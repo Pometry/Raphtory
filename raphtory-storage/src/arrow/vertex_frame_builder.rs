@@ -1,6 +1,6 @@
 use crate::arrow::{
     mmap::{mmap_batches, write_batches},
-    E_COLUMN, V_COLUMN,
+    ADJ_SCHEMA, E_COLUMN, V_COLUMN,
 };
 use ahash::AHashMap;
 use arrow2::{
@@ -73,9 +73,10 @@ impl VertexFrameBuilder {
     fn persist_and_mmap_adj_chunk(&mut self, col: Box<dyn Array>) -> ArrowResult<()> {
         let dtype = col.data_type().clone();
         let schema = ArrowSchema::from(vec![ArrowField::new("adj_out", dtype, false)]);
-        let file_path = self
-            .location_path
-            .join(format!("adj_out_chunk_{:08}.ipc", self.adj_out_chunks.len()));
+        let file_path = self.location_path.join(format!(
+            "adj_out_chunk_{:08}.ipc",
+            self.adj_out_chunks.len()
+        ));
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema, &chunk)?;
         let mmapped_chunk = unsafe { mmap_batches(file_path.as_path(), 0)? };
@@ -171,16 +172,10 @@ fn new_arrow_adj_list_chunk(
     adj_out_eid: Vec<u64>,
     adj_out_offsets: Vec<i64>,
 ) -> Box<dyn Array> {
-    let fields = vec![
-        ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
-        ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
-    ];
-    let schema = ArrowDataType::Struct(fields);
-
     let dst_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_dst));
     let eid_col = Box::new(MutablePrimitiveArray::<u64>::from_vec(adj_out_eid));
 
-    let values = MutableStructArray::new(schema.clone(), vec![dst_col, eid_col]);
+    let values = MutableStructArray::new(ADJ_SCHEMA, vec![dst_col, eid_col]);
 
     let outbound2 = MutableListArray::new_from_mutable(
         values,

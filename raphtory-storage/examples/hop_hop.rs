@@ -1,12 +1,15 @@
 use raphtory::{
-    core::{entities::{VID, LayerIds}, Direction},
+    core::{
+        entities::{LayerIds, VID},
+        Direction,
+    },
     db::api::view::internal::{CoreGraphOps, GraphOps},
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
 };
 use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
-use serde::Deserialize;
 use rayon::prelude::*;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {
@@ -70,15 +73,18 @@ fn main() {
 
     let now = std::time::Instant::now();
 
-    let count:usize = (0..graph.num_vertices()).into_par_iter().map(|a| {
-        let mut count = 0;
-        for (_, b) in graph.edges(VID(a), Direction::OUT) {
-            for (_, _ ) in graph.edges(b, Direction::OUT) {
-                count +=1;
+    let count: usize = (0..graph.num_vertices())
+        .into_par_iter()
+        .map(|a| {
+            let mut count = 0;
+            for (_, b) in graph.edges(VID(a), Direction::OUT) {
+                for (_, _) in graph.edges(b, Direction::OUT) {
+                    count += 1;
+                }
             }
-        }
-        count
-    }).sum();
+            count
+        })
+        .sum();
 
     println!("Temporal Columnar graph");
     println!("2 Hop path count: {}", count);
@@ -86,15 +92,18 @@ fn main() {
 
     let now = std::time::Instant::now();
 
-    let count:usize = (0..rap_graph.count_vertices()).into_par_iter().map(|a| {
-        let mut count = 0;
-        for b in rap_graph.neighbours(VID(a), Direction::OUT, LayerIds::All, None) {
-            for _ in rap_graph.neighbours(b, Direction::OUT, LayerIds::All, None) {
-                count +=1;
+    let count: usize = (0..rap_graph.count_vertices())
+        .into_par_iter()
+        .map(|a| {
+            let mut count = 0;
+            for b in rap_graph.neighbours(VID(a), Direction::OUT, LayerIds::All, None) {
+                for _ in rap_graph.neighbours(b, Direction::OUT, LayerIds::All, None) {
+                    count += 1;
+                }
             }
-        }
-        count
-    }).sum();
+            count
+        })
+        .sum();
 
     println!("Raphtory graph");
     println!("2 Hop path count: {}", count);

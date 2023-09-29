@@ -1,6 +1,4 @@
-use arrow2::{
-    array:: MutablePrimitiveArray, datatypes::DataType
-};
+use arrow2::datatypes::{DataType, Field};
 
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
@@ -17,7 +15,7 @@ pub enum Error {
     #[error("Bad data type for vertex column: {0:?}")]
     DType(DataType),
     #[error("Graph directory is not empty before loading")]
-    GraphDirNotEmpty
+    GraphDirNotEmpty,
 }
 
 const OUTBOUND_COLUMN: &str = "outbound";
@@ -37,8 +35,13 @@ const DST_COLUMN: &str = "dst";
 pub(crate) const V_COLUMN: &str = "v";
 pub(crate) const E_COLUMN: &str = "e";
 
+pub const ADJ_SCHEMA: DataType = DataType::Struct(vec![
+    Field::new(V_COLUMN, DataType::UInt64, false),
+    Field::new(E_COLUMN, DataType::UInt64, false),
+]);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) enum GID{
+pub(crate) enum GID {
     U64(u64),
     I64(i64),
     Str(String),
