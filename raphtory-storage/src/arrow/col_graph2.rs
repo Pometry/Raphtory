@@ -100,37 +100,43 @@ impl TempColGraphFragment {
         // iterate graph dir and split into two vectors of files edge_chunk_{j}.ipc and adj_out_chunk_{i}.ipc
 
         let iter = std::fs::read_dir(&graph_dir)?
-            .into_iter()
             .flatten()
             .filter(|dir_entry| {
-                let file_name = dir_entry.file_name();
-                let file_name = file_name.to_str().unwrap();
-                file_name.starts_with("edge_chunk_") || file_name.starts_with("adj_out_chunk_")
+                dir_entry
+                    .file_name()
+                    .to_str()
+                    .map(|file_name| {
+                        file_name.starts_with("edge_chunk_")
+                            || file_name.starts_with("adj_out_chunk_")
+                            || file_name.starts_with("adj_in_chunk_")
+                    })
+                    .unwrap_or(false)
             })
             .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
 
-        let (edges, vertices): (Vec<_>, Vec<_>) = iter.partition(|dir_entry| {
-            let file_name = dir_entry.file_name();
-            let file_name = file_name.to_str().unwrap();
-            file_name.starts_with("edge_chunk_")
-        });
+        let mut adj_out_chunks = Vec::default();
+        let mut adj_in_chunks = Vec::default();
+        let mut edge_chunks = Vec::default();
+        for file_path in iter {
+            let file_name = file_path.file_name();
+            let file_name = file_name
+                .to_str()
+                .expect("file names are already filtered and thus valid");
+            if file_name.starts_with("edge_chunk_") {
+                edge_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
+            } else if file_name.starts_with("adj_in_chunk_") {
+                adj_in_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
+            } else if file_name.starts_with("adj_out_chunk_") {
+                adj_out_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
+            }
+        }
 
-        let edge_chunks = edges
-            .into_iter()
-            .flat_map(|file_path| unsafe { mmap_batch(file_path.path(), 0) })
-            .collect_vec();
-
-        let vertices_chunks = vertices
-            .into_iter()
-            .flat_map(|file_path| unsafe { mmap_batch(file_path.path(), 0) })
-            .collect_vec();
-
-        let chunk_size = &vertices_chunks[0][0].len();
+        let chunk_size = adj_out_chunks[0][0].len();
 
         Ok(Self {
-            chunk_size: *chunk_size,
-            adj_out_chunks: vertices_chunks,
-            adj_in_chunks: Vec::default(),
+            chunk_size,
+            adj_out_chunks,
+            adj_in_chunks,
             edge_chunks,
             graph_dir: graph_dir.as_ref().into(),
         })
