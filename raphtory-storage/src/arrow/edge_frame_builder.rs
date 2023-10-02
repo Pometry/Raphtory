@@ -91,23 +91,11 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn append_columns(
-        &mut self,
-        sources: Vec<u64>,
-        destinations: Vec<u64>,
-        chunk: &LoadChunk,
-    ) -> Result<(), Error> {
-        for (src, dst) in sources.into_iter().zip(destinations.into_iter()) {
-            self.push_update_with_props(src, dst, &chunk)?;
-        }
-        Ok(())
-    }
-
     pub(crate) fn push_update_with_props(
         &mut self,
         src: u64,
         dst: u64,
-        chunk: &LoadChunk,
+        chunk: &mut LoadChunk,
     ) -> Result<(), Error> {
         if self
             .last_update
@@ -124,20 +112,21 @@ impl EdgeFrameBuilder {
             self.edge_count += 1;
         }
 
+        self.in_chunk_offset += 1;
         self.chunk_offset += 1;
         self.last_update = Some((src, dst));
         Ok(())
     }
 
-    pub(crate) fn push_chunk_v2(&mut self, load_chunk: &LoadChunk) -> ArrowResult<()> {
-        let mut arr = load_chunk.timestamp_arr().expect("failed to get timestamps");
-
-        let length = (self.chunk_offset as usize).min(arr.len());
-        arr.slice(self.in_chunk_offset, length);
-        self.in_chunk_offset += length;
-
+    pub(crate) fn extend_time_slice(&mut self, arr: &PrimitiveArray<i64>){
         let time_slice = arr.values();
         self.edge_timestamps.extend_from_slice(time_slice);
+        self.in_chunk_offset = 0;
+    }
+
+    pub(crate) fn push_chunk_v2(&mut self, load_chunk: &mut LoadChunk) -> ArrowResult<()> {
+        let arr = load_chunk.split_timestamps_at(self.in_chunk_offset);
+        self.extend_time_slice(&arr);
         self.push_chunk()?;
         Ok(())
     }
@@ -171,7 +160,7 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn finalise_v2(&mut self, last_chunk: &LoadChunk) -> ArrowResult<()> {
+    pub(crate) fn finalise_v2(&mut self, last_chunk: &mut LoadChunk) -> ArrowResult<()> {
         if self.last_update.is_some() {
             self.push_chunk_v2(last_chunk)?;
         }

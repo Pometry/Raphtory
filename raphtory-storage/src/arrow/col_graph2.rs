@@ -14,7 +14,7 @@ use crate::arrow::{
     Error, E_COLUMN, V_COLUMN,
 };
 use arrow2::{
-    array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
+    array::{Array, ListArray, PrimitiveArray, StructArray},
     chunk::Chunk,
     compute::concatenate::concatenate,
     datatypes::{DataType, Field, Schema},
@@ -227,31 +227,32 @@ impl TempColGraphFragment {
         // initialise vertex global id table to preserve order
         vf_builder.load_sources(source_iter);
 
-        let mut last_chunk = None;
+        let mut last_chunk: Option<LoadChunk> = None;
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for chunk in chunks_iter.into_iter() {
+        for mut chunk in chunks_iter.into_iter() {
+            // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
+            if let Some(last_chunk) = last_chunk {
+                edge_builder.extend_time_slice(&last_chunk.timestamp_arr()?);
+            }
+
             // get the source and destintion columns
             let src_iter = chunk.sources()?;
             let dst_iter = chunk.destinations()?;
 
-            let mut source_ids = Vec::with_capacity(chunk_size);
-            let mut destination_ids = Vec::with_capacity(chunk_size);
-
             for (src, dst) in src_iter.zip(dst_iter) {
                 let (src_id, dst_id) = vf_builder.push_update(src.into(), dst.into())?;
-                source_ids.push(src_id);
-                destination_ids.push(dst_id);
+
+                edge_builder.push_update_with_props(src_id, dst_id, &mut chunk)?;
             }
 
-            edge_builder.append_columns(source_ids, destination_ids, &chunk)?;
             last_chunk = Some(chunk);
         }
 
         vf_builder.finalise_empty_chunks()?;
 
         // finalize edge_builder
-        if let Some(chunk) = last_chunk {
-            edge_builder.push_chunk_v2(&chunk)?;
+        if let Some(mut chunk) = last_chunk {
+            edge_builder.push_chunk_v2(&mut chunk)?;
         }
 
         Ok(TempColGraphFragment {
@@ -327,6 +328,46 @@ impl TempColGraphFragment {
             })
             .enumerate()
             .map(|(eid, (src, dst))| (EID(eid), VID(src as usize), VID(dst as usize)))
+    }
+
+    pub fn exploded_edges(&self) -> impl Iterator<Item = (EID, VID, VID, Time)> + '_ {
+        self.edge_chunks
+            .iter()
+            .flat_map(|chunk| {
+                let src = chunk[0]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                let dst = chunk[1]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap()
+                    .clone();
+                let time = chunk[2]
+                    .as_any()
+                    .downcast_ref::<ListArray<i64>>()
+                    .unwrap()
+                    .clone();
+
+                // TODO: make this a function
+                let time_into_iter =
+                    (0..time.len()).map(move |i| unsafe { time.value_unchecked(i) });
+                src.into_iter()
+                    .flatten()
+                    .zip(dst.into_iter().flatten())
+                    .zip(time_into_iter)
+            })
+            .enumerate()
+            .flat_map(|(eid, ((src, dst), time))| {
+                time.as_any()
+                    .downcast_ref::<PrimitiveArray<i64>>()
+                    .unwrap()
+                    .clone()
+                    .into_iter()
+                    .flatten()
+                    .map(move |time| (EID(eid), VID(src as usize), VID(dst as usize), time))
+            })
     }
 
     fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<StructArray> {
@@ -579,12 +620,9 @@ fn read_file_chunks<P: AsRef<Path>>(
         .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
 
     let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    Ok(reader.flatten().map(move |chunk| LoadChunk {
-        data: chunk,
-        src_col_idx,
-        dst_col_idx,
-        time_col_idx,
-    }))
+    Ok(reader
+        .flatten()
+        .map(move |chunk| LoadChunk::from_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx)))
 }
 
 fn read_file_triplets<P: AsRef<Path>>(
@@ -778,7 +816,7 @@ mod test {
     }
 
     #[test]
-    fn load_muliple_sorted_edges_no_props_multiple_ts() {
+    fn load_muliple_sorted_edges_multiple_ts() {
         let test_dir = TempDir::new().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]).boxed();
@@ -819,21 +857,66 @@ mod test {
     }
 
     #[test]
-    fn load_muliple_sorted_edges_no_props_multiple_ts_chunks_size_1() {
+    fn load_muliple_sorted_edges_multiple_ts_2_input_chunks() {
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::build_tables(
+        let srcs = PrimitiveArray::from_vec(vec![1u64, 1u64]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![2u64, 3u64]).boxed();
+        let time = PrimitiveArray::from_vec(vec![0i64, 1i64]).boxed();
+        let weight = PrimitiveArray::from_vec(vec![1.14f64, 2.14f64]).boxed();
+
+        let chunk1 = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let srcs = PrimitiveArray::from_vec(vec![1u64, 2u64, 2u64, 2u64]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![3u64, 3u64, 4u64, 4u64]).boxed();
+        let time = PrimitiveArray::from_vec(vec![2i64, 3i64, 4i64, 5i64]).boxed();
+        let weight = PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
+
+        let chunk2 = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let graph = TempColGraphFragment::build_tables_from_chunked(
+            test_dir.path(),
+            100,
+            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            vec![chunk1, chunk2],
+        )
+        .unwrap();
+
+        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
+        assert_eq!(actual, expected);
+
+        // check edges
+        let actual = graph.exploded_edges().collect::<Vec<_>>();
+        let expected = vec![
+            (EID(0), VID(0), VID(1), 0),
+            (EID(1), VID(0), VID(2), 1),
+            (EID(1), VID(0), VID(2), 2),
+            (EID(2), VID(1), VID(2), 3),
+            (EID(3), VID(1), VID(3), 4),
+            (EID(3), VID(1), VID(3), 5),
+        ];
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn load_muliple_sorted_edges_multiple_ts_chunks_size_1() {
+        let test_dir = TempDir::new().unwrap();
+
+        let srcs = PrimitiveArray::from_vec(vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![2u64, 3u64, 3u64, 3u64, 4u64, 4u64]).boxed();
+        let time = PrimitiveArray::from_vec(vec![0i64, 1i64, 2i64, 3i64, 4i64, 5i64]).boxed();
+        let weight =
+            PrimitiveArray::from_vec(vec![1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64])
+                .boxed();
+
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             1,
             vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
-            vec![
-                (1u64, 2u64, 0i64),
-                (1u64, 3u64, 1i64),
-                (1u64, 3u64, 2i64),
-                (2u64, 3u64, 3i64),
-                (2u64, 4u64, 4i64),
-                (2u64, 4u64, 5i64),
-            ],
+            vec![chunk],
         )
         .unwrap();
 
@@ -856,26 +939,36 @@ mod test {
     fn load_multiple_edges_across_chunks() {
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::build_tables(
+        let srcs = PrimitiveArray::from_vec(vec![
+            1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+        ])
+        .boxed();
+
+        let dsts = PrimitiveArray::from_vec(vec![
+            2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
+        ])
+        .boxed();
+
+        let time = PrimitiveArray::from_vec(vec![
+            0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
+        ])
+        .boxed();
+
+        let weight = PrimitiveArray::from_vec(vec![
+            1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64, 7.14f64, 8.14f64, 9.14f64,
+            10.14f64, 11.14f64, 12.14f64,
+        ])
+        .boxed();
+
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             2,
             vec![
                 1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
             ],
-            vec![
-                (1u64, 2u64, 0i64),
-                (1u64, 3u64, 1i64),
-                (1u64, 4u64, 2i64),
-                (2u64, 3u64, 3i64),
-                (2u64, 4u64, 4i64),
-                (2u64, 5u64, 5i64),
-                (3u64, 4u64, 6i64),
-                (3u64, 5u64, 7i64),
-                (3u64, 6u64, 8i64),
-                (4u64, 5u64, 9i64),
-                (4u64, 6u64, 10i64),
-                (4u64, 7u64, 11i64),
-            ],
+            vec![chunk],
         )
         .unwrap();
 
@@ -906,24 +999,34 @@ mod test {
     fn test_number_of_vertices() {
         let test_dir = TempDir::new().unwrap();
 
-        let graph = TempColGraphFragment::build_tables(
+        let srcs = PrimitiveArray::from_vec(vec![
+            1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
+        ])
+        .boxed();
+
+        let dsts = PrimitiveArray::from_vec(vec![
+            2u64, 3u64, 4u64, 3u64, 4u64, 5u64, 4u64, 5u64, 6u64, 5u64, 6u64, 7u64,
+        ])
+        .boxed();
+
+        let time = PrimitiveArray::from_vec(vec![
+            0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 8i64, 9i64, 10i64, 11i64,
+        ])
+        .boxed();
+
+        let weight = PrimitiveArray::from_vec(vec![
+            1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64, 7.14f64, 8.14f64, 9.14f64,
+            10.14f64, 11.14f64, 12.14f64,
+        ])
+        .boxed();
+
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+
+        let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             2,
             1u64..12u64,
-            vec![
-                (1u64, 2u64, 0i64),
-                (1u64, 3u64, 1i64),
-                (1u64, 4u64, 2i64),
-                (2u64, 3u64, 3i64),
-                (2u64, 4u64, 4i64),
-                (2u64, 5u64, 5i64),
-                (3u64, 4u64, 6i64),
-                (3u64, 5u64, 7i64),
-                (3u64, 6u64, 8i64),
-                (4u64, 5u64, 9i64),
-                (4u64, 6u64, 10i64),
-                (4u64, 7u64, 11i64),
-            ],
+            vec![chunk],
         )
         .unwrap();
         assert_eq!(graph.num_vertices(), 11);
