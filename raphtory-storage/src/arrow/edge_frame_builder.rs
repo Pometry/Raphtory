@@ -131,41 +131,6 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn push_update(&mut self, time: Time, src: u64, dst: u64) -> ArrowResult<()> {
-        if self
-            .last_update
-            .filter(|(prev_src, prev_dst)| prev_src != &src || prev_dst != &dst)
-            .is_some()
-            || self.last_update.is_none()
-        {
-            if (self.edge_count + 1) % self.chunk_size == 0 && self.last_update.is_some() {
-                self.push_chunk()?;
-            }
-            self.edge_src_id.push(src);
-            self.edge_dst_id.push(dst);
-            self.edge_offsets.push(self.chunk_offset);
-            self.edge_count += 1;
-        }
-
-        self.edge_timestamps.push(time);
-        self.chunk_offset += 1;
-        self.last_update = Some((src, dst));
-        Ok(())
-    }
-
-    pub(crate) fn finalise(&mut self) -> ArrowResult<()> {
-        if self.last_update.is_some() {
-            self.push_chunk()?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn finalise_v2(&mut self, last_chunk: &mut LoadChunk) -> ArrowResult<()> {
-        if self.last_update.is_some() {
-            self.push_chunk_v2(last_chunk)?;
-        }
-        Ok(())
-    }
 }
 
 fn new_arrow_edge_list_chunk(
