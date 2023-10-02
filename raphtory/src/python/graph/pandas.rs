@@ -748,7 +748,7 @@ mod test {
         };
         let graph = Graph::new();
         let layer: Option<&str> = None;
-        let layer_in_df: Option<&str> = None;
+        let layer_in_df: Option<bool> = Some(true);
         load_edges_from_df(
             &df,
             5,
@@ -759,7 +759,7 @@ mod test {
             None,
             None,
             layer,
-            layer_in_df,
+            layer_ien_df,
             &graph,
         )
         .expect("failed to load edges from pretend df");
