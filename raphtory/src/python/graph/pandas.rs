@@ -748,7 +748,7 @@ mod test {
         };
         let graph = Graph::new();
         let layer: Option<&str> = None;
-        let layer_in_df: Option<bool> = Some(true);
+        let layer_in_df: bool = true;
         load_edges_from_df(
             &df,
             5,
