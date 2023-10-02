@@ -1,6 +1,6 @@
 import math
 import sys
-
+import random
 import pandas as pd
 import pandas.core.frame
 import pytest
@@ -10,6 +10,7 @@ from raphtory import graph_loader
 import tempfile
 from math import isclose
 import datetime
+import string
 
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
 
@@ -827,6 +828,14 @@ def test_graph_time_api():
     w = g.window(2, 6)
     assert len(list(w.rolling(window=10, step=3))) == 2
 
+
+def test_save_missing_dir():
+    g = create_graph()
+    tmpdirname = tempfile.TemporaryDirectory()
+    inner_folder = ''.join(random.choice(string.ascii_letters) for _ in range(10))
+    graph_path = tmpdirname.name +"/"+inner_folder+"/test_graph.bin"
+    with pytest.raises(Exception):
+        g.save_to_file(graph_path)
 
 def test_save_load_graph():
     g = create_graph()
