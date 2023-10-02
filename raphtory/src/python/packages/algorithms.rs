@@ -8,6 +8,7 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
+        centrality::degree_centrality::degree_centrality as degree_centrality_rs,
         centrality::hits::hits as hits_rs,
         centrality::pagerank::unweighted_page_rank,
         community_detection::connected_components,
@@ -410,4 +411,23 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
+
+/// Computes the degree centrality of all vertices in the graph. The values are normalized
+/// by dividing each result with the maximum possible degree. Graphs with self-loops can have
+/// values of centrality greater than 1.
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+///
+/// Returns:
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated degree centrality.
+#[pyfunction]
+#[pyo3[signature = (g, threads=None)]]
+pub fn degree_centrality(
+    g: &PyGraphView,
+    threads: Option<usize>,
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+    degree_centrality_rs(&g.graph, threads)
 }

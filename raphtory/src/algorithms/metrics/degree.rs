@@ -43,6 +43,11 @@
 //!
 use crate::db::api::view::*;
 
+/// The maximum degree of any vertex in the graph
+pub fn max_degree<G: GraphViewOps>(graph: &G) -> usize {
+    graph.vertices().into_iter().degree().max().unwrap_or(0)
+}
+
 /// The maximum out degree of any vertex in the graph.
 pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> usize {
     let r: Vec<usize> = graph
@@ -103,7 +108,7 @@ pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
 mod degree_test {
     use crate::{
         algorithms::metrics::degree::{
-            average_degree, max_in_degree, min_in_degree, min_out_degree,
+            average_degree, max_degree, max_in_degree, min_in_degree, min_out_degree,
         },
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
@@ -142,10 +147,14 @@ mod degree_test {
         let expected_average_degree = 2.0;
         let actual_average_degree = average_degree(&g);
 
+        let expected_max_degree = 3;
+        let actual_max_degree = max_degree(&g);
+
         assert_eq!(expected_max_out_degree, actual_max_out_degree);
         assert_eq!(expected_max_in_degree, actual_max_in_degree);
         assert_eq!(expected_min_out_degree, actual_min_out_degree);
         assert_eq!(expected_min_in_degree, actual_min_in_degree);
         assert_eq!(expected_average_degree, actual_average_degree);
+        assert_eq!(expected_max_degree, actual_max_degree);
     }
 }
