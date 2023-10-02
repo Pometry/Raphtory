@@ -134,11 +134,13 @@ impl TempColGraphFragment {
             .flat_map(|dir_entry| read_file_sources(dir_entry.path(), src_col))
             .flatten();
 
-        let triplets = triplets_parquet_files2
-            .flat_map(|dir_entry| read_file_triplets(dir_entry.path(), src_col, dst_col, time_col))
+        let chunks = triplets_parquet_files2
+            .flat_map(|dir_entry| {
+                read_file_chunks(dir_entry.path(), src_col, dst_col, time_col, None)
+            })
             .flatten();
 
-        let out = Self::build_tables(graph_dir, chunk_size, srcs, triplets)?;
+        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, srcs, chunks)?;
         Ok(out)
     }
 
@@ -159,23 +161,6 @@ impl TempColGraphFragment {
         Ok(out)
     }
 
-    pub fn from_sorted_parquet_edge_list_v2<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
-        parquet_file: P,
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-        chunk_size: usize,
-        graph_dir: P2,
-    ) -> Result<Self, Error> {
-        Self::prepare_graph_dir(graph_dir.as_ref())?;
-        let srcs_iter = read_file_sources(parquet_file.clone(), src_col)?;
-
-        let triplets = read_file_triplets(parquet_file, src_col, dst_col, time_col)?;
-
-        let out = Self::build_tables(graph_dir, chunk_size, srcs_iter, triplets)?;
-        Ok(out)
-    }
-
     fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
         // create graph dir if it does not exist
         // if it exists make sure it's empty
@@ -187,32 +172,6 @@ impl TempColGraphFragment {
         }
 
         return Ok(());
-    }
-
-    fn build_tables<P: AsRef<Path>, ID: Into<GID> + PartialEq>(
-        base_dir: P,
-        chunk_size: usize,
-        source_iter: impl IntoIterator<Item = ID>,
-        tuples_iter: impl IntoIterator<Item = (ID, ID, i64)>,
-    ) -> ArrowResult<Self> {
-        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
-
-        // initialise vertex global id table to preserve order
-        vf_builder.load_sources(source_iter);
-
-        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for (src, dst, time) in tuples_iter {
-            let (src_id, dst_id) = vf_builder.push_update(src.into(), dst.into())?;
-            edge_builder.push_update(time, src_id, dst_id)?;
-        }
-        vf_builder.finalise_empty_chunks()?;
-        edge_builder.finalise()?;
-        Ok(TempColGraphFragment {
-            chunk_size,
-            adj_out_chunks: vf_builder.adj_out_chunks,
-            edge_chunks: edge_builder.edge_chunks,
-        })
     }
 
     fn build_tables_from_chunked<P: AsRef<Path>, ID: Into<GID> + PartialEq>(
@@ -623,61 +582,6 @@ fn read_file_chunks<P: AsRef<Path>>(
     Ok(reader
         .flatten()
         .map(move |chunk| LoadChunk::from_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx)))
-}
-
-fn read_file_triplets<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-    dst_col: &str,
-    time_col: &str,
-) -> Result<impl Iterator<Item = (GID, GID, i64)>, Error> {
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
-
-    let schema = schema.filter(|_, field| {
-        field.name == src_col || field.name == dst_col || field.name == time_col
-    });
-
-    let src_col_idx = schema
-        .fields
-        .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == src_col)
-        .map(|(i, _)| i)
-        .unwrap();
-    let dst_col_idx = schema
-        .fields
-        .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == dst_col)
-        .map(|(i, _)| i)
-        .unwrap();
-    let time_col_idx = schema
-        .fields
-        .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == time_col)
-        .map(|(i, _)| i)
-        .unwrap();
-
-    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    let out = reader.flatten().flat_map(move |chunk| {
-        let srcs = array_as_id_iter(&chunk[src_col_idx]).unwrap();
-        let dsts = array_as_id_iter(&chunk[dst_col_idx]).unwrap();
-
-        let arr = &chunk[time_col_idx];
-        let times = arr
-            .as_any()
-            .downcast_ref::<PrimitiveArray<i64>>()
-            .unwrap()
-            .clone();
-        srcs.zip(dsts)
-            .zip(times.into_iter().flatten())
-            .map(|((src, dst), time)| (src, dst, time))
-    });
-    Ok(out)
 }
 
 #[cfg(test)]
