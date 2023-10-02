@@ -287,19 +287,19 @@ impl PyEdge {
     /// Get a new Edge with the properties of this Edge within the specified time window.
     ///
     /// Arguments:
-    ///   t_start (int or str): The start time of the window (optional).
-    ///   t_end (int or str): The end time of the window (optional).
+    ///   start (int or str): The start time of the window (optional).
+    ///   end (int or str): The end time of the window (optional).
     ///
     /// Returns:
     ///   A new Edge with the properties of this Edge within the specified time window.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> EdgeView<WindowedGraph<DynamicGraph>> {
         self.edge
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
     /// Get a new Edge with the properties of this Edge within the specified layer.
     ///
@@ -803,22 +803,22 @@ impl PyEdges {
     /// Get edges with the properties of these edges within the specific time window.
     ///
     /// Arguments:
-    ///    t_start (int | str): The start time of the window (optional).
-    ///    t_end (int | str): The end time of the window (optional).
+    ///    start (int | str): The start time of the window (optional).
+    ///    end (int | str): The end time of the window (optional).
     ///
     /// Returns:
     ///  A list of edges with the properties of these edges within the specified time window.
-    #[pyo3(signature = (t_start = None, t_end = None))]
-    fn window(&self, t_start: Option<PyTime>, t_end: Option<PyTime>) -> PyEdges {
+    #[pyo3(signature = (start = None, end = None))]
+    fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> PyEdges {
         let builder = self.builder.clone();
 
         (move || {
-            let t_start = t_start.clone().unwrap_or(PyTime::MIN);
-            let t_end = t_end.clone().unwrap_or(PyTime::MAX);
+            let start = start.clone().unwrap_or(PyTime::MIN);
+            let end = end.clone().unwrap_or(PyTime::MAX);
             let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
                 Box::new(
                     builder()
-                        .map(move |e| e.window(t_start.clone(), t_end.clone()))
+                        .map(move |e| e.window(start.clone(), end.clone()))
                         .map(|e| <EdgeView<DynamicGraph>>::from(e)),
                 );
             box_builder
