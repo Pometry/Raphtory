@@ -26,11 +26,7 @@ use crate::{
 };
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
-pub(crate) fn edge_filter<G: GraphViewOps>(
-    graph: &G,
-    start: i64,
-    end: i64,
-) -> Option<EdgeFilter> {
+pub(crate) fn edge_filter<G: GraphViewOps>(graph: &G, start: i64, end: i64) -> Option<EdgeFilter> {
     graph.window(start, end).edge_filter().cloned()
 }
 

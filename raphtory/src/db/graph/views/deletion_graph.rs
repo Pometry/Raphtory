@@ -459,12 +459,7 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.has_temporal_prop_window(prop_id, w)
     }
 
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> Vec<(i64, Prop)> {
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
 

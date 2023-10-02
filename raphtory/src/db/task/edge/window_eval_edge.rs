@@ -208,26 +208,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.g
-            .temporal_edge_prop_vec_window(
-                self.ev,
-                id,
-                self.start,
-                self.end,
-                self.g.layer_ids(),
-            )
+            .temporal_edge_prop_vec_window(self.ev, id, self.start, self.end, self.g.layer_ids())
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.g
-            .temporal_edge_prop_vec_window(
-                self.ev,
-                id,
-                self.start,
-                self.end,
-                self.g.layer_ids(),
-            )
+            .temporal_edge_prop_vec_window(self.ev, id, self.start, self.end, self.g.layer_ids())
             .into_iter()
             .map(|(t, _)| t)
             .collect()
@@ -235,13 +223,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.g
-            .temporal_edge_prop_vec_window(
-                self.ev,
-                id,
-                self.start,
-                self.end,
-                self.g.layer_ids(),
-            )
+            .temporal_edge_prop_vec_window(self.ev, id, self.start, self.end, self.g.layer_ids())
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -381,22 +363,16 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
         self.eref().time_t().or_else(|| {
-            self.graph().edge_earliest_time_window(
-                self.eref(),
-                self.start..self.end,
-                LayerIds::All,
-            )
+            self.graph()
+                .edge_earliest_time_window(self.eref(), self.start..self.end, LayerIds::All)
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
         self.eref().time_t().or_else(|| {
-            self.graph().edge_latest_time_window(
-                self.eref(),
-                self.start..self.end,
-                LayerIds::All,
-            )
+            self.graph()
+                .edge_latest_time_window(self.eref(), self.start..self.end, LayerIds::All)
         })
     }
 }

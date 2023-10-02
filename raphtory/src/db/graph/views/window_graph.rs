@@ -96,11 +96,7 @@ impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
 impl<G: GraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
     pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
-            graph: self
-                .graph
-                .graph
-                .window(self.start, self.end)
-                .into_dynamic(),
+            graph: self.graph.graph.window(self.start, self.end).into_dynamic(),
             vertex_index: self.graph.vertex_index,
             edge_index: self.graph.edge_index,
             reader: self.graph.reader,
@@ -205,11 +201,8 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
 
     #[inline]
     fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph.vertex_earliest_time_window(
-            v,
-            self.actual_start(start),
-            self.actual_end(end),
-        )
+        self.graph
+            .vertex_earliest_time_window(v, self.actual_start(start), self.actual_end(end))
     }
 
     #[inline]
@@ -244,8 +237,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.graph
-            .vertex_history_window(v, self.start..self.end)
+        self.graph.vertex_history_window(v, self.start..self.end)
     }
 
     fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
@@ -358,17 +350,9 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
             .has_temporal_prop_window(prop_id, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(
-            prop_id,
-            self.actual_start(start),
-            self.actual_end(end),
-        )
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        self.graph
+            .temporal_prop_vec_window(prop_id, self.actual_start(start), self.actual_end(end))
     }
 
     fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
@@ -710,9 +694,9 @@ impl<G: GraphViewOps> WindowedGraph<G> {
             Some(f) => Arc::new(move |e, layers| {
                 f(e, layers) && filter_graph.include_edge_window(e, start..end, layers)
             }),
-            None => Arc::new(move |e, layers| {
-                filter_graph.include_edge_window(e, start..end, layers)
-            }),
+            None => {
+                Arc::new(move |e, layers| filter_graph.include_edge_window(e, start..end, layers))
+            }
         };
         WindowedGraph {
             graph,

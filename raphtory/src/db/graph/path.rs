@@ -43,11 +43,7 @@ impl Operations {
             Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
                 graph.neighbours(v, dir, layer_ids.clone(), edge_filter.as_ref())
             })),
-            Operations::NeighboursWindow {
-                dir,
-                start,
-                end,
-            } => {
+            Operations::NeighboursWindow { dir, start, end } => {
                 let graph1 = graph.clone();
                 let filter = Some(extend_filter(edge_filter, move |e, l| {
                     graph1.include_edge_window(e, start..end, l)
@@ -262,11 +258,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
 
     pub fn neighbours_window(&self, dir: Direction, start: i64, end: i64) -> Self {
         let mut new_ops = (*self.operations).clone();
-        new_ops.push(Operations::NeighboursWindow {
-            dir,
-            start,
-            end,
-        });
+        new_ops.push(Operations::NeighboursWindow { dir, start, end });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,

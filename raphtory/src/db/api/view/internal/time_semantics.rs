@@ -182,12 +182,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> Vec<(i64, Prop)>;
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)>;
 
     /// Check if vertex has temporal property with the given id
     ///
@@ -490,14 +485,8 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        start: i64,
-        end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph()
-            .temporal_prop_vec_window(prop_id, start, end)
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        self.graph().temporal_prop_vec_window(prop_id, start, end)
     }
 
     #[inline]

@@ -452,11 +452,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(move |e| e.at(new_time)))
     }
 
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
@@ -550,11 +546,7 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(move |e| e.at(new_time)))
     }
 
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
