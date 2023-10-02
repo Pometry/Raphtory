@@ -759,7 +759,7 @@ mod test {
             None,
             None,
             layer,
-            layer_ien_df,
+            layer_in_df,
             &graph,
         )
         .expect("failed to load edges from pretend df");
