@@ -171,6 +171,9 @@ macro_rules! py_algorithm_result_ord_hash_eq {
     };
 }
 
+py_algorithm_result!(AlgorithmResult, String, String);
+py_algorithm_result_ord_hash_eq!(AlgorithmResult, String, String);
+
 py_algorithm_result!(AlgorithmResultStrU64, String, u64);
 py_algorithm_result_ord_hash_eq!(AlgorithmResultStrU64, String, u64);
 

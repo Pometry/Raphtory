@@ -11,7 +11,6 @@ methods.
    core/index
    algorithms/index
    export/index
-   visualisation/index
    nullmodels/index
    graphql/index
    graphgen/index
