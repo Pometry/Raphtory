@@ -9,7 +9,7 @@ use std::{
 use crate::arrow::{
     adj_schema,
     edge_frame_builder::EdgeFrameBuilder,
-    mmap::{mmap_batch, mmap_batches},
+    mmap::{mmap_batch, mmap_batches, write_batches},
     vertex_frame_builder::VertexFrameBuilder,
     Error, E_COLUMN, V_COLUMN,
 };
@@ -530,7 +530,15 @@ impl TempColGraphFragment {
                 .collect();
             let refs: Vec<_> = chunks.iter().map(|v| v.as_ref()).collect();
             let res = concatenate(&refs)?;
-            self.adj_in_chunks.push(Chunk::new(vec![res]));
+            let dtype = res.data_type().clone();
+            let schema = Schema::from(vec![Field::new("adj_in", dtype, false)]);
+            let file_path = self
+                .graph_dir
+                .join(format!("adj_in_chunk_{:08}.ipc", self.adj_in_chunks.len()));
+            let chunk = [Chunk::try_new(vec![res])?];
+            write_batches(file_path.as_path(), schema, &chunk)?;
+            let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
+            self.adj_in_chunks.push(mmapped_chunk);
         }
         Ok(())
     }
