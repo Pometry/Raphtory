@@ -1755,13 +1755,13 @@ def test_load_from_pandas_vertices():
 
     g = Graph.load_from_pandas(
         edges_df,
-        src="src",
-        dst="dst",
-        time="time",
-        props=["weight", "marbles"],
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_props=["weight", "marbles"],
         vertex_df=vertices_df,
-        vertex_col="id",
-        vertex_time_col="time",
+        vertex_id="id",
+        vertex_time="time",
         vertex_props=["name"],
     )
 
@@ -1870,6 +1870,7 @@ def test_load_from_pandas_with_types():
         const_props=["marbles_const"],
         shared_const_props={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
+        layer_in_df=False
     )
 
     assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
@@ -1897,7 +1898,7 @@ def test_load_from_pandas_with_types():
 
     g = Graph()
     g.load_edges_from_pandas(
-        edges_df, "src", "dst", "time", ["weight", "marbles"], layer_in_df="layers"
+        edges_df, "src", "dst", "time", ["weight", "marbles"], layer="layers"
     )
     assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
     assert g.layers(["layer 1", "layer 2"]).edges.src.id.collect() == [1, 2]
@@ -1917,10 +1918,11 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         "time",
-        layer="test_layer",
+        edge_layer="test_layer",
+        layer_in_df=False,
         vertex_df=vertices_df,
-        vertex_col="id",
-        vertex_time_col="time",
+        vertex_id="id",
+        vertex_time="time",
         vertex_props=["name"],
         vertex_shared_const_props={"type": "Person"},
     )
@@ -1939,10 +1941,10 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         "time",
-        layer_in_df="layers",
+        edge_layer="layers",
         vertex_df=vertices_df,
-        vertex_col="id",
-        vertex_time_col="time",
+        vertex_id="id",
+        vertex_time="time",
         vertex_props=["name"],
         vertex_const_props=["type"],
     )
@@ -1969,15 +1971,15 @@ def test_load_from_pandas_with_types():
 
     g = Graph.load_from_pandas(
         edges_df,
-        src="src",
-        dst="dst",
-        time="time",
-        props=["weight", "marbles"],
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_props=["weight", "marbles"],
         vertex_df=vertices_df,
-        vertex_col="id",
-        vertex_time_col="time",
+        vertex_id="id",
+        vertex_time="time",
         vertex_props=["name"],
-        layer_in_df="layers",
+        edge_layer="layers",
     )
 
     g.load_vertex_props_from_pandas(
@@ -2006,7 +2008,7 @@ def test_load_from_pandas_with_types():
         "dst",
         const_props=["marbles_const"],
         shared_const_props={"tag": "test_tag"},
-        layer_in_df="layers",
+        layer="layers",
     )
     assert g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
         "marbles_const"
