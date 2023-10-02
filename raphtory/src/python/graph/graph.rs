@@ -253,8 +253,6 @@ impl PyGraph {
         Ok(PyBytes::new(py, &bytes))
     }
 
-
-
     /// Load a graph from a Pandas DataFrame.
     ///
     /// Args:
@@ -462,15 +460,8 @@ impl PyGraph {
                 )?
                 .extract()?;
             let df = process_pandas_py_df(df, py, size)?;
-            load_vertex_props_from_df(
-                &df,
-                size,
-                id,
-                const_props,
-                shared_const_props,
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            load_vertex_props_from_df(&df, size, id, const_props, shared_const_props, graph)
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
