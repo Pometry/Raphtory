@@ -520,7 +520,7 @@ fn lift_layer<'a, S: AsRef<str>>(
     df: &'a PretendDF,
 ) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
     if let Some(layer) = layer {
-        if (layer_in_df) {
+        if layer_in_df {
             if let Some(col) = df.utf8::<i32>(layer.as_ref()) {
                 Box::new(col.map(|v| v.map(|v| v.to_string())))
             } else if let Some(col) = df.utf8::<i64>(layer.as_ref()) {

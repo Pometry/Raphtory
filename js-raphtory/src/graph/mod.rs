@@ -73,14 +73,14 @@ impl Graph {
                 Graph(UnderGraph::WindowedGraph(Arc::new(g.window(start, end))))
             }
             UnderGraph::WindowedGraph(g) => {
-                // take the largest of g.start() and t_start
-                // and the smallest of g.end and t_end
+                // take the largest of g.start() and start
+                // and the smallest of g.end and end
                 // and apply the window to the parent graph
-                let t_start = std::cmp::max(g.start(), Some(start));
-                let t_end = std::cmp::min(g.end(), Some(end));
+                let start = std::cmp::max(g.start(), Some(start));
+                let end = std::cmp::min(g.end(), Some(end));
 
                 Graph(UnderGraph::WindowedGraph(Arc::new(
-                    g.graph.window(t_start.unwrap(), t_end.unwrap()),
+                    g.graph.window(start.unwrap(), end.unwrap()),
                 )))
             }
         }

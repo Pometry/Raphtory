@@ -3,6 +3,7 @@ use chrono::{DateTime, Duration, Months, NaiveDate, NaiveDateTime, TimeZone};
 use itertools::{Either, Itertools};
 use regex::Regex;
 use std::ops::{Add, Sub};
+use crate::core::utils::time::error::ParseTimeError::InvalidDateTimeString;
 
 pub mod error {
     use chrono::ParseError;
@@ -25,6 +26,8 @@ pub mod error {
         ParseError(#[from] ParseError),
         #[error("negative interval is not supported")]
         NegativeInt,
+        #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
+        InvalidDateTimeString(String),
     }
 }
 
@@ -99,7 +102,7 @@ impl TryIntoTime for &str {
             return Ok(datetime.timestamp_millis());
         }
 
-        Err(rfc_result.unwrap_err().into())
+        Err(InvalidDateTimeString(self.to_string()))
     }
 }
 

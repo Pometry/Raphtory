@@ -11,7 +11,6 @@ use crate::{
         centrality::hits::hits as hits_rs,
         centrality::pagerank::unweighted_page_rank,
         community_detection::connected_components,
-        cores::k_core::{k_core as k_core_rs, k_core_set as k_core_set_rs},
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,

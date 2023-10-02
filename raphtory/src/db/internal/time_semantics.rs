@@ -42,41 +42,41 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.inner().graph_latest_time()
     }
 
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .storage
             .nodes
             .read_lock()
             .into_par_iter()
-            .flat_map(|v| v.timestamps().range(t_start..t_end).first_t())
+            .flat_map(|v| v.timestamps().range(start..end).first_t())
             .min()
     }
 
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .storage
             .nodes
             .read_lock()
             .into_par_iter()
-            .flat_map(|v| v.timestamps().range(t_start..t_end).last_t())
+            .flat_map(|v| v.timestamps().range(start..end).last_t())
             .max()
     }
 
-    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
+    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
             .timestamps()
-            .range(t_start..t_end)
+            .range(start..end)
             .first_t()
     }
 
-    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
             .timestamps()
-            .range(t_start..t_end)
+            .range(start..end)
             .last_t()
     }
 
@@ -239,12 +239,12 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn temporal_prop_vec_window(
         &self,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
         self.inner()
             .get_temporal_prop(prop_id)
-            .map(|prop| prop.iter_window_t(t_start..t_end).collect())
+            .map(|prop| prop.iter_window_t(start..end).collect())
             .unwrap_or_default()
     }
 
@@ -272,12 +272,12 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         &self,
         v: VID,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
         self.inner()
             .vertex(v)
-            .temporal_properties(prop_id, Some(t_start..t_end))
+            .temporal_properties(prop_id, Some(start..end))
             .collect()
     }
 
@@ -296,20 +296,20 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.temporal_edge_prop(e, prop_id, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => {
-                    if *t.t() >= t_start && *t.t() < t_end {
+                    if *t.t() >= start && *t.t() < end {
                         p.at(&t).map(|v| vec![(*t.t(), v)]).unwrap_or_default()
                     } else {
                         vec![]
                     }
                 }
-                None => p.iter_window(t_start..t_end).collect(),
+                None => p.iter_window(start..end).collect(),
             })
             .unwrap_or_default()
     }

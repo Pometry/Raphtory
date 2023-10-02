@@ -927,14 +927,14 @@ def test_all_degrees_window():
     view = g.at(4)
     v = view.vertex(2)
     assert v.window(0, 4).in_degree() == 3
-    assert v.window(t_start=2).in_degree() == 2
-    assert v.window(t_end=3).in_degree() == 2
+    assert v.window(start=2).in_degree() == 2
+    assert v.window(end=3).in_degree() == 2
     assert v.window(0, 4).out_degree() == 1
-    assert v.window(t_start=2).out_degree() == 1
-    assert v.window(t_end=3).out_degree() == 1
+    assert v.window(start=2).out_degree() == 1
+    assert v.window(end=3).out_degree() == 1
     assert v.window(0, 4).degree() == 3
-    assert v.window(t_start=2).degree() == 2
-    assert v.window(t_end=3).degree() == 2
+    assert v.window(start=2).degree() == 2
+    assert v.window(end=3).degree() == 2
 
 
 def test_all_edge_window():
@@ -950,24 +950,24 @@ def test_all_edge_window():
     view = g.at(4)
     v = view.vertex(2)
     assert sorted(v.window(0, 4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.window(t_end=4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.window(t_start=2).in_edges.src.id) == [3, 4]
+    assert sorted(v.window(end=4).in_edges.src.id) == [1, 3, 4]
+    assert sorted(v.window(start=2).in_edges.src.id) == [3, 4]
     assert sorted(v.window(0, 4).out_edges.dst.id) == [3]
-    assert sorted(v.window(t_end=3).out_edges.dst.id) == [3]
-    assert sorted(v.window(t_start=2).out_edges.dst.id) == [4]
+    assert sorted(v.window(end=3).out_edges.dst.id) == [3]
+    assert sorted(v.window(start=2).out_edges.dst.id) == [4]
     assert sorted((e.src.id, e.dst.id) for e in v.window(0, 4).edges) == [
         (1, 2),
         (2, 3),
         (3, 2),
         (4, 2),
     ]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(t_end=4).edges) == [
+    assert sorted((e.src.id, e.dst.id) for e in v.window(end=4).edges) == [
         (1, 2),
         (2, 3),
         (3, 2),
         (4, 2),
     ]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(t_start=1).edges) == [
+    assert sorted((e.src.id, e.dst.id) for e in v.window(start=1).edges) == [
         (1, 2),
         (2, 3),
         (2, 4),
@@ -1747,7 +1747,7 @@ def test_balance_algorithm():
     assert result == {"1": -32.0, "2": -5.0, "3": -3.0, "4": -15.0, "5": 0.0}
 
 
-def test_start_end_edges():
+def test_starend_edges():
     g = Graph()
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 2)
@@ -1878,6 +1878,14 @@ def test_window_edges():
     for e in g.edges:
         old_window_way.append(e.window(2, 3))
     assert old_window_way == list(g.edges.window(2, 3))
+
+def test_weird_windows():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    with pytest.raises(Exception, match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%"):
+        g.window("ddd","aaa")
+
+
 
 
 def test_at_edges():

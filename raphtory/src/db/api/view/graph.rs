@@ -245,8 +245,8 @@ impl<G: GraphViewOps> TimeOps for G {
         self.view_end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> WindowedGraph<Self> {
-        WindowedGraph::new(self.clone(), t_start, t_end)
+    fn window<T: IntoTime>(&self, start: T, end: T) -> WindowedGraph<Self> {
+        WindowedGraph::new(self.clone(), start, end)
     }
 }
 

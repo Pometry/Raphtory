@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::model::{
     filters::{
         primitive_filter::{NumberFilter, StringFilter, StringVecFilter},

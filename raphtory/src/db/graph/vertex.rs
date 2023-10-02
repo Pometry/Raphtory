@@ -278,9 +278,9 @@ impl<G: GraphViewOps> TimeOps for VertexView<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         VertexView {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
             vertex: self.vertex,
         }
     }

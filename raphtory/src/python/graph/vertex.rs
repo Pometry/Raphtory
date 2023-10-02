@@ -339,7 +339,7 @@ impl PyVertex {
         self.vertex.rolling(window, step)
     }
 
-    /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create a view of the vertex including all events between `start` (inclusive) and `end` (exclusive)
     ///
     /// Arguments:
     ///     start (int, str or datetime(utc)): The start time of the window. Defaults to the start time of the vertex.
@@ -736,8 +736,8 @@ impl PyVertices {
         self.vertices.rolling(window, step)
     }
 
-    /// Create a view of the vertices including all events between t_start (inclusive) and
-    /// t_end (exclusive)
+    /// Create a view of the vertices including all events between start (inclusive) and
+    /// end (exclusive)
     ///
     /// Arguments:
     ///     start (int, str or datetime(utc)): The start time of the window (inclusive)
