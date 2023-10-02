@@ -69,9 +69,9 @@ impl Graph {
     #[wasm_bindgen(js_name = window)]
     pub fn window(&self, start: i64, end: i64) -> Self {
         match &self.0 {
-            UnderGraph::TGraph(g) => Graph(UnderGraph::WindowedGraph(Arc::new(
-                g.window(start, end),
-            ))),
+            UnderGraph::TGraph(g) => {
+                Graph(UnderGraph::WindowedGraph(Arc::new(g.window(start, end))))
+            }
             UnderGraph::WindowedGraph(g) => {
                 // take the largest of g.start() and t_start
                 // and the smallest of g.end and t_end
