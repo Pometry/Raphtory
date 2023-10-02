@@ -1,4 +1,5 @@
-use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use crate::{core::ArcStr, db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
@@ -69,7 +70,32 @@ py_iterable!(BoolIterable, bool);
 py_nested_iterable!(NestedBoolIterable, bool);
 
 py_iterable!(StringIterable, String);
+py_iterable!(OptionArcStringIterable, Option<ArcStr>);
+py_nested_iterable!(NestedOptionArcStringIterable, Option<ArcStr>);
 py_nested_iterable!(NestedStringIterable, String);
 
 py_iterable!(StringVecIterable, Vec<String>);
 py_nested_iterable!(NestedStringVecIterable, Vec<String>);
+
+py_iterable!(ArcStringVecIterable, Vec<ArcStr>);
+py_iterable_comp!(ArcStringVecIterable, Vec<ArcStr>, ArcStringVecIterableCmp);
+py_nested_iterable!(NestedArcStringVecIterable, Vec<ArcStr>);
+py_iterable_comp!(
+    NestedArcStringVecIterable,
+    ArcStringVecIterableCmp,
+    NestedArcStringVecIterableCmp
+);
+
+py_iterable!(I64VecIterable, Vec<i64>);
+py_iterable_comp!(I64VecIterable, Vec<i64>, I64VecIterableCmp);
+py_nested_iterable!(NestedI64VecIterable, Vec<i64>);
+py_iterable_comp!(
+    NestedI64VecIterable,
+    I64VecIterableCmp,
+    NestedI64VecIterableCmp
+);
+
+py_iterable!(OptionNaiveDateTimeIterable, Option<NaiveDateTime>);
+py_nested_iterable!(NestedNaiveDateTimeIterable, Option<NaiveDateTime>);
+
+py_nested_iterable!(NestedOptionStringIterable, Option<String>);

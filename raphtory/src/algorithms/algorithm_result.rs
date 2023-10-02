@@ -38,6 +38,15 @@ impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
     }
 }
 
+/// An 'AlgorithmRepr' struct that represents the string output in the terminal after running an algorithm.
+///
+/// It returns the algorithm name, number of vertices in the graph, and the result type.
+///
+pub struct AlgorithmRepr {
+    pub algo_name: String,
+    pub result_type: String,
+}
+
 /// A generic `AlgorithmResult` struct that represents the result of an algorithm computation.
 ///
 /// The `AlgorithmResult` contains a hashmap, where keys (`H`) are cloneable, hashable, and comparable,
@@ -48,6 +57,7 @@ impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
 ///
 pub struct AlgorithmResult<K, V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
+    pub algo_repr: AlgorithmRepr,
     pub result: HashMap<K, V>,
     marker: PhantomData<O>,
 }
@@ -59,14 +69,32 @@ where
 {
     /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
+    /// * `algo_name`: The name of the algorithm.
+    /// * `num_vertices`: The number of vertices in the graph.
+    /// * `result_type`: The type of the result.
     /// * `result`: A `HashMap` with keys of type `H` and values of type `Y`.
-    pub fn new(result: HashMap<K, V>) -> Self {
+    pub fn new(algo_name: &str, result_type: &str, result: HashMap<K, V>) -> Self {
         Self {
+            algo_repr: AlgorithmRepr {
+                algo_name: algo_name.to_string(),
+                result_type: result_type.to_string(),
+            },
             result,
             marker: PhantomData,
         }
+    }
+
+    /// Returns a formatted string representation of the algorithm.
+    pub fn repr(&self) -> String {
+        let algo_info_str = format!(
+            "Algorithm Name: {}, Number of Vertices: {}, Result Type: {}",
+            &self.algo_repr.algo_name,
+            &self.result.len(),
+            &self.algo_repr.result_type
+        );
+        algo_info_str
     }
 
     /// Returns a reference to the entire `result` hashmap.
@@ -76,9 +104,8 @@ where
 
     /// Returns the value corresponding to the provided key in the `result` hashmap.
     ///
-    /// # Arguments
-    ///
-    /// * `key`: The key of type `H` for which the value is to be retrieved.
+    /// Arguments:
+    ///     `key`: The key of type `H` for which the value is to be retrieved.
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         Q: Hash + Eq + ?Sized,
@@ -89,11 +116,11 @@ where
 
     /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by_key(&self, reverse: bool) -> Vec<(K, V)> {
@@ -108,11 +135,11 @@ where
 
     /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
@@ -127,13 +154,13 @@ where
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `k`: The number of elements to retrieve.
     /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
     /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An `a vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
@@ -212,6 +239,10 @@ impl<K: Clone + Hash + Eq + Ord, V: Clone, O> FromIterator<(K, V)> for Algorithm
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let result = iter.into_iter().collect();
         Self {
+            algo_repr: AlgorithmRepr {
+                algo_name: String::new(),
+                result_type: String::new(),
+            },
             result,
             marker: PhantomData,
         }
@@ -227,11 +258,11 @@ where
 {
     /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
     pub fn sort_by_value(&self, reverse: bool) -> Vec<(K, V)> {
@@ -240,13 +271,13 @@ where
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
-    /// # Arguments
+    /// Arguments:
     ///
     /// * `k`: The number of elements to retrieve.
     /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
     /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An `a vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
@@ -281,7 +312,7 @@ where
 {
     /// Groups the `AlgorithmResult` by its values.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
     /// containing keys of type `H` that share the same value.
@@ -317,7 +348,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
-        AlgorithmResult::new(map)
+        AlgorithmResult::new("create_algo_result_u64_test", "", map)
     }
 
     fn group_by_test() -> AlgorithmResult<String, u64> {
@@ -326,7 +357,7 @@ mod algorithm_result_test {
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
         map.insert("D".to_string(), 10);
-        AlgorithmResult::new(map)
+        AlgorithmResult::new("group_by_test", "", map)
     }
 
     fn create_algo_result_f64() -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
@@ -334,7 +365,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), 10.0);
         map.insert("B".to_string(), 20.0);
         map.insert("C".to_string(), 30.0);
-        AlgorithmResult::new(map)
+        AlgorithmResult::new("create_algo_result_f64", "", map)
     }
 
     fn create_algo_result_tuple(
@@ -343,7 +374,7 @@ mod algorithm_result_test {
         map.insert("A".to_string(), (10.0, 20.0));
         map.insert("B".to_string(), (20.0, 30.0));
         map.insert("C".to_string(), (30.0, 40.0));
-        AlgorithmResult::new(map)
+        AlgorithmResult::new("create_algo_result_tuple", "", map)
     }
 
     fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
@@ -354,7 +385,7 @@ mod algorithm_result_test {
             "C".to_string(),
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
-        AlgorithmResult::new(map)
+        AlgorithmResult::new("create_algo_result_hashmap_vec", "", map)
     }
 
     #[test]

@@ -1,12 +1,9 @@
 use crate::{
-    db::{
-        api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-        graph::{edge::EdgeView, vertex::VertexView},
-    },
+    db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::{GraphViewOps, VertexViewOps},
 };
 use itertools::{chain, Itertools};
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 pub trait GraphEntity: Sized {
     fn generate_property_list<F, D>(
@@ -38,29 +35,32 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
         let max_time_fmt = self.latest_time().map(time_fmt).unwrap_or_else(missing);
         let max_time = format!("latest activity: {}", max_time_fmt);
 
-        let temporal_keys = self
-            .temporal_property_keys()
-            .filter(|key| !filter_out.contains(&key.as_ref()))
-            .filter(|key| !force_static.contains(&key.as_ref()))
-            .filter(|key| {
+        let temporal_props = self
+            .properties()
+            .temporal()
+            .iter()
+            .filter(|(key, _)| !filter_out.contains(&key.as_ref()))
+            .filter(|(key, _)| !force_static.contains(&key.as_ref()))
+            .filter(|(_, v)| {
                 // the history of the temporal prop has more than one value
-                let props = self.temporal_values(key);
-                let values = props.iter().map(|prop| prop.to_string());
-                values.unique().collect_vec().len() > 1
+                v.values()
+                    .into_iter()
+                    .map(|prop| prop.to_string())
+                    .unique()
+                    .collect_vec()
+                    .len()
+                    > 1
             })
             .collect_vec();
 
-        let temporal_props = temporal_keys.iter().map(|key| {
-            let history = self.temporal_history(&key);
-            let props = self.temporal_values(&key);
-            let values = props.iter().map(|prop| prop.to_string());
-            let time_value_pairs = history.iter().zip(values);
+        let temporal_keys: HashSet<_> = temporal_props.iter().map(|(key, _)| key).collect();
+        let temporal_props = temporal_props.iter().map(|(key, value)| {
+            let time_value_pairs = value.iter().map(|(k, v)| (k, v.to_string()));
             let events =
                 time_value_pairs
                     .unique_by(|(_, value)| value.clone())
                     .map(|(time, value)| {
-                        let key = key.to_string();
-                        let time = time_fmt(*time);
+                        let time = time_fmt(time);
                         format!("{key} changed to {value} at {time}")
                     });
             itertools::Itertools::intersperse(events, "\n".to_owned()).collect()

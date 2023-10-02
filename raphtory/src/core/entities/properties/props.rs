@@ -63,6 +63,13 @@ impl Props {
         self.constant_props.set(prop_id, Some(prop))
     }
 
+    pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
+        self.constant_props.update(prop_id, |mut n| {
+            *n = Some(prop);
+            Ok(())
+        })
+    }
+
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
@@ -80,13 +87,13 @@ impl Props {
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter_window(t_start..t_end))
+            Box::new(t_prop.iter_window_t(t_start..t_end))
         } else {
             Box::new(std::iter::empty())
         }
     }
 
-    pub fn static_prop(&self, prop_id: usize) -> Option<&Prop> {
+    pub fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
         let prop = self.constant_props.get(prop_id)?;
         prop.as_ref()
     }
@@ -95,11 +102,11 @@ impl Props {
         self.temporal_props.get(prop_id)
     }
 
-    pub fn static_prop_ids(&self) -> Vec<usize> {
+    pub fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.constant_props.filled_ids()
     }
 
-    pub fn temporal_prop_ids(&self) -> Vec<usize> {
+    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.temporal_props.filled_ids()
     }
 }
@@ -112,7 +119,7 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn constant_prop_meta(&self) -> &PropMapper {
+    pub fn const_prop_meta(&self) -> &PropMapper {
         &self.meta_prop_constant
     }
 
@@ -169,8 +176,8 @@ impl Meta {
         self.meta_layer.map.get(name).as_deref().copied()
     }
 
-    pub fn get_layer_name_by_id(&self, id: usize) -> Option<String> {
-        self.meta_layer.get_name(id).map(|v| v.to_string())
+    pub fn get_layer_name_by_id(&self, id: usize) -> ArcStr {
+        self.meta_layer.get_name(id)
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
@@ -189,7 +196,7 @@ impl Meta {
         }
     }
 
-    pub fn get_prop_name(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
+    pub fn get_prop_name(&self, prop_id: usize, is_static: bool) -> ArcStr {
         if is_static {
             self.meta_prop_constant.get_name(prop_id)
         } else {
@@ -275,9 +282,12 @@ impl DictMapper {
         self.map.get(name).map(|id| *id)
     }
 
-    pub fn get_name(&self, id: usize) -> Option<ArcStr> {
+    pub fn get_name(&self, id: usize) -> ArcStr {
         let guard = self.reverse_map.read();
-        guard.get(id).map(|v| v.clone())
+        guard
+            .get(id)
+            .map(|v| v.clone())
+            .expect("internal ids should always be mapped to a name")
     }
 
     pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {

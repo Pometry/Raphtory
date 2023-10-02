@@ -18,7 +18,7 @@ use tantivy::time::Time;
 use super::locked_view::LockedView;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
-pub struct TimeIndexEntry(i64, usize);
+pub struct TimeIndexEntry(pub i64, pub usize);
 
 pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync {
     fn t(&self) -> &i64;
@@ -32,6 +32,9 @@ impl From<i64> for TimeIndexEntry {
 }
 
 impl TimeIndexEntry {
+    pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
+
+    pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
     pub fn new(t: i64, s: usize) -> Self {
         Self(t, s)
     }
@@ -262,12 +265,12 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> TimeIndexOps
         LayeredTimeIndexWindow { timeindex }
     }
 
-    fn first_t(&self) -> Option<i64> {
-        self.view.iter().flat_map(|t| t.first_t()).min()
+    fn first(&self) -> Option<&T> {
+        self.view.iter().flat_map(|t| t.first()).min()
     }
 
-    fn last_t(&self) -> Option<i64> {
-        self.view.iter().flat_map(|t| t.last_t()).max()
+    fn last(&self) -> Option<&T> {
+        self.view.iter().flat_map(|t| t.last()).max()
     }
 
     fn iter_t(&self) -> Self::IterType<'_> {
@@ -290,9 +293,17 @@ pub trait TimeIndexOps {
 
     fn range<'a>(&'a self, w: Range<i64>) -> Self::WindowType<'a>;
 
-    fn first_t(&self) -> Option<i64>;
+    fn first_t(&self) -> Option<i64> {
+        self.first().map(|ti| *ti.t())
+    }
 
-    fn last_t(&self) -> Option<i64>;
+    fn first(&self) -> Option<&Self::IndexType>;
+
+    fn last_t(&self) -> Option<i64> {
+        self.last().map(|ti| *ti.t())
+    }
+
+    fn last(&self) -> Option<&Self::IndexType>;
 
     fn iter_t(&self) -> Self::IterType<'_>;
 }
@@ -342,19 +353,19 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn first_t(&self) -> Option<i64> {
+    fn first(&self) -> Option<&T> {
         match self {
             TimeIndex::Empty => None,
-            TimeIndex::One(t) => Some(*t.t()),
-            TimeIndex::Set(ts) => ts.first().map(|ti| *ti.t()),
+            TimeIndex::One(t) => Some(t),
+            TimeIndex::Set(ts) => ts.first(),
         }
     }
 
-    fn last_t(&self) -> Option<i64> {
+    fn last(&self) -> Option<&T> {
         match self {
             TimeIndex::Empty => None,
-            TimeIndex::One(t) => Some(*t.t()),
-            TimeIndex::Set(ts) => ts.last().map(|ti| *ti.t()),
+            TimeIndex::One(t) => Some(t),
+            TimeIndex::Set(ts) => ts.last(),
         }
     }
 
@@ -406,24 +417,23 @@ where
         }
     }
 
-    fn first_t(&self) -> Option<i64> {
+    fn first(&self) -> Option<&T> {
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next().map(|t| *t.t())
+                timeindex.range_iter(range.clone()).next()
             }
-            TimeIndexWindow::All(timeindex) => timeindex.first_t(),
+            TimeIndexWindow::All(timeindex) => timeindex.first(),
         }
     }
 
-    fn last_t(&self) -> Option<i64> {
+    fn last(&self) -> Option<&T> {
         match self {
             TimeIndexWindow::Empty => None,
-            TimeIndexWindow::TimeIndexRange { timeindex, range } => timeindex
-                .range_iter(range.clone())
-                .next_back()
-                .map(|t| *t.t()),
-            TimeIndexWindow::All(timeindex) => timeindex.last_t(),
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                timeindex.range_iter(range.clone()).next_back()
+            }
+            TimeIndexWindow::All(timeindex) => timeindex.last(),
         }
     }
 
@@ -459,12 +469,12 @@ where
         Self::WindowType { timeindex }
     }
 
-    fn first_t(&self) -> Option<i64> {
-        self.timeindex.iter().flat_map(|t| t.first_t()).min()
+    fn first(&self) -> Option<&T> {
+        self.timeindex.iter().flat_map(|t| t.first()).min()
     }
 
-    fn last_t(&self) -> Option<i64> {
-        self.timeindex.iter().flat_map(|t| t.last_t()).max()
+    fn last(&self) -> Option<&T> {
+        self.timeindex.iter().flat_map(|t| t.last()).max()
     }
 
     fn iter_t(&self) -> Self::IterType<'_> {

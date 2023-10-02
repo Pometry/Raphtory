@@ -230,7 +230,7 @@ impl CsvLoader {
     ///
     /// * `p` - A reference to the path to be checked.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing a boolean value indicating whether the path is a directory or not.
     ///
@@ -249,7 +249,7 @@ impl CsvLoader {
     /// * `path` - The path to the file to be checked.
     /// * `paths` - A mutable reference to the vector of paths where the file should be added.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Nothing is returned, the function only modifies the provided vector of paths.
     ///
@@ -275,7 +275,7 @@ impl CsvLoader {
     ///
     /// * No arguments are required.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing a vector of PathBuf objects representing the paths to all files in the directory.
     ///
@@ -319,7 +319,7 @@ impl CsvLoader {
     /// * `g` - A reference to the graph object where the data should be loaded.
     /// * `loader` - A closure that takes a deserialized record and the graph object as arguments and adds the record to the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing an empty Ok value if the data is loaded successfully.
     ///
@@ -348,7 +348,7 @@ impl CsvLoader {
     /// * `g` - A reference to the graph object where the data should be loaded.
     /// * `loader` - A closure that takes a deserialized record and the graph object as arguments and adds the record to the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing an empty Ok value if the data is loaded successfully.
     ///
@@ -377,7 +377,7 @@ impl CsvLoader {
     /// * `g` - A reference to the graph to load the data into.
     /// * `loader` - The function to use for loading the CSV records into the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Returns `Ok(())` if the operation was successful, or a `CsvErr` if there was an error.
     ///
@@ -433,7 +433,7 @@ impl CsvLoader {
     ///
     /// * `file_path` - The path to the CSV file to read.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Returns a `csv::Reader` that can be used to read the CSV file, or a `CsvErr` if there was an error.
     ///

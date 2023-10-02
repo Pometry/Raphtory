@@ -14,9 +14,7 @@ use crate::{
                 CollectProperties, TryIntoInputTime,
             },
             properties::{
-                internal::{
-                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-                },
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             view::{internal::Static, BoxedIter, Layer, LayerOps},
@@ -73,32 +71,36 @@ impl<G: GraphViewOps> VertexView<G> {
 }
 
 impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
-    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
-        Box::new(
-            self.graph
-                .temporal_vertex_prop_names(self.vertex)
-                .filter(|k| self.get_temporal_property(k).is_some()),
-        )
+    fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        self.graph
+            .vertex_meta()
+            .temporal_prop_meta()
+            .get_id(name)
+            .filter(|id| self.graph.has_temporal_vertex_prop(self.vertex, *id))
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        (!self
-            .graph
-            .temporal_vertex_prop_vec(self.vertex, key)
-            .is_empty())
-        .then(|| key.into())
+    fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
+        self.graph.vertex_meta().temporal_prop_meta().get_name(id)
+    }
+
+    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(
+            self.graph
+                .temporal_vertex_prop_ids(self.vertex)
+                .filter(|id| self.graph.has_temporal_vertex_prop(self.vertex, *id)),
+        )
     }
 }
 
 impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
-    fn temporal_value(&self, id: &Key) -> Option<Prop> {
+    fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
-    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
             .into_iter()
@@ -106,7 +108,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
             .collect()
     }
 
-    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+    fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
             .into_iter()
@@ -114,7 +116,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
             .collect()
     }
 
-    fn temporal_value_at(&self, id: &Key, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let history = self.temporal_history(id);
         match history.binary_search(&t) {
             Ok(index) => Some(self.temporal_values(id)[index].clone()),
@@ -124,18 +126,20 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
 }
 
 impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
-    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
-        self.graph.constant_vertex_prop_names(self.vertex)
+    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
+        self.graph.vertex_meta().const_prop_meta().get_id(name)
     }
 
-    fn const_property_values(&self) -> Vec<Prop> {
-        self.const_property_keys()
-            .flat_map(|prop_name| self.graph.constant_vertex_prop(self.vertex, &prop_name))
-            .collect()
+    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+        self.graph.vertex_meta().const_prop_meta().get_name(id)
     }
 
-    fn get_const_property(&self, key: &str) -> Option<Prop> {
-        self.graph.constant_vertex_prop(self.vertex, key)
+    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.graph.constant_vertex_prop_ids(self.vertex)
+    }
+
+    fn get_const_prop(&self, id: usize) -> Option<Prop> {
+        self.graph.constant_vertex_prop(self.vertex, id)
     }
 }
 
@@ -311,6 +315,18 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
         )?;
         self.graph
             .internal_add_constant_vertex_properties(self.vertex, properties)
+    }
+
+    pub fn update_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+    ) -> Result<(), GraphError> {
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_vertex_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
+        self.graph
+            .internal_update_constant_vertex_properties(self.vertex, properties)
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -547,6 +563,15 @@ mod vertex_test {
         let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test".into()))
+    }
+
+    #[test]
+    fn test_constant_property_updates() {
+        let g = Graph::new();
+        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        v1.add_constant_properties([("test", "test")]).unwrap();
+        v1.update_constant_properties([("test", "test2")]).unwrap();
+        assert_eq!(v1.properties().get("test"), Some("test2".into()))
     }
 
     #[test]

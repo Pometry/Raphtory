@@ -10,7 +10,6 @@ use crate::{
     },
 };
 use itertools::{chain, Itertools};
-use rand_distr::weighted_alias::AliasableWeight;
 use std::{borrow::Borrow, collections::HashMap};
 
 pub struct VectorizedGraph<G: GraphViewOps> {

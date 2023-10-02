@@ -20,7 +20,9 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph},
+        view::internal::{
+            Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph, Static,
+        },
     },
     prelude::*,
 };
@@ -30,13 +32,14 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph(pub Arc<InternalGraph>);
+
+impl Static for Graph {}
 
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
     if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
@@ -87,7 +90,7 @@ impl InheritViewOps for Graph {}
 impl Graph {
     /// Create a new graph with the specified number of shards
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -111,7 +114,7 @@ impl Graph {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///

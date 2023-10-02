@@ -235,7 +235,9 @@ fn triangle_motif_count<G: GraphViewOps>(
             }
         }
     }
-    AlgorithmResult::new(counts)
+
+    let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
+    AlgorithmResult::new("Three node local single thread", results_type, counts)
 }
 
 /// Computes the number of each type of motif that each node participates in.
@@ -247,7 +249,7 @@ fn triangle_motif_count<G: GraphViewOps>(
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
 ///
-/// # Returns
+/// Returns:
 ///
 /// A dictionary with vertex ids (u64) as keys and a 40 dimensional array of motif counts as a value. The first 24 elements are star counts,
 ///   the next 8 are two-node motif counts and the final 8 are triangle counts.
@@ -263,6 +265,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     delta: i64,
 ) -> AlgorithmResult<u64, Vec<usize>> {
     let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
+
     for v in graph.vertices() {
         let vid = v.id();
         let two_nodes = twonode_motif_count(graph, vid, delta).to_vec();
@@ -278,7 +281,9 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         final_cts.extend(counts.get(&vid).unwrap().into_iter());
         counts.insert(vid, final_cts);
     }
-    AlgorithmResult::new(counts)
+
+    let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
+    AlgorithmResult::new("Three node local single thread", results_type, counts)
 }
 
 /// Computes the number of each type of motif there is in the graph.
@@ -290,7 +295,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
 ///
-/// # Returns
+/// Returns:
 ///
 /// A 40 dimensional array with the counts of each motif, given in the same order as described in the class summary. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
 ///

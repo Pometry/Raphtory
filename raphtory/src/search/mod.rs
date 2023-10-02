@@ -179,16 +179,19 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         // TODO: load all these from the graph at some point in the future
         let mut prop_names_set = g
-            .all_vertex_prop_names(false)
+            .vertex_meta()
+            .temporal_prop_meta()
+            .get_keys()
             .into_iter()
-            .chain(g.all_vertex_prop_names(true).into_iter())
+            .chain(g.vertex_meta().const_prop_meta().get_keys().into_iter())
             .collect::<HashSet<_>>();
 
         for vertex in g.vertices() {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props: HashSet<ArcStr> = HashSet::from([ArcStr::from("name")]);
+            let mut found_props: HashSet<ArcStr> = HashSet::default();
+            found_props.insert("name".into());
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -229,9 +232,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         // TODO: load all these from the graph at some point in the future
         let mut prop_names_set = g
-            .all_edge_prop_names(false)
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_keys()
             .into_iter()
-            .chain(g.all_edge_prop_names(true).into_iter())
+            .chain(g.edge_meta().const_prop_meta().get_keys())
             .collect::<HashSet<_>>();
 
         for edge in g.edges() {
@@ -689,11 +694,7 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
         // index all props that are declared in the schema
         for (prop_id, prop) in props.iter() {
-            let prop_name = self
-                .graph
-                .vertex_meta()
-                .get_prop_name(*prop_id, false)
-                .expect("property id should be valid");
+            let prop_name = self.graph.vertex_meta().get_prop_name(*prop_id, false);
             if let Ok(field) = self.vertex_index.schema().get_field(&prop_name) {
                 if let Prop::Str(s) = prop {
                     document.add_text(field, s)
@@ -1111,5 +1112,12 @@ mod test {
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());
+    }
+
+    #[test]
+    fn property_name_on_vertex_does_not_crash() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", [("name", "test")]).unwrap();
+        let _gi: IndexedGraph<_> = g.into();
     }
 }

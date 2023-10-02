@@ -1,7 +1,7 @@
 //! Load (a subset of) Reddit hyperlinks dataset into a graph.
 //! The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv
 //! The hyperlink network represents the directed connections between two subreddits (a subreddit
-//! is a community on Reddit). We also provide subreddit embeddings. The network is extracted
+//! is a community_detection on Reddit). We also provide subreddit embeddings. The network is extracted
 //! from publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.
 //! *NOTE: It may take a while to download the dataset
 //!
@@ -50,7 +50,7 @@ use std::{
 /// Download the dataset and return the path to the file
 /// # Arguments
 /// * `timeout` - The timeout in seconds for downloading the dataset
-/// # Returns
+/// Returns:
 /// * `PathBuf` - The path to the file
 pub fn reddit_file(
     timeout: u64,
@@ -87,7 +87,7 @@ where
 ///
 /// * `timeout` - The timeout in seconds for downloading the dataset
 ///
-/// # Returns
+/// Returns:
 ///
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
 pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {

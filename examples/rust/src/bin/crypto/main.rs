@@ -1,7 +1,8 @@
 use itertools::Itertools;
 use raphtory::{
     algorithms::{
-        pagerank::unweighted_page_rank, temporal_reachability::temporally_reachable_nodes,
+        centrality::pagerank::unweighted_page_rank,
+        pathing::temporal_reachability::temporally_reachable_nodes,
     },
     db::api::view::*,
     graph_loader::example::stable_coins::stable_coin_graph,

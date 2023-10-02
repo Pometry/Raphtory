@@ -2,14 +2,13 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
+        utils::time::IntoTime,
         ArcStr, Prop,
     },
     db::{
         api::{
             properties::{
-                internal::{
-                    ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
-                },
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
             view::{internal::*, *},
@@ -17,7 +16,10 @@ use crate::{
         graph::views::window_graph::WindowedGraph,
         task::{
             task_state::Local2,
-            vertex::{eval_vertex_state::EVState, window_eval_vertex::WindowEvalVertex},
+            vertex::{
+                eval_vertex_state::EVState,
+                window_eval_vertex::{edge_filter, WindowEvalVertex},
+            },
         },
     },
 };
@@ -65,7 +67,65 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> WindowEvalEdgeView<'a, G
             .map(|e| e.time_t().expect("exploded"))
             .collect()
     }
+
+    fn layer_ids(&self) -> LayerIds {
+        self.g.layer_ids().constrain_from_edge(self.ev)
+    }
+
+    pub fn start(&self) -> Option<i64> {
+        self.graph()
+            .edge_earliest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+    }
+
+    pub fn start_date_time(&self) -> Option<chrono::NaiveDateTime> {
+        self.graph()
+            .edge_earliest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .map(|t| chrono::NaiveDateTime::from_timestamp_millis(t).unwrap())
+    }
+
+    pub fn end(&self) -> Option<i64> {
+        self.graph()
+            .edge_latest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+    }
+
+    pub fn end_date_time(&self) -> Option<chrono::NaiveDateTime> {
+        self.graph()
+            .edge_latest_time_window(self.eref(), self.t_start..self.t_end, LayerIds::All)
+            .map(|t| chrono::NaiveDateTime::from_timestamp_millis(t).unwrap())
+    }
 }
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
+    for WindowEvalEdgeView<'a, G, CS, S>
+{
+    type WindowedViewType = WindowEvalEdgeView<'a, G, CS, S>;
+
+    fn start(&self) -> Option<i64> {
+        Some(self.t_start)
+    }
+
+    fn end(&self) -> Option<i64> {
+        Some(self.t_end)
+    }
+
+    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+        let t_start = t_start.into_time().max(self.t_start);
+        let t_end = t_end.into_time().min(self.t_end);
+        let edge_filter = edge_filter(self.g, t_start, t_end).map(Rc::new);
+        WindowEvalEdgeView {
+            ss: self.ss,
+            ev: self.ev,
+            g: self.g,
+            vertex_state: self.vertex_state.clone(),
+            local_state_prev: self.local_state_prev,
+            t_start,
+            t_end,
+            _s: Default::default(),
+            edge_filter,
+        }
+    }
+}
+
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
     EdgeViewInternalOps<WindowedGraph<G>, WindowEvalVertex<'a, G, CS, S>>
     for WindowEvalEdgeView<'a, G, CS, S>
@@ -109,13 +169,21 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static>
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> ConstPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn const_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr>> {
-        Box::new(self.g.constant_edge_prop_names(self.ev, self.g.layer_ids()))
+    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
+        self.g.edge_meta().const_prop_meta().get_id(name)
     }
 
-    fn get_const_property(&self, key: &str) -> Option<Prop> {
+    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+        self.g.edge_meta().const_prop_meta().get_name(id)
+    }
+
+    fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        self.g.const_edge_prop_ids(self.ev, self.g.layer_ids())
+    }
+
+    fn get_const_prop(&self, prop_id: usize) -> Option<Prop> {
         self.graph()
-            .constant_edge_prop(self.ev, key, self.g.layer_ids())
+            .get_const_edge_prop(self.ev, prop_id, self.g.layer_ids())
     }
 }
 
@@ -138,7 +206,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> Clone for WindowEvalEdge
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_value(&self, id: &Key) -> Option<Prop> {
+    fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -151,7 +219,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .map(|(_, v)| v.to_owned())
     }
 
-    fn temporal_history(&self, id: &Key) -> Vec<i64> {
+    fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -165,7 +233,7 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
             .collect()
     }
 
-    fn temporal_values(&self, id: &Key) -> Vec<Prop> {
+    fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.g
             .temporal_edge_prop_vec_window(
                 self.ev,
@@ -183,37 +251,38 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertyViewOps
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     for WindowEvalEdgeView<'a, G, CS, S>
 {
-    fn temporal_property_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
-        Box::new(
-            self.g
-                .temporal_edge_prop_names(self.ev, self.g.layer_ids())
-                .filter(|k| {
-                    !self
-                        .g
-                        .temporal_edge_prop_vec_window(
-                            self.ev,
-                            k,
-                            self.t_start,
-                            self.t_end,
-                            self.g.layer_ids(),
-                        )
-                        .is_empty()
-                }),
-        )
+    fn get_temporal_prop_id(&self, key: &str) -> Option<usize> {
+        self.g
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_id(key)
+            .filter(|&id| {
+                self.g.has_temporal_edge_prop_window(
+                    self.ev,
+                    id,
+                    self.t_start..self.t_end,
+                    self.layer_ids(),
+                )
+            })
     }
 
-    fn get_temporal_property(&self, key: &str) -> Option<Key> {
-        (!self
-            .g
-            .temporal_edge_prop_vec_window(
-                self.ev,
-                key,
-                self.t_start,
-                self.t_end,
-                self.g.layer_ids(),
-            )
-            .is_empty())
-        .then_some(Key::from(key))
+    fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
+        self.g.edge_meta().temporal_prop_meta().get_name(id)
+    }
+
+    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(
+            self.g
+                .temporal_edge_prop_ids(self.ev, self.g.layer_ids())
+                .filter(|&id| {
+                    self.g.has_temporal_edge_prop_window(
+                        self.ev,
+                        id,
+                        self.t_start..self.t_end,
+                        self.layer_ids(),
+                    )
+                }),
+        )
     }
 }
 
@@ -376,5 +445,56 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
+    }
+
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
+        Box::new(self.map(|e| e.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.start()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.end()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.end_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.date_time()))
+    }
+
+    fn earliest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
+    }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
+
+    fn window<T: IntoTime>(
+        self,
+        t_start: T,
+        t_end: T,
+    ) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
+        let t_start = t_start.into_time();
+        let t_end = t_end.into_time();
+        Box::new(self.map(move |e| e.window(t_start, t_end)))
     }
 }
