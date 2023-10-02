@@ -2893,6 +2893,7 @@ name = "raphtory"
 version = "0.5.7"
 dependencies = [
  "arrow2",
+ "async-openai",
  "async-trait",
  "bincode",
  "bzip2",
@@ -2900,6 +2901,7 @@ dependencies = [
  "csv",
  "dashmap",
  "display-error-chain",
+ "dotenv",
  "enum_dispatch",
  "flate2",
  "flume",
@@ -2959,7 +2961,6 @@ version = "0.5.7"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
- "async-openai",
  "async-stream",
  "base64 0.21.2",
  "bincode",
