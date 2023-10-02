@@ -41,13 +41,13 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
           override: true
           components: rustfmt, clippy
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
-          cargo +nightly bench --bench base -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
+          cargo bench --bench base -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
       - name: Delete cargo.lock if it exists
         run: |
           rm -f Cargo.lock
