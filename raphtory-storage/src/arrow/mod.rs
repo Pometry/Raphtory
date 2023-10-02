@@ -83,7 +83,7 @@ impl From<&str> for GID {
 }
 
 pub(crate) struct LoadChunk {
-    data: Chunk<Box<dyn Array>>,
+    data: Vec<Box<dyn Array>>,
     src_col_idx: usize,
     dst_col_idx: usize,
     time_col_idx: usize,
@@ -96,12 +96,28 @@ impl LoadChunk {
         dst_col_idx: usize,
         time_col_idx: usize,
     ) -> Self {
+        //FIXME: take Chunk as input
+        let chunks: Vec<Box<dyn Array>> = columns_in_chunk.into_iter().collect();
+        let first_len = chunks.first().unwrap().len();
+        if chunks.iter().any(|arr| arr.len() != first_len) {
+            panic!("All arrays in a chunk must have the same length");
+        }
+
         Self {
-            data: Chunk::new(columns_in_chunk.into_iter().collect()),
+            data: chunks,
             src_col_idx,
             dst_col_idx,
             time_col_idx,
         }
+    }
+
+    pub(crate) fn from_chunk(
+        chunk: Chunk<Box<dyn Array>>,
+        src_col_idx: usize,
+        dst_col_idx: usize,
+        time_col_idx: usize,
+    ) -> Self {
+        Self::new(chunk.into_arrays(), src_col_idx, dst_col_idx, time_col_idx)
     }
 
     fn sources(&self) -> Result<impl Iterator<Item = GID>, Error> {
@@ -134,6 +150,23 @@ impl LoadChunk {
             })?
             .clone();
         Ok(times)
+    }
+
+    fn split_timestamps_at(&mut self, split_at: usize) -> PrimitiveArray<i64> {
+        let time_arr = &mut self.data[self.time_col_idx];
+        let time_arr = time_arr
+            .as_any_mut()
+            .downcast_mut::<PrimitiveArray<i64>>()
+            .unwrap();
+        let out = time_arr.clone().sliced(0, split_at);
+        time_arr.slice(split_at, time_arr.len() - split_at);
+        out
+    }
+
+    fn timestamp_arr_sliced(&self, offset: usize, len: usize) -> Box<dyn Array> {
+        let arr = &self.data[self.time_col_idx];
+        let times = arr.sliced(offset, arr.len().min(len));
+        times
     }
 
     fn properties(&self) -> impl Iterator<Item = Box<dyn Array>> + '_ {
