@@ -1956,3 +1956,12 @@ def test_leading_zeroes_ids():
     g.add_vertex(0, "0001")
     assert g.count_vertices() == 4
     assert g.vertices.name.collect() == ["1", "01", "001", "0001"]
+    g = Graph()
+    g.add_vertex(0, 0)
+    g.add_vertex(1, "0")
+    assert g.vertex(0).history() == [0]
+    assert g.vertices.name.collect() == ["0", '0']
+
+    # g = Graph()
+    # g.add_vertex(0, 1)
+    # assert g.vertex(g.vertex(1).name) is not None
