@@ -8,13 +8,15 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
+        centrality::degree_centrality::degree_centrality as degree_centrality_rs,
         centrality::hits::hits as hits_rs,
         centrality::pagerank::unweighted_page_rank,
         community_detection::connected_components,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
-            average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
-            max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
+            average_degree as average_degree_rs, max_degree as max_degree_rs,
+            max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
+            min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
             min_out_degree as min_out_degree_rs,
         },
         metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
@@ -409,4 +411,49 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
+
+/// Computes the degree centrality of all vertices in the graph. The values are normalized
+/// by dividing each result with the maximum possible degree. Graphs with self-loops can have
+/// values of centrality greater than 1.
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+///
+/// Returns:
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated degree centrality.
+#[pyfunction]
+#[pyo3[signature = (g, threads=None)]]
+pub fn degree_centrality(
+    g: &PyGraphView,
+    threads: Option<usize>,
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+    degree_centrality_rs(&g.graph, threads)
+}
+
+/// Returns the largest degree found in the graph
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     usize: The largest degree
+#[pyfunction]
+#[pyo3[signature = (g)]]
+pub fn max_degree(g: &PyGraphView) -> usize {
+    max_degree_rs(&g.graph)
+}
+
+/// Returns the smallest degree found in the graph
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     usize: The smallest degree found
+#[pyfunction]
+#[pyo3[signature = (g)]]
+pub fn min_degree(g: &PyGraphView) -> usize {
+    min_degree_rs(&g.graph)
 }

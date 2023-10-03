@@ -5,6 +5,10 @@ Metrics
 
 .. autofunction:: raphtory.algorithms.average_degree
 
+.. autofunction:: raphtory.algorithms.max_degree
+
+.. autofunction:: raphtory.algorithms.min_degree
+
 .. autofunction:: raphtory.algorithms.max_in_degree
 
 .. autofunction:: raphtory.algorithms.max_out_degree
