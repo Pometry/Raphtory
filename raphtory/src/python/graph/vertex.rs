@@ -339,22 +339,22 @@ impl PyVertex {
         self.vertex.rolling(window, step)
     }
 
-    /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create a view of the vertex including all events between `start` (inclusive) and `end` (exclusive)
     ///
     /// Arguments:
-    ///     t_start (int, str or datetime(utc)): The start time of the window. Defaults to the start time of the vertex.
-    ///     t_end (int, str or datetime(utc)): The end time of the window. Defaults to the end time of the vertex.
+    ///     start (int, str or datetime(utc)): The start time of the window. Defaults to the start time of the vertex.
+    ///     end (int, str or datetime(utc)): The end time of the window. Defaults to the end time of the vertex.
     ///
     /// Returns:
     ///    A `PyVertex` object.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> VertexView<WindowedGraph<DynamicGraph>> {
         self.vertex
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -736,23 +736,23 @@ impl PyVertices {
         self.vertices.rolling(window, step)
     }
 
-    /// Create a view of the vertices including all events between t_start (inclusive) and
-    /// t_end (exclusive)
+    /// Create a view of the vertices including all events between start (inclusive) and
+    /// end (exclusive)
     ///
     /// Arguments:
-    ///     t_start (int, str or datetime(utc)): The start time of the window (inclusive)
-    ///     t_end (int, str or datetime(utc)): The end time of the window (exclusive)
+    ///     start (int, str or datetime(utc)): The start time of the window (inclusive)
+    ///     end (int, str or datetime(utc)): The end time of the window (exclusive)
     ///
     /// Returns:
     ///     A `PyVertices` object of vertices within the window.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> Vertices<WindowedGraph<DynamicGraph>> {
         self.vertices
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertices including all events at `t`.
@@ -932,14 +932,14 @@ impl PyPathFromGraph {
         self.path.rolling(window, step)
     }
 
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
         self.path
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -1139,14 +1139,14 @@ impl PyPathFromVertex {
         self.path.rolling(window, step)
     }
 
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None,end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
         self.path
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.

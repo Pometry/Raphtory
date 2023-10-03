@@ -256,39 +256,40 @@ impl PyGraph {
     /// Load a graph from a Pandas DataFrame.
     ///
     /// Args:
-    ///     edges_df (Dataframe): The Pandas DataFrame containing edge information.
-    ///     src (str): The column name for the source vertex.
-    ///     dst (str): The column name for the destination vertex.
-    ///     time (str): The column name for the time information.
-    ///     props (List<str>): List of property column names. Defaults to None. (optional)
-    ///     const_props (List<str>): List of constant property column names. Defaults to None. (optional)
-    ///     shared_const_props (Dict of properties): Dictionary shared constant properties. Defaults to None.(optional)
-    ///     layer (str): Layer name. Defaults to None. (optional)
-    ///     layer_in_df (str): Column name for the layer in DataFrame. Defaults to None. (optional)
-    ///     vertex_df (Dataframe): The Pandas DataFrame containing vertex information. Defaults to None. (optional)
-    ///     vertex_col (str): The column name for the vertex. Defaults to None. (optional)
-    ///     vertex_time_col (str): The column name for vertex time information. Defaults to None. (optional)
-    ///     vertex_props (List<str>): List of vertex property column names. Defaults to None. (optional)
-    ///     vertex_const_props (List<str>): List of constant vertex property column names. Defaults to None. (optional)
-    ///     vertex_shared_const_props (Dict of properties): Dictionary of shared constant vertex properties. Defaults to None. (optional)
+    ///     edge_df (pandas.DataFrame): The DataFrame containing the edges.
+    ///     edge_src (str): The column name for the source vertex ids.
+    ///     edge_dst (str): The column name for the destination vertex ids.
+    ///     edge_time (str): The column name for the timestamps.
+    ///     edge_props (list): The column names for the temporal properties (optional) Defaults to None.
+    ///     edge_const_props (list): The column names for the constant properties (optional) Defaults to None.
+    ///     edge_shared_const_props (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
+    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     vertex_df (pandas.DataFrame): The DataFrame containing the vertices (optional) Defaults to None.
+    ///     vertex_id (str): The column name for the vertex ids (optional) Defaults to None.
+    ///     vertex_time (str): The column name for the vertex timestamps (optional) Defaults to None.
+    ///     vertex_props (list): The column names for the vertex temporal properties (optional) Defaults to None.
+    ///     vertex_const_props (list): The column names for the vertex constant properties (optional) Defaults to None.
+    ///     vertex_shared_const_props (dict): A dictionary of constant properties that will be added to every vertex (optional) Defaults to None.
     ///
     /// Returns:
-    ///      The loaded Graph object.
+    ///      Graph: The loaded Graph object.
     #[staticmethod]
-    #[pyo3(signature = (edges_df, src = "source", dst = "destination", time = "time", props = None, const_props=None,shared_const_props=None,layer = None, layer_in_df = None, vertex_df = None, vertex_col = None, vertex_time_col = None, vertex_props = None, vertex_const_props = None, vertex_shared_const_props = None))]
+    #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
+    edge_layer = None, layer_in_df = true, vertex_df = None, vertex_id = None, vertex_time = None, vertex_props = None, vertex_const_props = None, vertex_shared_const_props = None))]
     fn load_from_pandas(
-        edges_df: &PyAny,
-        src: &str,
-        dst: &str,
-        time: &str,
-        props: Option<Vec<&str>>,
-        const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_in_df: Option<&str>,
+        edge_df: &PyAny,
+        edge_src: &str,
+        edge_dst: &str,
+        edge_time: &str,
+        edge_props: Option<Vec<&str>>,
+        edge_const_props: Option<Vec<&str>>,
+        edge_shared_const_props: Option<HashMap<String, Prop>>,
+        edge_layer: Option<&str>,
+        layer_in_df: Option<bool>,
         vertex_df: Option<&PyAny>,
-        vertex_col: Option<&str>,
-        vertex_time_col: Option<&str>,
+        vertex_id: Option<&str>,
+        vertex_time: Option<&str>,
         vertex_props: Option<Vec<&str>>,
         vertex_const_props: Option<Vec<&str>>,
         vertex_shared_const_props: Option<HashMap<String, Prop>>,
@@ -297,23 +298,23 @@ impl PyGraph {
             graph: Graph::new(),
         };
         graph.load_edges_from_pandas(
-            edges_df,
-            src,
-            dst,
-            time,
-            props,
-            const_props,
-            shared_const_props,
-            layer,
+            edge_df,
+            edge_src,
+            edge_dst,
+            edge_time,
+            edge_props,
+            edge_const_props,
+            edge_shared_const_props,
+            edge_layer,
             layer_in_df,
         )?;
-        if let (Some(vertex_df), Some(vertex_col), Some(vertex_time_col)) =
-            (vertex_df, vertex_col, vertex_time_col)
+        if let (Some(vertex_df), Some(vertex_id), Some(vertex_time)) =
+            (vertex_df, vertex_id, vertex_time)
         {
             graph.load_vertices_from_pandas(
                 vertex_df,
-                vertex_col,
-                vertex_time_col,
+                vertex_id,
+                vertex_time,
                 vertex_props,
                 vertex_const_props,
                 vertex_shared_const_props,
@@ -325,21 +326,21 @@ impl PyGraph {
     /// Load vertices from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     vertices_df (Dataframe): The Pandas DataFrame containing vertex information.
-    ///     vertex_col (str): The column name for the vertex IDs.
-    ///     time_col (str): The column name for the time information.
+    ///     df (pandas.DataFrame): The Pandas DataFrame containing the vertices.
+    ///     id (str): The column name for the vertex IDs.
+    ///     time (str): The column name for the timestamps.
     ///     props (List<str>): List of vertex property column names. Defaults to None. (optional)
     ///     const_props (List<str>): List of constant vertex property column names. Defaults to None.  (optional)
-    ///     shared_const_props (Dictionary/Hashmap of properties): HashMap of shared constant vertex properties. Defaults to None.  (optional)
+    ///     shared_const_props (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every vertex. Defaults to None. (optional)
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (vertices_df, vertex_col = "id", time_col = "time", props = None, const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, time, props = None, const_props = None, shared_const_props = None))]
     fn load_vertices_from_pandas(
         &self,
-        vertices_df: &PyAny,
-        vertex_col: &str,
-        time_col: &str,
+        df: &PyAny,
+        id: &str,
+        time: &str,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
@@ -349,16 +350,16 @@ impl PyGraph {
             let size: usize = py
                 .eval(
                     "index.__len__()",
-                    Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
+                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(vertices_df, py, size)?;
+            let df = process_pandas_py_df(df, py, size)?;
             load_vertices_from_df(
                 &df,
                 size,
-                vertex_col,
-                time_col,
+                id,
+                time,
                 props,
                 const_props,
                 shared_const_props,
@@ -375,52 +376,52 @@ impl PyGraph {
     /// Load edges from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
-    ///     edge_df (Dataframe): The Pandas DataFrame containing edge information.
-    ///     src_col (str): The column name for the source vertex.
-    ///     dst_col (str): The column name for the destination vertex.
-    ///     time_col (str): The column name for the time information.
+    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     src (str): The column name for the source vertex ids.
+    ///     dst (str): The column name for the destination vertex ids.
+    ///     time (str): The column name for the update timestamps.
     ///     props (List<str>): List of edge property column names. Defaults to None. (optional)
     ///     const_props (List<str>): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_const_props (Dict of properties): HashMap of shared constant edge properties. Defaults to None. (optional)
-    ///     layer (str): Layer name. Defaults to None. (optional)
-    ///     layer_in_df (str): Column name for the layer in DataFrame. Defaults to None. (optional)
+    ///     shared_const_props (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", time_col = "time", props = None, const_props=None,shared_const_props=None,layer=None,layer_in_df=None))]
+    #[pyo3(signature = (df, src, dst, time, props = None, const_props=None,shared_const_props=None,layer=None,layer_in_df=true))]
     fn load_edges_from_pandas(
         &self,
-        edge_df: &PyAny,
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
+        df: &PyAny,
+        src: &str,
+        dst: &str,
+        time: &str,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        layer_in_df: Option<&str>,
+        layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
                     "index.__len__()",
-                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
+                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(edge_df, py, size)?;
+            let df = process_pandas_py_df(df, py, size)?;
             load_edges_from_df(
                 &df,
                 size,
-                src_col,
-                dst_col,
-                time_col,
+                src,
+                dst,
+                time,
                 props,
                 const_props,
                 shared_const_props,
                 layer,
-                layer_in_df,
+                layer_in_df.unwrap_or(true),
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
@@ -434,18 +435,18 @@ impl PyGraph {
     /// Load vertex properties from a Pandas DataFrame.
     ///
     /// Arguments:
-    ///     vertices_df (Dataframe): The Pandas DataFrame containing vertex information.
-    ///     vertex_col (str): The column name for the vertex IDs.
+    ///     df (Dataframe): The Pandas DataFrame containing vertex information.
+    ///     id(str): The column name for the vertex IDs.
     ///     const_props (List<str>): List of constant vertex property column names. Defaults to None. (optional)
-    ///     shared_const_props (Dictionary of props, <HashMap<String, Prop>>): HashMap of shared constant vertex properties. Defaults to None. (optional)
+    ///     shared_const_props (<HashMap<String, Prop>>):  A dictionary of constant properties that will be added to every vertex. Defaults to None. (optional)
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (vertices_df, vertex_col = "id", const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id , const_props = None, shared_const_props = None))]
     fn load_vertex_props_from_pandas(
         &self,
-        vertices_df: &PyAny,
-        vertex_col: &str,
+        df: &PyAny,
+        id: &str,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
@@ -454,20 +455,13 @@ impl PyGraph {
             let size: usize = py
                 .eval(
                     "index.__len__()",
-                    Some([("index", vertices_df.getattr("index")?)].into_py_dict(py)),
+                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(vertices_df, py, size)?;
-            load_vertex_props_from_df(
-                &df,
-                size,
-                vertex_col,
-                const_props,
-                shared_const_props,
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            let df = process_pandas_py_df(df, py, size)?;
+            load_vertex_props_from_df(&df, size, id, const_props, shared_const_props, graph)
+                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
@@ -478,46 +472,46 @@ impl PyGraph {
     /// Load edge properties from a Pandas DataFrame.
     ///
     /// Arguments:
-    ///     edge_df (Dataframe): The Pandas DataFrame containing edge information.
-    ///     src_col (str): The column name for the source vertex.
-    ///     dst_col (str): The column name for the destination vertex.
+    ///     df (Dataframe): The Pandas DataFrame containing edge information.
+    ///     src (str): The column name for the source vertex.
+    ///     dst (str): The column name for the destination vertex.
     ///     const_props (List<str>): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_const_props (Dictionary of properties): HashMap of shared constant edge properties. Defaults to None. (optional)
+    ///     shared_const_props (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): Layer name. Defaults to None.  (optional)
-    ///     layer_in_df (str): Column name for the layer in DataFrame. Defaults to None. (optional)
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the data frame or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (edge_df, src_col = "source", dst_col = "destination", const_props=None,shared_const_props=None,layer=None,layer_in_df=None))]
+    #[pyo3(signature = (df, src, dst, const_props=None,shared_const_props=None,layer=None,layer_in_df=true))]
     fn load_edge_props_from_pandas(
         &self,
-        edge_df: &PyAny,
-        src_col: &str,
-        dst_col: &str,
+        df: &PyAny,
+        src: &str,
+        dst: &str,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        layer_in_df: Option<&str>,
+        layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
                     "index.__len__()",
-                    Some([("index", edge_df.getattr("index")?)].into_py_dict(py)),
+                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(edge_df, py, size)?;
+            let df = process_pandas_py_df(df, py, size)?;
             load_edges_props_from_df(
                 &df,
                 size,
-                src_col,
-                dst_col,
+                src,
+                dst,
                 const_props,
                 shared_const_props,
                 layer,
-                layer_in_df,
+                layer_in_df.unwrap_or(true),
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

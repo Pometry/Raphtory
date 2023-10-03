@@ -82,12 +82,12 @@ impl Props {
     pub fn temporal_props_window(
         &self,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter_window_t(t_start..t_end))
+            Box::new(t_prop.iter_window_t(start..end))
         } else {
             Box::new(std::iter::empty())
         }

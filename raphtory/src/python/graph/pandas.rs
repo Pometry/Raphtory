@@ -155,7 +155,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     const_props: Option<Vec<&str>>,
     shared_const_props: Option<HashMap<String, Prop>>,
     layer: Option<S>,
-    layer_in_df: Option<S>,
+    layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let prop_iter = props
@@ -369,7 +369,7 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     const_props: Option<Vec<&str>>,
     shared_const_props: Option<HashMap<String, Prop>>,
     layer: Option<S>,
-    layer_in_df: Option<S>,
+    layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let const_prop_iter = const_props
@@ -516,19 +516,20 @@ fn lift_property<'a: 'b, 'b>(
 
 fn lift_layer<'a, S: AsRef<str>>(
     layer: Option<S>,
-    layer_in_df: Option<S>,
+    layer_in_df: bool,
     df: &'a PretendDF,
 ) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
     if let Some(layer) = layer {
-        //Prioritise the explicit layer set by the user
-        Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
-    } else if let Some(name) = layer_in_df {
-        if let Some(col) = df.utf8::<i32>(name.as_ref()) {
-            Box::new(col.map(|v| v.map(|v| v.to_string())))
-        } else if let Some(col) = df.utf8::<i64>(name.as_ref()) {
-            Box::new(col.map(|v| v.map(|v| v.to_string())))
+        if layer_in_df {
+            if let Some(col) = df.utf8::<i32>(layer.as_ref()) {
+                Box::new(col.map(|v| v.map(|v| v.to_string())))
+            } else if let Some(col) = df.utf8::<i64>(layer.as_ref()) {
+                Box::new(col.map(|v| v.map(|v| v.to_string())))
+            } else {
+                Box::new(std::iter::repeat(None))
+            }
         } else {
-            Box::new(std::iter::repeat(None))
+            Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
         }
     } else {
         Box::new(std::iter::repeat(None))
@@ -747,7 +748,7 @@ mod test {
         };
         let graph = Graph::new();
         let layer: Option<&str> = None;
-        let layer_in_df: Option<&str> = None;
+        let layer_in_df: bool = true;
         load_edges_from_df(
             &df,
             5,
