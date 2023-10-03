@@ -17,7 +17,8 @@ use crate::{
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
             max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
-            min_in_degree as min_in_degree_rs, min_out_degree as min_out_degree_rs,
+            min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
+            min_out_degree as min_out_degree_rs,
         },
         metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
         metrics::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
@@ -443,4 +444,17 @@ pub fn degree_centrality(
 #[pyo3[signature = (g)]]
 pub fn max_degree(g: &PyGraphView) -> usize {
     max_degree_rs(&g.graph)
+}
+
+/// Returns the smallest degree found in the graph
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     usize: The smallest degree found
+#[pyfunction]
+#[pyo3[signature = (g)]]
+pub fn min_degree(g: &PyGraphView) -> usize {
+    min_degree_rs(&g.graph)
 }
