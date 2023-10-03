@@ -15,9 +15,9 @@ use crate::{
         cores::k_core::{k_core as k_core_rs, k_core_set as k_core_set_rs},
         metrics::balance::balance as balance_rs,
         metrics::degree::{
-            average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
-            max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
-            min_out_degree as min_out_degree_rs,
+            average_degree as average_degree_rs, max_degree as max_degree_rs,
+            max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
+            min_in_degree as min_in_degree_rs, min_out_degree as min_out_degree_rs,
         },
         metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
         metrics::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
@@ -430,4 +430,17 @@ pub fn degree_centrality(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     degree_centrality_rs(&g.graph, threads)
+}
+
+/// Returns the largest degree found in the graph
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     usize: The largest degree
+#[pyfunction]
+#[pyo3[signature = (g)]]
+pub fn max_degree(g: &PyGraphView) -> usize {
+    max_degree_rs(&g.graph)
 }
