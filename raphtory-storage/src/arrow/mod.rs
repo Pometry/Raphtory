@@ -168,16 +168,8 @@ impl LoadChunk {
         array_as_id_iter(&self.graph_cols[1])
     }
 
-    fn timestamps(&self) -> Result<impl Iterator<Item = i64>, Error> {
-        let arr = &self.graph_cols[2];
-        let times = arr
-            .as_any()
-            .downcast_ref::<PrimitiveArray<i64>>()
-            .ok_or_else(|| {
-                Error::InvalidTypeColumn(format!("expected i64 column, got {:?}", arr.data_type()))
-            })?
-            .clone();
-        Ok(times.into_iter().flatten())
+    fn t_prop_cols(&self) -> Option<&StructArray> {
+        self.t_prop_cols.as_ref()
     }
 
     fn timestamp_arr(&self) -> Result<PrimitiveArray<i64>, Error> {
@@ -198,26 +190,20 @@ impl LoadChunk {
             .as_any_mut()
             .downcast_mut::<PrimitiveArray<i64>>()
             .unwrap();
+        println!("splitting timestamps {:?} at {split_at}", time_arr);
         let out = time_arr.clone().sliced(0, split_at);
         time_arr.slice(split_at, time_arr.len() - split_at);
         out
     }
 
-    fn timestamp_arr_sliced(&self, offset: usize, len: usize) -> Box<dyn Array> {
-        let arr = &self.graph_cols[2];
-        let times = arr.sliced(offset, arr.len().min(len));
-        times
+    fn split_t_props_at(&mut self, split_at: usize) -> Option<StructArray> {
+        let t_prop_cols = self.t_prop_cols.as_mut()?;
+        println!("splitting t_props {:?} at {split_at}", t_prop_cols);
+        let out = t_prop_cols.clone().sliced(0, split_at);
+        t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
+        Some(out)
     }
 
-    // fn properties(&self) -> impl Iterator<Item = Box<dyn Array>> + '_ {
-    //     self.graph_cols
-    //         .iter()
-    //         .enumerate()
-    //         .filter(|(i, _)| {
-    //             *i != self.src_col_idx && *i != self.dst_col_idx && *i != self.time_col_idx
-    //         })
-    //         .map(|(_, col)| col.clone())
-    // }
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
