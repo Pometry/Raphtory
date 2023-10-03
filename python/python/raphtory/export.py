@@ -85,7 +85,7 @@ def to_pyvis(
         else:
             visGraph.add_node(v.id, label=v.name, shape=shape, image=image)
 
-    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
     for e in edges:
         weight = e.properties.get(edge_weight) if edge_weight is not None else 1
         if weight is None:
@@ -148,7 +148,7 @@ def to_networkx(
     networkXGraph.add_nodes_from(vertex_tuples)
 
     edge_tuples = []
-    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
     for e in edges:
         properties = {}
         src = e.src.name
@@ -205,7 +205,7 @@ def to_edge_df(
     if include_update_history:
         columns.append("update_history")
 
-    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
     for e in edges:
         tuple = [e.src.name, e.dst.name, e.layer_name]
         if include_edge_properties:

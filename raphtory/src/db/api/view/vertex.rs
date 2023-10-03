@@ -123,11 +123,11 @@ pub trait VertexListOps:
     /// Return the timestamp of the latest activity.
     fn latest_time(self) -> Self::IterType<Option<i64>>;
 
-    /// Create views for the vertices including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create views for the vertices including all events between `start` (inclusive) and `end` (exclusive)
     fn window(
         self,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
 
     /// Create views for the vertices including all events until `end` (inclusive)

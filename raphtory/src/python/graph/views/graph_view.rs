@@ -237,6 +237,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///  the edges in the graph
+    #[getter]
     pub fn edges(&self) -> PyEdges {
         let clone = self.graph.clone();
         (move || clone.edges()).into()
