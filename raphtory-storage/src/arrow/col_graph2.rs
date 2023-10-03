@@ -17,8 +17,7 @@ use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray},
     chunk::Chunk,
     compute::concatenate::concatenate,
-    datatypes::{DataType, Field, Schema},
-    error::Result as ArrowResult,
+    datatypes::{Field, Schema},
     io::{
         ipc::write::{FileWriter, WriteOptions},
         parquet::read,
@@ -31,7 +30,7 @@ use raphtory::core::{
     Direction,
 };
 use rayon::prelude::*;
-use tempfile::{tempfile, tempfile_in};
+use tempfile::tempfile_in;
 
 use super::{array_as_id_iter, LoadChunk, GID};
 
@@ -578,15 +577,29 @@ fn read_file_chunks<P: AsRef<Path>>(
         .map(|(i, _)| i)
         .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
 
-    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    Ok(reader
-        .flatten()
-        .map(move |chunk| LoadChunk::from_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx)))
+    let reader = read::FileReader::new(
+        reader,
+        metadata.row_groups,
+        schema.clone(),
+        None,
+        None,
+        None,
+    );
+    Ok(reader.flatten().map(move |chunk| {
+        LoadChunk::from_chunk(
+            chunk,
+            src_col_idx,
+            dst_col_idx,
+            time_col_idx,
+            schema.clone(),
+        )
+    }))
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use arrow2::datatypes::DataType;
     use tempfile::TempDir;
 
     #[test]
@@ -608,6 +621,14 @@ mod test {
         println!("{:?}", g)
     }
 
+    fn schema() -> Schema {
+        let srcs = Field::new("srcs", DataType::UInt64, false);
+        let dsts = Field::new("dsts", DataType::UInt64, false);
+        let time = Field::new("time", DataType::Int64, false);
+        let weight = Field::new("weight", DataType::Float64, true);
+        Schema::from(vec![srcs, dsts, time, weight])
+    }
+
     #[test]
     fn load_one_edge_from_sorted_adj_list_num_vertices_props() {
         let test_dir = TempDir::new().unwrap();
@@ -615,7 +636,7 @@ mod test {
         let dsts = PrimitiveArray::from_vec(vec![2u64]).boxed();
         let time = PrimitiveArray::from_vec(vec![9i64]).boxed();
         let weight = PrimitiveArray::from_vec(vec![3.14f64]).boxed();
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -643,7 +664,7 @@ mod test {
         let dsts = PrimitiveArray::from_vec(vec![2u64, 2u64, 2u64]).boxed();
         let time = PrimitiveArray::from_vec(vec![0i64, 3i64, 7i64]).boxed();
         let weight = PrimitiveArray::from_vec(vec![1.14f64, 2.14f64, 3.14f64]).boxed();
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -684,7 +705,7 @@ mod test {
             10.14f64, 11.14f64, 12.14f64,
         ])
         .boxed();
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -730,7 +751,7 @@ mod test {
             PrimitiveArray::from_vec(vec![1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64])
                 .boxed();
 
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let mut graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -769,14 +790,14 @@ mod test {
         let time = PrimitiveArray::from_vec(vec![0i64, 1i64]).boxed();
         let weight = PrimitiveArray::from_vec(vec![1.14f64, 2.14f64]).boxed();
 
-        let chunk1 = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk1 = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let srcs = PrimitiveArray::from_vec(vec![1u64, 2u64, 2u64, 2u64]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![3u64, 3u64, 4u64, 4u64]).boxed();
         let time = PrimitiveArray::from_vec(vec![2i64, 3i64, 4i64, 5i64]).boxed();
         let weight = PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
 
-        let chunk2 = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk2 = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -814,7 +835,7 @@ mod test {
             PrimitiveArray::from_vec(vec![1.14f64, 2.14f64, 3.14f64, 4.14f64, 5.14f64, 6.14f64])
                 .boxed();
 
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -864,7 +885,7 @@ mod test {
         ])
         .boxed();
 
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
@@ -924,7 +945,7 @@ mod test {
         ])
         .boxed();
 
-        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2);
+        let chunk = LoadChunk::new(vec![srcs, dsts, time, weight], 0, 1, 2, schema());
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),

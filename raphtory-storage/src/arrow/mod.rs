@@ -1,8 +1,9 @@
 use arrow2::{
-    array::{Array, MutablePrimitiveArray, PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
-    datatypes::{DataType, Field},
+    datatypes::{DataType, Field, Schema},
 };
+use itertools::Itertools;
 
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
@@ -83,10 +84,8 @@ impl From<&str> for GID {
 }
 
 pub(crate) struct LoadChunk {
-    data: Vec<Box<dyn Array>>,
-    src_col_idx: usize,
-    dst_col_idx: usize,
-    time_col_idx: usize,
+    graph_cols: Vec<Box<dyn Array>>,
+    t_prop_cols: Option<StructArray>,
 }
 
 impl LoadChunk {
@@ -95,19 +94,53 @@ impl LoadChunk {
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
+        chunk_schema: Schema,
     ) -> Self {
-        //FIXME: take Chunk as input
-        let chunks: Vec<Box<dyn Array>> = columns_in_chunk.into_iter().collect();
-        let first_len = chunks.first().unwrap().len();
-        if chunks.iter().any(|arr| arr.len() != first_len) {
+        let mut temporal_props = vec![];
+
+        let all_cols = columns_in_chunk.into_iter().collect_vec();
+        for (i, column) in all_cols.iter().enumerate() {
+            if !(i == src_col_idx || i == dst_col_idx || i == time_col_idx) {
+                temporal_props.push(column.clone());
+            }
+        }
+
+        let mut graph_cols =
+            vec![PrimitiveArray::<i32>::from_vec(Vec::with_capacity(0)).boxed(); 3];
+
+        for (i, col) in all_cols.into_iter().enumerate() {
+            if i == src_col_idx {
+                graph_cols[0] = col;
+            } else if i == dst_col_idx {
+                graph_cols[1] = col;
+            } else if i == time_col_idx {
+                graph_cols[2] = col;
+            }
+        }
+
+        let first_len = graph_cols.first().unwrap().len();
+        if graph_cols.iter().any(|arr| arr.len() != first_len) {
             panic!("All arrays in a chunk must have the same length");
         }
 
-        Self {
-            data: chunks,
-            src_col_idx,
-            dst_col_idx,
-            time_col_idx,
+        if temporal_props.iter().any(|arr| arr.len() != first_len) {
+            panic!("All arrays in a chunk must have the same length");
+        }
+
+        if temporal_props.is_empty() {
+            Self {
+                graph_cols,
+                t_prop_cols: None,
+            }
+        } else {
+            let props_only_schema = chunk_schema
+                .filter(|i, _| !(i == src_col_idx || i == dst_col_idx || i == time_col_idx));
+            let data_type = DataType::Struct(props_only_schema.fields);
+            let t_prop_cols = Some(StructArray::new(data_type, temporal_props, None));
+            Self {
+                graph_cols,
+                t_prop_cols,
+            }
         }
     }
 
@@ -116,20 +149,27 @@ impl LoadChunk {
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
+        chunk_schema: Schema,
     ) -> Self {
-        Self::new(chunk.into_arrays(), src_col_idx, dst_col_idx, time_col_idx)
+        Self::new(
+            chunk.into_arrays(),
+            src_col_idx,
+            dst_col_idx,
+            time_col_idx,
+            chunk_schema,
+        )
     }
 
     fn sources(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.data[self.src_col_idx])
+        array_as_id_iter(&self.graph_cols[0])
     }
 
     fn destinations(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.data[self.dst_col_idx])
+        array_as_id_iter(&self.graph_cols[1])
     }
 
     fn timestamps(&self) -> Result<impl Iterator<Item = i64>, Error> {
-        let arr = &self.data[self.time_col_idx];
+        let arr = &self.graph_cols[2];
         let times = arr
             .as_any()
             .downcast_ref::<PrimitiveArray<i64>>()
@@ -141,7 +181,7 @@ impl LoadChunk {
     }
 
     fn timestamp_arr(&self) -> Result<PrimitiveArray<i64>, Error> {
-        let arr = &self.data[self.time_col_idx];
+        let arr = &self.graph_cols[2];
         let times = arr
             .as_any()
             .downcast_ref::<PrimitiveArray<i64>>()
@@ -153,7 +193,7 @@ impl LoadChunk {
     }
 
     fn split_timestamps_at(&mut self, split_at: usize) -> PrimitiveArray<i64> {
-        let time_arr = &mut self.data[self.time_col_idx];
+        let time_arr = &mut self.graph_cols[2];
         let time_arr = time_arr
             .as_any_mut()
             .downcast_mut::<PrimitiveArray<i64>>()
@@ -164,20 +204,20 @@ impl LoadChunk {
     }
 
     fn timestamp_arr_sliced(&self, offset: usize, len: usize) -> Box<dyn Array> {
-        let arr = &self.data[self.time_col_idx];
+        let arr = &self.graph_cols[2];
         let times = arr.sliced(offset, arr.len().min(len));
         times
     }
 
-    fn properties(&self) -> impl Iterator<Item = Box<dyn Array>> + '_ {
-        self.data
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| {
-                *i != self.src_col_idx && *i != self.dst_col_idx && *i != self.time_col_idx
-            })
-            .map(|(_, col)| col.clone())
-    }
+    // fn properties(&self) -> impl Iterator<Item = Box<dyn Array>> + '_ {
+    //     self.graph_cols
+    //         .iter()
+    //         .enumerate()
+    //         .filter(|(i, _)| {
+    //             *i != self.src_col_idx && *i != self.dst_col_idx && *i != self.time_col_idx
+    //         })
+    //         .map(|(_, col)| col.clone())
+    // }
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {

@@ -22,7 +22,6 @@ pub struct EdgeFrameBuilder {
     edge_dst_id: Vec<u64>,      // the dst ids for the edge in the current chunk
     edge_offsets: Vec<i64>,     // the offsets of the edge list for the current chunk
 
-    properties: Vec<Box<dyn MutableArray>>,
     in_chunk_offset: usize, // where in the current chunk are we positioned?
 
     chunk_size: usize,
@@ -40,7 +39,6 @@ impl EdgeFrameBuilder {
             edge_src_id: vec![],
             edge_dst_id: vec![],
             edge_offsets: vec![],
-            properties: vec![],
             in_chunk_offset: 0,
             chunk_size,
             chunk_offset: 0,
