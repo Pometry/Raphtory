@@ -7,6 +7,7 @@ use itertools::Itertools;
 
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
+pub(crate) mod edge_chunk;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod mmap;
 pub(crate) mod vertex_frame_builder;
@@ -40,6 +41,8 @@ const TEMPORAL_PROPS_COLUMN: &str = "t_props";
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
 const DST_COLUMN: &str = "dst";
+
+const TIME_COLUMN: &str = "rap_time";
 
 pub(crate) const V_COLUMN: &str = "v";
 pub(crate) const E_COLUMN: &str = "e";
@@ -99,6 +102,10 @@ impl LoadChunk {
         let mut temporal_props = vec![];
 
         let all_cols = columns_in_chunk.into_iter().collect_vec();
+
+        // shove time as the first column in temporal_props
+        temporal_props.push(all_cols[time_col_idx].clone());
+
         for (i, column) in all_cols.iter().enumerate() {
             if !(i == src_col_idx || i == dst_col_idx || i == time_col_idx) {
                 temporal_props.push(column.clone());
@@ -133,8 +140,10 @@ impl LoadChunk {
                 t_prop_cols: None,
             }
         } else {
-            let props_only_schema = chunk_schema
+            let mut props_only_schema = chunk_schema
                 .filter(|i, _| !(i == src_col_idx || i == dst_col_idx || i == time_col_idx));
+            // put time as the first column in the struct
+            props_only_schema.fields.insert(0, Field::new(TIME_COLUMN, DataType::Int64, false));
             let data_type = DataType::Struct(props_only_schema.fields);
             let t_prop_cols = Some(StructArray::new(data_type, temporal_props, None));
             Self {
@@ -190,7 +199,6 @@ impl LoadChunk {
             .as_any_mut()
             .downcast_mut::<PrimitiveArray<i64>>()
             .unwrap();
-        println!("splitting timestamps {:?} at {split_at}", time_arr);
         let out = time_arr.clone().sliced(0, split_at);
         time_arr.slice(split_at, time_arr.len() - split_at);
         out
@@ -198,7 +206,6 @@ impl LoadChunk {
 
     fn split_t_props_at(&mut self, split_at: usize) -> Option<StructArray> {
         let t_prop_cols = self.t_prop_cols.as_mut()?;
-        println!("splitting t_props {:?} at {split_at}", t_prop_cols);
         let out = t_prop_cols.clone().sliced(0, split_at);
         t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
         Some(out)
