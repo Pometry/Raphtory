@@ -713,6 +713,8 @@ mod test {
         )
         .unwrap();
 
+        println!("{:?}", graph);
+
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
         assert_eq!(actual, expected);

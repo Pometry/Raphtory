@@ -16,7 +16,7 @@ use arrow2::{
 };
 use std::path::{Path, PathBuf};
 
-use super::{Error, LoadChunk};
+use super::{Error, LoadChunk, TEMPORAL_PROPS_COLUMN};
 
 pub struct EdgeFrameBuilder {
     pub(crate) edge_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
@@ -88,6 +88,7 @@ impl EdgeFrameBuilder {
             Field::new(SRC_COLUMN, chunk[0].data_type().clone(), false),
             Field::new(DST_COLUMN, chunk[1].data_type().clone(), false),
             Field::new(E_ADDITIONS_COLUMN, chunk[2].data_type().clone(), false),
+            Field::new(TEMPORAL_PROPS_COLUMN, chunk[3].data_type().clone(), false),
         ]);
         let file_path = self
             .location_path
@@ -132,8 +133,6 @@ impl EdgeFrameBuilder {
     }
 
     pub(crate) fn extend_tprops_slice(&mut self, copy_from: &StructArray) {
-        println!("extend_tprops_slice {copy_from:?} -> {:?}", self.t_props);
-
         if let Some(mut t_props) = self.t_props.take() {
             let values = t_props.mut_values();
             assert!(
