@@ -11,7 +11,7 @@ use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Ser
 use raphtory::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::Graph,
-    vectors::{Embedding, Vectorizable},
+    vectors::{vectorizable::Vectorizable, Embedding},
 };
 use std::{collections::HashMap, future::Future, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};

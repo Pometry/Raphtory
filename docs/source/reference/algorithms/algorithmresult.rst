@@ -1,7 +1,7 @@
 Algorithm Result
 *****************
 
-.. autoclass:: raphtory.AlgorithmResultStrU64
+.. autoclass:: raphtory.AlgorithmResult
    :autosummary:
    :members:
    :undoc-members:

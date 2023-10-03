@@ -4,11 +4,14 @@ use dotenv::dotenv;
 use std::env;
 
 mod data;
-mod embeddings;
 mod model;
 mod observability;
 mod routes;
 mod server;
+
+fn default_cache_dir() -> String {
+    "".to_owned()
+}
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -17,8 +20,7 @@ struct Args {
     vectorize: Vec<String>,
 
     /// directory to use to store the embbeding cache
-    // parenthesis are actually necessary or this does not compile!
-    #[arg(short, long, default_value_t = ("".to_string()))]
+    #[arg(short, long, default_value_t = default_cache_dir())]
     cache: String,
 }
 

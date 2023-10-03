@@ -224,8 +224,8 @@ pub trait EdgeListOps:
 
     fn window<T: IntoTime>(
         self,
-        t_start: T,
-        t_end: T,
+        start: T,
+        end: T,
     ) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
 }
 

@@ -5,7 +5,7 @@ use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
-        algorithm_result::AlgorithmResultStrU64,
+        algorithm_result::AlgorithmResult,
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
@@ -44,7 +44,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let algorithm_module = PyModule::new(py, "algorithms")?;
     algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(all_local_reciprocity, algorithm_module)?)?;
-    m.add_class::<AlgorithmResultStrU64>()?;
+    m.add_class::<AlgorithmResult>()?;
 
     algorithm_module.add_function(wrap_pyfunction!(triplet_count, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
@@ -86,7 +86,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(balance, algorithm_module)?)?;
-
+    algorithm_module.add_function(wrap_pyfunction!(degree_centrality, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(max_degree, algorithm_module)?)?;
+    algorithm_module.add_function(wrap_pyfunction!(min_degree, algorithm_module)?)?;
     m.add_submodule(algorithm_module)?;
 
     //GRAPH LOADER

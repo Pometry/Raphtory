@@ -61,6 +61,7 @@ tantivy = {version="0.20", optional=true} # 0.21 does not work (see https://gith
 # vectors optional dependencies
 futures-util = {version="0.3.0", optional=true}
 async-trait = {version="0.1.73", optional=true}
+async-openai = {version="0.14.0", optional=true}
 
 # python binding optional dependencies
 pyo3 =  {version= "0.19.2", features=["multiple-pymethods", "chrono"], optional=true}
@@ -77,9 +78,11 @@ pretty_assertions = "1"
 quickcheck = "1"
 quickcheck_macros = "1"
 tempfile = "3.2"
+tokio = { version = "1.27.0", features = ["full"]} # for vector testing
+dotenv = "0.15.0" # for vector testing
 
 [features]
-default = ["search"]
+default = ["search", "vectors"]
 # Enables the graph loader io module
 io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
@@ -87,4 +90,4 @@ python = ["io", "vectors", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:displ
 # search
 search = ["dep:tantivy"]
 # vectors
-vectors = ["dep:futures-util", "dep:async-trait"]
+vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]

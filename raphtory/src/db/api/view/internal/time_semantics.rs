@@ -45,19 +45,19 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// Returns the timestamp for the latest activity
     fn latest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the earliest activity in the window
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64>;
 
     /// Returns the timestamp for the latest activity in the window
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64>;
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64>;
 
     /// Return the earliest time for a vertex in a window
-    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.vertex_additions(v).range(t_start..t_end).first_t()
+    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        self.vertex_additions(v).range(start..end).first_t()
     }
 
     /// Return the latest time for a vertex in a window
-    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.vertex_additions(v).range(t_start..t_end).last_t()
+    fn vertex_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        self.vertex_additions(v).range(start..end).last_t()
     }
     /// check if vertex `v` should be included in window `w`
     fn include_vertex_window(
@@ -174,20 +174,15 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     /// # Arguments
     ///
     /// * `name` - The name of the property to retrieve.
-    /// * `t_start` - The start time of the window to consider.
-    /// * `t_end` - The end time of the window to consider.
+    /// * `start` - The start time of the window to consider.
+    /// * `end` - The end time of the window to consider.
     ///
     /// Returns:
     ///
     /// A vector of tuples representing the temporal values of the property
     /// that fall within the specified time window, where the first element of each tuple is the timestamp
     /// and the second element is the property value.
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)>;
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)>;
 
     /// Check if vertex has temporal property with the given id
     ///
@@ -228,8 +223,8 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ///
     /// * `v` - A reference to the vertex for which to retrieve the temporal property vector.
     /// * `name` - The name of the property to retrieve.
-    /// * `t_start` - The start time of the window to consider.
-    /// * `t_end` - The end time of the window to consider.
+    /// * `start` - The start time of the window to consider.
+    /// * `end` - The end time of the window to consider.
     ///
     /// Returns:
     ///
@@ -240,8 +235,8 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         &self,
         v: VID,
         id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)>;
 
     /// Check if edge has temporal property with the given id in the window
@@ -266,8 +261,8 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ///
     /// * `e` - An `EdgeRef` reference to the edge of interest.
     /// * `name` - A `String` containing the name of the temporal property.
-    /// * `t_start` - An `i64` containing the start time of the time window (inclusive).
-    /// * `t_end` - An `i64` containing the end time of the time window (exclusive).
+    /// * `start` - An `i64` containing the start time of the time window (inclusive).
+    /// * `end` - An `i64` containing the end time of the time window (exclusive).
     ///
     /// Returns:
     ///
@@ -278,8 +273,8 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
         &self,
         e: EdgeRef,
         id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)>;
 
@@ -357,20 +352,20 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         self.graph().latest_time_global()
     }
     #[inline]
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph().earliest_time_window(t_start, t_end)
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        self.graph().earliest_time_window(start, end)
     }
     #[inline]
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph().latest_time_window(t_start, t_end)
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        self.graph().latest_time_window(start, end)
     }
     #[inline]
-    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph().vertex_earliest_time_window(v, t_start, t_end)
+    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        self.graph().vertex_earliest_time_window(v, start, end)
     }
     #[inline]
-    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph().vertex_latest_time_window(v, t_start, t_end)
+    fn vertex_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        self.graph().vertex_latest_time_window(v, start, end)
     }
     #[inline]
     fn include_vertex_window(
@@ -490,14 +485,8 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph()
-            .temporal_prop_vec_window(prop_id, t_start, t_end)
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        self.graph().temporal_prop_vec_window(prop_id, start, end)
     }
 
     #[inline]
@@ -520,11 +509,11 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         &self,
         v: VID,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
         self.graph()
-            .temporal_vertex_prop_vec_window(v, prop_id, t_start, t_end)
+            .temporal_vertex_prop_vec_window(v, prop_id, start, end)
     }
 
     fn has_temporal_edge_prop_window(
@@ -543,12 +532,12 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph()
-            .temporal_edge_prop_vec_window(e, prop_id, t_start, t_end, layer_ids)
+            .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
