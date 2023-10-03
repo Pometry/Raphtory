@@ -1,7 +1,6 @@
 use std::{
     io,
     io::BufReader,
-    ops::Deref,
     path::Path,
     sync::atomic::{AtomicUsize, Ordering},
 };
@@ -35,12 +34,6 @@ use tempfile::tempfile_in;
 use super::{array_as_id_iter, LoadChunk, GID};
 
 pub type Time = i64;
-
-// let fields = vec![
-//     ArrowField::new(V_COLUMN, ArrowDataType::UInt64, false),
-//     ArrowField::new(E_COLUMN, ArrowDataType::UInt64, false),
-// ];
-// let schema = ArrowDataType::Struct(fields);
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
@@ -191,6 +184,9 @@ impl TempColGraphFragment {
             // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
             if let Some(last_chunk) = last_chunk {
                 edge_builder.extend_time_slice(&last_chunk.timestamp_arr()?);
+                if let Some(t_prop_cols) = last_chunk.t_prop_cols() {
+                    edge_builder.extend_tprops_slice(t_prop_cols);
+                }
             }
 
             // get the source and destintion columns
