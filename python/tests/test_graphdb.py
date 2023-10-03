@@ -1946,3 +1946,13 @@ def test_time_exploded_edges():
         for sublist in g.vertices.edges.explode().date_time.collect()
         for item in sublist
     ] == date_time_nested
+
+
+def test_leading_zeroes_ids():
+    g = Graph()
+    g.add_vertex(0, "1")
+    g.add_vertex(0, "01")
+    g.add_vertex(0, "001")
+    g.add_vertex(0, "0001")
+    assert g.count_vertices() == 4
+    assert g.vertices.name.collect() == ["1", "01", "001", "0001"]
