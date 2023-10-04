@@ -9,6 +9,7 @@ use std::{
 use crate::arrow::{
     adj_schema,
     edge_frame_builder::EdgeFrameBuilder,
+    list_buffer::{as_primitive_column, ListColumn},
     mmap::{mmap_batch, mmap_batches, write_batches},
     vertex_frame_builder::VertexFrameBuilder,
     Error, E_COLUMN, V_COLUMN,
@@ -365,6 +366,9 @@ impl TempColGraphFragment {
                 .as_any()
                 .downcast_ref::<ListArray<i64>>()
                 .unwrap();
+            let adj_column: ListColumn<u64> = as_primitive_column(outbound, 0).unwrap();
+            let edge_ids_column: ListColumn<u64> = as_primitive_column(outbound, 1).unwrap();
+
             let outbound_chunksize = outbound.len();
             let mut progress = vec![0usize; outbound_chunksize]; // keeps track of how far we got for each list
             for inbound_chunk_id in 0..num_chunks {
@@ -378,9 +382,9 @@ impl TempColGraphFragment {
                     .par_iter()
                     .enumerate()
                     .map(|(row, &start)| {
-                        let (vertex_ids, _) = row_from_start(outbound.value(row), start, None);
+                        let vertex_ids = &adj_column[row][start..];
                         let mut row_size = 0usize;
-                        for &id in vertex_ids.iter().flatten() {
+                        for &id in vertex_ids {
                             let id = id as usize;
                             if id < chunk_max_id {
                                 if let Some(counts) = counts.get(id % self.chunk_size) {
@@ -411,15 +415,11 @@ impl TempColGraphFragment {
                 let mut extra_offsets = vec![0usize; inbound_chunksize];
 
                 for (row, &start) in progress.iter().enumerate() {
-                    let (row_vertex_ids, row_edge_ids) =
-                        row_from_start(outbound.value(row), start, Some(new_progress[row]));
+                    let row_vertex_ids = &adj_column[row][start..start + new_progress[row]];
+                    let row_edge_ids = &edge_ids_column[row][start..start + new_progress[row]];
                     // in principle we can do all these updates in parallel as they end up pointing at unique rows of the vector
                     // this would require some careful unsafe code though
-                    for (&vid, &eid) in row_vertex_ids
-                        .iter()
-                        .flatten()
-                        .zip(row_edge_ids.iter().flatten())
-                    {
+                    for (&vid, &eid) in row_vertex_ids.iter().zip(row_edge_ids) {
                         let vid = vid as usize % self.chunk_size; //local index
                         let insertion_point = offsets[vid] as usize + extra_offsets[vid];
                         extra_offsets[vid] += 1;
