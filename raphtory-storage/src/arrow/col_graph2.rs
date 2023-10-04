@@ -32,7 +32,7 @@ use raphtory::core::{
 use rayon::prelude::*;
 use tempfile::tempfile_in;
 
-use super::{array_as_id_iter, LoadChunk, GID, edge_chunk::EdgeChunk, Time};
+use super::{array_as_id_iter, edge_chunk::EdgeChunk, LoadChunk, Time, GID};
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
@@ -271,7 +271,11 @@ impl TempColGraphFragment {
         self.edge_chunks
             .iter()
             .flat_map(|chunk| {
-                chunk.source().into_iter().flatten().zip(chunk.destination().into_iter().flatten())
+                chunk
+                    .source()
+                    .into_iter()
+                    .flatten()
+                    .zip(chunk.destination().into_iter().flatten())
             })
             .enumerate()
             .map(|(eid, (src, dst))| (EID(eid), VID(src as usize), VID(dst as usize)))
@@ -285,7 +289,9 @@ impl TempColGraphFragment {
                 // TODO: make this a function
                 let time_into_iter =
                     (0..time.len()).map(move |i| unsafe { time.value_unchecked(i) });
-                chunk.source().into_iter()
+                chunk
+                    .source()
+                    .into_iter()
                     .flatten()
                     .zip(chunk.destination().into_iter().flatten())
                     .zip(time_into_iter)
