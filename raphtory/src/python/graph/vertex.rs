@@ -121,16 +121,13 @@ impl PyVertex {
     /// Returns the name of the vertex.
     ///
     /// Returns:
-    ///  The name of the vertex as a string.
+    ///     The name of the vertex as a string.
     #[getter]
     pub fn name(&self) -> String {
         self.vertex.name()
     }
 
     /// Returns the earliest time that the vertex exists.
-    ///
-    /// Arguments:
-    ///    None
     ///
     /// Returns:
     ///     The earliest time that the vertex exists as an integer.
@@ -140,9 +137,6 @@ impl PyVertex {
     }
 
     /// Returns the earliest datetime that the vertex exists.
-    ///
-    /// Arguments:
-    ///    None
     ///
     /// Returns:
     ///     The earliest datetime that the vertex exists as an integer.
@@ -175,6 +169,9 @@ impl PyVertex {
     }
 
     /// The properties of the vertex
+    ///
+    /// Returns:
+    ///     A list of properties.
     #[getter]
     pub fn properties(&self) -> Properties<VertexView<DynamicGraph>> {
         self.vertex.properties()
@@ -310,12 +307,10 @@ impl PyVertex {
     /// its properties are at those points.
     ///
     /// Arguments:
-    ///  step (int): The step size of the window.
-    ///  start (int): The start time of the window. Defaults to the start time of the vertex.
-    ///  end (int): The end time of the window. Defaults to the end time of the vertex.
+    ///     step (int): The step size of the window.
     ///
     /// Returns:
-    ///  A `PyVertexWindowSet` object.
+    ///     A `PyVertexWindowSet` object.
     fn expanding(
         &self,
         step: PyInterval,
@@ -331,13 +326,11 @@ impl PyVertex {
     /// its properties are at those points.
     ///
     /// Arguments:
-    ///  window: The size of the window.
-    ///  step: The step size of the window. Defaults to the window size.
-    ///  start: The start time of the window. Defaults to the start time of the vertex.
-    ///  end: The end time of the window. Defaults to the end time of the vertex.
+    ///     window: The size of the window.
+    ///     step: The step size of the window. Defaults to the window size.
     ///
     /// Returns:
-    /// A `PyVertexWindowSet` object.
+    ///     A `PyVertexWindowSet` object.
     fn rolling(
         &self,
         window: PyInterval,
@@ -346,28 +339,28 @@ impl PyVertex {
         self.vertex.rolling(window, step)
     }
 
-    /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create a view of the vertex including all events between `start` (inclusive) and `end` (exclusive)
     ///
     /// Arguments:
-    ///     t_start (int): The start time of the window. Defaults to the start time of the vertex.
-    ///     t_end (int): The end time of the window. Defaults to the end time of the vertex.
+    ///     start (int, str or datetime(utc)): The start time of the window. Defaults to the start time of the vertex.
+    ///     end (int, str or datetime(utc)): The end time of the window. Defaults to the end time of the vertex.
     ///
     /// Returns:
     ///    A `PyVertex` object.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> VertexView<WindowedGraph<DynamicGraph>> {
         self.vertex
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
     ///
     /// Arguments:
-    ///     end (int): The time of the window.
+    ///     end (int, str or datetime(utc)): The time of the window.
     ///
     /// Returns:
     ///     A `PyVertex` object.
@@ -387,7 +380,7 @@ impl PyVertex {
         self.vertex.layer(names)
     }
 
-    #[doc = layers_doc_string!()]
+    #[doc = layers_name_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: String) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
         self.vertex.layer(name)
@@ -587,6 +580,10 @@ impl PyVertices {
         (move || vertices.latest_time()).into()
     }
 
+    /// The properties of the vertex
+    ///
+    /// Returns:
+    ///     A List of properties
     #[getter]
     fn properties(&self) -> PyPropsList {
         let vertices = self.vertices.clone();
@@ -726,8 +723,8 @@ impl PyVertices {
     /// what its properties are at those points.
     ///
     /// Arguments:
-    ///     `window` - The window size of the window
-    ///     `step` - The step size of the window
+    ///     window (str or int): The window size of the window
+    ///     step (str or int): The step size of the window
     ///
     /// Returns:
     ///     A PyVertexWindowSet with the given window size and optional step size or an error
@@ -739,29 +736,29 @@ impl PyVertices {
         self.vertices.rolling(window, step)
     }
 
-    /// Create a view of the vertices including all events between t_start (inclusive) and
-    /// t_end (exclusive)
+    /// Create a view of the vertices including all events between start (inclusive) and
+    /// end (exclusive)
     ///
     /// Arguments:
-    ///     `t_start` - The start time of the window
-    ///     `t_end` - The end time of the window
+    ///     start (int, str or datetime(utc)): The start time of the window (inclusive)
+    ///     end (int, str or datetime(utc)): The end time of the window (exclusive)
     ///
     /// Returns:
-    ///     A `PyVertices` object.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    ///     A `PyVertices` object of vertices within the window.
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> Vertices<WindowedGraph<DynamicGraph>> {
         self.vertices
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertices including all events at `t`.
     ///
     /// Arguments:
-    ///     end (int): The time of the window.
+    ///     end (int, str or datetime(utc)): The time of the window.
     ///
     /// Returns:
     ///     A `PyVertices` object.
@@ -935,14 +932,14 @@ impl PyPathFromGraph {
         self.path.rolling(window, step)
     }
 
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
         self.path
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -1142,14 +1139,14 @@ impl PyPathFromVertex {
         self.path.rolling(window, step)
     }
 
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None,end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
         self.path
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.

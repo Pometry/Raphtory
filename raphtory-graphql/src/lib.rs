@@ -2,7 +2,6 @@ pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, DecodeError, Engine};
 use raphtory::{core::utils::errors::GraphError, db::api::view::internal::MaterializedGraph};
 
-pub mod embeddings;
 mod model;
 mod observability;
 mod routes;

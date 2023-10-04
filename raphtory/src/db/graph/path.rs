@@ -26,8 +26,8 @@ pub enum Operations {
     },
     NeighboursWindow {
         dir: Direction,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     },
 }
 
@@ -43,14 +43,10 @@ impl Operations {
             Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
                 graph.neighbours(v, dir, layer_ids.clone(), edge_filter.as_ref())
             })),
-            Operations::NeighboursWindow {
-                dir,
-                t_start,
-                t_end,
-            } => {
+            Operations::NeighboursWindow { dir, start, end } => {
                 let graph1 = graph.clone();
                 let filter = Some(extend_filter(edge_filter, move |e, l| {
-                    graph1.include_edge_window(e, t_start..t_end, l)
+                    graph1.include_edge_window(e, start..end, l)
                 }));
                 Box::new(iter.flat_map(move |v| {
                     graph.neighbours(v, dir, layer_ids.clone(), filter.as_ref())
@@ -195,9 +191,9 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         PathFromGraph {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
             operations: self.operations.clone(),
         }
     }
@@ -260,13 +256,9 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         }
     }
 
-    pub fn neighbours_window(&self, dir: Direction, t_start: i64, t_end: i64) -> Self {
+    pub fn neighbours_window(&self, dir: Direction, start: i64, end: i64) -> Self {
         let mut new_ops = (*self.operations).clone();
-        new_ops.push(Operations::NeighboursWindow {
-            dir,
-            t_start,
-            t_end,
-        });
+        new_ops.push(Operations::NeighboursWindow { dir, start, end });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
@@ -374,9 +366,9 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         PathFromVertex {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
             vertex: self.vertex,
             operations: self.operations.clone(),
         }

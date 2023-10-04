@@ -70,7 +70,7 @@ pub trait CoreGraphOps {
     ///
     /// * `name` - The name of the property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Option<Prop> - The property value if it exists.
     fn constant_prop(&self, id: usize) -> Option<Prop>;
@@ -81,7 +81,7 @@ pub trait CoreGraphOps {
     ///
     /// * `name` - The name of the property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Option<LockedView<TProp>> - The history of property values if it exists.
     fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>>;
@@ -93,7 +93,7 @@ pub trait CoreGraphOps {
     /// * `v` - A reference to the vertex for which the property is being queried.
     /// * `name` - The name of the property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Option<Prop> - The property value if it exists.
     fn constant_vertex_prop(&self, v: VID, id: usize) -> Option<Prop>;
@@ -104,7 +104,7 @@ pub trait CoreGraphOps {
     ///
     /// * `v` - A reference to the vertex for which the property is being queried.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// The keys of the constant properties.
     fn constant_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
@@ -116,7 +116,7 @@ pub trait CoreGraphOps {
     /// * `v` - A reference to the vertex for which the property is being queried.
     /// * `name` - The name of the property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Option<LockedView<TProp>> - The history of property values if it exists.
     fn temporal_vertex_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>>;
@@ -127,7 +127,7 @@ pub trait CoreGraphOps {
     ///
     /// * `v` - A reference to the vertex for which to retrieve the names.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// the ids of the temporal properties
     fn temporal_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
@@ -140,7 +140,7 @@ pub trait CoreGraphOps {
     /// * `e` - An `EdgeRef` reference to the edge of interest.
     /// * `name` - A `String` containing the name of the temporal property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A property if it exists
     fn get_const_edge_prop(&self, e: EdgeRef, id: usize, layer_ids: LayerIds) -> Option<Prop>;
@@ -151,7 +151,7 @@ pub trait CoreGraphOps {
     ///
     /// * `e` - An `EdgeRef` reference to the edge of interest.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// the keys for the constant properties of the given edge.
     fn const_edge_prop_ids(
@@ -168,7 +168,7 @@ pub trait CoreGraphOps {
     /// * `e` - An `EdgeRef` reference to the edge of interest.
     /// * `name` - A `String` containing the name of the temporal property.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A property if it exists
     fn temporal_edge_prop(
@@ -184,7 +184,7 @@ pub trait CoreGraphOps {
     ///
     /// * `e` - An `EdgeRef` reference to the edge of interest.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// * keys for the temporal properties of the given edge.
     fn temporal_edge_prop_ids(

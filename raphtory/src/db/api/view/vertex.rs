@@ -20,7 +20,7 @@ pub trait VertexViewOps: TimeOps {
 
     /// Get the name of this vertex if a user has set one otherwise it returns the ID.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// The name of the vertex if one exists, otherwise the ID as a string.
     fn name(&self) -> Self::ValueType<String>;
@@ -36,70 +36,70 @@ pub trait VertexViewOps: TimeOps {
 
     /// Get a view of the temporal properties of this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A view with the names of the properties as keys and the property values as values.
     fn properties(&self) -> Self::ValueType<Properties<VertexView<Self::Graph>>>;
 
     /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// The degree of this vertex.
     fn degree(&self) -> Self::ValueType<usize>;
 
     /// Get the in-degree of this vertex (i.e., the number of edges that point into it).
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// The in-degree of this vertex.
     fn in_degree(&self) -> Self::ValueType<usize>;
 
     /// Get the out-degree of this vertex (i.e., the number of edges that point out of it).
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// The out-degree of this vertex.
     fn out_degree(&self) -> Self::ValueType<usize>;
 
     /// Get the edges that are incident to this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the edges that are incident to this vertex.
     fn edges(&self) -> Self::EList;
 
     /// Get the edges that point into this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the edges that point into this vertex.
     fn in_edges(&self) -> Self::EList;
 
     /// Get the edges that point out of this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the edges that point out of this vertex.
     fn out_edges(&self) -> Self::EList;
 
     /// Get the neighbours of this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the neighbours of this vertex.
     fn neighbours(&self) -> Self::PathType<'_>;
 
     /// Get the neighbours of this vertex that point into this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the neighbours of this vertex that point into this vertex.
     fn in_neighbours(&self) -> Self::PathType<'_>;
 
     /// Get the neighbours of this vertex that point out of this vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the neighbours of this vertex that point out of this vertex.
     fn out_neighbours(&self) -> Self::PathType<'_>;
@@ -123,11 +123,11 @@ pub trait VertexListOps:
     /// Return the timestamp of the latest activity.
     fn latest_time(self) -> Self::IterType<Option<i64>>;
 
-    /// Create views for the vertices including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create views for the vertices including all events between `start` (inclusive) and `end` (exclusive)
     fn window(
         self,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
 
     /// Create views for the vertices including all events until `end` (inclusive)
@@ -135,7 +135,7 @@ pub trait VertexListOps:
 
     /// Returns the ids of vertices in the list.
     ///
-    /// # Returns
+    /// Returns:
     /// The ids of vertices in the list.
     fn id(self) -> Self::IterType<u64>;
     fn name(self) -> Self::IterType<String>;
@@ -147,21 +147,21 @@ pub trait VertexListOps:
 
     /// Returns an iterator over the degree of the vertices.
     ///
-    /// # Returns
+    /// Returns:
     /// An iterator over the degree of the vertices.
     fn degree(self) -> Self::IterType<usize>;
 
     /// Returns an iterator over the in-degree of the vertices.
     /// The in-degree of a vertex is the number of edges that connect to it from other vertices.
     ///
-    /// # Returns
+    /// Returns:
     /// An iterator over the in-degree of the vertices.
     fn in_degree(self) -> Self::IterType<usize>;
 
     /// Returns an iterator over the out-degree of the vertices.
     /// The out-degree of a vertex is the number of edges that connects to it from the vertex.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the out-degree of the vertices.
     fn out_degree(self) -> Self::IterType<usize>;
@@ -171,35 +171,35 @@ pub trait VertexListOps:
 
     /// Returns an iterator over the incoming edges of the vertices.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the incoming edges of the vertices.
     fn in_edges(self) -> Self::EList;
 
     /// Returns an iterator over the outgoing edges of the vertices.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the outgoing edges of the vertices.
     fn out_edges(self) -> Self::EList;
 
     /// Returns an iterator over the neighbours of the vertices.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the neighbours of the vertices as VertexViews.
     fn neighbours(self) -> Self;
 
     /// Returns an iterator over the incoming neighbours of the vertices.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the incoming neighbours of the vertices as VertexViews.
     fn in_neighbours(self) -> Self;
 
     /// Returns an iterator over the outgoing neighbours of the vertices.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator over the outgoing neighbours of the vertices as VertexViews.
     fn out_neighbours(self) -> Self;

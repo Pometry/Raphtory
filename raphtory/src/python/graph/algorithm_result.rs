@@ -1,3 +1,4 @@
+use crate::python::types::repr::Repr;
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -12,6 +13,24 @@ macro_rules! py_algorithm_result {
                 $rustSortValue,
             >,
         );
+
+        impl Repr
+            for $crate::algorithms::algorithm_result::AlgorithmResult<
+                $rustKey,
+                $rustValue,
+                $rustSortValue,
+            >
+        {
+            fn repr(&self) -> String {
+                let algo_name = &self.algo_repr.algo_name;
+                let num_vertices = &self.result.len();
+                let result_type = &self.algo_repr.result_type;
+                format!(
+                    "Algorithm Name: {}, Number of Vertices: {}, Result Type: {}",
+                    algo_name, num_vertices, result_type
+                )
+            }
+        }
 
         impl pyo3::IntoPy<pyo3::PyObject>
             for $crate::algorithms::algorithm_result::AlgorithmResult<
@@ -41,20 +60,23 @@ macro_rules! py_algorithm_result_base {
                 self.0.get_all().clone()
             }
 
+            /// Returns a formatted string representation of the algorithm.
+            fn to_string(&self) -> String {
+                self.0.repr()
+            }
+
             /// Returns the value corresponding to the provided key in the `result` hashmap.
             ///
-            /// # Arguments
-            ///
-            /// * `key`: The key of type `H` for which the value is to be retrieved.
+            /// Arguments:
+            ///     key: The key of type `H` for which the value is to be retrieved.
             fn get(&self, key: $rustKey) -> Option<$rustValue> {
                 self.0.get(&key).cloned()
             }
 
             /// Creates a dataframe from the result
             ///
-            /// # Returns
-            ///
-            /// A `pandas.DataFrame` containing the result
+            /// Returns:
+            ///     A `pandas.DataFrame` containing the result
             pub fn to_df(&self) -> PyResult<PyObject> {
                 let hashmap = &self.0.result;
                 let mut keys = Vec::new();
@@ -83,13 +105,11 @@ macro_rules! py_algorithm_result_partial_ord {
         impl $name {
             /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
             ///
-            /// # Arguments
+            /// Arguments:
+            ///     reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
             ///
-            /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
-            ///
-            /// # Returns
-            ///
-            /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
+            /// Returns:
+            ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_value(&self, reverse: bool) -> Vec<($rustKey, $rustValue)> {
                 self.0.sort_by_value(reverse)
@@ -97,13 +117,11 @@ macro_rules! py_algorithm_result_partial_ord {
 
             /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
             ///
-            /// # Arguments
+            /// Arguments:
+            ///     reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
             ///
-            /// * `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
-            ///
-            /// # Returns
-            ///
-            /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
+            /// Returns:
+            ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_key(&self, reverse: bool) -> Vec<($rustKey, $rustValue)> {
                 self.0.sort_by_key(reverse)
@@ -111,18 +129,16 @@ macro_rules! py_algorithm_result_partial_ord {
 
             /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
             ///
-            /// # Arguments
+            /// Arguments:
+            ///     k (int): The number of elements to retrieve.
+            ///     percentage (bool): If `true`, the `k` parameter is treated as a percentage of total elements.
+            ///     reverse (bool): If `true`, retrieves the elements in descending order; otherwise, in ascending order.
             ///
-            /// * `k`: The number of elements to retrieve.
-            /// * `percentage`: If `true`, the `k` parameter is treated as a percentage of total elements.
-            /// * `reverse`: If `true`, retrieves the elements in descending order; otherwise, in ascending order.
-            ///
-            /// # Returns
-            ///
-            /// An `Option` containing a vector of tuples with keys of type `H` and values of type `Y`.
-            /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
-            /// If `percentage` is `false`, the returned vector contains the top `k` elements.
-            /// Returns `None` if the result is empty or if `k` is 0.
+            /// Returns:
+            ///     An Option containing a vector of tuples with keys of type `H` and values of type `Y`.
+            ///     If percentage is true, the returned vector contains the top `k` percentage of elements.
+            ///     If percentage is false, the returned vector contains the top `k` elements.
+            ///     Returns None if the result is empty or if `k` is 0.
             #[pyo3(signature = (k, percentage=false, reverse=true))]
             fn top_k(
                 &self,
@@ -144,10 +160,9 @@ macro_rules! py_algorithm_result_ord_hash_eq {
         impl $name {
             /// Groups the `AlgorithmResult` by its values.
             ///
-            /// # Returns
-            ///
-            /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
-            /// containing keys of type `H` that share the same value.
+            /// Returns:
+            ///     A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
+            ///     containing keys of type `H` that share the same value.
             fn group_by(&self) -> std::collections::HashMap<$rustValue, Vec<$rustKey>> {
                 self.0.group_by()
             }
@@ -155,6 +170,9 @@ macro_rules! py_algorithm_result_ord_hash_eq {
         py_algorithm_result_partial_ord!($name, $rustKey, $rustValue);
     };
 }
+
+py_algorithm_result!(AlgorithmResult, String, String);
+py_algorithm_result_ord_hash_eq!(AlgorithmResult, String, String);
 
 py_algorithm_result!(AlgorithmResultStrU64, String, u64);
 py_algorithm_result_ord_hash_eq!(AlgorithmResultStrU64, String, u64);

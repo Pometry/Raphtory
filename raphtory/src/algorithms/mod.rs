@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use raphtory::algorithms::degree::{average_degree};
+//! use raphtory::algorithms::metrics::degree::average_degree;
 //! use raphtory::prelude::*;
 //!  
 //!  let g = Graph::new();
@@ -27,15 +27,10 @@
 //! ```
 
 pub mod algorithm_result;
-pub mod balance;
-pub mod clustering_coefficient;
-pub mod connected_components;
-pub mod degree;
-pub mod directed_graph_density;
-pub mod hits;
-pub mod k_core;
-pub mod local_clustering_coefficient;
-pub mod local_triangle_count;
+pub mod centrality;
+pub mod community_detection;
+pub mod cores;
+pub mod metrics;
 pub mod motifs;
 pub mod netflow_one_path_vertex;
 pub mod pagerank;
@@ -43,3 +38,4 @@ pub mod reciprocity;
 pub mod temporal_reachability;
 pub mod triangle_count;
 pub mod triplet_count;
+pub mod pathing;

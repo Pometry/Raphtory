@@ -2,6 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
+        utils::time::IntoTime,
         ArcStr, Prop,
     },
     db::{
@@ -13,20 +14,52 @@ use crate::{
             view::*,
         },
         task::{
+            edge::window_eval_edge::WindowEvalEdgeView,
             task_state::Local2,
-            vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
+            vertex::{
+                eval_vertex::EvalVertexView, eval_vertex_state::EVState,
+                window_eval_vertex::edge_filter,
+            },
         },
     },
 };
 use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
 
-pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S> {
+pub struct EvalEdgeView<'a, G: GraphViewOps, CS: ComputeState, S: 'static> {
     ss: usize,
     ev: EdgeRef,
     graph: &'a G,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     local_state_prev: &'a Local2<'a, S>,
     _s: PhantomData<S>,
+}
+
+impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalEdgeView<'a, G, CS, S> {
+    type WindowedViewType = WindowEvalEdgeView<'a, G, CS, S>;
+
+    fn start(&self) -> Option<i64> {
+        self.graph.start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.graph.end()
+    }
+
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        let start = start.into_time();
+        let end = end.into_time();
+        let edge_filter = edge_filter(self.graph, start, end).map(Rc::new);
+        WindowEvalEdgeView::new(
+            self.ss,
+            self.ev,
+            self.graph,
+            self.local_state_prev,
+            self.vertex_state.clone(),
+            start,
+            end,
+            edge_filter,
+        )
+    }
 }
 
 impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EvalEdgeView<'a, G, CS, S> {
@@ -254,6 +287,57 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
+    }
+
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
+        Box::new(self.map(|e| e.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.earliest_time()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.latest_time()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.end_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.date_time()))
+    }
+
+    fn earliest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
+    }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
+
+    fn window<T: IntoTime>(
+        self,
+        start: T,
+        end: T,
+    ) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
+        let start = start.into_time();
+        let end = end.into_time();
+        Box::new(self.map(move |e| e.window(start, end)))
     }
 }
 

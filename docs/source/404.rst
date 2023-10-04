@@ -1,0 +1,12 @@
+:orphan:
+.. _notfound:
+
+Page Not Found
+==============
+
+Sorry, the page you are looking for cannot be found.
+
+.. image:: _static/pomegranate-mascot.png
+   :alt: 404 Cute Pomegranate mascot
+   :align: center
+

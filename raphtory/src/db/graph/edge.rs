@@ -5,6 +5,8 @@
 //! and can have properties associated with them.
 //!
 
+use chrono::NaiveDateTime;
+
 use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
@@ -132,6 +134,24 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
         let input_layer_id = self.resolve_layer(layer)?;
 
         self.graph.internal_add_constant_edge_properties(
+            self.edge.pid(),
+            input_layer_id,
+            properties,
+        )
+    }
+
+    pub fn update_constant_properties<C: CollectProperties>(
+        &self,
+        props: C,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties: Vec<(usize, Prop)> = props.collect_properties(
+            |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
+            |prop| self.graph.process_prop_value(prop),
+        )?;
+        let input_layer_id = self.resolve_layer(layer)?;
+
+        self.graph.internal_update_constant_edge_properties(
             self.edge.pid(),
             input_layer_id,
             properties,
@@ -297,9 +317,9 @@ impl<G: GraphViewOps> TimeOps for EdgeView<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         EdgeView {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
             edge: self.edge,
         }
     }
@@ -378,9 +398,21 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(|e| e.earliest_time()))
     }
 
+    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
     /// Gets the latest times of a list of edges
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.date_time()))
     }
 
     fn time(self) -> Self::IterType<Option<i64>> {
@@ -389,6 +421,41 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
+    }
+
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
+        Box::new(self.map(|e| e.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.start()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.end()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.end_date_time()))
+    }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
+
+    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let start = start.into_time();
+        let end = end.into_time();
+        Box::new(self.map(move |e| e.window(start, end)))
     }
 }
 
@@ -425,6 +492,14 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|e| e.earliest_time()))
     }
 
+    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.earliest_date_time()))
+    }
+
+    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|e| e.latest_date_time()))
+    }
+
     /// Gets the latest times of a list of edges
     fn latest_time(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.latest_time()))
@@ -436,6 +511,45 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
 
     fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
         Box::new(self.map(|it| it.layer_name()))
+    }
+
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
+        Box::new(self.map(|it| it.layer_names()))
+    }
+
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|it| it.history()))
+    }
+
+    fn start(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|it| it.start()))
+    }
+
+    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.start_date_time()))
+    }
+
+    fn end(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|it| it.end()))
+    }
+
+    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.end_date_time()))
+    }
+
+    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.date_time()))
+    }
+
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let new_time = time.into_time();
+        Box::new(self.map(move |e| e.at(new_time)))
+    }
+
+    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+        let start = start.into_time();
+        let end = end.into_time();
+        Box::new(self.map(move |e| e.window(start, end)))
     }
 }
 
@@ -550,6 +664,19 @@ mod test_edge {
             .unwrap(); // layer is consistent
         assert_eq!(e.properties().get("test"), Some("test".into()));
         assert_eq!(e.properties().get("test1"), Some("test1".into()));
+    }
+
+    #[test]
+    fn test_constant_property_updates() {
+        let g = Graph::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
+        assert!(e
+            .add_constant_properties([("test1", "test1")], None)
+            .is_ok()); // adds properties to layer `"test"`
+        assert!(e
+            .update_constant_properties([("test1", "test2")], None)
+            .is_ok());
+        assert_eq!(e.properties().get("test1"), Some("test2".into()));
     }
 
     #[test]

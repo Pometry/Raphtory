@@ -118,6 +118,12 @@ impl Repr for &NaiveDateTime {
     }
 }
 
+impl Repr for NaiveDateTime {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
+
 impl<T: Repr> Repr for Option<T> {
     fn repr(&self) -> String {
         match &self {

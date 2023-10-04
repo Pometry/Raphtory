@@ -88,8 +88,7 @@ def test_empty_lists():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     assert (
-        g.vertices
-        .out_edges.properties.temporal.get("value_dec")
+        g.vertices.out_edges.properties.temporal.get("value_dec")
         .values()
         .median()
         .median()
@@ -97,8 +96,7 @@ def test_empty_lists():
         == 5
     )
     assert (
-        g.vertices
-        .out_edges.properties.temporal.get("value_dec")
+        g.vertices.out_edges.properties.temporal.get("value_dec")
         .values()
         .mean()
         .mean()
@@ -189,7 +187,7 @@ def test_pypropvalue_list_listlist():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     v = g.vertex("1")
-    res = g.edges().properties.get(
+    res = g.edges.properties.get(
         "value_dec"
     )  # PyPropValueList([100, 20, 5, 5, 5, 10, 1, 2])
     res_v = v.edges.properties.get("value_dec")  # PyPropValueList([100, 5, 20, 1, 5])

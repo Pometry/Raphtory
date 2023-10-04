@@ -5,7 +5,7 @@ use crate::{
         view::{
             internal::{
                 Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
-                InheritMaterialize, InheritTimeSemantics, InternalLayerOps,
+                InheritMaterialize, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
@@ -29,6 +29,8 @@ pub struct LayeredGraph<G: GraphViewOps> {
 }
 
 impl<G: GraphViewOps> Immutable for LayeredGraph<G> {}
+
+impl<G: GraphViewOps> Static for LayeredGraph<G> {}
 
 impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

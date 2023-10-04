@@ -22,7 +22,7 @@ pub trait AdditionOps: GraphViewOps {
     /// * `v` - The vertex (can be a string or integer)
     /// * `props` - The properties of the vertex
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A result containing the vertex id
     ///
