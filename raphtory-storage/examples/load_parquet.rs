@@ -22,7 +22,7 @@ fn main() {
         .nth(5)
         .expect("please supply a graph output directory");
 
-    let chunk_size = 131072;
+    let chunk_size = 1048576;
 
     let now = std::time::Instant::now();
 
