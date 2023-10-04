@@ -12,6 +12,8 @@ pub(crate) mod edge_frame_builder;
 pub(crate) mod mmap;
 pub(crate) mod vertex_frame_builder;
 
+pub type Time = i64;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Arrow error: {0}")]
