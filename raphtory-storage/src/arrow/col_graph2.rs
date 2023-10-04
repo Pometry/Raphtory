@@ -31,9 +31,7 @@ use raphtory::core::{
 use rayon::prelude::*;
 use tempfile::tempfile_in;
 
-use super::{array_as_id_iter, LoadChunk, GID};
-
-pub type Time = i64;
+use super::{array_as_id_iter, LoadChunk, GID, edge_chunk::EdgeChunk, Time};
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
@@ -41,7 +39,7 @@ pub struct TempColGraphFragment {
     // sorted_gids: Vec<u64>,
     adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
     adj_in_chunks: Vec<Chunk<Box<dyn Array>>>,
-    edge_chunks: Vec<Chunk<Box<dyn Array>>>,
+    edge_chunks: Vec<EdgeChunk>,
     graph_dir: Box<Path>,
 }
 
@@ -73,7 +71,7 @@ impl TempColGraphFragment {
                 .to_str()
                 .expect("file names are already filtered and thus valid");
             if file_name.starts_with("edge_chunk_") {
-                edge_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
+                edge_chunks.push(EdgeChunk::new(unsafe { mmap_batch(file_path.path(), 0) }?));
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
             } else if file_name.starts_with("adj_out_chunk_") {
@@ -268,17 +266,7 @@ impl TempColGraphFragment {
         self.edge_chunks
             .iter()
             .flat_map(|chunk| {
-                let src = chunk[0]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
-                let dst = chunk[1]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
-                src.into_iter().flatten().zip(dst.into_iter().flatten())
+                chunk.source().into_iter().flatten().zip(chunk.destination().into_iter().flatten())
             })
             .enumerate()
             .map(|(eid, (src, dst))| (EID(eid), VID(src as usize), VID(dst as usize)))
@@ -288,28 +276,13 @@ impl TempColGraphFragment {
         self.edge_chunks
             .iter()
             .flat_map(|chunk| {
-                let src = chunk[0]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
-                let dst = chunk[1]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
-                let time = chunk[2]
-                    .as_any()
-                    .downcast_ref::<ListArray<i64>>()
-                    .unwrap()
-                    .clone();
-
+                let time = chunk.time();
                 // TODO: make this a function
                 let time_into_iter =
                     (0..time.len()).map(move |i| unsafe { time.value_unchecked(i) });
-                src.into_iter()
+                chunk.source().into_iter()
                     .flatten()
-                    .zip(dst.into_iter().flatten())
+                    .zip(chunk.destination().into_iter().flatten())
                     .zip(time_into_iter)
             })
             .enumerate()

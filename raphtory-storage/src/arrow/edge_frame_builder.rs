@@ -1,5 +1,4 @@
 use crate::arrow::{
-    col_graph2::Time,
     mmap::{mmap_batch, write_batches},
     DST_COLUMN, E_ADDITIONS_COLUMN, SRC_COLUMN,
 };
@@ -16,10 +15,10 @@ use arrow2::{
 };
 use std::path::{Path, PathBuf};
 
-use super::{Error, LoadChunk, TEMPORAL_PROPS_COLUMN};
+use super::{Error, LoadChunk, TEMPORAL_PROPS_COLUMN, edge_chunk::EdgeChunk, Time};
 
 pub struct EdgeFrameBuilder {
-    pub(crate) edge_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) edge_chunks: Vec<EdgeChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
 
     edge_timestamps: Vec<Time>, // the timestamps of the edge for the current chunk
     t_props: Option<MutableStructArray>,
@@ -95,7 +94,7 @@ impl EdgeFrameBuilder {
             .join(format!("edge_chunk_{:08}.ipc", self.edge_chunks.len()));
         write_batches(file_path.as_path(), schema, &[chunk])?;
         let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.edge_chunks.push(mmapped_chunk);
+        self.edge_chunks.push(EdgeChunk::new(mmapped_chunk));
         Ok(())
     }
 
