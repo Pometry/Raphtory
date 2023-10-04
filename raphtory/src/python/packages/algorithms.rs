@@ -36,6 +36,7 @@ use crate::{
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
+    usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -412,6 +413,12 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
+
+#[pyfunction]
+#[pyo3[signature = (g, no_time=false, threads=None)]]
+pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
+    netflow_one_path_vertex_rs(&g.graph, no_time, threads)
 }
 
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
