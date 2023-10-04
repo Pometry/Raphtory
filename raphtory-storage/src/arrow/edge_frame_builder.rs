@@ -15,7 +15,7 @@ use arrow2::{
 };
 use std::path::{Path, PathBuf};
 
-use super::{Error, LoadChunk, TEMPORAL_PROPS_COLUMN, edge_chunk::EdgeChunk, Time};
+use super::{edge_chunk::EdgeChunk, Error, LoadChunk, Time, TEMPORAL_PROPS_COLUMN};
 
 pub struct EdgeFrameBuilder {
     pub(crate) edge_chunks: Vec<EdgeChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
