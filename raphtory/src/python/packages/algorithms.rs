@@ -31,10 +31,12 @@ use crate::{
             global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
+        pathing::single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
         pathing::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
+    usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -413,6 +415,12 @@ pub fn balance(
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }
 
+#[pyfunction]
+#[pyo3[signature = (g, no_time=false, threads=None)]]
+pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
+    netflow_one_path_vertex_rs(&g.graph, no_time, threads)
+}
+
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
@@ -456,4 +464,24 @@ pub fn max_degree(g: &PyGraphView) -> usize {
 #[pyo3[signature = (g)]]
 pub fn min_degree(g: &PyGraphView) -> usize {
     min_degree_rs(&g.graph)
+}
+
+/// Calculates the single source shortest paths from a given source vertex.
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph. Must implement `GraphViewOps`.
+///     source (InputVertex): The source vertex. Must implement `InputVertex`.
+///     cutoff (Int, Optional): An optional cutoff level. The algorithm will stop if this level is reached.
+///
+/// Returns:
+///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
+///
+#[pyfunction]
+#[pyo3[signature = (g, source, cutoff=None)]]
+pub fn single_source_shortest_path(
+    g: &PyGraphView,
+    source: PyInputVertex,
+    cutoff: Option<usize>,
+) -> AlgorithmResult<String, Vec<String>> {
+    single_source_shortest_path_rs(&g.graph, source, cutoff)
 }
