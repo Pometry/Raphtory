@@ -14,11 +14,11 @@ use arrow2::{
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 
-use super::{GID, vertex_chunk::VertexChunk};
+use super::{vertex_chunk::VertexChunk, GID};
 
 pub struct VertexFrameBuilder {
     pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) sorted_gids: AHashMap<GID, u64>,            // the sorted global ids of the vertices
+    pub(crate) sorted_gids: AHashMap<GID, u64>,  // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk

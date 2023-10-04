@@ -1,6 +1,8 @@
 use arrow2::{
     array::{Array, ListArray},
-    chunk::Chunk, types::NativeType, buffer::Buffer,
+    buffer::Buffer,
+    chunk::Chunk,
+    types::NativeType,
 };
 use raphtory::core::entities::VID;
 
@@ -30,13 +32,13 @@ impl VertexChunk {
     }
 
     pub(crate) fn neighbours_own(&self, vid: VID) -> Option<RowOwned<u64>> {
-        let row:usize = vid.into();
+        let row: usize = vid.into();
         let col = self.neighbours_col()?;
         Some(RowOwned(col.value(row)))
     }
 
     pub(crate) fn edges_own(&self, vid: VID) -> Option<RowOwned<u64>> {
-        let row:usize = vid.into();
+        let row: usize = vid.into();
         let col = self.edge_col()?;
         Some(RowOwned(col.value(row)))
     }
@@ -44,15 +46,12 @@ impl VertexChunk {
     pub(crate) fn len(&self) -> usize {
         self.0.len()
     }
-
 }
 
 pub(crate) struct RowOwned<T>(Buffer<T>);
 
-impl <T: NativeType> RowOwned<T> {
-
+impl<T: NativeType> RowOwned<T> {
     pub(crate) fn into_iter(self) -> impl Iterator<Item = T> {
         self.0.into_iter()
     }
-
 }

@@ -640,7 +640,7 @@ mod test {
 
     proptest! {
         #[test]
-        fn outbound_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 400..1024u64) {
+        fn outbound_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 1..1024u64, g_chunk_size in 1..1024usize) {
             let test_dir = TempDir::new().unwrap();
             let vertices: Vec<_> = edges.iter().map(|(s, _, _)| *s).chain(edges.iter().map(|(_, d, _)| *d)).collect();
             let vert_set: HashSet<_>  = vertices.iter().copied().collect();
@@ -661,7 +661,7 @@ mod test {
 
             let mut graph = TempColGraphFragment::build_tables_from_chunked(
                 test_dir.path(),
-                chunk_size as usize / 100,
+                g_chunk_size,
                 vertices,
                 triples,
             ).unwrap();
