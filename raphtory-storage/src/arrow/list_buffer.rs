@@ -23,7 +23,19 @@ pub fn as_primitive_column<T: NativeType>(
     Some(ListColumn { values, offsets })
 }
 
-impl<'a, T: NativeType> ListColumn<'a, T> {}
+impl<'a, T: NativeType> ListColumn<'a, T> {
+    pub(crate) fn new(list: &'a ListArray<i64>, col: usize) -> Option<ListColumn<'a, T>> {
+        as_primitive_column(list, col)
+    }
+
+    pub(crate) fn value(&self, index: usize) -> Buffer<T> {
+        let mut new = self.values.clone();
+        let offset = self.offsets[index] as usize;
+        let length = self.offsets[index + 1] as usize - offset;
+        new.slice(offset, length);
+        new
+    }
+}
 
 impl<'a, T: NativeType> Index<usize> for ListColumn<'a, T> {
     type Output = [T];

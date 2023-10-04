@@ -14,10 +14,10 @@ use arrow2::{
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 
-use super::GID;
+use super::{GID, vertex_chunk::VertexChunk};
 
 pub struct VertexFrameBuilder {
-    pub(crate) adj_out_chunks: Vec<Chunk<Box<dyn Array>>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
     pub(crate) sorted_gids: AHashMap<GID, u64>,            // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
@@ -81,7 +81,7 @@ impl VertexFrameBuilder {
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema, &chunk)?;
         let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_out_chunks.push(mmapped_chunk);
+        self.adj_out_chunks.push(VertexChunk::new(mmapped_chunk));
         Ok(())
     }
 
