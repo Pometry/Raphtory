@@ -449,12 +449,68 @@ impl TempColGraphFragment {
 
         // combine the results
         for f in tmp_files {
-            let chunks: Vec<_> = unsafe { mmap_batches(&f, 0..num_chunks)? }
-                .into_iter()
-                .flat_map(|chunk| chunk.into_arrays())
+            let chunks: Vec<_> = unsafe { mmap_batches(&f, 0..num_chunks)? };
+            let chunk_size = chunks[0].len();
+            let arrays: Vec<_> = chunks
+                .iter()
+                .flat_map(|chunk| chunk[0].as_any().downcast_ref::<ListArray<i64>>())
                 .collect();
-            let refs: Vec<_> = chunks.iter().map(|v| v.as_ref()).collect();
-            let res = concatenate(&refs)?;
+            let mut offsets = vec![0i64; chunk_size + 1];
+            offsets
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, v)| arrays.iter().for_each(|a| *v += a.offsets()[i]));
+
+            let mut adj = vec![0u64; offsets[chunk_size] as usize];
+            let mut adj_lists: Vec<&mut [u64]> = Vec::default();
+
+            let mut eids = vec![0u64; offsets[chunk_size] as usize];
+            let mut eids_lists: Vec<&mut [u64]> = Vec::default();
+            let mut right_adj: &mut [u64] = &mut adj;
+            let mut right_eids: &mut [u64] = &mut eids;
+
+            for v in offsets.windows(2) {
+                if let &[start, end] = v {
+                    let split = (end - start) as usize;
+                    let (left, right) = right_adj.split_at_mut(split);
+                    adj_lists.push(left);
+                    right_adj = right;
+                    let (left, right) = right_eids.split_at_mut(split);
+                    eids_lists.push(left);
+                    right_eids = right;
+                }
+            }
+
+            adj_lists
+                .par_iter_mut()
+                .zip(eids_lists.par_iter_mut())
+                .enumerate()
+                .for_each(|(i, (a, e))| {
+                    let mut offset = 0usize;
+                    for array in arrays.iter() {
+                        let new_adj = &as_primitive_column::<u64>(array, 0).unwrap()[i];
+                        let new_eid_col = &as_primitive_column::<u64>(array, 1).unwrap()[i];
+                        a[offset..offset + new_adj.len()].copy_from_slice(new_adj);
+                        e[offset..offset + new_eid_col.len()].copy_from_slice(new_eid_col);
+                        offset += new_adj.len();
+                    }
+                });
+
+            let values = StructArray::new(
+                adj_schema(),
+                vec![
+                    PrimitiveArray::from_vec(adj).to_boxed(),
+                    PrimitiveArray::from_vec(eids).to_boxed(),
+                ],
+                None,
+            );
+            let res = <ListArray<i64>>::new(
+                <ListArray<i64>>::default_datatype(adj_schema()),
+                OffsetsBuffer::try_from(offsets)?,
+                values.to_boxed(),
+                None,
+            )
+            .to_boxed();
             let dtype = res.data_type().clone();
             let schema = Schema::from(vec![Field::new("adj_in", dtype, false)]);
             let file_path = self
