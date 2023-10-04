@@ -43,7 +43,7 @@ lock_api = { version = "0.4", features = ["arc_lock", "serde"] }
 dashmap = {version ="5", features = ["serde"] }
 serde_with = "3.3.0"
 enum_dispatch = "0.3"
-kdam = "0.4.1"
+kdam = { git = "https://github.com/clitic/kdam.git", branch = "pyo3", features = ["notebook"] }
 
 # io optional dependencies
 csv = {version="1.1.6", optional=true}

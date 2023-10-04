@@ -6,7 +6,11 @@ use arrow2::{
 };
 use kdam::tqdm;
 use pyo3::{
-    create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
+    create_exception,
+    exceptions::PyException,
+    ffi::Py_uintptr_t,
+    prelude::*,
+    types::{IntoPyDict, PyDict},
 };
 use std::collections::HashMap;
 
@@ -14,7 +18,40 @@ fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
 }
 
+fn is_jupyter(py: Python) {
+    let code = r#"
+try:
+    shell = get_ipython().__class__.__name__
+    if shell == 'ZMQInteractiveShell':
+        result = True   # Jupyter notebook or qtconsole
+    elif shell == 'TerminalInteractiveShell':
+        result = False  # Terminal running IPython
+    else:
+        result = False  # Other type, assuming not a Jupyter environment
+except NameError:
+    result = False      # Probably standard Python interpreter
+"#;
+
+    if let Err(e) = py.run(code, None, None) {
+        println!("Error checking if running in a jupyter notebook: {}", e);
+        return;
+    }
+
+    match py.eval("result", None, None) {
+        Ok(x) => {
+            if let Ok(x) = x.extract() {
+                kdam::set_notebook(x);
+            }
+        }
+        Err(e) => {
+            println!("Error checking if running in a jupyter notebook: {}", e);
+        }
+    };
+}
+
+
 pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, size: usize) -> PyResult<PretendDF> {
+    is_jupyter(py);
     let globals = PyDict::new(py);
     globals.set_item("df", df)?;
     let module = py.import("pyarrow")?;
@@ -30,8 +67,9 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, size: usize) -> PyRes
         vec![]
     };
 
-    let arrays = tqdm!(
-        rb.iter().map(|rb| {
+    let arrays = rb
+        .iter()
+        .map(|rb| {
             (0..names.len())
                 .map(|i| {
                     let array = rb.call_method1("column", (i,))?;
@@ -39,13 +77,8 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, size: usize) -> PyRes
                     Ok::<Box<dyn Array>, PyErr>(arr)
                 })
                 .collect::<Result<Vec<_>, PyErr>>()
-        }),
-        desc = "Converting dataframe to Arrow",
-        total = size,
-        animation = kdam::Animation::FillUp,
-        unit_scale = true
-    )
-    .collect::<Result<Vec<_>, PyErr>>()?;
+        })
+        .collect::<Result<Vec<_>, PyErr>>()?;
 
     let df = PretendDF { names, arrays };
     Ok(df)

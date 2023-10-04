@@ -1820,10 +1820,10 @@ dependencies = [
 
 [[package]]
 name = "kdam"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eec124c5ef865373afd03f7900161495339c59cef395a6dc45d025bcd6499b0b"
+version = "0.5.0"
+source = "git+https://github.com/clitic/kdam.git?branch=pyo3#a374ba5aa268fddf48ad28561c6a22d33b0b7e43"
 dependencies = [
+ "pyo3",
  "terminal_size",
  "windows-sys 0.48.0",
 ]
