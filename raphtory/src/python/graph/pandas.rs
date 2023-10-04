@@ -4,16 +4,12 @@ use arrow2::{
     ffi,
     types::{NativeType, Offset},
 };
+use itertools::Itertools;
 use kdam::tqdm;
 use pyo3::{
-    create_exception,
-    exceptions::PyException,
-    ffi::Py_uintptr_t,
-    prelude::*,
-    types::{PyDict},
+    create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
 };
 use std::collections::HashMap;
-use itertools::Itertools;
 
 fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
@@ -108,15 +104,19 @@ pub(crate) fn load_vertices_from_df<'a>(
         .unwrap_or_default()
         .into_iter()
         .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters)
-        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+        .reduce(combine_prop_iters);
+
+    if prop_iter.is_none() { //I don't think this is possible as if there is an issue it will be caught within lift property
+        return Err(GraphError::
+        LoadFailure("Could not join properties together into rows".to_string()));
+    }
 
     let const_prop_iter = const_props
         .unwrap_or_default()
         .into_iter()
         .map(|name| lift_property(name, &df))
         .reduce(combine_prop_iters)
-        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+        .unwrap_or(Ok(Box::new(std::iter::empty())))?;
 
     if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
     {
@@ -181,7 +181,7 @@ pub(crate) fn load_vertices_from_df<'a>(
         }
     } else {
         return Err(GraphError::LoadFailure(
-            "vertex id column must be either u64 or text, time column must be i64".to_string(),
+            "vertex id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
         ));
     }
 
@@ -215,7 +215,6 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     }
 
     df.check_cols_exist(&cols_to_check)?;
-
 
     let prop_iter = props
         .unwrap_or_default()
@@ -314,7 +313,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
         }
     } else {
         return Err(GraphError::LoadFailure(
-            "source and target columns must be either u64 or text, time column must be i64"
+            "Source and Target columns must be either u64 or text, Time column must be i64. Ensure these contain no NaN, Null or None values."
                 .to_string(),
         ));
     }
@@ -335,7 +334,6 @@ pub(crate) fn load_vertex_props_from_df<'a>(
     }
 
     df.check_cols_exist(&cols_to_check)?;
-
 
     let const_prop_iter = const_props
         .unwrap_or_default()
@@ -422,7 +420,7 @@ pub(crate) fn load_vertex_props_from_df<'a>(
         }
     } else {
         return Err(GraphError::LoadFailure(
-            "vertex id column must be either u64 or text, time column must be i64".to_string(),
+            "vertex id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
         ));
     }
     Ok(())
@@ -450,7 +448,6 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     }
 
     df.check_cols_exist(&cols_to_check)?;
-
 
     let const_prop_iter = const_props
         .unwrap_or_default()
@@ -548,7 +545,7 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
         }
     } else {
         return Err(GraphError::LoadFailure(
-            "source and target columns must be either u64 or text, time column must be i64"
+            "Source and Target columns must be either u64 or text, Time column must be i64. Ensure these contain no NaN, Null or None values."
                 .to_string(),
         ));
     }
@@ -558,39 +555,42 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
 fn lift_property<'a: 'b, 'b>(
     name: &'a str,
     df: &'b PretendDF,
-) -> Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b> {
+) -> Result<Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b>, GraphError> {
     if let Some(col) = df.iter_col::<f64>(name) {
-        iter_as_prop(name, col)
+        Ok(iter_as_prop(name, col))
     } else if let Some(col) = df.iter_col::<f32>(name) {
-        iter_as_prop(name, col)
+        Ok(iter_as_prop(name, col))
     } else if let Some(col) = df.iter_col::<i64>(name) {
-        iter_as_prop(name, col)
+        Ok(iter_as_prop(name, col))
     } else if let Some(col) = df.iter_col::<u64>(name) {
-        iter_as_prop(name, col)
+        Ok(iter_as_prop(name, col))
     } else if let Some(col) = df.iter_col::<u32>(name) {
-        iter_as_prop(name, col)
+        Ok(iter_as_prop(name, col))
     } else if let Some(col) = df.iter_col::<i32>(name) {
-        iter_as_prop(name, col)
+        Ok(iter_as_prop(name, col))
     } else if let Some(col) = df.bool(name) {
-        Box::new(col.map(move |val| {
+        Ok(Box::new(col.map(move |val| {
             val.into_iter()
                 .map(|v| (name, Prop::Bool(v)))
                 .collect::<Vec<_>>()
-        }))
+        })))
     } else if let Some(col) = df.utf8::<i32>(name) {
-        Box::new(col.map(move |val| {
+        Ok(Box::new(col.map(move |val| {
             val.into_iter()
                 .map(|v| (name, Prop::str(v)))
                 .collect::<Vec<_>>()
-        }))
+        })))
     } else if let Some(col) = df.utf8::<i64>(name) {
-        Box::new(col.map(move |val| {
+        Ok(Box::new(col.map(move |val| {
             val.into_iter()
                 .map(|v| (name, Prop::str(v)))
                 .collect::<Vec<_>>()
-        }))
+        })))
     } else {
-        Box::new(std::iter::repeat(Vec::with_capacity(0)))
+        Err(GraphError::LoadFailure(format!(
+            "Column {} could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values.",
+            name
+        )))
     }
 }
 
@@ -718,8 +718,10 @@ pub(crate) struct PretendDF {
 
 impl PretendDF {
     fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
-
-        let non_cols:Vec<&&str> = cols.iter().filter(|c| !self.names.contains(&c.to_string())).collect();
+        let non_cols: Vec<&&str> = cols
+            .iter()
+            .filter(|c| !self.names.contains(&c.to_string()))
+            .collect();
         if non_cols.len() > 0 {
             return Err(GraphError::ColumnDoesNotExist(non_cols.iter().join(", ")));
         }

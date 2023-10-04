@@ -2,6 +2,7 @@ import math
 import re
 import sys
 
+import numpy
 import pandas as pd
 import pandas.core.frame
 import pytest
@@ -458,4 +459,45 @@ def test_missing_columns():
         )
 
 
+def test_none_columns_edges():
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, None, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, 3, 4, 5]}
+    )
+    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
+        Graph.load_from_pandas(
+            edges_df,
+            "src",
+            "dst",
+            "time"
+        )
 
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, None, 6],
+            "time": [1, 2, 3, 4, 5]}
+    )
+    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
+        Graph.load_from_pandas(
+            edges_df,
+            "src",
+            "dst",
+            "time"
+        )
+
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, None, 4, 5]}
+    )
+    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
+        Graph.load_from_pandas(
+            edges_df,
+            "src",
+            "dst",
+            "time"
+        )

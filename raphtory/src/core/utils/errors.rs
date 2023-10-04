@@ -72,7 +72,9 @@ pub enum GraphError {
     LoadFailure(String),
 
     #[cfg(feature = "python")]
-    #[error("Failed to load graph as the following columns are not present within the dataframe: {0}")]
+    #[error(
+        "Failed to load graph as the following columns are not present within the dataframe: {0}"
+    )]
     ColumnDoesNotExist(String),
 
     #[cfg(feature = "search")]
