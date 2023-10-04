@@ -143,7 +143,8 @@ impl TempColGraphFragment {
         graph_dir: P2,
     ) -> Result<Self, Error> {
         Self::prepare_graph_dir(graph_dir.as_ref())?;
-        let srcs_iter = read_file_sources(parquet_file.clone(), src_col)?;
+        let srcs_iter = read_file_sources(parquet_file.clone(), src_col)?
+            .chain(read_file_sources(parquet_file.clone(), dst_col)?);
 
         let chunks = read_file_chunks(parquet_file, src_col, dst_col, time_col, None)?;
 
@@ -317,7 +318,7 @@ impl TempColGraphFragment {
         Some(adj_list.clone())
     }
 
-    fn outbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
+    pub fn outbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
         &self.adj_out_chunks
     }
 
@@ -325,7 +326,7 @@ impl TempColGraphFragment {
         &self.adj_in_chunks
     }
 
-    fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
+    pub fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
         let num_chunks = self.outbound().len();
         let tmp_schema = Schema::from(vec![Field::new(
             "adj_in",
@@ -347,7 +348,8 @@ impl TempColGraphFragment {
             return Err(error.into());
         }
 
-        for outbound in self.outbound() {
+        for (it, outbound) in self.outbound().iter().enumerate() {
+            println!("reversing chunk {it}");
             // look at all outbound chunks sequentially
             let outbound = outbound[0]
                 .as_any()
@@ -371,7 +373,12 @@ impl TempColGraphFragment {
                         for &id in vertex_ids.iter().flatten() {
                             let id = id as usize;
                             if id < chunk_max_id {
-                                counts[id % self.chunk_size].fetch_add(1, Ordering::Relaxed);
+                                if let Some(counts) = counts.get(id % self.chunk_size) {
+                                    counts.fetch_add(1, Ordering::Relaxed);
+                                } else {
+                                    let inner_id = id % self.chunk_size;
+                                    panic!("counts index out of bounds for inbound chunk {inbound_chunk_id} with size {inbound_chunksize}: id {id}, index in chunk: {inner_id}")
+                                }
                                 row_size += 1;
                             } else {
                                 break;
@@ -568,8 +575,61 @@ fn read_file_chunks<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use super::*;
+    use ahash::HashSet;
     use arrow2::datatypes::DataType;
+    use proptest::prelude::*;
     use tempfile::TempDir;
+
+    //.prop_map(|mut v| {v.sort(); v})
+    proptest! {
+        #[test]
+        fn outbound_sanity_check(edges in any::<Vec<(u64, u64, i64)>>(), chunk_size in 400..1024u64) {
+            let test_dir = TempDir::new().unwrap();
+            let vertices: Vec<_> = edges.iter().map(|(s, _, _)| *s).chain(edges.iter().map(|(_, d, _)| *d)).collect();
+            let vert_set: HashSet<_>  = vertices.iter().copied().collect();
+            let chunks = edges.iter().map(|(src, _, _)| *src).chunks(chunk_size as usize);
+            let srcs = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+            let chunks = edges.iter().map(|(_, dst, _)| *dst).chunks(chunk_size as usize);
+            let dsts = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+            let chunks = edges.iter().map(|(_, _, times)| *times).chunks(chunk_size as usize);
+            let times = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+
+            let triples = srcs.zip(dsts).zip(times).map(|((a, b), c)| LoadChunk::new(vec![a.boxed(), b.boxed(), c.boxed()], 0, 1, 2));
+
+            let mut graph = TempColGraphFragment::build_tables_from_chunked(
+            test_dir.path(),
+            chunk_size as usize / 100,
+            vertices,
+            triples,
+        ).unwrap();
+            let actual_num_verts = vert_set.len();
+            let g_num_verts = graph.num_vertices();
+            assert_eq!(actual_num_verts, g_num_verts);
+            assert!(graph.all_edges().all(|(_, VID(src), VID(dst))| src<g_num_verts && dst < g_num_verts));
+            for chunk in graph.outbound() {
+            assert!(chunk[0]
+        .as_any()
+        .downcast_ref::<ListArray<i64>>()
+        .unwrap()
+        .iter()
+        .flatten()
+        .flat_map(|list| list.as_any().downcast_ref::<StructArray>().cloned())
+        .all(|list| {
+            let values = list.values()[0]
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap()
+                .values();
+            let sorted = values.windows(2).all(|w| w[0] <= w[1]);
+            if !sorted {
+                println!("{:?}", values);
+            }
+            sorted
+        }));
+                }
+            // assert!(graph.build_inbound_adj_index().is_ok());
+        }
+    }
 
     #[test]
     fn load_from_parquet() {

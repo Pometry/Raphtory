@@ -89,13 +89,12 @@ impl VertexFrameBuilder {
         &mut self,
         sources: impl IntoIterator<Item = ID>,
     ) {
-        self.sorted_gids.extend(
-            sources
-                .into_iter()
-                .dedup()
-                .enumerate()
-                .map(|(id, gid)| (gid.into(), id as u64)),
-        )
+        for s in sources {
+            let s = s.into();
+            if !self.sorted_gids.contains_key(&s) {
+                self.sorted_gids.insert(s, self.sorted_gids.len() as u64);
+            }
+        }
     }
 
     fn find_or_push_vertex(&mut self, vertex: &GID) -> usize {
@@ -130,7 +129,10 @@ impl VertexFrameBuilder {
             self.last_dst_idx = self.find_or_push_vertex(&dst);
             self.adj_out_dst.push(self.last_dst_idx as u64);
 
-            if let Some((prev_src, _)) = self.last_edge.as_ref() {
+            if let Some((prev_src, prev_dst)) = self.last_edge.as_ref() {
+                // println!("prev edge = ({prev_src:?}, {prev_dst:?})");
+                // println!("new edge = ({src:?}, {dst:?})");
+                assert!(prev_src < &src || (prev_src == &src && prev_dst <= &dst));
                 if prev_src != &src {
                     self.adj_out_offsets.push(self.chunk_adj_out_offset);
                     self.vertex_count += 1;

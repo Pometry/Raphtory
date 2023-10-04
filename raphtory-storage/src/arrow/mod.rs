@@ -57,7 +57,7 @@ pub fn adj_schema() -> DataType {
     ])
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
 pub(crate) enum GID {
     U64(u64),
     I64(i64),

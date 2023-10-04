@@ -1,3 +1,5 @@
+use arrow2::array::{ListArray, PrimitiveArray, StructArray};
+use itertools::Itertools;
 use raphtory::core::{entities::VID, Direction};
 use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
 
@@ -20,11 +22,11 @@ fn main() {
         .nth(5)
         .expect("please supply a graph output directory");
 
-    let chunk_size = 1024;
+    let chunk_size = 131072;
 
     let now = std::time::Instant::now();
 
-    let graph = if std::fs::read_dir(path.clone()).is_ok() {
+    let mut graph = if std::fs::read_dir(path.clone()).is_ok() {
         TempColGraphFragment::from_sorted_parquet_dir_edge_list(
             path, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
         )
@@ -37,6 +39,46 @@ fn main() {
     };
 
     println!("loading time: {:?}", now.elapsed());
+    let g_num_verts = graph.num_vertices();
+    assert!(graph
+        .all_edges()
+        .all(|(_, VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
+
+    for id in 0..graph.num_vertices() {
+        let edges: Vec<_> = graph
+            .edges(VID(id), Direction::OUT)
+            .map(|(_, VID(vid))| vid)
+            .collect();
+        let sorted = edges.windows(2).all(|w| w[0] <= w[1]);
+        if !sorted {
+            println!("Not sorted: id={id}, edges={edges:?}");
+        }
+        assert!(sorted);
+    }
+
+    // assert!(graph.outbound()[59][0]
+    //     .as_any()
+    //     .downcast_ref::<ListArray<i64>>()
+    //     .unwrap()
+    //     .iter()
+    //     .flatten()
+    //     .flat_map(|list| list.as_any().downcast_ref::<StructArray>().cloned())
+    //     .all(|list| {
+    //         let values = list.values()[0]
+    //             .as_any()
+    //             .downcast_ref::<PrimitiveArray<u64>>()
+    //             .unwrap()
+    //             .values();
+    //         let sorted = values.windows(2).all(|w| w[0] <= w[1]);
+    //         if !sorted {
+    //             println!("{:?}", values);
+    //         }
+    //         sorted
+    //     }));
+
+    // let now = std::time::Instant::now();
+    // graph.build_inbound_adj_index().unwrap();
+    // println!("inbound edges index build in {:?}", now.elapsed());
 
     let now = std::time::Instant::now();
     let first_edges = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
