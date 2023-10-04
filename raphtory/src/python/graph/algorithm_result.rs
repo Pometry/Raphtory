@@ -193,3 +193,6 @@ py_algorithm_result_ord_hash_eq!(AlgorithmResultU64VecUsize, u64, Vec<usize>);
 
 py_algorithm_result!(AlgorithmResultStrF64, String, f64, OrderedFloat<f64>);
 py_algorithm_result_partial_ord!(AlgorithmResultStrF64, String, f64);
+
+py_algorithm_result!(AlgorithmResultStrVecStr, String, Vec<String>);
+py_algorithm_result_ord_hash_eq!(AlgorithmResultStrVecStr, String, Vec<String>);
