@@ -15,6 +15,14 @@ use raphtory_core::python::{
     packages::{algorithms::*, graph_gen::*, graph_loader::*},
 };
 
+macro_rules! add_functions {
+    ($module:expr, $($func:ident),* $(,)?) => {
+        $(
+            $module.add_function(wrap_pyfunction!($func, $module)?)?;
+        )*
+    };
+}
+
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
@@ -41,52 +49,32 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_submodule(graphql_module)?;
 
     //ALGORITHMS
-    let algorithm_module = PyModule::new(py, "algorithms")?;
-    algorithm_module.add_function(wrap_pyfunction!(global_reciprocity, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(all_local_reciprocity, algorithm_module)?)?;
     m.add_class::<AlgorithmResult>()?;
-
-    algorithm_module.add_function(wrap_pyfunction!(triplet_count, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(local_triangle_count, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(average_degree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(directed_graph_density, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(max_out_degree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(max_in_degree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(min_out_degree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(min_in_degree, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(pagerank, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
+    let algorithm_module = PyModule::new(py, "algorithms")?;
+    add_functions!(
+        algorithm_module,
+        global_reciprocity,
+        all_local_reciprocity,
+        triplet_count,
+        local_triangle_count,
+        average_degree,
+        directed_graph_density,
+        max_out_degree,
+        max_in_degree,
+        min_out_degree,
+        min_in_degree,
+        pagerank,
+        single_source_shortest_path,
         global_clustering_coefficient,
-        algorithm_module
-    )?)?;
-
-    algorithm_module.add_function(wrap_pyfunction!(
         temporally_reachable_nodes,
-        algorithm_module
-    )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
         local_clustering_coefficient,
-        algorithm_module
-    )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
         weakly_connected_components,
-        algorithm_module
-    )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
         global_temporal_three_node_motif,
-        algorithm_module
-    )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
         global_temporal_three_node_motif_multi,
-        algorithm_module
-    )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(
         local_temporal_three_node_motifs,
-        algorithm_module
-    )?)?;
-    algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(balance, algorithm_module)?)?;
-
+        hits,
+        balance
+    );
     m.add_submodule(algorithm_module)?;
 
     //GRAPH LOADER

@@ -1,49 +1,63 @@
+//! # Single Source Shortest Path (SSSP) Algorithm
+//!
+//! This module provides an implementation of the Single Source Shortest Path algorithm.
+//! It finds the shortest paths from a given source vertex to all other vertices in a graph.
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::entities::vertices::input_vertex::InputVertex, prelude::*,
 };
 use std::collections::HashMap;
 
+/// Calculates the single source shortest paths from a given source vertex.
+///
+/// # Arguments
+///
+/// - `g: &G`: A reference to the graph. Must implement `GraphViewOps`.
+/// - `source: T`: The source vertex. Must implement `InputVertex`.
+/// - `cutoff: Option<usize>`: An optional cutoff level. The algorithm will stop if this level is reached.
+///
+/// # Returns
+///
+/// Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
+///
 pub fn single_source_shortest_path<G: GraphViewOps, T: InputVertex>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<String, Vec<String>> {
-    // if !g.has_vertex(source.clone()) {
-    //     let h: Vec<(String, Vec<String>)> = Vec::new();
-    //     return h;
-    // }
-    let source_node = g.vertex(source).unwrap();
-    let mut level = 0;
-    let mut nextlevel: HashMap<String, usize> = HashMap::new();
-    nextlevel.insert(source_node.name(), 1);
-
-    let mut paths: HashMap<String, Vec<String>> = HashMap::new();
-    paths.insert(source_node.name(), vec![source_node.name()]);
     let results_type = std::any::type_name::<HashMap<String, Vec<String>>>();
+    let mut paths: HashMap<String, Vec<String>> = HashMap::new();
+    if g.has_vertex(source.clone()) {
+        let source_node = g.vertex(source).unwrap();
+        let mut level = 0;
+        let mut nextlevel: HashMap<String, usize> = HashMap::new();
+        nextlevel.insert(source_node.name(), 1);
 
-    if let Some(0) = cutoff {
-        return AlgorithmResult::new("Single Source Shortest Path", results_type, paths);
-    }
+        paths.insert(source_node.name(), vec![source_node.name()]);
 
-    while !nextlevel.is_empty() {
-        let thislevel: HashMap<String, usize> = nextlevel.clone();
-        nextlevel.clear();
+        if let Some(0) = cutoff {
+            return AlgorithmResult::new("Single Source Shortest Path", results_type, paths);
+        }
 
-        for v in thislevel.keys() {
-            for w in g.vertex(v.clone()).unwrap().neighbours() {
-                if !paths.contains_key(&w.name()) {
-                    let mut new_path = paths.get(v).unwrap().clone();
-                    new_path.push(w.name());
-                    paths.insert(w.name(), new_path);
-                    nextlevel.insert(w.name(), 1);
+        while !nextlevel.is_empty() {
+            let thislevel: HashMap<String, usize> = nextlevel.clone();
+            nextlevel.clear();
+
+            for v in thislevel.keys() {
+                for w in g.vertex(v.clone()).unwrap().neighbours() {
+                    if !paths.contains_key(&w.name()) {
+                        let mut new_path = paths.get(v).unwrap().clone();
+                        new_path.push(w.name());
+                        paths.insert(w.name(), new_path);
+                        nextlevel.insert(w.name(), 1);
+                    }
                 }
             }
-        }
-        level += 1;
-        if let Some(c) = cutoff {
-            if c <= level {
-                break;
+            level += 1;
+            if let Some(c) = cutoff {
+                if c <= level {
+                    break;
+                }
             }
         }
     }

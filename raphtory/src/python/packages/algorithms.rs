@@ -29,6 +29,7 @@ use crate::{
             global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
+        pathing::single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
         pathing::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
@@ -409,4 +410,24 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
+
+/// Calculates the single source shortest paths from a given source vertex.
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph. Must implement `GraphViewOps`.
+///     source (InputVertex): The source vertex. Must implement `InputVertex`.
+///     cutoff (Int, Optional): An optional cutoff level. The algorithm will stop if this level is reached.
+///
+/// Returns:
+///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
+///
+#[pyfunction]
+#[pyo3[signature = (g, source, cutoff=None)]]
+pub fn single_source_shortest_path(
+    g: &PyGraphView,
+    source: PyInputVertex,
+    cutoff: Option<usize>,
+) -> AlgorithmResult<String, Vec<String>> {
+    single_source_shortest_path_rs(&g.graph, source, cutoff)
 }
