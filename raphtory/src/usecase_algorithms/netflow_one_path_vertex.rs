@@ -13,7 +13,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::{EdgeListOps, EdgeViewOps, LayerOps, Prop, PropUnwrap, TimeOps},
+    prelude::{EdgeListOps, EdgeViewOps, LayerOps, Prop, TimeOps},
 };
 
 fn get_one_hop_counts<G: GraphViewOps, CS: ComputeState>(
@@ -40,12 +40,12 @@ fn one_path_algorithm<G: GraphViewOps, CS: ComputeState>(
     if nf_e_edge_expl.src() == nf_e_edge_expl.dst() {
         return 0usize;
     }
-    let dstBytesVal = nf_e_edge_expl
+    let dst_bytes_val = nf_e_edge_expl
         .properties()
         .get("dstBytes")
         .unwrap_or(Prop::I64(0));
 
-    if dstBytesVal <= Prop::I64(100000000) {
+    if dst_bytes_val <= Prop::I64(100000000) {
         return 0usize;
     }
 
@@ -118,8 +118,8 @@ pub fn netflow_one_path_vertex<G: GraphViewOps>(
 
 #[cfg(test)]
 mod one_path_test {
+    use super::*;
     use crate::{
-        algorithms::netflow_one_path_vertex::netflow_one_path_vertex,
         core::Prop,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,

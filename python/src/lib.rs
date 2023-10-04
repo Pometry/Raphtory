@@ -86,11 +86,17 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     )?)?;
     algorithm_module.add_function(wrap_pyfunction!(hits, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(balance, algorithm_module)?)?;
-    algorithm_module.add_function(wrap_pyfunction!(netflow_one_path_vertex, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(degree_centrality, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(max_degree, algorithm_module)?)?;
     algorithm_module.add_function(wrap_pyfunction!(min_degree, algorithm_module)?)?;
     m.add_submodule(algorithm_module)?;
+
+    let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
+    usecase_algorithm_module.add_function(wrap_pyfunction!(
+        netflow_one_path_vertex,
+        usecase_algorithm_module
+    )?)?;
+    m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
