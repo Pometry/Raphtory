@@ -23,33 +23,47 @@ macro_rules! add_functions {
     };
 }
 
+macro_rules! add_classes {
+    ($module:expr, $($cls:ty),* $(,)?) => {
+        $(
+            $module.add_class::<$cls>()?;
+        )*
+    };
+}
+
 /// Raphtory graph analytics library
 #[pymodule]
 fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     //Graph classes
-    m.add_class::<PyGraph>()?;
-    m.add_class::<PyGraphWithDeletions>()?;
-    m.add_class::<PyVertex>()?;
-    m.add_class::<PyVertices>()?;
-    m.add_class::<PyEdge>()?;
-    m.add_class::<PyEdges>()?;
-    m.add_class::<PyProperties>()?;
-    m.add_class::<PyConstProperties>()?;
-    m.add_class::<PyTemporalProperties>()?;
-    m.add_class::<PyTemporalProp>()?;
-    m.add_class::<PyDirection>()?;
+    add_classes!(
+        m,
+        PyGraph,
+        PyGraphWithDeletions,
+        PyVertex,
+        PyVertices,
+        PyEdge,
+        PyEdges,
+        PyProperties,
+        PyConstProperties,
+        PyTemporalProperties,
+        PyTemporalProp,
+        PyDirection,
+        AlgorithmResult
+    );
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "internal_graphql")?;
-    graphql_module.add_function(wrap_pyfunction!(from_map, graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(from_directory, graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(from_map_and_directory, graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(encode_graph, graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(decode_graph, graphql_module)?)?;
+    add_functions!(
+        graphql_module,
+        from_map,
+        from_directory,
+        from_map_and_directory,
+        encode_graph,
+        decode_graph
+    );
     m.add_submodule(graphql_module)?;
 
     //ALGORITHMS
-    m.add_class::<AlgorithmResult>()?;
     let algorithm_module = PyModule::new(py, "algorithms")?;
     add_functions!(
         algorithm_module,
@@ -76,35 +90,32 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         global_temporal_three_node_motif_multi,
         local_temporal_three_node_motifs,
         hits,
-        balance
+        balance,
     );
     m.add_submodule(algorithm_module)?;
 
     let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
-    usecase_algorithm_module.add_function(wrap_pyfunction!(
-        netflow_one_path_vertex,
-        usecase_algorithm_module
-    )?)?;
+    add_functions!(usecase_algorithm_module, netflow_one_path_vertex,);
     m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
-    graph_loader_module.add_function(wrap_pyfunction!(lotr_graph, graph_loader_module)?)?;
-    graph_loader_module.add_function(wrap_pyfunction!(neo4j_movie_graph, graph_loader_module)?)?;
-    graph_loader_module.add_function(wrap_pyfunction!(stable_coin_graph, graph_loader_module)?)?;
-    graph_loader_module.add_function(wrap_pyfunction!(
+    add_functions!(
+        graph_loader_module,
+        lotr_graph,
+        neo4j_movie_graph,
+        stable_coin_graph,
         reddit_hyperlink_graph,
-        graph_loader_module
-    )?)?;
+    );
     m.add_submodule(graph_loader_module)?;
 
     //GRAPH GENERATOR
     let graph_gen_module = PyModule::new(py, "graph_gen")?;
-    graph_gen_module.add_function(wrap_pyfunction!(random_attachment, graph_gen_module)?)?;
-    graph_gen_module.add_function(wrap_pyfunction!(
+    add_functions!(
+        graph_gen_module,
+        random_attachment,
         ba_preferential_attachment,
-        graph_gen_module
-    )?)?;
+    );
     m.add_submodule(graph_gen_module)?;
 
     // TODO: re-enable
