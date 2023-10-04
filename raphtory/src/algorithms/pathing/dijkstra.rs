@@ -101,7 +101,7 @@ mod dijkstra_tests {
     }
 
     #[test]
-    fn test_generic_taint_1() {
+    fn test_dijkstra_1() {
         let graph = load_graph(vec![
             (0, "A", "B", vec![("weight", 4u64)]),
             (1, "A", "C", vec![("weight", 4u64)]),
@@ -113,7 +113,8 @@ mod dijkstra_tests {
             (7, "E", "F", vec![("weight", 3u64)]),
         ]);
 
-        let results = dijkstra(&graph, "A", "B", "weight".to_string()).unwrap();
-        println!("{:?}", results)
+        let results = dijkstra(&graph, "A", "F", "weight".to_string()).unwrap();
+        assert_eq!(results.0, 8);
+        assert_eq!(results.1, vec!["A", "C", "E", "F"]);
     }
 }
