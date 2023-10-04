@@ -33,14 +33,18 @@ use raphtory::core::{
 use rayon::prelude::*;
 use tempfile::tempfile_in;
 
-use super::{array_as_id_iter, edge_chunk::EdgeChunk, LoadChunk, Time, GID};
+use super::{
+    array_as_id_iter,
+    edge_chunk::EdgeChunk,
+    vertex_chunk::{RowOwned, VertexChunk},
+    LoadChunk, Time, GID,
+};
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
     chunk_size: usize,
-    // sorted_gids: Vec<u64>,
-    adj_out_chunks: Vec<Chunk<Box<dyn Array>>>,
-    adj_in_chunks: Vec<Chunk<Box<dyn Array>>>,
+    adj_out_chunks: Vec<VertexChunk>,
+    adj_in_chunks: Vec<VertexChunk>,
     edge_chunks: Vec<EdgeChunk>,
     graph_dir: Box<Path>,
 }
@@ -75,13 +79,17 @@ impl TempColGraphFragment {
             if file_name.starts_with("edge_chunk_") {
                 edge_chunks.push(EdgeChunk::new(unsafe { mmap_batch(file_path.path(), 0) }?));
             } else if file_name.starts_with("adj_in_chunk_") {
-                adj_in_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
+                adj_in_chunks.push(VertexChunk::new(unsafe {
+                    mmap_batch(file_path.path(), 0)
+                }?));
             } else if file_name.starts_with("adj_out_chunk_") {
-                adj_out_chunks.push(unsafe { mmap_batch(file_path.path(), 0) }?);
+                adj_out_chunks.push(VertexChunk::new(unsafe {
+                    mmap_batch(file_path.path(), 0)
+                }?));
             }
         }
 
-        let chunk_size = adj_out_chunks[0][0].len();
+        let chunk_size = adj_out_chunks[0].len();
 
         Ok(Self {
             chunk_size,
@@ -238,27 +246,16 @@ impl TempColGraphFragment {
         match dir {
             Direction::IN | Direction::OUT => {
                 let adj_array = self.adj_list(vertex_id.into(), dir);
-                if adj_array.is_none() {
+                if let Some((v, e)) = adj_array {
+                    let iter = v
+                        .into_iter()
+                        .zip(e.into_iter())
+                        .map(|(vid, eid)| (EID(eid as usize), VID(vid as usize)));
+
+                    Box::new(iter)
+                } else {
                     return Box::new(std::iter::empty());
                 }
-                let adj_array = adj_array.unwrap();
-                let v = adj_array.values()[0]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
-                let e = adj_array.values()[1]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap()
-                    .clone();
-                let iter = v
-                    .into_iter()
-                    .flatten()
-                    .zip(e.into_iter().flatten())
-                    .map(|(vid, eid)| (EID(eid as usize), VID(vid as usize)));
-
-                Box::new(iter)
             }
             Direction::BOTH => {
                 let out = self.edges(vertex_id, Direction::OUT);
@@ -287,7 +284,6 @@ impl TempColGraphFragment {
             .iter()
             .flat_map(|chunk| {
                 let time = chunk.time();
-                // TODO: make this a function
                 let time_into_iter =
                     (0..time.len()).map(move |i| unsafe { time.value_unchecked(i) });
                 chunk
@@ -309,7 +305,11 @@ impl TempColGraphFragment {
             })
     }
 
-    fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<StructArray> {
+    fn adj_list<'a>(
+        &'a self,
+        vertex_id: usize,
+        dir: Direction,
+    ) -> Option<(RowOwned<u64>, RowOwned<u64>)> {
         let chunks = match dir {
             Direction::OUT => self.outbound(),
             Direction::IN => self.inbound(),
@@ -321,19 +321,17 @@ impl TempColGraphFragment {
         let chunk_idx = vertex_id / chunk_size;
         let idx = vertex_id % chunk_size;
 
-        let arr = chunks.get(chunk_idx)?[0]
-            .as_any()
-            .downcast_ref::<ListArray<i64>>()?;
-        let arr = (idx < arr.len()).then(|| arr.value(idx))?;
-        let adj_list = arr.as_any().downcast_ref::<StructArray>()?;
-        Some(adj_list.clone())
+        let neighbours = chunks[chunk_idx].neighbours_own(VID(idx))?;
+        let edges = chunks[chunk_idx].edges_own(VID(idx))?;
+
+        Some((neighbours, edges))
     }
 
-    pub fn outbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
+    pub(crate) fn outbound(&self) -> &Vec<VertexChunk> {
         &self.adj_out_chunks
     }
 
-    fn inbound(&self) -> &Vec<Chunk<Box<dyn Array>>> {
+    pub(crate) fn inbound(&self) -> &Vec<VertexChunk> {
         &self.adj_in_chunks
     }
 
@@ -360,14 +358,8 @@ impl TempColGraphFragment {
         }
 
         for (it, outbound) in self.outbound().iter().enumerate() {
-            println!("reversing chunk {it}");
-            // look at all outbound chunks sequentially
-            let outbound = outbound[0]
-                .as_any()
-                .downcast_ref::<ListArray<i64>>()
-                .unwrap();
-            let adj_column: ListColumn<u64> = as_primitive_column(outbound, 0).unwrap();
-            let edge_ids_column: ListColumn<u64> = as_primitive_column(outbound, 1).unwrap();
+            let adj_column: ListColumn<u64> = outbound.neighbours_col().unwrap();
+            let edge_ids_column: ListColumn<u64> = outbound.edge_col().unwrap();
 
             let outbound_chunksize = outbound.len();
             let mut progress = vec![0usize; outbound_chunksize]; // keeps track of how far we got for each list
@@ -471,7 +463,7 @@ impl TempColGraphFragment {
             let chunk = [Chunk::try_new(vec![res])?];
             write_batches(file_path.as_path(), schema, &chunk)?;
             let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-            self.adj_in_chunks.push(mmapped_chunk);
+            self.adj_in_chunks.push(VertexChunk::new(mmapped_chunk));
         }
         Ok(())
     }
@@ -590,10 +582,9 @@ mod test {
     use proptest::prelude::*;
     use tempfile::TempDir;
 
-    //.prop_map(|mut v| {v.sort(); v})
     proptest! {
         #[test]
-        fn outbound_sanity_check(edges in any::<Vec<(u64, u64, i64)>>(), chunk_size in 400..1024u64) {
+        fn outbound_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 400..1024u64) {
             let test_dir = TempDir::new().unwrap();
             let vertices: Vec<_> = edges.iter().map(|(s, _, _)| *s).chain(edges.iter().map(|(_, d, _)| *d)).collect();
             let vert_set: HashSet<_>  = vertices.iter().copied().collect();
@@ -623,20 +614,12 @@ mod test {
             let g_num_verts = graph.num_vertices();
             assert_eq!(actual_num_verts, g_num_verts);
             assert!(graph.all_edges().all(|(_, VID(src), VID(dst))| src<g_num_verts && dst < g_num_verts));
-            for chunk in graph.outbound() {
-            assert!(chunk[0].as_any().downcast_ref::<ListArray<i64>>().unwrap().iter().flatten().flat_map(|list| list.as_any().downcast_ref::<StructArray>().cloned()).all(|list| {
-            let values = list.values()[0]
-                .as_any()
-                .downcast_ref::<PrimitiveArray<u64>>()
-                .unwrap()
-                .values();
-            let sorted = values.windows(2).all(|w| w[0] <= w[1]);
-            if !sorted {
-                println!("{:?}", values);
+
+            for v in 0 .. g_num_verts {
+                let v = VID(v);
+                assert!(graph.edges(v, Direction::OUT).map(|(_, v)| v).tuple_windows().all(|(v1, v2)| v1 <= v2));
+
             }
-            sorted
-        }));
-                }
             assert!(graph.build_inbound_adj_index().is_ok());
         }
     }
@@ -755,8 +738,6 @@ mod test {
             vec![chunk],
         )
         .unwrap();
-
-        println!("{:?}", graph);
 
         let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
