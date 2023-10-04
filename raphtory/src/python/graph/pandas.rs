@@ -10,9 +10,10 @@ use pyo3::{
     exceptions::PyException,
     ffi::Py_uintptr_t,
     prelude::*,
-    types::{IntoPyDict, PyDict},
+    types::{PyDict},
 };
 use std::collections::HashMap;
+use itertools::Itertools;
 
 fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
     x.map(|x| (*x).try_into().unwrap())
@@ -93,6 +94,16 @@ pub(crate) fn load_vertices_from_df<'a>(
     shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![vertex_id, time];
+    if let Some(ref props) = props {
+        cols_to_check.extend(props);
+    }
+    if let Some(ref const_props) = const_props {
+        cols_to_check.extend(const_props);
+    }
+
+    df.check_cols_exist(&cols_to_check)?;
+
     let prop_iter = props
         .unwrap_or_default()
         .into_iter()
@@ -190,6 +201,22 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst, time];
+    if layer_in_df {
+        if let Some(ref layer) = layer {
+            cols_to_check.push(layer.as_ref());
+        }
+    }
+    if let Some(ref props) = props {
+        cols_to_check.extend(props);
+    }
+    if let Some(ref const_props) = const_props {
+        cols_to_check.extend(const_props);
+    }
+
+    df.check_cols_exist(&cols_to_check)?;
+
+
     let prop_iter = props
         .unwrap_or_default()
         .into_iter()
@@ -302,6 +329,14 @@ pub(crate) fn load_vertex_props_from_df<'a>(
     shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![vertex_id];
+    if let Some(ref const_props) = const_props {
+        cols_to_check.extend(const_props);
+    }
+
+    df.check_cols_exist(&cols_to_check)?;
+
+
     let const_prop_iter = const_props
         .unwrap_or_default()
         .into_iter()
@@ -404,6 +439,19 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
+    let mut cols_to_check = vec![src, dst];
+    if layer_in_df {
+        if let Some(ref layer) = layer {
+            cols_to_check.push(layer.as_ref());
+        }
+    }
+    if let Some(ref const_props) = const_props {
+        cols_to_check.extend(const_props);
+    }
+
+    df.check_cols_exist(&cols_to_check)?;
+
+
     let const_prop_iter = const_props
         .unwrap_or_default()
         .into_iter()
@@ -669,6 +717,16 @@ pub(crate) struct PretendDF {
 }
 
 impl PretendDF {
+    fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
+
+        let non_cols:Vec<&&str> = cols.iter().filter(|c| !self.names.contains(&c.to_string())).collect();
+        if non_cols.len() > 0 {
+            return Err(GraphError::ColumnDoesNotExist(non_cols.iter().join(", ")));
+        }
+
+        Ok(())
+    }
+
     fn iter_col<T: NativeType>(&self, name: &str) -> Option<impl Iterator<Item = Option<&T>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
 

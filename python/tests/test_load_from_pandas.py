@@ -1,4 +1,5 @@
 import math
+import re
 import sys
 
 import pandas as pd
@@ -384,4 +385,77 @@ def test_load_from_pandas_with_types():
         {"layer 4": "test_tag"},
         {"layer 5": "test_tag"},
     ]
+
+def test_missing_columns():
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, 3, 4, 5],
+            "weight": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "marbles": ["red", "blue", "green", "yellow", "purple"],
+        }
+    )
+
+    vertices_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
+        }
+    )
+
+    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("not_src, not_dst, not_time")')):
+        g = Graph.load_from_pandas(
+            edges_df,
+            edge_src="not_src",
+            edge_dst="not_dst",
+            edge_time="not_time",
+        )
+
+    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("not_weight, bleep_bloop")')):
+        g = Graph.load_from_pandas(
+            edges_df,
+            edge_src="src",
+            edge_dst="dst",
+            edge_time="time",
+            edge_props=["not_weight", "marbles"],
+            edge_const_props=["bleep_bloop"],
+            vertex_df=vertices_df,
+            vertex_id="id",
+            vertex_time="time",
+            vertex_props=["name"],
+        )
+
+    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("not_id, not_time, not_name")')):
+        g = Graph.load_from_pandas(
+            edges_df,
+            edge_src="src",
+            edge_dst="dst",
+            edge_time="time",
+            edge_props=["weight", "marbles"],
+            vertex_df=vertices_df,
+            vertex_id="not_id",
+            vertex_time="not_time",
+            vertex_props=["not_name"],
+        )
+
+    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("sauce, dist, wait, marples")')):
+        g = Graph()
+        g.load_edge_props_from_pandas(
+            edges_df,
+            src="sauce",
+            dst="dist",
+            const_props=["wait", "marples"],
+        )
+
+    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("sauce, wait, marples")')):
+        g = Graph()
+        g.load_vertex_props_from_pandas(
+            vertices_df,
+            id="sauce",
+            const_props=["wait", "marples"],
+        )
+
+
 
