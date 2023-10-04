@@ -49,7 +49,6 @@ except NameError:
     };
 }
 
-
 pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, size: usize) -> PyResult<PretendDF> {
     is_jupyter(py);
     let globals = PyDict::new(py);
