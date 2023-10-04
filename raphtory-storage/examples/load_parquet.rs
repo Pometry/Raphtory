@@ -76,9 +76,9 @@ fn main() {
     //         sorted
     //     }));
 
-    // let now = std::time::Instant::now();
-    // graph.build_inbound_adj_index().unwrap();
-    // println!("inbound edges index build in {:?}", now.elapsed());
+    let now = std::time::Instant::now();
+    graph.build_inbound_adj_index().unwrap();
+    println!("inbound edges index build in {:?}", now.elapsed());
 
     let now = std::time::Instant::now();
     let first_edges = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
