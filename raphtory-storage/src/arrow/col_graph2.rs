@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeSet,
     io,
     io::BufReader,
     path::Path,
@@ -120,9 +121,11 @@ impl TempColGraphFragment {
             })
             .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
 
-        let srcs = srcs_parquet_files
-            .flat_map(|dir_entry| read_file_sources(dir_entry.path(), src_col))
-            .flatten();
+        let mut srcs: BTreeSet<GID> = BTreeSet::default();
+        for dir_entry in srcs_parquet_files {
+            srcs.extend(read_file_sources(dir_entry.path(), src_col)?);
+            srcs.extend(read_file_sources(dir_entry.path(), dst_col)?);
+        }
 
         let chunks = triplets_parquet_files2
             .flat_map(|dir_entry| {
@@ -143,12 +146,13 @@ impl TempColGraphFragment {
         graph_dir: P2,
     ) -> Result<Self, Error> {
         Self::prepare_graph_dir(graph_dir.as_ref())?;
-        let srcs_iter = read_file_sources(parquet_file.clone(), src_col)?
-            .chain(read_file_sources(parquet_file.clone(), dst_col)?);
+        let srcs: BTreeSet<GID> = read_file_sources(parquet_file.clone(), src_col)?
+            .chain(read_file_sources(parquet_file.clone(), dst_col)?)
+            .collect();
 
         let chunks = read_file_chunks(parquet_file, src_col, dst_col, time_col, None)?;
 
-        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, srcs_iter, chunks)?;
+        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, srcs, chunks)?;
         Ok(out)
     }
 
@@ -193,7 +197,7 @@ impl TempColGraphFragment {
             let dst_iter = chunk.destinations()?;
 
             for (src, dst) in src_iter.zip(dst_iter) {
-                let (src_id, dst_id) = vf_builder.push_update(src.into(), dst.into())?;
+                let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
 
                 edge_builder.push_update_with_props(src_id, dst_id, &mut chunk)?;
             }
@@ -594,27 +598,27 @@ mod test {
             let chunks = edges.iter().map(|(_, _, times)| *times).chunks(chunk_size as usize);
             let times = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
 
-            let triples = srcs.zip(dsts).zip(times).map(|((a, b), c)| LoadChunk::new(vec![a.boxed(), b.boxed(), c.boxed()], 0, 1, 2));
+            let schema = Schema::from(vec![
+                Field::new("srcs", DataType::UInt64, false),
+                Field::new("dsts", DataType::UInt64, false),
+                Field::new("time", DataType::Int64, false)
+            ]);
+
+            let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| LoadChunk::new(vec![a.boxed(), b.boxed(), c.boxed()], 0, 1, 2, schema.clone()));
 
             let mut graph = TempColGraphFragment::build_tables_from_chunked(
-            test_dir.path(),
-            chunk_size as usize / 100,
-            vertices,
-            triples,
-        ).unwrap();
+                test_dir.path(),
+                chunk_size as usize / 100,
+                vertices,
+                triples,
+            ).unwrap();
+
             let actual_num_verts = vert_set.len();
             let g_num_verts = graph.num_vertices();
             assert_eq!(actual_num_verts, g_num_verts);
             assert!(graph.all_edges().all(|(_, VID(src), VID(dst))| src<g_num_verts && dst < g_num_verts));
             for chunk in graph.outbound() {
-            assert!(chunk[0]
-        .as_any()
-        .downcast_ref::<ListArray<i64>>()
-        .unwrap()
-        .iter()
-        .flatten()
-        .flat_map(|list| list.as_any().downcast_ref::<StructArray>().cloned())
-        .all(|list| {
+            assert!(chunk[0].as_any().downcast_ref::<ListArray<i64>>().unwrap().iter().flatten().flat_map(|list| list.as_any().downcast_ref::<StructArray>().cloned()).all(|list| {
             let values = list.values()[0]
                 .as_any()
                 .downcast_ref::<PrimitiveArray<u64>>()
@@ -627,7 +631,7 @@ mod test {
             sorted
         }));
                 }
-            // assert!(graph.build_inbound_adj_index().is_ok());
+            assert!(graph.build_inbound_adj_index().is_ok());
         }
     }
 

@@ -57,7 +57,7 @@ pub fn adj_schema() -> DataType {
     ])
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub(crate) enum GID {
     U64(u64),
     I64(i64),
@@ -145,7 +145,9 @@ impl LoadChunk {
             let mut props_only_schema = chunk_schema
                 .filter(|i, _| !(i == src_col_idx || i == dst_col_idx || i == time_col_idx));
             // put time as the first column in the struct
-            props_only_schema.fields.insert(0, Field::new(TIME_COLUMN, DataType::Int64, false));
+            props_only_schema
+                .fields
+                .insert(0, Field::new(TIME_COLUMN, DataType::Int64, false));
             let data_type = DataType::Struct(props_only_schema.fields);
             let t_prop_cols = Some(StructArray::new(data_type, temporal_props, None));
             Self {
@@ -212,7 +214,6 @@ impl LoadChunk {
         t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
         Some(out)
     }
-
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
