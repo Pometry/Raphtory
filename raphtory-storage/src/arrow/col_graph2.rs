@@ -640,7 +640,7 @@ mod test {
 
     proptest! {
         #[test]
-        fn outbound_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 1..1024u64, g_chunk_size in 1..1024usize) {
+        fn edges_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 1..1024u64, g_chunk_size in 1..1024usize) {
             let test_dir = TempDir::new().unwrap();
             let vertices: Vec<_> = edges.iter().map(|(s, _, _)| *s).chain(edges.iter().map(|(_, d, _)| *d)).collect();
             let vert_set: HashSet<_>  = vertices.iter().copied().collect();
@@ -670,13 +670,14 @@ mod test {
             let g_num_verts = graph.num_vertices();
             assert_eq!(actual_num_verts, g_num_verts);
             assert!(graph.all_edges().all(|(_, VID(src), VID(dst))| src<g_num_verts && dst < g_num_verts));
+            assert!(graph.build_inbound_adj_index().is_ok());
 
             for v in 0 .. g_num_verts {
                 let v = VID(v);
                 assert!(graph.edges(v, Direction::OUT).map(|(_, v)| v).tuple_windows().all(|(v1, v2)| v1 <= v2));
+                assert!(graph.edges(v, Direction::IN).map(|(_, v)| v).tuple_windows().all(|(v1, v2)| v1 <= v2));
 
             }
-            assert!(graph.build_inbound_adj_index().is_ok());
         }
     }
 
