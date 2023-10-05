@@ -832,10 +832,11 @@ def test_graph_time_api():
 def test_save_missing_dir():
     g = create_graph()
     tmpdirname = tempfile.TemporaryDirectory()
-    inner_folder = ''.join(random.choice(string.ascii_letters) for _ in range(10))
-    graph_path = tmpdirname.name +"/"+inner_folder+"/test_graph.bin"
+    inner_folder = "".join(random.choice(string.ascii_letters) for _ in range(10))
+    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph.bin"
     with pytest.raises(Exception):
         g.save_to_file(graph_path)
+
 
 def test_save_load_graph():
     g = create_graph()
@@ -1888,13 +1889,15 @@ def test_window_edges():
         old_window_way.append(e.window(2, 3))
     assert old_window_way == list(g.edges.window(2, 3))
 
+
 def test_weird_windows():
     g = Graph()
     g.add_edge(1, 1, 2)
-    with pytest.raises(Exception, match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%"):
-        g.window("ddd","aaa")
-
-
+    with pytest.raises(
+        Exception,
+        match="'ddd' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+    ):
+        g.window("ddd", "aaa")
 
 
 def test_at_edges():
@@ -1960,7 +1963,7 @@ def test_leading_zeroes_ids():
     g.add_vertex(0, 0)
     g.add_vertex(1, "0")
     assert g.vertex(0).history() == [0]
-    assert g.vertices.name.collect() == ["0", '0']
+    assert g.vertices.name.collect() == ["0", "0"]
 
     # g = Graph()
     # g.add_vertex(0, 1)
