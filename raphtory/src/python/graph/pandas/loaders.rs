@@ -103,8 +103,6 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-
-
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
     let layer = lift_layer(layer, layer_in_df, df);
 

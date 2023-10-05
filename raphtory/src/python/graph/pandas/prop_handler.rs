@@ -39,7 +39,8 @@ fn combine_properties<'a>(
                 v1.extend(v2);
                 v1
             })))
-        }).unwrap_or_else(|| Ok(Box::new(std::iter::repeat(vec![]))));
+        })
+        .unwrap_or_else(|| Ok(Box::new(std::iter::repeat(vec![]))));
 
     Ok(PropIter { inner: iter? })
 }

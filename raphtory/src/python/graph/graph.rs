@@ -374,7 +374,7 @@ impl PyGraph {
             cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
 
-            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
             df.check_cols_exist(&cols_to_check)?;
 
             load_vertices_from_df(
@@ -441,7 +441,7 @@ impl PyGraph {
                 }
             }
 
-            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
 
             df.check_cols_exist(&cols_to_check)?;
             load_edges_from_df(
@@ -494,7 +494,7 @@ impl PyGraph {
                 .extract()?;
             let mut cols_to_check = vec![id];
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
             df.check_cols_exist(&cols_to_check)?;
 
             load_vertex_props_from_df(&df, size, id, const_props, shared_const_props, graph)
@@ -546,7 +546,7 @@ impl PyGraph {
                 }
             }
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
             df.check_cols_exist(&cols_to_check)?;
             load_edges_props_from_df(
                 &df,

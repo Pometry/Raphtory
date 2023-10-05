@@ -509,12 +509,12 @@ def test_unparsable_props():
             "dst": [2, 3, 4, 5, 6],
             "time": [1, 2, 3, 4, 5],
             "weight": [1.0, "2.0", 3.0, 4.0, 5.0],
-            "marbles": [{"red","red"}, ["blue"], ["green"], ["yellow"], ["purple"]],
+            "marbles": [["red"], ["blue"], ["green"], ["yellow"], ["purple"]],
         }
     )
 
     with pytest.raises(Exception, match=re.escape(""""Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'""")):
-        g = Graph.load_from_pandas(
+        Graph.load_from_pandas(
             edges_df,
             edge_src="src",
             edge_dst="dst",
@@ -522,12 +522,11 @@ def test_unparsable_props():
             edge_props=["weight"],
         )
 
-    #with pytest.raises(Exception, match=re.escape(""""Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'""")):
-    g = Graph.load_from_pandas(
-        edges_df,
-        edge_src="src",
-        edge_dst="dst",
-        edge_time="time",
-        edge_props=["marbles"],
-    )
-    assert g.edges.collect==[]
+    with pytest.raises(Exception, match=re.escape('Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values.')):
+        Graph.load_from_pandas(
+            edges_df,
+            edge_src="src",
+            edge_dst="dst",
+            edge_time="time",
+            edge_props=["marbles"],
+        )

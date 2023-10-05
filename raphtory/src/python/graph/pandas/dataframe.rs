@@ -8,10 +8,12 @@ use arrow2::{
 use futures_util::StreamExt;
 use itertools::Itertools;
 use pyo3::{
-    create_exception, exceptions::PyException, ffi::Py_uintptr_t, types::PyDict, PyAny, PyErr,
-    PyResult, Python,
+    create_exception,
+    exceptions::PyException,
+    ffi::Py_uintptr_t,
+    types::{IntoPyDict, PyDict},
+    PyAny, PyErr, PyResult, Python,
 };
-use pyo3::types::IntoPyDict;
 
 pub(crate) struct PretendDF {
     pub(crate) names: Vec<String>,
@@ -114,7 +116,12 @@ except NameError:
     };
 }
 
-pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize, col_names: Vec<&str>) -> PyResult<PretendDF> {
+pub(crate) fn process_pandas_py_df(
+    df: &PyAny,
+    py: Python,
+    _size: usize,
+    col_names: Vec<&str>,
+) -> PyResult<PretendDF> {
     is_jupyter(py);
     py.import("pandas")?;
     let module = py.import("pyarrow")?;
@@ -122,18 +129,19 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize, col_nam
 
     let df_columns: Vec<String> = df.getattr("columns")?.extract()?;
 
-    let cols_to_drop: Vec<String> = df_columns.into_iter()
+    let cols_to_drop: Vec<String> = df_columns
+        .into_iter()
         .filter(|x| !col_names.contains(&x.as_str()))
         .collect();
 
     let dropped_df = if !cols_to_drop.is_empty() {
         let drop_method = df.getattr("drop")?;
-        drop_method.call((cols_to_drop, ), Some(vec![("axis", 1)].into_py_dict(py)))?
-    } else {df};
+        drop_method.call((cols_to_drop,), Some(vec![("axis", 1)].into_py_dict(py)))?
+    } else {
+        df
+    };
 
     let df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
-
-    println!("df_columns: {:?}", df_columns);
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
 
@@ -143,7 +151,10 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize, col_nam
         schema.getattr("names")?.extract::<Vec<String>>()?
     } else {
         vec![]
-    }.into_iter().filter(|x| col_names.contains(&x.as_str())).collect();
+    }
+    .into_iter()
+    .filter(|x| col_names.contains(&x.as_str()))
+    .collect();
 
     let arrays = rb
         .iter()
@@ -161,8 +172,6 @@ pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize, col_nam
     let df = PretendDF { names, arrays };
     Ok(df)
 }
-
-
 
 // pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize,col_names:Vec<&str>) -> PyResult<PretendDF> {
 //     is_jupyter(py);
