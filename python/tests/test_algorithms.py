@@ -54,7 +54,11 @@ def test_dijsktra_shortest_paths():
     res_two = dijkstra_single_source_shortest_paths(g, "B", ["D", "E", "F"])
     assert res_one.get("F")[0] == 8.0
     assert res_one.get("F")[1] == ["A", "C", "E", "F"]
-    print(res_two)
+    assert res_two.get("D")[0] == 5.0
+    assert res_two.get("F")[0] == 6.0
+    assert res_two.get("D")[1] == ["B", "C", "D"]
+    assert res_two.get("F")[1] == ["B", "C", "E", "F"]
+
 
 
 
