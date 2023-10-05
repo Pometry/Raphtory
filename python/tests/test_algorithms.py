@@ -37,3 +37,24 @@ def test_single_source_shortest_path():
     assert res_one.get_all() == {'1': ['1'], '2': ['1', '2'], '4': ['1', '4']}
     assert (res_two.get_all() == {'1': ['1'], '2': ['1', '2'], '3': ['1', '2', '3'], '4': ['1', '4']}) or \
            (res_two.get_all() == {'1': ['1'], '3': ['1', '4', '3'], '2': ['1', '2'], '4': ['1', '4']})
+
+def test_dijsktra_shortest_paths():
+    from raphtory import Graph
+    from raphtory.algorithms import dijkstra_single_source_shortest_paths
+    g = Graph()
+    g.add_edge(0, "A", "B", {"weight": 4.0})
+    g.add_edge(1, "A", "C", {"weight": 4.0})
+    g.add_edge(2, "B", "C", {"weight": 2.0})
+    g.add_edge(3, "C", "D", {"weight": 3.0})
+    g.add_edge(4, "C", "E", {"weight": 1.0})
+    g.add_edge(5, "C", "F", {"weight": 6.0})
+    g.add_edge(6, "D", "F", {"weight": 2.0})
+    g.add_edge(7, "E", "F", {"weight": 3.0})
+    res_one = dijkstra_single_source_shortest_paths(g, "A", ["F"])
+    res_two = dijkstra_single_source_shortest_paths(g, "B", ["D", "E", "F"])
+    assert res_one.get("F")[0] == 8.0
+    assert res_one.get("F")[1] == ["A", "C", "E", "F"]
+    print(res_two)
+
+
+

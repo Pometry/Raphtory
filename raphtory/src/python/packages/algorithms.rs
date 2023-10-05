@@ -511,6 +511,6 @@ pub fn dijkstra_single_source_shortest_paths(
     source: PyInputVertex,
     targets: Vec<PyInputVertex>,
     weight: String,
-) -> HashMap<String, (u64, Vec<String>)> {
+) -> HashMap<String, (f64, Vec<String>)> {
     dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight)
 }
