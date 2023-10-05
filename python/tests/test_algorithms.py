@@ -1,3 +1,5 @@
+import pytest
+
 def test_degree_centrality():
     from raphtory import Graph
     from raphtory.algorithms import degree_centrality
@@ -59,4 +61,10 @@ def test_dijsktra_shortest_paths():
     assert res_two.get("D")[1] == ["B", "C", "D"]
     assert res_two.get("F")[1] == ["B", "C", "E", "F"]
 
+    with pytest.raises(ValueError) as excinfo:
+        dijkstra_single_source_shortest_paths(g, "HH", ["F"])
+    assert "Source vertex not found" in str(excinfo.value)
 
+    with pytest.raises(ValueError) as excinfo:
+        dijkstra_single_source_shortest_paths(g, "A", ["F"], weight="NO")
+    assert "Weight property not found on edges" in str(excinfo.value)

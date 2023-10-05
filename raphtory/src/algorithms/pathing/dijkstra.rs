@@ -50,10 +50,10 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
     source: T,
     targets: Vec<T>,
     weight: String,
-) -> HashMap<String, (Prop, Vec<String>)> {
+) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
     let source_vertex = match graph.vertex(source) {
         Some(src) => src,
-        None => return HashMap::new(),
+        None => return Err("Source vertex not found"),
     };
     let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&weight) {
         Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
@@ -70,8 +70,7 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
             }),
     };
     if weight_type.is_none() {
-        // TODO RETURN A RESULT WITH ERROR+REASON NOT A BLANK MAP
-        return HashMap::new();
+        return Err("Weight property not found on edges");
     }
 
     let target_nodes: Vec<String> = targets
@@ -85,8 +84,8 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
     // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
     // after the calc is done
     let cost_val = match weight_type.unwrap() {
-        PropType::Empty => return HashMap::new(),
-        PropType::Str => return HashMap::new(),
+        PropType::Empty => return Err("Weight type: Empty, not supported"),
+        PropType::Str => return Err("Weight type: Str, not supported"),
         PropType::F32 => Prop::F32(0f32),
         PropType::F64 => Prop::F64(0f64),
         PropType::U8 => Prop::U8(0u8),
@@ -95,15 +94,15 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
         PropType::U64 => Prop::U64(0u64),
         PropType::I32 => Prop::I32(0i32),
         PropType::I64 => Prop::I64(0i64),
-        PropType::Bool => return HashMap::new(),
-        PropType::List => return HashMap::new(),
-        PropType::Map => return HashMap::new(),
-        PropType::DTime => return HashMap::new(),
-        PropType::Graph => return HashMap::new(),
+        PropType::Bool => return Err("Weight type: Bool, not supported"),
+        PropType::List => return Err("Weight type: List, not supported"),
+        PropType::Map => return Err("Weight type: Map, not supported"),
+        PropType::DTime => return Err("Weight type: DTime, not supported"),
+        PropType::Graph => return Err("Weight type: Graph, not supported"),
     };
     let max_val = match weight_type.unwrap() {
-        PropType::Empty => return HashMap::new(),
-        PropType::Str => return HashMap::new(),
+        PropType::Empty => return Err("Weight type: Empty, not supported"),
+        PropType::Str => return Err("Weight type: Str, not supported"),
         PropType::F32 => Prop::F32(f32::MAX),
         PropType::F64 => Prop::F64(f64::MAX),
         PropType::U8 => Prop::U8(u8::MAX),
@@ -112,11 +111,11 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
         PropType::U64 => Prop::U64(u64::MAX),
         PropType::I32 => Prop::I32(i32::MAX),
         PropType::I64 => Prop::I64(i64::MAX),
-        PropType::Bool => return HashMap::new(),
-        PropType::List => return HashMap::new(),
-        PropType::Map => return HashMap::new(),
-        PropType::DTime => return HashMap::new(),
-        PropType::Graph => return HashMap::new(),
+        PropType::Bool => return Err("Weight type: Bool, not supported"),
+        PropType::List => return Err("Weight type: List, not supported"),
+        PropType::Map => return Err("Weight type: Map, not supported"),
+        PropType::DTime => return Err("Weight type: DTime, not supported"),
+        PropType::Graph => return Err("Weight type: Graph, not supported"),
     };
     let mut heap = BinaryHeap::new();
     heap.push(State {
@@ -171,7 +170,7 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
             }
         }
     }
-    paths
+    Ok(paths)
 }
 
 #[cfg(test)]
@@ -212,6 +211,8 @@ mod dijkstra_tests {
         let results =
             dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
 
+        let results = results.unwrap();
+
         assert_eq!(results.get("D").unwrap().0, Prop::F32(7.0f32));
         assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
@@ -221,7 +222,7 @@ mod dijkstra_tests {
         let targets: Vec<&str> = vec!["D", "E", "F"];
         let results =
             dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
-
+        let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::F32(5.0f32));
         assert_eq!(results.get("E").unwrap().0, Prop::F32(3.0f32));
         assert_eq!(results.get("F").unwrap().0, Prop::F32(6.0f32));
@@ -252,7 +253,7 @@ mod dijkstra_tests {
         let targets: Vec<&str> = vec!["D", "F"];
         let results =
             dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
-
+        let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
         assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
 
@@ -262,7 +263,7 @@ mod dijkstra_tests {
         let targets: Vec<&str> = vec!["D", "E", "F"];
         let results =
             dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
-
+        let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(5u64));
         assert_eq!(results.get("E").unwrap().0, Prop::U64(3u64));
         assert_eq!(results.get("F").unwrap().0, Prop::U64(6u64));

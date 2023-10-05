@@ -508,6 +508,9 @@ pub fn dijkstra_single_source_shortest_paths(
     source: PyInputVertex,
     targets: Vec<PyInputVertex>,
     weight: String,
-) -> HashMap<String, (Prop, Vec<String>)> {
-    dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight)
+) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
+    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
 }
