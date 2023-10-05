@@ -6,6 +6,7 @@ use arrow2::{
 use itertools::Itertools;
 
 pub mod col_graph2;
+pub(crate) mod global_order;
 pub(crate) mod columnar_graph;
 pub(crate) mod edge_chunk;
 pub(crate) mod edge_frame_builder;

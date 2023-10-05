@@ -36,6 +36,7 @@ use tempfile::tempfile_in;
 use super::{
     array_as_id_iter,
     edge_chunk::EdgeChunk,
+    global_order::{GlobalMap, GlobalOrder},
     vertex_chunk::{RowOwned, VertexChunk},
     LoadChunk, Time, GID,
 };
@@ -130,10 +131,10 @@ impl TempColGraphFragment {
             })
             .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
 
-        let mut srcs: BTreeSet<GID> = BTreeSet::default();
+        let mut go: GlobalMap = GlobalMap::default();
         for dir_entry in srcs_parquet_files {
-            srcs.extend(read_file_sources(dir_entry.path(), src_col)?);
-            srcs.extend(read_file_sources(dir_entry.path(), dst_col)?);
+            go.extend(read_file_sources(dir_entry.path(), src_col)?);
+            go.extend(read_file_sources(dir_entry.path(), dst_col)?);
         }
 
         let chunks = triplets_parquet_files2
@@ -142,7 +143,7 @@ impl TempColGraphFragment {
             })
             .flatten();
 
-        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, srcs, chunks)?;
+        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, go, chunks)?;
         Ok(out)
     }
 
@@ -155,13 +156,14 @@ impl TempColGraphFragment {
         graph_dir: P2,
     ) -> Result<Self, Error> {
         Self::prepare_graph_dir(graph_dir.as_ref())?;
-        let srcs: BTreeSet<GID> = read_file_sources(parquet_file.clone(), src_col)?
+
+        let all_gids: GlobalMap = read_file_sources(parquet_file.clone(), src_col)?
             .chain(read_file_sources(parquet_file.clone(), dst_col)?)
             .collect();
 
         let chunks = read_file_chunks(parquet_file, src_col, dst_col, time_col, None)?;
 
-        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, srcs, chunks)?;
+        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, all_gids, chunks)?;
         Ok(out)
     }
 
@@ -178,17 +180,18 @@ impl TempColGraphFragment {
         return Ok(());
     }
 
-    fn build_tables_from_chunked<P: AsRef<Path>, ID: Into<GID> + PartialEq>(
+    fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder + Default>(
         base_dir: P,
         chunk_size: usize,
-        source_iter: impl IntoIterator<Item = ID>,
+        global_order: GO,
         chunks_iter: impl IntoIterator<Item = LoadChunk>,
     ) -> Result<Self, Error> {
-        let mut vf_builder = VertexFrameBuilder::new(chunk_size, &base_dir);
+        let mut vf_builder: VertexFrameBuilder<GO> =
+            VertexFrameBuilder::new(chunk_size, global_order, &base_dir);
         let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
 
         // initialise vertex global id table to preserve order
-        vf_builder.load_sources(source_iter);
+        // vf_builder.load_sources(source_iter);
 
         let mut last_chunk: Option<LoadChunk> = None;
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
@@ -638,6 +641,8 @@ fn read_file_chunks<P: AsRef<Path>>(
 
 #[cfg(test)]
 mod test {
+    use crate::arrow::global_order::GlobalMap;
+
     use super::*;
     use ahash::HashSet;
     use arrow2::datatypes::DataType;
@@ -665,10 +670,12 @@ mod test {
 
             let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| LoadChunk::new(vec![a.boxed(), b.boxed(), c.boxed()], 0, 1, 2, schema.clone()));
 
+            let go:GlobalMap = vertices.into_iter().collect();
+
             let mut graph = TempColGraphFragment::build_tables_from_chunked(
                 test_dir.path(),
                 g_chunk_size,
-                vertices,
+                go,
                 triples,
             ).unwrap();
 
@@ -726,7 +733,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
-            vec![1u64],
+            GlobalMap::from(vec![1u64, 2u64]),
             vec![chunk],
         )
         .unwrap();
@@ -754,7 +761,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
-            vec![1u64, 1u64, 1u64],
+            GlobalMap::from(vec![1u64, 2u64]),
             vec![chunk],
         )
         .unwrap();
@@ -795,9 +802,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
-            vec![
-                1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
-            ],
+            GlobalMap::from(1u64..=7u64),
             vec![chunk],
         )
         .unwrap();
@@ -841,7 +846,7 @@ mod test {
         let mut graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
-            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            GlobalMap::from(1u64..=4u64),
             vec![chunk],
         )
         .unwrap();
@@ -887,7 +892,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
-            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            GlobalMap::from(1u64..=4u64),
             vec![chunk1, chunk2],
         )
         .unwrap();
@@ -925,7 +930,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             1,
-            vec![1u64, 1u64, 1u64, 2u64, 2u64, 2u64],
+            GlobalMap::from(1u64..=4u64),
             vec![chunk],
         )
         .unwrap();
@@ -975,9 +980,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             2,
-            vec![
-                1u64, 1u64, 1u64, 2u64, 2u64, 2u64, 3u64, 3u64, 3u64, 4u64, 4u64, 4u64,
-            ],
+            GlobalMap::from(1u64..=7u64),
             vec![chunk],
         )
         .unwrap();
@@ -1035,7 +1038,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             2,
-            1u64..12u64,
+            GlobalMap::from(1u64..12u64),
             vec![chunk],
         )
         .unwrap();

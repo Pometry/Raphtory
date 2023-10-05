@@ -14,11 +14,11 @@ use arrow2::{
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 
-use super::{vertex_chunk::VertexChunk, GID};
+use super::{vertex_chunk::VertexChunk, GID, global_order::{GlobalOrder, self}};
 
-pub struct VertexFrameBuilder {
+pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) sorted_gids: AHashMap<GID, u64>,  // the sorted global ids of the vertices
+    pub(crate) global_order: GO,  // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -33,11 +33,11 @@ pub struct VertexFrameBuilder {
     location_path: PathBuf,
 }
 
-impl VertexFrameBuilder {
-    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, path: P) -> Self {
+impl <GO: GlobalOrder> VertexFrameBuilder<GO> {
+    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, go: GO, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
-            sorted_gids: Default::default(),
+            global_order: go,
             adj_out_dst: vec![],
             adj_out_eid: vec![],
             adj_out_offsets: vec![0],
@@ -89,22 +89,19 @@ impl VertexFrameBuilder {
         &mut self,
         sources: impl IntoIterator<Item = ID>,
     ) {
-        for s in sources {
-            let s = s.into();
-            if !self.sorted_gids.contains_key(&s) {
-                self.sorted_gids.insert(s, self.sorted_gids.len() as u64);
-            }
-        }
+        self.global_order = sources.into_iter().map(|id| id.into()).collect();
+        self.global_order.maybe_sort();
     }
 
     fn find_or_push_vertex(&mut self, vertex: &GID) -> usize {
-        let id = self.sorted_gids.len();
-        if let Some(id) = self.sorted_gids.get(vertex) {
-            return *id as usize;
-        } else {
-            self.sorted_gids.insert(vertex.clone(), id as u64);
-        }
-        id
+        // let id = self.global_order.len();
+        // if let Some(id) = self.global_order.get(vertex) {
+        //     return *id as usize;
+        // } else {
+        //     self.global_order.insert(vertex.clone(), id as u64);
+        // }
+        // id
+        self.global_order.find(vertex).unwrap()
     }
 
     pub(crate) fn push_update(&mut self, src: GID, dst: GID) -> ArrowResult<(u64, u64)> {
@@ -150,7 +147,7 @@ impl VertexFrameBuilder {
         if self.last_edge.is_some() {
             // deal with the last chunk
             let remaining_slots_in_chunk = self.chunk_size - self.adj_out_offsets.len();
-            let remaining_vertices = self.sorted_gids.len() - self.vertex_count - 1;
+            let remaining_vertices = self.global_order.len() - self.vertex_count - 1;
             let fill_chunk_remaining = remaining_slots_in_chunk.min(remaining_vertices);
             self.push_chunk(self.adj_out_offsets.len() + fill_chunk_remaining)?;
 
