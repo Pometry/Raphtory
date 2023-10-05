@@ -1820,10 +1820,11 @@ dependencies = [
 
 [[package]]
 name = "kdam"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eec124c5ef865373afd03f7900161495339c59cef395a6dc45d025bcd6499b0b"
+checksum = "e352f4e1acc6a3d0919eaeb014ca63e5da9450a12ef7106fe2936a07a1648d44"
 dependencies = [
+ "pyo3",
  "terminal_size",
  "windows-sys 0.48.0",
 ]
@@ -3820,11 +3821,11 @@ dependencies = [
 
 [[package]]
 name = "terminal_size"
-version = "0.2.6"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e6bf6f19e9f8ed8d4048dc22981458ebcf406d67e94cd422e5ecd73d63b3237"
+checksum = "21bebf2b7c9e0a515f6e0f8c51dc0f8e4696391e6f1ff30379559f8365fb0df7"
 dependencies = [
- "rustix 0.37.20",
+ "rustix 0.38.2",
  "windows-sys 0.48.0",
 ]
 
