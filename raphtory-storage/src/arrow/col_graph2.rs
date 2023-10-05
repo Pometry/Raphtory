@@ -357,7 +357,7 @@ impl TempColGraphFragment {
             return Err(error.into());
         }
 
-        for (it, outbound) in self.outbound().iter().enumerate() {
+        for outbound in self.outbound().iter() {
             let adj_column: ListColumn<u64> = outbound.neighbours_col().unwrap();
             let edge_ids_column: ListColumn<u64> = outbound.edge_col().unwrap();
 
