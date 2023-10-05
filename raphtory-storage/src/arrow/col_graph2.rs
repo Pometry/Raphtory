@@ -456,10 +456,13 @@ impl TempColGraphFragment {
                 .flat_map(|chunk| chunk[0].as_any().downcast_ref::<ListArray<i64>>())
                 .collect();
             let mut offsets = vec![0i64; chunk_size + 1];
-            offsets
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(i, v)| arrays.iter().for_each(|a| *v += a.offsets()[i]));
+            for array in arrays.iter() {
+                let array_offsets = array.offsets().as_slice();
+                offsets
+                    .par_iter_mut()
+                    .zip(array_offsets)
+                    .for_each(|(a, b)| *a += b);
+            }
 
             let mut adj = vec![0u64; offsets[chunk_size] as usize];
             let mut adj_lists: Vec<&mut [u64]> = Vec::default();
@@ -481,20 +484,23 @@ impl TempColGraphFragment {
                 }
             }
 
-            adj_lists
-                .par_iter_mut()
-                .zip(eids_lists.par_iter_mut())
-                .enumerate()
-                .for_each(|(i, (a, e))| {
-                    let mut offset = 0usize;
-                    for array in arrays.iter() {
-                        let new_adj = &as_primitive_column::<u64>(array, 0).unwrap()[i];
-                        let new_eid_col = &as_primitive_column::<u64>(array, 1).unwrap()[i];
-                        a[offset..offset + new_adj.len()].copy_from_slice(new_adj);
-                        e[offset..offset + new_eid_col.len()].copy_from_slice(new_eid_col);
-                        offset += new_adj.len();
-                    }
-                });
+            let mut insertion_points = vec![0usize; chunk_size];
+            for array in arrays.iter() {
+                let new_adj = as_primitive_column::<u64>(array, 0).unwrap();
+                let new_eid_col = as_primitive_column::<u64>(array, 1).unwrap();
+                adj_lists
+                    .par_iter_mut()
+                    .zip(eids_lists.par_iter_mut())
+                    .zip(insertion_points.par_iter_mut())
+                    .enumerate()
+                    .for_each(|(i, ((a, e), offset))| {
+                        let new_adj_i = &new_adj[i];
+                        let new_eid_i = &new_eid_col[i];
+                        a[*offset..*offset + new_adj_i.len()].copy_from_slice(new_adj_i);
+                        e[*offset..*offset + new_eid_i.len()].copy_from_slice(new_eid_i);
+                        *offset += new_adj_i.len();
+                    });
+            }
 
             let values = StructArray::new(
                 adj_schema(),
