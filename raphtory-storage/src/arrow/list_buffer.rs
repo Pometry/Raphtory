@@ -4,6 +4,7 @@ use arrow2::{
     offset::OffsetsBuffer,
     types::NativeType,
 };
+use itertools::Itertools;
 use std::ops::Index;
 
 pub struct ListColumn<'a, T> {
@@ -35,11 +36,18 @@ impl<'a, T: NativeType> ListColumn<'a, T> {
         new.slice(offset, length);
         new
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &[T]> + '_ {
+        self.offsets
+            .windows(2)
+            .map(|o| &self.values[o[0] as usize..o[1] as usize])
+    }
 }
 
 impl<'a, T: NativeType> Index<usize> for ListColumn<'a, T> {
     type Output = [T];
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         &self.values.as_slice()[self.offsets[index] as usize..self.offsets[index + 1] as usize]
     }
