@@ -85,13 +85,13 @@ impl <GO: GlobalOrder> VertexFrameBuilder<GO> {
         Ok(())
     }
 
-    pub(crate) fn load_sources<ID: Into<GID> + PartialEq>(
-        &mut self,
-        sources: impl IntoIterator<Item = ID>,
-    ) {
-        self.global_order = sources.into_iter().map(|id| id.into()).collect();
-        self.global_order.maybe_sort();
-    }
+    // pub(crate) fn load_sources<ID: Into<GID> + PartialEq>(
+    //     &mut self,
+    //     sources: impl IntoIterator<Item = ID>,
+    // ) {
+    //     self.global_order = sources.into_iter().map(|id| id.into()).collect();
+    //     self.global_order.maybe_sort();
+    // }
 
     fn find_or_push_vertex(&mut self, vertex: &GID) -> usize {
         // let id = self.global_order.len();
