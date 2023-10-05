@@ -501,3 +501,5 @@ def test_none_columns_edges():
             "dst",
             "time"
         )
+
+def test_unparsabl

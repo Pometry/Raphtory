@@ -21,7 +21,7 @@ use crate::{
         api::view::internal::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    python::graph::pandas::{load_edges_props_from_df, load_vertex_props_from_df},
+    python::graph::pandas::loaders::{load_edges_props_from_df, load_vertex_props_from_df},
 };
 use pyo3::types::{IntoPyDict, PyBytes};
 use std::{
@@ -29,9 +29,10 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
+use crate::python::graph::pandas::dataframe::{GraphLoadException, process_pandas_py_df};
 
-use super::pandas::{
-    load_edges_from_df, load_vertices_from_df, process_pandas_py_df, GraphLoadException,
+use super::pandas::loaders::{
+    load_edges_from_df, load_vertices_from_df
 };
 
 /// A temporal graph.

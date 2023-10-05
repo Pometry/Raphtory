@@ -1,85 +1,9 @@
 use crate::{core::utils::errors::GraphError, prelude::*};
-use arrow2::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
-    ffi,
-    types::{NativeType, Offset},
-};
-use itertools::Itertools;
 use kdam::tqdm;
-use pyo3::{
-    create_exception, exceptions::PyException, ffi::Py_uintptr_t, prelude::*, types::PyDict,
-};
 use std::collections::HashMap;
-
-fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
-    x.map(|x| (*x).try_into().unwrap())
-}
-
-fn is_jupyter(py: Python) {
-    let code = r#"
-try:
-    shell = get_ipython().__class__.__name__
-    if shell == 'ZMQInteractiveShell':
-        result = True   # Jupyter notebook or qtconsole
-    elif shell == 'TerminalInteractiveShell':
-        result = False  # Terminal running IPython
-    else:
-        result = False  # Other type, assuming not a Jupyter environment
-except NameError:
-    result = False      # Probably standard Python interpreter
-"#;
-
-    if let Err(e) = py.run(code, None, None) {
-        println!("Error checking if running in a jupyter notebook: {}", e);
-        return;
-    }
-
-    match py.eval("result", None, None) {
-        Ok(x) => {
-            if let Ok(x) = x.extract() {
-                kdam::set_notebook(x);
-            }
-        }
-        Err(e) => {
-            println!("Error checking if running in a jupyter notebook: {}", e);
-        }
-    };
-}
-
-pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, size: usize) -> PyResult<PretendDF> {
-    is_jupyter(py);
-    let globals = PyDict::new(py);
-    globals.set_item("df", df)?;
-    let module = py.import("pyarrow")?;
-    let pa_table = module.getattr("Table")?;
-
-    let table = pa_table.call_method("from_pandas", (df,), None)?;
-
-    let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
-    let names = if let Some(batch0) = rb.get(0) {
-        let schema = batch0.getattr("schema")?;
-        schema.getattr("names")?.extract::<Vec<String>>()?
-    } else {
-        vec![]
-    };
-
-    let arrays = rb
-        .iter()
-        .map(|rb| {
-            (0..names.len())
-                .map(|i| {
-                    let array = rb.call_method1("column", (i,))?;
-                    let arr = array_to_rust(array)?;
-                    Ok::<Box<dyn Array>, PyErr>(arr)
-                })
-                .collect::<Result<Vec<_>, PyErr>>()
-        })
-        .collect::<Result<Vec<_>, PyErr>>()?;
-
-    let df = PretendDF { names, arrays };
-    Ok(df)
-}
-
+use crate::python::graph::pandas::dataframe::PretendDF;
+use crate::python::graph::pandas::prop_handler::get_prop_rows;
+use crate::python::graph::pandas::prop_handler::lift_layer;
 pub(crate) fn load_vertices_from_df<'a>(
     df: &'a PretendDF,
     size: usize,
@@ -90,33 +14,13 @@ pub(crate) fn load_vertices_from_df<'a>(
     shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![vertex_id, time];
-    if let Some(ref props) = props {
-        cols_to_check.extend(props);
-    }
-    if let Some(ref const_props) = const_props {
-        cols_to_check.extend(const_props);
-    }
 
+    let mut cols_to_check = vec![vertex_id, time];
+    cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
+    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
     df.check_cols_exist(&cols_to_check)?;
 
-    let prop_iter = props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters);
-
-    if prop_iter.is_none() { //I don't think this is possible as if there is an issue it will be caught within lift property
-        return Err(GraphError::
-        LoadFailure("Could not join properties together into rows".to_string()));
-    }
-
-    let const_prop_iter = const_props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters)
-        .unwrap_or(Ok(Box::new(std::iter::empty())))?;
+    let (prop_iter,const_prop_iter) = get_prop_rows(df, props, const_props)?;
 
     if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
     {
@@ -202,34 +106,16 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
+    cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
+    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
     if layer_in_df {
         if let Some(ref layer) = layer {
             cols_to_check.push(layer.as_ref());
         }
     }
-    if let Some(ref props) = props {
-        cols_to_check.extend(props);
-    }
-    if let Some(ref const_props) = const_props {
-        cols_to_check.extend(const_props);
-    }
-
     df.check_cols_exist(&cols_to_check)?;
 
-    let prop_iter = props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters)
-        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
-
-    let const_prop_iter = const_props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters)
-        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
-
+    let (prop_iter,const_prop_iter) = get_prop_rows(df, props, const_props)?;
     let layer = lift_layer(layer, layer_in_df, df);
 
     if let (Some(src), Some(dst), Some(time)) = (
@@ -329,18 +215,10 @@ pub(crate) fn load_vertex_props_from_df<'a>(
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![vertex_id];
-    if let Some(ref const_props) = const_props {
-        cols_to_check.extend(const_props);
-    }
-
+    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
     df.check_cols_exist(&cols_to_check)?;
 
-    let const_prop_iter = const_props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters)
-        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
+    let (_,const_prop_iter) = get_prop_rows(df, None, const_props)?;
 
     if let Some(vertex_id) = df.iter_col::<u64>(vertex_id) {
         let iter = vertex_id.map(|i| i.copied());
@@ -443,19 +321,10 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
             cols_to_check.push(layer.as_ref());
         }
     }
-    if let Some(ref const_props) = const_props {
-        cols_to_check.extend(const_props);
-    }
-
+    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
     df.check_cols_exist(&cols_to_check)?;
 
-    let const_prop_iter = const_props
-        .unwrap_or_default()
-        .into_iter()
-        .map(|name| lift_property(name, &df))
-        .reduce(combine_prop_iters)
-        .unwrap_or_else(|| Box::new(std::iter::repeat(vec![])));
-
+    let (_,const_prop_iter) = get_prop_rows(df, None, const_props)?;
     let layer = lift_layer(layer, layer_in_df, df);
 
     if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src), df.iter_col::<u64>(dst)) {
@@ -552,98 +421,9 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     Ok(())
 }
 
-fn lift_property<'a: 'b, 'b>(
-    name: &'a str,
-    df: &'b PretendDF,
-) -> Result<Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b>, GraphError> {
-    if let Some(col) = df.iter_col::<f64>(name) {
-        Ok(iter_as_prop(name, col))
-    } else if let Some(col) = df.iter_col::<f32>(name) {
-        Ok(iter_as_prop(name, col))
-    } else if let Some(col) = df.iter_col::<i64>(name) {
-        Ok(iter_as_prop(name, col))
-    } else if let Some(col) = df.iter_col::<u64>(name) {
-        Ok(iter_as_prop(name, col))
-    } else if let Some(col) = df.iter_col::<u32>(name) {
-        Ok(iter_as_prop(name, col))
-    } else if let Some(col) = df.iter_col::<i32>(name) {
-        Ok(iter_as_prop(name, col))
-    } else if let Some(col) = df.bool(name) {
-        Ok(Box::new(col.map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::Bool(v)))
-                .collect::<Vec<_>>()
-        })))
-    } else if let Some(col) = df.utf8::<i32>(name) {
-        Ok(Box::new(col.map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::str(v)))
-                .collect::<Vec<_>>()
-        })))
-    } else if let Some(col) = df.utf8::<i64>(name) {
-        Ok(Box::new(col.map(move |val| {
-            val.into_iter()
-                .map(|v| (name, Prop::str(v)))
-                .collect::<Vec<_>>()
-        })))
-    } else {
-        Err(GraphError::LoadFailure(format!(
-            "Column {} could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values.",
-            name
-        )))
-    }
-}
 
-fn lift_layer<'a, S: AsRef<str>>(
-    layer: Option<S>,
-    layer_in_df: bool,
-    df: &'a PretendDF,
-) -> Box<dyn Iterator<Item = Option<String>> + 'a> {
-    if let Some(layer) = layer {
-        if layer_in_df {
-            if let Some(col) = df.utf8::<i32>(layer.as_ref()) {
-                Box::new(col.map(|v| v.map(|v| v.to_string())))
-            } else if let Some(col) = df.utf8::<i64>(layer.as_ref()) {
-                Box::new(col.map(|v| v.map(|v| v.to_string())))
-            } else {
-                Box::new(std::iter::repeat(None))
-            }
-        } else {
-            Box::new(std::iter::repeat(Some(layer.as_ref().to_string())))
-        }
-    } else {
-        Box::new(std::iter::repeat(None))
-    }
-}
-
-fn iter_as_prop<
-    'a: 'b,
-    'b,
-    T: Into<Prop> + Copy + 'static,
-    I: Iterator<Item = Option<&'b T>> + 'a,
->(
-    name: &'a str,
-    is: I,
-) -> Box<dyn Iterator<Item = Vec<(&str, Prop)>> + '_> {
-    Box::new(is.map(move |val| {
-        val.into_iter()
-            .map(|v| (name, (*v).into()))
-            .collect::<Vec<_>>()
-    }))
-}
-
-fn combine_prop_iters<
-    'a,
-    I1: Iterator<Item = Vec<(&'a str, Prop)>> + 'a,
-    I2: Iterator<Item = Vec<(&'a str, Prop)>> + 'a,
->(
-    i1: I1,
-    i2: I2,
-) -> Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a> {
-    Box::new(i1.zip(i2).map(|(mut v1, v2)| {
-        v1.extend(v2);
-        v1
-    }))
+fn i64_opt_into_u64_opt(x: Option<&i64>) -> Option<u64> {
+    x.map(|x| (*x).try_into().unwrap())
 }
 
 fn load_edges_from_num_iter<
@@ -711,226 +491,8 @@ fn load_vertices_from_num_iter<
     Ok(())
 }
 
-pub(crate) struct PretendDF {
-    names: Vec<String>,
-    arrays: Vec<Vec<Box<dyn Array>>>,
-}
 
-impl PretendDF {
-    fn check_cols_exist(&self, cols: &[&str]) -> Result<(), GraphError> {
-        let non_cols: Vec<&&str> = cols
-            .iter()
-            .filter(|c| !self.names.contains(&c.to_string()))
-            .collect();
-        if non_cols.len() > 0 {
-            return Err(GraphError::ColumnDoesNotExist(non_cols.iter().join(", ")));
-        }
 
-        Ok(())
-    }
 
-    fn iter_col<T: NativeType>(&self, name: &str) -> Option<impl Iterator<Item = Option<&T>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
 
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<T>>()?;
 
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<PrimitiveArray<T>>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
-    }
-
-    fn utf8<O: Offset>(&self, name: &str) -> Option<impl Iterator<Item = Option<&str>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
-        // test that it's actually a utf8 array
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<Utf8Array<O>>()?;
-
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<Utf8Array<O>>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
-    }
-
-    fn bool(&self, name: &str) -> Option<impl Iterator<Item = Option<bool>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
-
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<BooleanArray>()?;
-
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
-    }
-}
-
-pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
-    // prepare a pointer to receive the Array struct
-    let array = Box::new(ffi::ArrowArray::empty());
-    let schema = Box::new(ffi::ArrowSchema::empty());
-
-    let array_ptr = &*array as *const ffi::ArrowArray;
-    let schema_ptr = &*schema as *const ffi::ArrowSchema;
-
-    // make the conversion through PyArrow's private API
-    // this changes the pointer's memory and is thus unsafe. In particular, `_export_to_c` can go out of bounds
-    obj.call_method1(
-        "_export_to_c",
-        (array_ptr as Py_uintptr_t, schema_ptr as Py_uintptr_t),
-    )?;
-
-    unsafe {
-        let field = ffi::import_field_from_c(schema.as_ref())
-            .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-        let array = ffi::import_array_from_c(*array, field.data_type)
-            .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-        Ok(array)
-    }
-}
-
-pub type ArrayRef = Box<dyn Array>;
-
-create_exception!(exceptions, ArrowErrorException, PyException);
-create_exception!(exceptions, GraphLoadException, PyException);
-
-#[cfg(test)]
-mod test {
-    use crate::{prelude::*, python::graph::pandas::load_vertices_from_df};
-
-    use super::{load_edges_from_df, PretendDF};
-    use arrow2::array::{PrimitiveArray, Utf8Array};
-
-    #[test]
-    fn load_edges_from_pretend_df() {
-        let df = PretendDF {
-            names: vec!["src", "dst", "time", "prop1", "prop2"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-            arrays: vec![
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                    Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                ],
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2), Some(3)])),
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(3), Some(4)])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(2), Some(3)])),
-                    Box::new(PrimitiveArray::<f64>::from(vec![Some(2.0), Some(3.0)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
-                ],
-            ],
-        };
-        let graph = Graph::new();
-        let layer: Option<&str> = None;
-        let layer_in_df: bool = true;
-        load_edges_from_df(
-            &df,
-            5,
-            "src",
-            "dst",
-            "time",
-            Some(vec!["prop1", "prop2"]),
-            None,
-            None,
-            layer,
-            layer_in_df,
-            &graph,
-        )
-        .expect("failed to load edges from pretend df");
-
-        let actual = graph
-            .edges()
-            .map(|e| {
-                (
-                    e.src().id(),
-                    e.dst().id(),
-                    e.latest_time(),
-                    e.properties()
-                        .temporal()
-                        .get("prop1")
-                        .and_then(|v| v.latest()),
-                    e.properties()
-                        .temporal()
-                        .get("prop2")
-                        .and_then(|v| v.latest()),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(
-            actual,
-            vec![
-                (1, 2, Some(1), Some(Prop::F64(1.0)), Some(Prop::str("a"))),
-                (2, 3, Some(2), Some(Prop::F64(2.0)), Some(Prop::str("b"))),
-                (3, 4, Some(3), Some(Prop::F64(3.0)), Some(Prop::str("c"))),
-            ]
-        );
-    }
-
-    #[test]
-    fn load_vertices_from_pretend_df() {
-        let df = PretendDF {
-            names: vec!["id", "name", "time"]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-            arrays: vec![
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                ],
-                vec![
-                    Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                    Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
-                    Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
-                ],
-            ],
-        };
-        let graph = Graph::new();
-
-        load_vertices_from_df(&df, 3, "id", "time", Some(vec!["name"]), None, None, &graph)
-            .expect("failed to load vertices from pretend df");
-
-        let actual = graph
-            .vertices()
-            .iter()
-            .map(|v| {
-                (
-                    v.id(),
-                    v.latest_time(),
-                    v.properties()
-                        .temporal()
-                        .get("name")
-                        .and_then(|v| v.latest()),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(
-            actual,
-            vec![
-                (1, Some(1), Some(Prop::str("a"))),
-                (2, Some(2), Some(Prop::str("b"))),
-            ]
-        );
-    }
-}
