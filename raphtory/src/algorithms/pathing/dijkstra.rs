@@ -1,3 +1,4 @@
+/// Dijkstra's algorithm
 use crate::{
     core::{entities::vertices::input_vertex::InputVertex, PropUnwrap},
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
@@ -7,6 +8,7 @@ use std::{
     collections::{BinaryHeap, HashMap, HashSet},
 };
 
+/// A state in the Dijkstra algorithm with a cost and a vertex name.
 #[derive(Eq, PartialEq)]
 struct State {
     cost: u64,
@@ -25,6 +27,19 @@ impl PartialOrd for State {
     }
 }
 
+/// Finds the shortest path from a single source to a single target in a graph with a weight.
+///
+/// # Arguments
+///
+/// - `graph`: The graph to search in.
+/// - `source`: The source vertex.
+/// - `target`: The target vertex.
+/// - `weight`: The name of the weight property for the edges.
+///
+/// # Returns
+///
+/// Returns an `Option` containing a tuple with the total cost and a vector of vertices
+/// representing the shortest path, or `None` if no path exists.
 pub fn dijkstra_single_source_single_target<G: GraphViewOps, T: InputVertex>(
     graph: &G,
     source: T,
@@ -86,6 +101,20 @@ pub fn dijkstra_single_source_single_target<G: GraphViewOps, T: InputVertex>(
     None
 }
 
+/// Finds the shortest paths from a single source to multiple targets in a graph.
+///
+/// # Arguments
+///
+/// * `graph`: The graph to search in.
+/// * `source`: The source vertex.
+/// * `targets`: A vector of target vertices.
+/// * `weight`: The name of the weight property for the edges.
+///
+/// # Returns
+///
+/// Returns a `HashMap` where the key is the target vertex and the value is a tuple containing
+/// the total cost and a vector of vertices representing the shortest path.
+///
 pub fn dijkstra_single_source_multiple_targets<G: GraphViewOps, T: InputVertex>(
     graph: &G,
     source: T,
