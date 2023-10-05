@@ -406,7 +406,7 @@ def test_missing_columns():
         }
     )
 
-    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("not_src, not_dst, not_time")')):
+    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_src, not_dst, not_time')):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="not_src",
@@ -414,7 +414,7 @@ def test_missing_columns():
             edge_time="not_time",
         )
 
-    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("not_weight, bleep_bloop")')):
+    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_weight, bleep_bloop')):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -428,7 +428,7 @@ def test_missing_columns():
             vertex_props=["name"],
         )
 
-    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("not_id, not_time, not_name")')):
+    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_id, not_time, not_name')):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -441,7 +441,7 @@ def test_missing_columns():
             vertex_props=["not_name"],
         )
 
-    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("sauce, dist, wait, marples")')):
+    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: sauce, dist, wait, marples')):
         g = Graph()
         g.load_edge_props_from_pandas(
             edges_df,
@@ -450,7 +450,7 @@ def test_missing_columns():
             const_props=["wait", "marples"],
         )
 
-    with pytest.raises(Exception, match=re.escape('ColumnDoesNotExist("sauce, wait, marples")')):
+    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: sauce, wait, marples')):
         g = Graph()
         g.load_vertex_props_from_pandas(
             vertices_df,
