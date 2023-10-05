@@ -1,6 +1,6 @@
-use crate::core::utils::errors::GraphError;
-use crate::prelude::Prop;
-use crate::python::graph::pandas::dataframe::PretendDF;
+use crate::{
+    core::utils::errors::GraphError, prelude::Prop, python::graph::pandas::dataframe::PretendDF,
+};
 
 pub struct PropIter<'a> {
     inner: Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a>,
@@ -14,7 +14,7 @@ impl<'a> Iterator for PropIter<'a> {
     }
 }
 
-pub (crate) fn get_prop_rows<'a>(
+pub(crate) fn get_prop_rows<'a>(
     df: &'a PretendDF,
     props: Option<Vec<&'a str>>,
     const_props: Option<Vec<&'a str>>,

@@ -7,9 +7,11 @@ mod test {
     use crate::{prelude::*, python::graph::pandas::load_vertices_from_df};
 
     use super::{load_edges_from_df, PretendDF};
+    use crate::python::graph::pandas::{
+        dataframe::PretendDF,
+        loaders::{load_edges_from_df, load_vertices_from_df},
+    };
     use arrow2::array::{PrimitiveArray, Utf8Array};
-    use crate::python::graph::pandas::dataframe::PretendDF;
-    use crate::python::graph::pandas::loaders::{load_edges_from_df, load_vertices_from_df};
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -51,7 +53,7 @@ mod test {
             layer_in_df,
             &graph,
         )
-            .expect("failed to load edges from pretend df");
+        .expect("failed to load edges from pretend df");
 
         let actual = graph
             .edges()

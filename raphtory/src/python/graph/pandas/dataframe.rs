@@ -1,13 +1,15 @@
-use arrow2::array::{Array, BooleanArray, PrimitiveArray, Utf8Array};
-use arrow2::ffi;
-use arrow2::offset::Offset;
-use arrow2::types::NativeType;
-use itertools::Itertools;
-use pyo3::{create_exception, PyAny, PyErr, PyResult, Python};
-use pyo3::ffi::Py_uintptr_t;
-use pyo3::types::PyDict;
 use crate::core::utils::errors::GraphError;
-use pyo3::exceptions::PyException;
+use arrow2::{
+    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+    ffi,
+    offset::Offset,
+    types::NativeType,
+};
+use itertools::Itertools;
+use pyo3::{
+    create_exception, exceptions::PyException, ffi::Py_uintptr_t, types::PyDict, PyAny, PyErr,
+    PyResult, Python,
+};
 
 pub(crate) struct PretendDF {
     pub(crate) names: Vec<String>,
@@ -27,7 +29,10 @@ impl PretendDF {
         Ok(())
     }
 
-    pub(crate) fn iter_col<T: NativeType>(&self, name: &str) -> Option<impl Iterator<Item = Option<&T>> + '_> {
+    pub(crate) fn iter_col<T: NativeType>(
+        &self,
+        name: &str,
+    ) -> Option<impl Iterator<Item = Option<&T>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
 
         let _ = (&self.arrays[0])[idx]
@@ -106,7 +111,6 @@ except NameError:
         }
     };
 }
-
 
 pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize) -> PyResult<PretendDF> {
     is_jupyter(py);
