@@ -21,7 +21,7 @@ raphtory = { path = "../raphtory", version = "0.5.7", features = ["io"]}
 rayon = "1.6"
 thiserror = "1.0.48"
 memmap2 = "0.8.0"
-arrow2 = {version="0.18.0", features=["io_ipc", "io_parquet", "io_parquet_compression","compute_concatenate"]}
+arrow2 = {version="0.18.0", features=["io_ipc", "io_parquet", "io_parquet_compression","compute_concatenate", "compute_sort", "compute_merge_sort"]}
 ahash = "0.8.3"
 tempfile = "3.8.0"
 

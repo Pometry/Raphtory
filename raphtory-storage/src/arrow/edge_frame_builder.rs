@@ -150,9 +150,25 @@ impl EdgeFrameBuilder {
             self.t_props = Some(t_props);
         } else {
             let mut_arrays = Self::as_mut_arrays(copy_from);
-            let t_props = MutableStructArray::new(copy_from.data_type().clone(), mut_arrays);
+            let t_props = MutableStructArray::new(
+                Self::remap_data_type(copy_from.data_type().clone()),
+                mut_arrays,
+            );
             self.t_props = Some(t_props);
             self.extend_tprops_slice(copy_from);
+        }
+    }
+
+    fn remap_data_type(dt: DataType) -> DataType {
+        match dt {
+            DataType::Utf8 => DataType::LargeUtf8,
+            DataType::Struct(fields) => DataType::Struct(
+                fields
+                    .into_iter()
+                    .map(|f| Field::new(f.name, Self::remap_data_type(f.data_type), f.is_nullable))
+                    .collect(),
+            ),
+            _ => dt,
         }
     }
 
@@ -176,7 +192,7 @@ impl EdgeFrameBuilder {
                 DataType::Float16 => Box::new(MutablePrimitiveArray::<f16>::new()),
                 DataType::Float32 => Box::new(MutablePrimitiveArray::<f32>::new()),
                 DataType::Float64 => Box::new(MutablePrimitiveArray::<f64>::new()),
-                DataType::Utf8 => Box::new(MutableUtf8Array::<i32>::new()),
+                DataType::Utf8 => Box::new(MutableUtf8Array::<i64>::new()),
                 DataType::LargeUtf8 => Box::new(MutableUtf8Array::<i64>::new()),
                 _ => panic!("Unsupported data type"),
             })
@@ -212,9 +228,11 @@ impl EdgeFrameBuilder {
             DataType::Float16 => Self::extend_primitive_array::<f16>(into_col, from_col)?,
             DataType::Float32 => Self::extend_primitive_array::<f32>(into_col, from_col)?,
             DataType::Float64 => Self::extend_primitive_array::<f64>(into_col, from_col)?,
-            DataType::Utf8 => Self::extend_utf8_array::<i32>(into_col, from_col)?,
+            DataType::Utf8 => Self::extend_utf8_array::<i64>(into_col, from_col)?,
             DataType::LargeUtf8 => Self::extend_utf8_array::<i64>(into_col, from_col)?,
-            _ => {}
+            what => {
+                println!("Skipping data type {:?}", what)
+            }
         }
         Some(())
     }
@@ -223,6 +241,12 @@ impl EdgeFrameBuilder {
         into_col: &mut Box<dyn MutableArray>,
         from_col: &Box<dyn Array>,
     ) -> Option<()> {
+        println!(
+            "Extending primitive arrays {:?} {:?}",
+            into_col.data_type(),
+            from_col.data_type()
+        );
+
         let into_col = into_col
             .as_mut_any()
             .downcast_mut::<MutablePrimitiveArray<T>>()?;
@@ -231,11 +255,17 @@ impl EdgeFrameBuilder {
 
         // happy fast path
         if into_col.validity().is_none() && from_col.validity().is_none() {
-            into_col.extend_from_slice(from_col.values())
+            let values = from_col.values();
+            into_col.extend_from_slice(values);
+
+            println!("Extended primitive {} values", values.len());
         } else {
+            let mut count = 0usize;
             for val in from_col.into_iter() {
                 into_col.push(val.copied());
+                count += 1;
             }
+            println!("Extended primitive {} values", count);
         }
         Some(())
     }
@@ -244,14 +274,43 @@ impl EdgeFrameBuilder {
         into_col: &mut Box<dyn MutableArray>,
         from_col: &Box<dyn Array>,
     ) -> Option<()> {
+        println!(
+            "Extending UTF8 arrays {:?} {:?}",
+            into_col.data_type(),
+            from_col.data_type()
+        );
+
         let into_col = into_col
             .as_mut_any()
             .downcast_mut::<MutableUtf8Array<I>>()?;
 
-        let from_col = from_col.as_any().downcast_ref::<Utf8Array<I>>()?;
+        match from_col.data_type() {
+            DataType::LargeUtf8 => {
+                let arr = from_col.as_any().downcast_ref::<Utf8Array<i64>>()?;
 
-        for val in from_col.into_iter() {
-            into_col.push(val);
+                let mut count = 0usize;
+                for val in arr.into_iter() {
+                    into_col.push(val);
+                    count += 1;
+                }
+
+                println!("Extended UTF8 {} values", count);
+            }
+            DataType::Utf8 => {
+                let arr = from_col.as_any().downcast_ref::<Utf8Array<i32>>()?;
+
+                let mut count = 0usize;
+                for val in arr.into_iter() {
+                    into_col.push(val);
+                    count += 1;
+                }
+
+                println!("Extended UTF8 {} values", count);
+            }
+            _ => {
+                println!("Skipping data type {:?}", from_col.data_type());
+                return None;
+            }
         }
 
         Some(())

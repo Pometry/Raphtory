@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeSet,
     io,
     io::BufReader,
     path::Path,
@@ -15,10 +14,11 @@ use crate::arrow::{
     Error, E_COLUMN, V_COLUMN,
 };
 use arrow2::{
-    array::{Array, ListArray, PrimitiveArray, StructArray},
+    array::{Array, ListArray, MutableUtf8Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
-    compute::concatenate::concatenate,
+    compute::sort::SortOptions,
     datatypes::{Field, Schema},
+    error::Result as ArrowResult,
     io::{
         ipc::write::{FileWriter, WriteOptions},
         parquet::read,
@@ -106,12 +106,30 @@ impl TempColGraphFragment {
         src_col: &str,
         dst_col: &str,
         time_col: &str,
-        chunk_size: usize,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
+
+        let sorted_gids_path = parquet_dir
+            .as_ref()
+            .to_path_buf()
+            .join("sorted_global_ids.ipc");
+
         Self::prepare_graph_dir(graph_dir.as_ref())?;
 
-        let srcs_parquet_files = std::fs::read_dir(parquet_dir.clone())?
+        let srcs_parquet_files = std::fs::read_dir(&parquet_dir)?
+            .map(|res| res.unwrap())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .filter(|ext| ext == &"parquet")
+                    .is_some()
+            })
+            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()))
+            .collect_vec();
+
+        let triplets_parquet_files2 = std::fs::read_dir(&parquet_dir)?
             .map(|res| res.unwrap())
             .filter(|e| {
                 e.path()
@@ -121,21 +139,42 @@ impl TempColGraphFragment {
             })
             .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
 
-        let triplets_parquet_files2 = std::fs::read_dir(parquet_dir)?
-            .map(|res| res.unwrap())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .filter(|ext| ext == &"parquet")
-                    .is_some()
-            })
-            .sorted_by(|f1, f2| f1.path().cmp(&f2.path()));
+        let now = std::time::Instant::now();
+
+        println!("file_path: {:?}", sorted_gids_path);
+
+        let sorted_vertices = if sorted_gids_path.exists() {
+            let chunk = unsafe { mmap_batch(sorted_gids_path.as_path(), 0)? };
+            chunk.into_arrays().into_iter().next().unwrap()
+        } else {
+            let sorted_vertices = srcs_parquet_files
+                .par_iter()
+                .map(|dir_entry| sort_within_chunks(dir_entry.path(), src_col, dst_col))
+                .flatten()
+                .reduce_with(|l, r| sort_dedup(&r, &l).unwrap())
+                .unwrap();
+
+            let schema = Schema::from(vec![Field::new(
+                "sorted_global_ids",
+                sorted_vertices.data_type().clone(),
+                false,
+            )]);
+
+            let chunk = [Chunk::try_new(vec![sorted_vertices.clone()])?];
+            write_batches(sorted_gids_path.as_path(), schema, &chunk)?;
+            sorted_vertices
+        };
 
         let mut go: GlobalMap = GlobalMap::default();
-        for dir_entry in srcs_parquet_files {
-            go.extend(read_file_sources(dir_entry.path(), src_col)?);
-            go.extend(read_file_sources(dir_entry.path(), dst_col)?);
+        for (i, gid) in array_as_id_iter(&sorted_vertices)?.enumerate() {
+            go.insert(gid, i);
         }
+
+        println!(
+            "DONE global order time: {:?}, len: {}",
+            now.elapsed(),
+            go.len()
+        );
 
         let chunks = triplets_parquet_files2
             .flat_map(|dir_entry| {
@@ -143,7 +182,13 @@ impl TempColGraphFragment {
             })
             .flatten();
 
-        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, go, chunks)?;
+        let out = Self::build_tables_from_chunked(
+            graph_dir,
+            vertex_chunk_size,
+            edge_chunk_size,
+            go,
+            chunks,
+        )?;
         Ok(out)
     }
 
@@ -152,18 +197,26 @@ impl TempColGraphFragment {
         src_col: &str,
         dst_col: &str,
         time_col: &str,
-        chunk_size: usize,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
         Self::prepare_graph_dir(graph_dir.as_ref())?;
 
-        let all_gids: GlobalMap = read_file_sources(parquet_file.clone(), src_col)?
-            .chain(read_file_sources(parquet_file.clone(), dst_col)?)
-            .collect();
+        let mut all_gids: GlobalMap =
+            read_vertices_only(parquet_file.clone(), src_col, dst_col)?.collect();
+
+        all_gids.maybe_sort();
 
         let chunks = read_file_chunks(parquet_file, src_col, dst_col, time_col, None)?;
 
-        let out = Self::build_tables_from_chunked(graph_dir, chunk_size, all_gids, chunks)?;
+        let out = Self::build_tables_from_chunked(
+            graph_dir,
+            vertex_chunk_size,
+            edge_chunk_size,
+            all_gids,
+            chunks,
+        )?;
         Ok(out)
     }
 
@@ -182,13 +235,14 @@ impl TempColGraphFragment {
 
     fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder + Default>(
         base_dir: P,
-        chunk_size: usize,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
         global_order: GO,
         chunks_iter: impl IntoIterator<Item = LoadChunk>,
     ) -> Result<Self, Error> {
         let mut vf_builder: VertexFrameBuilder<GO> =
-            VertexFrameBuilder::new(chunk_size, global_order, &base_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(chunk_size, &base_dir);
+            VertexFrameBuilder::new(vertex_chunk_size, global_order, &base_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, &base_dir);
 
         // initialise vertex global id table to preserve order
         // vf_builder.load_sources(source_iter);
@@ -196,6 +250,7 @@ impl TempColGraphFragment {
         let mut last_chunk: Option<LoadChunk> = None;
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
         for mut chunk in chunks_iter.into_iter() {
+            let now = std::time::Instant::now();
             // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
             if let Some(last_chunk) = last_chunk {
                 edge_builder.extend_time_slice(&last_chunk.timestamp_arr()?);
@@ -215,6 +270,8 @@ impl TempColGraphFragment {
             }
 
             last_chunk = Some(chunk);
+
+            println!("chunk time: {:?}", now.elapsed());
         }
 
         vf_builder.finalise_empty_chunks()?;
@@ -225,7 +282,7 @@ impl TempColGraphFragment {
         }
 
         Ok(TempColGraphFragment {
-            chunk_size,
+            chunk_size: vertex_chunk_size,
             // sorted_gids: vf_builder.sorted_gids,
             adj_out_chunks: vf_builder.adj_out_chunks,
             adj_in_chunks: Vec::default(),
@@ -560,6 +617,7 @@ fn read_file_sources<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
 ) -> Result<impl Iterator<Item = GID>, Error> {
+    println!("pre sort reading file: {:?}", parquet_file.as_ref());
     let file = std::fs::File::open(&parquet_file)?;
     let mut reader = BufReader::new(file);
     let metadata = read::read_metadata(&mut reader)?;
@@ -573,6 +631,85 @@ fn read_file_sources<P: AsRef<Path>>(
         .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap()))
 }
 
+fn read_vertices_only<P: AsRef<Path>>(
+    parquet_file: P,
+    src_col: &str,
+    dst_col: &str,
+) -> Result<impl Iterator<Item = GID>, Error> {
+    println!("pre sort reading file: {:?}", parquet_file.as_ref());
+    let file = std::fs::File::open(&parquet_file)?;
+    let mut reader = BufReader::new(file);
+    let metadata = read::read_metadata(&mut reader)?;
+    let schema = read::infer_schema(&metadata)?;
+
+    let schema = schema.filter(|_, field| field.name == src_col || field.name == dst_col);
+
+    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+    Ok(reader.flatten().flat_map(|chunk| {
+        array_as_id_iter(&chunk[0])
+            .unwrap()
+            .chain(array_as_id_iter(&chunk[1]).unwrap())
+    }))
+}
+
+fn sort_within_chunks<P: AsRef<Path>>(
+    parquet_file: P,
+    src_col: &str,
+    dst_col: &str,
+) -> Result<Box<dyn Array>, Error> {
+    println!("pre sort reading file: {:?}", parquet_file.as_ref());
+    let file = std::fs::File::open(&parquet_file)?;
+    let mut reader = BufReader::new(file);
+    let metadata = read::read_metadata(&mut reader)?;
+    let schema = read::infer_schema(&metadata)?;
+
+    let schema = schema.filter(|_, field| field.name == src_col || field.name == dst_col);
+
+    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+    let sorted_vertices = reader
+        .flatten()
+        .par_bridge()
+        .map(|chunk| sort_dedup(&chunk[0], &chunk[1]))
+        .reduce_with(|l, r| l.and_then(|l| r.and_then(|r| sort_dedup(&r, &l))))
+        .unwrap();
+
+    if sorted_vertices.is_err() {
+        println!("error reading file: {:?}", sorted_vertices);
+    }
+
+    sorted_vertices
+}
+
+fn sort_dedup(rhs: &Box<dyn Array>, lhs: &Box<dyn Array>) -> Result<Box<dyn Array>, Error> {
+    let options = SortOptions::default();
+    let rhs = arrow2::compute::sort::sort(rhs.as_ref(), &options, None)?;
+    let lhs = arrow2::compute::sort::sort(lhs.as_ref(), &options, None)?;
+    let merged =
+        arrow2::compute::merge_sort::merge_sort(lhs.as_ref(), rhs.as_ref(), &options, None)?;
+
+    if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
+        let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
+        deduped.extend(arr.into_iter().flatten().dedup());
+        let arr = PrimitiveArray::from_vec(deduped);
+        Ok(arr.to_boxed())
+    } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i64>>() {
+        let mut deduped = MutableUtf8Array::<i64>::new();
+        deduped.extend_values(arr.into_iter().flatten().dedup());
+        let arr: Utf8Array<i64> = deduped.into();
+        Ok(arr.to_boxed())
+    } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i32>>() {
+        let mut deduped = MutableUtf8Array::<i32>::new();
+        deduped.extend_values(arr.into_iter().flatten().dedup());
+        let arr: Utf8Array<i32> = deduped.into();
+        Ok(arr.to_boxed())
+    } else {
+        Err(Error::InvalidTypeColumn(format!(
+            "src or dst column need to be u64 or string, found: {:?}",
+            merged.data_type()
+        )))
+    }
+}
+
 fn read_file_chunks<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
@@ -580,6 +717,8 @@ fn read_file_chunks<P: AsRef<Path>>(
     time_col: &str,
     projection: Option<Vec<&str>>,
 ) -> Result<impl Iterator<Item = LoadChunk>, Error> {
+    println!("reading file: {:?}", parquet_file.as_ref());
+
     let file = std::fs::File::open(&parquet_file)?;
     let mut reader = BufReader::new(file);
     let metadata = read::read_metadata(&mut reader)?;
@@ -675,6 +814,7 @@ mod test {
             let mut graph = TempColGraphFragment::build_tables_from_chunked(
                 test_dir.path(),
                 g_chunk_size,
+                g_chunk_size,
                 go,
                 triples,
             ).unwrap();
@@ -706,6 +846,7 @@ mod test {
             "destination",
             "time",
             5,
+            5,
             test_dir.path(),
         )
         .unwrap();
@@ -732,6 +873,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            100,
             100,
             GlobalMap::from(vec![1u64, 2u64]),
             vec![chunk],
@@ -760,6 +902,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            100,
             100,
             GlobalMap::from(vec![1u64, 2u64]),
             vec![chunk],
@@ -801,6 +944,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            100,
             100,
             GlobalMap::from(1u64..=7u64),
             vec![chunk],
@@ -845,6 +989,7 @@ mod test {
 
         let mut graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            100,
             100,
             GlobalMap::from(1u64..=4u64),
             vec![chunk],
@@ -892,6 +1037,7 @@ mod test {
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             100,
+            100,
             GlobalMap::from(1u64..=4u64),
             vec![chunk1, chunk2],
         )
@@ -929,6 +1075,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            1,
             1,
             GlobalMap::from(1u64..=4u64),
             vec![chunk],
@@ -979,6 +1126,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            2,
             2,
             GlobalMap::from(1u64..=7u64),
             vec![chunk],
@@ -1037,6 +1185,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            2,
             2,
             GlobalMap::from(1u64..12u64),
             vec![chunk],

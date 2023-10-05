@@ -22,18 +22,31 @@ fn main() {
         .nth(5)
         .expect("please supply a graph output directory");
 
-    let chunk_size = 1048576;
+    let vertex_chunk_size = 1_048_576;
+    let edge_chunk_size = 256;
 
     let now = std::time::Instant::now();
 
     let mut graph = if std::fs::read_dir(path.clone()).is_ok() {
         TempColGraphFragment::from_sorted_parquet_dir_edge_list(
-            path, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
+            path,
+            &src_col,
+            &dst_col,
+            &time_col,
+            vertex_chunk_size,
+            edge_chunk_size,
+            graph_dir,
         )
         .expect("failed to load graph")
     } else {
         TempColGraphFragment::from_sorted_parquet_edge_list(
-            path, &src_col, &dst_col, &time_col, chunk_size, graph_dir,
+            path,
+            &src_col,
+            &dst_col,
+            &time_col,
+            vertex_chunk_size,
+            edge_chunk_size,
+            graph_dir,
         )
         .expect("failed to load graph")
     };

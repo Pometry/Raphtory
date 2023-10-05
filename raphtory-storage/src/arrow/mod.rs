@@ -217,6 +217,10 @@ impl LoadChunk {
         t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
         Some(out)
     }
+
+    fn len(&self) -> usize {
+        self.graph_cols[0].len()
+    }
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {

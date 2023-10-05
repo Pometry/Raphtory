@@ -1,4 +1,5 @@
 use ahash::AHashMap;
+use raphtory::prelude::EdgeListOps;
 
 use super::GID;
 
@@ -6,6 +7,9 @@ pub(crate) trait GlobalOrder: FromIterator<GID>{
     fn len(&self) -> usize;
 
     fn push_id<ID: Into<GID>>(&mut self, id: ID);
+
+    fn insert<ID: Into<GID>>(&mut self, id: ID, index: usize);
+
     fn sorted(&self) -> Box<dyn Iterator<Item = GID> + '_>;
     fn find(&self, gid: &GID) -> Option<usize>;
 
@@ -41,6 +45,7 @@ pub(crate) struct GlobalMap {
 }
 
 impl GlobalOrder for GlobalMap {
+
     fn push_id<ID: Into<GID>>(&mut self, id: ID) {
         let id = id.into();
         if !self.gids_table.contains_key(&id) {
@@ -59,9 +64,17 @@ impl GlobalOrder for GlobalMap {
     fn maybe_sort(&mut self) {
         self.sorted = self.gids_table.keys().cloned().collect();
         self.sorted.sort();
+
+        self.sorted.iter().enumerate().for_each(|(i, gid)| {
+            self.gids_table.insert(gid.clone(), i);
+        });
     }
 
     fn len(&self) -> usize {
         self.gids_table.len()
+    }
+
+    fn insert<ID: Into<GID>>(&mut self, id: ID, index: usize) {
+        self.gids_table.insert(id.into(), index);
     }
 }
