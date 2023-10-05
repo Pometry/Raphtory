@@ -69,7 +69,6 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
                     .unwrap()
             }),
     };
-    println!("weight type {:?}", weight_type);
     if weight_type.is_none() {
         // TODO RETURN A RESULT WITH ERROR+REASON NOT A BLANK MAP
         return HashMap::new();
@@ -119,7 +118,6 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
         PropType::DTime => return HashMap::new(),
         PropType::Graph => return HashMap::new(),
     };
-    println!("costval {:?}", cost_val);
     let mut heap = BinaryHeap::new();
     heap.push(State {
         cost: cost_val.clone(),
@@ -148,11 +146,9 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
             path.reverse();
             paths.insert(vertex_name.clone(), (cost.clone(), path));
         }
-        println!("a");
         if !visited.insert(vertex_name.clone()) {
             continue;
         }
-        println!("b");
         // Replace this loop with your actual logic to iterate over the outgoing edges
         for edge in graph.vertex(vertex_name.clone()).unwrap().out_edges() {
             let next_vertex_name = edge.dst().name();
@@ -160,16 +156,12 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
                 Some(prop) => prop,
                 _ => continue,
             };
-            println!("cost {:?}", cost);
-            println!("+ edge_val {:?}", edge_val);
             let next_cost = cost.clone().add(edge_val).unwrap();
-            println!("=next cost {:?}", next_cost);
             if next_cost
                 < *dist
                     .entry(next_vertex_name.clone())
                     .or_insert(max_val.clone())
             {
-                println!("d");
                 heap.push(State {
                     cost: next_cost.clone(),
                     vertex: next_vertex_name.clone(),
@@ -177,7 +169,6 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
                 dist.insert(next_vertex_name.clone(), next_cost);
                 predecessor.insert(next_vertex_name, vertex_name.clone());
             }
-            println!("E");
         }
     }
     paths
