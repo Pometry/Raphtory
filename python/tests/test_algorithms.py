@@ -60,5 +60,3 @@ def test_dijsktra_shortest_paths():
     assert res_two.get("F")[1] == ["B", "C", "E", "F"]
 
 
-
-
