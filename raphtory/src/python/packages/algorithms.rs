@@ -8,9 +8,10 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        centrality::degree_centrality::degree_centrality as degree_centrality_rs,
-        centrality::hits::hits as hits_rs,
-        centrality::pagerank::unweighted_page_rank,
+        centrality::{
+            degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
+            pagerank::unweighted_page_rank,
+        },
         community_detection::connected_components,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
@@ -31,8 +32,11 @@ use crate::{
             global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
             temporal_three_node_motif as local_three_node_rs,
         },
-        pathing::single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
-        pathing::temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+        pathing::{
+            dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
+            single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
+            temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+        },
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -484,4 +488,29 @@ pub fn single_source_shortest_path(
     cutoff: Option<usize>,
 ) -> AlgorithmResult<String, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
+}
+
+/// Finds the shortest paths from a single source to multiple targets in a graph.
+///
+/// # Arguments
+///
+/// * `graph`: The graph to search in.
+/// * `source`: The source vertex.
+/// * `targets`: A list of target vertices.
+/// * `weight`: The name of the weight property for the edges ("weight" is default).
+///
+/// # Returns
+///
+/// Returns a `Dict` where the key is the target vertex and the value is a tuple containing
+/// the total cost and a vector of vertices representing the shortest path.
+///
+#[pyfunction]
+#[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
+pub fn dijkstra_single_source_shortest_paths(
+    g: &PyGraphView,
+    source: PyInputVertex,
+    targets: Vec<PyInputVertex>,
+    weight: String,
+) -> HashMap<String, (u64, Vec<String>)> {
+    dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight)
 }

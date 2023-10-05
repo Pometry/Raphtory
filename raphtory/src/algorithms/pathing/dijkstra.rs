@@ -27,80 +27,6 @@ impl PartialOrd for State {
     }
 }
 
-/// Finds the shortest path from a single source to a single target in a graph with a weight.
-///
-/// # Arguments
-///
-/// - `graph`: The graph to search in.
-/// - `source`: The source vertex.
-/// - `target`: The target vertex.
-/// - `weight`: The name of the weight property for the edges.
-///
-/// # Returns
-///
-/// Returns an `Option` containing a tuple with the total cost and a vector of vertices
-/// representing the shortest path, or `None` if no path exists.
-pub fn dijkstra_single_source_single_target<G: GraphViewOps, T: InputVertex>(
-    graph: &G,
-    source: T,
-    target: T,
-    weight: String,
-) -> Option<(u64, Vec<String>)> {
-    let (source_vertex, target_vertex) = match (graph.vertex(source), graph.vertex(target)) {
-        (Some(src), Some(tgt)) => (src, tgt),
-        _ => return None,
-    };
-
-    let mut heap = BinaryHeap::new();
-    heap.push(State {
-        cost: 0,
-        vertex: source_vertex.clone().name(),
-    });
-
-    let mut dist: HashMap<String, u64> = HashMap::new();
-    let mut predecessor: HashMap<String, String> = HashMap::new();
-    let mut visited: HashSet<String> = HashSet::new();
-
-    dist.insert(source_vertex.name(), 0);
-
-    while let Some(State {
-        cost,
-        vertex: vertex_name,
-    }) = heap.pop()
-    {
-        if vertex_name == target_vertex.clone().name() {
-            let mut path = vec![target_vertex.clone().name()];
-            let mut current_vertex_name = target_vertex.name();
-            while let Some(prev_vertex) = predecessor.get(&current_vertex_name) {
-                path.push(prev_vertex.clone());
-                current_vertex_name = prev_vertex.clone();
-            }
-            path.reverse();
-            return Some((cost, path));
-        }
-
-        if !visited.insert(vertex_name.clone()) {
-            continue;
-        }
-
-        for edge in graph.vertex(vertex_name.clone()).unwrap().out_edges() {
-            let next_vertex_name = edge.dst().name();
-            let next_cost = cost + edge.properties().get(&weight).unwrap().unwrap_u64();
-
-            if next_cost < *dist.entry(next_vertex_name.clone()).or_insert(u64::MAX) as u64 {
-                heap.push(State {
-                    cost: next_cost,
-                    vertex: next_vertex_name.clone(),
-                });
-                dist.insert(next_vertex_name.clone(), next_cost);
-                predecessor.insert(next_vertex_name, vertex_name.clone());
-            }
-        }
-    }
-
-    None
-}
-
 /// Finds the shortest paths from a single source to multiple targets in a graph.
 ///
 /// # Arguments
@@ -115,17 +41,18 @@ pub fn dijkstra_single_source_single_target<G: GraphViewOps, T: InputVertex>(
 /// Returns a `HashMap` where the key is the target vertex and the value is a tuple containing
 /// the total cost and a vector of vertices representing the shortest path.
 ///
-pub fn dijkstra_single_source_multiple_targets<G: GraphViewOps, T: InputVertex>(
+pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
     graph: &G,
     source: T,
     targets: Vec<T>,
     weight: String,
 ) -> HashMap<String, (u64, Vec<String>)> {
+    println!("A");
     let source_vertex = match graph.vertex(source) {
         Some(src) => src,
         None => return HashMap::new(),
     };
-
+    println!("b");
     let target_nodes: Vec<String> = targets
         .iter()
         .filter_map(|p| match graph.has_vertex(p.clone()) {
@@ -133,25 +60,26 @@ pub fn dijkstra_single_source_multiple_targets<G: GraphViewOps, T: InputVertex>(
             false => None,
         })
         .collect();
-
+    println!("c");
     let mut heap = BinaryHeap::new();
     heap.push(State {
         cost: 0,
         vertex: source_vertex.name(),
     });
-
+    println!("d");
     let mut dist: HashMap<String, u64> = HashMap::new();
     let mut predecessor: HashMap<String, String> = HashMap::new();
     let mut visited: HashSet<String> = HashSet::new();
     let mut paths: HashMap<String, (u64, Vec<String>)> = HashMap::new();
-
+    println!("e");
     dist.insert(source_vertex.name(), 0);
-
+    println!("f");
     while let Some(State {
         cost,
         vertex: vertex_name,
     }) = heap.pop()
     {
+        println!("g");
         if target_nodes.contains(&vertex_name) && !paths.contains_key(&vertex_name) {
             let mut path = vec![vertex_name.clone()];
             let mut current_vertex_name = vertex_name.clone();
@@ -162,19 +90,21 @@ pub fn dijkstra_single_source_multiple_targets<G: GraphViewOps, T: InputVertex>(
             path.reverse();
             paths.insert(vertex_name.clone(), (cost, path));
         }
-
+        println!("h");
         if !visited.insert(vertex_name.clone()) {
             continue;
         }
+        println!("i");
         // Replace this loop with your actual logic to iterate over the outgoing edges
         for edge in graph.vertex(vertex_name.clone()).unwrap().out_edges() {
+            println!("j");
             let next_vertex_name = edge.dst().name();
             let edge_val = match edge.properties().get(&weight) {
                 Some(prop) => prop.unwrap_u64(),
                 _ => 0,
             };
             let next_cost = cost + edge_val;
-
+            println!("k");
             if next_cost < *dist.entry(next_vertex_name.clone()).or_insert(u64::MAX) {
                 heap.push(State {
                     cost: next_cost,
@@ -216,22 +146,12 @@ mod dijkstra_tests {
     }
 
     #[test]
-    fn test_dijkstra_ssst() {
-        let graph = basic_graph();
-
-        let results =
-            dijkstra_single_source_single_target(&graph, "A", "F", "weight".to_string()).unwrap();
-        assert_eq!(results.0, 8);
-        assert_eq!(results.1, vec!["A", "C", "E", "F"]);
-    }
-
-    #[test]
     fn test_dijkstra_multiple_targets() {
         let graph = basic_graph();
 
         let targets: Vec<&str> = vec!["D", "F"];
         let results =
-            dijkstra_single_source_multiple_targets(&graph, "A", targets, "weight".to_string());
+            dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
 
         assert_eq!(results.get("D").unwrap().0, 7);
         assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
@@ -241,7 +161,7 @@ mod dijkstra_tests {
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
         let results =
-            dijkstra_single_source_multiple_targets(&graph, "B", targets, "weight".to_string());
+            dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
 
         assert_eq!(results.get("D").unwrap().0, 5);
         assert_eq!(results.get("E").unwrap().0, 3);
