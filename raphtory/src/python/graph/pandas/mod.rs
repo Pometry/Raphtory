@@ -4,12 +4,12 @@ mod prop_handler;
 
 #[cfg(test)]
 mod test {
-    use crate::{prelude::*, python::graph::pandas::load_vertices_from_df};
-
-    use super::{load_edges_from_df, PretendDF};
-    use crate::python::graph::pandas::{
-        dataframe::PretendDF,
-        loaders::{load_edges_from_df, load_vertices_from_df},
+    use crate::{
+        prelude::{EdgeViewOps, Graph, GraphViewOps, Prop, VertexViewOps},
+        python::graph::pandas::{
+            dataframe::PretendDF,
+            loaders::{load_edges_from_df, load_vertices_from_df},
+        },
     };
     use arrow2::array::{PrimitiveArray, Utf8Array};
 
