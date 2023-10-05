@@ -369,7 +369,14 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(df, py, size)?;
+
+            let mut cols_to_check = vec![id, time];
+            cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
+            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
+
+            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            df.check_cols_exist(&cols_to_check)?;
+
             load_vertices_from_df(
                 &df,
                 size,
@@ -381,7 +388,6 @@ impl PyGraph {
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
             Ok::<(), PyErr>(())
         })
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -425,7 +431,19 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(df, py, size)?;
+
+            let mut cols_to_check = vec![src, dst, time];
+            cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
+            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
+            if layer_in_df.unwrap_or(false) {
+                if let Some(ref layer) = layer {
+                    cols_to_check.push(layer.as_ref());
+                }
+            }
+
+            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+
+            df.check_cols_exist(&cols_to_check)?;
             load_edges_from_df(
                 &df,
                 size,
@@ -474,7 +492,11 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(df, py, size)?;
+            let mut cols_to_check = vec![id];
+            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
+            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            df.check_cols_exist(&cols_to_check)?;
+
             load_vertex_props_from_df(&df, size, id, const_props, shared_const_props, graph)
                 .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
@@ -517,7 +539,15 @@ impl PyGraph {
                     None,
                 )?
                 .extract()?;
-            let df = process_pandas_py_df(df, py, size)?;
+            let mut cols_to_check = vec![src, dst];
+            if layer_in_df.unwrap_or(false) {
+                if let Some(ref layer) = layer {
+                    cols_to_check.push(layer.as_ref());
+                }
+            }
+            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
+            let df = process_pandas_py_df(df, py, size,cols_to_check.clone())?;
+            df.check_cols_exist(&cols_to_check)?;
             load_edges_props_from_df(
                 &df,
                 size,
@@ -530,7 +560,7 @@ impl PyGraph {
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
+            df.check_cols_exist(&cols_to_check)?;
             Ok::<(), PyErr>(())
         })
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;

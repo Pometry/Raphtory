@@ -18,11 +18,6 @@ pub(crate) fn load_vertices_from_df<'a>(
     shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![vertex_id, time];
-    cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
-    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-    df.check_cols_exist(&cols_to_check)?;
-
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
 
     if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
@@ -108,15 +103,7 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
-    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-    if layer_in_df {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
-    }
-    df.check_cols_exist(&cols_to_check)?;
+
 
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
     let layer = lift_layer(layer, layer_in_df, df);
@@ -217,10 +204,6 @@ pub(crate) fn load_vertex_props_from_df<'a>(
     shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![vertex_id];
-    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-    df.check_cols_exist(&cols_to_check)?;
-
     let (_, const_prop_iter) = get_prop_rows(df, None, const_props)?;
 
     if let Some(vertex_id) = df.iter_col::<u64>(vertex_id) {
@@ -318,15 +301,6 @@ pub(crate) fn load_edges_props_from_df<'a, S: AsRef<str>>(
     layer_in_df: bool,
     graph: &Graph,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = vec![src, dst];
-    if layer_in_df {
-        if let Some(ref layer) = layer {
-            cols_to_check.push(layer.as_ref());
-        }
-    }
-    cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-    df.check_cols_exist(&cols_to_check)?;
-
     let (_, const_prop_iter) = get_prop_rows(df, None, const_props)?;
     let layer = lift_layer(layer, layer_in_df, df);
 

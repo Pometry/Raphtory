@@ -39,14 +39,9 @@ fn combine_properties<'a>(
                 v1.extend(v2);
                 v1
             })))
-        })
-        .unwrap_or_else(|| {
-            Err(GraphError::LoadFailure(
-                "Could not merge property columns together into rows".to_string(),
-            ))
-        })?;
+        }).unwrap_or_else(|| Ok(Box::new(std::iter::repeat(vec![]))));
 
-    Ok(PropIter { inner: iter })
+    Ok(PropIter { inner: iter? })
 }
 
 pub(crate) fn lift_property<'a: 'b, 'b>(
