@@ -491,7 +491,6 @@ pub fn single_source_shortest_path(
     single_source_shortest_path_rs(&g.graph, source, cutoff)
 }
 
-
 /// Finds the shortest paths from a single source to multiple targets in a graph.
 ///
 /// Arguments:
@@ -516,7 +515,6 @@ pub fn dijkstra_single_source_shortest_paths(
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
 }
-
 
 /// Computes the betweenness centrality for nodes in a given graph.
 ///
