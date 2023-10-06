@@ -365,11 +365,7 @@ impl TempColGraphFragment {
             })
     }
 
-    fn adj_list<'a>(
-        &'a self,
-        vertex_id: usize,
-        dir: Direction,
-    ) -> Option<(RowOwned<u64>, RowOwned<u64>)> {
+    fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<(RowOwned<u64>, RowOwned<u64>)> {
         let chunks = match dir {
             Direction::OUT => self.outbound(),
             Direction::IN => self.inbound(),
@@ -589,28 +585,6 @@ impl TempColGraphFragment {
         }
         Ok(())
     }
-}
-
-#[inline]
-fn row_from_start(
-    row: Box<dyn Array>,
-    start: usize,
-    end: Option<usize>,
-) -> (PrimitiveArray<u64>, PrimitiveArray<u64>) {
-    let end = end.unwrap_or_else(|| row.len() - start);
-    let row = row.sliced(start, end);
-    let row = row.as_any().downcast_ref::<StructArray>().unwrap();
-    let vertex_ids = row.values()[0]
-        .as_any()
-        .downcast_ref::<PrimitiveArray<u64>>()
-        .unwrap()
-        .clone();
-    let edge_ids = row.values()[1]
-        .as_any()
-        .downcast_ref::<PrimitiveArray<u64>>()
-        .unwrap()
-        .clone();
-    (vertex_ids, edge_ids)
 }
 
 fn read_file_sources<P: AsRef<Path>>(
