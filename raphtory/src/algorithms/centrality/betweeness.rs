@@ -3,25 +3,7 @@ use crate::{
     prelude::{GraphViewOps, VertexViewOps},
 };
 use ordered_float::OrderedFloat;
-use std::{
-    cmp::Ordering,
-    collections::{BinaryHeap, HashMap, VecDeque},
-};
-
-#[derive(Eq, PartialEq)]
-struct Reverse<T>(T);
-
-impl<T: Ord> PartialOrd for Reverse<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        other.0.partial_cmp(&self.0)
-    }
-}
-
-impl<T: Ord> Ord for Reverse<T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other.0.cmp(&self.0)
-    }
-}
+use std::collections::{HashMap, VecDeque};
 
 pub fn betweenness_centrality<G: GraphViewOps>(g: &G, k: Option<usize>, normalized: bool) {
     let mut betweenness: HashMap<u64, f64> = HashMap::new();
