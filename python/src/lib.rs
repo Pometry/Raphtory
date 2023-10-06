@@ -67,6 +67,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     let algorithm_module = PyModule::new(py, "algorithms")?;
     add_functions!(
         algorithm_module,
+        dijkstra_single_source_shortest_paths,
         global_reciprocity,
         all_local_reciprocity,
         triplet_count,
