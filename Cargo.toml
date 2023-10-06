@@ -12,7 +12,7 @@ members = [
 default-members = ["raphtory"]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.6.1"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
