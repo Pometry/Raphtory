@@ -58,8 +58,11 @@ impl EdgeChunk {
         time
     }
 
-    pub(crate) fn additions(&self) -> Option<ListColumn<'_, Time>> {
-        let time = self.0[TIME_COL].as_any().downcast_ref::<ListArray<i64>>()?;
-        ListColumn::new(time, 0)
+    pub(crate) fn additions(&self) -> ListColumn<Time> {
+        let time = self.0[TIME_COL]
+            .as_any()
+            .downcast_ref::<ListArray<i64>>()
+            .unwrap();
+        ListColumn::new(time, 0).unwrap()
     }
 }

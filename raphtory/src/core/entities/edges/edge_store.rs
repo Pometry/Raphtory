@@ -265,24 +265,24 @@ impl EdgeStore {
         }
     }
 
-    pub fn temporal_prop_layer(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
+    pub(crate) fn temporal_prop_layer(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
         self.layers
             .get(layer_id)
             .and_then(|layer| layer.temporal_property(prop_id))
     }
 
-    pub fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
+    pub(crate) fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
         self.get_or_allocate_layer(layer_id)
     }
 
-    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
+    pub(crate) fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if self.deletions.len() <= layer_id {
             self.deletions.resize_with(layer_id + 1, Default::default);
         }
         &mut self.deletions[layer_id]
     }
 
-    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
+    pub(crate) fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if self.additions.len() <= layer_id {
             self.additions.resize_with(layer_id + 1, Default::default);
         }

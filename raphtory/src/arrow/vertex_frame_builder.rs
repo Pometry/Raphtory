@@ -14,11 +14,15 @@ use arrow2::{
 use itertools::Itertools;
 use std::path::{Path, PathBuf};
 
-use super::{vertex_chunk::VertexChunk, GID, global_order::{GlobalOrder, self}};
+use super::{
+    global_order::{self, GlobalOrder},
+    vertex_chunk::VertexChunk,
+    GID,
+};
 
 pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) global_order: GO,  // the sorted global ids of the vertices
+    pub(crate) global_order: GO,                 // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -33,7 +37,7 @@ pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     location_path: PathBuf,
 }
 
-impl <GO: GlobalOrder> VertexFrameBuilder<GO> {
+impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
     pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, go: GO, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],

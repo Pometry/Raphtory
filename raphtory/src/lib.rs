@@ -90,6 +90,9 @@ pub mod core;
 pub mod db;
 pub mod graphgen;
 
+#[cfg(feature = "arrow")]
+pub mod arrow;
+
 #[cfg(feature = "python")]
 pub mod python;
 

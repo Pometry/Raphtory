@@ -1,9 +1,9 @@
+use crate::prelude::EdgeListOps;
 use ahash::AHashMap;
-use raphtory::prelude::EdgeListOps;
 
 use super::GID;
 
-pub(crate) trait GlobalOrder: FromIterator<GID>{
+pub(crate) trait GlobalOrder: FromIterator<GID> {
     fn len(&self) -> usize;
 
     fn push_id<ID: Into<GID>>(&mut self, id: ID);
@@ -32,7 +32,7 @@ impl<ID: Into<GID>> FromIterator<ID> for GlobalMap {
     }
 }
 
-impl <ID: Into<GID>, I:IntoIterator<Item = ID>> From<I> for GlobalMap {
+impl<ID: Into<GID>, I: IntoIterator<Item = ID>> From<I> for GlobalMap {
     fn from(iter: I) -> Self {
         iter.into_iter().collect()
     }
@@ -45,7 +45,6 @@ pub(crate) struct GlobalMap {
 }
 
 impl GlobalOrder for GlobalMap {
-
     fn push_id<ID: Into<GID>>(&mut self, id: ID) {
         let id = id.into();
         if !self.gids_table.contains_key(&id) {

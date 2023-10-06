@@ -167,26 +167,6 @@ dependencies = [
 
 [[package]]
 name = "arrow2"
-version = "0.17.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59c468daea140b747d781a1da9f7db5f0a8e6636d4af20cc539e43d05b0604fa"
-dependencies = [
- "ahash",
- "bytemuck",
- "chrono",
- "dyn-clone",
- "either",
- "ethnum",
- "foreign_vec",
- "getrandom 0.2.10",
- "hash_hasher",
- "num-traits",
- "rustc_version",
- "simdutf8",
-]
-
-[[package]]
-name = "arrow2"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "963fef509b757bcbbf9e5ffa23bcb345614d99f4f6f531f97417b27b8604d389"
@@ -3170,7 +3150,8 @@ dependencies = [
 name = "raphtory"
 version = "0.5.7"
 dependencies = [
- "arrow2 0.17.4",
+ "ahash",
+ "arrow2",
  "async-trait",
  "bincode",
  "bzip2",
@@ -3184,9 +3165,11 @@ dependencies = [
  "futures",
  "futures-util",
  "genawaiter",
+ "heed",
  "itertools 0.10.5",
  "kdam",
  "lock_api",
+ "memmap2 0.8.0",
  "neo4rs",
  "num",
  "num-traits",
@@ -3194,6 +3177,7 @@ dependencies = [
  "ordered-float 3.9.1",
  "parking_lot",
  "pretty_assertions",
+ "proptest",
  "pyo3",
  "pyo3-asyncio",
  "quickcheck 1.0.3",
@@ -3297,7 +3281,7 @@ name = "raphtory-storage"
 version = "0.5.7"
 dependencies = [
  "ahash",
- "arrow2 0.18.0",
+ "arrow2",
  "heed",
  "itertools 0.11.0",
  "memmap2 0.8.0",
