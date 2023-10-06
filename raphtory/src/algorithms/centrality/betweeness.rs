@@ -5,12 +5,31 @@ use crate::{
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, VecDeque};
 
-pub fn betweenness_centrality<G: GraphViewOps>(g: &G, k: Option<usize>, normalized: bool) {
+/// Computes the betweenness centrality for nodes in a given graph.
+///
+/// # Parameters
+///
+/// - `g`: A reference to the graph.
+/// - `k`: An `Option<usize>` specifying the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
+/// - `normalized`: A `Option<bool>` indicating whether to normalize the centrality values.
+///
+/// # Returns
+///
+/// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+pub fn betweenness_centrality<G: GraphViewOps>(
+    g: &G,
+    k: Option<usize>,
+    normalized: Option<bool>,
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+    // Initialize a hashmap to store betweenness centrality values.
     let mut betweenness: HashMap<u64, f64> = HashMap::new();
+
+    // Get the vertices and the total number of vertices in the graph.
     let nodes = g.vertices();
     let n = g.count_vertices();
     let k_sample = k.unwrap_or(n);
 
+    // Main loop over each node to compute betweenness centrality.
     for node in nodes.iter().take(k_sample) {
         let mut stack = Vec::new();
         let mut predecessors: HashMap<u64, Vec<u64>> = HashMap::new();
@@ -18,6 +37,7 @@ pub fn betweenness_centrality<G: GraphViewOps>(g: &G, k: Option<usize>, normaliz
         let mut dist: HashMap<u64, i64> = HashMap::new();
         let mut queue = VecDeque::new();
 
+        // Initialize distance and sigma values for each node.
         for node in nodes.iter() {
             dist.insert(node.id(), -1);
             sigma.insert(node.id(), 0.0);
@@ -26,6 +46,7 @@ pub fn betweenness_centrality<G: GraphViewOps>(g: &G, k: Option<usize>, normaliz
         sigma.insert(node.id(), 1.0);
         queue.push_back(node.id());
 
+        // BFS loop to find shortest paths.
         while let Some(current_node_id) = queue.pop_front() {
             stack.push(current_node_id);
             for neighbor in g.vertex(current_node_id).unwrap().out_neighbours() {
@@ -68,7 +89,7 @@ pub fn betweenness_centrality<G: GraphViewOps>(g: &G, k: Option<usize>, normaliz
     }
 
     // Normalization
-    if normalized {
+    if let Some(true) = normalized {
         let factor = 1.0 / ((n as f64 - 1.0) * (n as f64 - 2.0));
         for node in nodes.iter() {
             if betweenness.contains_key(&node.id()) {
@@ -85,8 +106,16 @@ pub fn betweenness_centrality<G: GraphViewOps>(g: &G, k: Option<usize>, normaliz
         }
     }
 
-    // Output the betweenness centrality of each node
-    println!("{:?}", betweenness);
+    // Construct and return the AlgorithmResult
+    let results_type = std::any::type_name::<HashMap<String, f64>>();
+    AlgorithmResult::new(
+        "Betweenness",
+        results_type,
+        betweenness
+            .into_iter()
+            .map(|(k, v)| (g.vertex(k).unwrap().name(), v))
+            .collect(),
+    )
 }
 
 #[cfg(test)]
@@ -114,7 +143,25 @@ mod betweenness_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        betweenness_centrality(&graph, None, false);
-        betweenness_centrality(&graph, None, true)
+        let mut expected: HashMap<String, f64> = HashMap::new();
+        expected.insert("0".to_string(), 0.0);
+        expected.insert("1".to_string(), 1.0);
+        expected.insert("2".to_string(), 4.0);
+        expected.insert("3".to_string(), 1.0);
+        expected.insert("4".to_string(), 0.0);
+        expected.insert("5".to_string(), 0.0);
+
+        let res = betweenness_centrality(&graph, None, Some(false));
+        assert_eq!(res.get_all(), &expected);
+
+        let mut expected: HashMap<String, f64> = HashMap::new();
+        expected.insert("0".to_string(), 0.0);
+        expected.insert("1".to_string(), 0.05);
+        expected.insert("2".to_string(), 0.2);
+        expected.insert("3".to_string(), 0.05);
+        expected.insert("4".to_string(), 0.0);
+        expected.insert("5".to_string(), 0.0);
+        let res = betweenness_centrality(&graph, None, Some(true));
+        assert_eq!(res.get_all(), &expected);
     }
 }
