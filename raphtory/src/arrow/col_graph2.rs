@@ -5,13 +5,19 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crate::arrow::{
-    adj_schema,
-    edge_frame_builder::EdgeFrameBuilder,
-    list_buffer::{as_primitive_column, ListColumn},
-    mmap::{mmap_batch, mmap_batches, write_batches},
-    vertex_frame_builder::VertexFrameBuilder,
-    Error, E_COLUMN, V_COLUMN,
+use crate::{
+    arrow::{
+        adj_schema,
+        edge_frame_builder::EdgeFrameBuilder,
+        list_buffer::{as_primitive_column, ListColumn},
+        mmap::{mmap_batch, mmap_batches, write_batches},
+        vertex_frame_builder::VertexFrameBuilder,
+        Error, E_COLUMN, V_COLUMN,
+    },
+    core::{
+        entities::{EID, VID},
+        Direction,
+    },
 };
 use arrow2::{
     array::{Array, ListArray, MutableUtf8Array, PrimitiveArray, StructArray, Utf8Array},
@@ -26,10 +32,6 @@ use arrow2::{
     offset::OffsetsBuffer,
 };
 use itertools::Itertools;
-use raphtory::core::{
-    entities::{EID, VID},
-    Direction,
-};
 use rayon::prelude::*;
 use tempfile::tempfile_in;
 
@@ -110,7 +112,6 @@ impl TempColGraphFragment {
         edge_chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
-
         let sorted_gids_path = parquet_dir
             .as_ref()
             .to_path_buf()
@@ -755,6 +756,7 @@ fn read_file_chunks<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use crate::arrow::global_order::GlobalMap;
+    use std::path::PathBuf;
 
     use super::*;
     use ahash::HashSet;
@@ -810,12 +812,19 @@ mod test {
 
     #[test]
     fn load_from_parquet() {
-        let file = "part-00000-b406cce6-7ed0-4efb-883d-e6766f36d8cf-c000.snappy.parquet";
-
+        let mut file_path: PathBuf = [
+            env!("CARGO_MANIFEST_DIR"),
+            "resources",
+            "test",
+            "part-00000-b406cce6-7ed0-4efb-883d-e6766f36d8cf-c000.snappy.parquet",
+        ]
+        .iter()
+        .collect();
+        println!("{:?}", file_path);
         let test_dir = TempDir::new().unwrap();
 
         let g = TempColGraphFragment::from_sorted_parquet_edge_list(
-            file,
+            file_path.as_path(),
             "source",
             "destination",
             "time",

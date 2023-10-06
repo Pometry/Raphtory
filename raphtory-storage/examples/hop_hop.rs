@@ -1,4 +1,5 @@
 use raphtory::{
+    arrow::col_graph2::TempColGraphFragment,
     core::{
         entities::{LayerIds, VID},
         Direction,
@@ -7,7 +8,6 @@ use raphtory::{
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
 };
-use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
 use rayon::prelude::*;
 use serde::Deserialize;
 
@@ -64,6 +64,7 @@ fn main() {
         "source",
         "destination",
         "time",
+        chunk_size,
         chunk_size,
         graph_dir,
     )

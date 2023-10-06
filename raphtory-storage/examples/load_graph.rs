@@ -1,5 +1,7 @@
-use raphtory::core::{entities::VID, Direction};
-use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
+use raphtory::{
+    arrow::col_graph2::TempColGraphFragment,
+    core::{entities::VID, Direction},
+};
 
 fn main() {
     let graph_dir = std::env::args()

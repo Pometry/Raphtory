@@ -1,7 +1,9 @@
 use arrow2::array::{ListArray, PrimitiveArray, StructArray};
 use itertools::Itertools;
-use raphtory::core::{entities::VID, Direction};
-use raphtory_storage::arrow::col_graph2::TempColGraphFragment;
+use raphtory::{
+    arrow::col_graph2::TempColGraphFragment,
+    core::{entities::VID, Direction},
+};
 
 fn main() {
     let path = std::env::args()

@@ -37,6 +37,10 @@ impl<'a, T: NativeType> ListColumn<'a, T> {
         new
     }
 
+    pub fn into_value(self, index: usize) -> &'a [T] {
+        &self.values.as_slice()[self.offsets[index] as usize..self.offsets[index + 1] as usize]
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &[T]> + '_ {
         self.offsets
             .windows(2)
