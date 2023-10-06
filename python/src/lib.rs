@@ -108,6 +108,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         neo4j_movie_graph,
         stable_coin_graph,
         reddit_hyperlink_graph,
+        karate_club_graph,
     );
     m.add_submodule(graph_loader_module)?;
 

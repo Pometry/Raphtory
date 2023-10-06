@@ -197,6 +197,13 @@ mod graph_loader_test {
     }
 
     #[test]
+    fn test_karate_graph() {
+        let g = crate::graph_loader::example::karate_club::karate_club_graph();
+        assert_eq!(g.count_vertices(), 34);
+        assert_eq!(g.count_edges(), 78);
+    }
+
+    #[test]
     fn db_lotr() {
         let g = Graph::new();
 
