@@ -9,6 +9,8 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
+mod core_views;
+
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
     prelude::GraphViewOps,
