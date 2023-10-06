@@ -66,7 +66,6 @@ pub fn karate_club_graph() -> Graph {
     // Fill in base graph
     let graph = Graph::new();
     for i in 0..34 {
-        println!("Adding {:?}", i);
         graph
             .add_vertex(0, i, NO_PROPS)
             .map_err(|err| println!("{:?}", err))
@@ -81,9 +80,9 @@ pub fn karate_club_graph() -> Graph {
             .collect();
         for (col, &entry) in this_row.iter().enumerate() {
             if entry >= 1 {
-                println!("Adding {:?}->{:?}, weight {:?}", row, col, entry);
+                let actual_row = row - 1;
                 graph
-                    .add_edge(0, row as u64, col as u64, [("weight", entry)], None)
+                    .add_edge(0, actual_row as u64, col as u64, [("weight", entry)], None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
             }
@@ -92,7 +91,6 @@ pub fn karate_club_graph() -> Graph {
 
     // Add properties
     for v in 0..34 {
-        println!("Adding prop {:?}", v);
         let vertex = graph.vertex(v).unwrap();
         let mut const_prop = "Officer";
         if club1.contains(&v) {
@@ -102,9 +100,6 @@ pub fn karate_club_graph() -> Graph {
             .add_constant_properties([("club", const_prop)])
             .map_err(|err| println!("{:?}", err))
             .ok();
-    }
-    for v in graph.vertices() {
-        println!("Adding propp {:?}", v.name());
     }
 
     graph
