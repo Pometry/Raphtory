@@ -183,27 +183,26 @@ where
 }
 
 #[derive(Clone, Debug, Copy)]
-pub struct ArrConst<A, const N: usize>(pub [A; N]);
+pub struct ArrConst<A, ACC: Accumulator<A, A, A>, const N: usize>(pub [A; N], PhantomData<ACC>);
 
-impl<A: Accumulator<A, A, A>, const N: usize> Accumulator<[A; N], (usize, A), [A; N]>
-    for ArrConst<A, N>
+impl<A, ACC: Accumulator<A, A, A>, const N: usize> Accumulator<[A; N], [A; N], [A; N]>
+    for ArrConst<A, ACC, N>
 where
-    A: StateType + Copy,
+    A: StateType,
 {
     fn zero() -> [A; N] {
-        [A::zero(); N]
+        vec![ACC::zero().clone(); N].try_into().unwrap()
     }
 
-    fn add0(a1: &mut [A; N], a: (usize, A)) {
-        let (i, a) = a;
-        if i < N {
-            A::add0(&mut a1[i], a);
+    fn add0(a1: &mut [A; N], a: [A; N]) {
+        for (into, from) in a1.iter_mut().zip(a.iter()) {
+            ACC::combine(into, from);
         }
     }
 
     fn combine(a1: &mut [A; N], a2: &[A; N]) {
         for (into, from) in a1.iter_mut().zip(a2.iter()) {
-            A::combine(into, from)
+            ACC::combine(into, from)
         }
     }
 

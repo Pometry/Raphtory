@@ -43,7 +43,7 @@ pub mod accumulators {
         agg::{
             set::{BitSet, Set},
             topk::{TopK, TopKHeap},
-            AndDef, AvgDef, MaxDef, MinDef, OrDef, SumDef, ValDef,
+            Accumulator, AndDef, ArrConst, AvgDef, MaxDef, MinDef, OrDef, SumDef, ValDef,
         },
         StateType,
     };
@@ -112,6 +112,15 @@ pub mod accumulators {
     pub fn topk<A: StateType + Ord, const N: usize>(
         id: u32,
     ) -> AccId<TopKHeap<A>, A, Vec<A>, TopK<A, N>> {
+        AccId {
+            id,
+            _a: std::marker::PhantomData,
+        }
+    }
+
+    pub fn arr<A: StateType, ACC: Accumulator<A, A, A>, const N: usize>(
+        id: u32,
+    ) -> AccId<[A; N], [A; N], [A; N], ArrConst<A, ACC, N>> {
         AccId {
             id,
             _a: std::marker::PhantomData,
