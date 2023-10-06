@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "custom_python_extension"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -1095,7 +1095,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "itertools",
@@ -1796,7 +1796,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2891,7 +2891,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "arrow2",
  "async-openai",
@@ -2947,7 +2947,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "criterion",
  "rand 0.8.5",
@@ -2958,7 +2958,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -2992,7 +2992,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "openssl",
  "pyo3",
@@ -3004,7 +3004,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-rust-benchmark"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "chrono",
  "clap 4.3.11",
