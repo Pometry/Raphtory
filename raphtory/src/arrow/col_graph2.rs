@@ -12,7 +12,7 @@ use crate::{
         list_buffer::{as_primitive_column, ListColumn},
         mmap::{mmap_batch, mmap_batches, write_batches},
         vertex_frame_builder::VertexFrameBuilder,
-        Error, E_COLUMN, V_COLUMN,
+        Error,
     },
     core::{
         entities::{EID, VID},
@@ -24,7 +24,6 @@ use arrow2::{
     chunk::Chunk,
     compute::sort::SortOptions,
     datatypes::{Field, Schema},
-    error::Result as ArrowResult,
     io::{
         ipc::write::{FileWriter, WriteOptions},
         parquet::read,
@@ -45,7 +44,8 @@ use super::{
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
-    chunk_size: usize,
+    vertex_chunk_size: usize,
+    edge_chunk_size: usize,
     adj_out_chunks: Vec<VertexChunk>,
     adj_in_chunks: Vec<VertexChunk>,
     edge_chunks: Vec<EdgeChunk>,
@@ -92,10 +92,12 @@ impl TempColGraphFragment {
             }
         }
 
-        let chunk_size = adj_out_chunks[0].len();
+        let vertex_chunk_size = adj_out_chunks[0].len();
+        let edge_chunk_size = edge_chunks[0].len();
 
         Ok(Self {
-            chunk_size,
+            vertex_chunk_size,
+            edge_chunk_size,
             adj_out_chunks,
             adj_in_chunks,
             edge_chunks,
@@ -251,7 +253,6 @@ impl TempColGraphFragment {
         let mut last_chunk: Option<LoadChunk> = None;
         // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
         for mut chunk in chunks_iter.into_iter() {
-            let now = std::time::Instant::now();
             // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
             if let Some(last_chunk) = last_chunk {
                 edge_builder.extend_time_slice(&last_chunk.timestamp_arr()?);
@@ -271,8 +272,6 @@ impl TempColGraphFragment {
             }
 
             last_chunk = Some(chunk);
-
-            println!("chunk time: {:?}", now.elapsed());
         }
 
         vf_builder.finalise_empty_chunks()?;
@@ -283,8 +282,8 @@ impl TempColGraphFragment {
         }
 
         Ok(TempColGraphFragment {
-            chunk_size: vertex_chunk_size,
-            // sorted_gids: vf_builder.sorted_gids,
+            vertex_chunk_size,
+            edge_chunk_size,
             adj_out_chunks: vf_builder.adj_out_chunks,
             adj_in_chunks: Vec::default(),
             edge_chunks: edge_builder.edge_chunks,
@@ -294,7 +293,7 @@ impl TempColGraphFragment {
 
     pub fn num_vertices(&self) -> usize {
         match self.adj_out_chunks.last() {
-            Some(v) => (self.adj_out_chunks.len() - 1) * self.chunk_size + v.len(), // all but the last chunk are always full
+            Some(v) => (self.adj_out_chunks.len() - 1) * self.vertex_chunk_size + v.len(), // all but the last chunk are always full
             None => 0, // we have an empty graph
         }
     }
@@ -326,6 +325,13 @@ impl TempColGraphFragment {
         }
     }
 
+    pub fn edge(&self, e_id: EID) -> Edge<'_> {
+        let chunk_idx = e_id.0 / self.edge_chunk_size;
+        let idx = e_id.0 % self.edge_chunk_size;
+        let chunk = &self.edge_chunks[chunk_idx];
+        Edge::new(chunk.additions(), idx)
+    }
+
     pub fn all_edges(&self) -> impl Iterator<Item = (EID, VID, VID)> + '_ {
         self.edge_chunks
             .iter()
@@ -344,24 +350,17 @@ impl TempColGraphFragment {
         self.edge_chunks
             .iter()
             .flat_map(|chunk| {
-                let time = chunk.time();
-                let time_into_iter =
-                    (0..time.len()).map(move |i| unsafe { time.value_unchecked(i) });
                 chunk
                     .source()
                     .into_iter()
                     .flatten()
                     .zip(chunk.destination().into_iter().flatten())
-                    .zip(time_into_iter)
             })
             .enumerate()
-            .flat_map(|(eid, ((src, dst), time))| {
-                time.as_any()
-                    .downcast_ref::<PrimitiveArray<i64>>()
-                    .unwrap()
-                    .clone()
+            .flat_map(|(eid, (src, dst))| {
+                self.edge(EID(eid))
+                    .timestamps_row()
                     .into_iter()
-                    .flatten()
                     .map(move |time| (EID(eid), VID(src as usize), VID(dst as usize), time))
             })
     }
@@ -373,7 +372,7 @@ impl TempColGraphFragment {
             Direction::BOTH => return None,
         };
 
-        let chunk_size = self.chunk_size; // we assume all the chunks are the same size
+        let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
 
         let chunk_idx = vertex_id / chunk_size;
         let idx = vertex_id % chunk_size;
@@ -422,7 +421,7 @@ impl TempColGraphFragment {
             let mut progress = vec![0usize; outbound_chunksize]; // keeps track of how far we got for each list
             for inbound_chunk_id in 0..num_chunks {
                 // build partial inbound chunk sequentially
-                let chunk_max_id = self.chunk_size * (inbound_chunk_id + 1); // id in this chunk less than this
+                let chunk_max_id = self.vertex_chunk_size * (inbound_chunk_id + 1); // id in this chunk less than this
                 let inbound_chunksize = self.outbound()[inbound_chunk_id].len();
                 // let offsets = vec![0i64; inbound_chunksize + 1];
                 let mut counts = Vec::with_capacity(inbound_chunksize);
@@ -436,10 +435,10 @@ impl TempColGraphFragment {
                         for &id in vertex_ids {
                             let id = id as usize;
                             if id < chunk_max_id {
-                                if let Some(counts) = counts.get(id % self.chunk_size) {
+                                if let Some(counts) = counts.get(id % self.vertex_chunk_size) {
                                     counts.fetch_add(1, Ordering::Relaxed);
                                 } else {
-                                    let inner_id = id % self.chunk_size;
+                                    let inner_id = id % self.vertex_chunk_size;
                                     panic!("counts index out of bounds for inbound chunk {inbound_chunk_id} with size {inbound_chunksize}: id {id}, index in chunk: {inner_id}")
                                 }
                                 row_size += 1;
@@ -469,7 +468,7 @@ impl TempColGraphFragment {
                     // in principle we can do all these updates in parallel as they end up pointing at unique rows of the vector
                     // this would require some careful unsafe code though
                     for (&vid, &eid) in row_vertex_ids.iter().zip(row_edge_ids) {
-                        let vid = vid as usize % self.chunk_size; //local index
+                        let vid = vid as usize % self.vertex_chunk_size; //local index
                         let insertion_point = offsets[vid] as usize + extra_offsets[vid];
                         extra_offsets[vid] += 1;
                         inbound_vids[insertion_point] = row as u64;
@@ -588,22 +587,23 @@ impl TempColGraphFragment {
     }
 }
 
-fn read_file_sources<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-) -> Result<impl Iterator<Item = GID>, Error> {
-    println!("pre sort reading file: {:?}", parquet_file.as_ref());
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
+pub struct Edge<'a> {
+    time_col: ListColumn<'a, Time>,
+    idx: usize,
+}
 
-    let schema = schema.filter(|_, field| field.name == src_col);
+impl<'a> Edge<'a> {
+    fn new(time_col: ListColumn<'a, Time>, idx: usize) -> Self {
+        Self { time_col, idx }
+    }
 
-    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    Ok(reader
-        .flatten()
-        .flat_map(|chunk| array_as_id_iter(&chunk[0]).unwrap()))
+    pub fn timestamps(&self) -> &[Time] {
+        &self.time_col[self.idx]
+    }
+
+    pub fn timestamps_row(&self) -> RowOwned<Time> {
+        RowOwned::new(self.time_col.value(self.idx))
+    }
 }
 
 fn read_vertices_only<P: AsRef<Path>>(
@@ -812,7 +812,7 @@ mod test {
 
     #[test]
     fn load_from_parquet() {
-        let mut file_path: PathBuf = [
+        let file_path: PathBuf = [
             env!("CARGO_MANIFEST_DIR"),
             "resources",
             "test",
@@ -927,8 +927,8 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
-            100,
-            100,
+            4,
+            2,
             GlobalMap::from(1u64..=7u64),
             vec![chunk],
         )
@@ -955,6 +955,12 @@ mod test {
             (EID(11), VID(3), VID(6)),
         ];
         assert_eq!(actual, expected);
+
+        let e0 = graph.edge(0.into());
+        assert_eq!(e0.timestamps(), &[0i64]);
+
+        let e5 = graph.edge(5.into());
+        assert_eq!(e5.timestamps(), &[4i64]);
     }
 
     #[test]

@@ -241,12 +241,6 @@ impl EdgeFrameBuilder {
         into_col: &mut Box<dyn MutableArray>,
         from_col: &Box<dyn Array>,
     ) -> Option<()> {
-        println!(
-            "Extending primitive arrays {:?} {:?}",
-            into_col.data_type(),
-            from_col.data_type()
-        );
-
         let into_col = into_col
             .as_mut_any()
             .downcast_mut::<MutablePrimitiveArray<T>>()?;
@@ -257,15 +251,12 @@ impl EdgeFrameBuilder {
         if into_col.validity().is_none() && from_col.validity().is_none() {
             let values = from_col.values();
             into_col.extend_from_slice(values);
-
-            println!("Extended primitive {} values", values.len());
         } else {
             let mut count = 0usize;
             for val in from_col.into_iter() {
                 into_col.push(val.copied());
                 count += 1;
             }
-            println!("Extended primitive {} values", count);
         }
         Some(())
     }
@@ -274,12 +265,6 @@ impl EdgeFrameBuilder {
         into_col: &mut Box<dyn MutableArray>,
         from_col: &Box<dyn Array>,
     ) -> Option<()> {
-        println!(
-            "Extending UTF8 arrays {:?} {:?}",
-            into_col.data_type(),
-            from_col.data_type()
-        );
-
         let into_col = into_col
             .as_mut_any()
             .downcast_mut::<MutableUtf8Array<I>>()?;
@@ -293,8 +278,6 @@ impl EdgeFrameBuilder {
                     into_col.push(val);
                     count += 1;
                 }
-
-                println!("Extended UTF8 {} values", count);
             }
             DataType::Utf8 => {
                 let arr = from_col.as_any().downcast_ref::<Utf8Array<i32>>()?;
@@ -304,8 +287,6 @@ impl EdgeFrameBuilder {
                     into_col.push(val);
                     count += 1;
                 }
-
-                println!("Extended UTF8 {} values", count);
             }
             _ => {
                 println!("Skipping data type {:?}", from_col.data_type());

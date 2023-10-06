@@ -48,9 +48,14 @@ impl VertexChunk {
     }
 }
 
-pub(crate) struct RowOwned<T>(Buffer<T>);
+pub struct RowOwned<T>(Buffer<T>);
 
 impl<T: NativeType> RowOwned<T> {
+
+    pub fn new(row: Buffer<T>) -> Self {
+        RowOwned(row)
+    }
+
     pub(crate) fn into_iter(self) -> impl Iterator<Item = T> {
         self.0.into_iter()
     }

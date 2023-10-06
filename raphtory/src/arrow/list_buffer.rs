@@ -4,9 +4,9 @@ use arrow2::{
     offset::OffsetsBuffer,
     types::NativeType,
 };
-use itertools::Itertools;
 use std::ops::Index;
 
+#[derive(Debug, Clone, Copy)]
 pub struct ListColumn<'a, T> {
     values: &'a Buffer<T>,
     offsets: &'a OffsetsBuffer<i64>,
