@@ -20,8 +20,13 @@ pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
 #[enum_dispatch]
 pub trait EdgeFilterOps {
     /// Return the optional edge filter for the graph
-
     fn edge_filter(&self) -> Option<&EdgeFilter>;
+
+    /// Called by the windowed graph to get the edge filter (override if it should include more/different edges than a non-windowed graph)
+    #[inline]
+    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
+        self.edge_filter()
+    }
 }
 
 pub trait InheritEdgeFilterOps: Base {}

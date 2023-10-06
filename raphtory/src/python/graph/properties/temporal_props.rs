@@ -9,7 +9,10 @@ use crate::{
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterators::{NestedUsizeIterable, PropIterable, UsizeIterable},
+                iterators::{
+                    I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
+                    UsizeIterable,
+                },
                 prop::{PropHistItems, PropValue},
             },
         },
@@ -247,32 +250,56 @@ impl PyTemporalProp {
         self.prop.latest()
     }
 
+    /// Compute the sum of all property values.
+    ///
+    /// Returns:
+    ///     Prop: The sum of all property values.
     pub fn sum(&self) -> Prop {
         let mut it_iter = self.prop.iter();
         let first = it_iter.next().unwrap();
         it_iter.fold(first.1, |acc, elem| acc.add(elem.1).unwrap())
     }
 
+    /// Find the minimum property value and its associated time.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the minimum property value.
     pub fn min(&self) -> (i64, Prop) {
         let mut it_iter = self.prop.iter();
         let first = it_iter.next().unwrap();
         it_iter.fold(first, |acc, elem| if acc.1 <= elem.1 { acc } else { elem })
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the maximum property value.
     pub fn max(&self) -> (i64, Prop) {
         let mut it_iter = self.prop.iter();
         let first = it_iter.next().unwrap();
         it_iter.fold(first, |acc, elem| if acc.1 >= elem.1 { acc } else { elem })
     }
 
+    /// Count the number of properties.
+    ///
+    /// Returns:
+    ///     int: The number of properties.
     pub fn count(&self) -> usize {
         self.prop.iter().count()
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     Prop: The average of each property values, or None if count is zero.
     pub fn average(&self) -> Option<Prop> {
         self.mean()
     }
 
+    /// Compute the mean of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     Prop: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> Option<Prop> {
         let sum: Prop = self.sum();
         let count: usize = self.count();
@@ -292,6 +319,10 @@ impl PyTemporalProp {
         }
     }
 
+    /// Compute the median of all property values.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
     pub fn median(&self) -> Option<(i64, Prop)> {
         let it_iter = self.prop.iter();
         let mut vec: Vec<(i64, Prop)> = it_iter.collect_vec();
@@ -545,7 +576,7 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropList {
     #[getter]
-    pub fn history(&self) -> PyPropHistList {
+    pub fn history(&self) -> I64VecIterable {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
     }
@@ -725,7 +756,7 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropListList {
     #[getter]
-    pub fn history(&self) -> PyPropHistListList {
+    pub fn history(&self) -> NestedI64VecIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
     }
@@ -1243,11 +1274,6 @@ impl PyPropValueListList {
         (move || builder().map(|it| it.filter(|x| x.is_some()))).into()
     }
 }
-
-py_iterable!(PyPropHistList, Vec<i64>);
-py_iterable_comp!(PyPropHistList, Vec<i64>, PyPropHistListCmp);
-py_nested_iterable!(PyPropHistListList, Vec<i64>);
-py_iterable_comp!(PyPropHistListList, PyPropHistListCmp, PyPropHistListListCmp);
 
 py_iterable!(PyPropHistValueList, Vec<Prop>);
 py_iterable_comp!(PyPropHistValueList, Vec<Prop>, PyPropHistValueListCmp);

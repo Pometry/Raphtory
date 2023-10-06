@@ -1,7 +1,7 @@
 use crate::common::bench;
 use criterion::{criterion_group, criterion_main, Criterion};
 use raphtory::{
-    algorithms::{
+    algorithms::metrics::{
         local_clustering_coefficient::local_clustering_coefficient,
         local_triangle_count::local_triangle_count,
     },

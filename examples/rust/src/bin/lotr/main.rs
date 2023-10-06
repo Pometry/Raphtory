@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use raphtory::{
-    algorithms::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
+    algorithms::pathing::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
     graph_loader::source::csv_loader::CsvLoader, prelude::*,
 };
 use serde::Deserialize;

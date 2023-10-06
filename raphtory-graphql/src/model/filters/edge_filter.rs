@@ -10,6 +10,7 @@ use raphtory::db::api::view::{EdgeViewOps, VertexViewOps};
 
 #[derive(InputObject, Clone)]
 pub struct EdgeFilter {
+    node_ids: Option<StringVecFilter>,
     node_names: Option<StringVecFilter>,
     src: Option<StringFilter>,
     dst: Option<StringFilter>,
@@ -19,6 +20,14 @@ pub struct EdgeFilter {
 
 impl EdgeFilter {
     pub(crate) fn matches(&self, edge: &Edge) -> bool {
+        if let Some(ids_filter) = &self.node_ids {
+            let src = edge.ee.src().id();
+            let dst = edge.ee.dst().id();
+            if !ids_filter.contains(&src.to_string()) || !ids_filter.contains(&dst.to_string()) {
+                return false;
+            }
+        }
+
         if let Some(names_filter) = &self.node_names {
             let src = edge.ee.src().name();
             let dst = edge.ee.dst().name();

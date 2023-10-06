@@ -282,18 +282,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
         self.path.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
-        let t_start = t_start.into_time();
-        let t_end = t_end.into_time();
-        let edge_filter = edge_filter(self.g, t_start, t_end).map(Rc::new);
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        let start = start.into_time();
+        let end = end.into_time();
+        let edge_filter = edge_filter(self.g, start, end).map(Rc::new);
         WindowEvalPathFromVertex::new(
             self.path.clone(),
             self.ss,
             self.g,
             self.vertex_state.clone(),
             self.local_state_prev,
-            t_start,
-            t_end,
+            start,
+            end,
             edge_filter,
         )
     }
@@ -379,10 +379,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
-        let t_start = t_start.into_time();
-        let t_end = t_end.into_time();
-        let edge_filter = edge_filter(self.graph, t_start, t_end).map(Rc::new);
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        let start = start.into_time();
+        let end = end.into_time();
+        let edge_filter = edge_filter(self.graph, start, end).map(Rc::new);
         WindowEvalVertex::new(
             self.ss,
             self.vertex,
@@ -390,8 +390,8 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
             None,
             self.local_state_prev,
             self.vertex_state.clone(),
-            t_start,
-            t_end,
+            start,
+            end,
             edge_filter,
         )
     }
@@ -612,10 +612,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
 
     fn window(
         self,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
-        Box::new(self.map(move |v| v.window(t_start, t_end)))
+        Box::new(self.map(move |v| v.window(start, end)))
     }
 
     fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {

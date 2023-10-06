@@ -3,7 +3,7 @@ use raphtory::{
     core::Prop,
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::VectorizedGraph,
+    vectors::vectorized_graph::VectorizedGraph,
 };
 use std::{
     collections::{HashMap, HashSet},

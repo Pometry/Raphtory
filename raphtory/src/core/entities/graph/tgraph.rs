@@ -132,12 +132,7 @@ impl<const N: usize> TemporalGraph<N> {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(self.edge_meta.layer_meta().get_keys().into_iter()),
             LayerIds::One(id) => {
-                let name = self
-                    .edge_meta
-                    .layer_meta()
-                    .get_name(id)
-                    .expect("name for id should always exist")
-                    .clone();
+                let name = self.edge_meta.layer_meta().get_name(id).clone();
                 Box::new(iter::once(name))
             }
             LayerIds::Multiple(ids) => {
@@ -208,11 +203,8 @@ impl<const N: usize> TemporalGraph<N> {
         }
     }
 
-    pub(crate) fn get_layer_name(&self, layer: usize) -> String {
-        self.edge_meta
-            .get_layer_name_by_id(layer)
-            .unwrap_or_else(|| panic!("layer id '{layer}' doesn't exist"))
-            .to_string()
+    pub(crate) fn get_layer_name(&self, layer: usize) -> ArcStr {
+        self.edge_meta.get_layer_name_by_id(layer)
     }
 
     pub(crate) fn graph_earliest_time(&self) -> Option<i64> {
@@ -263,32 +255,6 @@ impl<const N: usize> TemporalGraph<N> {
     #[inline]
     pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
         self.storage.get_edge(e.into())
-    }
-
-    pub(crate) fn vertex_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
-        self.vertex_meta.get_prop_name(prop_id, is_static)
-    }
-
-    pub(crate) fn edge_temp_prop_ids(&self, e: EID) -> Vec<usize> {
-        let edge = self.storage.get_edge(e.into());
-        edge.temp_prop_ids(None)
-    }
-
-    pub(crate) fn vertex_temp_prop_ids(&self, e: VID) -> Vec<usize> {
-        let edge = self.storage.get_node(e.into());
-        edge.temp_prop_ids()
-    }
-
-    pub(crate) fn edge_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.edge_meta.get_prop_id(prop, is_static)
-    }
-
-    pub(crate) fn vertex_find_prop(&self, prop: &str, is_static: bool) -> Option<usize> {
-        self.vertex_meta.get_prop_id(prop, is_static)
-    }
-
-    pub(crate) fn edge_reverse_prop_id(&self, prop_id: usize, is_static: bool) -> Option<ArcStr> {
-        self.edge_meta.get_prop_name(prop_id, is_static)
     }
 }
 
@@ -388,10 +354,7 @@ impl<const N: usize> TemporalGraph<N> {
         let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
             layer.add_constant_prop(prop_id, prop).map_err(|err| {
-                IllegalMutate::from_source(
-                    err,
-                    &self.edge_meta.get_prop_name(prop_id, true).unwrap(),
-                )
+                IllegalMutate::from_source(err, &self.edge_meta.get_prop_name(prop_id, true))
             })?;
         }
         Ok(())
@@ -407,6 +370,16 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(())
     }
 
+    pub(crate) fn update_constant_properties(
+        &self,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        for (id, prop) in props {
+            self.graph_props.update_constant_prop(id, prop)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn add_properties(
         &self,
         t: TimeIndexEntry,
@@ -418,15 +391,15 @@ impl<const N: usize> TemporalGraph<N> {
         Ok(())
     }
 
-    pub(crate) fn get_constant_prop(&self, name: &str) -> Option<Prop> {
-        self.graph_props.get_constant(name)
+    pub(crate) fn get_constant_prop(&self, id: usize) -> Option<Prop> {
+        self.graph_props.get_constant(id)
     }
 
-    pub(crate) fn get_temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
-        self.graph_props.get_temporal(name)
+    pub(crate) fn get_temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
+        self.graph_props.get_temporal_prop(id)
     }
 
-    pub(crate) fn constant_property_names(&self) -> ArcReadLockedVec<ArcStr> {
+    pub(crate) fn const_prop_names(&self) -> ArcReadLockedVec<ArcStr> {
         self.graph_props.constant_names()
     }
 

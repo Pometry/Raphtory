@@ -86,7 +86,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Returns the number of edges of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of the number of edges of the vertices
     fn degree(&self) -> Self::ValueType<usize> {
@@ -95,7 +95,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Returns the number of in edges of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of the number of in edges of the vertices
     fn in_degree(&self) -> Self::ValueType<usize> {
@@ -104,7 +104,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Returns the number of out edges of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of the number of out edges of the vertices
     fn out_degree(&self) -> Self::ValueType<usize> {
@@ -113,7 +113,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Returns the edges of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of edges of the vertices
     fn edges(&self) -> Self::EList {
@@ -122,7 +122,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Returns the in edges of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of in edges of the vertices
     fn in_edges(&self) -> Self::EList {
@@ -131,7 +131,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Returns the out edges of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of out edges of the vertices
     fn out_edges(&self) -> Self::EList {
@@ -140,7 +140,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Get the neighbours of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of the neighbours of the vertices
     fn neighbours(&self) -> PathFromGraph<G> {
@@ -150,7 +150,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Get the in neighbours of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of the in neighbours of the vertices
     fn in_neighbours(&self) -> PathFromGraph<G> {
@@ -160,7 +160,7 @@ impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
 
     /// Get the out neighbours of the vertices
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// An iterator of the out neighbours of the vertices
     fn out_neighbours(&self) -> PathFromGraph<G> {
@@ -180,9 +180,9 @@ impl<G: GraphViewOps> TimeOps for Vertices<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         Vertices {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
         }
     }
 }
@@ -192,7 +192,7 @@ impl<G: GraphViewOps> LayerOps for Vertices<G> {
 
     /// Create a view including all the vertices in the default layer
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A view including all the vertices in the default layer
     fn default_layer(&self) -> Self::LayeredViewType {
@@ -207,7 +207,7 @@ impl<G: GraphViewOps> LayerOps for Vertices<G> {
     ///
     /// * `name` - The name of the layer
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A view including all the vertices in the given layer
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {

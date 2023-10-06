@@ -23,7 +23,11 @@ impl InputVertex for u64 {
 
 impl<'a> InputVertex for &'a str {
     fn id(&self) -> u64 {
-        self.parse().unwrap_or(hashing::calculate_hash(self))
+        if &self.chars().next().unwrap_or('0') != &'0' {
+            self.parse().unwrap_or(hashing::calculate_hash(self))
+        } else {
+            hashing::calculate_hash(self)
+        }
     }
 
     fn id_str(&self) -> Option<&str> {

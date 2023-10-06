@@ -42,13 +42,10 @@ impl<'a, const N: usize> Vertex<'a, N> {
 
     pub fn temporal_properties(
         &'a self,
-        name: &str,
+        prop_id: usize,
         window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
-        let prop_id = self.graph.vertex_meta.get_prop_id(name, false);
-        prop_id
-            .into_iter()
-            .flat_map(move |prop_id| self.node.temporal_properties(prop_id, window.clone()))
+        self.node.temporal_properties(prop_id, window)
     }
 
     pub fn neighbours<'b>(

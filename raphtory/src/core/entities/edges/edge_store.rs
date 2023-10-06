@@ -1,16 +1,19 @@
-use crate::core::{
-    entities::{
-        edges::edge_ref::EdgeRef,
-        properties::{props::Props, tprop::TProp},
-        LayerIds, EID, VID,
+use crate::{
+    core::{
+        entities::{
+            edges::edge_ref::EdgeRef,
+            properties::{props::Props, tprop::TProp},
+            LayerIds, EID, VID,
+        },
+        storage::{
+            lazy_vec::IllegalSet,
+            locked_view::LockedView,
+            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+        },
+        utils::errors::{GraphError, MutateGraphError},
+        Prop,
     },
-    storage::{
-        lazy_vec::IllegalSet,
-        locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexEntry},
-    },
-    utils::errors::{GraphError, MutateGraphError},
-    Prop,
+    prelude::TimeOps,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -56,15 +59,20 @@ impl EdgeLayer {
         props.add_constant_prop(prop_id, prop)
     }
 
-    pub(crate) fn static_prop_ids(&self) -> Vec<usize> {
-        self.props
-            .as_ref()
-            .map(|props| props.static_prop_ids())
-            .unwrap_or_default()
+    pub fn update_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), GraphError> {
+        let props = self.props.get_or_insert_with(Props::new);
+        props.update_constant_prop(prop_id, prop)
     }
 
-    pub(crate) fn static_property(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps| ps.static_prop(prop_id))
+    pub(crate) fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
+        self.props
+            .as_ref()
+            .into_iter()
+            .flat_map(|props| props.const_prop_ids())
+    }
+
+    pub(crate) fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
+        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
     }
 
     pub(crate) fn temporal_property(&self, prop_id: usize) -> Option<&TProp> {
@@ -245,7 +253,54 @@ impl EdgeStore {
         }
     }
 
-    pub fn has_temporal_prop(&self, layer_ids: LayerIds, prop_id: usize) -> bool {
+    pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => self.deletions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::One(id) => self.deletions.get(*id).and_then(|t| t.last()),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.deletions.get(*id).and_then(|t| t.last()))
+                .max(),
+        }
+    }
+
+    pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => self.additions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::One(id) => self.additions.get(*id).and_then(|t| t.last()),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.additions.get(*id).and_then(|t| t.last()))
+                .max(),
+        }
+    }
+
+    pub fn last_deletion_before(&self, layer_ids: &LayerIds, t: i64) -> Option<TimeIndexEntry> {
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => self
+                .deletions()
+                .iter()
+                .flat_map(|dels| dels.range(i64::MIN..t).last().copied())
+                .max(),
+            LayerIds::One(id) => {
+                let layer = self.deletions.get(*id)?;
+                layer.range(i64::MIN..t).last().copied()
+            }
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| {
+                    self.deletions
+                        .get(*id)
+                        .and_then(|t_index| t_index.range(i64::MIN..t).last().copied())
+                })
+                .max(),
+        }
+    }
+
+    pub fn has_temporal_prop(&self, layer_ids: &LayerIds, prop_id: usize) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.layer_ids_iter().any(|id| {
@@ -254,12 +309,49 @@ impl EdgeStore {
                     .is_some()
             }),
             LayerIds::One(id) => self
-                .layer(id)
+                .layer(*id)
                 .and_then(|layer| layer.temporal_property(prop_id))
                 .is_some(),
             LayerIds::Multiple(ids) => ids.iter().any(|id| {
                 self.layer(*id)
                     .and_then(|layer| layer.temporal_property(prop_id))
+                    .is_some()
+            }),
+        }
+    }
+
+    pub fn has_temporal_prop_window(
+        &self,
+        layer_ids: LayerIds,
+        prop_id: usize,
+        w: Range<i64>,
+    ) -> bool {
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => self.layer_ids_iter().any(|id| {
+                self.layer(id)
+                    .and_then(|layer| {
+                        layer
+                            .temporal_property(prop_id)
+                            .filter(|p| p.iter_window_t(w.clone()).next().is_some())
+                    })
+                    .is_some()
+            }),
+            LayerIds::One(id) => self
+                .layer(id)
+                .and_then(|layer| {
+                    layer
+                        .temporal_property(prop_id)
+                        .filter(|p| p.iter_window_t(w.clone()).next().is_some())
+                })
+                .is_some(),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| {
+                self.layer(*id)
+                    .and_then(|layer| {
+                        layer
+                            .temporal_property(prop_id)
+                            .filter(|p| p.iter_window_t(w.clone()).next().is_some())
+                    })
                     .is_some()
             }),
         }
@@ -314,29 +406,25 @@ impl EdgeStore {
         }
     }
 
-    pub(crate) fn temp_prop_ids(&self, layer_id: Option<usize>) -> Vec<usize> {
+    pub(crate) fn temp_prop_ids(
+        &self,
+        layer_id: Option<usize>,
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
         if let Some(layer_id) = layer_id {
-            self.layers
-                .get(layer_id)
-                .map(|layer| {
-                    layer
-                        .props()
-                        .map(|props| props.temporal_prop_ids())
-                        .unwrap_or_default()
-                })
-                .unwrap_or_default()
+            Box::new(self.layers.get(layer_id).into_iter().flat_map(|layer| {
+                layer
+                    .props()
+                    .into_iter()
+                    .flat_map(|props| props.temporal_prop_ids())
+            }))
         } else {
-            self.layers
-                .iter()
-                .map(|layer| {
-                    layer
-                        .props()
-                        .map(|prop| prop.temporal_prop_ids())
-                        .unwrap_or_default()
-                })
-                .kmerge()
-                .dedup()
-                .collect()
+            Box::new(
+                self.layers
+                    .iter()
+                    .flat_map(|layer| layer.props().map(|prop| prop.temporal_prop_ids()))
+                    .kmerge()
+                    .dedup(),
+            )
         }
     }
 }

@@ -137,7 +137,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
             for task in tasks.iter() {
                 let atomic_done = AtomicBool::new(true);
-
+                let morcel_size = if morcel_size == 0 { 1 } else { morcel_size };
                 let updated_state: Option<(Shard<CS>, Global<CS>)> = match task {
                     Job::Write(task) => local_state
                         .par_chunks_mut(morcel_size)
@@ -227,7 +227,11 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let num_vertices = self.ctx.graph().unfiltered_num_vertices();
         let morcel_size = num_vertices.min(16_000);
-        let num_chunks = (num_vertices + morcel_size - 1) / morcel_size;
+        let num_chunks = if morcel_size == 0 {
+            1
+        } else {
+            (num_vertices + morcel_size - 1) / morcel_size
+        };
 
         let mut shard_state = shard_initial_state
             .unwrap_or_else(|| Shard::new(num_vertices, num_chunks, morcel_size));

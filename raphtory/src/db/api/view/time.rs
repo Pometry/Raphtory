@@ -18,8 +18,8 @@ pub trait TimeOps {
         }
     }
 
-    /// Create a view including all events between `t_start` (inclusive) and `t_end` (exclusive)
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType;
+    /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType;
 
     /// Create a view including all events until `end` (inclusive)
     fn at<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {

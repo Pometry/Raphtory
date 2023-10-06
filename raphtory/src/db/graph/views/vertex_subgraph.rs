@@ -7,7 +7,7 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
             Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritMaterialize, InheritTimeSemantics,
+            InheritMaterialize, InheritTimeSemantics, Static,
         },
     },
     prelude::GraphViewOps,
@@ -26,6 +26,8 @@ pub struct VertexSubgraph<G: GraphViewOps> {
     vertices: Arc<FxHashSet<VID>>,
     edge_filter: EdgeFilter,
 }
+
+impl<G: GraphViewOps> Static for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps + Debug> Debug for VertexSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -199,7 +201,7 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
 
 #[cfg(test)]
 mod subgraph_tests {
-    use crate::{algorithms::triangle_count::triangle_count, prelude::*};
+    use crate::{algorithms::motifs::triangle_count::triangle_count, prelude::*};
 
     #[test]
     fn test_materialize_no_edges() {
