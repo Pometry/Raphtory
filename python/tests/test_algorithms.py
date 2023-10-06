@@ -43,8 +43,8 @@ def test_single_source_shortest_path():
     g.add_edge(0, 3, 4, {})
     g.add_edge(0, 1, 4, {})
     g.add_edge(0, 2, 4, {})
-    res_one = single_source_shortest_path(g, 1, 1)
-    res_two = single_source_shortest_path(g, 1, 2)
+    res_one = single_source_shortest_path(g, 1, 1,"weight")
+    res_two = single_source_shortest_path(g, 1, 2,"weight")
     assert res_one.get_all() == {"1": ["1"], "2": ["1", "2"], "4": ["1", "4"]}
     assert (
         res_two.get_all()
@@ -58,6 +58,7 @@ def test_single_source_shortest_path():
 def test_dijsktra_shortest_paths():
     from raphtory import Graph
     from raphtory.algorithms import dijkstra_single_source_shortest_paths
+    from raphtory import PyDirection
     g = Graph()
     g.add_edge(0, "A", "B", {"weight": 4.0})
     g.add_edge(1, "A", "C", {"weight": 4.0})
@@ -67,8 +68,8 @@ def test_dijsktra_shortest_paths():
     g.add_edge(5, "C", "F", {"weight": 6.0})
     g.add_edge(6, "D", "F", {"weight": 2.0})
     g.add_edge(7, "E", "F", {"weight": 3.0})
-    res_one = dijkstra_single_source_shortest_paths(g, "A", ["F"])
-    res_two = dijkstra_single_source_shortest_paths(g, "B", ["D", "E", "F"])
+    res_one = dijkstra_single_source_shortest_paths(g, "A", ["F"],"weight")
+    res_two = dijkstra_single_source_shortest_paths(g, "B", ["D", "E", "F"],"weight")
     assert res_one.get("F")[0] == 8.0
     assert res_one.get("F")[1] == ["A", "C", "E", "F"]
     assert res_two.get("D")[0] == 5.0
@@ -84,4 +85,23 @@ def test_dijsktra_shortest_paths():
         dijkstra_single_source_shortest_paths(g, "A", ["F"], weight="NO")
     assert "Weight property not found on edges" in str(excinfo.value)
 
-    
+
+    #in/both test
+    res_one = dijkstra_single_source_shortest_paths(g, "E", ["A", "B","D"],weight="weight",direction=PyDirection("IN"))
+    res_two = dijkstra_single_source_shortest_paths(g, "E", ["A", "B","D"],weight="weight",direction=PyDirection("BOTH"))
+    assert res_one.get("A")[0] == 5
+    assert res_one.get("A")[1] == ["E", "C", "A"]
+    assert res_one.get("B")[0] == 3
+    assert res_one.get("B")[1] == ["E", "C", "B"]
+    assert res_one.get("D") is None
+    assert res_two.get("A")[0] == 5
+    assert res_two.get("A")[1] == ["E", "C", "A"]
+    assert res_two.get("B")[0] == 3
+    assert res_two.get("B")[1] == ["E", "C", "B"]
+    assert res_two.get("D")[0] == 4
+    assert res_two.get("D")[1] == ["E", "C", "D"]
+
+    #unweighted
+    res = dijkstra_single_source_shortest_paths(g, "A", ["F"], direction=PyDirection("BOTH"))
+    assert res.get("F")[0] == 2
+    assert res.get("F")[1] == ["A", "C", "F"]
