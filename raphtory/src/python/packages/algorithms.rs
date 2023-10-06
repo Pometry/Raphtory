@@ -8,9 +8,11 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        centrality::degree_centrality::degree_centrality as degree_centrality_rs,
-        centrality::hits::hits as hits_rs,
-        centrality::pagerank::unweighted_page_rank,
+        centrality::{
+            betweenness::betweenness_centrality as betweenness_rs,
+            degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
+            pagerank::unweighted_page_rank,
+        },
         community_detection::connected_components,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
@@ -484,4 +486,24 @@ pub fn single_source_shortest_path(
     cutoff: Option<usize>,
 ) -> AlgorithmResult<String, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
+}
+
+/// Computes the betweenness centrality for nodes in a given graph.
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph.
+///     k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
+///     normalized (boolean, optional): Indicates whether to normalize the centrality values.
+///
+/// # Returns
+///
+/// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+#[pyfunction]
+#[pyo3[signature = (g, k=None, normalized=true)]]
+pub fn betweenness_centrality(
+    g: &PyGraphView,
+    k: Option<usize>,
+    normalized: Option<bool>,
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+    betweenness_rs(&g.graph, k, normalized)
 }

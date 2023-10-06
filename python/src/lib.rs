@@ -68,6 +68,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     add_functions!(
         algorithm_module,
         global_reciprocity,
+        betweenness_centrality,
         all_local_reciprocity,
         triplet_count,
         local_triangle_count,

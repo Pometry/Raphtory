@@ -37,3 +37,32 @@ def test_single_source_shortest_path():
     assert res_one.get_all() == {'1': ['1'], '2': ['1', '2'], '4': ['1', '4']}
     assert (res_two.get_all() == {'1': ['1'], '2': ['1', '2'], '3': ['1', '2', '3'], '4': ['1', '4']}) or \
            (res_two.get_all() == {'1': ['1'], '3': ['1', '4', '3'], '2': ['1', '2'], '4': ['1', '4']})
+
+
+def test_betweenness_centrality():
+    from raphtory import Graph
+    from raphtory.algorithms import betweenness_centrality
+    g = Graph()
+    edges = [
+        (0, 1),
+        (0, 2),
+        (0, 3),
+        (1, 2),
+        (1, 3),
+        (1, 4),
+        (2, 3),
+        (2, 4),
+        (2, 5),
+        (3, 2),
+        (3, 1),
+        (3, 3)
+    ]
+    for e in edges:
+        g.add_edge(0, e[0], e[1], {})
+
+    res = betweenness_centrality(g, normalized=False)
+    assert res.get_all() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
+
+    res = betweenness_centrality(g, normalized=True)
+    assert res.get_all() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}
+
