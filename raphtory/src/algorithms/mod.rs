@@ -27,6 +27,7 @@
 //! ```
 
 pub mod algorithm_result;
+pub mod algorithm_result_new;
 pub mod centrality;
 pub mod community_detection;
 pub mod cores;
