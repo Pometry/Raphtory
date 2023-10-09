@@ -1,13 +1,13 @@
 use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::api::view::internal::Base,
+    db::api::view::internal::{core_views::edge::CoreEdgeView, Base},
 };
 use enum_dispatch::enum_dispatch;
 use std::sync::Arc;
 
 pub fn extend_filter(
     old: Option<EdgeFilter>,
-    filter: impl Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync + 'static,
+    filter: impl Fn(&CoreEdgeView, &LayerIds) -> bool + Send + Sync + 'static,
 ) -> EdgeFilter {
     match old {
         Some(f) => Arc::new(move |e, l| f(e, l) && filter(e, l)),
@@ -15,7 +15,7 @@ pub fn extend_filter(
     }
 }
 
-pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
+pub type EdgeFilter = Arc<dyn Fn(&CoreEdgeView, &LayerIds) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {

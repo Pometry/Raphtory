@@ -8,7 +8,10 @@ use crate::{
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, TimeSemantics},
+        internal::{
+            core_views::edge::{CoreEdgeOps, CoreEdgeView},
+            CoreGraphOps, EdgeFilter, TimeSemantics,
+        },
         BoxedIter,
     },
     prelude::Prop,
@@ -92,20 +95,16 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        e.active(layer_ids, w)
+    fn include_edge_window(&self, e: &CoreEdgeView, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+        e.additions(layer_ids).active(w)
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.vertex_additions(v).iter_t().copied().collect()
+        self.vertex_additions(v).iter_t().collect()
     }
 
     fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.vertex_additions(v)
-            .range(w)
-            .iter_t()
-            .copied()
-            .collect()
+        self.vertex_additions(v).range(w).iter_t().collect()
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
@@ -169,7 +168,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids).first_t())
+            .or_else(|| self.core_edge(e.pid()).additions(&layer_ids).first_t())
     }
 
     fn edge_earliest_time_window(
@@ -178,13 +177,17 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids).range(w).first_t())
+        e.time_t().or_else(|| {
+            self.core_edge(e.pid())
+                .additions(&layer_ids)
+                .range(w)
+                .first_t()
+        })
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids).last_t())
+            .or_else(|| self.core_edge(e.pid()).additions(&layer_ids).last_t())
     }
 
     fn edge_latest_time_window(
@@ -193,14 +196,18 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids).range(w).last_t())
+        e.time_t().or_else(|| {
+            self.core_edge(e.pid())
+                .additions(&layer_ids)
+                .range(w)
+                .last_t()
+        })
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids)
+        self.core_edge(e.pid())
+            .deletions(&layer_ids)
             .iter_t()
-            .copied()
             .collect()
     }
 
@@ -210,10 +217,10 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids)
+        self.core_edge(e.pid())
+            .deletions(&layer_ids)
             .range(w)
             .iter_t()
-            .copied()
             .collect()
     }
 

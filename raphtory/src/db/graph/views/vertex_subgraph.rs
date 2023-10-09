@@ -6,8 +6,8 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritMaterialize, InheritTimeSemantics, Static,
+            core_views::edge::CoreEdgeOps, Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable,
+            InheritCoreOps, InheritLayerOps, InheritMaterialize, InheritTimeSemantics, Static,
         },
     },
     prelude::GraphViewOps,

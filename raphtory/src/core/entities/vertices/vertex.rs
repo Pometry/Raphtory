@@ -36,7 +36,7 @@ impl<'a, const N: usize> Vertex<'a, N> {
         Vertex { node, graph }
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, VertexStore, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, VertexStore>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
     }
 
@@ -138,7 +138,7 @@ impl ArcEdge {
             .filter_map(|(layer_id, t)| {
                 layer
                     .find(layer_id)
-                    .map(|l| t.iter().map(move |tt| (l, tt)))
+                    .map(|l| t.iter_ref().map(move |tt| (l, tt)))
             })
             .kmerge_by(|a, b| a.1 < b.1)
     }

@@ -53,8 +53,9 @@ use crate::{
         },
         view::{
             internal::{
-                Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritLayerOps, InheritMaterialize, IntoDynamic, Static, TimeSemantics,
+                core_views::edge::CoreEdgeView, Base, DynamicGraph, EdgeFilter, EdgeFilterOps,
+                GraphOps, Immutable, InheritCoreOps, InheritLayerOps, InheritMaterialize,
+                IntoDynamic, Static, TimeSemantics,
             },
             BoxedIter,
         },
@@ -228,7 +229,7 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(&self, e: &CoreEdgeView, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         self.graph.include_edge_window(
             e,
             self.actual_start(w.start)..self.actual_end(w.end),

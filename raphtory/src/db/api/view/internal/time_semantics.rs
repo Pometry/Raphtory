@@ -8,7 +8,10 @@ use crate::{
         Prop,
     },
     db::api::view::{
-        internal::{materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, GraphOps},
+        internal::{
+            core_views::edge::CoreEdgeView, materialize::MaterializedGraph, Base, CoreGraphOps,
+            EdgeFilter, GraphOps,
+        },
         BoxedIter,
     },
 };
@@ -69,20 +72,16 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool;
+    fn include_edge_window(&self, e: &CoreEdgeView, w: Range<i64>, layer_ids: &LayerIds) -> bool;
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
     fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.vertex_additions(v).iter_t().copied().collect()
+        self.vertex_additions(v).iter_t().collect()
     }
 
     /// Get the timestamps at which a vertex `v` is active in window `w` (i.e has an edge addition)
     fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.vertex_additions(v)
-            .range(w)
-            .iter_t()
-            .copied()
-            .collect()
+        self.vertex_additions(v).range(w).iter_t().collect()
     }
 
     /// Exploded edge iterator for edge `e`
@@ -380,7 +379,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(&self, e: &CoreEdgeView, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         self.graph().include_edge_window(e, w, layer_ids)
     }
 

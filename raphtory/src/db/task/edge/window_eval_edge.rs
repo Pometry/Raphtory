@@ -289,12 +289,11 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeViewOps
         match self.eref().time_t() {
             Some(tt) => tt <= t && t <= self.latest_time().unwrap_or(tt),
             None => {
-                let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-                let entry = self.graph().core_edge(self.eref().pid());
+                let g = self.graph();
+                let layer_ids = g.layer_ids().constrain_from_edge(self.eref());
+                let entry = g.core_edge(self.eref().pid());
                 (self.start..self.end).contains(&t)
-                    && self
-                        .graph()
-                        .include_edge_window(&entry, t..t.saturating_add(1), &layer_ids)
+                    && g.include_edge_window(&entry, t..t.saturating_add(1), &layer_ids)
             }
         }
     }

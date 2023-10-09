@@ -1,6 +1,6 @@
 use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::api::view::internal::Base,
+    db::api::view::internal::{core_views::edge::CoreEdgeView, Base},
     prelude::Layer,
 };
 use enum_dispatch::enum_dispatch;
@@ -14,7 +14,7 @@ pub trait InternalLayerOps {
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds;
 
     /// get the layer ids for the given edge id
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds;
+    fn edge_layer_ids(&self, e: &CoreEdgeView) -> LayerIds;
 }
 
 pub trait InheritLayerOps: Base {}
@@ -49,7 +49,7 @@ impl<G: DelegateLayerOps> InternalLayerOps for G {
     }
 
     #[inline]
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
+    fn edge_layer_ids(&self, e: &CoreEdgeView) -> LayerIds {
         self.graph().edge_layer_ids(e)
     }
 }

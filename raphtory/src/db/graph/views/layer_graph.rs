@@ -4,6 +4,7 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
+                core_views::edge::{CoreEdgeOps, CoreEdgeView},
                 Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
                 InheritMaterialize, InheritTimeSemantics, InternalLayerOps, Static,
             },
@@ -115,7 +116,7 @@ impl<G: GraphViewOps> InternalLayerOps for LayeredGraph<G> {
         self.constrain(self.graph.layer_ids_from_names(key))
     }
 
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
+    fn edge_layer_ids(&self, e: &CoreEdgeView) -> LayerIds {
         let layer_ids = self.graph.edge_layer_ids(e);
         self.constrain(layer_ids)
     }

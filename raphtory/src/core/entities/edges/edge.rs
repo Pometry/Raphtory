@@ -26,7 +26,7 @@ use std::{
 
 #[derive(Debug)]
 pub(crate) enum ERef<'a, const N: usize> {
-    ERef(Entry<'a, EdgeStore, N>),
+    ERef(Entry<'a, EdgeStore>),
     ELock {
         lock: Arc<LockedGraphStorage<N>>,
         eid: EID,
@@ -102,7 +102,7 @@ impl<'a, const N: usize> PartialOrd for EdgeView<'a, N> {
 impl<'a, const N: usize> EdgeView<'a, N> {
     pub(crate) fn additions(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
@@ -115,7 +115,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
 
     pub(crate) fn deletions(
         self,
-        layer_ids: LayerIds,
+        layer_ids: &'a LayerIds,
     ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
@@ -240,7 +240,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore>, graph: &'a TGraph<N>) -> Self {
         Self {
             src: entry.src().into(),
             dst: entry.dst().into(),

@@ -24,7 +24,10 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::*, BoxedIter},
+            view::{
+                internal::{core_views::edge::CoreEdgeView, *},
+                BoxedIter,
+            },
         },
         graph::{
             graph::{Graph, InternalGraph},

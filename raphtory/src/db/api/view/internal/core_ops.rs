@@ -17,9 +17,13 @@ use crate::{
         },
         ArcStr, Prop,
     },
-    db::api::view::{internal::Base, BoxedIter},
+    db::api::view::{
+        internal::{core_views::edge::CoreEdgeView, Base},
+        BoxedIter,
+    },
 };
 use enum_dispatch::enum_dispatch;
+use genawaiter::rc::Co;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
@@ -45,14 +49,6 @@ pub trait CoreGraphOps {
 
     /// Returns the string name for a vertex
     fn vertex_name(&self, v: VID) -> String;
-
-    /// Get all the addition timestamps for an edge
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry>;
 
     /// Get all the addition timestamps for a vertex
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -193,10 +189,7 @@ pub trait CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
-
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
-    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>>;
+    fn core_edge(&self, eid: EID) -> CoreEdgeView;
 
     fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore>;
 }
@@ -265,15 +258,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn vertex_name(&self, v: VID) -> String {
         self.graph().vertex_name(v)
-    }
-
-    #[inline]
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
-        self.graph().edge_additions(eref, layer_ids)
     }
 
     #[inline]
@@ -355,18 +339,8 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
-        self.graph().core_edges()
-    }
-
-    #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+    fn core_edge(&self, eid: EID) -> CoreEdgeView {
         self.graph().core_edge(eid)
-    }
-
-    #[inline]
-    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
-        self.graph().core_vertices()
     }
 
     #[inline]

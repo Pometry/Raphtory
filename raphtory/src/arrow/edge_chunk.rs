@@ -1,3 +1,4 @@
+use crate::arrow::E_DELETIONS_COLUMN;
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray},
     chunk::Chunk,
@@ -64,5 +65,9 @@ impl EdgeChunk {
             .downcast_ref::<ListArray<i64>>()
             .unwrap();
         ListColumn::new(time, 0).unwrap()
+    }
+
+    pub(crate) fn deletions(&self) -> ListColumn<Time> {
+        todo!("deletions not yet implemented")
     }
 }

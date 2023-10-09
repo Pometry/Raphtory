@@ -59,7 +59,7 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, VertexStore, N>), // returned from graph.vertex
+    Entry(Entry<'a, VertexStore>),           // returned from graph.vertex
     LockedEntry(GraphEntry<VertexStore, N>), // returned from locked_vertices
 }
 

@@ -8,10 +8,10 @@ use crate::{
         },
         Direction,
     },
-    db::api::view::internal::{EdgeFilter, GraphOps},
+    db::api::view::internal::{core_views::edge::CoreEdgeOps, CoreGraphOps, EdgeFilter, GraphOps},
 };
 use itertools::Itertools;
-use std::iter;
+use std::{iter, ops::Deref};
 
 impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     fn internal_vertex_ref(
@@ -39,7 +39,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         if e_id_usize >= self.inner().storage.edges.len() {
             return None;
         }
-        let e = self.inner().storage.edges.get(e_id_usize);
+        let e = self.core_edge(e_id);
         filter
             .map(|f| f(&e, layer_ids))
             .unwrap_or(true)
@@ -82,9 +82,9 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
     ) -> Option<EdgeRef> {
         self.inner()
             .find_edge(src, dst, layer)
-            .filter(|eid| {
+            .filter(|&eid| {
                 filter
-                    .map(|f| f(&self.inner().storage.edges.get((*eid).into()), layer))
+                    .map(|f| f(&self.core_edge(eid), layer))
                     .unwrap_or(true)
             })
             .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
@@ -105,7 +105,12 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                     .edges
                     .read_lock()
                     .into_iter()
-                    .filter(move |e| filter.as_ref().map(|f| f(e, &layers)).unwrap_or(true))
+                    .filter(move |e| {
+                        filter
+                            .as_ref()
+                            .map(|f| f(&e.deref().into(), &layers))
+                            .unwrap_or(true)
+                    })
                     .map_into();
                 Box::new(iter)
             }
@@ -116,9 +121,10 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                     .read_lock()
                     .into_iter()
                     .filter(move |edge| {
+                        let edge = edge.deref().into();
                         filter
                             .as_ref()
-                            .map(|f| f(edge, &layers))
+                            .map(|f| f(&edge, &layers))
                             .unwrap_or_else(|| edge.has_layer(&layers))
                     })
                     .map(|edge| edge.into()),
@@ -175,7 +181,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                     Some(filter) => {
                         let edge_store = self.inner().storage.edges.read_lock();
                         Box::new(iter.filter(move |eref| {
-                            filter(&edge_store.get(eref.pid().into()), &layers)
+                            filter(&edge_store.get(eref.pid().into()).into(), &layers)
                         }))
                     }
                 }
@@ -220,7 +226,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
                     Some(filter) => {
                         let edge_store = self.inner().storage.edges.read_lock();
                         Box::new(iter.filter(move |eref| {
-                            filter(&edge_store.get(eref.pid().into()), &layers)
+                            filter(&edge_store.get(eref.pid().into()).into(), &layers)
                         }))
                     }
                 }

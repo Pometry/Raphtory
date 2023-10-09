@@ -244,7 +244,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore, N> {
+    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, VertexStore> {
         self.storage.get_node(v.into())
     }
 
@@ -253,7 +253,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
+    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore> {
         self.storage.get_edge(e.into())
     }
 }
@@ -274,7 +274,10 @@ impl<const N: usize> TemporalGraph<N> {
             },
             Some(filter) => {
                 let guard = self.storage.edges.read_lock();
-                guard.par_iter().filter(|e| filter(e, layers)).count()
+                guard
+                    .par_iter()
+                    .filter(|&e| filter(&e.into(), layers))
+                    .count()
             }
         }
     }
@@ -294,7 +297,7 @@ impl<const N: usize> TemporalGraph<N> {
                 let edges_locked = self.storage.edges.read_lock();
                 node_store
                     .edge_tuples(layers, dir)
-                    .filter(|e| filter(edges_locked.get(e.pid().into()), layers))
+                    .filter(|e| filter(&edges_locked.get(e.pid().into()).into(), layers))
                     .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count()
             }

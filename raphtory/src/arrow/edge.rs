@@ -29,12 +29,16 @@ impl<'a> CoreArrowEdgeView<'a> {
         LayerIds::One(0)
     }
 
-    pub fn additions(&self) -> &[Time] {
+    pub fn additions_ref(&self) -> &[Time] {
         self.chunk.additions().into_value(self.offset)
     }
 
+    pub fn deletions_ref(&self) -> &[Time] {
+        self.chunk.deletions().into_value(self.offset)
+    }
+
     pub fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
-        let additions = self.additions();
+        let additions = self.additions_ref();
 
         match layer_ids {
             LayerIds::None => false,

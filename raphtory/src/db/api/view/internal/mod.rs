@@ -1,4 +1,3 @@
-mod core_deletion_ops;
 mod core_ops;
 mod edge_filter_ops;
 mod graph_ops;
@@ -9,13 +8,12 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
-mod core_views;
+pub mod core_views;
 
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
     prelude::GraphViewOps,
 };
-pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use graph_ops::*;
@@ -63,8 +61,6 @@ impl<
 }
 
 pub trait InheritViewOps: Base {}
-
-impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
 impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
