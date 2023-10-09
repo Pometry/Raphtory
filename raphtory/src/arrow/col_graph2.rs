@@ -22,7 +22,10 @@ use crate::{
 use arrow2::{
     array::{Array, ListArray, MutableUtf8Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
-    compute::sort::SortOptions,
+    compute::{
+        merge_sort,
+        sort::{self, SortColumn, SortOptions},
+    },
     datatypes::{Field, Schema},
     io::{
         ipc::write::{FileWriter, WriteOptions},
@@ -110,6 +113,7 @@ impl TempColGraphFragment {
         src_col: &str,
         dst_col: &str,
         time_col: &str,
+        projection: Option<Vec<&str>>,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         graph_dir: P2,
@@ -181,7 +185,13 @@ impl TempColGraphFragment {
 
         let chunks = triplets_parquet_files2
             .flat_map(|dir_entry| {
-                read_file_chunks(dir_entry.path(), src_col, dst_col, time_col, None)
+                read_file_chunks(
+                    dir_entry.path(),
+                    src_col,
+                    dst_col,
+                    time_col,
+                    projection.as_ref(),
+                )
             })
             .flatten();
 
@@ -657,10 +667,9 @@ fn sort_within_chunks<P: AsRef<Path>>(
 
 fn sort_dedup(rhs: &Box<dyn Array>, lhs: &Box<dyn Array>) -> Result<Box<dyn Array>, Error> {
     let options = SortOptions::default();
-    let rhs = arrow2::compute::sort::sort(rhs.as_ref(), &options, None)?;
-    let lhs = arrow2::compute::sort::sort(lhs.as_ref(), &options, None)?;
-    let merged =
-        arrow2::compute::merge_sort::merge_sort(lhs.as_ref(), rhs.as_ref(), &options, None)?;
+    let rhs = sort::sort(rhs.as_ref(), &options, None)?;
+    let lhs = sort::sort(lhs.as_ref(), &options, None)?;
+    let merged = merge_sort::merge_sort(lhs.as_ref(), rhs.as_ref(), &options, None)?;
 
     if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
         let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
@@ -685,12 +694,124 @@ fn sort_dedup(rhs: &Box<dyn Array>, lhs: &Box<dyn Array>) -> Result<Box<dyn Arra
     }
 }
 
+// sort by 2 columns
+fn sort_dedup_2(
+    hash_rhs: &Box<dyn Array>,
+    rhs: &Box<dyn Array>,
+    hash_lhs: &Box<dyn Array>,
+    lhs: &Box<dyn Array>,
+) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
+    let options = SortOptions::default();
+
+    let rhs_sorted = sort::lexsort::<i32>(
+        &vec![
+            SortColumn {
+                values: hash_rhs.as_ref(),
+                options: None,
+            },
+            SortColumn {
+                values: rhs.as_ref(),
+                options: None,
+            },
+        ],
+        None,
+    )?;
+
+    let lhs_sorted = sort::lexsort::<i32>(
+        &vec![
+            SortColumn {
+                values: hash_lhs.as_ref(),
+                options: None,
+            },
+            SortColumn {
+                values: lhs.as_ref(),
+                options: None,
+            },
+        ],
+        None,
+    )?;
+
+    let rhs_hash = rhs_sorted[0].as_ref();
+    let lhs_hash = lhs_sorted[0].as_ref();
+
+    let rhs_vertices = rhs_sorted[1].as_ref();
+    let lhs_vertices = lhs_sorted[1].as_ref();
+
+    let hashes = vec![rhs_hash.as_ref(), lhs_hash.as_ref()];
+    let vertices = vec![rhs_vertices.as_ref(), lhs_vertices.as_ref()];
+    let pairs = vec![(hashes.as_ref(), &options), (vertices.as_ref(), &options)];
+
+    let slices = merge_sort::slices(pairs.as_ref())?;
+
+    let new_hashes = merge_sort::take_arrays(&[rhs_hash, lhs_hash], slices.iter().copied(), None);
+    let merged =
+        merge_sort::take_arrays(&[rhs_vertices, lhs_vertices], slices.iter().copied(), None);
+
+    if let Some(hash_arr) = new_hashes.as_any().downcast_ref::<PrimitiveArray<i64>>() {
+        let mut deduped_hash: Vec<i64> = Vec::with_capacity(hash_arr.len());
+
+        if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
+            let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
+            for (h, v) in hash_arr
+                .into_iter()
+                .flatten()
+                .zip(arr.into_iter().flatten())
+                .dedup()
+            {
+                deduped_hash.push(*h);
+                deduped.push(*v);
+            }
+            let arr = PrimitiveArray::from_vec(deduped);
+            let next_hash = PrimitiveArray::from_vec(deduped_hash);
+            Ok((next_hash.boxed(), arr.to_boxed()))
+        } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i64>>() {
+            let mut deduped = MutableUtf8Array::<i64>::new();
+            for (h, v) in hash_arr
+                .into_iter()
+                .flatten()
+                .zip(arr.into_iter().flatten())
+                .dedup()
+            {
+                deduped_hash.push(*h);
+                deduped.push(Some(v));
+            }
+            let next_hash = PrimitiveArray::from_vec(deduped_hash);
+            let arr: Utf8Array<i64> = deduped.into();
+            Ok((next_hash.boxed(), arr.to_boxed()))
+        } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i32>>() {
+            let mut deduped = MutableUtf8Array::<i32>::new();
+            for (h, v) in hash_arr
+                .into_iter()
+                .flatten()
+                .zip(arr.into_iter().flatten())
+                .dedup()
+            {
+                deduped_hash.push(*h);
+                deduped.push(Some(v));
+            }
+            let next_hash = PrimitiveArray::from_vec(deduped_hash);
+            let arr: Utf8Array<i32> = deduped.into();
+            Ok((next_hash.boxed(), arr.to_boxed()))
+        } else {
+            Err(Error::InvalidTypeColumn(format!(
+                "src or dst column need to be u64 or string, found: {:?}",
+                merged.data_type()
+            )))
+        }
+    } else {
+        Err(Error::InvalidTypeColumn(format!(
+            "hash column need to be i64 found: {:?}",
+            new_hashes.data_type()
+        )))
+    }
+}
+
 fn read_file_chunks<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
     dst_col: &str,
     time_col: &str,
-    projection: Option<Vec<&str>>,
+    projection: Option<&Vec<&str>>,
 ) -> Result<impl Iterator<Item = LoadChunk>, Error> {
     println!("reading file: {:?}", parquet_file.as_ref());
 
@@ -709,6 +830,8 @@ fn read_file_chunks<P: AsRef<Path>>(
                 .filter(|proj| proj.contains(&field.name.as_str()))
                 .is_some()
     });
+
+    println!("schema fields: {:?}", schema.fields);
 
     let src_col_idx = schema
         .fields
@@ -843,6 +966,25 @@ mod test {
         let time = Field::new("time", DataType::Int64, false);
         let weight = Field::new("weight", DataType::Float64, true);
         Schema::from(vec![srcs, dsts, time, weight])
+    }
+
+    #[test]
+    fn sort_merge_dedup_2_cols() {
+        let rhs = PrimitiveArray::from_vec(vec![1u64, 2, 3, 4, 5, 6, 7, 8, 9, 10]).boxed();
+        let hash_rhs = PrimitiveArray::from_vec(vec![4i64, 5, 5, 6, 7, 7, 8, 8, 9, 11]).boxed();
+
+        let lhs = PrimitiveArray::from_vec(vec![0u64, 9, 10, 6, 7, 8, 3, 1, 4, 15]).boxed();
+        let hash_lhs = PrimitiveArray::from_vec(vec![-3i64, 9, 11, 7, 8, 8, 5, 4, 6, 17]).boxed();
+
+        let (actual_h, actual_v) = sort_dedup_2(&hash_rhs, &rhs, &hash_lhs, &lhs).unwrap();
+
+        let expected_v =
+            PrimitiveArray::from_vec(vec![0u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]).boxed();
+        let expected_h =
+            PrimitiveArray::from_vec(vec![-3i64, 4, 5, 5, 6, 7, 7, 8, 8, 9, 11, 17]).boxed();
+
+        assert_eq!(actual_h, expected_h);
+        assert_eq!(actual_v, expected_v);
     }
 
     #[test]

@@ -1,5 +1,3 @@
-use arrow2::array::{ListArray, PrimitiveArray, StructArray};
-use itertools::Itertools;
 use raphtory::{
     arrow::col_graph2::TempColGraphFragment,
     core::{entities::VID, Direction},
@@ -25,7 +23,7 @@ fn main() {
         .expect("please supply a graph output directory");
 
     let vertex_chunk_size = 1_048_576;
-    let edge_chunk_size = 256;
+    let edge_chunk_size = 4096;
 
     let now = std::time::Instant::now();
 
@@ -35,6 +33,7 @@ fn main() {
             &src_col,
             &dst_col,
             &time_col,
+            Some(vec!["time", "_c1", "source", "destination", "_c4", "source_port", "destination_port", "_c7", "_c8", "_c9", "_c10"]),
             vertex_chunk_size,
             edge_chunk_size,
             graph_dir,
@@ -70,26 +69,6 @@ fn main() {
         }
         assert!(sorted);
     }
-
-    // assert!(graph.outbound()[59][0]
-    //     .as_any()
-    //     .downcast_ref::<ListArray<i64>>()
-    //     .unwrap()
-    //     .iter()
-    //     .flatten()
-    //     .flat_map(|list| list.as_any().downcast_ref::<StructArray>().cloned())
-    //     .all(|list| {
-    //         let values = list.values()[0]
-    //             .as_any()
-    //             .downcast_ref::<PrimitiveArray<u64>>()
-    //             .unwrap()
-    //             .values();
-    //         let sorted = values.windows(2).all(|w| w[0] <= w[1]);
-    //         if !sorted {
-    //             println!("{:?}", values);
-    //         }
-    //         sorted
-    //     }));
 
     let now = std::time::Instant::now();
     graph.build_inbound_adj_index().unwrap();
