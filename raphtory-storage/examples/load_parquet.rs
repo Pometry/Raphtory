@@ -8,22 +8,39 @@ fn main() {
         .nth(1)
         .expect("please supply a file to read");
 
-    let src_col = std::env::args()
+    let src_hash_col = std::env::args()
         .nth(2)
         .expect("please supply a source column");
-    let dst_col = std::env::args()
+
+    let src_col = std::env::args()
         .nth(3)
-        .expect("please supply a destination column");
-    let time_col = std::env::args()
+        .expect("please supply a source column");
+
+    let dst_hash_col = std::env::args()
         .nth(4)
+        .expect("please supply a destination hashcolumn");
+
+    let dst_col = std::env::args()
+        .nth(5)
+        .expect("please supply a destination hash column");
+
+    let time_col = std::env::args()
+        .nth(6)
         .expect("please supply a time column");
 
     let graph_dir = std::env::args()
-        .nth(5)
+        .nth(7)
         .expect("please supply a graph output directory");
 
+    // print all the params in a single line
+
+    println!(
+        "path: {}, src_hash_col: {}, src_col: {}, dst_hash_col: {}, dst_col: {}, time_col: {}, graph_dir: {}",
+        path, src_hash_col, src_col, dst_hash_col, dst_col, time_col, graph_dir
+    );
+
     let vertex_chunk_size = 1_048_576;
-    let edge_chunk_size = 4096;
+    let edge_chunk_size = 1024;
 
     let now = std::time::Instant::now();
 
@@ -31,9 +48,23 @@ fn main() {
         TempColGraphFragment::from_sorted_parquet_dir_edge_list(
             path,
             &src_col,
+            &src_hash_col,
             &dst_col,
+            &dst_hash_col,
             &time_col,
-            Some(vec!["time", "_c1", "source", "destination", "_c4", "source_port", "destination_port", "_c7", "_c8", "_c9", "_c10"]),
+            Some(vec![
+                "time",
+                "_c1",
+                "source",
+                "destination",
+                "_c4",
+                "source_port",
+                "destination_port",
+                "_c7",
+                "_c8",
+                "_c9",
+                "_c10",
+            ]),
             vertex_chunk_size,
             edge_chunk_size,
             graph_dir,

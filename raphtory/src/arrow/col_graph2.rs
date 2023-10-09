@@ -26,12 +26,13 @@ use arrow2::{
         merge_sort,
         sort::{self, SortColumn, SortOptions},
     },
-    datatypes::{Field, Schema},
+    datatypes::{DataType, Field, Schema},
     io::{
         ipc::write::{FileWriter, WriteOptions},
         parquet::read,
     },
     offset::OffsetsBuffer,
+    types::NativeType,
 };
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -39,7 +40,7 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
-    edge_chunk::EdgeChunk,
+    edge_chunk::{EdgeChunk, self},
     global_order::{GlobalMap, GlobalOrder},
     vertex_chunk::{RowOwned, VertexChunk},
     LoadChunk, Time, GID,
@@ -84,6 +85,7 @@ impl TempColGraphFragment {
                 .expect("file names are already filtered and thus valid");
             if file_name.starts_with("edge_chunk_") {
                 edge_chunks.push(EdgeChunk::new(unsafe { mmap_batch(file_path.path(), 0) }?));
+                println!("edge chunk: {:?} {:?}", file_path.path(), edge_chunks.last().unwrap().len());
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(unsafe {
                     mmap_batch(file_path.path(), 0)
@@ -108,10 +110,28 @@ impl TempColGraphFragment {
         })
     }
 
+    pub fn edge_property_id(&self, name: &str) -> Option<usize> {
+        let edge_chunk = self.edge_chunks.first()?;
+        let t_prop = edge_chunk.temporal_properties();
+        println!("schema: {:?}", t_prop.data_type());
+        match t_prop.data_type() {
+            DataType::LargeList(field) => match field.data_type() {
+                DataType::Struct(fields) => {
+                    let idx = fields.iter().position(|f| f.name == name)?;
+                    Some(idx)
+                },
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
         parquet_dir: P,
         src_col: &str,
+        src_hash_col: &str,
         dst_col: &str,
+        dst_hash_col: &str,
         time_col: &str,
         projection: Option<Vec<&str>>,
         vertex_chunk_size: usize,
@@ -148,17 +168,25 @@ impl TempColGraphFragment {
 
         let now = std::time::Instant::now();
 
-        println!("file_path: {:?}", sorted_gids_path);
-
         let sorted_vertices = if sorted_gids_path.exists() {
             let chunk = unsafe { mmap_batch(sorted_gids_path.as_path(), 0)? };
             chunk.into_arrays().into_iter().next().unwrap()
         } else {
-            let sorted_vertices = srcs_parquet_files
+            let (_, sorted_vertices) = srcs_parquet_files
                 .par_iter()
-                .map(|dir_entry| sort_within_chunks(dir_entry.path(), src_col, dst_col))
+                .map(|dir_entry| {
+                    sort_within_chunks(
+                        dir_entry.path(),
+                        src_col,
+                        src_hash_col,
+                        dst_col,
+                        dst_hash_col,
+                    )
+                })
                 .flatten()
-                .reduce_with(|l, r| sort_dedup(&r, &l).unwrap())
+                .reduce_with(|(l_hash, l), (r_hash, r)| {
+                    sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
+                })
                 .unwrap();
 
             let schema = Schema::from(vec![Field::new(
@@ -339,7 +367,7 @@ impl TempColGraphFragment {
         let chunk_idx = e_id.0 / self.edge_chunk_size;
         let idx = e_id.0 % self.edge_chunk_size;
         let chunk = &self.edge_chunks[chunk_idx];
-        Edge::new(chunk.additions(), idx)
+        Edge::new(chunk, idx)
     }
 
     pub fn all_edges(&self) -> impl Iterator<Item = (EID, VID, VID)> + '_ {
@@ -598,21 +626,37 @@ impl TempColGraphFragment {
 }
 
 pub struct Edge<'a> {
-    time_col: ListColumn<'a, Time>,
+    edge: &'a EdgeChunk,
     idx: usize,
 }
 
 impl<'a> Edge<'a> {
-    fn new(time_col: ListColumn<'a, Time>, idx: usize) -> Self {
-        Self { time_col, idx }
+    fn new(edge: &'a EdgeChunk, idx: usize) -> Self {
+        Self { edge, idx }
     }
 
     pub fn timestamps(&self) -> &[Time] {
-        &self.time_col[self.idx]
+        self.edge.additions().into_value(self.idx)
     }
 
     pub fn timestamps_row(&self) -> RowOwned<Time> {
-        RowOwned::new(self.time_col.value(self.idx))
+        let time_col = self.edge.additions();
+        RowOwned::new(time_col.value(self.idx))
+    }
+
+
+    pub fn props<T: NativeType>(&self, prop_id: usize) -> Option<&[T]> {
+        let t_prop = self.edge.temporal_properties();
+        match t_prop.data_type() {
+            DataType::LargeList(field) => match field.data_type() {
+                DataType::Struct(fields) => {
+                    let col = ListColumn::new(&t_prop, prop_id)?;
+                    Some(col.into_value(self.idx))
+                },
+                _ => None,
+            },
+            _ => None,
+        }
     }
 }
 
@@ -640,22 +684,59 @@ fn read_vertices_only<P: AsRef<Path>>(
 fn sort_within_chunks<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
+    src_hash_col: &str,
     dst_col: &str,
-) -> Result<Box<dyn Array>, Error> {
+    dst_hash_col: &str,
+) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
     println!("pre sort reading file: {:?}", parquet_file.as_ref());
     let file = std::fs::File::open(&parquet_file)?;
     let mut reader = BufReader::new(file);
     let metadata = read::read_metadata(&mut reader)?;
     let schema = read::infer_schema(&metadata)?;
 
-    let schema = schema.filter(|_, field| field.name == src_col || field.name == dst_col);
+    let schema = schema.filter(|_, field| {
+        field.name == src_col
+            || field.name == dst_col
+            || field.name == src_hash_col
+            || field.name == dst_hash_col
+    });
+
+    let src_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == src_col)
+        .unwrap();
+    let dst_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == dst_col)
+        .unwrap();
+    let src_hash_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == src_hash_col)
+        .unwrap();
+    let dst_hash_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == dst_hash_col)
+        .unwrap();
 
     let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
     let sorted_vertices = reader
         .flatten()
         .par_bridge()
-        .map(|chunk| sort_dedup(&chunk[0], &chunk[1]))
-        .reduce_with(|l, r| l.and_then(|l| r.and_then(|r| sort_dedup(&r, &l))))
+        .map(|chunk| {
+            sort_dedup_2(
+                (&chunk[src_hash_idx], &chunk[src_idx]),
+                (&chunk[dst_hash_idx], &chunk[dst_idx]),
+            )
+        })
+        .reduce_with(|l, r| {
+            l.and_then(|(l_hash, l)| {
+                r.and_then(|(r_hash, r)| sort_dedup_2((&r_hash, &r), (&l_hash, &l)))
+            })
+        })
         .unwrap();
 
     if sorted_vertices.is_err() {
@@ -696,11 +777,12 @@ fn sort_dedup(rhs: &Box<dyn Array>, lhs: &Box<dyn Array>) -> Result<Box<dyn Arra
 
 // sort by 2 columns
 fn sort_dedup_2(
-    hash_rhs: &Box<dyn Array>,
-    rhs: &Box<dyn Array>,
-    hash_lhs: &Box<dyn Array>,
-    lhs: &Box<dyn Array>,
+    lhs: (&Box<dyn Array>, &Box<dyn Array>),
+    rhs: (&Box<dyn Array>, &Box<dyn Array>),
 ) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
+    let (hash_rhs, rhs) = rhs;
+    let (hash_lhs, lhs) = lhs;
+
     let options = SortOptions::default();
 
     let rhs_sorted = sort::lexsort::<i32>(
@@ -830,8 +912,6 @@ fn read_file_chunks<P: AsRef<Path>>(
                 .filter(|proj| proj.contains(&field.name.as_str()))
                 .is_some()
     });
-
-    println!("schema fields: {:?}", schema.fields);
 
     let src_col_idx = schema
         .fields
@@ -976,7 +1056,7 @@ mod test {
         let lhs = PrimitiveArray::from_vec(vec![0u64, 9, 10, 6, 7, 8, 3, 1, 4, 15]).boxed();
         let hash_lhs = PrimitiveArray::from_vec(vec![-3i64, 9, 11, 7, 8, 8, 5, 4, 6, 17]).boxed();
 
-        let (actual_h, actual_v) = sort_dedup_2(&hash_rhs, &rhs, &hash_lhs, &lhs).unwrap();
+        let (actual_h, actual_v) = sort_dedup_2((&hash_rhs, &rhs), (&hash_lhs, &lhs)).unwrap();
 
         let expected_v =
             PrimitiveArray::from_vec(vec![0u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]).boxed();

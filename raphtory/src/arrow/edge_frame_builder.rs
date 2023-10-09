@@ -110,13 +110,17 @@ impl EdgeFrameBuilder {
             .is_some()
             || self.last_update.is_none()
         {
-            if (self.edge_count + 1) % self.chunk_size == 0 && self.last_update.is_some() {
+            if self.edge_count % self.chunk_size == 0 && self.last_update.is_some() {
                 self.push_chunk_v2(chunk)?;
             }
             self.edge_src_id.push(src);
             self.edge_dst_id.push(dst);
             self.edge_offsets.push(self.chunk_offset);
             self.edge_count += 1;
+
+            if self.edge_count % 200 == 0 {
+                println!("Edge count: {}", self.edge_count);
+            }
         }
 
         self.in_chunk_offset += 1;
@@ -252,10 +256,8 @@ impl EdgeFrameBuilder {
             let values = from_col.values();
             into_col.extend_from_slice(values);
         } else {
-            let mut count = 0usize;
             for val in from_col.into_iter() {
                 into_col.push(val.copied());
-                count += 1;
             }
         }
         Some(())
@@ -272,20 +274,14 @@ impl EdgeFrameBuilder {
         match from_col.data_type() {
             DataType::LargeUtf8 => {
                 let arr = from_col.as_any().downcast_ref::<Utf8Array<i64>>()?;
-
-                let mut count = 0usize;
                 for val in arr.into_iter() {
                     into_col.push(val);
-                    count += 1;
                 }
             }
             DataType::Utf8 => {
                 let arr = from_col.as_any().downcast_ref::<Utf8Array<i32>>()?;
-
-                let mut count = 0usize;
                 for val in arr.into_iter() {
                     into_col.push(val);
-                    count += 1;
                 }
             }
             _ => {

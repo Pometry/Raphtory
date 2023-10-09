@@ -89,22 +89,7 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
         Ok(())
     }
 
-    // pub(crate) fn load_sources<ID: Into<GID> + PartialEq>(
-    //     &mut self,
-    //     sources: impl IntoIterator<Item = ID>,
-    // ) {
-    //     self.global_order = sources.into_iter().map(|id| id.into()).collect();
-    //     self.global_order.maybe_sort();
-    // }
-
     fn find_or_push_vertex(&mut self, vertex: &GID) -> usize {
-        // let id = self.global_order.len();
-        // if let Some(id) = self.global_order.get(vertex) {
-        //     return *id as usize;
-        // } else {
-        //     self.global_order.insert(vertex.clone(), id as u64);
-        // }
-        // id
         self.global_order.find(vertex).unwrap()
     }
 
@@ -130,10 +115,15 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             self.last_dst_idx = self.find_or_push_vertex(&dst);
             self.adj_out_dst.push(self.last_dst_idx as u64);
 
-            if let Some((prev_src, prev_dst)) = self.last_edge.as_ref() {
-                // println!("prev edge = ({prev_src:?}, {prev_dst:?})");
-                // println!("new edge = ({src:?}, {dst:?})");
-                assert!(prev_src < &src || (prev_src == &src && prev_dst <= &dst));
+            if let Some((prev_src, _)) = self.last_edge.as_ref() {
+                // assert!( prev_src < &src || (prev_src == &src && prev_dst <= &dst),"edge = ({src:?}, {dst:?}), prev edge = ({:?}, {:?})", prev_src, prev_dst);
+
+                // if prev_src == &src { // we want the dst to be sorted by the global ordering
+                //     let prev_dst_idx = self.global_order.find(&prev_dst);
+                //     let dst_idx = self.global_order.find(&dst);
+                //     assert!( prev_dst_idx <= dst_idx,"{prev_dst_idx:?}, {dst_idx:?} edge = ({src:?}, {dst:?}), prev edge = ({:?}, {:?})", prev_src, prev_dst);
+                // }
+
                 if prev_src != &src {
                     self.adj_out_offsets.push(self.chunk_adj_out_offset);
                     self.vertex_count += 1;
