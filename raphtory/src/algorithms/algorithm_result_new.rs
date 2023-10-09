@@ -67,6 +67,7 @@ pub struct AlgorithmResultNew<V, O = V> {
     marker: PhantomData<O>,
 }
 
+use std::any::type_name;
 impl<V, O> AlgorithmResultNew<V, O>
 where
     V: Clone,
@@ -79,7 +80,8 @@ where
     /// * `result_type`: The type of the result.
     /// * `result`: A `Vec` with values of type `V`.
     /// * `graph`: The Raphtory Graph object
-    pub fn new(algo_name: &str, result_type: &str, result: Vec<V>, graph: Graph) -> Self {
+    pub fn new(algo_name: &str, result: Vec<V>, graph: Graph) -> Self {
+        let result_type = type_name::<V>();
         Self {
             algo_repr: AlgorithmRepr {
                 algo_name: algo_name.to_string(),
@@ -406,7 +408,7 @@ mod algorithm_result_test {
         map.insert(g.vertex("B").unwrap().vertex.0, 20);
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
         let results_type = std::any::type_name::<Vec<u64>>();
-        AlgorithmResultNew::new("create_algo_result_u64_test", "", map, g)
+        AlgorithmResultNew::new("create_algo_result_u64_test", map, g)
     }
 
     // fn group_by_test() -> AlgorithmResult<String, u64> {
