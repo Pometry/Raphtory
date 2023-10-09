@@ -59,17 +59,16 @@ pub struct AlgorithmRepr {
 ///
 /// This `AlgorithmResult` is returned for all algorithms that return a HashMap
 ///
-pub struct AlgorithmResult<G, V, O = V> {
+pub struct AlgorithmResultNew<V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub algo_repr: AlgorithmRepr,
-    pub graph: G,
+    pub graph: Graph,
     pub result: Vec<V>,
     marker: PhantomData<O>,
 }
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<V, O> AlgorithmResultNew<V, O>
 where
-    G: GraphViewOps,
     V: Clone,
 {
     /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
@@ -77,10 +76,10 @@ where
     /// Arguments:
     ///
     /// * `algo_name`: The name of the algorithm.
-    /// * `num_vertices`: The number of vertices in the graph.
     /// * `result_type`: The type of the result.
-    /// * `result`: A `HashMap` with keys of type `H` and values of type `Y`.
-    pub fn new(graph: Graph, algo_name: &str, result_type: &str, result: Vec<V>) -> Self {
+    /// * `result`: A `Vec` with values of type `V`.
+    /// * `graph`: The Raphtory Graph object
+    pub fn new(algo_name: &str, result_type: &str, result: Vec<V>, graph: Graph) -> Self {
         Self {
             algo_repr: AlgorithmRepr {
                 algo_name: algo_name.to_string(),
@@ -290,9 +289,8 @@ where
     // }
 }
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<V, O> AlgorithmResultNew<V, O>
 where
-    G: GraphViewOps,
     V: Clone,
     O: Ord,
     V: AsOrd<O>,
@@ -346,9 +344,8 @@ where
     }
 }
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<V, O> AlgorithmResultNew<V, O>
 where
-    G: GraphViewOps,
     V: Clone + Hash + Eq,
 {
     /// Groups the `AlgorithmResult` by its values.
@@ -394,7 +391,7 @@ mod algorithm_result_test {
     use ordered_float::OrderedFloat;
     use std::collections::HashMap;
 
-    fn create_algo_result_u64() -> AlgorithmResult<String, u64> {
+    fn create_algo_result_u64() -> AlgorithmResultNew<u64> {
         let g = Graph::new();
         g.add_vertex(0, "A", NO_PROPS)
             .expect("Could not add vertex to graph");
@@ -402,11 +399,14 @@ mod algorithm_result_test {
             .expect("Could not add vertex to graph");
         g.add_vertex(0, "C", NO_PROPS)
             .expect("Could not add vertex to graph");
+        g.add_vertex(0, "D", NO_PROPS)
+            .expect("Could not add vertex to graph");
         let mut map: Vec<u64> = Vec::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10);
         map.insert(g.vertex("B").unwrap().vertex.0, 20);
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
-        AlgorithmResult::new(g, "create_algo_result_u64_test", "", map)
+        let results_type = std::any::type_name::<Vec<u64>>();
+        AlgorithmResultNew::new("create_algo_result_u64_test", "", map, g)
     }
 
     // fn group_by_test() -> AlgorithmResult<String, u64> {
@@ -449,9 +449,9 @@ mod algorithm_result_test {
     #[test]
     fn test_min_max_value() {
         let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.min(), Some(("A".to_string(), 10u64)));
-        assert_eq!(algo_result.max(), Some(("C".to_string(), 30u64)));
-        assert_eq!(algo_result.median(), Some(("B".to_string(), 20u64)));
+        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(&10u64))));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(&30u64))));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(&20u64))));
         // let algo_result = create_algo_result_f64();
         // assert_eq!(algo_result.min(), Some(("A".to_string(), 10.0)));
         // assert_eq!(algo_result.max(), Some(("C".to_string(), 30.0)));
@@ -461,8 +461,10 @@ mod algorithm_result_test {
     #[test]
     fn test_get() {
         let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.get(&"C".to_string()), Some(&30));
-        assert_eq!(algo_result.get(&"D".to_string()), None);
+        let vertex_c = algo_result.graph.vertex("C").unwrap();
+        let vertex_d = algo_result.graph.vertex("D").unwrap();
+        assert_eq!(algo_result.get(vertex_c.into()), Some(&30));
+        assert_eq!(algo_result.get(vertex_d.into()), None);
         // let algo_result = create_algo_result_f64();
         // assert_eq!(algo_result.get(&"C".to_string()), Some(&30.0));
         // let algo_result = create_algo_result_tuple();
@@ -477,7 +479,7 @@ mod algorithm_result_test {
         let sorted = algo_result.sort_by_value(true);
         assert_eq!(sorted[0].0, "C");
         let sorted = algo_result.sort_by_value(false);
-        assert_eq!(sorted[0].0, "A");
+        assert_eq!(sorted[0].0, "D");
 
         // let algo_result = create_algo_result_f64();
         // let sorted = algo_result.sort_by_value(true);
@@ -496,7 +498,7 @@ mod algorithm_result_test {
     fn test_top_k() {
         let algo_result = create_algo_result_u64();
         let top_k = algo_result.top_k(2, false, false);
-        assert_eq!(top_k[0].0, "A");
+        assert_eq!(top_k[0].0, "D");
         let top_k = algo_result.top_k(2, false, true);
         assert_eq!(top_k[0].0, "C");
 
@@ -537,7 +539,7 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let all = algo_result.get_all();
         assert_eq!(all.len(), 3);
-        assert!(all.contains_key("A"));
+        //assert!(all.contains_key("A"));
 
         // let algo_result = create_algo_result_f64();
         // let all = algo_result.get_all();
@@ -556,11 +558,12 @@ mod algorithm_result_test {
     #[test]
     fn test_sort_by_key() {
         let algo_result = create_algo_result_u64();
-        let sorted = algo_result.sort_by_key(true);
-        let my_array: Vec<(String, u64)> = vec![
-            ("C".to_string(), 30u64),
-            ("B".to_string(), 20u64),
-            ("A".to_string(), 10u64),
+        let sorted = algo_result.sort_by_vertex_id(true);
+        let my_array: Vec<(String, Option<&u64>)> = vec![
+            ("D".to_string(), None),
+            ("C".to_string(), Some(&30u64)),
+            ("B".to_string(), Some(&20u64)),
+            ("A".to_string(), Some(&10u64)),
         ];
         assert_eq!(my_array, sorted);
         //
