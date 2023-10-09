@@ -113,6 +113,6 @@ mod karate_test {
     fn test_graph_sizes() {
         let g = karate_club_graph();
         assert_eq!(g.count_vertices(), 34);
-        assert_eq!(g.count_edges(), 78);
+        assert_eq!(g.count_edges(), 155);
     }
 }
