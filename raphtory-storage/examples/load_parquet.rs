@@ -40,7 +40,7 @@ fn main() {
     );
 
     let vertex_chunk_size = 1_048_576;
-    let edge_chunk_size = 1024;
+    let edge_chunk_size = 384;
 
     let now = std::time::Instant::now();
 

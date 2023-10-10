@@ -283,7 +283,7 @@ impl TempColGraphFragment {
     ) -> Result<Self, Error> {
         let mut vf_builder: VertexFrameBuilder<GO> =
             VertexFrameBuilder::new(vertex_chunk_size, global_order, &base_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, &base_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, 5000, &base_dir);
 
         // initialise vertex global id table to preserve order
         // vf_builder.load_sources(source_iter);
@@ -293,7 +293,6 @@ impl TempColGraphFragment {
         for mut chunk in chunks_iter.into_iter() {
             // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
             if let Some(last_chunk) = last_chunk {
-                edge_builder.extend_time_slice(&last_chunk.timestamp_arr()?);
                 if let Some(t_prop_cols) = last_chunk.t_prop_cols() {
                     edge_builder.extend_tprops_slice(t_prop_cols);
                 }
@@ -316,7 +315,7 @@ impl TempColGraphFragment {
 
         // finalize edge_builder
         if let Some(mut chunk) = last_chunk {
-            edge_builder.push_chunk_v2(&mut chunk)?;
+            edge_builder.write_down_chunk(&mut chunk)?;
         }
 
         Ok(TempColGraphFragment {
