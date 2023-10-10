@@ -5,14 +5,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
-use std::{
-    borrow::Borrow,
-    collections::{hash_map::Iter, HashMap},
-    fmt,
-    fmt::Debug,
-    hash::Hash,
-    marker::PhantomData,
-};
+use std::{collections::HashMap, hash::Hash, marker::PhantomData};
 
 pub trait AsOrd<T: ?Sized + Ord> {
     /// Converts reference of this type into reference of an ordered Type.
@@ -126,16 +119,23 @@ where
     ///
     /// Returns:
     ///     a vector of tuples with vertex names and values
-    pub fn get_with_names(&self) -> Vec<(String, Option<&V>)> {
-        let mut as_vec = self
-            .graph
+    fn get_with_names_vec(&self) -> Vec<(String, Option<&V>)> {
+        self.graph
             .vertices()
             .iter()
             .map(|vertex| (vertex.name(), self.result.get(vertex.vertex.0)))
-            .collect_vec();
-        as_vec
+            .collect_vec()
     }
 
+    pub fn get_with_names(&self) -> HashMap<String, Option<&V>> {
+        let mut as_map = HashMap::new();
+        for vertex in self.graph.vertices().iter() {
+            let name = vertex.name();
+            let value = self.result.get(vertex.vertex.0);
+            as_map.insert(name.to_string(), value);
+        }
+        as_map
+    }
     /// Sorts the `AlgorithmResult` by its vertex id in ascending or descending order.
     ///
     /// Arguments:
@@ -146,7 +146,7 @@ where
     ///
     /// A sorted vector of tuples containing vertex names and values.
     pub fn sort_by_vertex_id(&self, reverse: bool) -> Vec<(String, Option<&V>)> {
-        let mut sorted = self.get_with_names();
+        let mut sorted = self.get_with_names_vec();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
     }
@@ -169,7 +169,7 @@ where
         mut cmp: F,
         reverse: bool,
     ) -> Vec<(String, Option<&V>)> {
-        let mut sorted = self.get_with_names();
+        let mut sorted = self.get_with_names_vec();
         sorted.sort_by(|a, b| {
             let order = match (a.1, b.1) {
                 (Some(a_value), Some(b_value)) => cmp(a_value, b_value),
@@ -225,7 +225,7 @@ where
         &self,
         mut cmp: F,
     ) -> Option<(String, Option<&V>)> {
-        let res: Vec<(String, Option<&V>)> = self.get_with_names();
+        let res: Vec<(String, Option<&V>)> = self.get_with_names_vec();
 
         // Filter out None values and find the minimum element
         let min_element = res
@@ -234,14 +234,14 @@ where
             .min_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
-        min_element.map(|(k, v)| (k.clone(), Some(v.clone())))
+        min_element.map(|(k, v)| (k.clone(), Some(*v)))
     }
 
     pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
     ) -> Option<(String, Option<&V>)> {
-        let res: Vec<(String, Option<&V>)> = self.get_with_names();
+        let res: Vec<(String, Option<&V>)> = self.get_with_names_vec();
 
         // Filter out None values and find the minimum element
         let max_element = res
@@ -250,7 +250,7 @@ where
             .max_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
-        max_element.map(|(k, v)| (k.clone(), Some(v.clone())))
+        max_element.map(|(k, v)| (k.clone(), Some(*v)))
     }
 
     pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
@@ -258,7 +258,7 @@ where
         mut cmp: F,
     ) -> Option<(String, Option<&V>)> {
         // Assuming self.result is Vec<(String, Option<V>)>
-        let res: Vec<(String, Option<&V>)> = self.get_with_names();
+        let res: Vec<(String, Option<&V>)> = self.get_with_names_vec();
         let mut items: Vec<_> = res
             .iter()
             .filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
@@ -271,24 +271,8 @@ where
         items.sort_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
         let median_index = len / 2;
 
-        Some((
-            items[median_index].0.clone(),
-            Some(items[median_index].1.clone()),
-        ))
+        Some((items[median_index].0.clone(), Some(items[median_index].1)))
     }
-
-    // fn from_iter<T: IntoIterator<Item = (G, V)>>(iter: T) -> Self {
-    //     let result = iter.into_iter().collect();
-    //     Self {
-    //         algo_repr: AlgorithmRepr {
-    //             algo_name: String::new(),
-    //             result_type: String::new(),
-    //         },
-    //         self.graph,
-    //         result,
-    //         marker: PhantomData,
-    //     }
-    // }
 }
 
 impl<V, O> AlgorithmResultNew<V, O>
@@ -297,6 +281,21 @@ where
     O: Ord,
     V: AsOrd<O>,
 {
+    pub fn group_by(&self) -> HashMap<&V, Vec<String>>
+    where
+        V: Eq + Hash,
+    {
+        let mut groups: HashMap<&V, Vec<String>> = HashMap::new();
+
+        for vertex in self.graph.vertices().iter() {
+            if let Some(value) = self.result.get(vertex.vertex.0) {
+                let entry = groups.entry(value).or_insert_with(Vec::new);
+                entry.push(vertex.name().to_string());
+            }
+        }
+        groups
+    }
+
     /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
     ///
     /// Arguments:
@@ -346,41 +345,25 @@ where
     }
 }
 
-impl<V, O> AlgorithmResultNew<V, O>
-where
-    V: Clone + Hash + Eq,
-{
-    /// Groups the `AlgorithmResult` by its values.
-    ///
-    /// Returns:
-    ///
-    /// A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
-    /// containing keys of type `H` that share the same value.
-    pub fn group_by(vec: Vec<(String, Option<V>)>) -> HashMap<V, Vec<String>>
-    where
-        V: Eq + Hash + Clone,
-    {
-        let mut groups: HashMap<V, Vec<String>> = HashMap::new();
+use std::fmt;
 
-        for (vertex_name, value) in vec {
-            if let Some(v) = value {
-                groups.entry(v).or_insert_with(Vec::new).push(vertex_name);
-            }
+impl<V: fmt::Debug, O> fmt::Display for AlgorithmResultNew<V, O> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "AlgorithmResultNew {{")?;
+        writeln!(f, "  Algorithm Name: {}", self.algo_repr.algo_name)?;
+        writeln!(f, "  Result Type: {}", self.algo_repr.result_type)?;
+        writeln!(f, "  Number of Vertices: {}", self.result.len())?;
+        writeln!(f, "  Results: [")?;
+
+        for vertex in self.graph.vertices().iter() {
+            let value = self.result.get(vertex.vertex.0);
+            writeln!(f, "    {}: {:?}", vertex.name(), value)?;
         }
 
-        groups
+        writeln!(f, "  ]")?;
+        writeln!(f, "}}")
     }
 }
-
-// impl<V: Debug, G: Debug, O> Debug for AlgorithmResult<G, V, O> {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         let map_string = self
-//             .iter()
-//             .map(|(key, value)| format!("{:?}: {:?}, ", key, value))
-//             .join(", ");
-//         write!(f, "{{{}}}", map_string)
-//     }
-// }
 
 /// Add tests for all functions
 #[cfg(test)]
@@ -391,9 +374,17 @@ mod algorithm_result_test {
         prelude::NO_PROPS,
     };
     use ordered_float::OrderedFloat;
-    use std::collections::HashMap;
 
     fn create_algo_result_u64() -> AlgorithmResultNew<u64> {
+        let g = create_graph();
+        let mut map: Vec<u64> = Vec::new();
+        map.insert(g.vertex("A").unwrap().vertex.0, 10);
+        map.insert(g.vertex("B").unwrap().vertex.0, 20);
+        map.insert(g.vertex("C").unwrap().vertex.0, 30);
+        AlgorithmResultNew::new("create_algo_result_u64_test", map, g)
+    }
+
+    fn create_graph() -> Graph {
         let g = Graph::new();
         g.add_vertex(0, "A", NO_PROPS)
             .expect("Could not add vertex to graph");
@@ -403,50 +394,57 @@ mod algorithm_result_test {
             .expect("Could not add vertex to graph");
         g.add_vertex(0, "D", NO_PROPS)
             .expect("Could not add vertex to graph");
+        g
+    }
+
+    fn group_by_test() -> AlgorithmResultNew<u64> {
+        let g = create_graph();
         let mut map: Vec<u64> = Vec::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10);
         map.insert(g.vertex("B").unwrap().vertex.0, 20);
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
-        let results_type = std::any::type_name::<Vec<u64>>();
+        map.insert(g.vertex("D").unwrap().vertex.0, 10);
+        AlgorithmResultNew::new("group_by_test", map, g)
+    }
+
+    fn create_algo_result_f64() -> AlgorithmResultNew<f64, OrderedFloat<f64>> {
+        let g = Graph::new();
+        g.add_vertex(0, "A", NO_PROPS)
+            .expect("Could not add vertex to graph");
+        g.add_vertex(0, "B", NO_PROPS)
+            .expect("Could not add vertex to graph");
+        g.add_vertex(0, "C", NO_PROPS)
+            .expect("Could not add vertex to graph");
+        g.add_vertex(0, "D", NO_PROPS)
+            .expect("Could not add vertex to graph");
+        let mut map: Vec<f64> = Vec::new();
+        map.insert(g.vertex("A").unwrap().vertex.0, 10.0);
+        map.insert(g.vertex("B").unwrap().vertex.0, 20.0);
+        map.insert(g.vertex("C").unwrap().vertex.0, 30.0);
         AlgorithmResultNew::new("create_algo_result_u64_test", map, g)
     }
 
-    // fn group_by_test() -> AlgorithmResult<String, u64> {
-    //     let mut map: HashMap<String, u64> = HashMap::new();
-    //     map.insert("A".to_string(), 10);
-    //     map.insert("B".to_string(), 20);
-    //     map.insert("C".to_string(), 30);
-    //     map.insert("D".to_string(), 10);
-    //     AlgorithmResult::new("group_by_test", "", map)
-    // }
-    //
-    // fn create_algo_result_f64() -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
-    //     let mut map: HashMap<String, f64> = HashMap::new();
-    //     map.insert("A".to_string(), 10.0);
-    //     map.insert("B".to_string(), 20.0);
-    //     map.insert("C".to_string(), 30.0);
-    //     AlgorithmResult::new("create_algo_result_f64", "", map)
-    // }
-    //
-    // fn create_algo_result_tuple(
-    // ) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
-    //     let mut map: HashMap<String, (f32, f32)> = HashMap::new();
-    //     map.insert("A".to_string(), (10.0, 20.0));
-    //     map.insert("B".to_string(), (20.0, 30.0));
-    //     map.insert("C".to_string(), (30.0, 40.0));
-    //     AlgorithmResult::new("create_algo_result_tuple", "", map)
-    // }
-    //
-    // fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
-    //     let mut map: HashMap<String, Vec<(i64, String)>> = HashMap::new();
-    //     map.insert("A".to_string(), vec![(11, "H".to_string())]);
-    //     map.insert("B".to_string(), vec![]);
-    //     map.insert(
-    //         "C".to_string(),
-    //         vec![(22, "E".to_string()), (33, "F".to_string())],
-    //     );
-    //     AlgorithmResult::new("create_algo_result_hashmap_vec", "", map)
-    // }
+    fn create_algo_result_tuple(
+    ) -> AlgorithmResultNew<(f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+        let g = create_graph();
+        let mut res: Vec<(f32, f32)> = vec![];
+        res.insert(g.vertex("A").unwrap().vertex.0, (10.0, 20.0));
+        res.insert(g.vertex("B").unwrap().vertex.0, (20.0, 30.0));
+        res.insert(g.vertex("C").unwrap().vertex.0, (30.0, 40.0));
+        AlgorithmResultNew::new("create_algo_result_tuple", res, g)
+    }
+
+    fn create_algo_result_hashmap_vec() -> AlgorithmResultNew<Vec<(i32, String)>> {
+        let g = create_graph();
+        let mut res: Vec<Vec<(i32, String)>> = vec![];
+        res.insert(g.vertex("A").unwrap().vertex.0, vec![(11, "H".to_string())]);
+        res.insert(g.vertex("B").unwrap().vertex.0, vec![]);
+        res.insert(
+            g.vertex("C").unwrap().vertex.0,
+            vec![(22, "E".to_string()), (33, "F".to_string())],
+        );
+        AlgorithmResultNew::new("create_algo_result_hashmap_vec", res, g)
+    }
 
     #[test]
     fn test_min_max_value() {
@@ -454,10 +452,10 @@ mod algorithm_result_test {
         assert_eq!(algo_result.min(), Some(("A".to_string(), Some(&10u64))));
         assert_eq!(algo_result.max(), Some(("C".to_string(), Some(&30u64))));
         assert_eq!(algo_result.median(), Some(("B".to_string(), Some(&20u64))));
-        // let algo_result = create_algo_result_f64();
-        // assert_eq!(algo_result.min(), Some(("A".to_string(), 10.0)));
-        // assert_eq!(algo_result.max(), Some(("C".to_string(), 30.0)));
-        // assert_eq!(algo_result.median(), Some(("B".to_string(), 20.0)));
+        let algo_result = create_algo_result_f64();
+        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(&10.0))));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(&30.0))));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(&20.0))));
     }
 
     #[test]
@@ -465,14 +463,21 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let vertex_c = algo_result.graph.vertex("C").unwrap();
         let vertex_d = algo_result.graph.vertex("D").unwrap();
-        assert_eq!(algo_result.get(vertex_c.into()), Some(&30));
+        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30));
         assert_eq!(algo_result.get(vertex_d.into()), None);
-        // let algo_result = create_algo_result_f64();
-        // assert_eq!(algo_result.get(&"C".to_string()), Some(&30.0));
-        // let algo_result = create_algo_result_tuple();
-        // assert_eq!(algo_result.get(&"C".to_string()).unwrap().0, 30.0);
-        // let algo_result = create_algo_result_hashmap_vec();
-        // assert_eq!(algo_result.get(&"C".to_string()).unwrap()[0].0, 22);
+        let algo_result = create_algo_result_f64();
+        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30.0));
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.get(vertex_c.clone().into()).unwrap().0, 30.0);
+        let algo_result = create_algo_result_hashmap_vec();
+        let answer = algo_result
+            .get(vertex_c.clone().into())
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .0;
+        assert_eq!(answer, 22i32);
+        println!("{}", algo_result);
     }
 
     #[test]
@@ -483,17 +488,18 @@ mod algorithm_result_test {
         let sorted = algo_result.sort_by_value(false);
         assert_eq!(sorted[0].0, "D");
 
-        // let algo_result = create_algo_result_f64();
-        // let sorted = algo_result.sort_by_value(true);
-        // assert_eq!(sorted[0].0, "C");
-        // let sorted = algo_result.sort_by_value(false);
-        // assert_eq!(sorted[0].0, "A");
-        //
-        // let algo_result = create_algo_result_tuple();
-        // assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
-        //
-        // let algo_result = create_algo_result_hashmap_vec();
-        // assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
+        let algo_result = create_algo_result_f64();
+        let sorted = algo_result.sort_by_value(true);
+        assert_eq!(sorted[0].0, "C");
+        let sorted = algo_result.sort_by_value(false);
+        assert_eq!(sorted[0].0, "D");
+        assert_eq!(sorted[1].0, "A");
+
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
+
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
     }
 
     #[test]
@@ -504,57 +510,62 @@ mod algorithm_result_test {
         let top_k = algo_result.top_k(2, false, true);
         assert_eq!(top_k[0].0, "C");
 
-        // let algo_result = create_algo_result_f64();
-        // let top_k = algo_result.top_k(2, false, false);
-        // assert_eq!(top_k[0].0, "A");
-        // let top_k = algo_result.top_k(2, false, true);
-        // assert_eq!(top_k[0].0, "C");
-        //
-        // let algo_result = create_algo_result_tuple();
-        // assert_eq!(algo_result.top_k(2, false, false)[0].0, "A");
-        //
-        // let algo_result = create_algo_result_hashmap_vec();
-        // assert_eq!(algo_result.top_k(2, false, false)[0].0, "B");
+        let algo_result = create_algo_result_f64();
+        let top_k = algo_result.top_k(2, false, false);
+        assert_eq!(top_k[0].0, "D");
+        assert_eq!(top_k[1].0, "A");
+        let top_k = algo_result.top_k(2, false, true);
+        assert_eq!(top_k[0].0, "C");
+
+        let algo_result = create_algo_result_tuple();
+        assert_eq!(algo_result.top_k(2, false, false)[0].0, "D");
+        assert_eq!(algo_result.top_k(2, false, false)[1].0, "A");
+
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(algo_result.top_k(2, false, false)[0].0, "D");
+        assert_eq!(algo_result.top_k(2, false, false)[1].0, "B");
     }
 
-    // #[test]
-    // fn test_group_by() {
-    //     let algo_result = group_by_test();
-    //     let grouped = algo_result.group_by();
-    //     assert_eq!(grouped.get(&10).unwrap().len(), 2);
-    //     assert!(grouped.get(&10).unwrap().contains(&"A".to_string()));
-    //     assert!(!grouped.get(&10).unwrap().contains(&"B".to_string()));
-    //
-    //     let algo_result = create_algo_result_hashmap_vec();
-    //     assert_eq!(
-    //         algo_result
-    //             .group_by()
-    //             .get(&vec![(11, "H".to_string())])
-    //             .unwrap()
-    //             .len(),
-    //         1
-    //     );
-    // }
+    #[test]
+    fn test_group_by() {
+        let algo_result = group_by_test();
+        let grouped = algo_result.group_by();
+        assert_eq!(grouped.get(&10).unwrap().len(), 2);
+        assert!(grouped.get(&10).unwrap().contains(&"A".to_string()));
+        assert!(!grouped.get(&10).unwrap().contains(&"B".to_string()));
+
+        let algo_result = create_algo_result_hashmap_vec();
+        assert_eq!(
+            algo_result
+                .group_by()
+                .get(&vec![(11, "H".to_string())])
+                .unwrap()
+                .len(),
+            1
+        );
+    }
 
     #[test]
     fn test_get_all() {
         let algo_result = create_algo_result_u64();
         let all = algo_result.get_all();
         assert_eq!(all.len(), 3);
-        //assert!(all.contains_key("A"));
 
-        // let algo_result = create_algo_result_f64();
-        // let all = algo_result.get_all();
-        // assert_eq!(all.len(), 3);
-        // assert!(all.contains_key("A"));
-        //
-        // let algo_result = create_algo_result_tuple();
-        // assert_eq!(algo_result.get_all().get("A").unwrap().0, 10.0);
-        // assert_eq!(algo_result.get_all().len(), 3);
-        //
-        // let algo_result = create_algo_result_hashmap_vec();
-        // assert_eq!(algo_result.get_all().get("A").unwrap()[0].0, 11);
-        // assert_eq!(algo_result.get_all().len(), 3);
+        let algo_result = create_algo_result_f64();
+        let all = algo_result.get_all();
+        assert_eq!(all.len(), 3);
+
+        let algo_result = create_algo_result_tuple();
+        let algo_results_hashmap = algo_result.get_with_names();
+        let tuple_result = algo_results_hashmap.get("A").unwrap();
+        assert_eq!(tuple_result.unwrap().0, 10.0);
+        assert_eq!(algo_result.get_all().len(), 3);
+
+        let algo_result = create_algo_result_hashmap_vec();
+        let algo_results_hashmap = algo_result.get_with_names();
+        let tuple_result = algo_results_hashmap.get("A").unwrap();
+        assert_eq!(tuple_result.unwrap().get(0).unwrap().0, 11);
+        assert_eq!(algo_result.get_all().len(), 3);
     }
 
     #[test]
@@ -568,35 +579,38 @@ mod algorithm_result_test {
             ("A".to_string(), Some(&10u64)),
         ];
         assert_eq!(my_array, sorted);
+
+        let algo_result = create_algo_result_f64();
+        let sorted = algo_result.sort_by_vertex_id(true);
+        let my_array: Vec<(String, Option<&f64>)> = vec![
+            ("D".to_string(), None),
+            ("C".to_string(), Some(&30.0)),
+            ("B".to_string(), Some(&20.0)),
+            ("A".to_string(), Some(&10.0)),
+        ];
+        assert_eq!(my_array, sorted);
+
+        let algo_result = create_algo_result_tuple();
+        let sorted = algo_result.sort_by_vertex_id(true);
+        let my_array: Vec<(String, Option<&(f32, f32)>)> = vec![
+            ("D".to_string(), None),
+            ("C".to_string(), Some(&(30.0, 40.0))),
+            ("B".to_string(), Some(&(20.0, 30.0))),
+            ("A".to_string(), Some(&(10.0, 20.0))),
+        ];
+        assert_eq!(my_array, sorted);
         //
-        // let algo_result = create_algo_result_f64();
-        // let sorted = algo_result.sort_by_key(true);
-        // let my_array: Vec<(String, f64)> = vec![
-        //     ("C".to_string(), 30.0),
-        //     ("B".to_string(), 20.0),
-        //     ("A".to_string(), 10.0),
-        // ];
-        // assert_eq!(my_array, sorted);
-        // //
-        // let algo_result = create_algo_result_tuple();
-        // let sorted = algo_result.sort_by_key(true);
-        // let my_array: Vec<(String, (f32, f32))> = vec![
-        //     ("C".to_string(), (30.0, 40.0)),
-        //     ("B".to_string(), (20.0, 30.0)),
-        //     ("A".to_string(), (10.0, 20.0)),
-        // ];
-        // assert_eq!(my_array, sorted);
-        // //
-        // let algo_result = create_algo_result_hashmap_vec();
-        // let sorted = algo_result.sort_by_key(true);
-        // let my_array: Vec<(String, Vec<(i64, String)>)> = vec![
-        //     (
-        //         "C".to_string(),
-        //         vec![(22, "E".to_string()), (33, "F".to_string())],
-        //     ),
-        //     ("B".to_string(), vec![]),
-        //     ("A".to_string(), vec![(11, "H".to_string())]),
-        // ];
-        // assert_eq!(my_array, sorted);
+        let algo_result = create_algo_result_hashmap_vec();
+        let sorted = algo_result.sort_by_vertex_id(true);
+        let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
+        let vec_b = vec![];
+        let vec_a = vec![(11, "H".to_string())];
+        let my_array: Vec<(String, Option<&Vec<(i32, String)>>)> = vec![
+            ("D".to_string(), None),
+            ("C".to_string(), Some(&vec_c)),
+            ("B".to_string(), Some(&vec_b)),
+            ("A".to_string(), Some(&vec_a)),
+        ];
+        assert_eq!(my_array, sorted);
     }
 }
