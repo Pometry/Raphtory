@@ -1,5 +1,5 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
+    algorithms::algorithm_result_old::AlgorithmResultOLD,
     core::{
         entities::vertices::input_vertex::InputVertex,
         state::{
@@ -70,7 +70,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> AlgorithmResult<String, Vec<(i64, String)>> {
+) -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
@@ -181,7 +181,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     let results_type = std::any::type_name::<HashMap<String, Vec<(i64, String)>>>();
-    AlgorithmResult::new(
+    AlgorithmResultOLD::new(
         "Temporal Reachability",
         results_type,
         runner.run(

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 ///
 use crate::{
     algorithms::{
-        algorithm_result::AlgorithmResult,
+        algorithm_result_old::AlgorithmResultOLD,
         centrality::{
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
@@ -77,7 +77,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> AlgorithmResult<String, u64> {
+) -> AlgorithmResultOLD<String, u64> {
     connected_components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
@@ -101,7 +101,7 @@ pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
     unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
 }
 
@@ -127,7 +127,7 @@ pub fn temporally_reachable_nodes(
     start_time: i64,
     seed_nodes: Vec<PyInputVertex>,
     stop_nodes: Option<Vec<PyInputVertex>>,
-) -> AlgorithmResult<String, Vec<(i64, String)>> {
+) -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
 
@@ -251,7 +251,9 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+pub fn all_local_reciprocity(
+    g: &PyGraphView,
+) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
@@ -388,7 +390,7 @@ pub fn hits(
     g: &PyGraphView,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+) -> AlgorithmResultOLD<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     hits_rs(&g.graph, iter_count, threads)
 }
 
@@ -415,7 +417,7 @@ pub fn balance(
     name: String,
     direction: PyDirection,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }
 
@@ -440,7 +442,7 @@ pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<u
 pub fn degree_centrality(
     g: &PyGraphView,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
     degree_centrality_rs(&g.graph, threads)
 }
 
@@ -486,7 +488,7 @@ pub fn single_source_shortest_path(
     g: &PyGraphView,
     source: PyInputVertex,
     cutoff: Option<usize>,
-) -> AlgorithmResult<String, Vec<String>> {
+) -> AlgorithmResultOLD<String, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
 }
 

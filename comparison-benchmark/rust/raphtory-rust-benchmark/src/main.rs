@@ -4,7 +4,7 @@ use csv::StringRecord;
 use flate2::read::GzDecoder;
 use raphtory::{
     algorithms::{
-        algorithm_result::AlgorithmResult, centrality::pagerank::unweighted_page_rank,
+        algorithm_result_old::AlgorithmResultOLD, centrality::pagerank::unweighted_page_rank,
         community_detection::connected_components::weakly_connected_components,
     },
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
@@ -204,7 +204,7 @@ fn main() {
 
     // connected community_detection with time
     now = Instant::now();
-    let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
+    let _cc: AlgorithmResultOLD<String, u64> = weakly_connected_components(&g, usize::MAX, None);
     println!(
         "Connected community_detection: {} seconds",
         now.elapsed().as_secs_f64()

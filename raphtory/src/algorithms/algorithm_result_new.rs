@@ -1,11 +1,15 @@
 use crate::{
     core::entities::vertices::vertex_ref::VertexRef,
-    prelude::{Graph, GraphViewOps, VertexViewOps},
+    prelude::{GraphViewOps, VertexViewOps},
 };
 use itertools::Itertools;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
-use std::{collections::HashMap, hash::Hash, marker::PhantomData};
+use std::{
+    collections::{hash_map::Iter, HashMap},
+    hash::Hash,
+    marker::PhantomData,
+};
 
 pub trait AsOrd<T: ?Sized + Ord> {
     /// Converts reference of this type into reference of an ordered Type.
@@ -52,17 +56,17 @@ pub struct AlgorithmRepr {
 ///
 /// This `AlgorithmResult` is returned for all algorithms that return a HashMap
 ///
-pub struct AlgorithmResultNew<V, O = V> {
+pub struct AlgorithmResultNew<G, V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub algo_repr: AlgorithmRepr,
-    pub graph: Graph,
-    pub result: Vec<V>,
+    pub graph: G,
+    pub result: HashMap<usize, V>,
     marker: PhantomData<O>,
 }
 
-use std::any::type_name;
-impl<V, O> AlgorithmResultNew<V, O>
+impl<G, V, O> AlgorithmResultNew<G, V, O>
 where
+    G: GraphViewOps,
     V: Clone,
 {
     /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
@@ -73,8 +77,8 @@ where
     /// * `result_type`: The type of the result.
     /// * `result`: A `Vec` with values of type `V`.
     /// * `graph`: The Raphtory Graph object
-    pub fn new(algo_name: &str, result: Vec<V>, graph: Graph) -> Self {
-        let result_type = type_name::<V>();
+    pub fn new(graph: G, algo_name: &str, result_type: &str, result: HashMap<usize, V>) -> Self {
+        // let result_type = type_name::<V>();
         Self {
             algo_repr: AlgorithmRepr {
                 algo_name: algo_name.to_string(),
@@ -98,8 +102,8 @@ where
     }
 
     /// Returns a reference to the entire `result` vector of values.
-    pub fn get_all(&self) -> &Vec<V> {
-        &self.result
+    pub fn get_all_values(&self) -> Vec<V> {
+        self.result.clone().into_values().collect()
     }
 
     /// Returns the value corresponding to the provided key in the `result` hashmap.
@@ -109,7 +113,7 @@ where
     pub fn get(&self, v_ref: VertexRef) -> Option<&V> {
         if self.graph.has_vertex(v_ref) {
             let internal_id = self.graph.vertex(v_ref).unwrap().vertex.0;
-            self.result.get(internal_id)
+            self.result.get(&internal_id)
         } else {
             None
         }
@@ -123,7 +127,7 @@ where
         self.graph
             .vertices()
             .iter()
-            .map(|vertex| (vertex.name(), self.result.get(vertex.vertex.0)))
+            .map(|vertex| (vertex.name(), self.result.get(&vertex.vertex.0)))
             .collect_vec()
     }
 
@@ -131,7 +135,7 @@ where
         let mut as_map = HashMap::new();
         for vertex in self.graph.vertices().iter() {
             let name = vertex.name();
-            let value = self.result.get(vertex.vertex.0);
+            let value = self.result.get(&vertex.vertex.0);
             as_map.insert(name.to_string(), value);
         }
         as_map
@@ -151,7 +155,7 @@ where
         sorted
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, V> {
+    pub fn iter(&self) -> Iter<'_, usize, V> {
         self.result.iter()
     }
 
@@ -275,8 +279,9 @@ where
     }
 }
 
-impl<V, O> AlgorithmResultNew<V, O>
+impl<G, V, O> AlgorithmResultNew<G, V, O>
 where
+    G: GraphViewOps,
     V: Clone,
     O: Ord,
     V: AsOrd<O>,
@@ -288,7 +293,7 @@ where
         let mut groups: HashMap<&V, Vec<String>> = HashMap::new();
 
         for vertex in self.graph.vertices().iter() {
-            if let Some(value) = self.result.get(vertex.vertex.0) {
+            if let Some(value) = self.result.get(&vertex.vertex.0) {
                 let entry = groups.entry(value).or_insert_with(Vec::new);
                 entry.push(vertex.name().to_string());
             }
@@ -347,7 +352,7 @@ where
 
 use std::fmt;
 
-impl<V: fmt::Debug, O> fmt::Display for AlgorithmResultNew<V, O> {
+impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResultNew<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {}", self.algo_repr.algo_name)?;
@@ -356,7 +361,7 @@ impl<V: fmt::Debug, O> fmt::Display for AlgorithmResultNew<V, O> {
         writeln!(f, "  Results: [")?;
 
         for vertex in self.graph.vertices().iter() {
-            let value = self.result.get(vertex.vertex.0);
+            let value = self.result.get(&vertex.vertex.0);
             writeln!(f, "    {}: {:?}", vertex.name(), value)?;
         }
 
@@ -374,14 +379,16 @@ mod algorithm_result_test {
         prelude::NO_PROPS,
     };
     use ordered_float::OrderedFloat;
+    use std::collections::HashMap;
 
-    fn create_algo_result_u64() -> AlgorithmResultNew<u64> {
+    fn create_algo_result_u64() -> AlgorithmResultNew<Graph, u64> {
         let g = create_graph();
-        let mut map: Vec<u64> = Vec::new();
+        let mut map: HashMap<usize, u64> = HashMap::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10);
         map.insert(g.vertex("B").unwrap().vertex.0, 20);
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
-        AlgorithmResultNew::new("create_algo_result_u64_test", map, g)
+        let results_type = std::any::type_name::<u64>();
+        AlgorithmResultNew::new(g, "create_algo_result_u64_test", results_type, map)
     }
 
     fn create_graph() -> Graph {
@@ -397,17 +404,18 @@ mod algorithm_result_test {
         g
     }
 
-    fn group_by_test() -> AlgorithmResultNew<u64> {
+    fn group_by_test() -> AlgorithmResultNew<Graph, u64> {
         let g = create_graph();
-        let mut map: Vec<u64> = Vec::new();
+        let mut map: HashMap<usize, u64> = HashMap::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10);
         map.insert(g.vertex("B").unwrap().vertex.0, 20);
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
         map.insert(g.vertex("D").unwrap().vertex.0, 10);
-        AlgorithmResultNew::new("group_by_test", map, g)
+        let results_type = std::any::type_name::<u64>();
+        AlgorithmResultNew::new(g, "group_by_test", results_type, map)
     }
 
-    fn create_algo_result_f64() -> AlgorithmResultNew<f64, OrderedFloat<f64>> {
+    fn create_algo_result_f64() -> AlgorithmResultNew<Graph, f64, OrderedFloat<f64>> {
         let g = Graph::new();
         g.add_vertex(0, "A", NO_PROPS)
             .expect("Could not add vertex to graph");
@@ -417,33 +425,36 @@ mod algorithm_result_test {
             .expect("Could not add vertex to graph");
         g.add_vertex(0, "D", NO_PROPS)
             .expect("Could not add vertex to graph");
-        let mut map: Vec<f64> = Vec::new();
+        let mut map: HashMap<usize, f64> = HashMap::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10.0);
         map.insert(g.vertex("B").unwrap().vertex.0, 20.0);
         map.insert(g.vertex("C").unwrap().vertex.0, 30.0);
-        AlgorithmResultNew::new("create_algo_result_u64_test", map, g)
+        let results_type = std::any::type_name::<f64>();
+        AlgorithmResultNew::new(g, "create_algo_result_u64_test", results_type, map)
     }
 
     fn create_algo_result_tuple(
-    ) -> AlgorithmResultNew<(f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+    ) -> AlgorithmResultNew<Graph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
         let g = create_graph();
-        let mut res: Vec<(f32, f32)> = vec![];
+        let mut res: HashMap<usize, (f32, f32)> = HashMap::new();
         res.insert(g.vertex("A").unwrap().vertex.0, (10.0, 20.0));
         res.insert(g.vertex("B").unwrap().vertex.0, (20.0, 30.0));
         res.insert(g.vertex("C").unwrap().vertex.0, (30.0, 40.0));
-        AlgorithmResultNew::new("create_algo_result_tuple", res, g)
+        let results_type = std::any::type_name::<(f32, f32)>();
+        AlgorithmResultNew::new(g, "create_algo_result_tuple", results_type, res)
     }
 
-    fn create_algo_result_hashmap_vec() -> AlgorithmResultNew<Vec<(i32, String)>> {
+    fn create_algo_result_hashmap_vec() -> AlgorithmResultNew<Graph, Vec<(i32, String)>> {
         let g = create_graph();
-        let mut res: Vec<Vec<(i32, String)>> = vec![];
+        let mut res: HashMap<usize, Vec<(i32, String)>> = HashMap::new();
         res.insert(g.vertex("A").unwrap().vertex.0, vec![(11, "H".to_string())]);
         res.insert(g.vertex("B").unwrap().vertex.0, vec![]);
         res.insert(
             g.vertex("C").unwrap().vertex.0,
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
-        AlgorithmResultNew::new("create_algo_result_hashmap_vec", res, g)
+        let results_type = std::any::type_name::<(i32, String)>();
+        AlgorithmResultNew::new(g, "create_algo_result_hashmap_vec", results_type, res)
     }
 
     #[test]
@@ -548,24 +559,24 @@ mod algorithm_result_test {
     #[test]
     fn test_get_all() {
         let algo_result = create_algo_result_u64();
-        let all = algo_result.get_all();
+        let all = algo_result.get_all_values();
         assert_eq!(all.len(), 3);
 
         let algo_result = create_algo_result_f64();
-        let all = algo_result.get_all();
+        let all = algo_result.get_all_values();
         assert_eq!(all.len(), 3);
 
         let algo_result = create_algo_result_tuple();
         let algo_results_hashmap = algo_result.get_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
         assert_eq!(tuple_result.unwrap().0, 10.0);
-        assert_eq!(algo_result.get_all().len(), 3);
+        assert_eq!(algo_result.get_all_values().len(), 3);
 
         let algo_result = create_algo_result_hashmap_vec();
         let algo_results_hashmap = algo_result.get_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
         assert_eq!(tuple_result.unwrap().get(0).unwrap().0, 11);
-        assert_eq!(algo_result.get_all().len(), 3);
+        assert_eq!(algo_result.get_all_values().len(), 3);
     }
 
     #[test]

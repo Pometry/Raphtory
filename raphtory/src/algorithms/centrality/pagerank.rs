@@ -1,5 +1,5 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
+    algorithms::algorithm_result_old::AlgorithmResultOLD,
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
@@ -58,7 +58,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     threads: Option<usize>,
     tol: Option<f64>,
     use_l2_norm: bool,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
     let n = g.count_vertices();
     let total_edges = g.count_edges();
 
@@ -185,7 +185,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         .map(|(k, v)| (g.vertex_name(k), v))
         .collect();
 
-    AlgorithmResult::new("Pagerank", results_type, res)
+    AlgorithmResultOLD::new("Pagerank", results_type, res)
 }
 
 #[cfg(test)]

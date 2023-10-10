@@ -3,7 +3,7 @@
 //! This algorithm provides functionality to accumulate (or sum) weights on vertices
 //! in a graph.
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
+    algorithms::algorithm_result_old::AlgorithmResultOLD,
     core::{
         state::{
             accumulator_id::accumulators::sum,
@@ -103,7 +103,7 @@ pub fn balance<G: GraphViewOps>(
     name: String,
     direction: Direction,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let min = sum(0);
     ctx.agg(min);
@@ -115,7 +115,7 @@ pub fn balance<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     let results_type = std::any::type_name::<HashMap<String, f64>>();
 
-    AlgorithmResult::new(
+    AlgorithmResultOLD::new(
         "Balance",
         results_type,
         runner.run(

@@ -7,7 +7,7 @@ macro_rules! py_algorithm_result {
     ($name:ident, $rustKey:ty, $rustValue:ty, $rustSortValue:ty) => {
         #[pyclass]
         pub struct $name(
-            $crate::algorithms::algorithm_result::AlgorithmResult<
+            $crate::algorithms::algorithm_result_old::AlgorithmResultOLD<
                 $rustKey,
                 $rustValue,
                 $rustSortValue,
@@ -15,7 +15,7 @@ macro_rules! py_algorithm_result {
         );
 
         impl Repr
-            for $crate::algorithms::algorithm_result::AlgorithmResult<
+            for $crate::algorithms::algorithm_result_old::AlgorithmResultOLD<
                 $rustKey,
                 $rustValue,
                 $rustSortValue,
@@ -33,7 +33,7 @@ macro_rules! py_algorithm_result {
         }
 
         impl pyo3::IntoPy<pyo3::PyObject>
-            for $crate::algorithms::algorithm_result::AlgorithmResult<
+            for $crate::algorithms::algorithm_result_old::AlgorithmResultOLD<
                 $rustKey,
                 $rustValue,
                 $rustSortValue,

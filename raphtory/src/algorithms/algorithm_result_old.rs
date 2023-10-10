@@ -55,14 +55,14 @@ pub struct AlgorithmRepr {
 ///
 /// This `AlgorithmResult` is returned for all algorithms that return a HashMap
 ///
-pub struct AlgorithmResult<K, V, O = V> {
+pub struct AlgorithmResultOLD<K, V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub algo_repr: AlgorithmRepr,
     pub result: HashMap<K, V>,
     marker: PhantomData<O>,
 }
 
-impl<K, V, O> AlgorithmResult<K, V, O>
+impl<K, V, O> AlgorithmResultOLD<K, V, O>
 where
     K: Clone + Hash + Eq + Ord,
     V: Clone,
@@ -208,7 +208,7 @@ where
     }
 }
 
-impl<K, V, O> IntoIterator for AlgorithmResult<K, V, O>
+impl<K, V, O> IntoIterator for AlgorithmResultOLD<K, V, O>
 where
     K: Clone + Hash + Eq + Ord,
     V: Clone,
@@ -222,7 +222,7 @@ where
     }
 }
 
-impl<'a, K, V, O> IntoIterator for &'a AlgorithmResult<K, V, O>
+impl<'a, K, V, O> IntoIterator for &'a AlgorithmResultOLD<K, V, O>
 where
     K: Clone + Hash + Ord,
     V: Clone,
@@ -235,7 +235,7 @@ where
     }
 }
 
-impl<K: Clone + Hash + Eq + Ord, V: Clone, O> FromIterator<(K, V)> for AlgorithmResult<K, V, O> {
+impl<K: Clone + Hash + Eq + Ord, V: Clone, O> FromIterator<(K, V)> for AlgorithmResultOLD<K, V, O> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let result = iter.into_iter().collect();
         Self {
@@ -249,7 +249,7 @@ impl<K: Clone + Hash + Eq + Ord, V: Clone, O> FromIterator<(K, V)> for Algorithm
     }
 }
 
-impl<K, V, O> AlgorithmResult<K, V, O>
+impl<K, V, O> AlgorithmResultOLD<K, V, O>
 where
     K: Clone + Hash + Eq + Ord,
     V: Clone,
@@ -305,7 +305,7 @@ where
     }
 }
 
-impl<K, V, O> AlgorithmResult<K, V, O>
+impl<K, V, O> AlgorithmResultOLD<K, V, O>
 where
     K: Clone + Hash + Eq + Ord,
     V: Clone + Hash + Eq,
@@ -325,7 +325,7 @@ where
     }
 }
 
-impl<V: Debug, K: Debug, O> Debug for AlgorithmResult<K, V, O> {
+impl<V: Debug, K: Debug, O> Debug for AlgorithmResultOLD<K, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let map_string = self
             .result
@@ -339,45 +339,45 @@ impl<V: Debug, K: Debug, O> Debug for AlgorithmResult<K, V, O> {
 /// Add tests for all functions
 #[cfg(test)]
 mod algorithm_result_test {
-    use crate::algorithms::algorithm_result::AlgorithmResult;
+    use crate::algorithms::algorithm_result_old::AlgorithmResultOLD;
     use ordered_float::OrderedFloat;
     use std::collections::HashMap;
 
-    fn create_algo_result_u64() -> AlgorithmResult<String, u64> {
+    fn create_algo_result_u64() -> AlgorithmResultOLD<String, u64> {
         let mut map: HashMap<String, u64> = HashMap::new();
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
-        AlgorithmResult::new("create_algo_result_u64_test", "", map)
+        AlgorithmResultOLD::new("create_algo_result_u64_test", "", map)
     }
 
-    fn group_by_test() -> AlgorithmResult<String, u64> {
+    fn group_by_test() -> AlgorithmResultOLD<String, u64> {
         let mut map: HashMap<String, u64> = HashMap::new();
         map.insert("A".to_string(), 10);
         map.insert("B".to_string(), 20);
         map.insert("C".to_string(), 30);
         map.insert("D".to_string(), 10);
-        AlgorithmResult::new("group_by_test", "", map)
+        AlgorithmResultOLD::new("group_by_test", "", map)
     }
 
-    fn create_algo_result_f64() -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+    fn create_algo_result_f64() -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
         let mut map: HashMap<String, f64> = HashMap::new();
         map.insert("A".to_string(), 10.0);
         map.insert("B".to_string(), 20.0);
         map.insert("C".to_string(), 30.0);
-        AlgorithmResult::new("create_algo_result_f64", "", map)
+        AlgorithmResultOLD::new("create_algo_result_f64", "", map)
     }
 
     fn create_algo_result_tuple(
-    ) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+    ) -> AlgorithmResultOLD<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
         let mut map: HashMap<String, (f32, f32)> = HashMap::new();
         map.insert("A".to_string(), (10.0, 20.0));
         map.insert("B".to_string(), (20.0, 30.0));
         map.insert("C".to_string(), (30.0, 40.0));
-        AlgorithmResult::new("create_algo_result_tuple", "", map)
+        AlgorithmResultOLD::new("create_algo_result_tuple", "", map)
     }
 
-    fn create_algo_result_hashmap_vec() -> AlgorithmResult<String, Vec<(i64, String)>> {
+    fn create_algo_result_hashmap_vec() -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
         let mut map: HashMap<String, Vec<(i64, String)>> = HashMap::new();
         map.insert("A".to_string(), vec![(11, "H".to_string())]);
         map.insert("B".to_string(), vec![]);
@@ -385,7 +385,7 @@ mod algorithm_result_test {
             "C".to_string(),
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
-        AlgorithmResult::new("create_algo_result_hashmap_vec", "", map)
+        AlgorithmResultOLD::new("create_algo_result_hashmap_vec", "", map)
     }
 
     #[test]

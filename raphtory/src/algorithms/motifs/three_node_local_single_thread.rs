@@ -1,4 +1,4 @@
-use crate::algorithms::algorithm_result::AlgorithmResult;
+use crate::algorithms::algorithm_result_old::AlgorithmResultOLD;
 /// This class regards the counting of the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
 /// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
 ///
@@ -105,7 +105,7 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
 fn triangle_motif_count<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
+) -> AlgorithmResultOLD<u64, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -237,7 +237,7 @@ fn triangle_motif_count<G: GraphViewOps>(
     }
 
     let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-    AlgorithmResult::new("Three node local single thread", results_type, counts)
+    AlgorithmResultOLD::new("Three node local single thread", results_type, counts)
 }
 
 /// Computes the number of each type of motif that each node participates in.
@@ -263,7 +263,7 @@ fn triangle_motif_count<G: GraphViewOps>(
 pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> AlgorithmResult<u64, Vec<usize>> {
+) -> AlgorithmResultOLD<u64, Vec<usize>> {
     let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
 
     for v in graph.vertices() {
@@ -283,7 +283,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     }
 
     let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-    AlgorithmResult::new("Three node local single thread", results_type, counts)
+    AlgorithmResultOLD::new("Three node local single thread", results_type, counts)
 }
 
 /// Computes the number of each type of motif there is in the graph.
