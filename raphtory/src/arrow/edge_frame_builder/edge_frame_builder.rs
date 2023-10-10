@@ -3,10 +3,7 @@ use crate::arrow::{
     DST_COLUMN, E_ADDITIONS_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
-    array::{
-        Array, BooleanArray, ListArray, MutableArray, MutableBooleanArray, MutablePrimitiveArray,
-        MutableStructArray, MutableUtf8Array, PrimitiveArray, StructArray, Utf8Array,
-    },
+    array::{Array, ListArray, MutableArray, MutableStructArray, PrimitiveArray, StructArray},
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
@@ -16,6 +13,7 @@ use std::path::{Path, PathBuf};
 
 use crate::arrow::{edge_chunk::EdgeChunk, Error, LoadChunk, Time, TEMPORAL_PROPS_COLUMN};
 
+use super::edge_overflow_builder::EdgeOverflowBuilder;
 
 pub struct EdgeFrameBuilder {
     pub(crate) edge_chunks: Vec<EdgeChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
@@ -31,7 +29,7 @@ pub struct EdgeFrameBuilder {
     overflow_chunk: usize,
     no_edge_updates: usize,
 
-    overflow_frame: Option<Box<EdgeFrameBuilder>>,
+    overflow_frame: Option<EdgeOverflowBuilder>,
 
     chunk_size: usize,
     chunk_offset: i64,
@@ -41,7 +39,7 @@ pub struct EdgeFrameBuilder {
 }
 
 impl EdgeFrameBuilder {
-    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, max_list_size:usize, path: P) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, max_list_size: usize, path: P) -> Self {
         Self {
             edge_chunks: vec![],
             t_props: None,
@@ -49,7 +47,7 @@ impl EdgeFrameBuilder {
             edge_dst_id: vec![],
             edge_offsets: vec![],
             edge_overflow: vec![],
-            
+
             in_chunk_offset: 0,
             max_list_size,
             overflow_chunk: 0,
@@ -112,7 +110,6 @@ impl EdgeFrameBuilder {
         dst: u64,
         chunk: &mut LoadChunk,
     ) -> Result<(), Error> {
-
         if self
             .last_update
             .filter(|(prev_src, prev_dst)| prev_src != &src || prev_dst != &dst)
@@ -128,7 +125,7 @@ impl EdgeFrameBuilder {
             self.edge_count += 1;
             self.no_edge_updates = 0;
             self.edge_overflow.push(None);
-        } else if self.no_edge_updates > self.max_list_size{
+        } else if self.no_edge_updates > self.max_list_size {
             // check if we need to overflow
             if self.overflow_frame.is_none() {
                 // cutoff what we have so far
@@ -137,20 +134,23 @@ impl EdgeFrameBuilder {
                 let last = self.edge_overflow.last_mut().unwrap();
                 last.replace(self.overflow_chunk as u64);
 
+                let file_path = self.location_path.join(format!(
+                    "edge_chunk_overflow_{:08}.ipc",
+                    self.edge_chunks.len()
+                ));
 
-        let file_path = self
-            .location_path
-            .join(format!("edge_chunk_overflow_{:08}.ipc", self.edge_chunks.len()));
+                let dt = self.t_props.as_ref().unwrap().data_type();
 
-                // new overflow frame
-                self.overflow_frame = Some(Box::new(Self::new(
-                    self.chunk_size,
-                    self.max_list_size,
-                    self.location_path.clone(),
-                )));
+                let schema = Schema::from(vec![Field::new(
+                    TEMPORAL_PROPS_COLUMN,
+                    DataType::LargeList(Box::new(Field::new("value", dt.clone(), false))),
+                    false,
+                )]);
+
+                self.overflow_frame =
+                    EdgeOverflowBuilder::new(file_path, schema, self.max_list_size).ok();
             }
-
-        } 
+        }
         self.no_edge_updates += 1;
 
         self.in_chunk_offset += 1;
