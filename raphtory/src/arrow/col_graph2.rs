@@ -40,7 +40,7 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
-    edge_chunk::{EdgeChunk, self},
+    edge_chunk::{self, EdgeChunk},
     global_order::{GlobalMap, GlobalOrder},
     vertex_chunk::{RowOwned, VertexChunk},
     LoadChunk, Time, GID,
@@ -85,7 +85,11 @@ impl TempColGraphFragment {
                 .expect("file names are already filtered and thus valid");
             if file_name.starts_with("edge_chunk_") {
                 edge_chunks.push(EdgeChunk::new(unsafe { mmap_batch(file_path.path(), 0) }?));
-                println!("edge chunk: {:?} {:?}", file_path.path(), edge_chunks.last().unwrap().len());
+                println!(
+                    "edge chunk: {:?} {:?}",
+                    file_path.path(),
+                    edge_chunks.last().unwrap().len()
+                );
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(unsafe {
                     mmap_batch(file_path.path(), 0)
@@ -119,7 +123,7 @@ impl TempColGraphFragment {
                 DataType::Struct(fields) => {
                     let idx = fields.iter().position(|f| f.name == name)?;
                     Some(idx)
-                },
+                }
                 _ => None,
             },
             _ => None,
@@ -643,7 +647,6 @@ impl<'a> Edge<'a> {
         RowOwned::new(time_col.value(self.idx))
     }
 
-
     pub fn props<T: NativeType>(&self, prop_id: usize) -> Option<&[T]> {
         let t_prop = self.edge.temporal_properties();
         match t_prop.data_type() {
@@ -651,7 +654,7 @@ impl<'a> Edge<'a> {
                 DataType::Struct(fields) => {
                     let col = ListColumn::new(&t_prop, prop_id)?;
                     Some(col.into_value(self.idx))
-                },
+                }
                 _ => None,
             },
             _ => None,

@@ -9,9 +9,14 @@ use arrow2::{
     error::Result as ArrowResult,
     offset::OffsetsBuffer,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    cmp::min,
+    path::{Path, PathBuf},
+};
 
-use crate::arrow::{edge_chunk::EdgeChunk, Error, LoadChunk, Time, TEMPORAL_PROPS_COLUMN};
+use crate::arrow::{
+    col_graph2::Edge, edge_chunk::EdgeChunk, Error, LoadChunk, Time, TEMPORAL_PROPS_COLUMN,
+};
 
 use super::edge_overflow_builder::EdgeOverflowBuilder;
 
@@ -116,6 +121,13 @@ impl EdgeFrameBuilder {
             .is_some()
             || self.last_update.is_none()
         {
+            if self.no_edge_updates > self.max_list_size {
+                self.extend_chunk_with_time_and_props(chunk)?;
+                if let Some(builder) = self.overflow_frame.as_mut() {
+                    builder.finalize()?;
+                }
+            }
+            self.overflow_frame = None;
             if self.edge_count % self.chunk_size == 0 && self.last_update.is_some() {
                 self.write_down_chunk(chunk)?;
             }
@@ -125,56 +137,82 @@ impl EdgeFrameBuilder {
             self.edge_count += 1;
             self.no_edge_updates = 0;
             self.edge_overflow.push(None);
-        } else if self.no_edge_updates > self.max_list_size {
-            // check if we need to overflow
-            if self.overflow_frame.is_none() {
-                // cutoff what we have so far
-                self.extend_chunk_with_time_and_props(chunk)?;
-                // update the overflow chunk
-                let last = self.edge_overflow.last_mut().unwrap();
-                last.replace(self.overflow_chunk as u64);
-
-                let file_path = self.location_path.join(format!(
-                    "edge_chunk_overflow_{:08}.ipc",
-                    self.edge_chunks.len()
-                ));
-
-                let dt = self.t_props.as_ref().unwrap().data_type();
-
-                let schema = Schema::from(vec![Field::new(
-                    TEMPORAL_PROPS_COLUMN,
-                    DataType::LargeList(Box::new(Field::new("value", dt.clone(), false))),
-                    false,
-                )]);
-
-                self.overflow_frame =
-                    EdgeOverflowBuilder::new(file_path, schema, self.max_list_size).ok();
-            }
         }
         self.no_edge_updates += 1;
-
         self.in_chunk_offset += 1;
         self.chunk_offset += 1;
         self.last_update = Some((src, dst));
         Ok(())
     }
 
-    pub(crate) fn extend_tprops_slice(&mut self, copy_from: &StructArray) {
-        super::extend_tprops_slice(&mut self.t_props, copy_from);
-        self.in_chunk_offset = 0;
+    pub(crate) fn new_overflow_builder_with_chunk(
+        &mut self,
+        chunk: &StructArray,
+    ) -> Result<(), Error> {
+        let file_path = self.location_path.join(format!(
+            "edge_chunk_overflow_{:08}.ipc",
+            self.overflow_chunk
+        ));
+        self.overflow_chunk += 1;
+        let dt = chunk.data_type();
+
+        let schema = Schema::from(vec![Field::new(
+            TEMPORAL_PROPS_COLUMN,
+            DataType::LargeList(Box::new(Field::new("value", dt.clone(), false))),
+            false,
+        )]);
+        let mut builder = EdgeOverflowBuilder::new(file_path, schema, self.max_list_size)?;
+        builder.push_chunk(chunk)?;
+        self.overflow_frame.replace(builder);
+        Ok(())
     }
 
-    fn extend_chunk_with_time_and_props(&mut self, load_chunk: &mut LoadChunk) -> ArrowResult<()> {
-        let arr = load_chunk.split_timestamps_at(self.in_chunk_offset);
+    pub(crate) fn extend_tprops_slice(&mut self, copy_from: &StructArray) -> Result<(), Error> {
+        let non_overflow = if self.no_edge_updates > self.max_list_size {
+            let overflowed_size = min(
+                self.in_chunk_offset,
+                self.no_edge_updates - self.max_list_size,
+            );
+            let overflow = copy_from
+                .clone()
+                .sliced(self.in_chunk_offset - overflowed_size, overflowed_size);
+            // last edge has overflow
+            match self.overflow_frame.as_mut() {
+                Some(builder) => {
+                    builder.push_chunk(&overflow)?;
+                }
+                None => {
+                    self.new_overflow_builder_with_chunk(&overflow)?;
+                    let last = self.edge_overflow.last_mut().unwrap();
+                    last.replace(self.overflow_chunk as u64);
+                }
+            }
+            &copy_from
+                .clone()
+                .sliced(0, self.in_chunk_offset - overflowed_size)
+        } else {
+            copy_from
+        };
+
+        super::extend_tprops_slice(&mut self.t_props, non_overflow);
+        self.in_chunk_offset = 0;
+
+        Ok(())
+    }
+
+    fn extend_chunk_with_time_and_props(
+        &mut self,
+        load_chunk: &mut LoadChunk,
+    ) -> Result<(), Error> {
         let t_props = load_chunk.split_t_props_at(self.in_chunk_offset);
 
         if let Some(t_props) = t_props {
-            self.extend_tprops_slice(&t_props);
+            self.extend_tprops_slice(&t_props)?;
         }
         Ok(())
     }
 
-    pub(crate) fn write_down_chunk(&mut self, load_chunk: &mut LoadChunk) -> ArrowResult<()> {
+    pub(crate) fn write_down_chunk(&mut self, load_chunk: &mut LoadChunk) -> Result<(), Error> {
         self.extend_chunk_with_time_and_props(load_chunk)?;
         self.push_chunk()?;
         Ok(())

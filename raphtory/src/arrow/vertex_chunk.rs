@@ -51,7 +51,6 @@ impl VertexChunk {
 pub struct RowOwned<T>(Buffer<T>);
 
 impl<T: NativeType> RowOwned<T> {
-
     pub fn new(row: Buffer<T>) -> Self {
         RowOwned(row)
     }

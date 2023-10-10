@@ -37,10 +37,8 @@ pub(crate) fn extend_tprops_slice(
         *maybe_t_props = Some(t_props);
     } else {
         let mut_arrays = as_mut_arrays(copy_from);
-        let t_props = MutableStructArray::new(
-            remap_data_type(copy_from.data_type().clone()),
-            mut_arrays,
-        );
+        let t_props =
+            MutableStructArray::new(remap_data_type(copy_from.data_type().clone()), mut_arrays);
         *maybe_t_props = Some(t_props);
         extend_tprops_slice(maybe_t_props, copy_from);
     }

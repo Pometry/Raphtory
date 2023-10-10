@@ -56,7 +56,8 @@ impl EdgeChunk {
     pub(crate) fn temporal_properties(&self) -> &ListArray<i64> {
         let time = self.0[TIME_COL]
             .as_any()
-            .downcast_ref::<ListArray<i64>>().unwrap();
+            .downcast_ref::<ListArray<i64>>()
+            .unwrap();
         time
     }
 
