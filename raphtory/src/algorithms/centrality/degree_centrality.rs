@@ -54,7 +54,9 @@ pub fn degree_centrality<G: GraphViewOps>(
     );
     let mut map: HashMap<usize, f64> = HashMap::new();
     for (vertex_name, value) in runner_result.iter() {
+        println!("{:?}", vertex_name);
         if let Some(vertex) = g.vertex(vertex_name.to_string()) {
+            println!("{:?}", vertex.name());
             let vid = vertex.vertex.0;
             map.insert(vid, *value);
         }
@@ -75,18 +77,19 @@ mod degree_centrality_test {
     #[test]
     fn test_degree_centrality() {
         let graph = Graph::new();
-        let vs = vec![(0, 1), (0, 2), (0, 3), (1, 2), (1, 3)];
+        let vs = vec![(1, 2), (1, 3), (1, 4), (2, 3), (2, 4)];
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
         let mut hash_map_result: HashMap<String, Option<&f64>> = HashMap::new();
-        hash_map_result.insert("0".to_string(), Some(&1.0));
         hash_map_result.insert("1".to_string(), Some(&1.0));
-        hash_map_result.insert("2".to_string(), Some(&(2.0 / 3.0)));
+        hash_map_result.insert("2".to_string(), Some(&1.0));
         hash_map_result.insert("3".to_string(), Some(&(2.0 / 3.0)));
+        hash_map_result.insert("4".to_string(), Some(&(2.0 / 3.0)));
 
         let binding = degree_centrality(&graph, None);
         let res = binding.get_with_names();
+        println!("{}", binding);
         assert_eq!(res, hash_map_result);
     }
 }
