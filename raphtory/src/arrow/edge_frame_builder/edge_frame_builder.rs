@@ -168,7 +168,7 @@ impl EdgeFrameBuilder {
     }
 
     pub(crate) fn extend_tprops_slice(&mut self, copy_from: &StructArray) -> Result<(), Error> {
-        let non_overflow = if self.no_edge_updates > self.max_list_size {
+        if self.no_edge_updates > self.max_list_size {
             let overflowed_size = min(
                 self.in_chunk_offset,
                 self.no_edge_updates - self.max_list_size,
@@ -187,16 +187,14 @@ impl EdgeFrameBuilder {
                     last.replace(self.overflow_chunk as u64);
                 }
             }
-            &copy_from
+            let non_overflow = copy_from
                 .clone()
-                .sliced(0, self.in_chunk_offset - overflowed_size)
+                .sliced(0, self.in_chunk_offset - overflowed_size);
+            super::extend_tprops_slice(&mut self.t_props, &non_overflow);
         } else {
-            copy_from
-        };
-
-        super::extend_tprops_slice(&mut self.t_props, non_overflow);
+            super::extend_tprops_slice(&mut self.t_props, copy_from);
+        }
         self.in_chunk_offset = 0;
-
         Ok(())
     }
 
