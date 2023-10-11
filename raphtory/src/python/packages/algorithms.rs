@@ -253,12 +253,12 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
-// #[pyfunction]
-// pub fn all_local_reciprocity(
-//     g: &PyGraphView,
-// ) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
-//     all_local_reciprocity_rs(&g.graph, None)
-// }
+#[pyfunction]
+pub fn all_local_reciprocity(
+    g: &PyGraphView,
+) -> AlgorithmResultNew<DynamicGraph, f64, OrderedFloat<f64>> {
+    all_local_reciprocity_rs(&g.graph, None)
+}
 
 /// Computes the number of connected triplets within a graph
 ///

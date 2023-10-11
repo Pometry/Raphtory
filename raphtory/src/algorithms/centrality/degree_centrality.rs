@@ -54,9 +54,7 @@ pub fn degree_centrality<G: GraphViewOps>(
     );
     let mut map: HashMap<usize, f64> = HashMap::new();
     for (vertex_name, value) in runner_result.iter() {
-        println!("{:?}", vertex_name);
         if let Some(vertex) = g.vertex(vertex_name.to_string()) {
-            println!("{:?}", vertex.name());
             let vid = vertex.vertex.0;
             map.insert(vid, *value);
         }
@@ -89,7 +87,6 @@ mod degree_centrality_test {
 
         let binding = degree_centrality(&graph, None);
         let res = binding.get_with_names();
-        println!("{}", binding);
         assert_eq!(res, hash_map_result);
     }
 }

@@ -500,7 +500,6 @@ mod algorithm_result_test {
             .unwrap()
             .0;
         assert_eq!(answer, 22i32);
-        println!("{}", algo_result);
     }
 
     #[test]
