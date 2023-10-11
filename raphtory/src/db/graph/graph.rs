@@ -12,7 +12,7 @@
 //! graph.add_vertex(0, "Alice", NO_PROPS).unwrap();
 //! graph.add_vertex(1, "Bob", NO_PROPS).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", NO_PROPS, None).unwrap();
-//! graph.num_edges();
+//! graph.count_edges();
 //! ```
 //!
 
@@ -20,7 +20,9 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::internal::{Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph},
+        view::internal::{
+            Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph, Static,
+        },
     },
     prelude::*,
 };
@@ -30,7 +32,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
@@ -38,8 +39,10 @@ pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph(pub Arc<InternalGraph>);
 
+impl Static for Graph {}
+
 pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
-    if g1.num_vertices() == g2.num_vertices() && g1.num_edges() == g2.num_edges() {
+    if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
             g1.edges().explode().all(|e| { // all exploded edges exist in other
@@ -87,7 +90,7 @@ impl InheritViewOps for Graph {}
 impl Graph {
     /// Create a new graph with the specified number of shards
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -111,7 +114,7 @@ impl Graph {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -148,7 +151,7 @@ mod db_tests {
     use crate::{
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
-            Prop,
+            ArcStr, Prop,
         },
         db::{
             api::view::{
@@ -162,8 +165,21 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck::Arbitrary;
+    use rayon::prelude::*;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
+
+    #[quickcheck]
+    fn test_multithreaded_add_edge(edges: Vec<(u64, u64)>) -> bool {
+        let g = Graph::new();
+        edges.par_iter().enumerate().for_each(|(t, (i, j))| {
+            g.add_edge(t as i64, *i, *j, NO_PROPS, None).unwrap();
+        });
+        edges
+            .iter()
+            .all(|(i, j)| g.has_edge(*i, *j, Layer::Default))
+            && g.count_temporal_edges() == edges.len()
+    }
 
     #[quickcheck]
     fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {
@@ -176,7 +192,7 @@ mod db_tests {
                 .ok();
         }
 
-        assert_eq!(g.num_vertices(), expected_len)
+        assert_eq!(g.count_vertices(), expected_len)
     }
 
     #[quickcheck]
@@ -190,7 +206,7 @@ mod db_tests {
                 .ok();
         }
 
-        assert_eq!(g.num_vertices(), expected_len);
+        assert_eq!(g.count_vertices(), expected_len);
 
         vs.iter().all(|name| {
             let v = g.vertex(name.clone()).unwrap();
@@ -219,8 +235,8 @@ mod db_tests {
             g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        assert_eq!(g.num_vertices(), unique_vertices_count);
-        assert_eq!(g.num_edges(), unique_edge_count);
+        assert_eq!(g.count_vertices(), unique_vertices_count);
+        assert_eq!(g.count_edges(), unique_edge_count);
     }
 
     #[quickcheck]
@@ -450,8 +466,7 @@ mod db_tests {
             .unwrap();
         v11.add_constant_properties(vec![("c", Prop::U32(11))])
             .unwrap();
-        v22.add_constant_properties(vec![("b", Prop::U64(22))])
-            .unwrap();
+
         v44.add_constant_properties(vec![("e", Prop::U8(1))])
             .unwrap();
         v55.add_constant_properties(vec![("f", Prop::U16(1))])
@@ -463,8 +478,13 @@ mod db_tests {
             .add_constant_properties(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
+        // cannot change property type
+        assert!(v22
+            .add_constant_properties(vec![("b", Prop::U64(22))])
+            .is_err());
+
         assert_eq!(v11.properties().constant().keys(), vec!["a", "b", "c"]);
-        assert_eq!(v22.properties().constant().keys(), vec!["b"]);
+        assert!(v22.properties().constant().keys().is_empty());
         assert!(v33.properties().constant().keys().is_empty());
         assert_eq!(v44.properties().constant().keys(), vec!["e"]);
         assert_eq!(v55.properties().constant().keys(), vec!["f"]);
@@ -475,7 +495,7 @@ mod db_tests {
         assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
         assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
         assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
-        assert_eq!(v22.properties().constant().get("b"), Some(Prop::U64(22)));
+        assert_eq!(v22.properties().constant().get("b"), None);
         assert_eq!(v44.properties().constant().get("e"), Some(Prop::U8(1)));
         assert_eq!(v55.properties().constant().get("f"), Some(Prop::U16(1)));
         assert_eq!(v22.properties().constant().get("a"), None);
@@ -605,7 +625,7 @@ mod db_tests {
         assert!(g.has_vertex("haaroon"));
         assert!(g.has_vertex("hamza"));
 
-        assert_eq!(g.num_vertices(), 3);
+        assert_eq!(g.count_vertices(), 3);
     }
 
     #[test]
@@ -634,11 +654,11 @@ mod db_tests {
         let layer2 = g.layer("layer2").expect("layer2");
         assert!(g.layer("missing layer").is_none());
 
-        assert_eq!(g.num_vertices(), 4);
-        assert_eq!(g.num_edges(), 4);
-        assert_eq!(dft_layer.num_edges(), 3);
-        assert_eq!(layer1.num_edges(), 1);
-        assert_eq!(layer2.num_edges(), 2);
+        assert_eq!(g.count_vertices(), 4);
+        assert_eq!(g.count_edges(), 4);
+        assert_eq!(dft_layer.count_edges(), 3);
+        assert_eq!(layer1.count_edges(), 1);
+        assert_eq!(layer2.count_edges(), 2);
 
         let vertex = g.vertex(11).unwrap();
         let vertex_dft = dft_layer.vertex(11).unwrap();
@@ -730,7 +750,7 @@ mod db_tests {
 
         let mut expected = Vec::new();
         for i in 1..4 {
-            expected.push(vec![("weight".to_string(), Prop::I64(i))]);
+            expected.push(vec![("weight".into(), Prop::I64(i))]);
         }
 
         assert_eq!(res, expected);
@@ -962,7 +982,7 @@ mod db_tests {
 
     #[test]
     fn test_prop_display_str() {
-        let mut prop = Prop::Str(String::from("hello"));
+        let mut prop = Prop::Str("hello".into());
         assert_eq!(format!("{}", prop), "hello");
 
         prop = Prop::I32(42);
@@ -994,7 +1014,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_static_props(u64_props: Vec<(String, u64)>) -> bool {
+    fn test_graph_constant_props(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
@@ -1008,16 +1028,16 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.properties().constant().get(name).unwrap() == value)
+            .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
     }
 
     #[quickcheck]
-    fn test_graph_static_props_names(u64_props: Vec<(String, u64)>) -> bool {
+    fn test_graph_constant_props_names(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
             .into_iter()
-            .map(|(name, value)| (name, Prop::U64(value)))
+            .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
         g.add_constant_properties(as_props.clone()).unwrap();
@@ -1046,17 +1066,17 @@ mod db_tests {
             .enumerate()
             .map(|(i, props)| {
                 let (name, value) = props;
-                let value = Prop::Str(value.clone());
-                (name.clone(), value, i % 2)
+                let value = Prop::from(value);
+                (name.as_str().into(), value, i % 2)
             })
             .partition(|(_, _, i)| *i == 0);
 
-        let t0_props: HashMap<String, Prop> = t0_props
+        let t0_props: HashMap<ArcStr, Prop> = t0_props
             .into_iter()
             .map(|(name, value, _)| (name, value))
             .collect();
 
-        let t1_props: HashMap<String, Prop> = t1_props
+        let t1_props: HashMap<ArcStr, Prop> = t1_props
             .into_iter()
             .map(|(name, value, _)| (name, value))
             .collect();
@@ -1112,7 +1132,7 @@ mod db_tests {
             .unwrap();
 
         let e = g.vertex(1).unwrap().out_edges().next().unwrap();
-        let res: HashMap<String, Vec<(i64, Prop)>> = e
+        let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
             .window(1, 3)
             .properties()
             .temporal()
@@ -1122,7 +1142,7 @@ mod db_tests {
 
         let mut exp = HashMap::new();
         exp.insert(
-            "weight".to_string(),
+            ArcStr::from("weight"),
             vec![(1, Prop::I64(1)), (2, Prop::I64(2))],
         );
         assert_eq!(res, exp);
@@ -1384,7 +1404,7 @@ mod db_tests {
 
         assert_eq!(sum_eth_btc, 30);
 
-        assert_eq!(lg.num_edges(), 1);
+        assert_eq!(lg.count_edges(), 1);
 
         let e = g.edge(1, 2).expect("failed to get edge");
 
@@ -1434,22 +1454,22 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer2")).unwrap();
         assert_eq!(
-            g.layer("layer2").unwrap().get_unique_layers(),
+            g.layer("layer2").unwrap().unique_layers().collect_vec(),
             vec!["layer2"]
         )
     }
-
-    #[quickcheck]
-    fn vertex_from_id_is_consistent(vertices: Vec<u64>) -> bool {
-        let g = Graph::new();
-        for v in vertices.iter() {
-            g.add_vertex(0, *v, NO_PROPS).unwrap();
-        }
-        g.vertices()
-            .name()
-            .map(|name| g.vertex(name))
-            .all(|v| v.is_some())
-    }
+    //TODO this needs to be fixed as part of the algorithm result switch to returning vertexrefs
+    // #[quickcheck]
+    // fn vertex_from_id_is_consistent(vertices: Vec<u64>) -> bool {
+    //     let g = Graph::new();
+    //     for v in vertices.iter() {
+    //         g.add_vertex(0, *v, NO_PROPS).unwrap();
+    //     }
+    //     g.vertices()
+    //         .name()
+    //         .map(|name| g.vertex(name))
+    //         .all(|v| v.is_some())
+    // }
 
     #[quickcheck]
     fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {

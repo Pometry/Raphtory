@@ -1,5 +1,5 @@
 use crate::{
-    core::Prop,
+    core::{ArcStr, Prop},
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::internal::{DynamicGraph, Static},
@@ -26,7 +26,7 @@ use std::{collections::HashMap, ops::Deref, sync::Arc};
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 
 #[derive(PartialEq, Clone)]
-pub struct PyPropsComp(HashMap<String, Prop>);
+pub struct PyPropsComp(HashMap<ArcStr, Prop>);
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
@@ -34,7 +34,7 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
-        } else if let Ok(m) = ob.extract::<HashMap<String, Prop>>() {
+        } else if let Ok(m) = ob.extract::<HashMap<ArcStr, Prop>>() {
             Ok(PyPropsComp(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
@@ -107,7 +107,7 @@ impl PyProperties {
     }
 
     /// Get the names for all properties (includes temporal and static properties)
-    pub fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<ArcStr> {
         self.props.keys().map(|k| k.clone()).collect()
     }
 
@@ -120,7 +120,7 @@ impl PyProperties {
     }
 
     /// Get a list of key-value pairs
-    pub fn items(&self) -> Vec<(String, Prop)> {
+    pub fn items(&self) -> Vec<(ArcStr, Prop)> {
         self.props.as_vec()
     }
 
@@ -137,7 +137,7 @@ impl PyProperties {
     }
 
     /// Convert properties view to a dict
-    pub fn as_dict(&self) -> HashMap<String, Prop> {
+    pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
     }
 }
@@ -196,7 +196,7 @@ impl Repr for PyProperties {
 }
 
 #[derive(PartialEq, Clone)]
-pub struct PyPropsListCmp(HashMap<String, PyPropValueListCmp>);
+pub struct PyPropsListCmp(HashMap<ArcStr, PyPropValueListCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
@@ -204,7 +204,7 @@ impl<'source> FromPyObject<'source> for PyPropsListCmp {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyPropsList>>() {
             Ok(p.deref().into())
-        } else if let Ok(m) = ob.extract::<HashMap<String, PyPropValueListCmp>>() {
+        } else if let Ok(m) = ob.extract::<HashMap<ArcStr, PyPropValueListCmp>>() {
             Ok(Self(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
@@ -271,7 +271,7 @@ impl PyPropsList {
     }
 
     /// Get the names for all properties (includes temporal and constant properties)
-    pub fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
             .map(|p| p.keys().map(|k| k.clone()).collect_vec())
@@ -303,7 +303,7 @@ impl PyPropsList {
     }
 
     /// Get a list of key-value pairs
-    pub fn items(&self) -> Vec<(String, PyPropValueList)> {
+    pub fn items(&self) -> Vec<(ArcStr, PyPropValueList)> {
         self.keys()
             .into_iter()
             .flat_map(|k| self.get(&k).map(|v| (k, v)))
@@ -325,7 +325,7 @@ impl PyPropsList {
     }
 
     /// Convert properties view to a dict
-    pub fn as_dict(&self) -> HashMap<String, Vec<Option<Prop>>> {
+    pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Option<Prop>>> {
         self.items()
             .into_iter()
             .map(|(k, v)| (k, v.collect()))
@@ -344,7 +344,7 @@ py_nested_iterable_base!(PyNestedPropsIterable, DynProperties, PyProperties);
 py_eq!(PyNestedPropsIterable, PyConstPropsListListCmp);
 
 #[derive(PartialEq, Clone)]
-pub struct PyConstPropsListListCmp(HashMap<String, PyPropValueListListCmp>);
+pub struct PyConstPropsListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
 impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
@@ -352,7 +352,7 @@ impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
-        } else if let Ok(m) = ob.extract::<HashMap<String, PyPropValueListListCmp>>() {
+        } else if let Ok(m) = ob.extract::<HashMap<ArcStr, PyPropValueListListCmp>>() {
             Ok(Self(m))
         } else {
             Err(PyTypeError::new_err("not comparable with properties"))
@@ -415,7 +415,7 @@ impl PyNestedPropsIterable {
     }
 
     /// Get the names for all properties (includes temporal and constant properties)
-    pub fn keys(&self) -> Vec<String> {
+    pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
             .flat_map(|it| it.map(|p| p.keys().map(|k| k.clone()).collect_vec()))
@@ -440,7 +440,7 @@ impl PyNestedPropsIterable {
     }
 
     /// Get a list of key-value pairs
-    pub fn items(&self) -> Vec<(String, PyPropValueListList)> {
+    pub fn items(&self) -> Vec<(ArcStr, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
@@ -459,7 +459,7 @@ impl PyNestedPropsIterable {
     }
 
     /// Convert properties view to a dict
-    pub fn as_dict(&self) -> HashMap<String, Vec<Vec<Option<Prop>>>> {
+    pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {
         self.items()
             .into_iter()
             .map(|(k, v)| (k, v.collect()))

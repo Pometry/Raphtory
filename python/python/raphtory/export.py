@@ -23,9 +23,9 @@ def to_pyvis(
 
     .. note::
 
-    Pyvis is a required dependency.
-    If you intend to use this function make sure that
-    you install Pyvis with ``pip install pyvis``
+        Pyvis is a required dependency.
+        If you intend to use this function make sure that
+        you install Pyvis with ``pip install pyvis``
 
     :param graph: A Raphtory graph.
     :param explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
@@ -45,17 +45,17 @@ def to_pyvis(
 
     For Example:
 
-    .. jupyter-execute::
+    .. code-block:: python
 
-    from raphtory import Graph
-    from raphtory import export
+        from raphtory import Graph
+        from raphtory import export
 
-    g = Graph()
-    g.add_vertex(1, src, properties={"image": "image.png"})
-    g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
-    g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
+        g = Graph()
+        g.add_vertex(1, src, properties={"image": "image.png"})
+        g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
+        g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
 
-    export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
+        export.to_pyvis(graph=g, edge_color="#FF0000", edge_weight= "weight", shape="image", node_image="image", edge_label="title")
 
     """
     visGraph = Network(notebook=notebook, **kwargs)
@@ -67,7 +67,7 @@ def to_pyvis(
             )
         }
 
-    for v in graph.vertices():
+    for v in graph.vertices:
         image = (
             v.properties.get(node_image)
             if node_image != None
@@ -76,16 +76,16 @@ def to_pyvis(
         shape = shape if shape is not None else "dot"
         if colour_nodes_by_type:
             visGraph.add_node(
-                v.id(),
-                label=v.name(),
+                v.id,
+                label=v.name,
                 shape=shape,
                 image=image,
                 group=groups[v.properties.get(type_property)],
             )
         else:
-            visGraph.add_node(v.id(), label=v.name(), shape=shape, image=image)
+            visGraph.add_node(v.id, label=v.name, shape=shape, image=image)
 
-    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
     for e in edges:
         weight = e.properties.get(edge_weight) if edge_weight is not None else 1
         if weight is None:
@@ -94,8 +94,8 @@ def to_pyvis(
         if label is None:
             label = ""
         visGraph.add_edge(
-            e.src().id(),
-            e.dst().id(),
+            e.src.id,
+            e.dst.id,
             value=weight,
             color=edge_color,
             title=label,
@@ -114,6 +114,7 @@ def to_networkx(
     include_property_histories=True,
 ):
     r"""Returns a graph with NetworkX.
+
     .. note::
 
         Network X is a required dependency.
@@ -133,7 +134,7 @@ def to_networkx(
     networkXGraph = nx.MultiDiGraph()
 
     vertex_tuples = []
-    for v in graph.vertices():
+    for v in graph.vertices:
         properties = {}
         if include_vertex_properties:
             if include_property_histories:
@@ -143,27 +144,27 @@ def to_networkx(
                 properties = v.properties.as_dict()
         if include_update_history:
             properties.update({"update_history": v.history()})
-        vertex_tuples.append((v.name(), properties))
+        vertex_tuples.append((v.name, properties))
     networkXGraph.add_nodes_from(vertex_tuples)
 
     edge_tuples = []
-    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
     for e in edges:
         properties = {}
-        src = e.src().name()
-        dst = e.dst().name()
+        src = e.src.name
+        dst = e.dst.name
         if include_edge_properties:
             if include_property_histories:
                 properties.update(e.properties.constant.as_dict())
                 properties.update(e.properties.temporal.histories())
             else:
                 properties = e.properties.as_dict()
-        layer = e.layer_name()
+        layer = e.layer_name
         if layer is not None:
             properties.update({"layer": layer})
         if include_update_history:
             if explode_edges:
-                properties.update({"update_history": e.time()})
+                properties.update({"update_history": e.time})
             else:
                 properties.update({"update_history": e.history()})
         edge_tuples.append((src, dst, properties))
@@ -181,6 +182,7 @@ def to_edge_df(
     include_property_histories=True,
 ):
     r"""Returns an edge list pandas dataframe for the given graph.
+
     .. note::
 
         Pandas is a required dependency.
@@ -203,9 +205,9 @@ def to_edge_df(
     if include_update_history:
         columns.append("update_history")
 
-    edges = graph.edges().explode() if explode_edges else graph.edges().explode_layers()
+    edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
     for e in edges:
-        tuple = [e.src().name(), e.dst().name(), e.layer_name()]
+        tuple = [e.src.name, e.dst.name, e.layer_name]
         if include_edge_properties:
             properties = {}
             if include_property_histories:
@@ -217,7 +219,7 @@ def to_edge_df(
 
         if include_update_history:
             if explode_edges:
-                tuple.append(e.time())
+                tuple.append(e.time)
             else:
                 tuple.append(e.history())
 
@@ -255,8 +257,8 @@ def to_vertex_df(
     if include_update_history:
         columns.append("update_history")
 
-    for v in graph.vertices():
-        tuple = [v.name()]
+    for v in graph.vertices:
+        tuple = [v.name]
         if include_vertex_properties:
             properties = {}
             if include_property_histories:

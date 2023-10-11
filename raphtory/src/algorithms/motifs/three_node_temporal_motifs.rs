@@ -1,6 +1,6 @@
 // Imports ///////////////////////////////////////////
 use crate::{
-    algorithms::{k_core::k_core_set, motifs::three_node_motifs::*},
+    algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
     core::state::{
         accumulator_id::{
             accumulators::{self, val},
@@ -87,13 +87,12 @@ impl Zero for MotifCounter {
 }
 
 ///////////////////////////////////////////////////////
-
 pub fn star_motif_count<G>(
     evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
-    G: GraphViewOps,
+    G: GraphViewOps
 {
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
@@ -178,7 +177,7 @@ pub fn triangle_motifs<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps
 {
     let delta_len = deltas.len();
 
@@ -287,6 +286,8 @@ where
 
                             // Triangle counts are going to be WRONG without w
                             // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
+                            // Triangle counts are going to be WRONG without w
+                            // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
 
                             let mc_u = u.get_mut();
                             let triangle_u = mc_u.triangle[i]
@@ -347,8 +348,11 @@ where
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);
     let delta_len = deltas.len();
+    let delta_len = deltas.len();
 
     ctx.agg(motifs_counter);
+
+    let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
@@ -358,6 +362,8 @@ where
 
             let two_nodes = twonode_motif_count(g, evv, deltas.clone());
             let star_nodes = star_motif_count(evv, deltas.clone());
+            let two_nodes = twonode_motif_count(g, evv, deltas.clone());
+            let star_nodes = star_motif_count(evv, deltas.clone());
 
             *evv.get_mut() = MotifCounter::new(
                 deltas.len(),
@@ -365,7 +371,6 @@ where
                 star_nodes,
                 evv.get().triangle.clone(),
             );
-
             Step::Continue
         },
     );
@@ -380,6 +385,27 @@ where
             let mut motifs = HashMap::new();
             for (vref, mc) in enumerate(local) {
                 let v_gid = g.vertex_name(vref.into());
+                let triangles = out1
+                    .get(&v_gid)
+                    .map(|v| v.clone())
+                    .unwrap_or_else(|| vec![[0 as usize; 8]; delta_len]);
+                let run_counts = (0..delta_len)
+                    .map(|i| {
+                        let two_nodes = mc.two_nodes[i].to_vec();
+                        let tmp_stars = mc.star_nodes[i].to_vec();
+                        let stars: Vec<usize> = tmp_stars
+                            .iter()
+                            .zip(two_nodes.iter().cycle().take(24))
+                            .map(|(&x1, &x2)| x1 - x2)
+                            .collect();
+                        let mut final_cts = Vec::new();
+                        final_cts.extend(stars.into_iter());
+                        final_cts.extend(two_nodes.into_iter());
+                        final_cts.extend(triangles[i].into_iter());
+                        final_cts
+                    })
+                    .collect::<Vec<Vec<usize>>>();
+                motifs.insert(v_gid.clone(), run_counts);
                 let triangles = out1
                     .get(&v_gid)
                     .map(|v| v.clone())

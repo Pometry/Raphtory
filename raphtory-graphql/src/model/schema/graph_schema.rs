@@ -23,8 +23,7 @@ impl GraphSchema {
             .collect_vec();
 
         let layers = graph
-            .get_unique_layers()
-            .iter()
+            .unique_layers()
             .map(|layer_name| graph.layer(layer_name).unwrap().into())
             .collect_vec();
 

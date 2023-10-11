@@ -4,6 +4,7 @@ use crate::{
             graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
         },
         utils::{errors::GraphError, time::IntoTime},
+        ArcStr,
     },
     db::{
         api::{
@@ -35,24 +36,24 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
         vertices: I,
     ) -> VertexSubgraph<Self>;
     /// Return all the layer ids in the graph
-    fn get_unique_layers(&self) -> Vec<String>;
+    fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
     /// Return the number of vertices in the graph.
-    fn num_vertices(&self) -> usize;
+    fn count_vertices(&self) -> usize;
 
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
-        self.num_vertices() == 0
+        self.count_vertices() == 0
     }
 
     /// Return the number of edges in the graph.
-    fn num_edges(&self) -> usize;
+    fn count_edges(&self) -> usize;
 
     // Return the number of temporal edges in the graph.
-    fn num_temporal_edges(&self) -> usize;
+    fn count_temporal_edges(&self) -> usize;
 
     /// Check if the graph contains a vertex `v`.
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
@@ -74,7 +75,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
 
     /// Get all property values of this graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
@@ -83,7 +84,7 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     ///
     /// # Arguments
     ///
-    /// # Returns
+    /// Returns:
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 }
@@ -103,7 +104,7 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 
     /// Return all the layer ids in the graph
-    fn get_unique_layers(&self) -> Vec<String> {
+    fn unique_layers(&self) -> BoxedIter<ArcStr> {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
@@ -115,16 +116,16 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.latest_time_global()
     }
 
-    fn num_vertices(&self) -> usize {
+    fn count_vertices(&self) -> usize {
         self.vertices_len(self.layer_ids(), self.edge_filter())
     }
 
-    fn num_temporal_edges(&self) -> usize {
+    fn count_temporal_edges(&self) -> usize {
         self.edges().explode().count()
     }
 
     #[inline]
-    fn num_edges(&self) -> usize {
+    fn count_edges(&self) -> usize {
         self.edges_len(self.layer_ids(), self.edge_filter())
     }
 
@@ -182,20 +183,20 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         for e in self.edges() {
             // FIXME: this needs to be verified
             for ee in e.explode_layers() {
-                let layer_id = *ee.edge.layer().unwrap();
+                let layer_id = *ee.edge.layer().expect("exploded layers");
                 let layer_ids = LayerIds::One(layer_id);
-                let layer_names = self.get_layer_names_from_ids(layer_ids.clone());
+                let layer_name = self.get_layer_name(layer_id);
                 let layer_name: Option<&str> = if layer_id == 0 {
                     None
                 } else {
-                    Some(&layer_names[0])
+                    Some(&layer_name)
                 };
 
                 for ee in ee.explode() {
                     g.add_edge(
                         ee.time().expect("exploded edge"),
-                        ee.src().id(),
-                        ee.dst().id(),
+                        ee.src().name(),
+                        ee.dst().name(),
                         ee.properties().temporal().collect_properties(),
                         layer_name,
                     )?;
@@ -215,11 +216,11 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
         for v in self.vertices().iter() {
             for h in v.history() {
-                g.add_vertex(h, v.id(), NO_PROPS)?;
+                g.add_vertex(h, v.name(), NO_PROPS)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_vertex(t, v.id(), [(name.clone(), prop)])?;
+                    g.add_vertex(t, v.name(), [(name.clone(), prop)])?;
                 }
             }
             g.vertex(v.id())
@@ -244,8 +245,8 @@ impl<G: GraphViewOps> TimeOps for G {
         self.view_end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> WindowedGraph<Self> {
-        WindowedGraph::new(self.clone(), t_start, t_end)
+    fn window<T: IntoTime>(&self, start: T, end: T) -> WindowedGraph<Self> {
+        WindowedGraph::new(self.clone(), start, end)
     }
 }
 
@@ -278,7 +279,7 @@ mod test_exploded_edges {
         g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
         g.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
-        assert_eq!(g.num_temporal_edges(), 4)
+        assert_eq!(g.count_temporal_edges(), 4)
     }
 }
 
@@ -293,6 +294,12 @@ mod test_materialize {
         g.add_edge(0, 1, 2, [("layer2", "2")], Some("2")).unwrap();
 
         let gm = g.materialize().unwrap();
+        assert!(gm
+            .vertices()
+            .name()
+            .collect::<Vec<String>>()
+            .eq(&vec!["1", "2"]));
+
         assert!(!g
             .layer("2")
             .unwrap()

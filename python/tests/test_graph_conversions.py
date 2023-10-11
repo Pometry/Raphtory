@@ -2,31 +2,34 @@ from raphtory import Graph
 from raphtory import export
 import pandas as pd
 import json
+from pathlib import Path
+
+base_dir = Path(__file__).parent
 
 
 def build_graph():
-    edges_df = pd.read_csv("data/network_traffic_edges.csv")
+    edges_df = pd.read_csv(base_dir / "data/network_traffic_edges.csv")
     edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
 
-    vertices_df = pd.read_csv("data/network_traffic_vertices.csv")
+    vertices_df = pd.read_csv(base_dir / "data/network_traffic_vertices.csv")
     vertices_df["timestamp"] = pd.to_datetime(vertices_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
 
     return Graph.load_from_pandas(
-        edges_df=edges_df,
-        src="source",
-        dst="destination",
-        time="timestamp",
-        props=["data_size_MB"],
-        layer_in_df="transaction_type",
-        const_props=["is_encrypted"],
-        shared_const_props={"datasource": "data/network_traffic_edges.csv"},
+        edge_df=edges_df,
+        edge_src="source",
+        edge_dst="destination",
+        edge_time="timestamp",
+        edge_props=["data_size_MB"],
+        edge_layer="transaction_type",
+        edge_const_props=["is_encrypted"],
+        edge_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
         vertex_df=vertices_df,
-        vertex_col="server_id",
-        vertex_time_col="timestamp",
+        vertex_id="server_id",
+        vertex_time="timestamp",
         vertex_props=["OS_version", "primary_function", "uptime_days"],
         vertex_const_props=["server_name", "hardware_type"],
         vertex_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
@@ -158,7 +161,6 @@ def test_networkx_full_history():
                     (1693555260000, "Ubuntu 20.04"),
                     (1693555320000, "Ubuntu 20.04"),
                 ],
-                "_id": "ServerA",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": [
@@ -185,7 +187,6 @@ def test_networkx_full_history():
             "ServerB",
             {
                 "OS_version": [(1693555500000, "Red Hat 8.1")],
-                "_id": "ServerB",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": [(1693555500000, "Web Server")],
@@ -203,7 +204,6 @@ def test_networkx_full_history():
             "ServerC",
             {
                 "OS_version": [(1693555800000, "Windows Server 2022")],
-                "_id": "ServerC",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": [(1693555800000, "File Storage")],
@@ -223,7 +223,6 @@ def test_networkx_full_history():
             "ServerD",
             {
                 "OS_version": [(1693556100000, "Ubuntu 20.04")],
-                "_id": "ServerD",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Tower Server",
                 "primary_function": [(1693556100000, "Application Server")],
@@ -242,7 +241,6 @@ def test_networkx_full_history():
             "ServerE",
             {
                 "OS_version": [(1693556400000, "Red Hat 8.1")],
-                "_id": "ServerE",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": [(1693556400000, "Backup")],
@@ -653,7 +651,6 @@ def test_networkx_no_history():
             "ServerA",
             {
                 "OS_version": "Ubuntu 20.04",
-                "_id": "ServerA",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": "Database",
@@ -665,7 +662,6 @@ def test_networkx_no_history():
             "ServerB",
             {
                 "OS_version": "Red Hat 8.1",
-                "_id": "ServerB",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": "Web Server",
@@ -677,7 +673,6 @@ def test_networkx_no_history():
             "ServerC",
             {
                 "OS_version": "Windows Server 2022",
-                "_id": "ServerC",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Blade Server",
                 "primary_function": "File Storage",
@@ -689,7 +684,6 @@ def test_networkx_no_history():
             "ServerD",
             {
                 "OS_version": "Ubuntu 20.04",
-                "_id": "ServerD",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Tower Server",
                 "primary_function": "Application Server",
@@ -701,7 +695,6 @@ def test_networkx_no_history():
             "ServerE",
             {
                 "OS_version": "Red Hat 8.1",
-                "_id": "ServerE",
                 "datasource": "data/network_traffic_edges.csv",
                 "hardware_type": "Rack Server",
                 "primary_function": "Backup",
@@ -951,56 +944,65 @@ def test_to_df():
     g = build_graph()
 
     compare_df(
-        export.to_edge_df(g), pd.read_json("expected/dataframe_output/edge_df_all.json")
+        export.to_edge_df(g),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json"),
     )
 
     compare_df(
         export.to_edge_df(g, include_edge_properties=False),
-        pd.read_json("expected/dataframe_output/edge_df_no_props.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
     )
 
     compare_df(
         export.to_edge_df(g, include_update_history=False),
-        pd.read_json("expected/dataframe_output/edge_df_no_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_hist.json"),
     )
 
     compare_df(
         export.to_edge_df(g, include_property_histories=False),
-        pd.read_json("expected/dataframe_output/edge_df_no_prop_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_prop_hist.json"),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True),
-        pd.read_json("expected/dataframe_output/edge_df_exploded.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded.json"),
     )
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_edge_properties=False),
-        pd.read_json("expected/dataframe_output/edge_df_exploded_no_props.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"
+        ),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_update_history=False),
-        pd.read_json("expected/dataframe_output/edge_df_exploded_no_hist.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"
+        ),
     )
 
     compare_df(
         export.to_edge_df(g, explode_edges=True, include_property_histories=False),
-        pd.read_json("expected/dataframe_output/edge_df_exploded_no_prop_hist.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
+        ),
     )
 
     compare_df(
         export.to_vertex_df(g),
-        pd.read_json("expected/dataframe_output/vertex_df_all.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_all.json"),
     )
     compare_df(
         export.to_vertex_df(g, include_vertex_properties=False),
-        pd.read_json("expected/dataframe_output/vertex_df_no_props.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_props.json"),
     )
     compare_df(
         export.to_vertex_df(g, include_update_history=False),
-        pd.read_json("expected/dataframe_output/vertex_df_no_hist.json"),
+        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_hist.json"),
     )
     compare_df(
         export.to_vertex_df(g, include_property_histories=False),
-        pd.read_json("expected/dataframe_output/vertex_df_no_prop_hist.json"),
+        pd.read_json(
+            base_dir / "expected/dataframe_output/vertex_df_no_prop_hist.json"
+        ),
     )

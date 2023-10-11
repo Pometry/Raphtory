@@ -8,7 +8,10 @@
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
     db::{
-        api::mutation::{AdditionOps, PropertyAdditionOps},
+        api::{
+            mutation::{AdditionOps, PropertyAdditionOps},
+            view::internal::MaterializedGraph,
+        },
         graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     },
     prelude::{DeletionOps, GraphViewOps},
@@ -17,14 +20,14 @@ use crate::{
         utils::{PyInputVertex, PyTime},
     },
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
 
-/// A temporal graph.
+/// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
 #[pyclass(name="GraphWithDeletions", extends=PyGraphView)]
 pub struct PyGraphWithDeletions {
@@ -71,7 +74,7 @@ impl PyGraphWithDeletions {
     }
 }
 
-/// A temporal graph.
+/// A temporal graph that allows edges and nodes to be deleted.
 #[pymethods]
 impl PyGraphWithDeletions {
     #[new]
@@ -197,7 +200,6 @@ impl PyGraphWithDeletions {
     /// Arguments:
     ///     src (str or int): the source vertex id
     ///     dst (str or int): the destination vertex id
-    ///     layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
@@ -232,5 +234,11 @@ impl PyGraphWithDeletions {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    /// Get bincode encoded graph
+    pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
+        let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
+        Ok(PyBytes::new(py, &bytes))
     }
 }

@@ -1,7 +1,7 @@
 //! Load (a subset of) Reddit hyperlinks dataset into a graph.
 //! The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv
 //! The hyperlink network represents the directed connections between two subreddits (a subreddit
-//! is a community on Reddit). We also provide subreddit embeddings. The network is extracted
+//! is a community_detection on Reddit). We also provide subreddit embeddings. The network is extracted
 //! from publicly available Reddit data of 2.5 years from Jan 2014 to April 2017.
 //! *NOTE: It may take a while to download the dataset
 //!
@@ -34,8 +34,8 @@
 //!
 //! let graph = reddit_graph(120, false);
 //!
-//! println!("The graph has {:?} vertices", graph.num_vertices());
-//! println!("The graph has {:?} edges", graph.num_edges());
+//! println!("The graph has {:?} vertices", graph.count_vertices());
+//! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
 use crate::{core::Prop, db::api::mutation::AdditionOps, graph_loader::fetch_file, prelude::*};
@@ -50,7 +50,7 @@ use std::{
 /// Download the dataset and return the path to the file
 /// # Arguments
 /// * `timeout` - The timeout in seconds for downloading the dataset
-/// # Returns
+/// Returns:
 /// * `PathBuf` - The path to the file
 pub fn reddit_file(
     timeout: u64,
@@ -87,7 +87,7 @@ where
 ///
 /// * `timeout` - The timeout in seconds for downloading the dataset
 ///
-/// # Returns
+/// Returns:
 ///
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
 pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
@@ -113,7 +113,7 @@ pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
                                 .collect();
                             let edge_properties = [
                                 ("post_label".to_string(), Prop::I32(post_label)),
-                                ("post_id".to_string(), Prop::Str(post_id)),
+                                ("post_id".to_string(), Prop::str(post_id)),
                                 ("word_count".to_string(), Prop::F64(post_properties[7])),
                                 ("long_words".to_string(), Prop::F64(post_properties[9])),
                                 ("sentences".to_string(), Prop::F64(post_properties[13])),
@@ -169,7 +169,7 @@ mod reddit_test {
     #[test]
     fn check_graph() {
         let graph = reddit_graph(100, true);
-        assert_eq!(graph.num_vertices(), 16);
-        assert_eq!(graph.num_edges(), 9);
+        assert_eq!(graph.count_vertices(), 16);
+        assert_eq!(graph.count_edges(), 9);
     }
 }

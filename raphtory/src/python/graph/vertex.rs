@@ -113,6 +113,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    The id of the vertex as an integer.
+    #[getter]
     pub fn id(&self) -> u64 {
         self.vertex.id()
     }
@@ -120,38 +121,36 @@ impl PyVertex {
     /// Returns the name of the vertex.
     ///
     /// Returns:
-    ///  The name of the vertex as a string.
+    ///     The name of the vertex as a string.
+    #[getter]
     pub fn name(&self) -> String {
         self.vertex.name()
     }
 
     /// Returns the earliest time that the vertex exists.
     ///
-    /// Arguments:
-    ///    None
-    ///
     /// Returns:
     ///     The earliest time that the vertex exists as an integer.
+    #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
         self.vertex.earliest_time()
     }
 
     /// Returns the earliest datetime that the vertex exists.
     ///
-    /// Arguments:
-    ///    None
-    ///
     /// Returns:
     ///     The earliest datetime that the vertex exists as an integer.
+    #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
         let earliest_time = self.vertex.earliest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(earliest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(earliest_time)
     }
 
     /// Returns the latest time that the vertex exists.
     ///
     /// Returns:
     ///     The latest time that the vertex exists as an integer.
+    #[getter]
     pub fn latest_time(&self) -> Option<i64> {
         self.vertex.latest_time()
     }
@@ -163,12 +162,16 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest datetime that the vertex exists as an integer.
+    #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
         let latest_time = self.vertex.latest_time()?;
-        Some(NaiveDateTime::from_timestamp_millis(latest_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(latest_time)
     }
 
     /// The properties of the vertex
+    ///
+    /// Returns:
+    ///     A list of properties.
     #[getter]
     pub fn properties(&self) -> Properties<VertexView<DynamicGraph>> {
         self.vertex.properties()
@@ -202,6 +205,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     A list of `Edge` objects.
+    #[getter]
     pub fn edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.edges()).into()
@@ -211,6 +215,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///     A list of `Edge` objects.
+    #[getter]
     pub fn in_edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.in_edges()).into()
@@ -220,6 +225,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    A list of `Edge` objects.
+    #[getter]
     pub fn out_edges(&self) -> PyEdges {
         let vertex = self.vertex.clone();
         (move || vertex.out_edges()).into()
@@ -230,6 +236,7 @@ impl PyVertex {
     /// Returns:
     ///
     ///    A list of `Vertex` objects.
+    #[getter]
     pub fn neighbours(&self) -> PyPathFromVertex {
         self.vertex.neighbours().into()
     }
@@ -238,6 +245,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   A list of `Vertex` objects.
+    #[getter]
     pub fn in_neighbours(&self) -> PyPathFromVertex {
         self.vertex.in_neighbours().into()
     }
@@ -246,6 +254,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///   A list of `Vertex` objects.
+    #[getter]
     pub fn out_neighbours(&self) -> PyPathFromVertex {
         self.vertex.out_neighbours().into()
     }
@@ -256,6 +265,7 @@ impl PyVertex {
     ///
     /// Returns:
     ///    The earliest time that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.vertex.start()
     }
@@ -264,15 +274,17 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The earliest datetime that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn start_date_time(&self) -> Option<NaiveDateTime> {
         let start_time = self.vertex.start()?;
-        Some(NaiveDateTime::from_timestamp_millis(start_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(start_time)
     }
 
     /// Gets the latest time that this vertex is valid.
     ///
     /// Returns:
     ///   The latest time that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.vertex.end()
     }
@@ -281,9 +293,10 @@ impl PyVertex {
     ///
     /// Returns:
     ///     The latest datetime that this vertex is valid or None if the vertex is valid for all times.
+    #[getter]
     pub fn end_date_time(&self) -> Option<NaiveDateTime> {
         let end_time = self.vertex.end()?;
-        Some(NaiveDateTime::from_timestamp_millis(end_time).unwrap())
+        NaiveDateTime::from_timestamp_millis(end_time)
     }
 
     /// Creates a `PyVertexWindowSet` with the given `step` size and optional `start` and `end` times,    
@@ -294,12 +307,10 @@ impl PyVertex {
     /// its properties are at those points.
     ///
     /// Arguments:
-    ///  step (int): The step size of the window.
-    ///  start (int): The start time of the window. Defaults to the start time of the vertex.
-    ///  end (int): The end time of the window. Defaults to the end time of the vertex.
+    ///     step (int): The step size of the window.
     ///
     /// Returns:
-    ///  A `PyVertexWindowSet` object.
+    ///     A `PyVertexWindowSet` object.
     fn expanding(
         &self,
         step: PyInterval,
@@ -315,13 +326,11 @@ impl PyVertex {
     /// its properties are at those points.
     ///
     /// Arguments:
-    ///  window: The size of the window.
-    ///  step: The step size of the window. Defaults to the window size.
-    ///  start: The start time of the window. Defaults to the start time of the vertex.
-    ///  end: The end time of the window. Defaults to the end time of the vertex.
+    ///     window: The size of the window.
+    ///     step: The step size of the window. Defaults to the window size.
     ///
     /// Returns:
-    /// A `PyVertexWindowSet` object.
+    ///     A `PyVertexWindowSet` object.
     fn rolling(
         &self,
         window: PyInterval,
@@ -330,28 +339,28 @@ impl PyVertex {
         self.vertex.rolling(window, step)
     }
 
-    /// Create a view of the vertex including all events between `t_start` (inclusive) and `t_end` (exclusive)
+    /// Create a view of the vertex including all events between `start` (inclusive) and `end` (exclusive)
     ///
     /// Arguments:
-    ///     t_start (int): The start time of the window. Defaults to the start time of the vertex.
-    ///     t_end (int): The end time of the window. Defaults to the end time of the vertex.
+    ///     start (int, str or datetime(utc)): The start time of the window. Defaults to the start time of the vertex.
+    ///     end (int, str or datetime(utc)): The end time of the window. Defaults to the end time of the vertex.
     ///
     /// Returns:
     ///    A `PyVertex` object.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> VertexView<WindowedGraph<DynamicGraph>> {
         self.vertex
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
     ///
     /// Arguments:
-    ///     end (int): The time of the window.
+    ///     end (int, str or datetime(utc)): The time of the window.
     ///
     /// Returns:
     ///     A `PyVertex` object.
@@ -371,7 +380,7 @@ impl PyVertex {
         self.vertex.layer(names)
     }
 
-    #[doc = layers_doc_string!()]
+    #[doc = layers_name_doc_string!()]
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: String) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
         self.vertex.layer(name)
@@ -544,29 +553,37 @@ impl PyVertices {
     }
 
     /// Returns an iterator over the vertices ids
+    #[getter]
     fn id(&self) -> U64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.id()).into()
     }
 
     /// Returns an iterator over the vertices name
+    #[getter]
     fn name(&self) -> StringIterable {
         let vertices = self.vertices.clone();
         (move || vertices.name()).into()
     }
 
     /// Returns an iterator over the vertices earliest time
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.earliest_time()).into()
     }
 
     /// Returns an iterator over the vertices latest time
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let vertices = self.vertices.clone();
         (move || vertices.latest_time()).into()
     }
 
+    /// The properties of the vertex
+    ///
+    /// Returns:
+    ///     A List of properties
     #[getter]
     fn properties(&self) -> PyPropsList {
         let vertices = self.vertices.clone();
@@ -604,6 +621,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of edges of the vertices
+    #[getter]
     fn edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.edges()).into()
@@ -613,6 +631,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of in edges of the vertices
+    #[getter]
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.in_edges()).into()
@@ -622,6 +641,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of out edges of the vertices
+    #[getter]
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.vertices.clone();
         (move || clone.out_edges()).into()
@@ -631,6 +651,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the neighbours of the vertices
+    #[getter]
     fn neighbours(&self) -> PyPathFromGraph {
         self.vertices.neighbours().into()
     }
@@ -639,6 +660,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the in neighbours of the vertices
+    #[getter]
     fn in_neighbours(&self) -> PyPathFromGraph {
         self.vertices.in_neighbours().into()
     }
@@ -647,6 +669,7 @@ impl PyVertices {
     ///
     /// Returns:
     ///     An iterator of the out neighbours of the vertices
+    #[getter]
     fn out_neighbours(&self) -> PyPathFromGraph {
         self.vertices.out_neighbours().into()
     }
@@ -658,16 +681,19 @@ impl PyVertices {
 
     //*****     Perspective APIS  ******//
     /// Returns the start time of the vertices
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.vertices.start()
     }
 
     /// Returns the end time of the vertices
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.vertices.end()
     }
 
     #[doc = window_size_doc_string!()]
+    #[getter]
     pub fn window_size(&self) -> Option<u64> {
         self.vertices.window_size()
     }
@@ -697,8 +723,8 @@ impl PyVertices {
     /// what its properties are at those points.
     ///
     /// Arguments:
-    ///     `window` - The window size of the window
-    ///     `step` - The step size of the window
+    ///     window (str or int): The window size of the window
+    ///     step (str or int): The step size of the window
     ///
     /// Returns:
     ///     A PyVertexWindowSet with the given window size and optional step size or an error
@@ -710,29 +736,29 @@ impl PyVertices {
         self.vertices.rolling(window, step)
     }
 
-    /// Create a view of the vertices including all events between t_start (inclusive) and
-    /// t_end (exclusive)
+    /// Create a view of the vertices including all events between start (inclusive) and
+    /// end (exclusive)
     ///
     /// Arguments:
-    ///     `t_start` - The start time of the window
-    ///     `t_end` - The end time of the window
+    ///     start (int, str or datetime(utc)): The start time of the window (inclusive)
+    ///     end (int, str or datetime(utc)): The end time of the window (exclusive)
     ///
     /// Returns:
-    ///     A `PyVertices` object.
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    ///     A `PyVertices` object of vertices within the window.
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> Vertices<WindowedGraph<DynamicGraph>> {
         self.vertices
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertices including all events at `t`.
     ///
     /// Arguments:
-    ///     end (int): The time of the window.
+    ///     end (int, str or datetime(utc)): The time of the window.
     ///
     /// Returns:
     ///     A `PyVertices` object.
@@ -771,10 +797,6 @@ impl PyVertices {
             .ok_or_else(|| PyIndexError::new_err("Vertex does not exist"))
     }
 
-    pub fn __call__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
     pub fn __repr__(&self) -> String {
         self.repr()
     }
@@ -800,21 +822,25 @@ impl PyPathFromGraph {
     fn collect(&self) -> Vec<Vec<PyVertex>> {
         self.__iter__().into_iter().map(|it| it.collect()).collect()
     }
+    #[getter]
     fn id(&self) -> NestedU64Iterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
@@ -841,43 +867,52 @@ impl PyPathFromGraph {
         (move || path.out_degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyNestedEdges {
         let clone = self.path.clone();
         (move || clone.edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.path.clone();
         (move || clone.in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.path.clone();
         (move || clone.out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         self.path.out_neighbours().into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         self.path.in_neighbours().into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         self.path.neighbours().into()
     }
 
     //******  Perspective APIS  ******//
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.path.start()
     }
 
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.path.end()
     }
 
     #[doc = window_size_doc_string!()]
+    #[getter]
     pub fn window_size(&self) -> Option<u64> {
         self.path.window_size()
     }
@@ -897,14 +932,14 @@ impl PyPathFromGraph {
         self.path.rolling(window, step)
     }
 
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None, end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> PathFromGraph<WindowedGraph<DynamicGraph>> {
         self.path
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -994,21 +1029,25 @@ impl PyPathFromVertex {
         self.__iter__().into_iter().collect()
     }
 
+    #[getter]
     fn id(&self) -> U64Iterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
+    #[getter]
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
@@ -1035,43 +1074,52 @@ impl PyPathFromVertex {
         (move || path.degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyEdges {
         let path = self.path.clone();
         (move || path.edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyEdges {
         let path = self.path.clone();
         (move || path.in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyEdges {
         let path = self.path.clone();
         (move || path.out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         self.path.out_neighbours().into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         self.path.in_neighbours().into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         self.path.neighbours().into()
     }
 
     //******  Perspective APIS  ******//
+    #[getter]
     pub fn start(&self) -> Option<i64> {
         self.path.start()
     }
 
+    #[getter]
     pub fn end(&self) -> Option<i64> {
         self.path.end()
     }
 
     #[doc = window_size_doc_string!()]
+    #[getter]
     pub fn window_size(&self) -> Option<u64> {
         self.path.window_size()
     }
@@ -1091,14 +1139,14 @@ impl PyPathFromVertex {
         self.path.rolling(window, step)
     }
 
-    #[pyo3(signature = (t_start = None, t_end = None))]
+    #[pyo3(signature = (start = None,end = None))]
     pub fn window(
         &self,
-        t_start: Option<PyTime>,
-        t_end: Option<PyTime>,
+        start: Option<PyTime>,
+        end: Option<PyTime>,
     ) -> PathFromVertex<WindowedGraph<DynamicGraph>> {
         self.path
-            .window(t_start.unwrap_or(PyTime::MIN), t_end.unwrap_or(PyTime::MAX))
+            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
     }
 
     /// Create a view of the vertex including all events at `t`.
@@ -1211,21 +1259,25 @@ py_iterable!(PyVertexIterable, VertexView<DynamicGraph>, PyVertex);
 
 #[pymethods]
 impl PyVertexIterable {
+    #[getter]
     fn id(&self) -> U64Iterable {
         let builder = self.builder.clone();
         (move || builder().id()).into()
     }
 
+    #[getter]
     fn name(&self) -> StringIterable {
         let vertices = self.builder.clone();
         (move || vertices().name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().latest_time()).into()
@@ -1252,31 +1304,37 @@ impl PyVertexIterable {
         (move || vertices().out_degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyEdges {
         let clone = self.builder.clone();
         (move || clone().edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyEdges {
         let clone = self.builder.clone();
         (move || clone().in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyEdges {
         let clone = self.builder.clone();
         (move || clone().out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().out_neighbours()).into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().in_neighbours()).into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().neighbours()).into()
@@ -1287,21 +1345,25 @@ py_nested_iterable!(PyNestedVertexIterable, VertexView<DynamicGraph>);
 
 #[pymethods]
 impl PyNestedVertexIterable {
+    #[getter]
     fn id(&self) -> NestedU64Iterable {
         let builder = self.builder.clone();
         (move || builder().id()).into()
     }
 
+    #[getter]
     fn name(&self) -> NestedStringIterable {
         let vertices = self.builder.clone();
         (move || vertices().name()).into()
     }
 
+    #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().earliest_time()).into()
     }
 
+    #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let vertices = self.builder.clone();
         (move || vertices().latest_time()).into()
@@ -1328,31 +1390,37 @@ impl PyNestedVertexIterable {
         (move || vertices().out_degree()).into()
     }
 
+    #[getter]
     fn edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().edges()).into()
     }
 
+    #[getter]
     fn in_edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().in_edges()).into()
     }
 
+    #[getter]
     fn out_edges(&self) -> PyNestedEdges {
         let clone = self.builder.clone();
         (move || clone().out_edges()).into()
     }
 
+    #[getter]
     fn out_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().out_neighbours()).into()
     }
 
+    #[getter]
     fn in_neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().in_neighbours()).into()
     }
 
+    #[getter]
     fn neighbours(&self) -> Self {
         let builder = self.builder.clone();
         (move || builder().neighbours()).into()

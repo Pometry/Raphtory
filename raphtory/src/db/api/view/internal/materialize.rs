@@ -2,7 +2,11 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            properties::tprop::{LockedLayeredTProp, TProp},
+            properties::{
+                graph_props::GraphProps,
+                props::Meta,
+                tprop::{LockedLayeredTProp, TProp},
+            },
             vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
@@ -11,16 +15,16 @@ use crate::{
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
             ArcEntry,
         },
-        utils::errors::{GraphError, IllegalMutate},
-        Direction,
+        utils::errors::GraphError,
+        ArcStr, Direction, PropType,
     },
     db::{
         api::{
             mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
             properties::internal::{
-                ConstPropertiesOps, Key, TemporalPropertiesOps, TemporalPropertyViewOps,
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::internal::*,
+            view::{internal::*, BoxedIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
@@ -75,6 +79,16 @@ impl MaterializedGraph {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
         Ok(bincode::serialize_into(&mut writer, self)?)
+    }
+
+    pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
+        let encoded = bincode::serialize(self)?;
+        Ok(encoded)
+    }
+
+    pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
+        let g = bincode::deserialize(b)?;
+        Ok(g)
     }
 }
 

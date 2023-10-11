@@ -1,7 +1,11 @@
+use chrono::NaiveDateTime;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::time::IntoTime,
+        ArcStr,
     },
     db::api::{
         properties::{
@@ -27,6 +31,7 @@ pub trait EdgeViewOps:
     + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
+    + TimeOps
     + Sized
     + Clone
 {
@@ -94,10 +99,34 @@ pub trait EdgeViewOps:
         self.graph().edge_earliest_time(self.eref(), layer_ids)
     }
 
+    fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        let earliest_time = self.graph().edge_earliest_time(self.eref(), layer_ids);
+        NaiveDateTime::from_timestamp_millis(earliest_time?)
+    }
+
+    fn latest_date_time(&self) -> Option<NaiveDateTime> {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        let latest_time = self.graph().edge_latest_time(self.eref(), layer_ids);
+        NaiveDateTime::from_timestamp_millis(latest_time?)
+    }
+
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph().edge_latest_time(self.eref(), layer_ids)
+    }
+
+    fn start_date_time(&self) -> Option<NaiveDateTime> {
+        self.graph()
+            .start()
+            .map(|t| NaiveDateTime::from_timestamp_millis(t).unwrap())
+    }
+
+    fn end_date_time(&self) -> Option<NaiveDateTime> {
+        self.graph()
+            .end()
+            .map(|t| NaiveDateTime::from_timestamp_millis(t).unwrap())
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -105,11 +134,17 @@ pub trait EdgeViewOps:
         self.eref().time().map(|ti| *ti.t())
     }
 
+    fn date_time(&self) -> Option<NaiveDateTime> {
+        self.eref()
+            .time()
+            .map(|ti| NaiveDateTime::from_timestamp_millis(*ti.t()).unwrap())
+    }
+
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Option<String> {
+    fn layer_name(&self) -> Option<ArcStr> {
         self.eref()
             .layer()
-            .and_then(|l_id| self.graph().get_layer_name(*l_id).map(|name| name.clone()))
+            .map(|l_id| self.graph().get_layer_name(*l_id))
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
@@ -118,7 +153,7 @@ pub trait EdgeViewOps:
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> Vec<String> {
+    fn layer_names(&self) -> BoxedIter<ArcStr> {
         let layer_ids = self
             .graph()
             .edge_layer_ids(&self.graph().core_edge(self.eref().pid()))
@@ -158,14 +193,40 @@ pub trait EdgeListOps:
     /// Get the timestamp for the earliest activity of the edge
     fn earliest_time(self) -> Self::IterType<Option<i64>>;
 
+    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
+
+    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+
+    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
 
     /// Get the timestamps of the edges if they are  exploded
     fn time(self) -> Self::IterType<Option<i64>>;
 
     /// Get the layer name for each edge if it is restricted to a single layer
-    fn layer_name(self) -> Self::IterType<Option<String>>;
+    fn layer_name(self) -> Self::IterType<Option<ArcStr>>;
+
+    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>>;
+
+    fn history(self) -> Self::IterType<Vec<i64>>;
+
+    fn start(self) -> Self::IterType<Option<i64>>;
+
+    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+
+    fn end(self) -> Self::IterType<Option<i64>>;
+
+    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+
+    fn at<T: IntoTime>(self, t: T) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
+
+    fn window<T: IntoTime>(
+        self,
+        start: T,
+        end: T,
+    ) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
 }
 
 #[cfg(test)]

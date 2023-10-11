@@ -54,7 +54,7 @@ mod graphql_test {
             .add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
             .expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = data::Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -92,7 +92,7 @@ mod graphql_test {
             .add_vertex(0, 11, NO_PROPS)
             .expect("Could not add vertex!");
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = data::Data::from_map(graphs);
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -137,7 +137,7 @@ mod graphql_test {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = Data::from_map(graphs);
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -202,22 +202,14 @@ mod graphql_test {
         if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(
-            0,
-            "bilbo",
-            [("food".to_string(), Prop::Str("lots".to_string()))],
-        ) {
+        if let Err(err) = graph.add_vertex(0, "bilbo", [("food".to_string(), Prop::str("lots"))]) {
             panic!("Could not add vertex! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(
-            0,
-            "frodo",
-            [("food".to_string(), Prop::Str("some".to_string()))],
-        ) {
+        if let Err(err) = graph.add_vertex(0, "frodo", [("food".to_string(), Prop::str("some"))]) {
             panic!("Could not add vertex! {:?}", err);
         }
 
-        let graphs = HashMap::from([("lotr".to_string(), graph.into_dynamic())]);
+        let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = data::Data::from_map(graphs);
 
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -298,7 +290,7 @@ mod graphql_test {
 
         let list_graphs = r#"
         {
-          graphs {
+          subgraphs {
             name
           }
         }"#;
@@ -339,7 +331,7 @@ mod graphql_test {
         let req = Request::new(list_graphs);
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graphs": [{"name": "g0"}]}));
+        assert_eq!(res_json, json!({"subgraphs": [{"name": "g0"}]}));
 
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;

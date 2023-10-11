@@ -8,8 +8,12 @@ use crate::{
 };
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::db::api::view::internal::DynamicGraph;
-use std::collections::HashMap;
+use raphtory::{
+    db::graph::{edge::EdgeView, vertex::VertexView},
+    prelude::Graph,
+    vectors::{vectorizable::Vectorizable, Embedding},
+};
+use std::{collections::HashMap, future::Future, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -18,7 +22,7 @@ pub struct RaphtoryServer {
 }
 
 impl RaphtoryServer {
-    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
         let data = Data::from_map(graphs);
         Self { data }
     }
@@ -28,12 +32,53 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, DynamicGraph>,
-        graph_directory: &str,
-    ) -> Self {
+    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, graph_directory: &str) -> Self {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
+    }
+
+    pub async fn with_vectorized<F, U, N, E>(
+        self,
+        graph_names: Vec<String>,
+        embedding: F,
+        cache_dir: &Path,
+        templates: Option<(N, E)>,
+    ) -> Self
+    where
+        F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
+        U: Future<Output = Vec<Embedding>> + Send + 'static,
+        N: Fn(&VertexView<Graph>) -> String + Sync + Send + Copy + 'static,
+        E: Fn(&EdgeView<Graph>) -> String + Sync + Send + Copy + 'static,
+    {
+        {
+            let graphs_map = self.data.graphs.read();
+            let mut stores_map = self.data.vector_stores.write();
+
+            for graph_name in graph_names {
+                let graph_cache = cache_dir.join(&graph_name);
+                let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
+
+                println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
+                let vectorized = match templates {
+                    Some((node_template, edge_template)) => {
+                        graph
+                            .vectorize_with_templates(
+                                Box::new(embedding),
+                                &graph_cache,
+                                node_template,
+                                edge_template,
+                            )
+                            .await
+                    }
+                    None => graph.vectorize(Box::new(embedding), &graph_cache).await,
+                };
+                stores_map.insert(graph_name, vectorized);
+            }
+        }
+
+        println!("Embeddings were loaded successfully");
+
+        self
     }
 
     pub fn register_algorithm<T: Algorithm>(self, name: &str) -> Self {

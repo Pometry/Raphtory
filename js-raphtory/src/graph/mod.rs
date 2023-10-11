@@ -67,20 +67,20 @@ impl Graph {
     }
 
     #[wasm_bindgen(js_name = window)]
-    pub fn window(&self, t_start: i64, t_end: i64) -> Self {
+    pub fn window(&self, start: i64, end: i64) -> Self {
         match &self.0 {
-            UnderGraph::TGraph(g) => Graph(UnderGraph::WindowedGraph(Arc::new(
-                g.window(t_start, t_end),
-            ))),
+            UnderGraph::TGraph(g) => {
+                Graph(UnderGraph::WindowedGraph(Arc::new(g.window(start, end))))
+            }
             UnderGraph::WindowedGraph(g) => {
-                // take the largest of g.start() and t_start
-                // and the smallest of g.end and t_end
+                // take the largest of g.start() and start
+                // and the smallest of g.end and end
                 // and apply the window to the parent graph
-                let t_start = std::cmp::max(g.start(), Some(t_start));
-                let t_end = std::cmp::min(g.end(), Some(t_end));
+                let start = std::cmp::max(g.start(), Some(start));
+                let end = std::cmp::min(g.end(), Some(end));
 
                 Graph(UnderGraph::WindowedGraph(Arc::new(
-                    g.graph.window(t_start.unwrap(), t_end.unwrap()),
+                    g.graph.window(start.unwrap(), end.unwrap()),
                 )))
             }
         }
@@ -99,7 +99,7 @@ impl Graph {
     #[wasm_bindgen(js_name = addVertex)]
     pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Vertex, JSError> {
         let rust_props = if js_props.is_string() {
-            vec![("name".to_string(), Prop::Str(js_props.as_string().unwrap()))]
+            vec![("name".to_string(), Prop::str(js_props.as_string().unwrap()))]
         } else if js_props.is_object() {
             Object::entries(&js_props)
                 .iter()
