@@ -150,11 +150,7 @@ macro_rules! py_algorithm_result_new_partial_ord {
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_key(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
-                self.0
-                    .sort_by_vertex_id(reverse)
-                    .iter()
-                    .map(|(s, opt_f)| (s.clone(), opt_f.map(|f| f)))
-                    .collect()
+                self.0.sort_by_vertex_id(reverse)
             }
 
             /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
@@ -176,11 +172,7 @@ macro_rules! py_algorithm_result_new_partial_ord {
                 percentage: bool,
                 reverse: bool,
             ) -> std::vec::Vec<(String, Option<$rustValue>)> {
-                self.0
-                    .top_k(k, percentage, reverse)
-                    .iter()
-                    .map(|(s, opt_f)| (s.clone(), opt_f.map(|f| f)))
-                    .collect()
+                self.0.top_k(k, percentage, reverse)
             }
 
             /// Returns a tuple of the min result with its key
@@ -234,54 +226,54 @@ py_algorithm_result_new_partial_ord!(AlgorithmResultStrF64, DynamicGraph, f64, O
 py_algorithm_result_new!(AlgorithmResultStrU64, DynamicGraph, u64, u64);
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResultStrU64, DynamicGraph, u64, u64);
 
-// py_algorithm_result_new!(
-//     AlgorithmResultStrTupleF32F32,
-//     DynamicGraph,
-//     (f32, f32),
-//     (OrderedFloat<f32>, OrderedFloat<f32>)
-// );
-// py_algorithm_result_new_partial_ord!(
-//     AlgorithmResultStrTupleF32F32,
-//     DynamicGraph,
-//     (f32, f32),
-//     (f32, f32)
-// );
-//
-// py_algorithm_result_new!(
-//     AlgorithmResultStrVecI64Str,
-//     DynamicGraph,
-//     Vec<(i64, String)>,
-//     Vec<(i64, String)>
-// );
-// py_algorithm_result_new_ord_hash_eq!(
-//     AlgorithmResultStrVecI64Str,
-//     DynamicGraph,
-//     Vec<(i64, String)>,
-//     Vec<(i64, String)>
-// );
-//
-// py_algorithm_result_new!(
-//     AlgorithmResultU64VecUsize,
-//     DynamicGraph,
-//     Vec<usize>,
-//     Vec<usize>
-// );
-// py_algorithm_result_new_ord_hash_eq!(
-//     AlgorithmResultU64VecUsize,
-//     DynamicGraph,
-//     Vec<usize>,
-//     Vec<usize>
-// );
-//
-// py_algorithm_result_new!(
-//     AlgorithmResultStrVecStr,
-//     DynamicGraph,
-//     Vec<String>,
-//     Vec<String>
-// );
-// py_algorithm_result_new_ord_hash_eq!(
-//     AlgorithmResultStrVecStr,
-//     DynamicGraph,
-//     Vec<String>,
-//     Vec<String>
-// );
+py_algorithm_result_new!(
+    AlgorithmResultStrTupleF32F32,
+    DynamicGraph,
+    (f32, f32),
+    (OrderedFloat<f32>, OrderedFloat<f32>)
+);
+py_algorithm_result_new_partial_ord!(
+    AlgorithmResultStrTupleF32F32,
+    DynamicGraph,
+    (f32, f32),
+    (f32, f32)
+);
+
+py_algorithm_result_new!(
+    AlgorithmResultStrVecI64Str,
+    DynamicGraph,
+    Vec<(i64, String)>,
+    Vec<(i64, String)>
+);
+py_algorithm_result_new_ord_hash_eq!(
+    AlgorithmResultStrVecI64Str,
+    DynamicGraph,
+    Vec<(i64, String)>,
+    Vec<(i64, String)>
+);
+
+py_algorithm_result_new!(
+    AlgorithmResultU64VecUsize,
+    DynamicGraph,
+    Vec<usize>,
+    Vec<usize>
+);
+py_algorithm_result_new_ord_hash_eq!(
+    AlgorithmResultU64VecUsize,
+    DynamicGraph,
+    Vec<usize>,
+    Vec<usize>
+);
+
+py_algorithm_result_new!(
+    AlgorithmResultStrVecStr,
+    DynamicGraph,
+    Vec<String>,
+    Vec<String>
+);
+py_algorithm_result_new_ord_hash_eq!(
+    AlgorithmResultStrVecStr,
+    DynamicGraph,
+    Vec<String>,
+    Vec<String>
+);

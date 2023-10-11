@@ -5,7 +5,7 @@ use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
-        algorithm_result::AlgorithmResult,
+        algorithm_result::BAlgorithmResult,
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
@@ -48,7 +48,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyTemporalProperties,
         PyTemporalProp,
         PyDirection,
-        AlgorithmResult
+        BAlgorithmResult
     );
 
     //GRAPHQL
@@ -69,7 +69,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module,
         dijkstra_single_source_shortest_paths,
         global_reciprocity,
-        all_local_reciprocity,
+        // all_local_reciprocity,
         triplet_count,
         local_triangle_count,
         average_degree,
@@ -81,17 +81,17 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         max_in_degree,
         min_out_degree,
         min_in_degree,
-        pagerank,
-        single_source_shortest_path,
+        // pagerank,
+        // single_source_shortest_path,
         global_clustering_coefficient,
-        temporally_reachable_nodes,
+        // temporally_reachable_nodes,
         local_clustering_coefficient,
-        weakly_connected_components,
+        // weakly_connected_components,
         global_temporal_three_node_motif,
         global_temporal_three_node_motif_multi,
         local_temporal_three_node_motifs,
-        hits,
-        balance,
+        // hits,
+        // balance,
     );
     m.add_submodule(algorithm_module)?;
 

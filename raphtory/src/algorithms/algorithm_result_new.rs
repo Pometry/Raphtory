@@ -137,12 +137,12 @@ where
     ///
     /// Returns:
     ///     a hashmap with vertex names and values
-    pub fn get_with_names(&self) -> HashMap<String, Option<&V>> {
+    pub fn get_with_names(&self) -> HashMap<String, Option<V>> {
         let mut as_map = HashMap::new();
         for vertex in self.graph.vertices().iter() {
             let name = vertex.name();
             let value = self.result.get(&vertex.vertex.0);
-            as_map.insert(name.to_string(), value);
+            as_map.insert(name.to_string(), value.cloned());
         }
         as_map
     }
@@ -587,7 +587,7 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_hashmap_vec();
         let algo_results_hashmap = algo_result.get_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
-        assert_eq!(tuple_result.unwrap().get(0).unwrap().0, 11);
+        assert_eq!(tuple_result.clone().unwrap().get(0).unwrap().0, 11);
         assert_eq!(algo_result.get_all_values().len(), 3);
     }
 

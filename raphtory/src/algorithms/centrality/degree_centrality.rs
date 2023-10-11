@@ -81,11 +81,11 @@ mod degree_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let mut hash_map_result: HashMap<String, Option<&f64>> = HashMap::new();
-        hash_map_result.insert("1".to_string(), Some(&1.0));
-        hash_map_result.insert("2".to_string(), Some(&1.0));
-        hash_map_result.insert("3".to_string(), Some(&(2.0 / 3.0)));
-        hash_map_result.insert("4".to_string(), Some(&(2.0 / 3.0)));
+        let mut hash_map_result: HashMap<String, Option<f64>> = HashMap::new();
+        hash_map_result.insert("1".to_string(), Some(1.0));
+        hash_map_result.insert("2".to_string(), Some(1.0));
+        hash_map_result.insert("3".to_string(), Some(2.0 / 3.0));
+        hash_map_result.insert("4".to_string(), Some(2.0 / 3.0));
 
         let binding = degree_centrality(&graph, None);
         let res = binding.get_with_names();
