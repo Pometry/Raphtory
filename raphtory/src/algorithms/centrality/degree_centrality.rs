@@ -1,13 +1,16 @@
 use crate::{
     algorithms::{algorithm_result_new::AlgorithmResultNew, metrics::degree::max_degree},
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::internal::DynamicGraph,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::*,
 };
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;

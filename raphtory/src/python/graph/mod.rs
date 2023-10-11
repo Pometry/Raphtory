@@ -1,4 +1,5 @@
 pub mod algorithm_result;
+pub mod algorithm_result_new;
 pub mod edge;
 pub mod graph;
 pub mod graph_with_deletions;
