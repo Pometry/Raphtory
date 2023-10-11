@@ -92,7 +92,6 @@ impl EdgeOverflowBuilder {
 
     fn write_values(&mut self) -> Result<(), Error> {
         let mut values = self.t_props.take().unwrap();
-        println!("dtype: {:?}", values.data_type());
         self.writer
             .write(&Chunk::new(vec![values.as_box()]), None)?;
         self.num_chunks += 1;
@@ -112,7 +111,6 @@ impl EdgeOverflowBuilder {
         self.write_values()?;
         self.writer.finish()?;
         let file = self.writer.into_inner();
-        println!("file: {file:?}");
         let chunks = unsafe { mmap_batches(&file, 0..self.num_chunks)? };
         Ok(EdgeOverflowChunk { chunks })
     }

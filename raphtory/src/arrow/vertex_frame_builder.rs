@@ -1,6 +1,7 @@
 use crate::arrow::{
     adj_schema,
     mmap::{mmap_batch, write_batches},
+    Error,
 };
 use arrow2::{
     array::{Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray},
@@ -29,6 +30,7 @@ pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     chunk_adj_out_offset: i64,
     pub(crate) last_edge: Option<(GID, GID)>,
     last_dst_idx: usize,
+    last_src_idx: usize,
     vertex_count: usize,
     e_id: u64,
     location_path: PathBuf,
@@ -41,18 +43,19 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             global_order: go.clone(),
             adj_out_dst: vec![],
             adj_out_eid: vec![],
-            adj_out_offsets: vec![0],
+            adj_out_offsets: vec![],
             chunk_size,
             chunk_adj_out_offset: 0,
             last_edge: None,
             last_dst_idx: 0,
+            last_src_idx: 0,
             vertex_count: 0,
             e_id: 0,
             location_path: path.as_ref().to_path_buf(),
         }
     }
 
-    fn push_chunk(&mut self, fill_size: usize) -> ArrowResult<()> {
+    fn push_chunk(&mut self) -> ArrowResult<()> {
         let mut adj_out_eid_prev = Vec::with_capacity(self.adj_out_eid.len());
         let mut adj_out_dst_prev = Vec::with_capacity(self.adj_out_dst.len());
         let mut adj_out_offsets_prev = Vec::with_capacity(self.adj_out_offsets.len());
@@ -62,7 +65,7 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
         std::mem::swap(&mut adj_out_offsets_prev, &mut self.adj_out_offsets);
 
         // fill chunk with empty adjacency lists
-        adj_out_offsets_prev.resize(fill_size + 1, self.chunk_adj_out_offset);
+        adj_out_offsets_prev.push(self.chunk_adj_out_offset);
 
         let col =
             new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
@@ -90,60 +93,54 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
         self.global_order.find(vertex).unwrap()
     }
 
-    pub(crate) fn push_update(&mut self, src: GID, dst: GID) -> ArrowResult<(u64, u64)> {
-        if self
-            .last_edge
-            .as_ref()
-            .filter(|(prev_src, _)| prev_src != &src)
-            .is_some()
-            && (self.vertex_count + 1) % self.chunk_size == 0
-        {
-            self.push_chunk(self.chunk_size)?;
-        }
-
+    pub(crate) fn push_update(&mut self, src: GID, dst: GID) -> Result<(u64, u64), Error> {
         let same_edge = self
             .last_edge
             .as_ref()
             .map(|(prev_src, prev_dst)| prev_src == &src && prev_dst == &dst)
             .unwrap_or_default();
 
+        let not_same_source = self
+            .last_edge
+            .as_ref()
+            .filter(|(prev_src, _)| prev_src == &src)
+            .is_none();
+
         if !same_edge {
+            if not_same_source {
+                // new source or first edge
+                self.last_src_idx = self.find_or_push_vertex(&src);
+                self.extend_empty(self.last_src_idx)?;
+            }
             self.adj_out_eid.push(self.e_id);
             self.last_dst_idx = self.find_or_push_vertex(&dst);
             self.adj_out_dst.push(self.last_dst_idx as u64);
-
-            if let Some((prev_src, _)) = self.last_edge.as_ref() {
-                if prev_src != &src {
-                    self.adj_out_offsets.push(self.chunk_adj_out_offset);
-                    self.vertex_count += 1;
-                }
-            }
 
             self.e_id += 1;
             self.chunk_adj_out_offset += 1;
         }
         self.last_edge = Some((src, dst));
-        Ok((self.vertex_count as u64, self.last_dst_idx as u64))
+        Ok((self.last_src_idx as u64, self.last_dst_idx as u64))
     }
 
-    pub(crate) fn finalise_empty_chunks(&mut self) -> ArrowResult<()> {
+    fn extend_empty(&mut self, new_src: usize) -> Result<(), Error> {
+        let old_chunk = self.adj_out_chunks.len();
+        let new_chunk = new_src / self.chunk_size;
+        for _ in old_chunk..new_chunk {
+            self.adj_out_offsets
+                .resize(self.chunk_size, self.chunk_adj_out_offset);
+            self.push_chunk()?;
+        }
+        self.adj_out_offsets
+            .resize((new_src % self.chunk_size) + 1, self.chunk_adj_out_offset);
+        Ok(())
+    }
+
+    pub(crate) fn finalise_empty_chunks(&mut self) -> Result<(), Error> {
         if self.last_edge.is_some() {
-            // deal with the last chunk
-            let remaining_slots_in_chunk = self.chunk_size - self.adj_out_offsets.len();
-            let remaining_vertices = self.global_order.len() - self.vertex_count - 1;
-            let fill_chunk_remaining = remaining_slots_in_chunk.min(remaining_vertices);
-            self.push_chunk(self.adj_out_offsets.len() + fill_chunk_remaining)?;
-
-            // deal with the rest of the vertices
-            let remaining_vertices = remaining_vertices - fill_chunk_remaining;
-            let remaining_chunks = remaining_vertices / self.chunk_size;
-            let size_of_last_chunk = remaining_vertices % self.chunk_size;
-
-            for _ in 0..remaining_chunks {
-                self.push_chunk(self.chunk_size)?;
-            }
-            if size_of_last_chunk > 0 {
-                self.push_chunk(size_of_last_chunk)?;
+            self.extend_empty(self.global_order.len() - 1)?;
+            if !self.adj_out_offsets.is_empty() {
+                self.push_chunk()?;
             }
         }
         Ok(())

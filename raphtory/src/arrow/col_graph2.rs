@@ -702,58 +702,115 @@ mod test {
     use std::{iter, path::PathBuf};
 
     use super::*;
-    use ahash::HashSet;
     use arrow2::datatypes::DataType;
     use proptest::prelude::*;
     use tempfile::TempDir;
 
+    fn edges_sanity_check_inner(
+        edges: Vec<(u64, u64, i64)>,
+        input_chunk_size: u64,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        edge_max_list_size: usize,
+    ) {
+        let test_dir = TempDir::new().unwrap();
+        let vertices: Vec<_> = edges
+            .iter()
+            .map(|(s, _, _)| *s)
+            .chain(edges.iter().map(|(_, d, _)| *d))
+            .sorted()
+            .dedup()
+            .collect();
+        let chunks = edges
+            .iter()
+            .map(|(src, _, _)| *src)
+            .chunks(input_chunk_size as usize);
+        let srcs = chunks
+            .into_iter()
+            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+        let chunks = edges
+            .iter()
+            .map(|(_, dst, _)| *dst)
+            .chunks(input_chunk_size as usize);
+        let dsts = chunks
+            .into_iter()
+            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+        let chunks = edges
+            .iter()
+            .map(|(_, _, times)| *times)
+            .chunks(input_chunk_size as usize);
+        let times = chunks
+            .into_iter()
+            .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
+
+        let schema = Schema::from(vec![
+            Field::new("srcs", DataType::UInt64, false),
+            Field::new("dsts", DataType::UInt64, false),
+            Field::new("time", DataType::Int64, false),
+        ]);
+
+        let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| {
+            LoadChunk::new(
+                vec![a.boxed(), b.boxed(), c.boxed()],
+                0,
+                1,
+                2,
+                schema.clone(),
+            )
+        });
+
+        let go: GlobalMap = vertices.iter().copied().collect();
+
+        let mut graph = TempColGraphFragment::build_tables_from_chunked(
+            test_dir.path(),
+            vertex_chunk_size,
+            edge_chunk_size,
+            edge_max_list_size,
+            go.into(),
+            triples,
+        )
+        .unwrap();
+
+        let actual_num_verts = vertices.len();
+        let g_num_verts = graph.num_vertices();
+        assert_eq!(actual_num_verts, g_num_verts);
+        assert!(graph
+            .all_edges()
+            .all(|(_, VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
+        assert!(graph.build_inbound_adj_index().is_ok());
+
+        for v in 0..g_num_verts {
+            let v = VID(v);
+            assert!(graph
+                .edges(v, Direction::OUT)
+                .map(|(_, v)| v)
+                .tuple_windows()
+                .all(|(v1, v2)| v1 <= v2));
+            assert!(graph
+                .edges(v, Direction::IN)
+                .map(|(_, v)| v)
+                .tuple_windows()
+                .all(|(v1, v2)| v1 <= v2));
+        }
+
+        let exploded_edges: Vec<_> = graph
+            .exploded_edges()
+            .map(|(_, VID(v1), VID(v2), t)| (vertices[v1], vertices[v2], t))
+            .collect();
+        assert_eq!(exploded_edges, edges);
+    }
+
     proptest! {
         #[test]
-        fn edges_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 1..1024u64, g_chunk_size in 1..1024usize, edge_max_list_size in 1..128usize) {
-            let test_dir = TempDir::new().unwrap();
-            let vertices: Vec<_> = edges.iter().map(|(s, _, _)| *s).chain(edges.iter().map(|(_, d, _)| *d)).collect();
-            let vert_set: HashSet<_>  = vertices.iter().copied().collect();
-            let chunks = edges.iter().map(|(src, _, _)| *src).chunks(chunk_size as usize);
-            let srcs = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
-            let chunks = edges.iter().map(|(_, dst, _)| *dst).chunks(chunk_size as usize);
-            let dsts = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
-            let chunks = edges.iter().map(|(_, _, times)| *times).chunks(chunk_size as usize);
-            let times = chunks.into_iter().map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
-
-            let schema = Schema::from(vec![
-                Field::new("srcs", DataType::UInt64, false),
-                Field::new("dsts", DataType::UInt64, false),
-                Field::new("time", DataType::Int64, false)
-            ]);
-
-            let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| LoadChunk::new(vec![a.boxed(), b.boxed(), c.boxed()], 0, 1, 2, schema.clone()));
-
-            let go:GlobalMap = vertices.into_iter().collect();
-
-            let mut graph = TempColGraphFragment::build_tables_from_chunked(
-                test_dir.path(),
-                g_chunk_size,
-                g_chunk_size,
-                edge_max_list_size,
-                go.into(),
-                triples,
-            ).unwrap();
-
-            let actual_num_verts = vert_set.len();
-            let g_num_verts = graph.num_vertices();
-            assert_eq!(actual_num_verts, g_num_verts);
-            assert!(graph.all_edges().all(|(_, VID(src), VID(dst))| src<g_num_verts && dst < g_num_verts));
-            assert!(graph.build_inbound_adj_index().is_ok());
-
-            for v in 0 .. g_num_verts {
-                let v = VID(v);
-                assert!(graph.edges(v, Direction::OUT).map(|(_, v)| v).tuple_windows().all(|(v1, v2)| v1 <= v2));
-                assert!(graph.edges(v, Direction::IN).map(|(_, v)| v).tuple_windows().all(|(v1, v2)| v1 <= v2));
-
-            }
+        fn edges_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), input_chunk_size in 1..1024u64, vertex_chunk_size in 1..1024usize, edge_chunk_size in 1..1024usize, edge_max_list_size in 1..128usize) {
+            edges_sanity_check_inner(edges, input_chunk_size, vertex_chunk_size, edge_chunk_size, edge_max_list_size);
         }
     }
 
+    #[test]
+    fn edges_sanity_chunk_1() {
+        edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1, 1)
+    }
     #[test]
     fn load_from_parquet() {
         let file_path: PathBuf = [

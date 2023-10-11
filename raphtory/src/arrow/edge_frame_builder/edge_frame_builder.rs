@@ -251,7 +251,6 @@ fn new_arrow_edge_list_chunk(
     let offsets = OffsetsBuffer::try_from(edge_offsets)?;
 
     let t_props = struct_arrays.map(|t_props| {
-        println!("offsets: {offsets:?}, values: {t_props:?}");
         let dtype = <ListArray<i64>>::default_datatype(t_props.data_type().clone());
         let t_props = Box::new(ListArray::new(dtype, offsets, Box::new(t_props), None));
         t_props
