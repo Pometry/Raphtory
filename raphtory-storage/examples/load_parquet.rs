@@ -67,6 +67,7 @@ fn main() {
             ]),
             vertex_chunk_size,
             edge_chunk_size,
+            1_048_576,
             graph_dir,
         )
         .expect("failed to load graph")
@@ -78,6 +79,7 @@ fn main() {
             &time_col,
             vertex_chunk_size,
             edge_chunk_size,
+            1_048_576,
             graph_dir,
         )
         .expect("failed to load graph")

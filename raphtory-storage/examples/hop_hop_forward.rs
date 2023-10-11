@@ -14,18 +14,18 @@ fn main() {
 
     let bytes_prop_id = graph.edge_property_id("_c10").unwrap();
 
-    let count: usize = graph
-        .all_edges()
-        .flat_map(|(e_id, _, _)| {
-            let edge1 = graph.edge(e_id);
-            edge1.props::<i64>(bytes_prop_id).map(|bytes_prop| {
-                bytes_prop
-                    .par_iter()
-                    .filter(|&e_bytes| e_bytes > &100_000_000)
-                    .count()
-            })
-        })
-        .sum();
+    // let count: usize = graph
+    //     .all_edges()
+    //     .flat_map(|(e_id, _, _)| {
+    //         let edge1 = graph.edge(e_id);
+    //         edge1.props::<i64>(bytes_prop_id).map(|bytes_prop| {
+    //             bytes_prop
+    //                 .par_iter()
+    //                 .filter(|&e_bytes| e_bytes > &100_000_000)
+    //                 .count()
+    //         })
+    //     })
+    //     .sum();
 
     // for (e1, n1) in graph.edges(0.into(), Direction::OUT) {
     //     let edge1 = graph.edge(e1);
@@ -50,5 +50,5 @@ fn main() {
     //     }
     // }
 
-    println!("Time taken: {:?}, counted {count}", now.elapsed());
+    // println!("Time taken: {:?}, counted {count}", now.elapsed());
 }

@@ -7,6 +7,8 @@ use itertools::Itertools;
 use std::path::Path;
 
 pub mod col_graph2;
+pub mod graph;
+pub mod loader;
 pub(crate) mod columnar_graph;
 pub mod edge;
 pub(crate) mod edge_chunk;
@@ -33,6 +35,8 @@ pub enum Error {
     InvalidTypeColumn(String),
     #[error("Column not found: {0}")]
     ColumnNotFound(String),
+    #[error("No Edge lists found in input path")]
+    NoEdgeLists,
 }
 
 const OUTBOUND_COLUMN: &str = "outbound";

@@ -1,28 +1,25 @@
 use crate::arrow::{
     adj_schema,
     mmap::{mmap_batch, write_batches},
-    E_COLUMN, V_COLUMN,
 };
-use ahash::AHashMap;
 use arrow2::{
     array::{Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray},
     chunk::Chunk,
-    datatypes::{DataType as ArrowDataType, Field as ArrowField, Schema as ArrowSchema},
+    datatypes::{Field as ArrowField, Schema as ArrowSchema},
     error::Result as ArrowResult,
     offset::Offsets,
 };
-use itertools::Itertools;
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, sync::Arc};
 
 use super::{
-    global_order::{self, GlobalOrder},
+    global_order::GlobalOrder,
     vertex_chunk::VertexChunk,
     GID,
 };
 
 pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) global_order: GO,                 // the sorted global ids of the vertices
+    pub(crate) global_order: Arc<GO>,                 // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -38,10 +35,10 @@ pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
 }
 
 impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
-    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, go: GO, path: P) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, go: Arc<GO>, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
-            global_order: go,
+            global_order: go.clone(),
             adj_out_dst: vec![],
             adj_out_eid: vec![],
             adj_out_offsets: vec![0],
@@ -116,14 +113,6 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             self.adj_out_dst.push(self.last_dst_idx as u64);
 
             if let Some((prev_src, _)) = self.last_edge.as_ref() {
-                // assert!( prev_src < &src || (prev_src == &src && prev_dst <= &dst),"edge = ({src:?}, {dst:?}), prev edge = ({:?}, {:?})", prev_src, prev_dst);
-
-                // if prev_src == &src { // we want the dst to be sorted by the global ordering
-                //     let prev_dst_idx = self.global_order.find(&prev_dst);
-                //     let dst_idx = self.global_order.find(&dst);
-                //     assert!( prev_dst_idx <= dst_idx,"{prev_dst_idx:?}, {dst_idx:?} edge = ({src:?}, {dst:?}), prev edge = ({:?}, {:?})", prev_src, prev_dst);
-                // }
-
                 if prev_src != &src {
                     self.adj_out_offsets.push(self.chunk_adj_out_offset);
                     self.vertex_count += 1;

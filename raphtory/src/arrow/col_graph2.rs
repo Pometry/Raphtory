@@ -2,7 +2,10 @@ use std::{
     io,
     io::BufReader,
     path::Path,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use crate::{
@@ -10,6 +13,7 @@ use crate::{
         adj_schema,
         edge_frame_builder::{EdgeFrameBuilder, EdgeOverflowChunk},
         list_buffer::{as_primitive_column, ListColumn},
+        loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
         mmap::{mmap_all_chunks, mmap_batch, mmap_batches, write_batches},
         prepare_graph_dir,
         vertex_frame_builder::VertexFrameBuilder,
@@ -21,13 +25,9 @@ use crate::{
     },
 };
 use arrow2::{
-    array::{Array, ListArray, MutableUtf8Array, PrimitiveArray, StructArray, Utf8Array},
+    array::{Array, ListArray, PrimitiveArray, StructArray},
     chunk::Chunk,
-    compute::{
-        merge_sort,
-        sort::{self, SortColumn, SortOptions},
-    },
-    datatypes::{DataType, Field, Schema},
+    datatypes::{Field, Schema},
     io::{
         ipc::write::{FileWriter, WriteOptions},
         parquet::read,
@@ -41,7 +41,7 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
-    edge_chunk::{self, EdgeChunk},
+    edge_chunk::EdgeChunk,
     global_order::{GlobalMap, GlobalOrder},
     vertex_chunk::{RowOwned, VertexChunk},
     LoadChunk, Time, GID,
@@ -256,7 +256,7 @@ impl TempColGraphFragment {
             vertex_chunk_size,
             edge_chunk_size,
             edge_max_list_size,
-            go,
+            go.into(),
             chunks,
         )?;
         Ok(out)
@@ -286,18 +286,18 @@ impl TempColGraphFragment {
             vertex_chunk_size,
             edge_chunk_size,
             edge_max_list_size,
-            all_gids,
+            Arc::new(all_gids),
             chunks,
         )?;
         Ok(out)
     }
 
-    fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder + Default>(
+    pub(crate) fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder + Default>(
         base_dir: P,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         edge_max_list_size: usize,
-        global_order: GO,
+        global_order: Arc<GO>,
         chunks_iter: impl IntoIterator<Item = LoadChunk>,
     ) -> Result<Self, Error> {
         let mut vf_builder: VertexFrameBuilder<GO> =
@@ -305,38 +305,7 @@ impl TempColGraphFragment {
         let mut edge_builder =
             EdgeFrameBuilder::new(edge_chunk_size, edge_max_list_size, &base_dir);
 
-        // initialise vertex global id table to preserve order
-        // vf_builder.load_sources(source_iter);
-
-        let mut last_chunk: Option<LoadChunk> = None;
-        // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-        for mut chunk in chunks_iter.into_iter() {
-            // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
-            if let Some(last_chunk) = last_chunk {
-                if let Some(t_prop_cols) = last_chunk.t_prop_cols() {
-                    edge_builder.extend_tprops_slice(t_prop_cols)?;
-                }
-            }
-
-            // get the source and destintion columns
-            let src_iter = chunk.sources()?;
-            let dst_iter = chunk.destinations()?;
-
-            for (src, dst) in src_iter.zip(dst_iter) {
-                let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
-
-                edge_builder.push_update_with_props(src_id, dst_id, &mut chunk)?;
-            }
-
-            last_chunk = Some(chunk);
-        }
-
-        vf_builder.finalise_empty_chunks()?;
-
-        // finalize edge_builder
-        if let Some(mut chunk) = last_chunk {
-            edge_builder.finalize(&mut chunk)?;
-        }
+        load_chunks(&mut vf_builder, &mut edge_builder, chunks_iter)?;
 
         Ok(TempColGraphFragment {
             vertex_chunk_size,
@@ -650,6 +619,43 @@ impl TempColGraphFragment {
     }
 }
 
+pub(crate) fn load_chunks<GO: GlobalOrder + Default>(
+    vf_builder: &mut VertexFrameBuilder<GO>,
+    edge_builder: &mut EdgeFrameBuilder,
+    chunks_iter: impl IntoIterator<Item = LoadChunk>,
+) -> Result<(), Error> {
+    let mut last_chunk: Option<LoadChunk> = None;
+    // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
+    for mut chunk in chunks_iter.into_iter() {
+        // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
+        if let Some(last_chunk) = last_chunk {
+            if let Some(t_prop_cols) = last_chunk.t_prop_cols() {
+                edge_builder.extend_tprops_slice(t_prop_cols)?;
+            }
+        }
+
+        // get the source and destintion columns
+        let src_iter = chunk.sources()?;
+        let dst_iter = chunk.destinations()?;
+
+        for (src, dst) in src_iter.zip(dst_iter) {
+            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
+
+            edge_builder.push_update_with_props(src_id, dst_id, &mut chunk)?;
+        }
+
+        last_chunk = Some(chunk);
+    }
+
+    vf_builder.finalise_empty_chunks()?;
+
+    // finalize edge_builder
+    if let Some(mut chunk) = last_chunk {
+        edge_builder.finalize(&mut chunk)?;
+    }
+    Ok(())
+}
+
 pub struct Edge<'a> {
     edge: &'a EdgeChunk,
     idx: usize,
@@ -687,281 +693,6 @@ fn read_vertices_only<P: AsRef<Path>>(
         array_as_id_iter(&chunk[0])
             .unwrap()
             .chain(array_as_id_iter(&chunk[1]).unwrap())
-    }))
-}
-
-fn sort_within_chunks<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-    src_hash_col: &str,
-    dst_col: &str,
-    dst_hash_col: &str,
-) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
-    println!("pre sort reading file: {:?}", parquet_file.as_ref());
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
-
-    let schema = schema.filter(|_, field| {
-        field.name == src_col
-            || field.name == dst_col
-            || field.name == src_hash_col
-            || field.name == dst_hash_col
-    });
-
-    let src_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == src_col)
-        .unwrap();
-    let dst_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == dst_col)
-        .unwrap();
-    let src_hash_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == src_hash_col)
-        .unwrap();
-    let dst_hash_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == dst_hash_col)
-        .unwrap();
-
-    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    let sorted_vertices = reader
-        .flatten()
-        .par_bridge()
-        .map(|chunk| {
-            sort_dedup_2(
-                (&chunk[src_hash_idx], &chunk[src_idx]),
-                (&chunk[dst_hash_idx], &chunk[dst_idx]),
-            )
-        })
-        .reduce_with(|l, r| {
-            l.and_then(|(l_hash, l)| {
-                r.and_then(|(r_hash, r)| sort_dedup_2((&r_hash, &r), (&l_hash, &l)))
-            })
-        })
-        .unwrap();
-
-    if sorted_vertices.is_err() {
-        println!("error reading file: {:?}", sorted_vertices);
-    }
-
-    sorted_vertices
-}
-
-fn sort_dedup(rhs: &Box<dyn Array>, lhs: &Box<dyn Array>) -> Result<Box<dyn Array>, Error> {
-    let options = SortOptions::default();
-    let rhs = sort::sort(rhs.as_ref(), &options, None)?;
-    let lhs = sort::sort(lhs.as_ref(), &options, None)?;
-    let merged = merge_sort::merge_sort(lhs.as_ref(), rhs.as_ref(), &options, None)?;
-
-    if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
-        let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
-        deduped.extend(arr.into_iter().flatten().dedup());
-        let arr = PrimitiveArray::from_vec(deduped);
-        Ok(arr.to_boxed())
-    } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i64>>() {
-        let mut deduped = MutableUtf8Array::<i64>::new();
-        deduped.extend_values(arr.into_iter().flatten().dedup());
-        let arr: Utf8Array<i64> = deduped.into();
-        Ok(arr.to_boxed())
-    } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i32>>() {
-        let mut deduped = MutableUtf8Array::<i32>::new();
-        deduped.extend_values(arr.into_iter().flatten().dedup());
-        let arr: Utf8Array<i32> = deduped.into();
-        Ok(arr.to_boxed())
-    } else {
-        Err(Error::InvalidTypeColumn(format!(
-            "src or dst column need to be u64 or string, found: {:?}",
-            merged.data_type()
-        )))
-    }
-}
-
-// sort by 2 columns
-fn sort_dedup_2(
-    lhs: (&Box<dyn Array>, &Box<dyn Array>),
-    rhs: (&Box<dyn Array>, &Box<dyn Array>),
-) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
-    let (hash_rhs, rhs) = rhs;
-    let (hash_lhs, lhs) = lhs;
-
-    let options = SortOptions::default();
-
-    let rhs_sorted = sort::lexsort::<i32>(
-        &vec![
-            SortColumn {
-                values: hash_rhs.as_ref(),
-                options: None,
-            },
-            SortColumn {
-                values: rhs.as_ref(),
-                options: None,
-            },
-        ],
-        None,
-    )?;
-
-    let lhs_sorted = sort::lexsort::<i32>(
-        &vec![
-            SortColumn {
-                values: hash_lhs.as_ref(),
-                options: None,
-            },
-            SortColumn {
-                values: lhs.as_ref(),
-                options: None,
-            },
-        ],
-        None,
-    )?;
-
-    let rhs_hash = rhs_sorted[0].as_ref();
-    let lhs_hash = lhs_sorted[0].as_ref();
-
-    let rhs_vertices = rhs_sorted[1].as_ref();
-    let lhs_vertices = lhs_sorted[1].as_ref();
-
-    let hashes = vec![rhs_hash.as_ref(), lhs_hash.as_ref()];
-    let vertices = vec![rhs_vertices.as_ref(), lhs_vertices.as_ref()];
-    let pairs = vec![(hashes.as_ref(), &options), (vertices.as_ref(), &options)];
-
-    let slices = merge_sort::slices(pairs.as_ref())?;
-
-    let new_hashes = merge_sort::take_arrays(&[rhs_hash, lhs_hash], slices.iter().copied(), None);
-    let merged =
-        merge_sort::take_arrays(&[rhs_vertices, lhs_vertices], slices.iter().copied(), None);
-
-    if let Some(hash_arr) = new_hashes.as_any().downcast_ref::<PrimitiveArray<i64>>() {
-        let mut deduped_hash: Vec<i64> = Vec::with_capacity(hash_arr.len());
-
-        if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
-            let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
-            for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
-                deduped_hash.push(*h);
-                deduped.push(*v);
-            }
-            let arr = PrimitiveArray::from_vec(deduped);
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i64>>() {
-            let mut deduped = MutableUtf8Array::<i64>::new();
-            for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
-                deduped_hash.push(*h);
-                deduped.push(Some(v));
-            }
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            let arr: Utf8Array<i64> = deduped.into();
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i32>>() {
-            let mut deduped = MutableUtf8Array::<i32>::new();
-            for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
-                deduped_hash.push(*h);
-                deduped.push(Some(v));
-            }
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            let arr: Utf8Array<i32> = deduped.into();
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else {
-            Err(Error::InvalidTypeColumn(format!(
-                "src or dst column need to be u64 or string, found: {:?}",
-                merged.data_type()
-            )))
-        }
-    } else {
-        Err(Error::InvalidTypeColumn(format!(
-            "hash column need to be i64 found: {:?}",
-            new_hashes.data_type()
-        )))
-    }
-}
-
-fn read_file_chunks<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-    dst_col: &str,
-    time_col: &str,
-    projection: Option<&Vec<&str>>,
-) -> Result<impl Iterator<Item = LoadChunk>, Error> {
-    println!("reading file: {:?}", parquet_file.as_ref());
-
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
-
-    let schema = schema.filter(|_, field| {
-        field.name == src_col
-            || field.name == dst_col
-            || field.name == time_col
-            || projection.is_none()
-            || projection
-                .as_ref()
-                .filter(|proj| proj.contains(&field.name.as_str()))
-                .is_some()
-    });
-
-    let src_col_idx = schema
-        .fields
-        .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == src_col)
-        .map(|(i, _)| i)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
-
-    let dst_col_idx = schema
-        .fields
-        .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == dst_col)
-        .map(|(i, _)| i)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
-
-    let time_col_idx = schema
-        .fields
-        .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == time_col)
-        .map(|(i, _)| i)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
-
-    let reader = read::FileReader::new(
-        reader,
-        metadata.row_groups,
-        schema.clone(),
-        None,
-        None,
-        None,
-    );
-    Ok(reader.flatten().map(move |chunk| {
-        LoadChunk::from_chunk(
-            chunk,
-            src_col_idx,
-            dst_col_idx,
-            time_col_idx,
-            schema.clone(),
-        )
     }))
 }
 
@@ -1004,7 +735,7 @@ mod test {
                 g_chunk_size,
                 g_chunk_size,
                 edge_max_list_size,
-                go,
+                go.into(),
                 triples,
             ).unwrap();
 
@@ -1051,6 +782,7 @@ mod test {
         println!("{:?}", g)
     }
 
+
     fn schema() -> Schema {
         let srcs = Field::new("srcs", DataType::UInt64, false);
         let dsts = Field::new("dsts", DataType::UInt64, false);
@@ -1092,7 +824,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]),
+            GlobalMap::from(vec![1u64, 2u64]).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1122,7 +854,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]),
+            GlobalMap::from(vec![1u64, 2u64]).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1165,7 +897,7 @@ mod test {
             4,
             2,
             100,
-            GlobalMap::from(1u64..=7u64),
+            GlobalMap::from(1u64..=7u64).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1217,7 +949,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1265,7 +997,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             vec![chunk1, chunk2],
         )
         .unwrap();
@@ -1305,7 +1037,7 @@ mod test {
             1,
             1,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1357,7 +1089,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..=7u64),
+            GlobalMap::from(1u64..=7u64).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1417,7 +1149,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..12u64),
+            GlobalMap::from(1u64..12u64).into(),
             vec![chunk],
         )
         .unwrap();
@@ -1439,7 +1171,7 @@ mod test {
             2,
             2,
             5,
-            GlobalMap::from([0u64, 1u64]),
+            GlobalMap::from([0u64, 1u64]).into(),
             vec![chunk],
         )
         .unwrap();

@@ -66,6 +66,7 @@ fn main() {
         "time",
         chunk_size,
         chunk_size,
+        1_048_576,
         graph_dir,
     )
     .expect("failed to load from parquet");
