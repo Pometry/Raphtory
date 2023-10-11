@@ -1,14 +1,11 @@
 use crate::{
     algorithms::{algorithm_result_new::AlgorithmResultNew, metrics::degree::max_degree},
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
-    db::{
-        api::view::internal::DynamicGraph,
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
-        },
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
+        vertex::eval_vertex::EvalVertexView,
     },
     prelude::*,
 };
@@ -65,7 +62,7 @@ pub fn degree_centrality<G: GraphViewOps>(
         }
     }
     let results_type = std::any::type_name::<f64>();
-    AlgorithmResultNew::new(g.clone(), "Reciprocity", results_type, map)
+    AlgorithmResultNew::new(g.clone(), "Degree Centrality", results_type, map)
 }
 
 #[cfg(test)]

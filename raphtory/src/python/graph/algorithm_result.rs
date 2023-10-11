@@ -171,28 +171,28 @@ macro_rules! py_algorithm_result_ord_hash_eq {
     };
 }
 
-py_algorithm_result!(AlgorithmResult, String, String);
-py_algorithm_result_ord_hash_eq!(AlgorithmResult, String, String);
+py_algorithm_result!(BAlgorithmResult, String, String);
+py_algorithm_result_ord_hash_eq!(BAlgorithmResult, String, String);
 
-py_algorithm_result!(AlgorithmResultStrU64, String, u64);
-py_algorithm_result_ord_hash_eq!(AlgorithmResultStrU64, String, u64);
+py_algorithm_result!(BAlgorithmResultStrU64, String, u64);
+py_algorithm_result_ord_hash_eq!(BAlgorithmResultStrU64, String, u64);
 
 py_algorithm_result!(
-    AlgorithmResultStrTupleF32F32,
+    BAlgorithmResultStrTupleF32F32,
     String,
     (f32, f32),
     (OrderedFloat<f32>, OrderedFloat<f32>)
 );
-py_algorithm_result_partial_ord!(AlgorithmResultStrTupleF32F32, String, (f32, f32));
+py_algorithm_result_partial_ord!(BAlgorithmResultStrTupleF32F32, String, (f32, f32));
 
-py_algorithm_result!(AlgorithmResultStrVecI64Str, String, Vec<(i64, String)>);
-py_algorithm_result_ord_hash_eq!(AlgorithmResultStrVecI64Str, String, Vec<(i64, String)>);
+py_algorithm_result!(BAlgorithmResultStrVecI64Str, String, Vec<(i64, String)>);
+py_algorithm_result_ord_hash_eq!(BAlgorithmResultStrVecI64Str, String, Vec<(i64, String)>);
 
-py_algorithm_result!(AlgorithmResultU64VecUsize, u64, Vec<usize>);
-py_algorithm_result_ord_hash_eq!(AlgorithmResultU64VecUsize, u64, Vec<usize>);
+py_algorithm_result!(BAlgorithmResultU64VecUsize, u64, Vec<usize>);
+py_algorithm_result_ord_hash_eq!(BAlgorithmResultU64VecUsize, u64, Vec<usize>);
 
-py_algorithm_result!(AlgorithmResultStrF64, String, f64, OrderedFloat<f64>);
-py_algorithm_result_partial_ord!(AlgorithmResultStrF64, String, f64);
+py_algorithm_result!(BAlgorithmResultStrF64, String, f64, OrderedFloat<f64>);
+py_algorithm_result_partial_ord!(BAlgorithmResultStrF64, String, f64);
 
-py_algorithm_result!(AlgorithmResultStrVecStr, String, Vec<String>);
-py_algorithm_result_ord_hash_eq!(AlgorithmResultStrVecStr, String, Vec<String>);
+py_algorithm_result!(BAlgorithmResultStrVecStr, String, Vec<String>);
+py_algorithm_result_ord_hash_eq!(BAlgorithmResultStrVecStr, String, Vec<String>);

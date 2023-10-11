@@ -75,14 +75,14 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult object with string keys and integer values mapping vertex names to their component ids.
-#[pyfunction]
-#[pyo3(signature = (g, iter_count=9223372036854775807))]
-pub fn weakly_connected_components(
-    g: &PyGraphView,
-    iter_count: usize,
-) -> AlgorithmResultOLD<String, u64> {
-    connected_components::weakly_connected_components(&g.graph, iter_count, None)
-}
+// #[pyfunction]
+// #[pyo3(signature = (g, iter_count=9223372036854775807))]
+// pub fn weakly_connected_components(
+//     g: &PyGraphView,
+//     iter_count: usize,
+// ) -> AlgorithmResultOLD<String, u64> {
+//     connected_components::weakly_connected_components(&g.graph, iter_count, None)
+// }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
 ///
@@ -98,15 +98,15 @@ pub fn weakly_connected_components(
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
-#[pyfunction]
-#[pyo3(signature = (g, iter_count=20, max_diff=None))]
-pub fn pagerank(
-    g: &PyGraphView,
-    iter_count: usize,
-    max_diff: Option<f64>,
-) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
-    unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
-}
+// #[pyfunction]
+// #[pyo3(signature = (g, iter_count=20, max_diff=None))]
+// pub fn pagerank(
+//     g: &PyGraphView,
+//     iter_count: usize,
+//     max_diff: Option<f64>,
+// ) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
+//     unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
+// }
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 ///
@@ -123,16 +123,16 @@ pub fn pagerank(
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
-#[pyfunction]
-pub fn temporally_reachable_nodes(
-    g: &PyGraphView,
-    max_hops: usize,
-    start_time: i64,
-    seed_nodes: Vec<PyInputVertex>,
-    stop_nodes: Option<Vec<PyInputVertex>>,
-) -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
-    temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
-}
+// #[pyfunction]
+// pub fn temporally_reachable_nodes(
+//     g: &PyGraphView,
+//     max_hops: usize,
+//     start_time: i64,
+//     seed_nodes: Vec<PyInputVertex>,
+//     stop_nodes: Option<Vec<PyInputVertex>>,
+// ) -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
+//     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
+// }
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 ///
@@ -253,12 +253,12 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
-#[pyfunction]
-pub fn all_local_reciprocity(
-    g: &PyGraphView,
-) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
-    all_local_reciprocity_rs(&g.graph, None)
-}
+// #[pyfunction]
+// pub fn all_local_reciprocity(
+//     g: &PyGraphView,
+// ) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
+//     all_local_reciprocity_rs(&g.graph, None)
+// }
 
 /// Computes the number of connected triplets within a graph
 ///
@@ -387,15 +387,15 @@ pub fn local_temporal_three_node_motifs(
 ///
 /// Returns
 ///     An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
-#[pyfunction]
-#[pyo3(signature = (g, iter_count=20, threads=None))]
-pub fn hits(
-    g: &PyGraphView,
-    iter_count: usize,
-    threads: Option<usize>,
-) -> AlgorithmResultOLD<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
-    hits_rs(&g.graph, iter_count, threads)
-}
+// #[pyfunction]
+// #[pyo3(signature = (g, iter_count=20, threads=None))]
+// pub fn hits(
+//     g: &PyGraphView,
+//     iter_count: usize,
+//     threads: Option<usize>,
+// ) -> AlgorithmResultOLD<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+//     hits_rs(&g.graph, iter_count, threads)
+// }
 
 /// Sums the weights of edges in the graph based on the specified direction.
 ///
@@ -413,16 +413,16 @@ pub fn hits(
 /// Returns:
 ///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
 ///
-#[pyfunction]
-#[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
-pub fn balance(
-    g: &PyGraphView,
-    name: String,
-    direction: PyDirection,
-    threads: Option<usize>,
-) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
-    balance_rs(&g.graph, name.clone(), direction.into(), threads)
-}
+// #[pyfunction]
+// #[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
+// pub fn balance(
+//     g: &PyGraphView,
+//     name: String,
+//     direction: PyDirection,
+//     threads: Option<usize>,
+// ) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
+//     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+// }
 
 #[pyfunction]
 #[pyo3[signature = (g, no_time=false, threads=None)]]
@@ -485,15 +485,15 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 /// Returns:
 ///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
 ///
-#[pyfunction]
-#[pyo3[signature = (g, source, cutoff=None)]]
-pub fn single_source_shortest_path(
-    g: &PyGraphView,
-    source: PyInputVertex,
-    cutoff: Option<usize>,
-) -> AlgorithmResultOLD<String, Vec<String>> {
-    single_source_shortest_path_rs(&g.graph, source, cutoff)
-}
+// #[pyfunction]
+// #[pyo3[signature = (g, source, cutoff=None)]]
+// pub fn single_source_shortest_path(
+//     g: &PyGraphView,
+//     source: PyInputVertex,
+//     cutoff: Option<usize>,
+// ) -> AlgorithmResultOLD<String, Vec<String>> {
+//     single_source_shortest_path_rs(&g.graph, source, cutoff)
+// }
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.
 ///

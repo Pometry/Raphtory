@@ -125,14 +125,18 @@ where
     ///
     /// Returns:
     ///     a vector of tuples with vertex names and values
-    fn get_with_names_vec(&self) -> Vec<(String, Option<&V>)> {
+    fn get_with_names_vec(&self) -> Vec<(String, Option<V>)> {
         self.graph
             .vertices()
             .iter()
-            .map(|vertex| (vertex.name(), self.result.get(&vertex.vertex.0)))
+            .map(|vertex| (vertex.name(), self.result.get(&vertex.vertex.0).cloned()))
             .collect_vec()
     }
 
+    /// Returns a hashmap with vertex names and values
+    ///
+    /// Returns:
+    ///     a hashmap with vertex names and values
     pub fn get_with_names(&self) -> HashMap<String, Option<&V>> {
         let mut as_map = HashMap::new();
         for vertex in self.graph.vertices().iter() {
@@ -151,7 +155,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing vertex names and values.
-    pub fn sort_by_vertex_id(&self, reverse: bool) -> Vec<(String, Option<&V>)> {
+    pub fn sort_by_vertex_id(&self, reverse: bool) -> Vec<(String, Option<V>)> {
         let mut sorted = self.get_with_names_vec();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
@@ -174,11 +178,11 @@ where
         &self,
         mut cmp: F,
         reverse: bool,
-    ) -> Vec<(String, Option<&V>)> {
-        let mut sorted = self.get_with_names_vec();
+    ) -> Vec<(String, Option<V>)> {
+        let mut sorted: Vec<(String, Option<V>)> = self.get_with_names_vec();
         sorted.sort_by(|a, b| {
-            let order = match (a.1, b.1) {
-                (Some(a_value), Some(b_value)) => cmp(a_value, b_value),
+            let order = match (a.1.clone(), b.1.clone()) {
+                (Some(a_value), Some(b_value)) => cmp(&a_value, &b_value),
                 (Some(_), None) => std::cmp::Ordering::Greater, // Put Some(_) values before None
                 (None, Some(_)) => std::cmp::Ordering::Less,    // Put Some(_) values before None
                 (None, None) => std::cmp::Ordering::Equal,      // Equal if both are None
@@ -214,7 +218,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(String, Option<&V>)> {
+    ) -> Vec<(String, Option<V>)> {
         let k = if percentage {
             let total_count = self.result.len();
             (total_count as f64 * (k as f64 / 100.0)) as usize
@@ -230,8 +234,8 @@ where
     pub fn min_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(String, Option<&V>)> {
-        let res: Vec<(String, Option<&V>)> = self.get_with_names_vec();
+    ) -> Option<(String, Option<V>)> {
+        let res: Vec<(String, Option<V>)> = self.get_with_names_vec();
 
         // Filter out None values and find the minimum element
         let min_element = res
@@ -240,31 +244,31 @@ where
             .min_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
-        min_element.map(|(k, v)| (k.clone(), Some(*v)))
+        min_element.map(|(k, v)| (k.clone(), Some(v.clone())))
     }
 
     pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(String, Option<&V>)> {
-        let res: Vec<(String, Option<&V>)> = self.get_with_names_vec();
+    ) -> Option<(String, Option<V>)> {
+        let res: Vec<(String, Option<V>)> = self.get_with_names_vec();
 
-        // Filter out None values and find the minimum element
+        // Filter out None values and find the max element
         let max_element = res
             .iter()
             .filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
             .max_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
-        max_element.map(|(k, v)| (k.clone(), Some(*v)))
+        max_element.map(|(k, v)| (k.clone(), Some(v.clone())))
     }
 
     pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(String, Option<&V>)> {
+    ) -> Option<(String, Option<V>)> {
         // Assuming self.result is Vec<(String, Option<V>)>
-        let res: Vec<(String, Option<&V>)> = self.get_with_names_vec();
+        let res: Vec<(String, Option<V>)> = self.get_with_names_vec();
         let mut items: Vec<_> = res
             .iter()
             .filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
@@ -277,7 +281,10 @@ where
         items.sort_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
         let median_index = len / 2;
 
-        Some((items[median_index].0.clone(), Some(items[median_index].1)))
+        Some((
+            items[median_index].0.clone(),
+            Some(items[median_index].1.clone()),
+        ))
     }
 }
 
@@ -288,15 +295,15 @@ where
     O: Ord,
     V: AsOrd<O>,
 {
-    pub fn group_by(&self) -> HashMap<&V, Vec<String>>
+    pub fn group_by(&self) -> HashMap<V, Vec<String>>
     where
         V: Eq + Hash,
     {
-        let mut groups: HashMap<&V, Vec<String>> = HashMap::new();
+        let mut groups: HashMap<V, Vec<String>> = HashMap::new();
 
         for vertex in self.graph.vertices().iter() {
             if let Some(value) = self.result.get(&vertex.vertex.0) {
-                let entry = groups.entry(value).or_insert_with(Vec::new);
+                let entry = groups.entry(value.clone()).or_insert_with(Vec::new);
                 entry.push(vertex.name().to_string());
             }
         }
@@ -312,7 +319,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(String, Option<&V>)> {
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(String, Option<V>)> {
         self.sort_by_values(|a, b| O::cmp(a.as_ord(), b.as_ord()), reverse)
     }
 
@@ -330,7 +337,7 @@ where
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Vec<(String, Option<&V>)> {
+    pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Vec<(String, Option<V>)> {
         self.top_k_by(
             |a, b| O::cmp(a.as_ord(), b.as_ord()),
             k,
@@ -339,15 +346,18 @@ where
         )
     }
 
-    pub fn min(&self) -> Option<(String, Option<&V>)> {
+    /// Returns a tuple of the min result with its key
+    pub fn min(&self) -> Option<(String, Option<V>)> {
         self.min_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
-    pub fn max(&self) -> Option<(String, Option<&V>)> {
+    /// Returns a tuple of the max result with its key
+    pub fn max(&self) -> Option<(String, Option<V>)> {
         self.max_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
-    pub fn median(&self) -> Option<(String, Option<&V>)> {
+    /// Returns a tuple of the median result with its key
+    pub fn median(&self) -> Option<(String, Option<V>)> {
         self.median_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 }
@@ -462,13 +472,13 @@ mod algorithm_result_test {
     #[test]
     fn test_min_max_value() {
         let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(&10u64))));
-        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(&30u64))));
-        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(&20u64))));
+        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(10u64))));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(30u64))));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(20u64))));
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(&10.0))));
-        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(&30.0))));
-        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(&20.0))));
+        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(10.0))));
+        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(30.0))));
+        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(20.0))));
     }
 
     #[test]
@@ -476,12 +486,12 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let vertex_c = algo_result.graph.vertex("C").unwrap();
         let vertex_d = algo_result.graph.vertex("D").unwrap();
-        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30));
+        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30u64));
         assert_eq!(algo_result.get(vertex_d.into()), None);
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30.0));
+        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30.0f64));
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.get(vertex_c.clone().into()).unwrap().0, 30.0);
+        assert_eq!(algo_result.get(vertex_c.clone().into()).unwrap().0, 30.0f32);
         let algo_result = create_algo_result_hashmap_vec();
         let answer = algo_result
             .get(vertex_c.clone().into())
@@ -585,31 +595,31 @@ mod algorithm_result_test {
     fn test_sort_by_key() {
         let algo_result = create_algo_result_u64();
         let sorted = algo_result.sort_by_vertex_id(true);
-        let my_array: Vec<(String, Option<&u64>)> = vec![
+        let my_array: Vec<(String, Option<u64>)> = vec![
             ("D".to_string(), None),
-            ("C".to_string(), Some(&30u64)),
-            ("B".to_string(), Some(&20u64)),
-            ("A".to_string(), Some(&10u64)),
+            ("C".to_string(), Some(30u64)),
+            ("B".to_string(), Some(20u64)),
+            ("A".to_string(), Some(10u64)),
         ];
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_f64();
         let sorted = algo_result.sort_by_vertex_id(true);
-        let my_array: Vec<(String, Option<&f64>)> = vec![
+        let my_array: Vec<(String, Option<f64>)> = vec![
             ("D".to_string(), None),
-            ("C".to_string(), Some(&30.0)),
-            ("B".to_string(), Some(&20.0)),
-            ("A".to_string(), Some(&10.0)),
+            ("C".to_string(), Some(30.0)),
+            ("B".to_string(), Some(20.0)),
+            ("A".to_string(), Some(10.0)),
         ];
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_tuple();
         let sorted = algo_result.sort_by_vertex_id(true);
-        let my_array: Vec<(String, Option<&(f32, f32)>)> = vec![
+        let my_array: Vec<(String, Option<(f32, f32)>)> = vec![
             ("D".to_string(), None),
-            ("C".to_string(), Some(&(30.0, 40.0))),
-            ("B".to_string(), Some(&(20.0, 30.0))),
-            ("A".to_string(), Some(&(10.0, 20.0))),
+            ("C".to_string(), Some((30.0, 40.0))),
+            ("B".to_string(), Some((20.0, 30.0))),
+            ("A".to_string(), Some((10.0, 20.0))),
         ];
         assert_eq!(my_array, sorted);
         //
@@ -618,11 +628,11 @@ mod algorithm_result_test {
         let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
         let vec_b = vec![];
         let vec_a = vec![(11, "H".to_string())];
-        let my_array: Vec<(String, Option<&Vec<(i32, String)>>)> = vec![
+        let my_array: Vec<(String, Option<Vec<(i32, String)>>)> = vec![
             ("D".to_string(), None),
-            ("C".to_string(), Some(&vec_c)),
-            ("B".to_string(), Some(&vec_b)),
-            ("A".to_string(), Some(&vec_a)),
+            ("C".to_string(), Some(vec_c)),
+            ("B".to_string(), Some(vec_b)),
+            ("A".to_string(), Some(vec_a)),
         ];
         assert_eq!(my_array, sorted);
     }
