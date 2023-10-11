@@ -163,6 +163,7 @@ impl TempColGraphFragment {
         projection: Option<Vec<&str>>,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
+        edge_max_list_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
         let sorted_gids_path = parquet_dir
@@ -254,6 +255,7 @@ impl TempColGraphFragment {
             graph_dir,
             vertex_chunk_size,
             edge_chunk_size,
+            edge_max_list_size,
             go,
             chunks,
         )?;
@@ -267,6 +269,7 @@ impl TempColGraphFragment {
         time_col: &str,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
+        edge_max_list_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir.as_ref())?;
@@ -282,6 +285,7 @@ impl TempColGraphFragment {
             graph_dir,
             vertex_chunk_size,
             edge_chunk_size,
+            edge_max_list_size,
             all_gids,
             chunks,
         )?;
@@ -292,12 +296,14 @@ impl TempColGraphFragment {
         base_dir: P,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
+        edge_max_list_size: usize,
         global_order: GO,
         chunks_iter: impl IntoIterator<Item = LoadChunk>,
     ) -> Result<Self, Error> {
         let mut vf_builder: VertexFrameBuilder<GO> =
             VertexFrameBuilder::new(vertex_chunk_size, global_order, &base_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, 5000, &base_dir);
+        let mut edge_builder =
+            EdgeFrameBuilder::new(edge_chunk_size, edge_max_list_size, &base_dir);
 
         // initialise vertex global id table to preserve order
         // vf_builder.load_sources(source_iter);
@@ -308,7 +314,7 @@ impl TempColGraphFragment {
             // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
             if let Some(last_chunk) = last_chunk {
                 if let Some(t_prop_cols) = last_chunk.t_prop_cols() {
-                    edge_builder.extend_tprops_slice(t_prop_cols);
+                    edge_builder.extend_tprops_slice(t_prop_cols)?;
                 }
             }
 
@@ -329,7 +335,7 @@ impl TempColGraphFragment {
 
         // finalize edge_builder
         if let Some(mut chunk) = last_chunk {
-            edge_builder.write_down_chunk(&mut chunk)?;
+            edge_builder.finalize(&mut chunk)?;
         }
 
         Ok(TempColGraphFragment {
@@ -962,7 +968,7 @@ fn read_file_chunks<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use crate::arrow::global_order::GlobalMap;
-    use std::path::PathBuf;
+    use std::{iter, path::PathBuf};
 
     use super::*;
     use ahash::HashSet;
@@ -972,7 +978,7 @@ mod test {
 
     proptest! {
         #[test]
-        fn edges_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 1..1024u64, g_chunk_size in 1..1024usize) {
+        fn edges_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), chunk_size in 1..1024u64, g_chunk_size in 1..1024usize, edge_max_list_size in 1..128usize) {
             let test_dir = TempDir::new().unwrap();
             let vertices: Vec<_> = edges.iter().map(|(s, _, _)| *s).chain(edges.iter().map(|(_, d, _)| *d)).collect();
             let vert_set: HashSet<_>  = vertices.iter().copied().collect();
@@ -997,6 +1003,7 @@ mod test {
                 test_dir.path(),
                 g_chunk_size,
                 g_chunk_size,
+                edge_max_list_size,
                 go,
                 triples,
             ).unwrap();
@@ -1034,6 +1041,7 @@ mod test {
             "source",
             "destination",
             "time",
+            5,
             5,
             5,
             test_dir.path(),
@@ -1083,6 +1091,7 @@ mod test {
             test_dir.path(),
             100,
             100,
+            100,
             GlobalMap::from(vec![1u64, 2u64]),
             vec![chunk],
         )
@@ -1110,6 +1119,7 @@ mod test {
 
         let graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
+            100,
             100,
             100,
             GlobalMap::from(vec![1u64, 2u64]),
@@ -1154,6 +1164,7 @@ mod test {
             test_dir.path(),
             4,
             2,
+            100,
             GlobalMap::from(1u64..=7u64),
             vec![chunk],
         )
@@ -1205,6 +1216,7 @@ mod test {
             test_dir.path(),
             100,
             100,
+            100,
             GlobalMap::from(1u64..=4u64),
             vec![chunk],
         )
@@ -1252,6 +1264,7 @@ mod test {
             test_dir.path(),
             100,
             100,
+            100,
             GlobalMap::from(1u64..=4u64),
             vec![chunk1, chunk2],
         )
@@ -1291,6 +1304,7 @@ mod test {
             test_dir.path(),
             1,
             1,
+            100,
             GlobalMap::from(1u64..=4u64),
             vec![chunk],
         )
@@ -1342,6 +1356,7 @@ mod test {
             test_dir.path(),
             2,
             2,
+            100,
             GlobalMap::from(1u64..=7u64),
             vec![chunk],
         )
@@ -1401,10 +1416,36 @@ mod test {
             test_dir.path(),
             2,
             2,
+            100,
             GlobalMap::from(1u64..12u64),
             vec![chunk],
         )
         .unwrap();
         assert_eq!(graph.num_vertices(), 11);
+    }
+
+    #[test]
+    fn test_single_edge_overflow() {
+        let test_dir = TempDir::new().unwrap();
+
+        let srcs = PrimitiveArray::from_vec(iter::repeat(0u64).take(10).collect()).boxed();
+        let dsts = PrimitiveArray::from_vec(iter::repeat(1u64).take(10).collect()).boxed();
+        let times = PrimitiveArray::from_vec((0i64..10).collect()).boxed();
+        let weights = PrimitiveArray::from_vec(iter::repeat(1f64).take(10).collect()).boxed();
+
+        let chunk = LoadChunk::new([srcs, dsts, times, weights], 0, 1, 2, schema());
+        let graph = TempColGraphFragment::build_tables_from_chunked(
+            test_dir.path(),
+            2,
+            2,
+            5,
+            GlobalMap::from([0u64, 1u64]),
+            vec![chunk],
+        )
+        .unwrap();
+
+        let all_exploded: Vec<_> = graph.exploded_edges().collect();
+        let expected: Vec<_> = (0i64..10).map(|t| (EID(0), VID(0), VID(1), t)).collect();
+        assert_eq!(all_exploded, expected);
     }
 }

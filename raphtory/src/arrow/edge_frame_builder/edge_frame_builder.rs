@@ -148,9 +148,11 @@ impl EdgeFrameBuilder {
             self.no_edge_updates = 0;
             self.edge_overflow.push(None);
         }
+        if self.no_edge_updates < self.max_list_size {
+            self.chunk_offset += 1;
+        }
         self.no_edge_updates += 1;
         self.in_chunk_offset += 1;
-        self.chunk_offset += 1;
         self.last_update = Some((src, dst));
         Ok(())
     }
@@ -169,14 +171,12 @@ impl EdgeFrameBuilder {
         if self.in_chunk_overflow == 0 {
             prepare_graph_dir(file_path.parent().unwrap())?;
         }
+        let last = self.edge_overflow.last_mut().unwrap();
+        last.replace(self.in_chunk_overflow as u64);
         self.in_chunk_overflow += 1;
         let dt = chunk.data_type();
 
-        let schema = Schema::from(vec![Field::new(
-            TEMPORAL_PROPS_COLUMN,
-            DataType::LargeList(Box::new(Field::new("value", dt.clone(), false))),
-            false,
-        )]);
+        let schema = Schema::from(vec![Field::new(TEMPORAL_PROPS_COLUMN, dt.clone(), false)]);
         let mut builder = EdgeOverflowBuilder::new(file_path, schema, self.max_list_size)?;
         builder.push_chunk(chunk)?;
         self.overflow_frame.replace(builder);
@@ -199,8 +199,6 @@ impl EdgeFrameBuilder {
                 }
                 None => {
                     self.new_overflow_builder_with_chunk(&overflow)?;
-                    let last = self.edge_overflow.last_mut().unwrap();
-                    last.replace(self.in_chunk_overflow as u64);
                 }
             }
             let non_overflow = copy_from
@@ -231,6 +229,15 @@ impl EdgeFrameBuilder {
         self.push_chunk()?;
         Ok(())
     }
+
+    pub(crate) fn finalize(&mut self, load_chunk: &mut LoadChunk) -> Result<(), Error> {
+        self.extend_chunk_with_time_and_props(load_chunk)?;
+        if let Some(builder) = self.overflow_frame.take() {
+            self.overflow_chunks.push(builder.finalize()?);
+        }
+        self.push_chunk()?;
+        Ok(())
+    }
 }
 
 fn new_arrow_edge_list_chunk(
@@ -244,6 +251,7 @@ fn new_arrow_edge_list_chunk(
     let offsets = OffsetsBuffer::try_from(edge_offsets)?;
 
     let t_props = struct_arrays.map(|t_props| {
+        println!("offsets: {offsets:?}, values: {t_props:?}");
         let dtype = <ListArray<i64>>::default_datatype(t_props.data_type().clone());
         let t_props = Box::new(ListArray::new(dtype, offsets, Box::new(t_props), None));
         t_props
