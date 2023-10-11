@@ -81,7 +81,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         max_in_degree,
         min_out_degree,
         min_in_degree,
-        // pagerank,
+        pagerank,
         // single_source_shortest_path,
         global_clustering_coefficient,
         // temporally_reachable_nodes,

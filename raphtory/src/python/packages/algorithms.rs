@@ -98,15 +98,15 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
-// #[pyfunction]
-// #[pyo3(signature = (g, iter_count=20, max_diff=None))]
-// pub fn pagerank(
-//     g: &PyGraphView,
-//     iter_count: usize,
-//     max_diff: Option<f64>,
-// ) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
-//     unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
-// }
+#[pyfunction]
+#[pyo3(signature = (g, iter_count=20, max_diff=None))]
+pub fn pagerank(
+    g: &PyGraphView,
+    iter_count: usize,
+    max_diff: Option<f64>,
+) -> AlgorithmResultNew<DynamicGraph, f64, OrderedFloat<f64>> {
+    unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
+}
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 ///
