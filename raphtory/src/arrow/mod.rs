@@ -4,6 +4,7 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
+use std::path::Path;
 
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
@@ -43,6 +44,7 @@ const E_DELETIONS_COLUMN: &str = "deletions";
 
 const NAME_COLUMN: &str = "name";
 const TEMPORAL_PROPS_COLUMN: &str = "t_props";
+const EDGE_OVERFLOW_COLUMN: &str = "edge_overflow";
 
 const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
@@ -284,4 +286,17 @@ fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GI
         }
         v => Err(Error::DType(v.clone())),
     }
+}
+
+fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
+    // create graph dir if it does not exist
+    // if it exists make sure it's empty
+    std::fs::create_dir_all(&graph_dir)?;
+
+    let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+    if dir_iter.next().is_some() {
+        return Err(Error::GraphDirNotEmpty);
+    }
+
+    return Ok(());
 }

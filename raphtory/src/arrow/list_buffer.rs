@@ -1,5 +1,6 @@
 use arrow2::{
     array::{ListArray, PrimitiveArray, StructArray},
+    bitmap::utils::{ZipValidity, ZipValidityIter},
     buffer::Buffer,
     offset::OffsetsBuffer,
     types::NativeType,
@@ -7,8 +8,8 @@ use arrow2::{
 use std::ops::Index;
 
 #[derive(Debug, Clone, Copy)]
-pub struct ListColumn<'a, T> {
-    values: &'a Buffer<T>,
+pub struct ListColumn<'a, T: NativeType> {
+    values: &'a PrimitiveArray<T>,
     offsets: &'a OffsetsBuffer<i64>,
 }
 
@@ -18,8 +19,7 @@ pub fn as_primitive_column<T: NativeType>(
 ) -> Option<ListColumn<T>> {
     let values = list.values().as_any().downcast_ref::<StructArray>()?;
     let column = values.values().get(col)?;
-    let primitive = column.as_any().downcast_ref::<PrimitiveArray<T>>()?;
-    let values = primitive.values();
+    let values = column.as_any().downcast_ref::<PrimitiveArray<T>>()?;
     let offsets = list.offsets();
     Some(ListColumn { values, offsets })
 }
@@ -30,7 +30,7 @@ impl<'a, T: NativeType> ListColumn<'a, T> {
     }
 
     pub(crate) fn value(&self, index: usize) -> Buffer<T> {
-        let mut new = self.values.clone();
+        let mut new = self.values.values().clone();
         let offset = self.offsets[index] as usize;
         let length = self.offsets[index + 1] as usize - offset;
         new.slice(offset, length);
@@ -38,13 +38,28 @@ impl<'a, T: NativeType> ListColumn<'a, T> {
     }
 
     pub fn into_value(self, index: usize) -> &'a [T] {
-        &self.values.as_slice()[self.offsets[index] as usize..self.offsets[index + 1] as usize]
+        &self.values.values().as_slice()
+            [self.offsets[index] as usize..self.offsets[index + 1] as usize]
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &[T]> + '_ {
+    pub fn into_iter_row(self, row: usize) -> impl Iterator<Item = Option<&'a T>> + 'a {
+        let values = self.values.values();
+        let validity = self.values.validity();
+        let range = self.offsets[row] as usize..self.offsets[row + 1] as usize;
+        let value_iter = values[range.clone()].iter();
+        match validity {
+            Some(validity) => {
+                let validity_iter = range.map(|i| validity.get_bit(i));
+                ZipValidity::Optional(ZipValidityIter::new(value_iter, validity_iter))
+            }
+            None => ZipValidity::Required(value_iter),
+        }
+    }
+
+    pub fn iter_values(&self) -> impl Iterator<Item = &[T]> + '_ {
         self.offsets
             .windows(2)
-            .map(|o| &self.values[o[0] as usize..o[1] as usize])
+            .map(|o| &self.values.values()[o[0] as usize..o[1] as usize])
     }
 }
 
@@ -53,7 +68,8 @@ impl<'a, T: NativeType> Index<usize> for ListColumn<'a, T> {
 
     #[inline]
     fn index(&self, index: usize) -> &Self::Output {
-        &self.values.as_slice()[self.offsets[index] as usize..self.offsets[index + 1] as usize]
+        &self.values.values().as_slice()
+            [self.offsets[index] as usize..self.offsets[index + 1] as usize]
     }
 }
 

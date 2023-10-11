@@ -49,6 +49,20 @@ pub unsafe fn mmap_batch<P: AsRef<Path>>(
     Ok(chunk)
 }
 
+pub unsafe fn mmap_all_chunks<P: AsRef<Path>>(path: P) -> Result<Vec<Chunk<Box<dyn Array>>>> {
+    let file = File::open(path)?;
+    let mmap = Arc::new(Mmap::map(&file)?);
+    // read the metadata
+    let metadata = read::read_file_metadata(&mut std::io::Cursor::new(mmap.as_ref()))?;
+    let num_blocks = metadata.blocks.len();
+    let dictionaries = unsafe { mmap_dictionaries_unchecked(&metadata, mmap.clone())? };
+    let mut chunks = Vec::new();
+    for chunk_id in 0..num_blocks {
+        chunks.push(unsafe { mmap_unchecked(&metadata, &dictionaries, mmap.clone(), chunk_id)? });
+    }
+    Ok(chunks)
+}
+
 /// Only safe if file is never modified!
 ///
 /// Returns mmapped chunks from an arrow-ipc file.

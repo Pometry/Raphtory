@@ -8,9 +8,10 @@ use std::{
 use crate::{
     arrow::{
         adj_schema,
-        edge_frame_builder::EdgeFrameBuilder,
+        edge_frame_builder::{EdgeFrameBuilder, EdgeOverflowChunk},
         list_buffer::{as_primitive_column, ListColumn},
-        mmap::{mmap_batch, mmap_batches, write_batches},
+        mmap::{mmap_all_chunks, mmap_batch, mmap_batches, write_batches},
+        prepare_graph_dir,
         vertex_frame_builder::VertexFrameBuilder,
         Error,
     },
@@ -84,7 +85,40 @@ impl TempColGraphFragment {
                 .to_str()
                 .expect("file names are already filtered and thus valid");
             if file_name.starts_with("edge_chunk_") {
-                edge_chunks.push(EdgeChunk::new(unsafe { mmap_batch(file_path.path(), 0) }?));
+                let overflow_dir = graph_dir.as_ref().join(
+                    &(file_path
+                        .path()
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_owned()
+                        + "_overflow"),
+                );
+                let overflow_chunks: Vec<_> = std::fs::read_dir(&overflow_dir)
+                    .map(|iter| {
+                        iter.flatten()
+                            .filter(|dir_entry| {
+                                dir_entry
+                                    .file_name()
+                                    .to_str()
+                                    .map(|file_name| file_name.starts_with("edge_chunk_overflow_"))
+                                    .unwrap_or(false)
+                            })
+                            .sorted_by(|a, b| a.path().cmp(&b.path()))
+                            .map(|f| {
+                                EdgeOverflowChunk::new(unsafe {
+                                    mmap_all_chunks(f.path()).unwrap()
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                edge_chunks.push(EdgeChunk::new(
+                    unsafe { mmap_batch(file_path.path(), 0) }?,
+                    overflow_chunks,
+                ));
                 println!(
                     "edge chunk: {:?} {:?}",
                     file_path.path(),
@@ -116,18 +150,7 @@ impl TempColGraphFragment {
 
     pub fn edge_property_id(&self, name: &str) -> Option<usize> {
         let edge_chunk = self.edge_chunks.first()?;
-        let t_prop = edge_chunk.temporal_properties();
-        println!("schema: {:?}", t_prop.data_type());
-        match t_prop.data_type() {
-            DataType::LargeList(field) => match field.data_type() {
-                DataType::Struct(fields) => {
-                    let idx = fields.iter().position(|f| f.name == name)?;
-                    Some(idx)
-                }
-                _ => None,
-            },
-            _ => None,
-        }
+        edge_chunk.temporal_edge_property_id(name)
     }
 
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
@@ -147,7 +170,7 @@ impl TempColGraphFragment {
             .to_path_buf()
             .join("sorted_global_ids.ipc");
 
-        Self::prepare_graph_dir(graph_dir.as_ref())?;
+        prepare_graph_dir(graph_dir.as_ref())?;
 
         let srcs_parquet_files = std::fs::read_dir(&parquet_dir)?
             .map(|res| res.unwrap())
@@ -246,7 +269,7 @@ impl TempColGraphFragment {
         edge_chunk_size: usize,
         graph_dir: P2,
     ) -> Result<Self, Error> {
-        Self::prepare_graph_dir(graph_dir.as_ref())?;
+        prepare_graph_dir(graph_dir.as_ref())?;
 
         let mut all_gids: GlobalMap =
             read_vertices_only(parquet_file.clone(), src_col, dst_col)?.collect();
@@ -263,19 +286,6 @@ impl TempColGraphFragment {
             chunks,
         )?;
         Ok(out)
-    }
-
-    fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
-        // create graph dir if it does not exist
-        // if it exists make sure it's empty
-        std::fs::create_dir_all(&graph_dir)?;
-
-        let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-        if dir_iter.next().is_some() {
-            return Err(Error::GraphDirNotEmpty);
-        }
-
-        return Ok(());
     }
 
     fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder + Default>(
@@ -384,25 +394,31 @@ impl TempColGraphFragment {
                     .zip(chunk.destination().into_iter().flatten())
             })
             .enumerate()
-            .map(|(eid, (src, dst))| (EID(eid), VID(src as usize), VID(dst as usize)))
+            .map(|(eid, (src, dst))| (EID(eid), VID(*src as usize), VID(*dst as usize)))
     }
 
     pub fn exploded_edges(&self) -> impl Iterator<Item = (EID, VID, VID, Time)> + '_ {
+        let edge_chunk_size = self.edge_chunk_size;
         self.edge_chunks
             .iter()
-            .flat_map(|chunk| {
+            .enumerate()
+            .flat_map(move |(chunk_id, chunk)| {
                 chunk
                     .source()
                     .into_iter()
                     .flatten()
                     .zip(chunk.destination().into_iter().flatten())
-            })
-            .enumerate()
-            .flat_map(|(eid, (src, dst))| {
-                self.edge(EID(eid))
-                    .timestamps_row()
-                    .into_iter()
-                    .map(move |time| (EID(eid), VID(src as usize), VID(dst as usize), time))
+                    .enumerate()
+                    .flat_map(move |(eid, (src, dst))| {
+                        chunk.timestamps(eid).flatten().map(move |time| {
+                            (
+                                EID(chunk_id * edge_chunk_size + eid),
+                                VID(*src as usize),
+                                VID(*dst as usize),
+                                *time,
+                            )
+                        })
+                    })
             })
     }
 
@@ -638,27 +654,12 @@ impl<'a> Edge<'a> {
         Self { edge, idx }
     }
 
-    pub fn timestamps(&self) -> &[Time] {
-        self.edge.additions().into_value(self.idx)
+    pub fn timestamps(&self) -> impl Iterator<Item = &[Time]> {
+        self.edge.timestamps(self.idx)
     }
 
-    pub fn timestamps_row(&self) -> RowOwned<Time> {
-        let time_col = self.edge.additions();
-        RowOwned::new(time_col.value(self.idx))
-    }
-
-    pub fn props<T: NativeType>(&self, prop_id: usize) -> Option<&[T]> {
-        let t_prop = self.edge.temporal_properties();
-        match t_prop.data_type() {
-            DataType::LargeList(field) => match field.data_type() {
-                DataType::Struct(fields) => {
-                    let col = ListColumn::new(&t_prop, prop_id)?;
-                    Some(col.into_value(self.idx))
-                }
-                _ => None,
-            },
-            _ => None,
-        }
+    pub fn props<T: NativeType>(&self, prop_id: usize) -> Option<impl Iterator<Item = Option<&T>>> {
+        self.edge.temporal_primitive_prop(self.idx, prop_id)
     }
 }
 
@@ -1181,10 +1182,10 @@ mod test {
         assert_eq!(actual, expected);
 
         let e0 = graph.edge(0.into());
-        assert_eq!(e0.timestamps(), &[0i64]);
+        assert_eq!(e0.timestamps().next().unwrap(), &[0i64]);
 
         let e5 = graph.edge(5.into());
-        assert_eq!(e5.timestamps(), &[4i64]);
+        assert_eq!(e5.timestamps().next().unwrap(), &[5i64]);
     }
 
     #[test]

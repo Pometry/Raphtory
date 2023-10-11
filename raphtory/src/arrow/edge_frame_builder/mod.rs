@@ -6,7 +6,8 @@ use arrow2::{
     datatypes::{DataType, Field},
     types::{f16, NativeType, Offset},
 };
-pub use edge_frame_builder::*;
+pub(crate) use edge_frame_builder::*;
+pub(crate) use edge_overflow_builder::EdgeOverflowChunk;
 
 use super::Time;
 
