@@ -34,19 +34,21 @@ use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 pub fn star_motif_count<G>(
+    graph: &G,
     evv: &EvalVertexView<G, ComputeStateVec, ()>,
     deltas: Vec<i64>,
-) -> Vec<[usize; 24]>
+) -> Vec<[usize; 32]>
 where
     G: GraphViewOps,
 {
+    let two_n_c = twonode_motif_count(graph, evv, deltas.clone());
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
         .into_iter()
         .enumerate()
         .map(|(num, nb)| (nb.id(), num))
         .collect();
-    let mut events = evv
+    let events = evv
         .edges()
         .explode()
         .sorted_by_key(|e| e.time_and_index())
@@ -66,7 +68,18 @@ where
             star_count.execute(&events, delta);
             star_count.return_counts()
         })
-        .collect::<Vec<[usize; 24]>>()
+        .zip(two_n_c)
+        .map(|(c1, c2)| {
+            let mut tmp = c1
+                .iter()
+                .zip(c2.iter().cycle().take(24))
+                .map(|(x1, x2)| x1 - x2)
+                .collect_vec();
+            tmp.extend(c2.iter());
+            let cts: [usize; 32] = tmp.try_into().unwrap();
+            cts
+        })
+        .collect::<Vec<[usize; 32]>>()
 }
 
 ///////////////////////////////////////////////////////
@@ -81,16 +94,11 @@ where
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
-    // Define a closure for sorting by time_and_index()
-    let sort_by_time_and_index = |e1: &EdgeView<G>, e2: &EdgeView<G>| -> Ordering {
-        Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
-    };
-
     for nb in evv.neighbours().into_iter() {
         let nb_id = nb.id();
         let out = graph.edge(evv.id(), nb_id);
         let inc = graph.edge(nb_id, evv.id());
-        let mut events: Vec<TwoNodeEvent> = out
+        let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
@@ -130,12 +138,6 @@ where
         ctx_g.agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(*mc)
     });
 
-    // Define a closure for sorting by time_and_index()
-    let sort_by_time_and_index =
-        |e1: &EdgeView<VertexSubgraph<G>>, e2: &EdgeView<VertexSubgraph<G>>| -> Ordering {
-            Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
-        };
-
     // Define a closure for sorting by time()
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);
     let g: VertexSubgraph<G> = graph.subgraph(vertex_set);
@@ -161,6 +163,7 @@ where
 
     let step2 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
+            let mut triangle_u = vec![[0 as usize; 8]; deltas.len()];
             for v in u.neighbours() {
                 // Find triangles on the UV edge
                 if u.id() > v.id() {
@@ -226,18 +229,21 @@ where
                             })
                             .collect::<Vec<TriangleEdge>>();
 
-                        deltas
-                            .iter()
-                            .zip(tri_arc_clone.iter())
-                            .for_each(|(delta, mc)| {
-                                let mut tri_count = init_tri_count(2);
-                                tri_count.execute(&all_exploded, *delta);
-                                let tmp_counts: [usize; 8] = *tri_count.return_counts();
-                                u.global_update(mc, tmp_counts)
-                            })
+                        deltas.iter().enumerate().for_each(|(i, delta)| {
+                            let mut tri_count = init_tri_count(2);
+                            tri_count.execute(&all_exploded, *delta);
+                            let tmp_counts: [usize; 8] = *tri_count.return_counts();
+                            for j in 0..8 {
+                                triangle_u[i][j] += tmp_counts[j];
+                            }
+                        })
                     })
                 }
             }
+            triangle_u
+                .iter()
+                .zip(tri_arc_clone.iter())
+                .for_each(|(cts, mc)| u.global_update(mc, *cts));
             Step::Continue
         },
     );
@@ -245,14 +251,14 @@ where
     let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx_sub);
 
     runner.run(
-        vec![Job::new(step1)],
-        vec![Job::new(step2)],
+        vec![],
+        vec![Job::new(step1),Job::new(step2)],
         None,
         |egs, _, _, _| {
             tri_arc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
         },
         threads,
-        1,
+        2,
         None,
         None,
     )
@@ -284,18 +290,9 @@ where
     let step1 = ATask::new(move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, _>| {
         let g = evv.graph;
 
-        let two_nodes = twonode_motif_count(g, evv, deltas.clone());
-        let star_nodes = star_motif_count(evv, deltas.clone());
-
-        for ((star, twonode), mc) in star_nodes.iter().zip(two_nodes.iter()).zip(star_arc.iter()) {
-            let mut tmp = star
-                .iter()
-                .zip(twonode.iter().cycle().take(24))
-                .map(|(&x1, &x2)| x1 - x2)
-                .collect::<Vec<usize>>();
-            tmp.extend(twonode.iter());
-            let star_two: [usize; 32] = tmp.try_into().unwrap();
-            evv.global_update(&mc, star_two)
+        let star_nodes = star_motif_count(g, evv, deltas.clone());
+        for (star, mc) in star_nodes.iter().zip(star_arc.iter()) {
+            evv.global_update(&mc, *star)
         }
         Step::Continue
     });
@@ -357,6 +354,8 @@ mod motifs_test {
     fn test_global() {
         let g = load_graph(vec![
             (1, 1, 2),
+            (1, 1, 2),
+            (2, 1, 3),
             (2, 1, 3),
             (3, 1, 4),
             (4, 3, 1),
@@ -382,16 +381,16 @@ mod motifs_test {
         ]);
 
         let global_motifs = &temporal_three_node_motif_multi(&g, Vec::from([3, 6, 10]), None);
-        println!("{:?}", global_motifs);
-        // assert_eq!(
-        //     *global_motifs,
-        //     vec![
-        //         0, 0, 3, 6, 2, 3, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 6, 0, 0, 1, 7, 0, 0, 0, 0, 0,
-        //         0, 0, 0, 0, 2, 3, 2, 4, 1, 2, 3, 1
-        //     ]
-        //     .into_iter()
-        //     .map(|x| x as usize)
-        //     .collect::<Vec<usize>>()
-        // );
+
+        let expected: [usize; 40] = vec![
+            0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0, 0, 0,
+            0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1,
+        ]
+        .into_iter()
+        .map(|x| x as usize)
+        .collect::<Vec<usize>>()
+        .try_into()
+        .unwrap();
+        assert_eq!(global_motifs[2], expected);
     }
 }

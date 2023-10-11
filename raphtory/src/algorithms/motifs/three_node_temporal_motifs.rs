@@ -101,7 +101,7 @@ where
         .enumerate()
         .map(|(num, nb)| (nb.id(), num))
         .collect();
-    let mut events = evv
+    let events = evv
         .edges()
         .explode()
         .sorted_by_key(|e| e.time_and_index())
@@ -593,6 +593,8 @@ mod motifs_test {
     fn test_global() {
         let g = load_graph(vec![
             (1, 1, 2),
+            (1, 1, 2),
+            (2, 1, 3),
             (2, 1, 3),
             (3, 1, 4),
             (4, 3, 1),
@@ -621,8 +623,8 @@ mod motifs_test {
         assert_eq!(
             *global_motifs,
             vec![
-                0, 0, 3, 6, 2, 3, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 6, 0, 0, 1, 7, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 2, 3, 2, 4, 1, 2, 3, 1
+                0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0,
+                0, 0, 0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1
             ]
             .into_iter()
             .map(|x| x as usize)

@@ -19,11 +19,11 @@ use crate::{
         hits::hits as hits_rs,
         local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
         local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_temporal_motifs::{
+        motifs::global_three_node_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
-            global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
-            temporal_three_node_motif as local_three_node_rs,
+            temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
         },
+        motifs::three_node_temporal_motifs::temporal_three_node_motif as local_three_node_rs,
         pagerank::unweighted_page_rank,
         reciprocity::{
             all_local_reciprocity as all_local_reciprocity_rs,
@@ -327,7 +327,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
 #[pyfunction]
-pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
+pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 40] {
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
@@ -335,7 +335,7 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usiz
 pub fn global_temporal_three_node_motif_multi(
     g: &PyGraphView,
     deltas: Vec<i64>,
-) -> Vec<Vec<usize>> {
+) -> Vec<[usize; 40]> {
     global_temporal_three_node_motif_general_rs(&g.graph, deltas, None)
 }
 

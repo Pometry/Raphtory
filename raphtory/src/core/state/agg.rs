@@ -196,7 +196,7 @@ where
 
     fn add0(a1: &mut [A; N], a: [A; N]) {
         for (into, from) in a1.iter_mut().zip(a.iter()) {
-            ACC::combine(into, from);
+            ACC::add0(into, from.clone());
         }
     }
 
