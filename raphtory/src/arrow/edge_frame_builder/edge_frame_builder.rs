@@ -132,6 +132,9 @@ impl EdgeFrameBuilder {
             .is_some()
             || self.last_update.is_none()
         {
+            if self.overflow_frame.is_some() {
+                assert!(self.no_edge_updates > self.max_list_size);
+            }
             if self.no_edge_updates > self.max_list_size {
                 self.extend_chunk_with_time_and_props(chunk)?;
                 if let Some(builder) = self.overflow_frame.take() {

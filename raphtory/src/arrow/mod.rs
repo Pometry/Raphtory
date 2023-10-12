@@ -219,10 +219,14 @@ impl LoadChunk {
     }
 
     fn split_t_props_at(&mut self, split_at: usize) -> Option<StructArray> {
-        let t_prop_cols = self.t_prop_cols.as_mut()?;
-        let out = t_prop_cols.clone().sliced(0, split_at);
-        t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
-        Some(out)
+        if split_at == 0 {
+            None
+        } else {
+            let t_prop_cols = self.t_prop_cols.as_mut()?;
+            let out = t_prop_cols.clone().sliced(0, split_at);
+            t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
+            Some(out)
+        }
     }
 
     fn len(&self) -> usize {
