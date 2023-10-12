@@ -839,7 +839,6 @@ mod test {
         println!("{:?}", g)
     }
 
-
     fn schema() -> Schema {
         let srcs = Field::new("srcs", DataType::UInt64, false);
         let dsts = Field::new("dsts", DataType::UInt64, false);

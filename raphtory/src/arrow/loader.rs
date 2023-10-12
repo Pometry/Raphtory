@@ -5,18 +5,23 @@ use std::{
 
 use arrow2::{
     array::{Array, MutableUtf8Array, PrimitiveArray, Utf8Array},
+    chunk::Chunk,
     compute::{
         merge_sort,
         sort::{self, SortColumn, SortOptions},
     },
-    io::parquet::read, datatypes::{Schema, Field}, chunk::Chunk,
+    datatypes::{Field, Schema},
+    io::parquet::read,
 };
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::arrow::{mmap::{mmap_batch, write_batches}, array_as_id_iter};
+use crate::arrow::{
+    array_as_id_iter,
+    mmap::{mmap_batch, write_batches},
+};
 
-use super::{Error, LoadChunk, global_order::GlobalOrder};
+use super::{global_order::GlobalOrder, Error, LoadChunk};
 
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
     layer: &'a str,
@@ -373,7 +378,7 @@ pub(crate) fn make_global_ordering<'a, GO: GlobalOrder + Default, P: AsRef<Path>
         sorted_vertices
     };
 
-    let mut go: GO= GO::default();
+    let mut go: GO = GO::default();
 
     for (i, gid) in array_as_id_iter(&sorted_vertices)?.enumerate() {
         go.insert(gid, i);

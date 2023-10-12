@@ -1,46 +1,76 @@
+use clap::Parser;
 use raphtory::{
     arrow::col_graph2::TempColGraphFragment,
     core::{entities::VID, Direction},
 };
 
+#[derive(Parser, Debug)]
+#[command(version)]
+struct Args {
+    /// the path to the parquet files (if it is a directory, all parquet files in this directory are loaded in order)
+    #[arg(short, long)]
+    path: String,
+
+    /// the name for the source hash column (used for sorting, optional and defaults to src_col)
+    #[arg(long, default_value=None)]
+    src_hash_col: Option<String>,
+
+    /// the name for the source column
+    #[arg(long, short)]
+    src_col: String,
+
+    /// the name for the destination hash column (used for sorting, optional and defaults to dst_col)
+    #[arg(long, default_value=None)]
+    dst_hash_col: Option<String>,
+
+    /// the name for the destination column in the parquet files
+    #[arg(short, long)]
+    dst_col: String,
+
+    /// the name for the time column in the parquet files
+    #[arg(short, long)]
+    time_col: String,
+
+    /// the directory for storing the graph files
+    #[arg(short, long)]
+    graph_dir: String,
+
+    /// clear the graph directory and reload
+    #[arg(short, long, action)]
+    force_reload: bool,
+
+    #[arg(long, default_value_t = 1024)]
+    vertex_chunk_size: usize,
+
+    #[arg(long, default_value_t = 1024)]
+    edge_chunk_size: usize,
+
+    #[arg(long, default_value_t = 1024)]
+    edge_max_list_size: usize,
+}
+
 fn main() {
-    let path = std::env::args()
-        .nth(1)
-        .expect("please supply a file to read");
-
-    let src_hash_col = std::env::args()
-        .nth(2)
-        .expect("please supply a source column");
-
-    let src_col = std::env::args()
-        .nth(3)
-        .expect("please supply a source column");
-
-    let dst_hash_col = std::env::args()
-        .nth(4)
-        .expect("please supply a destination hashcolumn");
-
-    let dst_col = std::env::args()
-        .nth(5)
-        .expect("please supply a destination hash column");
-
-    let time_col = std::env::args()
-        .nth(6)
-        .expect("please supply a time column");
-
-    let graph_dir = std::env::args()
-        .nth(7)
-        .expect("please supply a graph output directory");
-
+    let args = Args::parse();
+    let path = args.path;
+    let src_hash_col = args.src_hash_col.unwrap_or_else(|| args.src_col.clone());
+    let src_col = args.src_col;
+    let dst_hash_col = args.dst_hash_col.unwrap_or_else(|| args.dst_col.clone());
+    let dst_col = args.dst_col;
+    let time_col = args.time_col;
+    let graph_dir = args.graph_dir;
+    let force_reload = args.force_reload;
+    let vertex_chunk_size = args.vertex_chunk_size;
+    let edge_chunk_size = args.edge_chunk_size;
+    let edge_max_list_size = args.edge_max_list_size;
     // print all the params in a single line
 
     println!(
-        "path: {}, src_hash_col: {}, src_col: {}, dst_hash_col: {}, dst_col: {}, time_col: {}, graph_dir: {}",
-        path, src_hash_col, src_col, dst_hash_col, dst_col, time_col, graph_dir
+        "path: {path}, src_hash_col: {src_hash_col}, src_col: {src_col}, dst_hash_col: {dst_hash_col}, dst_col: {dst_col}, time_col: {time_col}, graph_dir: {graph_dir}, force_reload: {force_reload}"
     );
 
-    let vertex_chunk_size = 1_048_576;
-    let edge_chunk_size = 384;
+    if force_reload {
+        std::fs::remove_dir_all(&graph_dir).unwrap();
+    }
 
     let now = std::time::Instant::now();
 
@@ -67,7 +97,7 @@ fn main() {
             ]),
             vertex_chunk_size,
             edge_chunk_size,
-            1_048_576,
+            edge_max_list_size,
             graph_dir,
         )
         .expect("failed to load graph")
@@ -79,7 +109,7 @@ fn main() {
             &time_col,
             vertex_chunk_size,
             edge_chunk_size,
-            1_048_576,
+            edge_max_list_size,
             graph_dir,
         )
         .expect("failed to load graph")

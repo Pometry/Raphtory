@@ -10,17 +10,16 @@ use arrow2::{
     error::Result as ArrowResult,
     offset::Offsets,
 };
-use std::{path::{Path, PathBuf}, sync::Arc};
-
-use super::{
-    global_order::GlobalOrder,
-    vertex_chunk::VertexChunk,
-    GID,
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
 };
+
+use super::{global_order::GlobalOrder, vertex_chunk::VertexChunk, GID};
 
 pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) global_order: Arc<GO>,                 // the sorted global ids of the vertices
+    pub(crate) global_order: Arc<GO>,            // the sorted global ids of the vertices
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk

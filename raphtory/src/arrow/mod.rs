@@ -7,14 +7,14 @@ use itertools::Itertools;
 use std::path::Path;
 
 pub mod col_graph2;
-pub mod graph;
-pub mod loader;
 pub(crate) mod columnar_graph;
 pub mod edge;
 pub(crate) mod edge_chunk;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod global_order;
+pub mod graph;
 pub(crate) mod list_buffer;
+pub mod loader;
 pub(crate) mod mmap;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
