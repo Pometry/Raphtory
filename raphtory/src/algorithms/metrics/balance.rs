@@ -3,7 +3,7 @@
 //! This algorithm provides functionality to accumulate (or sum) weights on vertices
 //! in a graph.
 use crate::{
-    algorithms::algorithm_result_old::AlgorithmResultOLD,
+    algorithms::algorithm_result_new::AlgorithmResultNew,
     core::{
         state::{
             accumulator_id::accumulators::sum,
@@ -103,7 +103,7 @@ pub fn balance<G: GraphViewOps>(
     name: String,
     direction: Direction,
     threads: Option<usize>,
-) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResultNew<G, f64, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let min = sum(0);
     ctx.agg(min);
@@ -113,22 +113,26 @@ pub fn balance<G: GraphViewOps>(
         Step::Done
     });
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<HashMap<String, f64>>();
+    let runner_result = runner.run(
+        vec![],
+        vec![Job::new(step1)],
+        None,
+        |_, ess, _, _| ess.finalize(&min, |min| min),
+        threads,
+        1,
+        None,
+        None,
+    );
 
-    AlgorithmResultOLD::new(
-        "Balance",
-        results_type,
-        runner.run(
-            vec![],
-            vec![Job::new(step1)],
-            None,
-            |_, ess, _, _| ess.finalize(&min, |min| min),
-            threads,
-            1,
-            None,
-            None,
-        ),
-    )
+    let mut map: HashMap<usize, f64> = HashMap::new();
+    for (vertex_name, value) in runner_result.iter() {
+        if let Some(vertex) = graph.vertex(vertex_name.to_string()) {
+            let vid = vertex.vertex.0;
+            map.insert(vid, *value);
+        }
+    }
+    let results_type = std::any::type_name::<f64>();
+    AlgorithmResultNew::new(graph.clone(), "Balance", results_type, map)
 }
 
 #[cfg(test)]
@@ -169,32 +173,32 @@ mod sum_weight_test {
 
         let res = balance(&graph, "value_dec".to_string(), Direction::BOTH, None);
         let expected = vec![
-            ("1".to_string(), -26.0),
-            ("2".to_string(), 7.0),
-            ("3".to_string(), 12.0),
-            ("4".to_string(), 5.0),
-            ("5".to_string(), 2.0),
+            ("1".to_string(), Some(-26.0)),
+            ("2".to_string(), Some(7.0)),
+            ("3".to_string(), Some(12.0)),
+            ("4".to_string(), Some(5.0)),
+            ("5".to_string(), Some(2.0)),
         ];
-        assert_eq!(res.sort_by_key(false), expected);
+        assert_eq!(res.sort_by_vertex_id(false), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
         let expected = vec![
-            ("1".to_string(), 6.0),
-            ("2".to_string(), 12.0),
-            ("3".to_string(), 15.0),
-            ("4".to_string(), 20.0),
-            ("5".to_string(), 2.0),
+            ("1".to_string(), Some(6.0)),
+            ("2".to_string(), Some(12.0)),
+            ("3".to_string(), Some(15.0)),
+            ("4".to_string(), Some(20.0)),
+            ("5".to_string(), Some(2.0)),
         ];
-        assert_eq!(res.sort_by_key(false), expected);
+        assert_eq!(res.sort_by_vertex_id(false), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
         let expected = vec![
-            ("1".to_string(), -32.0),
-            ("2".to_string(), -5.0),
-            ("3".to_string(), -3.0),
-            ("4".to_string(), -15.0),
-            ("5".to_string(), 0.0),
+            ("1".to_string(), Some(-32.0)),
+            ("2".to_string(), Some(-5.0)),
+            ("3".to_string(), Some(-3.0)),
+            ("4".to_string(), Some(-15.0)),
+            ("5".to_string(), Some(0.0)),
         ];
-        assert_eq!(res.sort_by_key(false), expected);
+        assert_eq!(res.sort_by_vertex_id(false), expected);
     }
 }

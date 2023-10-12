@@ -413,16 +413,16 @@ pub fn local_temporal_three_node_motifs(
 /// Returns:
 ///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
 ///
-// #[pyfunction]
-// #[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
-// pub fn balance(
-//     g: &PyGraphView,
-//     name: String,
-//     direction: PyDirection,
-//     threads: Option<usize>,
-// ) -> AlgorithmResultOLD<String, f64, OrderedFloat<f64>> {
-//     balance_rs(&g.graph, name.clone(), direction.into(), threads)
-// }
+#[pyfunction]
+#[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
+pub fn balance(
+    g: &PyGraphView,
+    name: String,
+    direction: PyDirection,
+    threads: Option<usize>,
+) -> AlgorithmResultNew<DynamicGraph, f64, OrderedFloat<f64>> {
+    balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
 
 #[pyfunction]
 #[pyo3[signature = (g, no_time=false, threads=None)]]

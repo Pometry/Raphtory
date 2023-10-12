@@ -91,7 +91,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         global_temporal_three_node_motif_multi,
         local_temporal_three_node_motifs,
         // hits,
-        // balance,
+        balance,
     );
     m.add_submodule(algorithm_module)?;
 
