@@ -382,6 +382,24 @@ impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O
     }
 }
 
+impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "AlgorithmResultNew {{")?;
+        writeln!(f, "  Algorithm Name: {:?}", self.algo_repr.algo_name)?;
+        writeln!(f, "  Result Type: {:?}", self.algo_repr.result_type)?;
+        writeln!(f, "  Number of Vertices: {:?}", self.result.len())?;
+        writeln!(f, "  Results: [")?;
+
+        for vertex in self.graph.vertices().iter() {
+            let value = self.result.get(&vertex.vertex.0);
+            writeln!(f, "    {:?}: {:?}", vertex.name(), value)?;
+        }
+
+        writeln!(f, "  ]")?;
+        writeln!(f, "}}")
+    }
+}
+
 /// Add tests for all functions
 #[cfg(test)]
 mod algorithm_result_test {
