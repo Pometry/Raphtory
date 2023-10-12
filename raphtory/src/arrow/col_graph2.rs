@@ -503,7 +503,8 @@ impl TempColGraphFragment {
                         let vid = vid as usize % self.vertex_chunk_size; //local index
                         let insertion_point = offsets[vid] as usize + extra_offsets[vid];
                         extra_offsets[vid] += 1;
-                        inbound_vids[insertion_point] = (outbound_chunk_id * self.vertex_chunk_size + row) as u64;
+                        inbound_vids[insertion_point] =
+                            (outbound_chunk_id * self.vertex_chunk_size + row) as u64;
                         inbound_eids[insertion_point] = eid;
                     }
                 }
@@ -698,7 +699,7 @@ fn read_vertices_only<P: AsRef<Path>>(
 
 #[cfg(test)]
 mod test {
-    use crate::arrow::global_order::GlobalMap;
+    use crate::{arrow::global_order::GlobalMap, db::api::view::internal::GraphOps, prelude::*};
     use std::{iter, path::PathBuf};
 
     use super::*;
@@ -713,6 +714,13 @@ mod test {
         edge_chunk_size: usize,
         edge_max_list_size: usize,
     ) {
+        let expected_graph = Graph::new();
+        for (src, dst, t) in &edges {
+            expected_graph
+                .add_edge(*t, *src, *dst, NO_PROPS, None)
+                .unwrap();
+        }
+
         let test_dir = TempDir::new().unwrap();
         let vertices: Vec<_> = edges
             .iter()
@@ -798,6 +806,20 @@ mod test {
             .map(|(_, VID(v1), VID(v2), t)| (vertices[v1], vertices[v2], t))
             .collect();
         assert_eq!(exploded_edges, edges);
+
+        // check incoming edges
+        for (v_id, g_id) in vertices.iter().enumerate() {
+            let vertex = expected_graph.vertex(*g_id).unwrap();
+            let mut expected_inbound = vertex.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
+            expected_inbound.sort();
+
+            let actual_inbound = graph
+                .edges(VID(v_id), Direction::IN)
+                .map(|(_, v)| vertices[v.0])
+                .collect::<Vec<_>>();
+
+            assert_eq!(expected_inbound, actual_inbound);
+        }
     }
 
     proptest! {
@@ -837,44 +859,15 @@ mod test {
             (8, 3, -7707029126214574305),
         ];
 
-        // Outgoing
-        // c1 
-        // 0: [{v: 0, e: 0}, {v: 1, e: 1}], 
-        // 1: [], 
-        // 2: [{v: 0, e: 2}], 
-        // 3: [{v: 4, e: 3}]]]
-
-        // c2 
-        // 4: [{v: 0, e: 4}, {v: 4, e: 5}],
-        // 5: [{v: 0, e: 6}], 
-        // 6: [{v: 7, e: 7}], 
-        // 7: []
-
-        // c3 
-        // 8: [{v: 3, e: 8}]
-
-        // Incoming
-        // c1
-        // 0: [{v: 0, e: 0}, {v: 2, e: 2}, {v: 0, e: 4}, {v: 1, e: 6}]
-        // 1: [{v: 0, e: 1}], 
-        // 2: [], 
-        // 3: [{v: 0, e: 8}]
-        // c2
-        // 4: [{v: 3, e: 3}, {v: 0, e: 5}],
-        // 5: [], 
-        // 6: [], 
-        // 7: [{v: 2, e: 7}]
-        // c3
-        // 8: []
-    
-        edges_sanity_check_inner(
-            edges,
-            853,
-            4,
-            122,
-            98,
-        )
+        edges_sanity_check_inner(edges, 853, 4, 122, 98)
     }
+
+    #[test]
+    fn edge_sanity_chunk_broken_something() {
+        let edges = vec![(0, 3, 0), (1, 2, 0), (3, 2, 0)];
+        edges_sanity_check_inner(edges, 1, 1, 1, 1)
+    }
+
     #[test]
     fn load_from_parquet() {
         let file_path: PathBuf = [

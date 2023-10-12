@@ -48,6 +48,7 @@ impl VertexChunk {
     }
 }
 
+#[derive(Debug)]
 pub struct RowOwned<T>(Buffer<T>);
 
 impl<T: NativeType> RowOwned<T> {
