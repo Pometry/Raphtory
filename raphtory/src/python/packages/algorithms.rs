@@ -1,9 +1,5 @@
 use std::collections::HashMap;
 
-use crate::{
-    algorithms::algorithm_result::AlgorithmResult, core::Prop,
-    db::api::view::internal::DynamicGraph, prelude::Graph, python::graph::edge::PyDirection,
-};
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -45,6 +41,7 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
     usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
+use crate::{core::Prop, db::api::view::internal::DynamicGraph, python::graph::edge::PyDirection};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 

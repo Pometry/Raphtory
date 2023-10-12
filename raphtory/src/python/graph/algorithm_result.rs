@@ -4,7 +4,6 @@ use crate::{
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
-use std::collections::HashMap;
 
 macro_rules! py_algorithm_result_new {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustSortValue:ty) => {

@@ -5,14 +5,10 @@ use arrow2::{
     offset::Offset,
     types::NativeType,
 };
-use futures_util::StreamExt;
 use itertools::Itertools;
 use pyo3::{
-    create_exception,
-    exceptions::PyException,
-    ffi::Py_uintptr_t,
-    types::{IntoPyDict, PyDict},
-    PyAny, PyErr, PyResult, Python,
+    create_exception, exceptions::PyException, ffi::Py_uintptr_t, types::IntoPyDict, PyAny, PyErr,
+    PyResult, Python,
 };
 
 pub(crate) struct PretendDF {
