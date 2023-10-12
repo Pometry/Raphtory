@@ -707,28 +707,25 @@ mod test {
     use proptest::prelude::*;
     use tempfile::TempDir;
 
-    fn edges_sanity_check_inner(
-        edges: Vec<(u64, u64, i64)>,
-        input_chunk_size: u64,
-        vertex_chunk_size: usize,
-        edge_chunk_size: usize,
-        edge_max_list_size: usize,
-    ) {
-        let expected_graph = Graph::new();
-        for (src, dst, t) in &edges {
-            expected_graph
-                .add_edge(*t, *src, *dst, NO_PROPS, None)
-                .unwrap();
-        }
-
-        let test_dir = TempDir::new().unwrap();
-        let vertices: Vec<_> = edges
+    fn edges_sanity_vertex_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
+        edges
             .iter()
             .map(|(s, _, _)| *s)
             .chain(edges.iter().map(|(_, d, _)| *d))
             .sorted()
             .dedup()
-            .collect();
+            .collect()
+    }
+
+    fn edges_sanity_check_build_graph<P: AsRef<Path>>(
+        test_dir: P,
+        edges: &[(u64, u64, i64)],
+        vertices: &[u64],
+        input_chunk_size: u64,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        edge_max_list_size: usize,
+    ) -> TempColGraphFragment {
         let chunks = edges
             .iter()
             .map(|(src, _, _)| *src)
@@ -770,7 +767,7 @@ mod test {
         let go: GlobalMap = vertices.iter().copied().collect();
 
         let mut graph = TempColGraphFragment::build_tables_from_chunked(
-            test_dir.path(),
+            test_dir.as_ref(),
             vertex_chunk_size,
             edge_chunk_size,
             edge_max_list_size,
@@ -778,6 +775,21 @@ mod test {
             triples,
         )
         .unwrap();
+        graph.build_inbound_adj_index().unwrap();
+        graph
+    }
+
+    fn check_graph_sanity(
+        edges: &[(u64, u64, i64)],
+        vertices: &[u64],
+        graph: &TempColGraphFragment,
+    ) {
+        let expected_graph = Graph::new();
+        for (src, dst, t) in edges {
+            expected_graph
+                .add_edge(*t, *src, *dst, NO_PROPS, None)
+                .unwrap();
+        }
 
         let actual_num_verts = vertices.len();
         let g_num_verts = graph.num_vertices();
@@ -785,7 +797,6 @@ mod test {
         assert!(graph
             .all_edges()
             .all(|(_, VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
-        assert!(graph.build_inbound_adj_index().is_ok());
 
         for v in 0..g_num_verts {
             let v = VID(v);
@@ -820,6 +831,33 @@ mod test {
 
             assert_eq!(expected_inbound, actual_inbound);
         }
+    }
+
+    fn edges_sanity_check_inner(
+        edges: Vec<(u64, u64, i64)>,
+        input_chunk_size: u64,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        edge_max_list_size: usize,
+    ) {
+        let test_dir = TempDir::new().unwrap();
+        let vertices = edges_sanity_vertex_list(&edges);
+        let graph = edges_sanity_check_build_graph(
+            test_dir.path(),
+            &edges,
+            &vertices,
+            input_chunk_size,
+            vertex_chunk_size,
+            edge_chunk_size,
+            edge_max_list_size,
+        );
+
+        // check graph is sane
+        check_graph_sanity(&edges, &vertices, &graph);
+
+        // check that reloading from graph dir works
+        let reloaded_graph = TempColGraphFragment::new(test_dir.path()).unwrap();
+        check_graph_sanity(&edges, &vertices, &reloaded_graph)
     }
 
     proptest! {
