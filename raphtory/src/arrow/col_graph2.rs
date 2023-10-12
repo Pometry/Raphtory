@@ -120,11 +120,6 @@ impl TempColGraphFragment {
                     unsafe { mmap_batch(file_path.path(), 0) }?,
                     overflow_chunks,
                 ));
-                println!(
-                    "edge chunk: {:?} {:?}",
-                    file_path.path(),
-                    edge_chunks.last().unwrap().len()
-                );
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(unsafe {
                     mmap_batch(file_path.path(), 0)
@@ -917,7 +912,6 @@ mod test {
         ]
         .iter()
         .collect();
-        println!("{:?}", file_path);
         let test_dir = TempDir::new().unwrap();
 
         let g = TempColGraphFragment::from_sorted_parquet_edge_list(
