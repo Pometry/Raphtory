@@ -485,15 +485,15 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 /// Returns:
 ///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
 ///
-// #[pyfunction]
-// #[pyo3[signature = (g, source, cutoff=None)]]
-// pub fn single_source_shortest_path(
-//     g: &PyGraphView,
-//     source: PyInputVertex,
-//     cutoff: Option<usize>,
-// ) -> AlgorithmResultOLD<String, Vec<String>> {
-//     single_source_shortest_path_rs(&g.graph, source, cutoff)
-// }
+#[pyfunction]
+#[pyo3[signature = (g, source, cutoff=None)]]
+pub fn single_source_shortest_path(
+    g: &PyGraphView,
+    source: PyInputVertex,
+    cutoff: Option<usize>,
+) -> AlgorithmResultNew<DynamicGraph, Vec<String>, Vec<String>> {
+    single_source_shortest_path_rs(&g.graph, source, cutoff)
+}
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.
 ///
