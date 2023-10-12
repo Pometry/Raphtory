@@ -1,0 +1,24 @@
+name: Inform internal projects of raphtory push
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.DISPATCH_PAT }}
+          script: |
+            const result = await github.rest.repos.createDispatchEvent({
+              owner: 'pometry',
+              repo: '${{ secrets.PROJECT_ONE }}',
+              event_type: 'raphtory-update',
+              client_payload: {"update": "master"}
+            })
+            console.log(result);
