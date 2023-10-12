@@ -68,9 +68,10 @@ impl TempColGraphFragment {
                     .file_name()
                     .to_str()
                     .map(|file_name| {
-                        file_name.starts_with("edge_chunk_")
-                            || file_name.starts_with("adj_out_chunk_")
-                            || file_name.starts_with("adj_in_chunk_")
+                        !file_name.ends_with("_overflow")
+                            && (file_name.starts_with("edge_chunk_")
+                                || file_name.starts_with("adj_out_chunk_")
+                                || file_name.starts_with("adj_in_chunk_"))
                     })
                     .unwrap_or(false)
             })
@@ -135,8 +136,8 @@ impl TempColGraphFragment {
             }
         }
 
-        let vertex_chunk_size = adj_out_chunks[0].len();
-        let edge_chunk_size = edge_chunks[0].len();
+        let vertex_chunk_size = adj_out_chunks.first().map(|v| v.len()).unwrap_or(0);
+        let edge_chunk_size = edge_chunks.first().map(|e| e.len()).unwrap_or(0);
 
         Ok(Self {
             vertex_chunk_size,
@@ -1342,7 +1343,7 @@ mod test {
         let weights = PrimitiveArray::from_vec(vec![0f64, 1., 2., 3.]).boxed();
 
         let chunk = LoadChunk::new([srcs, dsts, times, weights], 0, 1, 2, schema());
-        let graph = TempColGraphFragment::build_tables_from_chunked(
+        let mut graph = TempColGraphFragment::build_tables_from_chunked(
             test_dir.path(),
             2,
             2,
@@ -1360,5 +1361,13 @@ mod test {
             (EID(1), VID(1), VID(2), 3),
         ];
         assert_eq!(all_exploded, expected);
+        graph.build_inbound_adj_index().unwrap();
+
+        let reloaded_graph = TempColGraphFragment::new(test_dir.path()).unwrap();
+        check_graph_sanity(
+            &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
+            &[0, 1, 2],
+            &reloaded_graph,
+        );
     }
 }
