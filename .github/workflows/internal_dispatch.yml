@@ -20,5 +20,11 @@ jobs:
               repo: '${{ secrets.PROJECT_ONE }}',
               event_type: 'raphtory-update',
               client_payload: {"update": "master"}
-            })
-            console.log(result);
+            });
+
+            // Check the status code of the response
+            if (result.status !== 204) {  // 204 No Content is a typical successful response for dispatch events
+              console.error('Failed to dispatch the event. Response:', result);
+              throw new Error('Dispatch event failed');  // Throwing an error will fail the job
+            }
+            console.log('Dispatch event was successful:', result);
