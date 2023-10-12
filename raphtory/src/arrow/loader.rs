@@ -350,7 +350,7 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
 }
 
 pub(crate) fn make_global_ordering<'a, GO: GlobalOrder + Default, P: AsRef<Path> + Sync + Send>(
-    sorted_gids_path: P,
+    sorted_gids_path: impl AsRef<Path>,
     edge_lists: &[ExternalEdgeList<'a, P>],
 ) -> Result<GO, Error> {
     let now = std::time::Instant::now();

@@ -659,6 +659,7 @@ pub struct Edge<'a> {
 }
 
 impl<'a> Edge<'a> {
+
     fn new(edge: &'a EdgeChunk, idx: usize) -> Self {
         Self { edge, idx }
     }
@@ -670,6 +671,11 @@ impl<'a> Edge<'a> {
     pub fn props<T: NativeType>(&self, prop_id: usize) -> Option<impl Iterator<Item = Option<&T>>> {
         self.edge.temporal_primitive_prop(self.idx, prop_id)
     }
+
+    pub fn prop_items<T: NativeType>(&self, prop_id: usize) -> Option<impl Iterator<Item = Option<(&T, &Time)>>> {
+        self.edge.temporal_primitive_prop_items(self.idx, prop_id)
+    }
+
 }
 
 fn read_vertices_only<P: AsRef<Path>>(
@@ -695,7 +701,7 @@ fn read_vertices_only<P: AsRef<Path>>(
 
 #[cfg(test)]
 mod test {
-    use crate::{arrow::global_order::GlobalMap, db::api::view::internal::GraphOps, prelude::*};
+    use crate::{arrow::global_order::GlobalMap,  prelude::*};
     use std::{iter, path::PathBuf};
 
     use super::*;

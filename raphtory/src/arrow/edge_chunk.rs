@@ -67,6 +67,7 @@ impl EdgeChunk {
             .unwrap();
         ov
     }
+
     pub(crate) fn temporal_primitive_prop<T: NativeType>(
         &self,
         offset: usize,
@@ -81,6 +82,33 @@ impl EdgeChunk {
                 .into_iter()
                 .flat_map(move |ov| self.overflow[ov as usize].temporal_primitive_prop(prop_id)),
         );
+        Some(iter)
+    }
+
+    pub(crate) fn temporal_primitive_prop_items<T: NativeType>(
+        &self,
+        offset: usize,
+        prop_id: usize,
+    ) -> Option<impl Iterator<Item = Option<(&T, &Time)>> + '_> {
+        let t_prop = self.temporal_properties();
+        let overflow = self.overflow();
+        let maybe_overflow = overflow.get(offset);
+        let col = ListColumn::new(&t_prop, prop_id)?;
+        let time_col = ListColumn::new(&t_prop, 0)?;
+
+        let time_iter = time_col.into_iter_row(offset).chain(
+            maybe_overflow
+                .into_iter()
+                .flat_map(move |ov| self.overflow[ov as usize].temporal_primitive_prop(0)),
+        );
+
+        let iter = col.into_iter_row(offset).chain(
+            maybe_overflow
+                .into_iter()
+                .flat_map(move |ov| self.overflow[ov as usize].temporal_primitive_prop(prop_id)),
+        );
+
+        let iter = iter.zip(time_iter).map(|(v, t)| v.and_then(|v| t.map(|t| (v, t))));
         Some(iter)
     }
 
