@@ -86,7 +86,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         global_clustering_coefficient,
         temporally_reachable_nodes,
         local_clustering_coefficient,
-        // weakly_connected_components,
+        weakly_connected_components,
         global_temporal_three_node_motif,
         global_temporal_three_node_motif_multi,
         local_temporal_three_node_motifs,

@@ -75,14 +75,14 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult object with string keys and integer values mapping vertex names to their component ids.
-// #[pyfunction]
-// #[pyo3(signature = (g, iter_count=9223372036854775807))]
-// pub fn weakly_connected_components(
-//     g: &PyGraphView,
-//     iter_count: usize,
-// ) -> AlgorithmResultOLD<String, u64> {
-//     connected_components::weakly_connected_components(&g.graph, iter_count, None)
-// }
+#[pyfunction]
+#[pyo3(signature = (g, iter_count=9223372036854775807))]
+pub fn weakly_connected_components(
+    g: &PyGraphView,
+    iter_count: usize,
+) -> AlgorithmResultNew<DynamicGraph, u64, u64> {
+    connected_components::weakly_connected_components(&g.graph, iter_count, None)
+}
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
 ///
