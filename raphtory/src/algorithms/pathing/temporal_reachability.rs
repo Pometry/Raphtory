@@ -1,7 +1,7 @@
 use crate::{
-    algorithms::algorithm_result_old::AlgorithmResultOLD,
+    algorithms::algorithm_result_new::AlgorithmResultNew,
     core::{
-        entities::vertices::input_vertex::InputVertex,
+        entities::{vertices::input_vertex::InputVertex, VID},
         state::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
@@ -17,7 +17,10 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use std::{collections::HashMap, ops::Add};
+use std::{
+    collections::HashMap,
+    ops::{Add, Deref},
+};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -70,7 +73,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
+) -> AlgorithmResultNew<G, Vec<(i64, String)>, Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
@@ -180,34 +183,62 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<HashMap<String, Vec<(i64, String)>>>();
-    AlgorithmResultOLD::new(
-        "Temporal Reachability",
-        results_type,
-        runner.run(
-            vec![Job::new(step1)],
-            vec![Job::new(step2), step3],
-            None,
-            |_, ess, _, _| {
-                ess.finalize(&taint_history, |taint_history| {
-                    taint_history
-                        .into_iter()
-                        .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
-                        .collect_vec()
-                })
-            },
-            threads,
-            max_hops,
-            None,
-            None,
-        ),
-    )
+    let result: HashMap<String, Vec<(i64, String)>> = runner.run(
+        vec![Job::new(step1)],
+        vec![Job::new(step2), step3],
+        None,
+        |_, ess, _, _| {
+            ess.finalize(&taint_history, |taint_history| {
+                taint_history
+                    .into_iter()
+                    .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
+                    .collect_vec()
+            })
+        },
+        threads,
+        max_hops,
+        None,
+        None,
+    );
+
+    let mut map: HashMap<usize, Vec<(i64, String)>> = HashMap::new();
+    for (vertex_name, value) in result.iter() {
+        if let Some(vertex) = g.vertex(vertex_name.clone()) {
+            let vid = vertex.vertex.0;
+            map.insert(vid, value.to_owned());
+        }
+    }
+    let results_type = std::any::type_name::<Vec<(i64, String)>>();
+    AlgorithmResultNew::new(g.clone(), "Temporal Reachability", results_type, map)
 }
 
 #[cfg(test)]
 mod generic_taint_tests {
     use super::*;
     use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+
+    fn sort_inner_by_string(
+        data: Vec<(String, Option<Vec<(i64, String)>>)>,
+    ) -> Vec<(String, Option<Vec<(i64, String)>>)> {
+        // Iterate over each tuple in the outer Vec
+        let mut sorted_data = data
+            .into_iter()
+            .map(|(outer_str, opt_inner_vec)| {
+                // Check if the Option is Some
+                let sorted_opt_inner_vec = opt_inner_vec.map(|mut inner_vec| {
+                    // Sort the inner Vec by the inner String
+                    inner_vec.sort_by(|a, b| a.1.cmp(&b.1));
+                    inner_vec
+                });
+
+                // Return the new tuple
+                (outer_str, sorted_opt_inner_vec)
+            })
+            .collect::<Vec<_>>();
+
+        // Return the new Vec
+        sorted_data
+    }
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -224,8 +255,8 @@ mod generic_taint_tests {
         start_time: i64,
         infected_nodes: Vec<T>,
         stop_nodes: Option<Vec<T>>,
-    ) -> Vec<(String, Vec<(i64, String)>)> {
-        let results: Vec<(String, Vec<(i64, String)>)> = temporally_reachable_nodes(
+    ) -> Vec<(String, Option<Vec<(i64, String)>>)> {
+        temporally_reachable_nodes(
             &graph,
             None,
             iter_count,
@@ -233,15 +264,7 @@ mod generic_taint_tests {
             infected_nodes,
             stop_nodes,
         )
-        .sort_by_key(false)
-        .into_iter()
-        .map(|(k, mut v)| {
-            v.sort();
-            (k, v)
-        })
-        .collect_vec();
-
-        results
+        .sort_by_vertex_id(false)
     }
 
     #[test]
@@ -259,27 +282,24 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = test_generic_taint(graph, 20, 11, vec![2], None);
-
-        assert_eq!(
-            results,
-            Vec::from([
-                ("1".to_string(), vec![]),
-                ("2".to_string(), vec![(11, "start".to_string())]),
-                ("3".to_string(), vec![]),
-                (
-                    "4".to_string(),
-                    vec![(12, "2".to_string()), (14, "5".to_string())]
-                ),
-                (
-                    "5".to_string(),
-                    vec![(13, "2".to_string()), (14, "5".to_string())]
-                ),
-                ("6".to_string(), vec![]),
-                ("7".to_string(), vec![(15, "4".to_string())]),
-                ("8".to_string(), vec![]),
-            ])
-        );
+        let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![2], None));
+        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
+            ("1".to_string(), Some(vec![])),
+            ("2".to_string(), Some(vec![(11i64, "start".to_string())])),
+            ("3".to_string(), Some(vec![])),
+            (
+                "4".to_string(),
+                Some(vec![(12i64, "2".to_string()), (14i64, "5".to_string())]),
+            ),
+            (
+                "5".to_string(),
+                Some(vec![(13i64, "2".to_string()), (14i64, "5".to_string())]),
+            ),
+            ("6".to_string(), Some(vec![])),
+            ("7".to_string(), Some(vec![(15i64, "4".to_string())])),
+            ("8".to_string(), Some(vec![])),
+        ]);
+        assert_eq!(results, expected);
     }
 
     #[test]
@@ -297,30 +317,27 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], None);
-
-        assert_eq!(
-            results,
-            Vec::from([
-                ("1".to_string(), vec![(11, "start".to_string())]),
-                (
-                    "2".to_string(),
-                    vec![(11, "1".to_string()), (11, "start".to_string())]
-                ),
-                ("3".to_string(), vec![]),
-                (
-                    "4".to_string(),
-                    vec![(12, "2".to_string()), (14, "5".to_string())]
-                ),
-                (
-                    "5".to_string(),
-                    vec![(13, "2".to_string()), (14, "5".to_string())]
-                ),
-                ("6".to_string(), vec![]),
-                ("7".to_string(), vec![(15, "4".to_string())]),
-                ("8".to_string(), vec![]),
-            ])
-        );
+        let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![1, 2], None));
+        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
+            ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
+            (
+                "2".to_string(),
+                Some(vec![(11i64, "1".to_string()), (11i64, "start".to_string())]),
+            ),
+            ("3".to_string(), Some(vec![])),
+            (
+                "4".to_string(),
+                Some(vec![(12i64, "2".to_string()), (14i64, "5".to_string())]),
+            ),
+            (
+                "5".to_string(),
+                Some(vec![(13i64, "2".to_string()), (14i64, "5".to_string())]),
+            ),
+            ("6".to_string(), Some(vec![])),
+            ("7".to_string(), Some(vec![(15i64, "4".to_string())])),
+            ("8".to_string(), Some(vec![])),
+        ]);
+        assert_eq!(results, expected);
     }
 
     #[test]
@@ -338,24 +355,27 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
-
-        assert_eq!(
-            results,
-            Vec::from([
-                ("1".to_string(), vec![(11, "start".to_string())]),
-                (
-                    "2".to_string(),
-                    vec![(11, "1".to_string()), (11, "start".to_string())]
-                ),
-                ("3".to_string(), vec![]),
-                ("4".to_string(), vec![(12, "2".to_string())]),
-                ("5".to_string(), vec![(13, "2".to_string())]),
-                ("6".to_string(), vec![]),
-                ("7".to_string(), vec![]),
-                ("8".to_string(), vec![]),
-            ])
-        );
+        let results = sort_inner_by_string(test_generic_taint(
+            graph,
+            20,
+            11,
+            vec![1, 2],
+            Some(vec![4, 5]),
+        ));
+        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
+            ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
+            (
+                "2".to_string(),
+                Some(vec![(11i64, "1".to_string()), (11i64, "start".to_string())]),
+            ),
+            ("3".to_string(), Some(vec![])),
+            ("4".to_string(), Some(vec![(12i64, "2".to_string())])),
+            ("5".to_string(), Some(vec![(13i64, "2".to_string())])),
+            ("6".to_string(), Some(vec![])),
+            ("7".to_string(), Some(vec![])),
+            ("8".to_string(), Some(vec![])),
+        ]);
+        assert_eq!(results, expected);
     }
 
     #[test]
@@ -375,27 +395,30 @@ mod generic_taint_tests {
             (10, 5, 8),
         ]);
 
-        let results = test_generic_taint(graph, 20, 11, vec![1, 2], Some(vec![4, 5]));
-
-        assert_eq!(
-            results,
-            Vec::from([
-                ("1".to_string(), vec![(11, "start".to_string())]),
-                (
-                    "2".to_string(),
-                    vec![
-                        (11, "1".to_string()),
-                        (11, "start".to_string()),
-                        (12, "1".to_string())
-                    ]
-                ),
-                ("3".to_string(), vec![]),
-                ("4".to_string(), vec![(12, "2".to_string())]),
-                ("5".to_string(), vec![(13, "2".to_string())]),
-                ("6".to_string(), vec![]),
-                ("7".to_string(), vec![]),
-                ("8".to_string(), vec![]),
-            ])
-        );
+        let results = sort_inner_by_string(test_generic_taint(
+            graph,
+            20,
+            11,
+            vec![1, 2],
+            Some(vec![4, 5]),
+        ));
+        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
+            ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
+            (
+                "2".to_string(),
+                Some(vec![
+                    (12i64, "1".to_string()),
+                    (11i64, "1".to_string()),
+                    (11i64, "start".to_string()),
+                ]),
+            ),
+            ("3".to_string(), Some(vec![])),
+            ("4".to_string(), Some(vec![(12i64, "2".to_string())])),
+            ("5".to_string(), Some(vec![(13i64, "2".to_string())])),
+            ("6".to_string(), Some(vec![])),
+            ("7".to_string(), Some(vec![])),
+            ("8".to_string(), Some(vec![])),
+        ]);
+        assert_eq!(results, expected);
     }
 }

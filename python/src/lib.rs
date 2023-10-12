@@ -84,7 +84,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         pagerank,
         single_source_shortest_path,
         global_clustering_coefficient,
-        // temporally_reachable_nodes,
+        temporally_reachable_nodes,
         local_clustering_coefficient,
         // weakly_connected_components,
         global_temporal_three_node_motif,

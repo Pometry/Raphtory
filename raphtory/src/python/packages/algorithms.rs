@@ -123,16 +123,16 @@ pub fn pagerank(
 ///
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
-// #[pyfunction]
-// pub fn temporally_reachable_nodes(
-//     g: &PyGraphView,
-//     max_hops: usize,
-//     start_time: i64,
-//     seed_nodes: Vec<PyInputVertex>,
-//     stop_nodes: Option<Vec<PyInputVertex>>,
-// ) -> AlgorithmResultOLD<String, Vec<(i64, String)>> {
-//     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
-// }
+#[pyfunction]
+pub fn temporally_reachable_nodes(
+    g: &PyGraphView,
+    max_hops: usize,
+    start_time: i64,
+    seed_nodes: Vec<PyInputVertex>,
+    stop_nodes: Option<Vec<PyInputVertex>>,
+) -> AlgorithmResultNew<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
+    temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
+}
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
 ///
