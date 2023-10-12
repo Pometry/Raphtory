@@ -91,10 +91,11 @@ impl EdgeOverflowBuilder {
     }
 
     fn write_values(&mut self) -> Result<(), Error> {
-        let mut values = self.t_props.take().unwrap();
-        self.writer
-            .write(&Chunk::new(vec![values.as_box()]), None)?;
-        self.num_chunks += 1;
+        if let Some(mut values) = self.t_props.take() {
+            self.writer
+                .write(&Chunk::new(vec![values.as_box()]), None)?;
+            self.num_chunks += 1;
+        }
         Ok(())
     }
 

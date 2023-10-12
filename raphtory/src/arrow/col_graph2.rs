@@ -445,7 +445,7 @@ impl TempColGraphFragment {
             return Err(error.into());
         }
 
-        for outbound in self.outbound().iter() {
+        for (outbound_chunk_id, outbound) in self.outbound().iter().enumerate() {
             let adj_column: ListColumn<u64> = outbound.neighbours_col().unwrap();
             let edge_ids_column: ListColumn<u64> = outbound.edge_col().unwrap();
 
@@ -503,7 +503,7 @@ impl TempColGraphFragment {
                         let vid = vid as usize % self.vertex_chunk_size; //local index
                         let insertion_point = offsets[vid] as usize + extra_offsets[vid];
                         extra_offsets[vid] += 1;
-                        inbound_vids[insertion_point] = row as u64;
+                        inbound_vids[insertion_point] = (outbound_chunk_id * self.vertex_chunk_size + row) as u64;
                         inbound_eids[insertion_point] = eid;
                     }
                 }
@@ -802,7 +802,13 @@ mod test {
 
     proptest! {
         #[test]
-        fn edges_sanity_check(edges in any::<Vec<(u64, u64, i64)>>().prop_map(|mut v| {v.sort(); v}), input_chunk_size in 1..1024u64, vertex_chunk_size in 1..1024usize, edge_chunk_size in 1..1024usize, edge_max_list_size in 1..128usize) {
+        fn edges_sanity_check(
+            edges in any::<Vec<(u8, u8, i64)>>().prop_map(|mut v| {v.sort(); v.into_iter().map(|(src, dst, t)| (src as u64, dst as u64, t)).collect_vec()}),
+            input_chunk_size in 1..1024u64,
+            vertex_chunk_size in 1..1024usize,
+            edge_chunk_size in 1..1024usize,
+            edge_max_list_size in 1..128usize
+        ) {
             edges_sanity_check_inner(edges, input_chunk_size, vertex_chunk_size, edge_chunk_size, edge_max_list_size);
         }
     }
@@ -810,6 +816,64 @@ mod test {
     #[test]
     fn edges_sanity_chunk_1() {
         edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1, 1)
+    }
+
+    #[test]
+    fn edge_sanity_chunk_broken_incoming() {
+        let edges = vec![
+            (0, 0, 0),
+            (0, 0, 0),
+            (0, 0, 66),
+            (0, 1, 0),
+            (2, 0, 0),
+            (3, 4, 0),
+            (4, 0, 0),
+            (4, 4, 0),
+            (4, 4, 0),
+            (4, 4, 0),
+            (4, 4, 0),
+            (5, 0, 0),
+            (6, 7, 7274856480798084567),
+            (8, 3, -7707029126214574305),
+        ];
+
+        // Outgoing
+        // c1 
+        // 0: [{v: 0, e: 0}, {v: 1, e: 1}], 
+        // 1: [], 
+        // 2: [{v: 0, e: 2}], 
+        // 3: [{v: 4, e: 3}]]]
+
+        // c2 
+        // 4: [{v: 0, e: 4}, {v: 4, e: 5}],
+        // 5: [{v: 0, e: 6}], 
+        // 6: [{v: 7, e: 7}], 
+        // 7: []
+
+        // c3 
+        // 8: [{v: 3, e: 8}]
+
+        // Incoming
+        // c1
+        // 0: [{v: 0, e: 0}, {v: 2, e: 2}, {v: 0, e: 4}, {v: 1, e: 6}]
+        // 1: [{v: 0, e: 1}], 
+        // 2: [], 
+        // 3: [{v: 0, e: 8}]
+        // c2
+        // 4: [{v: 3, e: 3}, {v: 0, e: 5}],
+        // 5: [], 
+        // 6: [], 
+        // 7: [{v: 2, e: 7}]
+        // c3
+        // 8: []
+    
+        edges_sanity_check_inner(
+            edges,
+            853,
+            4,
+            122,
+            98,
+        )
     }
     #[test]
     fn load_from_parquet() {
@@ -1234,6 +1298,36 @@ mod test {
 
         let all_exploded: Vec<_> = graph.exploded_edges().collect();
         let expected: Vec<_> = (0i64..10).map(|t| (EID(0), VID(0), VID(1), t)).collect();
+        assert_eq!(all_exploded, expected);
+    }
+
+    #[test]
+    fn missing_overflow_on_finalise() {
+        let test_dir = TempDir::new().unwrap();
+
+        let srcs = PrimitiveArray::from_vec(vec![0u64, 0, 0, 1]).boxed();
+        let dsts = PrimitiveArray::from_vec(vec![1u64, 1, 1, 2]).boxed();
+        let times = PrimitiveArray::from_vec(vec![0i64, 1, 2, 3]).boxed();
+        let weights = PrimitiveArray::from_vec(vec![0f64, 1., 2., 3.]).boxed();
+
+        let chunk = LoadChunk::new([srcs, dsts, times, weights], 0, 1, 2, schema());
+        let graph = TempColGraphFragment::build_tables_from_chunked(
+            test_dir.path(),
+            2,
+            2,
+            1,
+            GlobalMap::from([0u64, 1u64, 2u64]).into(),
+            vec![chunk],
+        )
+        .unwrap();
+
+        let all_exploded: Vec<_> = graph.exploded_edges().collect();
+        let expected: Vec<_> = vec![
+            (EID(0), VID(0), VID(1), 0),
+            (EID(0), VID(0), VID(1), 1),
+            (EID(0), VID(0), VID(1), 2),
+            (EID(1), VID(1), VID(2), 3),
+        ];
         assert_eq!(all_exploded, expected);
     }
 }
