@@ -39,10 +39,10 @@ struct Args {
     #[arg(short, long, action)]
     force_reload: bool,
 
-    #[arg(long, default_value_t = 1024)]
+    #[arg(long, default_value_t = 1_048_576)]
     vertex_chunk_size: usize,
 
-    #[arg(long, default_value_t = 1024)]
+    #[arg(long, default_value_t = 1_048_576)]
     edge_chunk_size: usize,
 
     #[arg(long, default_value_t = 1024)]
