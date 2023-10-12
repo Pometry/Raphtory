@@ -5,7 +5,7 @@ use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
-        algorithm_result_new::AlgorithmResult,
+        algorithm_result::AlgorithmResult,
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,

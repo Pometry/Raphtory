@@ -56,7 +56,7 @@ pub struct AlgorithmRepr {
 ///
 /// This `AlgorithmResult` is returned for all algorithms that return a HashMap
 ///
-pub struct AlgorithmResultNew<G, V, O = V> {
+pub struct AlgorithmResult<G, V, O = V> {
     /// The result hashmap that stores keys of type `H` and values of type `Y`.
     pub algo_repr: AlgorithmRepr,
     pub graph: G,
@@ -66,7 +66,7 @@ pub struct AlgorithmResultNew<G, V, O = V> {
 
 // use pyo3::{prelude::*, types::IntoPyDict};
 
-impl<G, V, O> AlgorithmResultNew<G, V, O>
+impl<G, V, O> AlgorithmResult<G, V, O>
 where
     G: GraphViewOps,
     V: Clone,
@@ -288,7 +288,7 @@ where
     }
 }
 
-impl<G, V, O> AlgorithmResultNew<G, V, O>
+impl<G, V, O> AlgorithmResult<G, V, O>
 where
     G: GraphViewOps,
     V: Clone,
@@ -364,7 +364,7 @@ where
 
 use std::fmt;
 
-impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResultNew<G, V, O> {
+impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {}", self.algo_repr.algo_name)?;
@@ -393,14 +393,14 @@ mod algorithm_result_test {
     use ordered_float::OrderedFloat;
     use std::collections::HashMap;
 
-    fn create_algo_result_u64() -> AlgorithmResultNew<Graph, u64> {
+    fn create_algo_result_u64() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
         let mut map: HashMap<usize, u64> = HashMap::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10);
         map.insert(g.vertex("B").unwrap().vertex.0, 20);
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
         let results_type = std::any::type_name::<u64>();
-        AlgorithmResultNew::new(g, "create_algo_result_u64_test", results_type, map)
+        AlgorithmResult::new(g, "create_algo_result_u64_test", results_type, map)
     }
 
     fn create_graph() -> Graph {
@@ -416,7 +416,7 @@ mod algorithm_result_test {
         g
     }
 
-    fn group_by_test() -> AlgorithmResultNew<Graph, u64> {
+    fn group_by_test() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
         let mut map: HashMap<usize, u64> = HashMap::new();
         map.insert(g.vertex("A").unwrap().vertex.0, 10);
@@ -424,10 +424,10 @@ mod algorithm_result_test {
         map.insert(g.vertex("C").unwrap().vertex.0, 30);
         map.insert(g.vertex("D").unwrap().vertex.0, 10);
         let results_type = std::any::type_name::<u64>();
-        AlgorithmResultNew::new(g, "group_by_test", results_type, map)
+        AlgorithmResult::new(g, "group_by_test", results_type, map)
     }
 
-    fn create_algo_result_f64() -> AlgorithmResultNew<Graph, f64, OrderedFloat<f64>> {
+    fn create_algo_result_f64() -> AlgorithmResult<Graph, f64, OrderedFloat<f64>> {
         let g = Graph::new();
         g.add_vertex(0, "A", NO_PROPS)
             .expect("Could not add vertex to graph");
@@ -442,21 +442,21 @@ mod algorithm_result_test {
         map.insert(g.vertex("B").unwrap().vertex.0, 20.0);
         map.insert(g.vertex("C").unwrap().vertex.0, 30.0);
         let results_type = std::any::type_name::<f64>();
-        AlgorithmResultNew::new(g, "create_algo_result_u64_test", results_type, map)
+        AlgorithmResult::new(g, "create_algo_result_u64_test", results_type, map)
     }
 
     fn create_algo_result_tuple(
-    ) -> AlgorithmResultNew<Graph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+    ) -> AlgorithmResult<Graph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
         let g = create_graph();
         let mut res: HashMap<usize, (f32, f32)> = HashMap::new();
         res.insert(g.vertex("A").unwrap().vertex.0, (10.0, 20.0));
         res.insert(g.vertex("B").unwrap().vertex.0, (20.0, 30.0));
         res.insert(g.vertex("C").unwrap().vertex.0, (30.0, 40.0));
         let results_type = std::any::type_name::<(f32, f32)>();
-        AlgorithmResultNew::new(g, "create_algo_result_tuple", results_type, res)
+        AlgorithmResult::new(g, "create_algo_result_tuple", results_type, res)
     }
 
-    fn create_algo_result_hashmap_vec() -> AlgorithmResultNew<Graph, Vec<(i32, String)>> {
+    fn create_algo_result_hashmap_vec() -> AlgorithmResult<Graph, Vec<(i32, String)>> {
         let g = create_graph();
         let mut res: HashMap<usize, Vec<(i32, String)>> = HashMap::new();
         res.insert(g.vertex("A").unwrap().vertex.0, vec![(11, "H".to_string())]);
@@ -466,7 +466,7 @@ mod algorithm_result_test {
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
         let results_type = std::any::type_name::<(i32, String)>();
-        AlgorithmResultNew::new(g, "create_algo_result_hashmap_vec", results_type, res)
+        AlgorithmResult::new(g, "create_algo_result_hashmap_vec", results_type, res)
     }
 
     #[test]

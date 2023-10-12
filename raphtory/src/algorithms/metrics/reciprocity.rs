@@ -44,7 +44,7 @@
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
 use crate::{
-    algorithms::algorithm_result_new::AlgorithmResultNew,
+    algorithms::algorithm_result::AlgorithmResult,
     core::state::{
         accumulator_id::accumulators::sum,
         compute_state::{ComputeState, ComputeStateVec},
@@ -116,7 +116,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResultNew<G, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -153,7 +153,7 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     }
     let results_type = std::any::type_name::<f64>();
 
-    AlgorithmResultNew::new(g.clone(), "All Local Reciprocity", results_type, map)
+    AlgorithmResult::new(g.clone(), "All Local Reciprocity", results_type, map)
 }
 
 #[cfg(test)]

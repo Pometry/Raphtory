@@ -1,5 +1,5 @@
 use crate::{
-    algorithms::{algorithm_result_new::AlgorithmResultNew, metrics::degree::max_degree},
+    algorithms::{algorithm_result::AlgorithmResult, metrics::degree::max_degree},
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
     db::task::{
         context::Context,
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 pub fn degree_centrality<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResultNew<G, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let max_degree = max_degree(g);
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -60,7 +60,7 @@ pub fn degree_centrality<G: GraphViewOps>(
         }
     }
     let results_type = std::any::type_name::<f64>();
-    AlgorithmResultNew::new(g.clone(), "Degree Centrality", results_type, map)
+    AlgorithmResult::new(g.clone(), "Degree Centrality", results_type, map)
 }
 
 #[cfg(test)]

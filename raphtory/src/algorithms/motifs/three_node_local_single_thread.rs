@@ -1,4 +1,4 @@
-use crate::algorithms::algorithm_result_old::AlgorithmResultOLD;
+use crate::algorithms::algorithm_result::AlgorithmResult;
 /// This class regards the counting of the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
 /// We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
 ///
@@ -105,7 +105,7 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
 fn triangle_motif_count<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> AlgorithmResultOLD<u64, Vec<usize>> {
+) -> AlgorithmResult<G, Vec<usize>, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
     for u in graph.vertices() {
         counts.insert(u.id(), vec![0; 8]);
@@ -236,8 +236,19 @@ fn triangle_motif_count<G: GraphViewOps>(
         }
     }
 
-    let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-    AlgorithmResultOLD::new("Three node local single thread", results_type, counts)
+    // Made this as i did not want to modify/damage the above working algorithm
+    let new_counts: HashMap<usize, Vec<usize>> = counts
+        .iter()
+        .map(|(uid, val)| (graph.vertex(*uid).unwrap().vertex.0, val.to_owned()))
+        .collect();
+
+    let results_type = std::any::type_name::<Vec<usize>>();
+    AlgorithmResult::new(
+        graph.clone(),
+        "Three node local single thread",
+        results_type,
+        new_counts,
+    )
 }
 
 /// Computes the number of each type of motif that each node participates in.
@@ -263,8 +274,8 @@ fn triangle_motif_count<G: GraphViewOps>(
 pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
     graph: &G,
     delta: i64,
-) -> AlgorithmResultOLD<u64, Vec<usize>> {
-    let mut counts = triangle_motif_count(graph, delta).get_all().to_owned();
+) -> AlgorithmResult<G, Vec<usize>, Vec<usize>> {
+    let mut counts = triangle_motif_count(graph, delta);
 
     for v in graph.vertices() {
         let vid = v.id();
@@ -278,12 +289,17 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         let mut final_cts = Vec::new();
         final_cts.extend(stars.into_iter());
         final_cts.extend(two_nodes.into_iter());
-        final_cts.extend(counts.get(&vid).unwrap().into_iter());
-        counts.insert(vid, final_cts);
+        final_cts.extend(counts.get(v.clone().into()).unwrap().into_iter());
+        counts.result.insert(v.vertex.0, final_cts);
     }
 
-    let results_type = std::any::type_name::<HashMap<u64, Vec<usize>>>();
-    AlgorithmResultOLD::new("Three node local single thread", results_type, counts)
+    let results_type = std::any::type_name::<Vec<usize>>();
+    AlgorithmResult::new(
+        graph.clone(),
+        "Three node local single thread",
+        results_type,
+        counts.result,
+    )
 }
 
 /// Computes the number of each type of motif there is in the graph.
@@ -306,10 +322,13 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
 ///
 pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64) -> Vec<usize> {
     let counts = local_temporal_three_node_motifs(graph, delta)
-        .get_all()
+        .get_all_values()
         .to_owned();
-    let mut tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
-        acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
+    let mut tmp_counts = counts.iter().fold(vec![0; 40], |acc, x| {
+        acc.iter()
+            .zip(x.iter())
+            .map(|(x1, x2)| x1 + x2)
+            .collect::<Vec<_>>()
     });
     for ind in 32..40 {
         tmp_counts[ind] /= 3;
@@ -360,9 +379,9 @@ mod local_motif_test {
         }
 
         // let counts = star_motif_count(&graph, 1, 100);
-        let counts = local_temporal_three_node_motifs(&graph, 10);
+        let counts_result = local_temporal_three_node_motifs(&graph.clone(), 10);
         // FIXME: Should test this
-        let _global_counts = global_temporal_three_node_motifs(&graph, 10);
+        let _global_counts = global_temporal_three_node_motifs(&graph.clone(), 10);
         let expected: HashMap<u64, Vec<usize>> = HashMap::from([
             (
                 1,
@@ -443,7 +462,10 @@ mod local_motif_test {
             ),
         ]);
         for ind in 1..12 {
-            assert_eq!(counts.get(&ind).unwrap(), expected.get(&ind).unwrap());
+            let ind_vertex = assert_eq!(
+                counts_result.get(ind.into()).unwrap(),
+                expected.get(&ind).unwrap()
+            );
         }
         // print!("{:?}", global_counts);
     }

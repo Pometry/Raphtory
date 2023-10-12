@@ -1,11 +1,11 @@
 use crate::{
-    algorithms::algorithm_result_new::AlgorithmResultNew,
+    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{internal::DynamicGraph, GraphViewOps, VertexViewOps},
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -37,7 +37,7 @@ pub fn weakly_connected_components<G>(
     graph: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResultNew<G, u64, u64>
+) -> AlgorithmResult<G, u64, u64>
 where
     G: GraphViewOps,
 {
@@ -103,7 +103,7 @@ where
             map.insert(vid, value.to_owned());
         }
     }
-    AlgorithmResultNew::new(graph.clone(), "Connected Components", results_type, map)
+    AlgorithmResult::new(graph.clone(), "Connected Components", results_type, map)
 }
 
 #[cfg(test)]

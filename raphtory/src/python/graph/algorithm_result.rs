@@ -1,22 +1,25 @@
-use crate::python::types::repr::Repr;
+use crate::{
+    core::entities::vertices::vertex_ref::VertexRef, db::api::view::internal::DynamicGraph,
+    python::types::repr::Repr,
+};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+use std::collections::HashMap;
 
-/// Create a macro for py_algorithm_result
-macro_rules! py_algorithm_result {
-    ($name:ident, $rustKey:ty, $rustValue:ty, $rustSortValue:ty) => {
+macro_rules! py_algorithm_result_new {
+    ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustSortValue:ty) => {
         #[pyclass]
-        pub struct $name(
-            $crate::algorithms::algorithm_result_old::AlgorithmResultOLD<
-                $rustKey,
+        pub struct $objectName(
+            $crate::algorithms::algorithm_result::AlgorithmResult<
+                $rustGraph,
                 $rustValue,
                 $rustSortValue,
             >,
         );
 
         impl Repr
-            for $crate::algorithms::algorithm_result_old::AlgorithmResultOLD<
-                $rustKey,
+            for $crate::algorithms::algorithm_result::AlgorithmResult<
+                $rustGraph,
                 $rustValue,
                 $rustSortValue,
             >
@@ -33,31 +36,31 @@ macro_rules! py_algorithm_result {
         }
 
         impl pyo3::IntoPy<pyo3::PyObject>
-            for $crate::algorithms::algorithm_result_old::AlgorithmResultOLD<
-                $rustKey,
+            for $crate::algorithms::algorithm_result::AlgorithmResult<
+                $rustGraph,
                 $rustValue,
                 $rustSortValue,
             >
         {
             fn into_py(self, py: Python<'_>) -> pyo3::PyObject {
-                $name(self).into_py(py)
+                $objectName(self).into_py(py)
             }
         }
     };
 
-    ($name:ident, $rustKey:ty, $rustValue:ty) => {
-        py_algorithm_result!($name, $rustKey, $rustValue, $rustValue);
+    ($name:ident, $rustGraph:ty, $rustKey:ty, $rustSortValue:ty) => {
+        py_algorithm_result!($name, $rustGraph, $rustKey, $rustSortValue);
     };
 }
 
 #[macro_export]
-macro_rules! py_algorithm_result_base {
-    ($name:ident, $rustKey:ty, $rustValue:ty) => {
+macro_rules! py_algorithm_result_new_base {
+    ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustOrderedValue:ty) => {
         #[pymethods]
-        impl $name {
+        impl $objectName {
             /// Returns a reference to the entire `result` hashmap.
-            fn get_all(&self) -> std::collections::HashMap<$rustKey, $rustValue> {
-                self.0.get_all().clone()
+            fn get_all_values(&self) -> std::vec::Vec<$rustValue> {
+                self.0.get_all_values().clone()
             }
 
             /// Returns a formatted string representation of the algorithm.
@@ -65,19 +68,42 @@ macro_rules! py_algorithm_result_base {
                 self.0.repr()
             }
 
-            /// Returns the value corresponding to the provided key in the `result` hashmap.
+            /// Returns the value corresponding to the provided key
             ///
             /// Arguments:
             ///     key: The key of type `H` for which the value is to be retrieved.
-            fn get(&self, key: $rustKey) -> Option<$rustValue> {
-                self.0.get(&key).cloned()
+            fn get(&self, key: VertexRef) -> Option<$rustValue> {
+                self.0.get(key).cloned()
+            }
+
+            /// Returns a dict with vertex names and values
+            ///
+            /// Returns:
+            ///     a dict with vertex names and values
+            fn get_with_names(&self) -> std::collections::HashMap<String, Option<$rustValue>> {
+                self.0.get_with_names()
+            }
+
+            /// Sorts by vertex id in ascending or descending order.
+            ///
+            /// Arguments:
+            ///     `reverse`: If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            ///
+            /// Returns:
+            ///     A sorted list of tuples containing vertex names and values.
+            #[pyo3(signature = (reverse=true))]
+            fn sort_by_vertex_id(
+                &self,
+                reverse: bool,
+            ) -> std::vec::Vec<(String, Option<$rustValue>)> {
+                self.0.sort_by_vertex_id(reverse)
             }
 
             /// Creates a dataframe from the result
             ///
             /// Returns:
             ///     A `pandas.DataFrame` containing the result
-            pub fn to_df(&self) -> PyResult<PyObject> {
+            fn to_df(&self) -> PyResult<PyObject> {
                 let hashmap = &self.0.result;
                 let mut keys = Vec::new();
                 let mut values = Vec::new();
@@ -99,10 +125,10 @@ macro_rules! py_algorithm_result_base {
 }
 
 #[macro_export]
-macro_rules! py_algorithm_result_partial_ord {
-    ($name:ident, $rustKey:ty, $rustValue:ty) => {
+macro_rules! py_algorithm_result_new_partial_ord {
+    ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustOrderedValue:ty) => {
         #[pymethods]
-        impl $name {
+        impl $objectName {
             /// Sorts the `AlgorithmResult` by its values in ascending or descending order.
             ///
             /// Arguments:
@@ -111,7 +137,7 @@ macro_rules! py_algorithm_result_partial_ord {
             /// Returns:
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
-            fn sort_by_value(&self, reverse: bool) -> Vec<($rustKey, $rustValue)> {
+            fn sort_by_value(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
                 self.0.sort_by_value(reverse)
             }
 
@@ -123,8 +149,8 @@ macro_rules! py_algorithm_result_partial_ord {
             /// Returns:
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
-            fn sort_by_key(&self, reverse: bool) -> Vec<($rustKey, $rustValue)> {
-                self.0.sort_by_key(reverse)
+            fn sort_by_key(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
+                self.0.sort_by_vertex_id(reverse)
             }
 
             /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
@@ -145,54 +171,109 @@ macro_rules! py_algorithm_result_partial_ord {
                 k: usize,
                 percentage: bool,
                 reverse: bool,
-            ) -> Vec<($rustKey, $rustValue)> {
+            ) -> std::vec::Vec<(String, Option<$rustValue>)> {
                 self.0.top_k(k, percentage, reverse)
             }
+
+            /// Returns a tuple of the min result with its key
+            fn min(&self) -> Option<(String, Option<$rustValue>)> {
+                self.0.min().map(|(k, v)| (k, v.map(|val| val)))
+            }
+
+            /// Returns a tuple of the max result with its key
+            fn max(&self) -> Option<(String, Option<$rustValue>)> {
+                self.0.max().map(|(k, v)| (k, v.map(|val| val)))
+            }
+
+            /// Returns a tuple of the median result with its key
+            fn median(&self) -> Option<(String, Option<$rustValue>)> {
+                self.0.median().map(|(k, v)| (k, v.map(|val| val)))
+            }
         }
-        py_algorithm_result_base!($name, $rustKey, $rustValue);
+        py_algorithm_result_new_base!($objectName, $rustGraph, $rustValue, $rustOrderedValue);
     };
 }
 
 #[macro_export]
-macro_rules! py_algorithm_result_ord_hash_eq {
-    ($name:ident, $rustKey:ty, $rustValue:ty) => {
+macro_rules! py_algorithm_result_new_ord_hash_eq {
+    ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustOrderedValue:ty) => {
         #[pymethods]
-        impl $name {
+        impl $objectName {
             /// Groups the `AlgorithmResult` by its values.
             ///
             /// Returns:
             ///     A `HashMap` where keys are unique values from the `AlgorithmResult` and values are vectors
             ///     containing keys of type `H` that share the same value.
-            fn group_by(&self) -> std::collections::HashMap<$rustValue, Vec<$rustKey>> {
+            fn group_by(&self) -> std::collections::HashMap<$rustValue, Vec<String>> {
                 self.0.group_by()
             }
         }
-        py_algorithm_result_partial_ord!($name, $rustKey, $rustValue);
+        py_algorithm_result_new_partial_ord!(
+            $objectName,
+            $rustGraph,
+            $rustValue,
+            $rustOrderedValue
+        );
     };
 }
 
-py_algorithm_result!(BAlgorithmResult, String, String);
-py_algorithm_result_ord_hash_eq!(BAlgorithmResult, String, String);
+py_algorithm_result_new!(AlgorithmResult, DynamicGraph, String, String);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResult, DynamicGraph, String, String);
 
-py_algorithm_result!(BAlgorithmResultStrU64, String, u64);
-py_algorithm_result_ord_hash_eq!(BAlgorithmResultStrU64, String, u64);
+py_algorithm_result_new!(AlgorithmResultStrF64, DynamicGraph, f64, OrderedFloat<f64>);
+py_algorithm_result_new_partial_ord!(AlgorithmResultStrF64, DynamicGraph, f64, OrderedFloat<f64>);
 
-py_algorithm_result!(
-    BAlgorithmResultStrTupleF32F32,
-    String,
+py_algorithm_result_new!(AlgorithmResultStrU64, DynamicGraph, u64, u64);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultStrU64, DynamicGraph, u64, u64);
+
+py_algorithm_result_new!(
+    AlgorithmResultStrTupleF32F32,
+    DynamicGraph,
     (f32, f32),
     (OrderedFloat<f32>, OrderedFloat<f32>)
 );
-py_algorithm_result_partial_ord!(BAlgorithmResultStrTupleF32F32, String, (f32, f32));
+py_algorithm_result_new_partial_ord!(
+    AlgorithmResultStrTupleF32F32,
+    DynamicGraph,
+    (f32, f32),
+    (f32, f32)
+);
 
-py_algorithm_result!(BAlgorithmResultStrVecI64Str, String, Vec<(i64, String)>);
-py_algorithm_result_ord_hash_eq!(BAlgorithmResultStrVecI64Str, String, Vec<(i64, String)>);
+py_algorithm_result_new!(
+    AlgorithmResultStrVecI64Str,
+    DynamicGraph,
+    Vec<(i64, String)>,
+    Vec<(i64, String)>
+);
+py_algorithm_result_new_ord_hash_eq!(
+    AlgorithmResultStrVecI64Str,
+    DynamicGraph,
+    Vec<(i64, String)>,
+    Vec<(i64, String)>
+);
 
-py_algorithm_result!(BAlgorithmResultU64VecUsize, u64, Vec<usize>);
-py_algorithm_result_ord_hash_eq!(BAlgorithmResultU64VecUsize, u64, Vec<usize>);
+py_algorithm_result_new!(
+    AlgorithmResultU64VecUsize,
+    DynamicGraph,
+    Vec<usize>,
+    Vec<usize>
+);
+py_algorithm_result_new_ord_hash_eq!(
+    AlgorithmResultU64VecUsize,
+    DynamicGraph,
+    Vec<usize>,
+    Vec<usize>
+);
 
-py_algorithm_result!(BAlgorithmResultStrF64, String, f64, OrderedFloat<f64>);
-py_algorithm_result_partial_ord!(BAlgorithmResultStrF64, String, f64);
-
-py_algorithm_result!(BAlgorithmResultStrVecStr, String, Vec<String>);
-py_algorithm_result_ord_hash_eq!(BAlgorithmResultStrVecStr, String, Vec<String>);
+py_algorithm_result_new!(
+    AlgorithmResultStrVecStr,
+    DynamicGraph,
+    Vec<String>,
+    Vec<String>
+);
+py_algorithm_result_new_ord_hash_eq!(
+    AlgorithmResultStrVecStr,
+    DynamicGraph,
+    Vec<String>,
+    Vec<String>
+);

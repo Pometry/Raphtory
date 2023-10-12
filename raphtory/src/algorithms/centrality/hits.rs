@@ -1,5 +1,5 @@
 use crate::{
-    algorithms::algorithm_result_new::AlgorithmResultNew,
+    algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::vertices::vertex_ref::VertexRef,
         state::{
@@ -51,7 +51,7 @@ pub fn hits<G: GraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResultNew<G, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+) -> AlgorithmResult<G, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -173,7 +173,7 @@ pub fn hits<G: GraphViewOps>(
 
     let results_type = std::any::type_name::<(f32, f32)>();
 
-    AlgorithmResultNew::new(g.clone(), "Hits", results_type, results)
+    AlgorithmResult::new(g.clone(), "Hits", results_type, results)
 }
 
 #[cfg(test)]

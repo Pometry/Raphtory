@@ -1,7 +1,7 @@
 use crate::{
-    algorithms::algorithm_result_new::AlgorithmResultNew,
+    algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::input_vertex::InputVertex, VID},
+        entities::vertices::input_vertex::InputVertex,
         state::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
@@ -17,10 +17,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use std::{
-    collections::HashMap,
-    ops::{Add, Deref},
-};
+use std::{collections::HashMap, ops::Add};
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -73,7 +70,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     start_time: i64,
     seed_nodes: Vec<T>,
     stop_nodes: Option<Vec<T>>,
-) -> AlgorithmResultNew<G, Vec<(i64, String)>, Vec<(i64, String)>> {
+) -> AlgorithmResult<G, Vec<(i64, String)>, Vec<(i64, String)>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
@@ -209,7 +206,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
         }
     }
     let results_type = std::any::type_name::<Vec<(i64, String)>>();
-    AlgorithmResultNew::new(g.clone(), "Temporal Reachability", results_type, map)
+    AlgorithmResult::new(g.clone(), "Temporal Reachability", results_type, map)
 }
 
 #[cfg(test)]

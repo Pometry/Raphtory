@@ -3,12 +3,11 @@
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
 //! It finds the shortest paths from a given source vertex to all other vertices in a graph.
 use crate::{
-    algorithms::algorithm_result_new::AlgorithmResultNew,
+    algorithms::algorithm_result::AlgorithmResult,
     core::entities::{vertices::input_vertex::InputVertex, VID},
     db::graph::vertex::VertexView,
     prelude::*,
 };
-use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
 /// Calculates the single source shortest paths from a given source vertex.
@@ -27,7 +26,7 @@ pub fn single_source_shortest_path<G: GraphViewOps, T: InputVertex>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> AlgorithmResultNew<G, Vec<String>, Vec<String>> {
+) -> AlgorithmResult<G, Vec<String>, Vec<String>> {
     let results_type = std::any::type_name::<Vec<String>>();
     let mut paths: HashMap<usize, Vec<String>> = HashMap::new();
     if g.has_vertex(source.clone()) {
@@ -40,7 +39,7 @@ pub fn single_source_shortest_path<G: GraphViewOps, T: InputVertex>(
         paths.insert(vertex_internal_id, vec![source_node.name()]);
 
         if let Some(0) = cutoff {
-            return AlgorithmResultNew::new(
+            return AlgorithmResult::new(
                 g.clone(),
                 "Single Source Shortest Path",
                 results_type,
@@ -70,7 +69,7 @@ pub fn single_source_shortest_path<G: GraphViewOps, T: InputVertex>(
             }
         }
     }
-    AlgorithmResultNew::new(
+    AlgorithmResult::new(
         g.clone(),
         "Single Source Shortest Path",
         results_type,
