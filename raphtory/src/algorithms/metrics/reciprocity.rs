@@ -40,7 +40,7 @@
 //!     g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
 //! }
 //!
-//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
+//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None).get_with_names());
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
 use crate::{
