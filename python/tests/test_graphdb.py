@@ -1254,14 +1254,14 @@ def test_connected_components():
     g = gen_graph()
     actual = algorithms.weakly_connected_components(g, 20)
     expected = {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1}
-    assert actual.get_all() == expected
+    assert actual.get_with_names() == expected
     assert actual.get("1") == 1
 
 
 def test_empty_algo():
     g = Graph()
-    assert algorithms.weakly_connected_components(g, 20).get_all() == {}
-    assert algorithms.pagerank(g, 20).get_all() == {}
+    assert algorithms.weakly_connected_components(g, 20).get_with_names() == {}
+    assert algorithms.pagerank(g, 20).get_with_names() == {}
 
 
 def test_algo_result():
@@ -1269,7 +1269,7 @@ def test_algo_result():
 
     actual = algorithms.weakly_connected_components(g, 20)
     expected = {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1}
-    assert actual.get_all() == expected
+    assert actual.get_with_names() == expected
     assert actual.get("1") == 1
     assert actual.get("not a node") == None
     expected_array = [
@@ -1289,13 +1289,14 @@ def test_algo_result():
     assert len(actual.group_by()[1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame
     df = actual.to_df()
-    expected_result = pd.DataFrame({"Key": ["1"], "Value": [1]})
-    row_with_one = df[df["Key"] == "1"]
+    expected_result = pd.DataFrame({"Key": [1], "Value": [1]})
+    row_with_one = df[df["Key"] == 1]
     row_with_one.reset_index(inplace=True, drop=True)
+    print(row_with_one)
     assert row_with_one.equals(expected_result)
     # Algo Str u64
     actual = algorithms.weakly_connected_components(g)
-    all_res = actual.get_all()
+    all_res = actual.get_with_names()
     sorted_res = {k: all_res[k] for k in sorted(all_res)}
     assert sorted_res == {
         "1": 1,
@@ -1319,12 +1320,12 @@ def test_algo_result():
         "7": 0.14074777909144864,
         "8": 0.11786468661230831,
     }
-    assert actual.get_all() == expected_result
+    assert actual.get_with_names() == expected_result
     assert actual.get("Not a node") == None
     assert len(actual.to_df()) == 8
     # algo str vector
     actual = algorithms.temporally_reachable_nodes(g, 20, 11, [1, 2], [4, 5])
-    assert sorted(actual.get_all()) == ["1", "2", "3", "4", "5", "6", "7", "8"]
+    assert sorted(actual.get_with_names()) == ["1", "2", "3", "4", "5", "6", "7", "8"]
 
 
 def test_page_rank():
@@ -1340,7 +1341,7 @@ def test_page_rank():
         "7": 0.14074777909144864,
         "8": 0.11786468661230831,
     }
-    assert actual.get_all() == expected
+    assert actual.get_with_names() == expected
 
 
 def test_temporal_reachability():
@@ -1358,7 +1359,7 @@ def test_temporal_reachability():
         "8": [],
     }
 
-    assert actual.get_all() == expected
+    assert actual.get_with_names() == expected
 
 
 # def test_generic_taint_loader():
@@ -1747,13 +1748,13 @@ def test_balance_algorithm():
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
-    result = algorithms.balance(g, "value_dec", PyDirection("BOTH"), None).get_all()
+    result = algorithms.balance(g, "value_dec", PyDirection("BOTH"), None).get_with_names()
     assert result == {"1": -26.0, "2": 7.0, "3": 12.0, "4": 5.0, "5": 2.0}
 
-    result = algorithms.balance(g, "value_dec", PyDirection("IN"), None).get_all()
+    result = algorithms.balance(g, "value_dec", PyDirection("IN"), None).get_with_names()
     assert result == {"1": 6.0, "2": 12.0, "3": 15.0, "4": 20.0, "5": 2.0}
 
-    result = algorithms.balance(g, "value_dec", PyDirection("OUT"), None).get_all()
+    result = algorithms.balance(g, "value_dec", PyDirection("OUT"), None).get_with_names()
     assert result == {"1": -32.0, "2": -5.0, "3": -3.0, "4": -15.0, "5": 0.0}
 
 
