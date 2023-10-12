@@ -137,7 +137,7 @@ pub(crate) fn process_pandas_py_df(
         df
     };
 
-    let df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
+    let _df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
 

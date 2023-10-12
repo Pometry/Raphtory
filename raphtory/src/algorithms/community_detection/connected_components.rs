@@ -113,7 +113,7 @@ mod cc_test {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
     use itertools::*;
-    use std::{cmp::Reverse, iter::once};
+    use std::iter::once;
 
     #[test]
     fn run_loop_simple_connected_components() {
@@ -263,7 +263,7 @@ mod cc_test {
         if !vs.is_empty() {
             let vs = vs.into_iter().unique().collect::<Vec<u64>>();
 
-            let smallest = vs.iter().min().unwrap();
+            let _smallest = vs.iter().min().unwrap();
 
             let first = vs[0];
             // pairs of vertices from vs one after the next

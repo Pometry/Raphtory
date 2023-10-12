@@ -218,7 +218,7 @@ mod generic_taint_tests {
         data: Vec<(String, Option<Vec<(i64, String)>>)>,
     ) -> Vec<(String, Option<Vec<(i64, String)>>)> {
         // Iterate over each tuple in the outer Vec
-        let mut sorted_data = data
+        let sorted_data = data
             .into_iter()
             .map(|(outer_str, opt_inner_vec)| {
                 // Check if the Option is Some

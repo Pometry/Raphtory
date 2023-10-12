@@ -462,10 +462,10 @@ mod local_motif_test {
             ),
         ]);
         for ind in 1..12 {
-            let ind_vertex = assert_eq!(
+            assert_eq!(
                 counts_result.get(ind.into()).unwrap(),
                 expected.get(&ind).unwrap()
-            );
+            )
         }
         // print!("{:?}", global_counts);
     }
