@@ -387,15 +387,15 @@ pub fn local_temporal_three_node_motifs(
 ///
 /// Returns
 ///     An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
-// #[pyfunction]
-// #[pyo3(signature = (g, iter_count=20, threads=None))]
-// pub fn hits(
-//     g: &PyGraphView,
-//     iter_count: usize,
-//     threads: Option<usize>,
-// ) -> AlgorithmResultOLD<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
-//     hits_rs(&g.graph, iter_count, threads)
-// }
+#[pyfunction]
+#[pyo3(signature = (g, iter_count=20, threads=None))]
+pub fn hits(
+    g: &PyGraphView,
+    iter_count: usize,
+    threads: Option<usize>,
+) -> AlgorithmResultNew<DynamicGraph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+    hits_rs(&g.graph, iter_count, threads)
+}
 
 /// Sums the weights of edges in the graph based on the specified direction.
 ///
