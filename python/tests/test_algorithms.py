@@ -107,7 +107,7 @@ def test_betweenness_centrality():
         g.add_edge(0, e[0], e[1], {})
 
     res = betweenness_centrality(g, normalized=False)
-    assert res.get_all() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
+    assert res.get_with_names() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
 
     res = betweenness_centrality(g, normalized=True)
-    assert res.get_all() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}
+    assert res.get_with_names() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}

@@ -534,6 +534,6 @@ pub fn betweenness_centrality(
     g: &PyGraphView,
     k: Option<usize>,
     normalized: Option<bool>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     betweenness_rs(&g.graph, k, normalized)
 }
