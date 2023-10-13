@@ -33,7 +33,7 @@ use arrow2::{
         parquet::read,
     },
     offset::OffsetsBuffer,
-    types::NativeType,
+    types::{NativeType, Offset},
 };
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -346,7 +346,7 @@ impl TempColGraphFragment {
             }
         }
     }
-
+    
     pub fn edge(&self, e_id: EID) -> Edge<'_> {
         let chunk_idx = e_id.0 / self.edge_chunk_size;
         let idx = e_id.0 % self.edge_chunk_size;
@@ -409,6 +409,30 @@ impl TempColGraphFragment {
         let edges = chunks[chunk_idx].edges_own(VID(idx))?;
 
         Some((neighbours, edges))
+    }
+
+    pub(crate) fn out_slice(&self, vertex_id: VID) -> Option<&[u64]> {
+        let vertex_id:usize = vertex_id.into();
+        let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
+
+        let chunk_idx = vertex_id / chunk_size;
+        let idx = vertex_id % chunk_size;
+
+        let chunks = self.outbound();
+        let neighbours = chunks[chunk_idx].neighbours_col()?;
+        Some(neighbours.into_value(idx))
+    }
+
+    pub(crate) fn in_slice(&self, vertex_id: VID) -> Option<&[u64]> {
+        let vertex_id:usize = vertex_id.into();
+        let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
+
+        let chunk_idx = vertex_id / chunk_size;
+        let idx = vertex_id % chunk_size;
+
+        let chunks = self.inbound();
+        let neighbours = chunks[chunk_idx].neighbours_col()?;
+        Some(neighbours.into_value(idx))
     }
 
     pub(crate) fn outbound(&self) -> &Vec<VertexChunk> {
@@ -672,8 +696,12 @@ impl<'a> Edge<'a> {
         self.edge.temporal_primitive_prop(self.idx, prop_id)
     }
 
-    pub fn prop_items<T: NativeType>(&self, prop_id: usize) -> Option<impl Iterator<Item = Option<(&T, &Time)>>> {
+    pub fn prop_items<T: NativeType>(&self, prop_id: usize) -> Option<impl Iterator<Item = (Option<&T>, &Time)>> {
         self.edge.temporal_primitive_prop_items(self.idx, prop_id)
+    }
+
+    pub fn prop_items_utf8<I: Offset>(&self, prop_id: usize) -> Option<impl Iterator<Item = Option<(&str, &Time)>>> {
+        self.edge.temporal_utf8_prop_items::<I>(self.idx, prop_id)
     }
 
 }

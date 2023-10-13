@@ -3,7 +3,7 @@ use arrow2::{
     array::{Array, ListArray, PrimitiveArray},
     chunk::Chunk,
     datatypes::DataType,
-    types::NativeType,
+    types::{NativeType, Offset},
 };
 use std::iter;
 
@@ -89,7 +89,7 @@ impl EdgeChunk {
         &self,
         offset: usize,
         prop_id: usize,
-    ) -> Option<impl Iterator<Item = Option<(&T, &Time)>> + '_> {
+    ) -> Option<impl Iterator<Item = (Option<&T>, &Time)> + '_> {
         let t_prop = self.temporal_properties();
         let overflow = self.overflow();
         let maybe_overflow = overflow.get(offset);
@@ -108,8 +108,16 @@ impl EdgeChunk {
                 .flat_map(move |ov| self.overflow[ov as usize].temporal_primitive_prop(prop_id)),
         );
 
-        let iter = iter.zip(time_iter).map(|(v, t)| v.and_then(|v| t.map(|t| (v, t))));
+        let iter = iter.zip(time_iter).map(|(v, t)| (v, t.unwrap()));
         Some(iter)
+    }
+
+    pub(crate) fn temporal_utf8_prop_items<I: Offset>(
+        &self,
+        offset: usize,
+        prop_id: usize,
+    ) -> Option<impl Iterator<Item = Option<(&str, &Time)>> + '_> {
+        Some(std::iter::empty()) // TODO
     }
 
     pub(crate) fn timestamps(&self, offset: usize) -> impl Iterator<Item = &[Time]> + '_ {
@@ -123,7 +131,6 @@ impl EdgeChunk {
 
     pub(crate) fn temporal_edge_property_id(&self, name: &str) -> Option<usize> {
         let t_prop = self.temporal_properties();
-        println!("schema: {:?}", t_prop.data_type());
         match t_prop.data_type() {
             DataType::LargeList(field) => match field.data_type() {
                 DataType::Struct(fields) => {

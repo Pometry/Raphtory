@@ -76,6 +76,7 @@ heed = { version = "0.11.0", optional = true }
 memmap2 = { version = "0.8.0", optional = true }
 ahash = { version = "0.8.3", optional = true }
 tempfile = { version = "3.8.0", optional = true }
+xxhash-rust = "0.8.7"
 
 
 [dev-dependencies]

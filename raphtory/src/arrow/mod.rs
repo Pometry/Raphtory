@@ -68,7 +68,7 @@ pub fn adj_schema() -> DataType {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub(crate) enum GID {
+pub enum GID {
     U64(u64),
     I64(i64),
     Str(String),
@@ -115,6 +115,9 @@ impl LoadChunk {
 
         let all_cols = columns_in_chunk.into_iter().collect_vec();
 
+        let time_d_type = all_cols[time_col_idx].data_type().clone();
+        assert_eq!(time_d_type, DataType::Int64, "time column must be i64");
+
         // shove time as the first column in temporal_props
         temporal_props.push(all_cols[time_col_idx].clone());
 
@@ -157,7 +160,7 @@ impl LoadChunk {
             // put time as the first column in the struct
             props_only_schema
                 .fields
-                .insert(0, Field::new(TIME_COLUMN, DataType::Int64, false));
+                .insert(0, Field::new(TIME_COLUMN, time_d_type, false));
             let data_type = DataType::Struct(props_only_schema.fields);
             let t_prop_cols = Some(StructArray::new(data_type, temporal_props, None));
             Self {
@@ -301,10 +304,10 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // if it exists make sure it's empty
     std::fs::create_dir_all(&graph_dir)?;
 
-    let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-    if dir_iter.next().is_some() {
-        return Err(Error::GraphDirNotEmpty);
-    }
+    // let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+    // if dir_iter.next().is_some() {
+    //     return Err(Error::GraphDirNotEmpty);
+    // }
 
     return Ok(());
 }

@@ -23,6 +23,7 @@ use crate::arrow::{
 
 use super::{global_order::GlobalOrder, Error, LoadChunk};
 
+#[derive(Debug)]
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
     layer: &'a str,
     path: P,
@@ -97,9 +98,9 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
         self.parquet_files
             .iter()
             .flat_map(|path| {
-                read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None)
+                read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None).expect( "failed to load chunks from path")
             })
-            .flatten()
+            // .flatten()
     }
 }
 
@@ -309,26 +310,20 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     let src_col_idx = schema
         .fields
         .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == src_col)
-        .map(|(i, _)| i)
+        .position(|field| field.name == src_col)
         .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
 
     let dst_col_idx = schema
         .fields
         .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == dst_col)
-        .map(|(i, _)| i)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
+        .position(|field| field.name == dst_col)
+        .ok_or_else(|| Error::ColumnNotFound(dst_col.to_string()))?;
 
     let time_col_idx = schema
         .fields
         .iter()
-        .enumerate()
-        .find(|(_, f)| f.name == time_col)
-        .map(|(i, _)| i)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
+        .position(|field| field.name == time_col)
+        .ok_or_else(|| Error::ColumnNotFound(time_col.to_string()))?;
 
     let reader = read::FileReader::new(
         reader,
