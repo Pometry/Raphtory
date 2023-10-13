@@ -40,7 +40,7 @@
 //!     g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
 //! }
 //!
-//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None));
+//! println!("all_local_reciprocity: {:?}", all_local_reciprocity(&g, None).get_with_names());
 //! println!("global_reciprocity: {:?}", global_reciprocity(&g, None));
 //! ```
 use crate::{
@@ -116,7 +116,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 pub fn all_local_reciprocity<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let min = sum(0);
@@ -134,22 +134,26 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<HashMap<String, f64>>();
+    let runner_result = runner.run(
+        vec![],
+        vec![Job::new(step1)],
+        None,
+        |_, ess, _, _| ess.finalize(&min, |min| min),
+        threads,
+        1,
+        None,
+        None,
+    );
+    let mut map: HashMap<usize, f64> = HashMap::new();
+    for (vertex_name, value) in runner_result.iter() {
+        if let Some(vertex) = g.vertex(vertex_name.to_string()) {
+            let vid = vertex.vertex.0;
+            map.insert(vid, *value);
+        }
+    }
+    let results_type = std::any::type_name::<f64>();
 
-    AlgorithmResult::new(
-        "Reciprocity",
-        results_type,
-        runner.run(
-            vec![],
-            vec![Job::new(step1)],
-            None,
-            |_, ess, _, _| ess.finalize(&min, |min| min),
-            threads,
-            1,
-            None,
-            None,
-        ),
-    )
+    AlgorithmResult::new(g.clone(), "All Local Reciprocity", results_type, map)
 }
 
 #[cfg(test)]
@@ -192,6 +196,6 @@ mod reciprocity_test {
         hash_map_result.insert("5".to_string(), 0.0);
 
         let res = all_local_reciprocity(&graph, None);
-        assert_eq!(res.get("1"), hash_map_result.get("1"));
+        assert_eq!(res.get("1".into()), hash_map_result.get("1"));
     }
 }

@@ -7,7 +7,7 @@ use crate::{
         task_runner::TaskRunner,
         vertex::eval_vertex::EvalVertexView,
     },
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::*,
 };
 use ordered_float::OrderedFloat;
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 pub fn degree_centrality<G: GraphViewOps>(
     g: &G,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let max_degree = max_degree(g);
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -42,22 +42,25 @@ pub fn degree_centrality<G: GraphViewOps>(
     );
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let results_type = std::any::type_name::<HashMap<String, f64>>();
-
-    AlgorithmResult::new(
-        "Reciprocity",
-        results_type,
-        runner.run(
-            vec![],
-            vec![Job::new(step1)],
-            None,
-            |_, ess, _, _| ess.finalize(&min, |min| min),
-            threads,
-            1,
-            None,
-            None,
-        ),
-    )
+    let runner_result = runner.run(
+        vec![],
+        vec![Job::new(step1)],
+        None,
+        |_, ess, _, _| ess.finalize(&min, |min| min),
+        threads,
+        1,
+        None,
+        None,
+    );
+    let mut map: HashMap<usize, f64> = HashMap::new();
+    for (vertex_name, value) in runner_result.iter() {
+        if let Some(vertex) = g.vertex(vertex_name.to_string()) {
+            let vid = vertex.vertex.0;
+            map.insert(vid, *value);
+        }
+    }
+    let results_type = std::any::type_name::<f64>();
+    AlgorithmResult::new(g.clone(), "Degree Centrality", results_type, map)
 }
 
 #[cfg(test)]
@@ -72,17 +75,18 @@ mod degree_centrality_test {
     #[test]
     fn test_degree_centrality() {
         let graph = Graph::new();
-        let vs = vec![(0, 1), (0, 2), (0, 3), (1, 2), (1, 3)];
+        let vs = vec![(1, 2), (1, 3), (1, 4), (2, 3), (2, 4)];
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let mut hash_map_result: HashMap<String, f64> = HashMap::new();
-        hash_map_result.insert("0".to_string(), 1.0);
-        hash_map_result.insert("1".to_string(), 1.0);
-        hash_map_result.insert("2".to_string(), 2.0 / 3.0);
-        hash_map_result.insert("3".to_string(), 2.0 / 3.0);
+        let mut hash_map_result: HashMap<String, Option<f64>> = HashMap::new();
+        hash_map_result.insert("1".to_string(), Some(1.0));
+        hash_map_result.insert("2".to_string(), Some(1.0));
+        hash_map_result.insert("3".to_string(), Some(2.0 / 3.0));
+        hash_map_result.insert("4".to_string(), Some(2.0 / 3.0));
 
-        let res = degree_centrality(&graph, None);
-        assert_eq!(res.get_all(), &hash_map_result);
+        let binding = degree_centrality(&graph, None);
+        let res = binding.get_with_names();
+        assert_eq!(res, hash_map_result);
     }
 }
