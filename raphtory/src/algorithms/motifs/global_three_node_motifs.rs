@@ -142,6 +142,7 @@ where
     });
 
     ctx_sub.agg(neighbours_set);
+    println!("Running step 1");
 
     let step1 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
@@ -153,7 +154,7 @@ where
             Step::Continue
         },
     );
-
+    println!("Running step 2");
     let step2 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
             let mut triangle_u = vec![[0 as usize; 8]; deltas.len()];
@@ -222,13 +223,11 @@ where
                             })
                             .collect::<Vec<TriangleEdge>>();
 
-                        deltas.iter().enumerate().for_each(|(i, delta)| {
+                        deltas.iter().zip(tri_mc.iter()).for_each(|(delta, mc)| {
                             let mut tri_count = init_tri_count(2);
                             tri_count.execute(&all_exploded, *delta);
                             let tmp_counts: [usize; 8] = *tri_count.return_counts();
-                            for j in 0..8 {
-                                triangle_u[i][j] += tmp_counts[j];
-                            }
+                            u.global_update(mc, tmp_counts)
                         })
                     })
                 }
@@ -272,6 +271,7 @@ where
         .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32));
 
     star_mc.iter().for_each(|mc| ctx.global_agg(*mc));
+    println!("done the agg");
 
     let out1 = triangle_motifs(g, deltas, threads);
 
@@ -279,7 +279,6 @@ where
         let g = evv.graph;
         let star_nodes = star_motif_count(g, evv, deltas.clone());
         for (i, star) in star_nodes.iter().enumerate() {
-            println!("contribution from {:?} : {:?}",evv.id(),star.clone());
             evv.global_update(&star_mc[i], *star);
         }
         Step::Continue
