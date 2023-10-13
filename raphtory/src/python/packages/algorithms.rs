@@ -8,6 +8,7 @@ use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
         centrality::{
+            betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
@@ -515,4 +516,24 @@ pub fn dijkstra_single_source_shortest_paths(
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+/// Computes the betweenness centrality for nodes in a given graph.
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph.
+///     k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
+///     normalized (boolean, optional): Indicates whether to normalize the centrality values.
+///
+/// # Returns
+///
+/// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+#[pyfunction]
+#[pyo3[signature = (g, k=None, normalized=true)]]
+pub fn betweenness_centrality(
+    g: &PyGraphView,
+    k: Option<usize>,
+    normalized: Option<bool>,
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
+    betweenness_rs(&g.graph, k, normalized)
 }

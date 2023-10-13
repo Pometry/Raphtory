@@ -85,3 +85,29 @@ def test_dijsktra_shortest_paths():
     assert "Weight property not found on edges" in str(excinfo.value)
 
     
+def test_betweenness_centrality():
+    from raphtory import Graph
+    from raphtory.algorithms import betweenness_centrality
+    g = Graph()
+    edges = [
+        (0, 1),
+        (0, 2),
+        (0, 3),
+        (1, 2),
+        (1, 3),
+        (1, 4),
+        (2, 3),
+        (2, 4),
+        (2, 5),
+        (3, 2),
+        (3, 1),
+        (3, 3)
+    ]
+    for e in edges:
+        g.add_edge(0, e[0], e[1], {})
+
+    res = betweenness_centrality(g, normalized=False)
+    assert res.get_with_names() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
+
+    res = betweenness_centrality(g, normalized=True)
+    assert res.get_with_names() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}
