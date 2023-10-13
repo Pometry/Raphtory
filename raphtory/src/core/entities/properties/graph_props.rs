@@ -77,6 +77,16 @@ impl GraphProps {
         Ok(())
     }
 
+    pub(crate) fn update_constant_prop(
+        &self,
+        prop_id: usize,
+        prop: Prop,
+    ) -> Result<(), MutateGraphError> {
+        let mut prop_entry = self.constant.entry(prop_id).or_insert(None);
+        (*prop_entry) = Some(prop);
+        Ok(())
+    }
+
     pub(crate) fn add_prop(
         &self,
         t: TimeIndexEntry,

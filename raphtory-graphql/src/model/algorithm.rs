@@ -9,7 +9,7 @@ use dynamic_graphql::{
 use once_cell::sync::Lazy;
 use ordered_float::OrderedFloat;
 use raphtory::{
-    algorithms::pagerank::unweighted_page_rank,
+    algorithms::centrality::pagerank::unweighted_page_rank,
     db::api::view::{internal::DynamicGraph, GraphViewOps},
 };
 use std::{borrow::Cow, collections::HashMap, sync::Mutex};

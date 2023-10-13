@@ -1,6 +1,6 @@
 // Imports ///////////////////////////////////////////
 use crate::{
-    algorithms::{k_core::k_core_set, motifs::three_node_motifs::*},
+    algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
     core::state::{
         accumulator_id::{
             accumulators::{self, val},
@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-use std::sync::Arc;
+use std::{sync::{Arc, RwLock}, rc::Rc};
 
 use crate::core::entities::vertices::vertex_ref::VertexRef;
 use itertools::{enumerate, Itertools};
@@ -33,10 +33,10 @@ use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G>(
+pub fn star_motif_count<G, const n: usize>(
     graph: &G,
     evv: &EvalVertexView<G, ComputeStateVec, ()>,
-    deltas: Vec<i64>,
+    deltas: [i64;n],
 ) -> Vec<[usize; 32]>
 where
     G: GraphViewOps,
@@ -84,10 +84,10 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G>(
+pub fn twonode_motif_count<G, const n: usize>(
     graph: &G,
     evv: &EvalVertexView<G, ComputeStateVec, ()>,
-    deltas: Vec<i64>,
+    deltas: [i64;n],
 ) -> Vec<[usize; 8]>
 where
     G: GraphViewOps,
@@ -124,31 +124,24 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn triangle_motifs<G>(graph: &G, deltas: Vec<i64>, threads: Option<usize>) -> Vec<[usize; 8]>
+pub fn triangle_motifs<G, const n:usize>(graph: &G, deltas: [i64;n], threads: Option<usize>) -> Vec<[usize; 8]>
 where
     G: GraphViewOps,
 {
-    let mut ctx_g: Context<G, ComputeStateVec> = graph.into();
-    let tri_mcc = deltas
-        .iter()
-        .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * *d as u32))
-        .collect_vec();
-
-    tri_mcc.iter().for_each(|mc| {
-        ctx_g.agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(*mc)
-    });
-
-    // Define a closure for sorting by time()
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);
     let g: VertexSubgraph<G> = graph.subgraph(vertex_set);
     let mut ctx_sub: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
     let neighbours_set = accumulators::hash_set::<u64>(0);
 
-    ctx_sub.agg(neighbours_set);
+    let tri_mc = deltas
+    .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * d as u32));
 
-    let tri_arc = Arc::new(tri_mcc);
-    let tri_arc_clone = Arc::clone(&tri_arc);
+    tri_mc.iter().for_each(|mc| {
+    ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(*mc)
+    });
+
+    ctx_sub.agg(neighbours_set);
 
     let step1 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
@@ -242,7 +235,7 @@ where
             }
             triangle_u
                 .iter()
-                .zip(tri_arc_clone.iter())
+                .zip(tri_mc.iter())
                 .for_each(|(cts, mc)| u.global_update(mc, *cts));
             Step::Continue
         },
@@ -255,7 +248,7 @@ where
         vec![Job::new(step1),Job::new(step2)],
         None,
         |egs, _, _, _| {
-            tri_arc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
+            tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
         },
         threads,
         2,
@@ -266,46 +259,42 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn temporal_three_node_motif_multi<G>(
+pub fn temporal_three_node_motif_multi<G, const n: usize>(
     g: &G,
-    deltas: Vec<i64>,
+    deltas: [i64;n],
     threads: Option<usize>,
 ) -> Vec<[usize; 40]>
 where
     G: GraphViewOps,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
-    let star_mc = deltas
-        .iter()
-        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * *d + 1 as i64) as u32))
-        .collect_vec();
-    star_mc.iter().for_each(|mc| {
-        ctx.agg::<[usize; 32], [usize; 32], [usize; 32], ArrConst<usize, SumDef<usize>, 32>>(*mc)
-    });
-    let star_arc = Arc::new(star_mc);
-    let star_arc_clone = Arc::clone(&star_arc);
+    let star_mc : [AccId<[usize;32],[usize;32],[usize;32],ArrConst<usize, SumDef<usize>, 32>>; n] = deltas
+        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32));
 
-    let out1 = triangle_motifs(g, deltas.clone(), threads);
+    star_mc.iter().for_each(|mc| ctx.global_agg(*mc));
+
+    let out1 = triangle_motifs(g, deltas, threads);
 
     let step1 = ATask::new(move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, _>| {
         let g = evv.graph;
-
         let star_nodes = star_motif_count(g, evv, deltas.clone());
-        for (star, mc) in star_nodes.iter().zip(star_arc.iter()) {
-            evv.global_update(&mc, *star)
+        for (i, star) in star_nodes.iter().enumerate() {
+            println!("contribution from {:?} : {:?}",evv.id(),star.clone());
+            evv.global_update(&star_mc[i], *star);
         }
         Step::Continue
     });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    // let star_ref = &star_mc;
 
     let out2 = runner.run(
         vec![],
         vec![Job::new(step1)],
         None,
         |egs, _ , _ , _ | {
-            star_arc_clone.iter().zip(out1.iter()).map(|(mc,tri)| {
-                let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(mc)
+            out1.iter().enumerate().map(|(i,tri)| {
+                let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(&star_mc[i])
                 .iter()
                 .map(|x| *x)
                 .collect_vec();
@@ -329,7 +318,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     delta: i64,
     threads: Option<usize>,
 ) -> [usize; 40] {
-    let counts = temporal_three_node_motif_multi(graph, vec![delta], threads);
+    let counts = temporal_three_node_motif_multi(graph, [delta], threads);
     counts[0].clone()
 }
 
@@ -380,7 +369,7 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let global_motifs = &temporal_three_node_motif_multi(&g, Vec::from([3, 6, 10]), None);
+        let global_motifs = &temporal_three_node_motif_multi(&g, [10], None);
 
         let expected: [usize; 40] = vec![
             0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0, 0, 0,
@@ -391,6 +380,6 @@ mod motifs_test {
         .collect::<Vec<usize>>()
         .try_into()
         .unwrap();
-        assert_eq!(global_motifs[2], expected);
+        assert_eq!(global_motifs[0], expected);
     }
 }

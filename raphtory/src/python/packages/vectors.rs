@@ -5,7 +5,10 @@ use crate::{
     },
     prelude::{EdgeViewOps, VertexViewOps},
     python::graph::views::graph_view::PyGraphView,
-    vectors::{Embedding, EmbeddingFunction, Vectorizable, VectorizedGraph},
+    vectors::{
+        vectorizable::Vectorizable, vectorized_graph::VectorizedGraph, DocumentOps, Embedding,
+        EmbeddingFunction,
+    },
 };
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
@@ -88,7 +91,7 @@ impl PyVectorizedGraph {
                     None,
                 )
                 .await;
-            Ok(docs)
+            Ok(docs.into_iter().map(|doc| doc.into_content()).collect_vec())
         })
     }
 }

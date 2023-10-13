@@ -1,91 +1,21 @@
-﻿.. _api_menu:
+.. raw:: html
 
-{{ header }}
+   <meta http-equiv="refresh" content="0; url=reference/index.html" />
 
-****************
-Raphtory
-****************
+=============
+API reference
+=============
 
-.. automodule:: raphtory
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :inherited-members:
+This page gives an overview of all public raphtory objects, functions and
+methods.
 
-Algorithms
--------------------
+.. raw:: html
 
-.. automodule:: raphtory.algorithms
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :inherited-members:
+   </div>
 
-Visualisation
--------------------
+.. toctree::
+   :maxdepth: 5
 
-.. automodule:: raphtory.export
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :inherited-members:
-
-
-Null Models
---------------------------
-
-.. automodule:: raphtory.nullmodels
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :inherited-members:
-
-Graph Generation
---------------------------
-
-.. automodule:: raphtory.graph_gen
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :private-members:
-   :inherited-members:
-
-GraphQL Server
---------------------------
-
-.. automodule:: raphtory.graphql
-   :autosummary:
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :inherited-members:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+   reference/index
 
 

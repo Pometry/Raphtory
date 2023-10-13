@@ -45,18 +45,18 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalEdgeView<'a, G, C
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
-        let t_start = t_start.into_time();
-        let t_end = t_end.into_time();
-        let edge_filter = edge_filter(self.graph, t_start, t_end).map(Rc::new);
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        let start = start.into_time();
+        let end = end.into_time();
+        let edge_filter = edge_filter(self.graph, start, end).map(Rc::new);
         WindowEvalEdgeView::new(
             self.ss,
             self.ev,
             self.graph,
             self.local_state_prev,
             self.vertex_state.clone(),
-            t_start,
-            t_end,
+            start,
+            end,
             edge_filter,
         )
     }
@@ -332,12 +332,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> EdgeListOps
 
     fn window<T: IntoTime>(
         self,
-        t_start: T,
-        t_end: T,
+        start: T,
+        end: T,
     ) -> Self::IterType<WindowEvalEdgeView<'a, G, CS, S>> {
-        let t_start = t_start.into_time();
-        let t_end = t_end.into_time();
-        Box::new(self.map(move |e| e.window(t_start, t_end)))
+        let start = start.into_time();
+        let end = end.into_time();
+        Box::new(self.map(move |e| e.window(start, end)))
     }
 }
 

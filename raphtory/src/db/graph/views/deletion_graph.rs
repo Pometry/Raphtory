@@ -156,7 +156,7 @@ impl GraphWithDeletions {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -179,7 +179,7 @@ impl GraphWithDeletions {
     ///
     /// * `path` - The path to the directory
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A raphtory graph
     ///
@@ -256,12 +256,12 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.latest_time_global()
     }
 
-    fn earliest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph.earliest_time_window(t_start, t_end)
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        self.graph.earliest_time_window(start, end)
     }
 
-    fn latest_time_window(&self, t_start: i64, t_end: i64) -> Option<i64> {
-        self.graph.latest_time_window(t_start, t_end)
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        self.graph.latest_time_window(start, end)
     }
 
     fn include_vertex_window(
@@ -459,13 +459,8 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.has_temporal_prop_window(prop_id, w)
     }
 
-    fn temporal_prop_vec_window(
-        &self,
-        prop_id: usize,
-        t_start: i64,
-        t_end: i64,
-    ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(prop_id, t_start, t_end)
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
 
     #[inline]
@@ -485,11 +480,11 @@ impl TimeSemantics for GraphWithDeletions {
         &self,
         v: VID,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
         self.graph
-            .temporal_vertex_prop_vec_window(v, prop_id, t_start, t_end)
+            .temporal_vertex_prop_vec_window(v, prop_id, start, end)
     }
 
     fn has_temporal_edge_prop_window(
@@ -534,22 +529,22 @@ impl TimeSemantics for GraphWithDeletions {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
         let prop = self.temporal_edge_prop(e, prop_id, layer_ids.clone());
         match prop {
             Some(p) => {
                 let entry = self.core_edge(e.pid());
-                if self.edge_alive_at(&entry, t_start, &layer_ids) {
-                    p.last_before(t_start.saturating_add(1))
+                if self.edge_alive_at(&entry, start, &layer_ids) {
+                    p.last_before(start.saturating_add(1))
                         .into_iter()
-                        .map(|(_, v)| (t_start, v))
-                        .chain(p.iter_window(t_start.saturating_add(1)..t_end))
+                        .map(|(_, v)| (start, v))
+                        .chain(p.iter_window(start.saturating_add(1)..end))
                         .collect()
                 } else {
-                    p.iter_window(t_start..t_end).collect()
+                    p.iter_window(start..end).collect()
                 }
             }
             None => Default::default(),

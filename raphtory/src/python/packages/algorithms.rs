@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::python::graph::edge::PyDirection;
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -8,32 +7,40 @@ use crate::python::graph::edge::PyDirection;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        balance::balance as balance_rs,
-        connected_components,
-        degree::{
-            average_degree as average_degree_rs, max_in_degree as max_in_degree_rs,
-            max_out_degree as max_out_degree_rs, min_in_degree as min_in_degree_rs,
+        centrality::{
+            degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
+            pagerank::unweighted_page_rank,
+        },
+        community_detection::connected_components,
+        metrics::balance::balance as balance_rs,
+        metrics::degree::{
+            average_degree as average_degree_rs, max_degree as max_degree_rs,
+            max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
+            min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
             min_out_degree as min_out_degree_rs,
         },
-        directed_graph_density::directed_graph_density as directed_graph_density_rs,
-        hits::hits as hits_rs,
-        local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
-        local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::global_three_node_motifs::{
-            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
-            temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
-        },
-        motifs::three_node_temporal_motifs::temporal_three_node_motif as local_three_node_rs,
-        pagerank::unweighted_page_rank,
-        reciprocity::{
+        metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
+        metrics::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+        metrics::reciprocity::{
             all_local_reciprocity as all_local_reciprocity_rs,
             global_reciprocity as global_reciprocity_rs,
         },
-        temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+        motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
+        motifs::three_node_temporal_motifs::{
+            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+            temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
+        },
+        pathing::{
+            dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
+            single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
+            temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
+        },
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
+    usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
+use crate::{core::Prop, python::graph::edge::PyDirection};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -53,7 +60,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
-/// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
+/// Weakly connected community_detection -- partitions the graph into node sets which are mutually reachable by an undirected path
 ///
 /// This function assigns a component id to each vertex such that vertices with the same component id are mutually reachable
 /// by an undirected path.
@@ -259,7 +266,7 @@ pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, f64, Or
 ///     int : the number of triplets in the graph
 #[pyfunction]
 pub fn triplet_count(g: &PyGraphView) -> usize {
-    crate::algorithms::triplet_count::triplet_count(&g.graph, None)
+    crate::algorithms::motifs::triplet_count::triplet_count(&g.graph, None)
 }
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
@@ -277,7 +284,7 @@ pub fn triplet_count(g: &PyGraphView) -> usize {
 ///     [`Triplet Count`](triplet_count)
 #[pyfunction]
 pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
-    crate::algorithms::clustering_coefficient::clustering_coefficient(&g.graph)
+    crate::algorithms::metrics::clustering_coefficient::clustering_coefficient(&g.graph)
 }
 
 /// Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
@@ -316,9 +323,7 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the
-/// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
-/// milliseconds should be used (if edge times were given as string)
+///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
 ///     list : A 40 dimensional array with the counts of each motif, given in the same order as described above. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
@@ -343,13 +348,10 @@ pub fn global_temporal_three_node_motif_multi(
 ///
 /// Arguments:
 ///     g (raphtory graph) : A directed raphtory graph
-///     delta (int) - Maximum time difference between the first and last edge of the
-/// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
-/// milliseconds should be used (if edge times were given as string)
+///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
-///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each
-/// motif that node participates in.
+///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each motif that node participates in.
 ///
 /// Notes:
 ///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
@@ -372,9 +374,13 @@ pub fn local_temporal_three_node_motifs(
 /// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
 ///     Sum of AuthScore of all vertices in the current iteration
 ///
-/// Returns
+/// Arguments:
+///     g (Raphtory Graph): Graph to run the algorithm on
+///     iter_count (int): How many iterations to run the algorithm
+///     threads (int): Number of threads to use (optional)
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
+/// Returns
+///     An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=20, threads=None))]
 pub fn hits(
@@ -389,17 +395,17 @@ pub fn hits(
 ///
 /// This function computes the sum of edge weights based on the direction provided, and can be executed in parallel using a given number of threads.
 ///
-/// # Parameters
-/// * `g` (`&PyGraphView`): The graph view on which the operation is to be performed.
-/// * `name` (`String`, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
-/// * `direction` (`PyDirection`, default = `PyDirection::new("BOTH")`): Specifies the direction of the edges to be considered for summation.
-///    - `PyDirection::new("OUT")`: Only consider outgoing edges.
-///    - `PyDirection::new("IN")`: Only consider incoming edges.
-///    - `PyDirection::new("BOTH")`: Consider both outgoing and incoming edges. This is the default.
-/// * `threads` (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///     name (String, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
+///     direction (`PyDirection`, default = PyDirection::new("BOTH")): Specifies the direction of the edges to be considered for summation.
+///             * PyDirection::new("OUT"): Only consider outgoing edges.
+///             * PyDirection::new("IN"): Only consider incoming edges.
+///             * PyDirection::new("BOTH"): Consider both outgoing and incoming edges. This is the default.
+///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
 ///
-/// # Returns
-/// `AlgorithmResult<String, OrderedFloat<f64>>`: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
+/// Returns:
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
@@ -410,4 +416,100 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
+}
+
+#[pyfunction]
+#[pyo3[signature = (g, no_time=false, threads=None)]]
+pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
+    netflow_one_path_vertex_rs(&g.graph, no_time, threads)
+}
+
+/// Computes the degree centrality of all vertices in the graph. The values are normalized
+/// by dividing each result with the maximum possible degree. Graphs with self-loops can have
+/// values of centrality greater than 1.
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+///
+/// Returns:
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated degree centrality.
+#[pyfunction]
+#[pyo3[signature = (g, threads=None)]]
+pub fn degree_centrality(
+    g: &PyGraphView,
+    threads: Option<usize>,
+) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+    degree_centrality_rs(&g.graph, threads)
+}
+
+/// Returns the largest degree found in the graph
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     usize: The largest degree
+#[pyfunction]
+#[pyo3[signature = (g)]]
+pub fn max_degree(g: &PyGraphView) -> usize {
+    max_degree_rs(&g.graph)
+}
+
+/// Returns the smallest degree found in the graph
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     usize: The smallest degree found
+#[pyfunction]
+#[pyo3[signature = (g)]]
+pub fn min_degree(g: &PyGraphView) -> usize {
+    min_degree_rs(&g.graph)
+}
+
+/// Calculates the single source shortest paths from a given source vertex.
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph. Must implement `GraphViewOps`.
+///     source (InputVertex): The source vertex. Must implement `InputVertex`.
+///     cutoff (Int, Optional): An optional cutoff level. The algorithm will stop if this level is reached.
+///
+/// Returns:
+///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
+///
+#[pyfunction]
+#[pyo3[signature = (g, source, cutoff=None)]]
+pub fn single_source_shortest_path(
+    g: &PyGraphView,
+    source: PyInputVertex,
+    cutoff: Option<usize>,
+) -> AlgorithmResult<String, Vec<String>> {
+    single_source_shortest_path_rs(&g.graph, source, cutoff)
+}
+
+/// Finds the shortest paths from a single source to multiple targets in a graph.
+///
+/// Arguments:
+///     g (Raphtory Graph): The graph to search in.
+///     source (InputVertex): The source vertex.
+///     targets (List(InputVertices)): A list of target vertices.
+///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
+///
+/// Returns:
+///     Returns a `Dict` where the key is the target vertex and the value is a tuple containing the total cost and a vector of vertices representing the shortest path.
+///
+#[pyfunction]
+#[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
+pub fn dijkstra_single_source_shortest_paths(
+    g: &PyGraphView,
+    source: PyInputVertex,
+    targets: Vec<PyInputVertex>,
+    weight: String,
+) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
+    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
 }

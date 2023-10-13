@@ -1,6 +1,9 @@
 use crate::{
     data::Data,
-    model::graph::graph::{GqlGraph, GraphMeta},
+    model::graph::{
+        document::GqlDocument,
+        graph::{GqlGraph, GraphMeta},
+    },
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -99,7 +102,7 @@ impl QueryRoot {
         limit: Option<usize>,
         window_start: Option<i64>,
         window_end: Option<i64>,
-    ) -> Option<Vec<String>> {
+    ) -> Option<Vec<GqlDocument>> {
         let init = init.unwrap_or(1);
         let min_nodes = min_nodes.unwrap_or(0);
         let min_edges = min_edges.unwrap_or(0);
@@ -119,7 +122,10 @@ impl QueryRoot {
                     window_start,
                     window_end,
                 )
-                .await,
+                .await
+                .into_iter()
+                .map(|doc| doc.into())
+                .collect_vec(),
         )
     }
 }
@@ -134,7 +140,7 @@ pub(crate) struct Mut(MutRoot);
 impl Mut {
     /// Load graphs from a directory of bincode files (existing graphs with the same name are overwritten)
     ///
-    /// # Returns:
+    /// Returns::
     ///   list of names for newly added graphs
     async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let new_graphs = Data::load_from_file(&path);
@@ -172,13 +178,15 @@ impl Mut {
                 .filter(|(a, _)| a != "name")
                 .collect_vec();
 
-            new_subgraph.add_constant_properties(static_props_without_name)?;
+            new_subgraph.update_constant_properties(static_props_without_name)?;
+
             new_subgraph
-                .add_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
+                .update_constant_properties([("name", Prop::Str(new_graph_name.clone().into()))])?;
 
             let dt = Utc::now();
             let timestamp: i64 = dt.timestamp();
-            new_subgraph.add_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+            new_subgraph
+                .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
 
             new_subgraph.save_to_file(path)?;
 
@@ -237,7 +245,7 @@ impl Mut {
 
         let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
 
-        new_subgraph.add_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
+        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
@@ -248,14 +256,14 @@ impl Mut {
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "creationTime" && a != "uiProps")
                     .collect_vec();
-                new_subgraph.add_constant_properties(static_props)?;
+                new_subgraph.update_constant_properties(static_props)?;
             } else {
                 let static_props: Vec<(ArcStr, Prop)> = subgraph
                     .properties()
                     .into_iter()
                     .filter(|(a, _)| a != "name" && a != "lastUpdated" && a != "uiProps")
                     .collect_vec();
-                new_subgraph.add_constant_properties(static_props)?;
+                new_subgraph.update_constant_properties(static_props)?;
             }
         }
 
@@ -264,11 +272,11 @@ impl Mut {
 
         if parent_graph_name.eq(&graph_name) || graph_name.ne(&new_graph_name) {
             new_subgraph
-                .add_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
+                .update_constant_properties([("creationTime", Prop::I64(timestamp * 1000))])?;
         }
 
-        new_subgraph.add_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-        new_subgraph.add_constant_properties([("uiProps", Prop::Str(props.into()))])?;
+        new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
 
         new_subgraph.save_to_file(path)?;
 
@@ -284,7 +292,7 @@ impl Mut {
 
     /// Load new graphs from a directory of bincode files (existing graphs will not been overwritten)
     ///
-    /// # Returns:
+    /// Returns::
     ///   list of names for newly added graphs
     async fn load_new_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
@@ -299,7 +307,7 @@ impl Mut {
 
     /// Use GQL multipart upload to send new graphs to server
     ///
-    /// # Returns:
+    /// Returns::
     ///    name of the new graph
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
@@ -315,7 +323,7 @@ impl Mut {
 
     /// Send graph bincode as base64 encoded string
     ///
-    /// # Returns:
+    /// Returns::
     ///    name of the new graph
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
@@ -356,8 +364,8 @@ impl Mut {
             .into_iter()
             .filter(|(a, _)| a != "isArchive")
             .collect_vec();
-        new_subgraph.add_constant_properties(static_props_without_isactive)?;
-        new_subgraph.add_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+        new_subgraph.update_constant_properties(static_props_without_isactive)?;
+        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         new_subgraph.save_to_file(path)?;
 
         let gi: IndexedGraph<Graph> = new_subgraph

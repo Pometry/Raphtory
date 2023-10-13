@@ -249,7 +249,7 @@ fn triangle_motif_count<G: GraphViewOps>(
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
 ///
-/// # Returns
+/// Returns:
 ///
 /// A dictionary with vertex ids (u64) as keys and a 40 dimensional array of motif counts as a value. The first 24 elements are star counts,
 ///   the next 8 are two-node motif counts and the final 8 are triangle counts.
@@ -295,7 +295,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
 /// motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise
 /// milliseconds should be used (if edge times were given as string)
 ///
-/// # Returns
+/// Returns:
 ///
 /// A 40 dimensional array with the counts of each motif, given in the same order as described in the class summary. Note that the two-node motif counts are symmetrical so it may be more useful just to consider the first four elements.
 ///

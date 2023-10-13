@@ -1,6 +1,6 @@
 // Imports ///////////////////////////////////////////
 use crate::{
-    algorithms::{k_core::k_core_set, motifs::three_node_motifs::*},
+    algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
     core::state::{
         accumulator_id::{
             accumulators::{self, val},
@@ -14,7 +14,6 @@ use crate::{
         graph::{edge::EdgeView, views::vertex_subgraph::VertexSubgraph},
         task::{
             context::Context,
-            edge::eval_edge::EvalEdgeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
             vertex::eval_vertex::EvalVertexView,
@@ -25,7 +24,6 @@ use crate::{
 use crate::core::entities::vertices::vertex_ref::VertexRef;
 use itertools::{enumerate, Itertools};
 use num_traits::Zero;
-use rand::{rngs::StdRng, Rng, SeedableRng};
 use rustc_hash::FxHashSet;
 use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
@@ -137,7 +135,7 @@ where
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
     // Define a closure for sorting by time_and_index()
-    let sort_by_time_and_index = |e1: &EdgeView<G>, e2: &EdgeView<G>| -> Ordering {
+    let _sort_by_time_and_index = |e1: &EdgeView<G>, e2: &EdgeView<G>| -> Ordering {
         Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
     };
 
@@ -145,7 +143,7 @@ where
         let nb_id = nb.id();
         let out = graph.edge(evv.id(), nb_id);
         let inc = graph.edge(nb_id, evv.id());
-        let mut events: Vec<TwoNodeEvent> = out
+        let events: Vec<TwoNodeEvent> = out
             .iter()
             .flat_map(|e| e.explode())
             .chain(inc.iter().flat_map(|e| e.explode()))
@@ -183,7 +181,7 @@ where
     let delta_len = deltas.len();
 
     // Define a closure for sorting by time_and_index()
-    let sort_by_time_and_index =
+    let _sort_by_time_and_index =
         |e1: &EdgeView<VertexSubgraph<G>>, e2: &EdgeView<VertexSubgraph<G>>| -> Ordering {
             Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
         };
@@ -241,7 +239,7 @@ where
                     intersection_nbs.iter().for_each(|w| {
                         // For each triangle, run the triangle count.
 
-                        let mut all_exploded = vec![u.id(), v.id(), *w]
+                        let all_exploded = vec![u.id(), v.id(), *w]
                             .into_iter()
                             .sorted()
                             .permutations(2)
@@ -254,7 +252,7 @@ where
                             .sorted_by_key(|e| e.time_and_index())
                             .map(|e| {
                                 let (src_id, dst_id) = (e.src().id(), e.dst().id());
-                                let (uid, vid) = (u.id(), v.id());
+                                let (uid, _vid) = (u.id(), v.id());
                                 if src_id == w.clone() {
                                     new_triangle_edge(
                                         false,
