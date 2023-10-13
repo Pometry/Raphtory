@@ -1,12 +1,15 @@
 use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::{
-    api::view::{
-        internal::{DynamicGraph, IntoDynamic},
-        EdgeViewOps, GraphViewOps,
+use raphtory::{
+    db::{
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            EdgeViewOps, GraphViewOps,
+        },
+        graph::edge::EdgeView,
     },
-    graph::edge::EdgeView,
+    prelude::LayerOps,
 };
 
 #[derive(ResolvedObject)]
@@ -47,8 +50,20 @@ impl Edge {
         self.ee.properties().get(name).map(|prop| prop.to_string())
     }
 
+    async fn layer(&self, layer_name: &str) -> Option<Edge> {
+        self.ee.layer(layer_name).map(|ee| ee.into())
+    }
+
     async fn layers(&self) -> Vec<String> {
         self.ee.layer_names().map_into().collect()
+    }
+
+    async fn layer_exploded_edges(&self) -> Vec<Edge> {
+        self.ee
+            .explode_layers()
+            .into_iter()
+            .map(|ee| ee.into())
+            .collect_vec()
     }
 
     async fn history(&self) -> Vec<i64> {
