@@ -1,8 +1,5 @@
 name: Inform internal projects of raphtory push
 on:
-  pull_request:
-    branches:
-      - master
   push:
     branches:
       - master
