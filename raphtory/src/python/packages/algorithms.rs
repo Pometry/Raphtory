@@ -41,7 +41,10 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
     usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
-use crate::{core::Prop, python::graph::edge::PyDirection};
+use crate::{
+    core::{Direction, Prop},
+    python::graph::edge::PyDirection,
+};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -496,20 +499,28 @@ pub fn single_source_shortest_path(
 ///     g (Raphtory Graph): The graph to search in.
 ///     source (InputVertex): The source vertex.
 ///     targets (List(InputVertices)): A list of target vertices.
-///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
+///     weight (String, Optional): The name of the weight property for the edges (None is default).
+///     direction (`PyDirection`, default = PyDirection::new("OUT")): Specifies the direction of the edges to be considered for traversal. If `PyDirection::new("OUT")` then the outbound edges from source are traversed. If `PyDirection::new("IN")` then the inbound edges to source are traversed. If `PyDirection::new("OUT")` then both outbound and inbound edges are traversed.
 ///
 /// Returns:
 ///     Returns a `Dict` where the key is the target vertex and the value is a tuple containing the total cost and a vector of vertices representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
+#[pyo3[signature = (g, source, targets, weight=None, direction=PyDirection::new("OUT"))]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: PyInputVertex,
     targets: Vec<PyInputVertex>,
-    weight: String,
+    weight: Option<String>,
+    direction: Option<PyDirection>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
-    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
+    match dijkstra_single_source_shortest_paths_rs(
+        &g.graph,
+        source,
+        targets,
+        weight,
+        direction.unwrap().into(),
+    ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }

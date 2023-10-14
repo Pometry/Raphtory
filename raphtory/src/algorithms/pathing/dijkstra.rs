@@ -1,3 +1,4 @@
+use crate::core::Direction;
 /// Dijkstra's algorithm
 use crate::{
     core::entities::vertices::input_vertex::InputVertex,
@@ -5,6 +6,7 @@ use crate::{
     prelude::Prop,
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
 };
+use rand_distr::weighted_alias::AliasableWeight;
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
@@ -39,6 +41,7 @@ impl PartialOrd for State {
 /// * `source`: The source vertex.
 /// * `targets`: A vector of target vertices.
 /// * `weight`: The name of the weight property for the edges.
+/// * `direction`: Which directon to traverse the edges. If `Direction::Outgoing` then the outbound edges from source are traversed. If `Direction::Incoming` then the inbound edges to source are traversed. If `Direction::Both` then both outbound and inbound edges are traversed.
 ///
 /// # Returns
 ///
@@ -49,7 +52,21 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
     graph: &G,
     source: T,
     targets: Vec<T>,
+    weight: Option<String>,
+    direction: Direction,
+) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
+    match weight {
+        None => {unweighted(graph, source, targets, direction)}
+        Some(weight) => weighted(graph, source, targets, weight, direction),
+    }
+}
+
+fn weighted<G: GraphViewOps, T: InputVertex>(
+    graph: &G,
+    source: T,
+    targets: Vec<T>,
     weight: String,
+    direction: Direction,
 ) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
     let source_vertex = match graph.vertex(source) {
         Some(src) => src,
@@ -148,9 +165,25 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
         if !visited.insert(vertex_name.clone()) {
             continue;
         }
-        // Replace this loop with your actual logic to iterate over the outgoing edges
-        for edge in graph.vertex(vertex_name.clone()).unwrap().out_edges() {
-            let next_vertex_name = edge.dst().name();
+        let iter = match direction {
+            Direction::OUT => graph.vertex(vertex_name.clone()).unwrap().out_edges(),
+            Direction::IN => graph.vertex(vertex_name.clone()).unwrap().in_edges(),
+            Direction::BOTH => graph.vertex(vertex_name.clone()).unwrap().edges(),
+        };
+        for edge in iter {
+            let next_vertex_name = match direction {
+                Direction::OUT => edge.dst().name(),
+                Direction::IN => edge.src().name(),
+                Direction::BOTH => {
+                    //TODO the weights of an undirected edge should be managed better - ideally we would only add the other node once as well
+                    let src = edge.src().name();
+                    if vertex_name == src {
+                        edge.dst().name()
+                    } else {
+                        src
+                    }
+                }
+            };
             let edge_val = match edge.properties().get(&weight) {
                 Some(prop) => prop,
                 _ => continue,
@@ -160,6 +193,94 @@ pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
                 < *dist
                     .entry(next_vertex_name.clone())
                     .or_insert(max_val.clone())
+            {
+                heap.push(State {
+                    cost: next_cost.clone(),
+                    vertex: next_vertex_name.clone(),
+                });
+                dist.insert(next_vertex_name.clone(), next_cost);
+                predecessor.insert(next_vertex_name, vertex_name.clone());
+            }
+        }
+    }
+    Ok(paths)
+}
+
+fn unweighted<G: GraphViewOps, T: InputVertex>(
+    graph: &G,
+    source: T,
+    targets: Vec<T>,
+    direction: Direction,
+) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
+    let source_vertex = match graph.vertex(source) {
+        Some(src) => src,
+        None => return Err("Source vertex not found"),
+    };
+
+    let target_nodes: Vec<String> = targets
+        .iter()
+        .filter_map(|p| match graph.has_vertex(p.clone()) {
+            true => Some(graph.vertex(p.clone())?.name()),
+            false => None,
+        })
+        .collect();
+
+    let mut heap = BinaryHeap::new();
+    heap.push(State {
+        cost: Prop::U64(0),
+        vertex: source_vertex.name(),
+    });
+
+    let mut dist: HashMap<String, Prop> = HashMap::new();
+    let mut predecessor: HashMap<String, String> = HashMap::new();
+    let mut visited: HashSet<String> = HashSet::new();
+    let mut paths: HashMap<String, (Prop, Vec<String>)> = HashMap::new();
+
+    dist.insert(source_vertex.name(), Prop::U64(0));
+
+    while let Some(State {
+        cost,
+        vertex: vertex_name,
+    }) = heap.pop()
+    {
+        if target_nodes.contains(&vertex_name) && !paths.contains_key(&vertex_name) {
+            let mut path = vec![vertex_name.clone()];
+            let mut current_vertex_name = vertex_name.clone();
+            while let Some(prev_vertex) = predecessor.get(&current_vertex_name) {
+                path.push(prev_vertex.clone());
+                current_vertex_name = prev_vertex.clone();
+            }
+            path.reverse();
+            paths.insert(vertex_name.clone(), (cost.clone(), path));
+        }
+        if !visited.insert(vertex_name.clone()) {
+            continue;
+        }
+        let iter = match direction {
+            Direction::OUT => graph.vertex(vertex_name.clone()).unwrap().out_edges(),
+            Direction::IN => graph.vertex(vertex_name.clone()).unwrap().in_edges(),
+            Direction::BOTH => graph.vertex(vertex_name.clone()).unwrap().edges(),
+        };
+        for edge in iter {
+            let next_vertex_name = match direction {
+                Direction::OUT => edge.dst().name(),
+                Direction::IN => edge.src().name(),
+                Direction::BOTH => {
+                    //TODO the weights of an undirected edge should be managed better - ideally we would only add the other node once as well
+                    let src = edge.src().name();
+                    if vertex_name == src {
+                        edge.dst().name()
+                    } else {
+                        src
+                    }
+                }
+            };
+
+            let next_cost = cost.clone().add(Prop::U64(1)).unwrap();
+            if next_cost
+                < *dist
+                    .entry(next_vertex_name.clone())
+                    .or_insert(Prop::U64(u64::MAX))
             {
                 heap.push(State {
                     cost: next_cost.clone(),
@@ -208,8 +329,13 @@ mod dijkstra_tests {
         let graph = basic_graph();
 
         let targets: Vec<&str> = vec!["D", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "A",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
 
         let results = results.unwrap();
 
@@ -220,8 +346,13 @@ mod dijkstra_tests {
         assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "B",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::F32(5.0f32));
         assert_eq!(results.get("E").unwrap().0, Prop::F32(3.0f32));
@@ -229,6 +360,71 @@ mod dijkstra_tests {
         assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
         assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
         assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets_incoming() {
+        let graph = basic_graph();
+
+        let targets: Vec<&str> = vec!["A", "B", "D"];
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "E",
+            targets,
+            Some("weight".to_string()),
+            Direction::IN,
+        );
+
+        let results = results.unwrap();
+
+        assert_eq!(results.get("A").unwrap().0, Prop::F32(5.0f32));
+        assert_eq!(results.get("A").unwrap().1, vec!["E", "C", "A"]);
+        assert_eq!(results.get("B").unwrap().0, Prop::F32(3.0f32));
+        assert_eq!(results.get("B").unwrap().1, vec!["E", "C", "B"]);
+        assert_eq!(results.get("D"), None);
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets_unweighted() {
+        let graph = basic_graph();
+
+        let targets: Vec<&str> = vec!["F"];
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "A",
+            targets,
+            None,
+            Direction::BOTH,
+        );
+
+        let results = results.unwrap();
+
+        assert_eq!(results.get("F").unwrap().0, Prop::U64(2));
+        assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
+
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets_both() {
+        let graph = basic_graph();
+
+        let targets: Vec<&str> = vec!["A", "B", "D"];
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "E",
+            targets,
+            Some("weight".to_string()),
+            Direction::BOTH,
+        );
+
+        let results = results.unwrap();
+
+        assert_eq!(results.get("A").unwrap().0, Prop::F32(5.0f32));
+        assert_eq!(results.get("A").unwrap().1, vec!["E", "C", "A"]);
+        assert_eq!(results.get("B").unwrap().0, Prop::F32(3.0f32));
+        assert_eq!(results.get("B").unwrap().1, vec!["E", "C", "B"]);
+        assert_eq!(results.get("D").unwrap().0, Prop::F32(4.0f32));
+        assert_eq!(results.get("D").unwrap().1, vec!["E", "C", "D"]);
     }
 
     #[test]
@@ -251,8 +447,13 @@ mod dijkstra_tests {
         }
 
         let targets: Vec<&str> = vec!["D", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "A",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
         assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
@@ -261,8 +462,13 @@ mod dijkstra_tests {
         assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "B",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(5u64));
         assert_eq!(results.get("E").unwrap().0, Prop::U64(3u64));
