@@ -180,7 +180,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let result: HashMap<String, Vec<(i64, String)>> = runner.run(
+    let result: HashMap<usize, Vec<(i64, String)>> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         None,
@@ -198,15 +198,8 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
         None,
     );
 
-    let mut map: HashMap<usize, Vec<(i64, String)>> = HashMap::new();
-    for (vertex_name, value) in result.iter() {
-        if let Some(vertex) = g.vertex(vertex_name.clone()) {
-            let vid = vertex.vertex.0;
-            map.insert(vid, value.to_owned());
-        }
-    }
     let results_type = std::any::type_name::<Vec<(i64, String)>>();
-    AlgorithmResult::new(g.clone(), "Temporal Reachability", results_type, map)
+    AlgorithmResult::new(g.clone(), "Temporal Reachability", results_type, result)
 }
 
 #[cfg(test)]

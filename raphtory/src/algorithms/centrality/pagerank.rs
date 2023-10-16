@@ -1,11 +1,11 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::vertices::vertex_ref::VertexRef,
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{internal::CoreGraphOps, GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -158,7 +158,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let num_vertices = g.count_vertices();
 
-    let out: HashMap<VID, f64> = runner.run(
+    let out: HashMap<usize, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_vertices); num_vertices]),
@@ -170,9 +170,9 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 .enumerate()
                 .filter_map(|(v_ref, score)| {
                     g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
-                        .then_some((v_ref.into(), score.score))
+                        .then_some((v_ref, score.score))
                 })
-                .collect::<HashMap<VID, f64>>()
+                .collect::<HashMap<usize, f64>>()
         },
         threads,
         iter_count,
@@ -180,15 +180,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         None,
     );
 
-    let mut map: HashMap<usize, f64> = HashMap::new();
-    for (vertex_name, value) in out.iter() {
-        if let Some(vertex) = g.vertex(*vertex_name) {
-            let vid = vertex.vertex.0;
-            map.insert(vid, *value);
-        }
-    }
     let results_type = std::any::type_name::<f64>();
-    AlgorithmResult::new(g.clone(), "Pagerank", results_type, map)
+    AlgorithmResult::new(g.clone(), "Pagerank", results_type, out)
 }
 
 #[cfg(test)]

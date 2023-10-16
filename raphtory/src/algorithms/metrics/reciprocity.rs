@@ -60,7 +60,7 @@ use crate::{
     },
 };
 use ordered_float::OrderedFloat;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
@@ -144,16 +144,14 @@ pub fn all_local_reciprocity<G: GraphViewOps>(
         None,
         None,
     );
-    let mut map: HashMap<usize, f64> = HashMap::new();
-    for (vertex_name, value) in runner_result.iter() {
-        if let Some(vertex) = g.vertex(vertex_name.to_string()) {
-            let vid = vertex.vertex.0;
-            map.insert(vid, *value);
-        }
-    }
     let results_type = std::any::type_name::<f64>();
 
-    AlgorithmResult::new(g.clone(), "All Local Reciprocity", results_type, map)
+    AlgorithmResult::new(
+        g.clone(),
+        "All Local Reciprocity",
+        results_type,
+        runner_result,
+    )
 }
 
 #[cfg(test)]

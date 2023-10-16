@@ -10,7 +10,6 @@ use crate::{
     prelude::*,
 };
 use ordered_float::OrderedFloat;
-use std::collections::HashMap;
 
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -52,15 +51,8 @@ pub fn degree_centrality<G: GraphViewOps>(
         None,
         None,
     );
-    let mut map: HashMap<usize, f64> = HashMap::new();
-    for (vertex_name, value) in runner_result.iter() {
-        if let Some(vertex) = g.vertex(vertex_name.to_string()) {
-            let vid = vertex.vertex.0;
-            map.insert(vid, *value);
-        }
-    }
     let results_type = std::any::type_name::<f64>();
-    AlgorithmResult::new(g.clone(), "Degree Centrality", results_type, map)
+    AlgorithmResult::new(g.clone(), "Degree Centrality", results_type, runner_result)
 }
 
 #[cfg(test)]
