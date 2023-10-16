@@ -83,11 +83,11 @@ where
             local
                 .iter()
                 .enumerate()
-                .filter_map(|(v_ref, state)| {
-                    let v_ref = VID(v_ref);
+                .filter_map(|(v_ref_id, state)| {
+                    let v_ref = VID(v_ref_id);
                     graph
                         .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((graph.vertex_name(v_ref), state.component))
+                        .then_some((v_ref_id, state.component))
                 })
                 .collect::<HashMap<_, _>>()
         },
@@ -96,14 +96,7 @@ where
         None,
         None,
     );
-    let mut map: HashMap<usize, u64> = HashMap::new();
-    for (vertex_name, value) in res.iter() {
-        if let Some(vertex) = graph.vertex(vertex_name.clone()) {
-            let vid = vertex.vertex.0;
-            map.insert(vid, value.to_owned());
-        }
-    }
-    AlgorithmResult::new(graph.clone(), "Connected Components", results_type, map)
+    AlgorithmResult::new(graph.clone(), "Connected Components", results_type, res)
 }
 
 #[cfg(test)]

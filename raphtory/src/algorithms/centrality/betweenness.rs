@@ -1,5 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
+    core::entities::VID,
+    db::graph::vertex::VertexView,
     prelude::{GraphViewOps, VertexViewOps},
 };
 use ordered_float::OrderedFloat;
@@ -22,7 +24,7 @@ pub fn betweenness_centrality<G: GraphViewOps>(
     normalized: Option<bool>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     // Initialize a hashmap to store betweenness centrality values.
-    let mut betweenness: HashMap<u64, f64> = HashMap::new();
+    let mut betweenness: HashMap<usize, f64> = HashMap::new();
 
     // Get the vertices and the total number of vertices in the graph.
     let nodes = g.vertices();
@@ -32,46 +34,48 @@ pub fn betweenness_centrality<G: GraphViewOps>(
     // Main loop over each node to compute betweenness centrality.
     for node in nodes.iter().take(k_sample) {
         let mut stack = Vec::new();
-        let mut predecessors: HashMap<u64, Vec<u64>> = HashMap::new();
-        let mut sigma: HashMap<u64, f64> = HashMap::new();
-        let mut dist: HashMap<u64, i64> = HashMap::new();
+        let mut predecessors: HashMap<usize, Vec<usize>> = HashMap::new();
+        let mut sigma: HashMap<usize, f64> = HashMap::new();
+        let mut dist: HashMap<usize, i64> = HashMap::new();
         let mut queue = VecDeque::new();
 
         // Initialize distance and sigma values for each node.
         for node in nodes.iter() {
-            dist.insert(node.id(), -1);
-            sigma.insert(node.id(), 0.0);
+            dist.insert(node.vertex.0, -1);
+            sigma.insert(node.vertex.0, 0.0);
         }
-        dist.insert(node.id(), 0);
-        sigma.insert(node.id(), 1.0);
-        queue.push_back(node.id());
+        dist.insert(node.vertex.0, 0);
+        sigma.insert(node.vertex.0, 1.0);
+        queue.push_back(node.vertex.0);
 
         // BFS loop to find shortest paths.
         while let Some(current_node_id) = queue.pop_front() {
             stack.push(current_node_id);
-            for neighbor in g.vertex(current_node_id).unwrap().out_neighbours() {
+            for neighbor in
+                VertexView::new_internal(g.clone(), VID::from(current_node_id)).out_neighbours()
+            {
                 // Path discovery
-                if dist[&neighbor.id()] < 0 {
-                    queue.push_back(neighbor.id());
-                    dist.insert(neighbor.id(), dist[&current_node_id] + 1);
+                if dist[&neighbor.vertex.0] < 0 {
+                    queue.push_back(neighbor.vertex.0);
+                    dist.insert(neighbor.vertex.0, dist[&current_node_id] + 1);
                 }
                 // Path counting
-                if dist[&neighbor.id()] == dist[&current_node_id] + 1 {
+                if dist[&neighbor.vertex.0] == dist[&current_node_id] + 1 {
                     sigma.insert(
-                        neighbor.id(),
-                        sigma[&neighbor.id()] + sigma[&current_node_id],
+                        neighbor.vertex.0,
+                        sigma[&neighbor.vertex.0] + sigma[&current_node_id],
                     );
                     predecessors
-                        .entry(neighbor.id())
+                        .entry(neighbor.vertex.0)
                         .or_insert_with(Vec::new)
                         .push(current_node_id);
                 }
             }
         }
 
-        let mut delta: HashMap<u64, f64> = HashMap::new();
+        let mut delta: HashMap<usize, f64> = HashMap::new();
         for node in nodes.iter() {
-            delta.insert(node.id(), 0.0);
+            delta.insert(node.vertex.0, 0.0);
         }
 
         // Accumulation
@@ -81,7 +85,7 @@ pub fn betweenness_centrality<G: GraphViewOps>(
                 let new_delta_v = delta[v] + coeff;
                 delta.insert(*v, new_delta_v);
             }
-            if w != node.id() {
+            if w != node.vertex.0 {
                 let updated_betweenness = betweenness.entry(w).or_insert(0.0);
                 *updated_betweenness += delta[&w];
             }
@@ -92,27 +96,23 @@ pub fn betweenness_centrality<G: GraphViewOps>(
     if let Some(true) = normalized {
         let factor = 1.0 / ((n as f64 - 1.0) * (n as f64 - 2.0));
         for node in nodes.iter() {
-            if betweenness.contains_key(&node.id()) {
-                betweenness.insert(node.id(), betweenness[&node.id()] * factor);
+            if betweenness.contains_key(&node.vertex.0) {
+                betweenness.insert(node.vertex.0, betweenness[&node.vertex.0] * factor);
             } else {
-                betweenness.insert(node.id(), 0.0f64);
+                betweenness.insert(node.vertex.0, 0.0f64);
             }
         }
     } else {
         for node in nodes.iter() {
-            if !betweenness.contains_key(&node.id()) {
-                betweenness.insert(node.id(), 0.0f64);
+            if !betweenness.contains_key(&node.vertex.0) {
+                betweenness.insert(node.vertex.0, 0.0f64);
             }
         }
     }
 
     // Construct and return the AlgorithmResult
     let results_type = std::any::type_name::<f64>();
-    let result = betweenness
-        .into_iter()
-        .map(|(k, v)| (g.vertex(k).unwrap().vertex.0, v))
-        .collect();
-    AlgorithmResult::new(g.clone(), "Betweenness", results_type, result)
+    AlgorithmResult::new(g.clone(), "Betweenness", results_type, betweenness)
 }
 
 #[cfg(test)]
