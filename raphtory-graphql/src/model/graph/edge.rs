@@ -9,7 +9,7 @@ use raphtory::{
         },
         graph::edge::EdgeView,
     },
-    prelude::LayerOps,
+    prelude::{LayerOps, TimeOps},
 };
 
 #[derive(ResolvedObject)]
@@ -36,6 +36,14 @@ impl Edge {
 
     async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
+    }
+
+    async fn start(&self) -> Option<i64> {
+        self.ee.start()
+    }
+
+    async fn end(&self) -> Option<i64> {
+        self.ee.end()
     }
 
     async fn src(&self) -> Node {
