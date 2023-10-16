@@ -41,6 +41,14 @@ impl Node {
         self.vv.name()
     }
 
+    async fn start(&self) -> Option<i64> {
+        self.vv.start()
+    }
+
+    async fn end(&self) -> Option<i64> {
+        self.vv.end()
+    }
+
     pub async fn node_type(&self) -> String {
         self.vv
             .properties()
