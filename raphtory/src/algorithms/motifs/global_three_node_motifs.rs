@@ -33,10 +33,10 @@ use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G, const n: usize>(
+pub fn star_motif_count<G>(
     graph: &G,
     evv: &EvalVertexView<G, ComputeStateVec, ()>,
-    deltas: [i64;n],
+    deltas: Vec<i64>,
 ) -> Vec<[usize; 32]>
 where
     G: GraphViewOps,
@@ -84,10 +84,10 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G, const n: usize>(
+pub fn twonode_motif_count<G>(
     graph: &G,
     evv: &EvalVertexView<G, ComputeStateVec, ()>,
-    deltas: [i64;n],
+    deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
     G: GraphViewOps,
@@ -124,7 +124,7 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn triangle_motifs<G, const n:usize>(graph: &G, deltas: [i64;n], threads: Option<usize>) -> Vec<[usize; 8]>
+pub fn triangle_motifs<G>(graph: &G, deltas: Vec<i64>, threads: Option<usize>) -> Vec<[usize; 8]>
 where
     G: GraphViewOps,
 {
@@ -135,11 +135,15 @@ where
     let neighbours_set = accumulators::hash_set::<u64>(0);
 
     let tri_mc = deltas
-    .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * d as u32));
+    .iter()
+    .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * *d as u32))
+    .collect_vec();
+    let tri_clone = tri_mc.clone();
 
-    tri_mc.iter().for_each(|mc| {
+    tri_mc.clone().iter().for_each(|mc| {
     ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(*mc)
     });
+
 
     ctx_sub.agg(neighbours_set);
     println!("Running step 1");
@@ -154,10 +158,9 @@ where
             Step::Continue
         },
     );
-    println!("Running step 2");
+    
     let step2 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
-            let mut triangle_u = vec![[0 as usize; 8]; deltas.len()];
             for v in u.neighbours() {
                 // Find triangles on the UV edge
                 if u.id() > v.id() {
@@ -223,19 +226,15 @@ where
                             })
                             .collect::<Vec<TriangleEdge>>();
 
-                        deltas.iter().zip(tri_mc.iter()).for_each(|(delta, mc)| {
+                        deltas.iter().enumerate().for_each(|(mc, delta)| {
                             let mut tri_count = init_tri_count(2);
                             tri_count.execute(&all_exploded, *delta);
                             let tmp_counts: [usize; 8] = *tri_count.return_counts();
-                            u.global_update(mc, tmp_counts)
+                            u.global_update(&tri_clone[mc], tmp_counts)
                         })
                     })
                 }
             }
-            triangle_u
-                .iter()
-                .zip(tri_mc.iter())
-                .for_each(|(cts, mc)| u.global_update(mc, *cts));
             Step::Continue
         },
     );
@@ -243,11 +242,11 @@ where
     let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx_sub);
 
     runner.run(
-        vec![],
-        vec![Job::new(step1),Job::new(step2)],
+        vec![Job::new(step1)],
+        vec![Job::new(step2)],
         None,
         |egs, _, _, _| {
-            tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
+            tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(&mc)).collect_vec()
         },
         threads,
         2,
@@ -258,22 +257,27 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn temporal_three_node_motif_multi<G, const n: usize>(
+pub fn temporal_three_node_motif_multi<G>(
     g: &G,
-    deltas: [i64;n],
+    deltas: Vec<i64>,
     threads: Option<usize>,
 ) -> Vec<[usize; 40]>
 where
     G: GraphViewOps,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
-    let star_mc : [AccId<[usize;32],[usize;32],[usize;32],ArrConst<usize, SumDef<usize>, 32>>; n] = deltas
-        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32));
+    let star_mc = deltas
+        .iter()
+        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32))
+        .collect_vec();
+
+    let star_clone = star_mc.clone();
 
     star_mc.iter().for_each(|mc| ctx.global_agg(*mc));
     println!("done the agg");
 
-    let out1 = triangle_motifs(g, deltas, threads);
+    let out1 = triangle_motifs(g, deltas.clone(), threads);
+    println!("done triangles");
 
     let step1 = ATask::new(move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, _>| {
         let g = evv.graph;
@@ -287,13 +291,13 @@ where
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     // let star_ref = &star_mc;
 
-    let out2 = runner.run(
+    runner.run(
         vec![],
         vec![Job::new(step1)],
         None,
         |egs, _ , _ , _ | {
             out1.iter().enumerate().map(|(i,tri)| {
-                let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(&star_mc[i])
+                let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(&star_clone[i])
                 .iter()
                 .map(|x| *x)
                 .collect_vec();
@@ -308,8 +312,7 @@ where
         1,
         None,
         None,
-    );
-    out2.clone()
+    )
 }
 
 pub fn global_temporal_three_node_motif<G: GraphViewOps>(
@@ -317,7 +320,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     delta: i64,
     threads: Option<usize>,
 ) -> [usize; 40] {
-    let counts = temporal_three_node_motif_multi(graph, [delta], threads);
+    let counts = temporal_three_node_motif_multi(graph, vec![delta], threads);
     counts[0].clone()
 }
 
@@ -368,7 +371,7 @@ mod motifs_test {
             (23, 11, 9),
         ]);
 
-        let global_motifs = &temporal_three_node_motif_multi(&g, [10], None);
+        let global_motifs = &temporal_three_node_motif_multi(&g, vec![10], None);
 
         let expected: [usize; 40] = vec![
             0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0, 0, 0,

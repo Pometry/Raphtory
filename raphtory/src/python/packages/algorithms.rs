@@ -26,9 +26,12 @@ use crate::{
             global_reciprocity as global_reciprocity_rs,
         },
         motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_temporal_motifs::{
+        motifs::global_three_node_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
             temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
+        },
+        motifs::three_node_temporal_motifs::{
+            temporal_three_node_motif as local_three_node_rs,
         },
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
