@@ -133,8 +133,10 @@ mod sum_weight_test {
         algorithms::metrics::balance::balance,
         core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::GraphViewOps,
     };
     use pretty_assertions::assert_eq;
+    use std::collections::HashMap;
 
     #[test]
     fn test_sum_float_weights() {
@@ -164,33 +166,38 @@ mod sum_weight_test {
         }
 
         let res = balance(&graph, "value_dec".to_string(), Direction::BOTH, None);
-        let expected = vec![
-            ("1".to_string(), Some(-26.0)),
-            ("2".to_string(), Some(7.0)),
-            ("3".to_string(), Some(12.0)),
-            ("4".to_string(), Some(5.0)),
-            ("5".to_string(), Some(2.0)),
-        ];
-        assert_eq!(res.sort_by_vertex(false), expected);
+        let vertex_one = graph.vertex("1").unwrap();
+        let vertex_two = graph.vertex("2").unwrap();
+        let vertex_three = graph.vertex("3").unwrap();
+        let vertex_four = graph.vertex("4").unwrap();
+        let vertex_five = graph.vertex("5").unwrap();
+        let expected = HashMap::from([
+            (vertex_one.clone(), Some(-26.0)),
+            (vertex_two.clone(), Some(7.0)),
+            (vertex_three.clone(), Some(12.0)),
+            (vertex_four.clone(), Some(5.0)),
+            (vertex_five.clone(), Some(2.0)),
+        ]);
+        assert_eq!(res.get_all(), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
-        let expected = vec![
-            ("1".to_string(), Some(6.0)),
-            ("2".to_string(), Some(12.0)),
-            ("3".to_string(), Some(15.0)),
-            ("4".to_string(), Some(20.0)),
-            ("5".to_string(), Some(2.0)),
-        ];
-        assert_eq!(res.sort_by_vertex(false), expected);
+        let expected = HashMap::from([
+            (vertex_one.clone(), Some(6.0)),
+            (vertex_two.clone(), Some(12.0)),
+            (vertex_three.clone(), Some(15.0)),
+            (vertex_four.clone(), Some(20.0)),
+            (vertex_five.clone(), Some(2.0)),
+        ]);
+        assert_eq!(res.get_all(), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
-        let expected = vec![
-            ("1".to_string(), Some(-32.0)),
-            ("2".to_string(), Some(-5.0)),
-            ("3".to_string(), Some(-3.0)),
-            ("4".to_string(), Some(-15.0)),
-            ("5".to_string(), Some(0.0)),
-        ];
-        assert_eq!(res.sort_by_vertex(false), expected);
+        let expected = HashMap::from([
+            (vertex_one, Some(-32.0)),
+            (vertex_two, Some(-5.0)),
+            (vertex_three, Some(-3.0)),
+            (vertex_four, Some(-15.0)),
+            (vertex_five, Some(0.0)),
+        ]);
+        assert_eq!(res.get_all(), expected);
     }
 }

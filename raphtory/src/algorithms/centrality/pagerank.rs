@@ -5,7 +5,7 @@ use crate::{
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
-        api::view::{internal::CoreGraphOps, GraphViewOps, VertexViewOps},
+        api::view::{GraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},

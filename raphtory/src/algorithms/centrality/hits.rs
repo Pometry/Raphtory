@@ -213,11 +213,11 @@ mod hits_tests {
             (8, 1),
         ]);
 
-        let results = hits(&graph, 20, None);
+        let results = hits(&graph, 20, None).get_all_with_names();
 
         assert_eq!(
-            results.sort_by_vertex(false),
-            vec![
+            results,
+            HashMap::from([
                 ("1".to_string(), Some((0.0431365, 0.096625775))),
                 ("2".to_string(), Some((0.14359662, 0.18366566))),
                 ("3".to_string(), Some((0.030866561, 0.36886504))),
@@ -226,7 +226,7 @@ mod hits_tests {
                 ("6".to_string(), Some((0.14359662, 0.10755368))),
                 ("7".to_string(), Some((0.15471625, 0.0))),
                 ("8".to_string(), Some((0.030866561, 0.05943252)))
-            ]
+            ])
         );
     }
 }

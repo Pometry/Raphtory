@@ -2,7 +2,6 @@ use crate::{
     core::entities::vertices::vertex_ref::VertexRef,
     prelude::{GraphViewOps, VertexViewOps},
 };
-use itertools::Itertools;
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 use std::{
@@ -121,18 +120,6 @@ where
         }
     }
 
-    /// Returns a vector of tuples with vertex names and values
-    ///
-    /// Returns:
-    ///     a vector of tuples with vertex names and values
-    fn get_with_names_vec(&self) -> Vec<(String, Option<V>)> {
-        self.graph
-            .vertices()
-            .iter()
-            .map(|vertex| (vertex.name(), self.result.get(&vertex.vertex.0).cloned()))
-            .collect_vec()
-    }
-
     /// Returns a hashmap with vertex names and values
     ///
     /// Returns:
@@ -166,8 +153,8 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing vertex names and values.
-    pub fn sort_by_vertex(&self, reverse: bool) -> Vec<(String, Option<V>)> {
-        let mut sorted = self.get_with_names_vec();
+    pub fn sort_by_vertex(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
+        let mut sorted: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
     }
@@ -635,45 +622,63 @@ mod algorithm_result_test {
     #[test]
     fn test_sort_by_key() {
         let algo_result = create_algo_result_u64();
+        let v_c = algo_result.graph.vertex("C").unwrap();
+        let v_d = algo_result.graph.vertex("D").unwrap();
+        let v_a = algo_result.graph.vertex("A").unwrap();
+        let v_b = algo_result.graph.vertex("B").unwrap();
         let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(String, Option<u64>)> = vec![
-            ("D".to_string(), None),
-            ("C".to_string(), Some(30u64)),
-            ("B".to_string(), Some(20u64)),
-            ("A".to_string(), Some(10u64)),
+        let my_array: Vec<(VertexView<Graph>, Option<u64>)> = vec![
+            (v_d, None),
+            (v_c, Some(30u64)),
+            (v_b, Some(20u64)),
+            (v_a, Some(10u64)),
         ];
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_f64();
+        let v_c = algo_result.graph.vertex("C").unwrap();
+        let v_d = algo_result.graph.vertex("D").unwrap();
+        let v_a = algo_result.graph.vertex("A").unwrap();
+        let v_b = algo_result.graph.vertex("B").unwrap();
         let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(String, Option<f64>)> = vec![
-            ("D".to_string(), None),
-            ("C".to_string(), Some(30.0)),
-            ("B".to_string(), Some(20.0)),
-            ("A".to_string(), Some(10.0)),
+        let my_array: Vec<(VertexView<Graph>, Option<f64>)> = vec![
+            (v_d, None),
+            (v_c, Some(30.0)),
+            (v_b, Some(20.0)),
+            (v_a, Some(10.0)),
         ];
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_tuple();
+        let v_c = algo_result.graph.vertex("C").unwrap();
+        let v_d = algo_result.graph.vertex("D").unwrap();
+        let v_a = algo_result.graph.vertex("A").unwrap();
+        let v_b = algo_result.graph.vertex("B").unwrap();
+
         let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(String, Option<(f32, f32)>)> = vec![
-            ("D".to_string(), None),
-            ("C".to_string(), Some((30.0, 40.0))),
-            ("B".to_string(), Some((20.0, 30.0))),
-            ("A".to_string(), Some((10.0, 20.0))),
+        let my_array: Vec<(VertexView<Graph>, Option<(f32, f32)>)> = vec![
+            (v_d, None),
+            (v_c, Some((30.0, 40.0))),
+            (v_b, Some((20.0, 30.0))),
+            (v_a, Some((10.0, 20.0))),
         ];
         assert_eq!(my_array, sorted);
         //
         let algo_result = create_algo_result_hashmap_vec();
+        let v_c = algo_result.graph.vertex("C").unwrap();
+        let v_d = algo_result.graph.vertex("D").unwrap();
+        let v_a = algo_result.graph.vertex("A").unwrap();
+        let v_b = algo_result.graph.vertex("B").unwrap();
+
         let sorted = algo_result.sort_by_vertex(true);
         let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
         let vec_b = vec![];
         let vec_a = vec![(11, "H".to_string())];
-        let my_array: Vec<(String, Option<Vec<(i32, String)>>)> = vec![
-            ("D".to_string(), None),
-            ("C".to_string(), Some(vec_c)),
-            ("B".to_string(), Some(vec_b)),
-            ("A".to_string(), Some(vec_a)),
+        let my_array: Vec<(VertexView<Graph>, Option<Vec<(i32, String)>>)> = vec![
+            (v_d, None),
+            (v_c, Some(vec_c)),
+            (v_b, Some(vec_b)),
+            (v_a, Some(vec_a)),
         ];
         assert_eq!(my_array, sorted);
     }

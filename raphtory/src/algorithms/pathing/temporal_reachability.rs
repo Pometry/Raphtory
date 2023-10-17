@@ -208,26 +208,16 @@ mod generic_taint_tests {
     use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
     fn sort_inner_by_string(
-        data: Vec<(String, Option<Vec<(i64, String)>>)>,
+        data: HashMap<String, Option<Vec<(i64, String)>>>,
     ) -> Vec<(String, Option<Vec<(i64, String)>>)> {
-        // Iterate over each tuple in the outer Vec
-        let sorted_data = data
-            .into_iter()
-            .map(|(outer_str, opt_inner_vec)| {
-                // Check if the Option is Some
-                let sorted_opt_inner_vec = opt_inner_vec.map(|mut inner_vec| {
-                    // Sort the inner Vec by the inner String
-                    inner_vec.sort_by(|a, b| a.1.cmp(&b.1));
-                    inner_vec
-                });
-
-                // Return the new tuple
-                (outer_str, sorted_opt_inner_vec)
-            })
-            .collect::<Vec<_>>();
-
-        // Return the new Vec
-        sorted_data
+        let mut vec: Vec<_> = data.into_iter().collect();
+        vec.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, value_option) in &mut vec {
+            if let Some(inner_vec) = value_option {
+                inner_vec.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
+            }
+        }
+        vec
     }
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
@@ -245,7 +235,7 @@ mod generic_taint_tests {
         start_time: i64,
         infected_nodes: Vec<T>,
         stop_nodes: Option<Vec<T>>,
-    ) -> Vec<(String, Option<Vec<(i64, String)>>)> {
+    ) -> HashMap<String, Option<Vec<(i64, String)>>> {
         temporally_reachable_nodes(
             &graph,
             None,
@@ -254,7 +244,7 @@ mod generic_taint_tests {
             infected_nodes,
             stop_nodes,
         )
-        .sort_by_vertex(false)
+        .get_all_with_names()
     }
 
     #[test]
@@ -312,7 +302,7 @@ mod generic_taint_tests {
             ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
             (
                 "2".to_string(),
-                Some(vec![(11i64, "1".to_string()), (11i64, "start".to_string())]),
+                Some(vec![(11i64, "start".to_string()), (11i64, "1".to_string())]),
             ),
             ("3".to_string(), Some(vec![])),
             (
@@ -356,7 +346,7 @@ mod generic_taint_tests {
             ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
             (
                 "2".to_string(),
-                Some(vec![(11i64, "1".to_string()), (11i64, "start".to_string())]),
+                Some(vec![(11i64, "start".to_string()), (11i64, "1".to_string())]),
             ),
             ("3".to_string(), Some(vec![])),
             ("4".to_string(), Some(vec![(12i64, "2".to_string())])),
@@ -397,9 +387,9 @@ mod generic_taint_tests {
             (
                 "2".to_string(),
                 Some(vec![
-                    (12i64, "1".to_string()),
-                    (11i64, "1".to_string()),
                     (11i64, "start".to_string()),
+                    (11i64, "1".to_string()),
+                    (12i64, "1".to_string()),
                 ]),
             ),
             ("3".to_string(), Some(vec![])),
