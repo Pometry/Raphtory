@@ -285,12 +285,13 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         } else {
             prev_local_state
         };
-
-        f(
+        let to_return = f(
             GlobalState::new(global_state, ss),
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
             last_local_state,
-        )
+        );
+        self.ctx.reset_ss();
+        to_return
     }
 }
