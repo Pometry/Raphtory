@@ -1,5 +1,6 @@
 use crate::{
-    core::entities::vertices::vertex_ref::VertexRef, db::api::view::internal::DynamicGraph,
+    core::entities::vertices::vertex_ref::VertexRef,
+    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
     python::types::repr::Repr,
 };
 use ordered_float::OrderedFloat;
@@ -57,6 +58,15 @@ macro_rules! py_algorithm_result_base {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustOrderedValue:ty) => {
         #[pymethods]
         impl $objectName {
+            fn get_all(
+                &self,
+            ) -> std::collections::HashMap<
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            > {
+                self.0.get_all()
+            }
+
             /// Returns a reference to the entire `result` hashmap.
             fn get_all_values(&self) -> std::vec::Vec<$rustValue> {
                 self.0.get_all_values().clone()

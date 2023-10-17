@@ -27,6 +27,7 @@ use crate::{
     },
     prelude::*,
 };
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
 pub struct VertexView<G: GraphViewOps> {
@@ -52,6 +53,8 @@ impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
     }
 }
 
+impl<G: GraphViewOps> Eq for VertexView<G> {}
+
 impl<G: GraphViewOps> VertexView<G> {
     /// Creates a new `VertexView` wrapping an internal vertex reference and a graph, internalising any global vertex ids.
     pub fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
@@ -67,6 +70,15 @@ impl<G: GraphViewOps> VertexView<G> {
     /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
     pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
         VertexView { graph, vertex }
+    }
+}
+
+impl<G: GraphViewOps> Hash for VertexView<G> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash the graph
+        "1".to_string().hash(state);
+        // Hash the vertex ID
+        self.id().hash(state);
     }
 }
 

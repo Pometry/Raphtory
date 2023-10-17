@@ -149,6 +149,17 @@ where
             .collect()
     }
 
+    pub fn get_all(&self) -> HashMap<VertexView<G>, Option<V>> {
+        self.graph
+            .vertices()
+            .iter()
+            .map(|vertex| {
+                let value = self.result.get(&vertex.vertex.0).cloned();
+                (vertex, value)
+            })
+            .collect()
+    }
+
     /// Sorts the `AlgorithmResult` by its vertex id in ascending or descending order.
     ///
     /// Arguments:
@@ -365,6 +376,7 @@ where
     }
 }
 
+use crate::db::graph::vertex::VertexView;
 use std::fmt;
 
 impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
@@ -589,7 +601,7 @@ mod algorithm_result_test {
     }
 
     #[test]
-    fn test_get_all() {
+    fn test_get_all_with_names() {
         let algo_result = create_algo_result_u64();
         let all = algo_result.get_all_values();
         assert_eq!(all.len(), 3);
@@ -655,5 +667,13 @@ mod algorithm_result_test {
             ("A".to_string(), Some(vec_a)),
         ];
         assert_eq!(my_array, sorted);
+    }
+
+    #[test]
+    fn test_get_all() {
+        let algo_result = create_algo_result_u64();
+        let gotten_all = algo_result.get_all();
+        let names: Vec<String> = gotten_all.keys().map(|vv| vv.name()).collect();
+        println!("{:?}", names)
     }
 }
