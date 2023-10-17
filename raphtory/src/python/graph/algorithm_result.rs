@@ -1,6 +1,5 @@
 use crate::{
-    core::entities::vertices::vertex_ref::VertexRef,
-    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
+    core::entities::vertices::vertex_ref::VertexRef, db::api::view::internal::DynamicGraph,
     python::types::repr::Repr,
 };
 use ordered_float::OrderedFloat;
@@ -101,7 +100,13 @@ macro_rules! py_algorithm_result_base {
             /// Returns:
             ///     A sorted list of tuples containing vertex names and values.
             #[pyo3(signature = (reverse=true))]
-            fn sort_by_vertex(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
+            fn sort_by_vertex(
+                &self,
+                reverse: bool,
+            ) -> std::vec::Vec<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
                 self.0.sort_by_vertex(reverse)
             }
 
@@ -161,8 +166,25 @@ macro_rules! py_algorithm_result_partial_ord {
             /// Returns:
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
-            fn sort_by_key(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
-                self.0.sort_by_vertex(reverse)
+            fn sort_by_key(
+                &self,
+                reverse: bool,
+            ) -> std::vec::Vec<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
+                self.0.sort_by_vertex_name(reverse)
+            }
+
+            #[pyo3(signature = (reverse=true))]
+            fn sort_by_vertex_name(
+                &self,
+                reverse: bool,
+            ) -> std::vec::Vec<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
+                self.0.sort_by_vertex_name(reverse)
             }
 
             /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.

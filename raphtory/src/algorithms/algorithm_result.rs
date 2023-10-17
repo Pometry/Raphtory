@@ -159,6 +159,18 @@ where
         sorted
     }
 
+    pub fn sort_by_vertex_name(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
+        let mut sorted: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
+        sorted.sort_by(|(a, _), (b, _)| {
+            if reverse {
+                b.name().cmp(&a.name())
+            } else {
+                a.name().cmp(&b.name())
+            }
+        });
+        sorted
+    }
+
     pub fn iter(&self) -> Iter<'_, usize, V> {
         self.result.iter()
     }

@@ -45,17 +45,16 @@ def test_algo_result():
     assert actual.get("1") == 1
     assert actual.get("not a node") == None
     expected_array = [
-        ("1", 1),
-        ("2", 1),
-        ("3", 1),
-        ("4", 1),
-        ("5", 1),
-        ("6", 1),
-        ("7", 1),
-        ("8", 1),
+        (g.vertex("1"), 1),
+        (g.vertex("2"), 1),
+        (g.vertex("3"), 1),
+        (g.vertex("4"), 1),
+        (g.vertex("5"), 1),
+        (g.vertex("6"), 1),
+        (g.vertex("7"), 1),
+        (g.vertex("8"), 1),
     ]
-    assert sorted(actual.sort_by_value()) == expected_array
-    assert actual.sort_by_key() == sorted(expected_array, reverse=True)
+    assert actual.sort_by_vertex_name(False) == expected_array
     assert actual.sort_by_key(reverse=False) == expected_array
     assert sorted(actual.top_k(8)) == expected_array
     assert len(actual.group_by()[1]) == 8
