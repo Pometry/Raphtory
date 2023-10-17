@@ -31,14 +31,12 @@ impl VertexChunk {
             .and_then(|list| ListColumn::new(list, 1))
     }
 
-    pub(crate) fn neighbours_own(&self, vid: VID) -> Option<RowOwned<u64>> {
-        let row: usize = vid.into();
+    pub(crate) fn neighbours_own(&self, row: usize) -> Option<RowOwned<u64>> {
         let col = self.neighbours_col()?;
         Some(RowOwned(col.value(row)))
     }
 
-    pub(crate) fn edges_own(&self, vid: VID) -> Option<RowOwned<u64>> {
-        let row: usize = vid.into();
+    pub(crate) fn edges_own(&self, row: usize) -> Option<RowOwned<u64>> {
         let col = self.edge_col()?;
         Some(RowOwned(col.value(row)))
     }
