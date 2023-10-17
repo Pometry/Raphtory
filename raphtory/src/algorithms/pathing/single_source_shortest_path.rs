@@ -105,7 +105,7 @@ mod sssp_tests {
         ]);
 
         let binding = single_source_shortest_path(&graph, 1, Some(4));
-        let results = binding.get_with_names();
+        let results = binding.get_all_with_names();
         let expected: HashMap<String, Option<Vec<String>>> = HashMap::from([
             ("1".to_string(), Some(vec!["1".to_string()])),
             (
@@ -136,6 +136,6 @@ mod sssp_tests {
         ]);
         assert_eq!(results, expected);
         let binding = single_source_shortest_path(&graph, 5, Some(4));
-        println!("{:?}", binding.get_with_names());
+        println!("{:?}", binding.get_all_with_names());
     }
 }

@@ -10,7 +10,7 @@ def test_degree_centrality():
     g.add_edge(0, 1, 4, {})
     g.add_edge(0, 2, 3, {})
     g.add_edge(0, 2, 4, {})
-    assert degree_centrality(g).get_with_names() == {
+    assert degree_centrality(g).get_all_with_names() == {
         "1": 1.0,
         "2": 1.0,
         "3": 2 / 3,
@@ -45,12 +45,12 @@ def test_single_source_shortest_path():
     g.add_edge(0, 2, 4, {})
     res_one = single_source_shortest_path(g, 1, 1)
     res_two = single_source_shortest_path(g, 1, 2)
-    assert res_one.get_with_names() == {"1": ["1"], "2": ["1", "2"], "3": None, "4": ["1", "4"]}
+    assert res_one.get_all_with_names() == {"1": ["1"], "2": ["1", "2"], "3": None, "4": ["1", "4"]}
     assert (
-        res_two.get_with_names()
+        res_two.get_all_with_names()
         == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
     ) or (
-        res_two.get_with_names()
+        res_two.get_all_with_names()
         == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
     )
 
@@ -107,7 +107,7 @@ def test_betweenness_centrality():
         g.add_edge(0, e[0], e[1], {})
 
     res = betweenness_centrality(g, normalized=False)
-    assert res.get_with_names() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
+    assert res.get_all_with_names() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
 
     res = betweenness_centrality(g, normalized=True)
-    assert res.get_with_names() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}
+    assert res.get_all_with_names() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}

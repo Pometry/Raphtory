@@ -125,7 +125,7 @@ mod cc_test {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_with_names();
+        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
         assert_eq!(
             results,
             vec![
@@ -177,7 +177,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_with_names();
+        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
 
         assert_eq!(
             results,
@@ -210,7 +210,7 @@ mod cc_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_with_names();
+        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
 
         assert_eq!(
             results,
@@ -228,7 +228,7 @@ mod cc_test {
         graph.add_edge(9, 3, 4, NO_PROPS, None).expect("add edge");
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
-        let results = weakly_connected_components(&graph, usize::MAX, None).get_with_names();
+        let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
         let expected = vec![
             ("1".to_string(), Some(1)),
             ("2".to_string(), Some(1)),
@@ -241,7 +241,7 @@ mod cc_test {
         assert_eq!(results, expected);
 
         let wg = graph.window(0, 2);
-        let results = weakly_connected_components(&wg, usize::MAX, None).get_with_names();
+        let results = weakly_connected_components(&wg, usize::MAX, None).get_all_with_names();
 
         let expected = vec![("1", 1), ("2", 1)]
             .into_iter()

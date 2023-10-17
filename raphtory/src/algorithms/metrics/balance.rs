@@ -171,7 +171,7 @@ mod sum_weight_test {
             ("4".to_string(), Some(5.0)),
             ("5".to_string(), Some(2.0)),
         ];
-        assert_eq!(res.sort_by_vertex_id(false), expected);
+        assert_eq!(res.sort_by_vertex(false), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
         let expected = vec![
@@ -181,7 +181,7 @@ mod sum_weight_test {
             ("4".to_string(), Some(20.0)),
             ("5".to_string(), Some(2.0)),
         ];
-        assert_eq!(res.sort_by_vertex_id(false), expected);
+        assert_eq!(res.sort_by_vertex(false), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
         let expected = vec![
@@ -191,6 +191,6 @@ mod sum_weight_test {
             ("4".to_string(), Some(-15.0)),
             ("5".to_string(), Some(0.0)),
         ];
-        assert_eq!(res.sort_by_vertex_id(false), expected);
+        assert_eq!(res.sort_by_vertex(false), expected);
     }
 }

@@ -137,15 +137,18 @@ where
     ///
     /// Returns:
     ///     a hashmap with vertex names and values
-    pub fn get_with_names(&self) -> HashMap<String, Option<V>> {
-        let mut as_map = HashMap::new();
-        for vertex in self.graph.vertices().iter() {
-            let name = vertex.name();
-            let value = self.result.get(&vertex.vertex.0);
-            as_map.insert(name.to_string(), value.cloned());
-        }
-        as_map
+    pub fn get_all_with_names(&self) -> HashMap<String, Option<V>> {
+        self.graph
+            .vertices()
+            .iter()
+            .map(|vertex| {
+                let name = vertex.name();
+                let value = self.result.get(&vertex.vertex.0).cloned();
+                (name.to_string(), value)
+            })
+            .collect()
     }
+
     /// Sorts the `AlgorithmResult` by its vertex id in ascending or descending order.
     ///
     /// Arguments:
@@ -155,7 +158,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing vertex names and values.
-    pub fn sort_by_vertex_id(&self, reverse: bool) -> Vec<(String, Option<V>)> {
+    pub fn sort_by_vertex(&self, reverse: bool) -> Vec<(String, Option<V>)> {
         let mut sorted = self.get_with_names_vec();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
@@ -596,13 +599,13 @@ mod algorithm_result_test {
         assert_eq!(all.len(), 3);
 
         let algo_result = create_algo_result_tuple();
-        let algo_results_hashmap = algo_result.get_with_names();
+        let algo_results_hashmap = algo_result.get_all_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
         assert_eq!(tuple_result.unwrap().0, 10.0);
         assert_eq!(algo_result.get_all_values().len(), 3);
 
         let algo_result = create_algo_result_hashmap_vec();
-        let algo_results_hashmap = algo_result.get_with_names();
+        let algo_results_hashmap = algo_result.get_all_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
         assert_eq!(tuple_result.clone().unwrap().get(0).unwrap().0, 11);
         assert_eq!(algo_result.get_all_values().len(), 3);
@@ -611,7 +614,7 @@ mod algorithm_result_test {
     #[test]
     fn test_sort_by_key() {
         let algo_result = create_algo_result_u64();
-        let sorted = algo_result.sort_by_vertex_id(true);
+        let sorted = algo_result.sort_by_vertex(true);
         let my_array: Vec<(String, Option<u64>)> = vec![
             ("D".to_string(), None),
             ("C".to_string(), Some(30u64)),
@@ -621,7 +624,7 @@ mod algorithm_result_test {
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_f64();
-        let sorted = algo_result.sort_by_vertex_id(true);
+        let sorted = algo_result.sort_by_vertex(true);
         let my_array: Vec<(String, Option<f64>)> = vec![
             ("D".to_string(), None),
             ("C".to_string(), Some(30.0)),
@@ -631,7 +634,7 @@ mod algorithm_result_test {
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_tuple();
-        let sorted = algo_result.sort_by_vertex_id(true);
+        let sorted = algo_result.sort_by_vertex(true);
         let my_array: Vec<(String, Option<(f32, f32)>)> = vec![
             ("D".to_string(), None),
             ("C".to_string(), Some((30.0, 40.0))),
@@ -641,7 +644,7 @@ mod algorithm_result_test {
         assert_eq!(my_array, sorted);
         //
         let algo_result = create_algo_result_hashmap_vec();
-        let sorted = algo_result.sort_by_vertex_id(true);
+        let sorted = algo_result.sort_by_vertex(true);
         let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
         let vec_b = vec![];
         let vec_a = vec![(11, "H".to_string())];

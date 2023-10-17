@@ -78,7 +78,7 @@ mod degree_centrality_test {
         hash_map_result.insert("4".to_string(), Some(2.0 / 3.0));
 
         let binding = degree_centrality(&graph, None);
-        let res = binding.get_with_names();
+        let res = binding.get_all_with_names();
         assert_eq!(res, hash_map_result);
     }
 }

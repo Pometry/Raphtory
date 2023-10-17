@@ -143,7 +143,7 @@ impl Algorithm for Pagerank {
         let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
         let binding = unweighted_page_rank(graph, iter_count, threads, tol, true);
         let result = binding
-            .get_with_names()
+            .get_all_with_names()
             .into_iter()
             .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
         Ok(Some(FieldValue::list(result)))

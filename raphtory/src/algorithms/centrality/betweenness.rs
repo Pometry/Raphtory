@@ -149,7 +149,7 @@ mod betweenness_centrality_test {
         expected.insert("6".to_string(), Some(0.0));
 
         let res = betweenness_centrality(&graph, None, Some(false));
-        assert_eq!(res.get_with_names(), expected);
+        assert_eq!(res.get_all_with_names(), expected);
 
         let mut expected: HashMap<String, Option<f64>> = HashMap::new();
         expected.insert("1".to_string(), Some(0.0));
@@ -159,6 +159,6 @@ mod betweenness_centrality_test {
         expected.insert("5".to_string(), Some(0.0));
         expected.insert("6".to_string(), Some(0.0));
         let res = betweenness_centrality(&graph, None, Some(true));
-        assert_eq!(res.get_with_names(), expected);
+        assert_eq!(res.get_all_with_names(), expected);
     }
 }

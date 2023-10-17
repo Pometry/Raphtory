@@ -79,8 +79,8 @@ macro_rules! py_algorithm_result_base {
             ///
             /// Returns:
             ///     a dict with vertex names and values
-            fn get_with_names(&self) -> std::collections::HashMap<String, Option<$rustValue>> {
-                self.0.get_with_names()
+            fn get_all_with_names(&self) -> std::collections::HashMap<String, Option<$rustValue>> {
+                self.0.get_all_with_names()
             }
 
             /// Sorts by vertex id in ascending or descending order.
@@ -91,11 +91,8 @@ macro_rules! py_algorithm_result_base {
             /// Returns:
             ///     A sorted list of tuples containing vertex names and values.
             #[pyo3(signature = (reverse=true))]
-            fn sort_by_vertex_id(
-                &self,
-                reverse: bool,
-            ) -> std::vec::Vec<(String, Option<$rustValue>)> {
-                self.0.sort_by_vertex_id(reverse)
+            fn sort_by_vertex(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
+                self.0.sort_by_vertex(reverse)
             }
 
             /// Creates a dataframe from the result
@@ -149,7 +146,7 @@ macro_rules! py_algorithm_result_partial_ord {
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_key(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
-                self.0.sort_by_vertex_id(reverse)
+                self.0.sort_by_vertex(reverse)
             }
 
             /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.

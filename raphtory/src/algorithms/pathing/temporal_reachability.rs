@@ -254,7 +254,7 @@ mod generic_taint_tests {
             infected_nodes,
             stop_nodes,
         )
-        .sort_by_vertex_id(false)
+        .sort_by_vertex(false)
     }
 
     #[test]

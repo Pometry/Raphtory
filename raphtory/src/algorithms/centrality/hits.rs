@@ -216,7 +216,7 @@ mod hits_tests {
         let results = hits(&graph, 20, None);
 
         assert_eq!(
-            results.sort_by_vertex_id(false),
+            results.sort_by_vertex(false),
             vec![
                 ("1".to_string(), Some((0.0431365, 0.096625775))),
                 ("2".to_string(), Some((0.14359662, 0.18366566))),
