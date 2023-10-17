@@ -56,6 +56,10 @@ where
         self.ss += 1;
     }
 
+    pub fn reset_ss(&mut self) {
+        self.ss = 1;
+    }
+
     pub fn resetable_states(&self) -> &[u32] {
         &self.resetable_states
     }
