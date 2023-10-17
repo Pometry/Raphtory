@@ -24,7 +24,6 @@
 <a href="https://pypi.org/project/raphtory/#history">
 <img alt="PyPI Downloads" src="https://img.shields.io/pypi/dm/raphtory.svg">
 </a>
-  
 <a href="https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb">
 <img alt="Launch Notebook" src="https://mybinder.org/badge_logo.svg" />
 </a>
@@ -52,9 +51,21 @@ It supports time traveling, full-text search, multilayer modelling, and advanced
 
 If you wish to contribute, check out the open [list of issues](https://github.com/Pometry/Raphtory/issues), [bounty board](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board) or hit us up directly on [slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA). Successful contributions will be reward with swizzling swag!
 
+## Installing Raphtory
+
+Raphtory is available for Python and Rust. 
+
+For python you must be using version 3.8 or higher and can install via pip:
+```bash
+pip install raphtory
+``` 
+For Rust, Raphtory is hosted on [crates](https://crates.io/crates/raphtory) and can be included in your project via `cargo add`:
+```bash
+cargo add raphtory
+```
 
 ## Running a basic example
-
+Below is a small example of how Raphtory looks and feels when using our Python APIs. If you like what you see, you can dive into a full tutorial [here](https://www.raphtory.com/user-guide/ingestion/1_creating-a-graph/).
 ```python
 from raphtory import Graph
 from raphtory import algorithms as algo
@@ -110,7 +121,7 @@ print(
     top_node[0][1],
 )
 ```
-
+### Output:
 ```a
 Graph(number_of_edges=2, number_of_vertices=3, earliest_time=1, latest_time=3)
 
@@ -134,165 +145,96 @@ The top node in the graph is Charlie with a score of 0.4744116163405977
 
 ## GraphQL
 
-### Create/Load a graph
+As part of the python APIs you can host your data within Raphtory's GraphQL server. This makes it super easy to integrate your graphy analytics with web applications.
 
-Save a raphtory graph and set the `GRAPH_DIRECTORY` environment variable to point to the directory containing the graph.
+Below is a small example creating a graph, running a server hosting this data, and directly querying it with our GraphQL client.
 
-<details>
+```python
+from raphtory import Graph
+from raphtory import graphqlserver
+import pandas as pd
 
-<summary> 
-Alternatively you can run the code below to generate a graph.
-</summary>
+# URL for lord of the rings data from our main tutorial
+url = "https://raw.githubusercontent.com/Raphtory/Data/main/lotr-with-header.csv"
+df = pd.read_csv(url)
 
-```bash
-mkdir -p /tmp/graphs
-mkdir -p examples/rust/src/bin/lotr/data/
-tail -n +2 resource/lotr.csv > examples/rust/src/bin/lotr/data/lotr.csv
+# Load the lord of the rings graph from the dataframe
+graph = Graph.load_from_pandas(df,"src_id","dst_id","time")
 
-cd examples/rust && cargo run --bin lotr -r
+#Create a dictionary of queryable graphs and start the graphql server with it. This returns a client we can query with
+client = graphqlserver.run_server({"lotr_graph":graph},daemon=True)
 
-cp examples/rust/src/bin/lotr/data/graphdb.bincode /tmp/graphs/lotr.bincode
+#Run a basic query to get the names of the characters + their degree
+results = client.query("""{
+             graph(name: "lotr_graph") {
+                 nodes {
+                     name
+                     degree
+                    }
+                 }
+             }""")
+
+print(results)
 ```
 
-</details>
-
-
-### Run the GraphQL server
-
-The code below will run GraphQL with a UI at `localhost:1736` 
-
-GraphlQL will look for graph files in `/tmp/graphs` or in the path set in the `GRAPH_DIRECTORY` Environment variable. 
-
+### Output:
 ```bash
-cd raphtory-graphql && cargo run -r 
-```
-
-<details>
-<summary>ℹ️Warning: Server must have the same version + environment</summary>
-The GraphQL server must be running in the same environment (i.e. debug or release) and same Raphtory version as the generated graph, otherwise it will throw errors due to incompatible graph metadata across versions. 
-</details>
-
-<details>
-<summary>Following will be output upon a successful launch</summary>
-
-```bash
-warning: `raphtory` (lib) generated 17 warnings (run `cargo fix --lib -p raphtory` to apply 13 suggestions)
-    Finished release [optimized] target(s) in 0.91s
-     Running `Raphtory/target/release/raphtory-graphql`
-loading graph from /tmp/graphs/lotr.bincode
+Loading edges: 100%|██████████████| 2.65K/2.65K [00:00<00:00, 984Kit/s]
 Playground: http://localhost:1736
-  2023-08-11T14:36:52.444203Z  INFO poem::server: listening, addr: socket://0.0.0.0:1736
-    at /Users/pometry/.cargo/registry/src/github.com-1ecc6299db9ec823/poem-1.3.56/src/server.rs:109
-
-  2023-08-11T14:36:52.444257Z  INFO poem::server: server started
-    at /Users/pometry/.cargo/registry/src/github.com-1ecc6299db9ec823/poem-1.3.56/src/server.rs:111
-```
-</details>
-
-
-### Execute a query
-
-Go to the Playground at `http://localhost:1736` and execute the following commands:
-
-Query:
-```bash
-    query GetNodes($graphName: String!) {
-        graph(name: $graphName) {
-            nodes {
-              name
-            }
-      }
+{'graph': 
+    {'nodes': 
+        [{'name': 'Gandalf', 'degree': 49}, 
+         {'name': 'Elrond', 'degree': 32}, 
+         {'name': 'Frodo', 'degree': 51}, 
+         {'name': 'Bilbo', 'degree': 21}, 
+         ...
+        ]
     }
-```
-
-Query Variables:
-```bash
-{
-  "graphName": "lotr.bincode"
 }
 ```
+### GraphQL Playground
+When you host a Raphtory GraphQL server you get a web playground bundled in, accessible on the same port within your browser (defaulting to 1736). Here you can experiment with queries on your graphs and explore the schema. An example of the playground can be seen below, running the same query as in the python example above.
 
-Expected Result:
-```bash
-{
-  "data": {
-    "graph": {
-      "nodes": [
-        {
-          "name": "Gandalf"
-        },
-        {
-          "name": "Elrond"
-        },
-        {
-          "name": "Frodo"
-        },
-        {
-          "name": "Bilbo"
-        },
-        ...
-```
+![GraphQL Playground](https://i.imgur.com/p0HH6v3.png)
 
+## Getting started
+To get you up and running with Raphtory we provide a full set of tutorials on the [Raphtory website](https://raphtory.com):
 
+* [Getting Data into Raphtory](https://www.raphtory.com/user-guide/ingestion/1_creating-a-graph/)
+* [Basic Graph Queries](https://www.raphtory.com/user-guide/querying/1_intro/)
+* [Time Travelling and Graph views](https://www.raphtory.com/user-guide/views/1_intro/)
+* [Running algorithms](https://www.raphtory.com/user-guide/algorithms/1_intro/)
+* [Integrating with other tools](https://www.raphtory.com/user-guide/algorithms/1_intro/)
 
+If API documentation is more your thing, you can dive straight in [here](https://docs.raphtory.com/)!
 
-## Installing Raphtory 
-
-Raphtory is available for Python and Rust as of version 0.3.0. You should have Python version 3.10 or higher and it's a good idea to use conda, virtualenv, or pyenv. 
-
-```bash
-pip install raphtory
-``` 
-
-## Examples and Notebooks
-
-Check out Raphtory in action with our interactive Jupyter Notebook! Just click the badge below to launch a Raphtory sandbox online, no installation needed.
+### Online notebook sandbox
+Want to give this a go, but can't install? Check out Raphtory in action with our interactive Jupyter Notebooks! Just click the badge below to launch a Raphtory sandbox online, no installation needed.
 
  [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Raphtory/Raphtory/master?labpath=examples%2Fpy%2Flotr%2Flotr.ipynb) 
 
-Want to give Raphtory a go on your laptop? You can checkout out the [latest documentation](https://docs.raphtory.com/) and [complete list of available algorithms](https://docs.raphtory.com/en/v0.2.0/api/_autosummary/raphtory.algorithms.html) or hop on our notebook based tutorials below!
+## Community
 
-
-#### Getting started
-
-| Type     | Description                                                                              |
-|----------|------------------------------------------------------------------------------------------|
-| Tutorial | [Building your first graph](https://docs.raphtory.com/en/master/Introduction/ingestion.html) |
-
-#### Developing an end-to-end application
-
-| Type | Description                                                                                                                                                   |
-| ------------- |---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Notebook | [Use our powerful time APIs to find pump and dump scams in popular NFTs](https://github.com/Raphtory/Raphtory/blob/master/examples/py/nft/nft_analysis.ipynb) |
-
-
-# Benchmarks
-
-We host a page which triggers and saves the result of two benchmarks upon every push to the master branch. 
-
-View this here [https://pometry.github.io/Raphtory/dev/bench/](https://pometry.github.io/Raphtory/dev/bench/)
-
-# Bounty board
-
-Raphtory is currently offering rewards for contributions, such as new features or algorithms. Contributors will receive swag and prizes! 
-
-To get started, check out our list of desired algorithms at https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board which include some low hanging fruit (🍇) that are easy to implement. 
-
-
-# Community  
-
-Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis projects!
+Join the growing community of open-source enthusiasts using Raphtory to power their graph analysis!
 
 - Follow [![Slack](https://img.shields.io/twitter/follow/raphtory?label=@raphtory)](https://twitter.com/raphtory) for the latest Raphtory news and development
 
 - Join our [![Slack](https://img.shields.io/badge/community-Slack-red)](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) to chat with us and get answers to your questions!
 
-
-## Contributors
+### Contributors
 
 <a href="https://github.com/raphtory/raphtory/graphs/contributors"><img src="https://contrib.rocks/image?repo=raphtory/raphtory"/></a>
 
-Want to get involved? Please join the Raphtory [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) group and speak with us on how you could pitch in!
+### Bounty board
+
+Raphtory is currently offering rewards for contributions, such as new features or algorithms. Contributors will receive swag and prizes!
+
+To get started, check out our list of [desired algorithms](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board) which include some low hanging fruit (🍇) that are easy to implement.
+
+
+## Benchmarks
+
+We host a page which triggers and saves the result of two benchmarks upon every push to the master branch.  View this [here](https://pometry.github.io/Raphtory/dev/bench/)
 
 ## License  
 
