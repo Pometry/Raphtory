@@ -143,7 +143,13 @@ macro_rules! py_algorithm_result_partial_ord {
             /// Returns:
             ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
             #[pyo3(signature = (reverse=true))]
-            fn sort_by_value(&self, reverse: bool) -> std::vec::Vec<(String, Option<$rustValue>)> {
+            fn sort_by_value(
+                &self,
+                reverse: bool,
+            ) -> std::vec::Vec<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
                 self.0.sort_by_value(reverse)
             }
 
@@ -177,22 +183,40 @@ macro_rules! py_algorithm_result_partial_ord {
                 k: usize,
                 percentage: bool,
                 reverse: bool,
-            ) -> std::vec::Vec<(String, Option<$rustValue>)> {
+            ) -> std::vec::Vec<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
                 self.0.top_k(k, percentage, reverse)
             }
 
             /// Returns a tuple of the min result with its key
-            fn min(&self) -> Option<(String, Option<$rustValue>)> {
+            fn min(
+                &self,
+            ) -> Option<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
                 self.0.min().map(|(k, v)| (k, v.map(|val| val)))
             }
 
             /// Returns a tuple of the max result with its key
-            fn max(&self) -> Option<(String, Option<$rustValue>)> {
+            fn max(
+                &self,
+            ) -> Option<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
                 self.0.max().map(|(k, v)| (k, v.map(|val| val)))
             }
 
             /// Returns a tuple of the median result with its key
-            fn median(&self) -> Option<(String, Option<$rustValue>)> {
+            fn median(
+                &self,
+            ) -> Option<(
+                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                Option<$rustValue>,
+            )> {
                 self.0.median().map(|(k, v)| (k, v.map(|val| val)))
             }
         }
