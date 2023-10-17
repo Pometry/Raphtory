@@ -153,10 +153,7 @@ where
         self.graph
             .vertices()
             .iter()
-            .map(|vertex| {
-                let value = self.result.get(&vertex.vertex.0).cloned();
-                (vertex, value)
-            })
+            .map(|vertex| (vertex.clone(), self.result.get(&vertex.vertex.0).cloned()))
             .collect()
     }
 
@@ -192,11 +189,11 @@ where
         &self,
         mut cmp: F,
         reverse: bool,
-    ) -> Vec<(String, Option<V>)> {
-        let mut sorted: Vec<(String, Option<V>)> = self.get_with_names_vec();
-        sorted.sort_by(|a, b| {
-            let order = match (a.1.clone(), b.1.clone()) {
-                (Some(a_value), Some(b_value)) => cmp(&a_value, &b_value),
+    ) -> Vec<(VertexView<G>, Option<V>)> {
+        let mut all_as_vec: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
+        all_as_vec.sort_by(|a, b| {
+            let order = match (&a.1, &b.1) {
+                (Some(a_value), Some(b_value)) => cmp(a_value, b_value),
                 (Some(_), None) => std::cmp::Ordering::Greater, // Put Some(_) values before None
                 (None, Some(_)) => std::cmp::Ordering::Less,    // Put Some(_) values before None
                 (None, None) => std::cmp::Ordering::Equal,      // Equal if both are None
@@ -209,7 +206,7 @@ where
                 order
             }
         });
-        sorted
+        all_as_vec
     }
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
@@ -232,7 +229,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(String, Option<V>)> {
+    ) -> Vec<(VertexView<G>, Option<V>)> {
         let k = if percentage {
             let total_count = self.result.len();
             (total_count as f64 * (k as f64 / 100.0)) as usize
@@ -248,13 +245,11 @@ where
     pub fn min_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(String, Option<V>)> {
-        let res: Vec<(String, Option<V>)> = self.get_with_names_vec();
-
-        // Filter out None values and find the minimum element
-        let min_element = res
-            .iter()
-            .filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
+    ) -> Option<(VertexView<G>, Option<V>)> {
+        let min_element = self
+            .get_all()
+            .into_iter()
+            .filter_map(|(k, v)| v.map(|v| (k, v)))
             .min_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
@@ -264,13 +259,11 @@ where
     pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(String, Option<V>)> {
-        let res: Vec<(String, Option<V>)> = self.get_with_names_vec();
-
-        // Filter out None values and find the max element
-        let max_element = res
-            .iter()
-            .filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
+    ) -> Option<(VertexView<G>, Option<V>)> {
+        let max_element = self
+            .get_all()
+            .into_iter()
+            .filter_map(|(k, v)| v.map(|v| (k, v)))
             .max_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
@@ -280,12 +273,12 @@ where
     pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(String, Option<V>)> {
+    ) -> Option<(VertexView<G>, Option<V>)> {
         // Assuming self.result is Vec<(String, Option<V>)>
-        let res: Vec<(String, Option<V>)> = self.get_with_names_vec();
-        let mut items: Vec<_> = res
-            .iter()
-            .filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
+        let mut items: Vec<(VertexView<G>, V)> = self
+            .get_all()
+            .into_iter()
+            .filter_map(|(k, v)| v.map(|v| (k, v)))
             .collect();
         let len = items.len();
         if len == 0 {
@@ -333,7 +326,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(String, Option<V>)> {
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
         self.sort_by_values(|a, b| O::cmp(a.as_ord(), b.as_ord()), reverse)
     }
 
@@ -351,7 +344,12 @@ where
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Vec<(String, Option<V>)> {
+    pub fn top_k(
+        &self,
+        k: usize,
+        percentage: bool,
+        reverse: bool,
+    ) -> Vec<(VertexView<G>, Option<V>)> {
         self.top_k_by(
             |a, b| O::cmp(a.as_ord(), b.as_ord()),
             k,
@@ -361,17 +359,17 @@ where
     }
 
     /// Returns a tuple of the min result with its key
-    pub fn min(&self) -> Option<(String, Option<V>)> {
+    pub fn min(&self) -> Option<(VertexView<G>, Option<V>)> {
         self.min_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the max result with its key
-    pub fn max(&self) -> Option<(String, Option<V>)> {
+    pub fn max(&self) -> Option<(VertexView<G>, Option<V>)> {
         self.max_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the median result with its key
-    pub fn median(&self) -> Option<(String, Option<V>)> {
+    pub fn median(&self) -> Option<(VertexView<G>, Option<V>)> {
         self.median_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 }
@@ -505,13 +503,16 @@ mod algorithm_result_test {
     #[test]
     fn test_min_max_value() {
         let algo_result = create_algo_result_u64();
-        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(10u64))));
-        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(30u64))));
-        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(20u64))));
+        let v_a = algo_result.graph.vertex("A".to_string()).unwrap();
+        let v_b = algo_result.graph.vertex("B".to_string()).unwrap();
+        let v_c = algo_result.graph.vertex("C".to_string()).unwrap();
+        assert_eq!(algo_result.min(), Some((v_a.clone(), Some(10u64))));
+        assert_eq!(algo_result.max(), Some((v_c.clone(), Some(30u64))));
+        assert_eq!(algo_result.median(), Some((v_b.clone(), Some(20u64))));
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.min(), Some(("A".to_string(), Some(10.0))));
-        assert_eq!(algo_result.max(), Some(("C".to_string(), Some(30.0))));
-        assert_eq!(algo_result.median(), Some(("B".to_string(), Some(20.0))));
+        assert_eq!(algo_result.min(), Some((v_a, Some(10.0))));
+        assert_eq!(algo_result.max(), Some((v_c, Some(30.0))));
+        assert_eq!(algo_result.median(), Some((v_b, Some(20.0))));
     }
 
     #[test]
@@ -539,46 +540,54 @@ mod algorithm_result_test {
     fn test_sort() {
         let algo_result = create_algo_result_u64();
         let sorted = algo_result.sort_by_value(true);
-        assert_eq!(sorted[0].0, "C");
+        let v_c = algo_result.graph.vertex("C").unwrap();
+        let v_d = algo_result.graph.vertex("D").unwrap();
+        let v_a = algo_result.graph.vertex("A").unwrap();
+        assert_eq!(sorted[0].0, v_c.clone());
         let sorted = algo_result.sort_by_value(false);
-        assert_eq!(sorted[0].0, "D");
+        assert_eq!(sorted[0].0, v_d.clone());
 
         let algo_result = create_algo_result_f64();
         let sorted = algo_result.sort_by_value(true);
-        assert_eq!(sorted[0].0, "C");
+        assert_eq!(sorted[0].0, v_c.clone());
         let sorted = algo_result.sort_by_value(false);
-        assert_eq!(sorted[0].0, "D");
-        assert_eq!(sorted[1].0, "A");
+        assert_eq!(sorted[0].0, v_d);
+        assert_eq!(sorted[1].0, v_a);
 
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
+        assert_eq!(algo_result.sort_by_value(true)[0].0, v_c.clone());
 
         let algo_result = create_algo_result_hashmap_vec();
-        assert_eq!(algo_result.sort_by_value(true)[0].0, "C");
+        assert_eq!(algo_result.sort_by_value(true)[0].0, v_c);
     }
 
     #[test]
     fn test_top_k() {
         let algo_result = create_algo_result_u64();
+        let v_c = algo_result.graph.vertex("C").unwrap();
+        let v_d = algo_result.graph.vertex("D").unwrap();
+        let v_a = algo_result.graph.vertex("A").unwrap();
+        let v_b = algo_result.graph.vertex("B").unwrap();
+
         let top_k = algo_result.top_k(2, false, false);
-        assert_eq!(top_k[0].0, "D");
+        assert_eq!(top_k[0].0, v_d.clone());
         let top_k = algo_result.top_k(2, false, true);
-        assert_eq!(top_k[0].0, "C");
+        assert_eq!(top_k[0].0, v_c.clone());
 
         let algo_result = create_algo_result_f64();
         let top_k = algo_result.top_k(2, false, false);
-        assert_eq!(top_k[0].0, "D");
-        assert_eq!(top_k[1].0, "A");
+        assert_eq!(top_k[0].0, v_d.clone());
+        assert_eq!(top_k[1].0, v_a.clone());
         let top_k = algo_result.top_k(2, false, true);
-        assert_eq!(top_k[0].0, "C");
+        assert_eq!(top_k[0].0, v_c);
 
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.top_k(2, false, false)[0].0, "D");
-        assert_eq!(algo_result.top_k(2, false, false)[1].0, "A");
+        assert_eq!(algo_result.top_k(2, false, false)[0].0, v_d.clone());
+        assert_eq!(algo_result.top_k(2, false, false)[1].0, v_a);
 
         let algo_result = create_algo_result_hashmap_vec();
-        assert_eq!(algo_result.top_k(2, false, false)[0].0, "D");
-        assert_eq!(algo_result.top_k(2, false, false)[1].0, "B");
+        assert_eq!(algo_result.top_k(2, false, false)[0].0, v_d);
+        assert_eq!(algo_result.top_k(2, false, false)[1].0, v_b);
     }
 
     #[test]
