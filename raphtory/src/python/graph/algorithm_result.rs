@@ -166,10 +166,9 @@ macro_rules! py_algorithm_result_partial_ord {
             /// value by the vertex name in either ascending or descending order.
             ///
             /// Arguments:
-            ///
-            ///      reverse: A boolean value indicating whether the sorting should be done in reverse order or not.
-            /// If reverse is true, the sorting will be done in descending order, otherwise it will be done in
-            /// ascending order.
+            ///     reverse (bool): A boolean value indicating whether the sorting should be done in reverse order or not.
+            ///     If reverse is true, the sorting will be done in descending order, otherwise it will be done in
+            ///     ascending order.
             ///
             /// Returns:
             ///     The function sort_by_vertex_name returns a vector of tuples. Each tuple contains a Vertex and value
