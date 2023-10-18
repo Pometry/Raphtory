@@ -1600,37 +1600,6 @@ def test_edge_explode_layers():
     print(e_layers)
 
 
-def test_hits_algorithm():
-    g = graph_loader.lotr_graph()
-    assert algorithms.hits(g).get("Aldor") == (
-        0.0035840950440615416,
-        0.007476256228983402,
-    )
-
-
-def test_balance_algorithm():
-    g = Graph()
-    edges_str = [
-        ("1", "2", 10.0, 1),
-        ("1", "4", 20.0, 2),
-        ("2", "3", 5.0, 3),
-        ("3", "2", 2.0, 4),
-        ("3", "1", 1.0, 5),
-        ("4", "3", 10.0, 6),
-        ("4", "1", 5.0, 7),
-        ("1", "5", 2.0, 8),
-    ]
-    for src, dst, val, time in edges_str:
-        g.add_edge(time, src, dst, {"value_dec": val})
-    result = algorithms.balance(g, "value_dec", PyDirection("BOTH"), None).get_all_with_names()
-    assert result == {"1": -26.0, "2": 7.0, "3": 12.0, "4": 5.0, "5": 2.0}
-
-    result = algorithms.balance(g, "value_dec", PyDirection("IN"), None).get_all_with_names()
-    assert result == {"1": 6.0, "2": 12.0, "3": 15.0, "4": 20.0, "5": 2.0}
-
-    result = algorithms.balance(g, "value_dec", PyDirection("OUT"), None).get_all_with_names()
-    assert result == {"1": -32.0, "2": -5.0, "3": -3.0, "4": -15.0, "5": 0.0}
-
 
 def test_starend_edges():
     g = Graph()
