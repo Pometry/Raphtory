@@ -55,7 +55,6 @@ def test_algo_result():
         (g.vertex("8"), 1),
     ]
     assert actual.sort_by_vertex_name(False) == expected_array
-    assert actual.sort_by_key(reverse=False) == expected_array
     assert sorted(actual.top_k(8)) == expected_array
     assert len(actual.group_by()[1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame

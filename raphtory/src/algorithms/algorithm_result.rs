@@ -136,6 +136,10 @@ where
             .collect()
     }
 
+    /// Returns a `HashMap` containing `VertexView<G>` keys and `Option<V>` values.
+    ///
+    /// Returns:
+    ///     a `HashMap` containing `VertexView<G>` keys and `Option<V>` values.
     pub fn get_all(&self) -> HashMap<VertexView<G>, Option<V>> {
         self.graph
             .vertices()
@@ -159,6 +163,18 @@ where
         sorted
     }
 
+    /// Sorts a collection of vertex views by their names in either ascending or descending order.
+    ///
+    /// Arguments:
+    ///
+    /// * `reverse`: A boolean value indicating whether the sorting should be in reverse order or not. If
+    /// `reverse` is `true`, the sorting will be in reverse order (descending), otherwise it will be in
+    /// ascending order.
+    ///
+    /// Returns:
+    ///
+    /// The function `sort_by_vertex_name` returns a vector of tuples, where each tuple contains a
+    /// `VertexView<G>` and an optional `V` value.
     pub fn sort_by_vertex_name(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
         let mut sorted: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| {
@@ -171,6 +187,12 @@ where
         sorted
     }
 
+    /// The `iter` function returns an iterator over the elements of the `result` field.
+    ///
+    /// Returns:
+    ///
+    /// The `iter` method returns an iterator over the elements of the `result` field of the struct. The
+    /// iterator yields references to tuples containing a `usize` key and a `V` value.
     pub fn iter(&self) -> Iter<'_, usize, V> {
         self.result.iter()
     }
@@ -632,7 +654,7 @@ mod algorithm_result_test {
     }
 
     #[test]
-    fn test_sort_by_key() {
+    fn test_sort_by_vertex() {
         let algo_result = create_algo_result_u64();
         let v_c = algo_result.graph.vertex("C").unwrap();
         let v_d = algo_result.graph.vertex("D").unwrap();

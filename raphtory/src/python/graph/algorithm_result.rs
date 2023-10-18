@@ -57,6 +57,12 @@ macro_rules! py_algorithm_result_base {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustOrderedValue:ty) => {
         #[pymethods]
         impl $objectName {
+            
+            
+            /// Returns a Dict containing all the vertices (as keys) and their corresponding values (values) or none.
+            /// 
+            /// Returns:
+            ///     A dict of vertices and their values
             fn get_all(
                 &self,
             ) -> std::collections::HashMap<
@@ -66,7 +72,7 @@ macro_rules! py_algorithm_result_base {
                 self.0.get_all()
             }
 
-            /// Returns a reference to the entire `result` hashmap.
+            /// Returns a a list of all values
             fn get_all_values(&self) -> std::vec::Vec<$rustValue> {
                 self.0.get_all_values().clone()
             }
@@ -158,24 +164,18 @@ macro_rules! py_algorithm_result_partial_ord {
                 self.0.sort_by_value(reverse)
             }
 
-            /// Sorts the `AlgorithmResult` by its keys in ascending or descending order.
+            /// The function `sort_by_vertex_name` sorts a vector of tuples containing a vertex and an optional
+            /// value by the vertex name in either ascending or descending order.
             ///
             /// Arguments:
-            ///     reverse (bool): If `true`, sorts the result in descending order; otherwise, sorts in ascending order.
+            ///
+            ///     `reverse`: A boolean value indicating whether the sorting should be done in reverse order or not.
+            /// If `reverse` is `true`, the sorting will be done in descending order, otherwise it will be done in
+            /// ascending order.
             ///
             /// Returns:
-            ///     A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-            #[pyo3(signature = (reverse=true))]
-            fn sort_by_key(
-                &self,
-                reverse: bool,
-            ) -> std::vec::Vec<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
-                Option<$rustValue>,
-            )> {
-                self.0.sort_by_vertex_name(reverse)
-            }
-
+            ///     The function `sort_by_vertex_name` returns a vector of tuples. Each tuple contains a `VertexView`
+            ///     object from the `::db::graph::vertex` module and an optional `` object.
             #[pyo3(signature = (reverse=true))]
             fn sort_by_vertex_name(
                 &self,
