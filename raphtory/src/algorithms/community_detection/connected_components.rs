@@ -27,8 +27,8 @@ struct WccState {
 ///
 /// * `g` - A reference to the graph
 /// * `iter_count` - The number of iterations to run
-/// * `threads` - Number of threads to use 
-/// 
+/// * `threads` - Number of threads to use
+///
 /// Returns:
 ///
 /// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component

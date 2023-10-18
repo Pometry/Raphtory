@@ -438,11 +438,13 @@ impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> 
 #[cfg(test)]
 mod algorithm_result_test {
     use super::*;
-    use crate::prelude::*;
     use crate::{
         algorithms::community_detection::connected_components::weakly_connected_components,
-        db::{api::mutation::AdditionOps, api::view::GraphViewOps, graph::graph::Graph},
-        prelude::NO_PROPS,
+        db::{
+            api::{mutation::AdditionOps, view::GraphViewOps},
+            graph::graph::Graph,
+        },
+        prelude::{NO_PROPS, *},
     };
     use ordered_float::OrderedFloat;
 
@@ -741,7 +743,7 @@ mod algorithm_result_test {
             .expect("Unable to add edge");
         let g_layer = g.layer(vec!["ZERO-TWO"]).unwrap();
         let res_window = weakly_connected_components(&g_layer, 20, None);
-        let mut expected_result: HashMap<String, Option<u64>>  = HashMap::new();
+        let mut expected_result: HashMap<String, Option<u64>> = HashMap::new();
         expected_result.insert("8".to_string(), Some(8));
         expected_result.insert("1".to_string(), Some(1));
         expected_result.insert("3".to_string(), Some(1));
