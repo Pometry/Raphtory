@@ -95,12 +95,11 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
     }
 
     pub(crate) fn load_chunks(&self) -> impl Iterator<Item = LoadChunk> + '_ {
-        self.parquet_files
-            .iter()
-            .flat_map(|path| {
-                read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None).expect( "failed to load chunks from path")
-            })
-            // .flatten()
+        self.parquet_files.iter().flat_map(|path| {
+            read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None)
+                .expect("failed to load chunks from path")
+        })
+        // .flatten()
     }
 }
 
@@ -386,4 +385,34 @@ pub(crate) fn make_global_ordering<'a, GO: GlobalOrder + Default, P: AsRef<Path>
     );
 
     Ok(go)
+}
+
+#[cfg(test)]
+mod test {
+    use crate::arrow::GID;
+
+    use super::read_file_chunks;
+
+    // #[test]
+    // fn strange_parquet_ordering() {
+    //     let mut actual = vec![];
+    //     let chunks = read_file_chunks("/mnt/work/pometry/v1_parquet_day85_sorted/part-00001-c9d6c8e8-a3d3-429f-b97a-711c70c23b6e-c000.snappy.parquet", "src", "dst", "epoch_time", None).unwrap();
+    //     // let chunks = read_file_chunks("/mnt/work/pometry/v1_parquet_day85_sorted_again/v1_parquet_day85_sorted_again.parquet", "src", "dst", "epoch_time", None).unwrap();
+    //     for (id, chunk) in chunks.enumerate() {
+    //         let mut edge = None;
+    //         for (src, dst) in chunk.sources().unwrap().zip(chunk.destinations().unwrap()) {
+    //             if let Some((prev_src, prev_dst)) = &mut edge {
+    //                 if &src != prev_src && &dst != prev_dst {
+    //                     if src == GID::Str("Comp572075".to_owned()) || src == GID::Str("Comp713371".to_owned()) {
+    //                         actual.push(src.clone());
+    //                         println!("{id} src: {:?}, dst: {:?}", src, dst);
+    //                     }
+    //                 }
+    //             }
+    //             edge = Some((src, dst));
+    //         }
+    //     }
+
+    //     assert_eq!(actual, vec![GID::Str("Comp713371".to_owned()), GID::Str("Comp572075".to_owned())]);
+    // }
 }

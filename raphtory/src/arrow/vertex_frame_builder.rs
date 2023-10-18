@@ -109,6 +109,11 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             if not_same_source {
                 // new source or first edge
                 self.last_src_idx = self.find_or_push_vertex(&src);
+                // figure out what chunk are we in
+
+                let chunk_id = self.last_src_idx / self.chunk_size;
+                println!("chunk_id: {} actual_chunks_len: {} for vertex gid: {:?} vid: {}", chunk_id, self.adj_out_chunks.len(), src, self.last_src_idx);
+
                 self.extend_empty(self.last_src_idx)?;
             }
             self.adj_out_eid.push(self.e_id);

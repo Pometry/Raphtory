@@ -349,7 +349,59 @@ impl TempColGraphFragment {
             }
         }
     }
-    
+
+    pub fn edges_par_iter(
+        &self,
+        vertex_id: VID,
+        dir: Direction,
+    ) -> Option<impl ParallelIterator<Item = (EID, VID)> + '_> {
+        let (v_slice, edge_slice) = match dir {
+            Direction::OUT => {
+                let out_slice = self.out_slice(vertex_id)?;
+                let edge_out_slice = self.out_edges(vertex_id)?;
+                (out_slice, edge_out_slice)
+            }
+            Direction::IN => {
+                let in_slice = self.in_slice(vertex_id)?;
+                let edge_in_slice = self.in_edges(vertex_id)?;
+                (in_slice, edge_in_slice)
+            }
+            Direction::BOTH => panic!("No parallel iterators for both directions"),
+        };
+        Some(
+            edge_slice
+                .par_iter()
+                .map(|e| EID(*e as usize))
+                .zip(v_slice.par_iter().map(|v| VID(*v as usize))),
+        )
+    }
+
+    pub fn edges_iter(
+        &self,
+        vertex_id: VID,
+        dir: Direction,
+    ) -> Option<impl Iterator<Item = (EID, VID)> + Send + '_> {
+        let (v_slice, edge_slice) = match dir {
+            Direction::OUT => {
+                let out_slice = self.out_slice(vertex_id)?;
+                let edge_out_slice = self.out_edges(vertex_id)?;
+                (out_slice, edge_out_slice)
+            }
+            Direction::IN => {
+                let in_slice = self.in_slice(vertex_id)?;
+                let edge_in_slice = self.in_edges(vertex_id)?;
+                (in_slice, edge_in_slice)
+            }
+            Direction::BOTH => panic!("No parallel iterators for both directions"),
+        };
+        Some(
+            edge_slice
+                .iter()
+                .map(|e| EID(*e as usize))
+                .zip(v_slice.iter().map(|v| VID(*v as usize))),
+        )
+    }
+
     pub fn edge(&self, e_id: EID) -> Edge<'_> {
         let chunk_idx = e_id.0 / self.edge_chunk_size;
         let idx = e_id.0 % self.edge_chunk_size;
@@ -415,26 +467,50 @@ impl TempColGraphFragment {
     }
 
     pub(crate) fn out_slice(&self, vertex_id: VID) -> Option<&[u64]> {
+        self.v_slice(vertex_id, Direction::OUT)
+    }
+
+    pub(crate) fn in_slice(&self, vertex_id: VID) -> Option<&[u64]> {
+        self.v_slice(vertex_id, Direction::IN)
+    }
+
+    fn v_slice(&self, vertex_id: VID, dir: Direction) -> Option<&[u64]> {
         let vertex_id: usize = vertex_id.into();
         let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
 
         let chunk_idx = vertex_id / chunk_size;
         let idx = vertex_id % chunk_size;
 
-        let chunks = self.outbound();
+        let chunks = match dir {
+            Direction::OUT => self.outbound(),
+            Direction::IN => self.inbound(),
+            Direction::BOTH => panic!("no slice for both directions"),
+        };
         let neighbours = chunks[chunk_idx].neighbours_col()?;
         Some(neighbours.into_value(idx))
     }
 
-    pub(crate) fn in_slice(&self, vertex_id: VID) -> Option<&[u64]> {
+    pub(crate) fn out_edges(&self, vertex_id: VID) -> Option<&[u64]> {
+        self.e_slice(vertex_id, Direction::OUT)
+    }
+
+    pub(crate) fn in_edges(&self, vertex_id: VID) -> Option<&[u64]> {
+        self.e_slice(vertex_id, Direction::IN)
+    }
+
+    fn e_slice(&self, vertex_id: VID, dir: Direction) -> Option<&[u64]> {
         let vertex_id: usize = vertex_id.into();
         let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
 
         let chunk_idx = vertex_id / chunk_size;
         let idx = vertex_id % chunk_size;
 
-        let chunks = self.inbound();
-        let neighbours = chunks[chunk_idx].neighbours_col()?;
+        let chunks = match dir {
+            Direction::OUT => self.outbound(),
+            Direction::IN => self.inbound(),
+            Direction::BOTH => panic!("no slice for both directions"),
+        };
+        let neighbours = chunks[chunk_idx].edge_col()?;
         Some(neighbours.into_value(idx))
     }
 
@@ -510,7 +586,10 @@ impl TempColGraphFragment {
         Ok(())
     }
 
-    fn write_inb_chunk_to_disk(&mut self, builder: MutableListArray<i64, MutableStructArray>) -> Result<(), Error>{
+    fn write_inb_chunk_to_disk(
+        &mut self,
+        builder: MutableListArray<i64, MutableStructArray>,
+    ) -> Result<(), Error> {
         let res: ListArray<i64> = builder.into();
         let dtype = res.data_type().clone();
         let schema = Schema::from(vec![Field::new("adj_in", dtype, false)]);

@@ -97,7 +97,7 @@ fn main() {
             &time_col,
             vertex_chunk_size,
             edge_chunk_size,
-            edge_max_list_size,
+            usize::MAX,
             graph_dir,
         )
         .expect("failed to load graph")

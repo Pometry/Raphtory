@@ -1,10 +1,11 @@
-use crate::core::entities::VID;
 use arrow2::{
     array::{Array, ListArray},
     buffer::Buffer,
     chunk::Chunk,
     types::NativeType,
 };
+
+use rayon::prelude::*;
 
 use super::list_buffer::ListColumn;
 
@@ -56,5 +57,9 @@ impl<T: NativeType> RowOwned<T> {
 
     pub(crate) fn into_iter(self) -> impl Iterator<Item = T> {
         self.0.into_iter()
+    }
+
+    pub(crate) fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = &T> + '_ {
+        self.0.par_iter()
     }
 }
