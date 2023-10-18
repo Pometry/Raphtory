@@ -57,10 +57,8 @@ macro_rules! py_algorithm_result_base {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustOrderedValue:ty) => {
         #[pymethods]
         impl $objectName {
-            
-            
             /// Returns a Dict containing all the vertices (as keys) and their corresponding values (values) or none.
-            /// 
+            ///
             /// Returns:
             ///     A dict of vertices and their values
             fn get_all(
