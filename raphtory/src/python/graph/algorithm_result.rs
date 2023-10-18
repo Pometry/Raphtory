@@ -167,13 +167,12 @@ macro_rules! py_algorithm_result_partial_ord {
             ///
             /// Arguments:
             ///
-            ///     `reverse`: A boolean value indicating whether the sorting should be done in reverse order or not.
-            /// If `reverse` is `true`, the sorting will be done in descending order, otherwise it will be done in
+            ///      reverse: A boolean value indicating whether the sorting should be done in reverse order or not.
+            /// If reverse is true, the sorting will be done in descending order, otherwise it will be done in
             /// ascending order.
             ///
             /// Returns:
-            ///     The function `sort_by_vertex_name` returns a vector of tuples. Each tuple contains a `VertexView`
-            ///     object from the `::db::graph::vertex` module and an optional `` object.
+            ///     The function sort_by_vertex_name returns a vector of tuples. Each tuple contains a Vertex and value
             #[pyo3(signature = (reverse=true))]
             fn sort_by_vertex_name(
                 &self,
