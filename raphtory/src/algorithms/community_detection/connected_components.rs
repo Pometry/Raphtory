@@ -26,9 +26,9 @@ struct WccState {
 /// # Arguments
 ///
 /// * `g` - A reference to the graph
-/// * `window` - A range indicating the temporal window to consider
 /// * `iter_count` - The number of iterations to run
-///
+/// * `threads` - Number of threads to use 
+/// 
 /// Returns:
 ///
 /// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component
@@ -42,7 +42,6 @@ where
     G: GraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
-
     let step1 = ATask::new(move |vv| {
         let min_neighbour_id = vv.neighbours().id().min();
         let id = vv.id();
@@ -77,8 +76,8 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local| {
-            let layers = graph.layer_ids();
+        |_, _, _, local: Vec<WccState>| {
+            let layers: crate::core::entities::LayerIds = graph.layer_ids();
             let edge_filter = graph.edge_filter();
             local
                 .iter()

@@ -438,12 +438,13 @@ impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> 
 #[cfg(test)]
 mod algorithm_result_test {
     use super::*;
+    use crate::prelude::*;
     use crate::{
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        algorithms::community_detection::connected_components::weakly_connected_components,
+        db::{api::mutation::AdditionOps, api::view::GraphViewOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
     use ordered_float::OrderedFloat;
-    use std::collections::HashMap;
 
     fn create_algo_result_u64() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
@@ -723,5 +724,33 @@ mod algorithm_result_test {
         let gotten_all = algo_result.get_all();
         let names: Vec<String> = gotten_all.keys().map(|vv| vv.name()).collect();
         println!("{:?}", names)
+    }
+
+    #[test]
+    fn test_windowed_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("ZERO-TWO"))
+            .expect("Unable to add edge");
+        g.add_edge(1, 1, 3, NO_PROPS, Some("ZERO-TWO"))
+            .expect("Unable to add edge");
+        g.add_edge(2, 4, 5, NO_PROPS, Some("ZERO-TWO"))
+            .expect("Unable to add edge");
+        g.add_edge(3, 6, 7, NO_PROPS, Some("THREE-FIVE"))
+            .expect("Unable to add edge");
+        g.add_edge(4, 8, 9, NO_PROPS, Some("THREE-FIVE"))
+            .expect("Unable to add edge");
+        let g_layer = g.layer(vec!["ZERO-TWO"]).unwrap();
+        let res_window = weakly_connected_components(&g_layer, 20, None);
+        let mut expected_result: HashMap<String, Option<u64>>  = HashMap::new();
+        expected_result.insert("8".to_string(), Some(8));
+        expected_result.insert("1".to_string(), Some(1));
+        expected_result.insert("3".to_string(), Some(1));
+        expected_result.insert("2".to_string(), Some(1));
+        expected_result.insert("5".to_string(), Some(4));
+        expected_result.insert("6".to_string(), Some(6));
+        expected_result.insert("7".to_string(), Some(7));
+        expected_result.insert("4".to_string(), Some(4));
+        expected_result.insert("9".to_string(), Some(9));
+        assert_eq!(res_window.get_all_with_names(), expected_result);
     }
 }
