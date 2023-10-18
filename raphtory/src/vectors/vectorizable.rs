@@ -81,8 +81,8 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         let node_docs = self
             .vertices()
             .iter()
-            .map(|vertex| vertex.generate_doc(&node_template));
-        let edge_docs = self.edges().map(|edge| edge.generate_doc(&edge_template));
+            .map(|vertex| vertex.generate_docs(&node_template));
+        let edge_docs = self.edges().map(|edge| edge.generate_docs(&edge_template));
 
         let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
         let edge_embeddings = generate_embeddings(edge_docs, &embedding, cache_dir).await;

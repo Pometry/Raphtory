@@ -134,7 +134,7 @@ mod vector_tests {
         let doc = g
             .vertex("Frodo")
             .unwrap()
-            .generate_doc(&node_template)
+            .generate_docs(&node_template)
             .content;
         let expected_doc = r###"Frodo is a hobbit with the following details:
 earliest activity: line 0
@@ -152,7 +152,7 @@ age: 30"###;
         let doc = g
             .edge("Frodo", "Gandalf")
             .unwrap()
-            .generate_doc(&edge_template)
+            .generate_docs(&edge_template)
             .content;
         let expected_doc = "Frodo appeared with Gandalf in lines: 0";
         assert_eq!(doc, expected_doc);

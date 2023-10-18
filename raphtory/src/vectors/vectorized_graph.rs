@@ -162,7 +162,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
                         .graph
                         .vertex(*id)
                         .unwrap()
-                        .generate_doc(&self.node_template)
+                        .generate_docs(&self.node_template)
                         .content,
                 },
                 EntityId::Edge { src, dst } => Document::Edge {
@@ -172,7 +172,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
                         .graph
                         .edge(*src, *dst)
                         .unwrap()
-                        .generate_doc(&self.edge_template)
+                        .generate_docs(&self.edge_template)
                         .content,
                 },
             })
