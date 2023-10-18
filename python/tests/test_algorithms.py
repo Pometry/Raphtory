@@ -36,6 +36,44 @@ def test_empty_algo():
     assert algorithms.pagerank(g, 20).get_all_with_names() == {}
 
 
+def test_algo_result_windowed_graph():
+    g = Graph()
+    g.add_edge(0, 1, 2, {})
+    g.add_edge(1, 1, 2, {})
+    g.add_edge(2, 3, 4, {})
+    g.add_edge(3, 5, 6, {})
+    g.add_edge(10, 10, 11, {})
+
+    res_full_graph = algorithms.weakly_connected_components(g, 20)
+    assert sorted(res_full_graph.get_all_with_names().items()) == [('1', 1), ('10', 10), ('11', 10), ('2', 1), ('3', 3), ('4', 3), ('5', 5), ('6', 5)]
+
+    g_window = g.window(0, 2)
+    res_window = algorithms.weakly_connected_components(g_window, 20) 
+    assert sorted(res_window.get_all_with_names().items()) == [('1', 1), ('2', 1)]
+
+    g_window = g.window(2, 3)
+    res_window = algorithms.weakly_connected_components(g_window, 20) 
+    assert sorted(res_window.get_all_with_names().items()) == [('3', 3), ('4', 3)]
+
+
+# def test_algo_result_layered_graph():
+#     g = Graph()
+#     g.add_edge(0, 1, 2, {}, layer="ZERO-TWO")
+#     g.add_edge(1, 1, 3, {}, layer="ZERO-TWO")
+#     g.add_edge(2, 4, 5, {}, layer="ZERO-TWO")
+#     g.add_edge(3, 6, 7, {}, layer="THREE-FIVE")
+#     g.add_edge(4, 8, 9, {}, layer="THREE-FIVE")
+
+#     g_layer_zero_two = g.layer("ZERO-TWO")
+#     g_layer_three_five = g.layer("THREE-FIVE")
+
+#     res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20) 
+#     assert sorted(res_zero_two.get_all_with_names().items()) == [('1', 1), ('2', 1), ('4', 4), ('5', 4)]
+
+#     res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20) 
+#     assert sorted(res_three_five.get_all_with_names().items()) == [('3', 3), ('4', 3)]
+
+
 def test_algo_result():
     g = gen_graph()
 
