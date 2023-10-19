@@ -35,9 +35,12 @@ struct OutState {
 ///
 /// An AlgorithmResult containing the mapping from vertex to a vector of vertex ids (the nodes out component)
 ///
-pub fn out_components<G>(graph: &G, threads: Option<usize>) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
-    where
-        G: GraphViewOps,
+pub fn out_components<G>(
+    graph: &G,
+    threads: Option<usize>,
+) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
+where
+    G: GraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
@@ -119,11 +122,11 @@ mod components_test {
         }
         let results = out_components(&graph, None).get_all_with_names();
         let mut correct = HashMap::new();
-        correct.insert("1".to_string(), Some(vec![2,3,4,5,6,7,8]));
-        correct.insert("2".to_string(), Some(vec![4,5,6,7,8]));
+        correct.insert("1".to_string(), Some(vec![2, 3, 4, 5, 6, 7, 8]));
+        correct.insert("2".to_string(), Some(vec![4, 5, 6, 7, 8]));
         correct.insert("3".to_string(), Some(vec![]));
-        correct.insert("4".to_string(), Some(vec![6,7]));
-        correct.insert("5".to_string(), Some(vec![4,6,7,8]));
+        correct.insert("4".to_string(), Some(vec![6, 7]));
+        correct.insert("5".to_string(), Some(vec![4, 6, 7, 8]));
         correct.insert("6".to_string(), Some(vec![]));
         correct.insert("7".to_string(), Some(vec![]));
         correct.insert("8".to_string(), Some(vec![]));
