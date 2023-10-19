@@ -289,7 +289,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         let mut final_cts = Vec::new();
         final_cts.extend(stars.into_iter());
         final_cts.extend(two_nodes.into_iter());
-        final_cts.extend(counts.get(v.clone().into()).unwrap().into_iter());
+        final_cts.extend(counts.get(v.clone()).unwrap().into_iter());
         counts.result.insert(v.vertex.0, final_cts);
     }
 
@@ -462,10 +462,7 @@ mod local_motif_test {
             ),
         ]);
         for ind in 1..12 {
-            assert_eq!(
-                counts_result.get(ind.into()).unwrap(),
-                expected.get(&ind).unwrap()
-            )
+            assert_eq!(counts_result.get(ind).unwrap(), expected.get(&ind).unwrap())
         }
         // print!("{:?}", global_counts);
     }
