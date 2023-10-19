@@ -14,6 +14,7 @@ use crate::{
         },
         community_detection::connected_components,
         community_detection::in_components as in_comp,
+        community_detection::out_components as out_comp,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -94,6 +95,19 @@ pub fn weakly_connected_components(
 #[pyo3(signature = (g))]
 pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
     in_comp::in_components(&g.graph, None)
+}
+
+/// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
+///
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///
+/// Returns:
+///     AlgorithmResult : AlgorithmResult object mapping each vertex to an array containing the ids of all vertices within their 'out-component'
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
+    out_comp::out_components(&g.graph, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph

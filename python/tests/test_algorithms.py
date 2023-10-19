@@ -37,6 +37,14 @@ def test_in_components():
     expected = {"1": [], "2": [1], "3": [1], "4": [1,2,5], "5": [1,2,5], "6": [1,2,4,5], "7": [1,2,4,5], "8": [1,2,5]}
     assert actual == expected
 
+def test_out_components():
+    g = gen_graph()
+    actual = algorithms.out_components(g).get_all_with_names()
+    for key in actual:
+        actual[key].sort()
+    expected = {"1": [2,3,4,5,6,7,8], "2": [4,5,6,7,8], "3": [], "4": [6,7], "5": [4,5,6,7,8], "6": [], "7": [], "8": []}
+    assert actual == expected
+
 
 def test_empty_algo():
     g = Graph()
