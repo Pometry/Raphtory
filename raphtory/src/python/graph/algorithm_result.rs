@@ -301,12 +301,16 @@ py_algorithm_result!(
     Vec<usize>,
     Vec<usize>
 );
+
 py_algorithm_result_new_ord_hash_eq!(
     AlgorithmResultU64VecUsize,
     DynamicGraph,
     Vec<usize>,
     Vec<usize>
 );
+
+py_algorithm_result!(AlgorithmResultU64VecU64, DynamicGraph, Vec<u64>, Vec<u64>);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultU64VecU64, DynamicGraph, Vec<u64>, Vec<u64>);
 
 py_algorithm_result!(
     AlgorithmResultStrVecStr,
