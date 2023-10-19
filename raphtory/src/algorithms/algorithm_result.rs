@@ -121,19 +121,6 @@ where
         }
     }
 
-    /// Returns the value corresponding to the provided key in the `result` hashmap.
-    ///
-    /// Arguments:
-    ///     `key`: The key of type `H` for which the value is to be retrieved.
-    pub fn get_old(&self, v_ref: VertexRef) -> Option<&V> {
-        if self.graph.has_vertex(v_ref) {
-            let internal_id = self.graph.vertex(v_ref).unwrap().vertex.0;
-            self.result.get(&internal_id)
-        } else {
-            None
-        }
-    }
-
     /// Returns a hashmap with vertex names and values
     ///
     /// Returns:
