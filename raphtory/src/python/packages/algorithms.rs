@@ -424,7 +424,7 @@ pub fn balance(
 
 #[pyfunction]
 #[pyo3[signature = (g, no_time=false, threads=None)]]
-pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
+pub fn one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
     netflow_one_path_vertex_rs(&g.graph, no_time, threads)
 }
 

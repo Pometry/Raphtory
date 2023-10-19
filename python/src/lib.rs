@@ -97,7 +97,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_submodule(algorithm_module)?;
 
     let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
-    add_functions!(usecase_algorithm_module, netflow_one_path_vertex,);
+    add_functions!(usecase_algorithm_module, one_path_vertex);
     m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER
