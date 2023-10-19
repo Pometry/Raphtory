@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697726013140,
+  "lastUpdate": 1697728923672,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -22873,6 +22873,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 160033,
             "range": "± 75",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e16ce8c61a6d89064c395c341c1eff2612e8ad26",
+          "message": "move usecase to main package (#1342)\n\n* move usecase to mian package\r\n\r\n* algo result, one path vertex",
+          "timestamp": "2023-10-19T16:15:30+01:00",
+          "tree_id": "e53c90cd6de4c737c870d6d10b1cc63f3ee78ee4",
+          "url": "https://github.com/Pometry/Raphtory/commit/e16ce8c61a6d89064c395c341c1eff2612e8ad26"
+        },
+        "date": 1697728921842,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 465696,
+            "range": "± 44062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 538459,
+            "range": "± 28425",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 595137,
+            "range": "± 23639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 1085746,
+            "range": "± 183924",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1524881,
+            "range": "± 175123",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 5,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 96,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 95,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_vertices",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_existing",
+            "value": 29,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_nonexisting",
+            "value": 28,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 6114,
+            "range": "± 237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 44208,
+            "range": "± 1963",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 31498,
+            "range": "± 2081",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 125,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 96,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_vertices",
+            "value": 7635,
+            "range": "± 153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_existing",
+            "value": 85,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "value": 28,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 18859,
+            "range": "± 553",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 345787,
+            "range": "± 11228",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 30890,
+            "range": "± 1053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 138,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 92,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_vertices",
+            "value": 7232,
+            "range": "± 226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_existing",
+            "value": 93,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "value": 28,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 12536,
+            "range": "± 627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 239360,
+            "range": "± 9770",
             "unit": "ns/iter"
           }
         ]
