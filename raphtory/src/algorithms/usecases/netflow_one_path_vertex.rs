@@ -37,18 +37,34 @@ fn one_path_algorithm<G: GraphViewOps, CS: ComputeState>(
     nf_e_edge_expl: EdgeView<LayeredGraph<G>>,
     no_time: bool,
 ) -> usize {
+    //     MATCH
+    //   (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
+    // WHERE A <> B AND B <> E AND A <> E
+    //   AND login1.eventID = 4624
+    //   AND prog1.eventID = 4688
+    //   AND nf1.dstBytes > 100000000
+    //   // time constraints within each path
+    //   AND login1.epochtime < prog1.epochtime
+    //   AND prog1.epochtime < nf1.epochtime
+    //   AND nf1.epochtime - login1.epochtime <= 30
+    // RETURN count(*)
+
+    // First we remove any A->A edges, no cyclces allowed
     if nf_e_edge_expl.src() == nf_e_edge_expl.dst() {
         return 0usize;
     }
+    // for the netflow B we now look for all E edges that have the dstBytes Prop
     let dst_bytes_val = nf_e_edge_expl
         .properties()
         .get("dstBytes")
         .unwrap_or(Prop::I64(0));
-
+    // For the nf1 we filter any edges from B that do not have the byte size (<=1e8)
+    // we only watch B->E edges that are >1e8
     if dst_bytes_val <= Prop::I64(100000000) {
         return 0usize;
     }
 
+    // Now we save the time of nf1
     let nf1_time = nf_e_edge_expl.time().unwrap_or_default();
     let mut time_bound = nf1_time.saturating_sub(30);
     if no_time {
