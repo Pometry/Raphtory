@@ -110,8 +110,22 @@ where
     /// Returns the value corresponding to the provided key in the `result` hashmap.
     ///
     /// Arguments:
+    ///     `key`: The key of the vertex, can be the vertex object, or namraphtory/src/algorithms/motifs/three_node_local_single_thread.rse.
+    pub fn get<T: Into<VertexRef>>(&self, name: T) -> Option<&V> {
+        let v = name.into();
+        if self.graph.has_vertex(v) {
+            let internal_id = self.graph.vertex(v).unwrap().vertex.0;
+            self.result.get(&internal_id)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the value corresponding to the provided key in the `result` hashmap.
+    ///
+    /// Arguments:
     ///     `key`: The key of type `H` for which the value is to be retrieved.
-    pub fn get(&self, v_ref: VertexRef) -> Option<&V> {
+    pub fn get_old(&self, v_ref: VertexRef) -> Option<&V> {
         if self.graph.has_vertex(v_ref) {
             let internal_id = self.graph.vertex(v_ref).unwrap().vertex.0;
             self.result.get(&internal_id)
@@ -544,19 +558,14 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let vertex_c = algo_result.graph.vertex("C").unwrap();
         let vertex_d = algo_result.graph.vertex("D").unwrap();
-        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30u64));
-        assert_eq!(algo_result.get(vertex_d.into()), None);
+        assert_eq!(algo_result.get(vertex_c.clone()), Some(&30u64));
+        assert_eq!(algo_result.get(vertex_d.clone()), None);
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.get(vertex_c.clone().into()), Some(&30.0f64));
+        assert_eq!(algo_result.get(vertex_c.clone()), Some(&30.0f64));
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.get(vertex_c.clone().into()).unwrap().0, 30.0f32);
+        assert_eq!(algo_result.get(vertex_c.clone()).unwrap().0, 30.0f32);
         let algo_result = create_algo_result_hashmap_vec();
-        let answer = algo_result
-            .get(vertex_c.clone().into())
-            .unwrap()
-            .get(0)
-            .unwrap()
-            .0;
+        let answer = algo_result.get(vertex_c.clone()).unwrap().get(0).unwrap().0;
         assert_eq!(answer, 22i32);
     }
 
