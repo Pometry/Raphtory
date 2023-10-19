@@ -44,9 +44,9 @@ impl DocumentOps for Document {
 }
 
 #[derive(Clone)]
-pub(crate) struct EntityDocument {
+pub(crate) struct EntityDocuments {
     id: EntityId,
-    content: String,
+    documents: Vec<String>,
 }
 
 pub trait EmbeddingFunction: Send + Sync {
@@ -135,7 +135,7 @@ mod vector_tests {
             .vertex("Frodo")
             .unwrap()
             .generate_docs(&node_template)
-            .content;
+            .documents;
         let expected_doc = r###"Frodo is a hobbit with the following details:
 earliest activity: line 0
 latest activity: line 0
@@ -153,7 +153,7 @@ age: 30"###;
             .edge("Frodo", "Gandalf")
             .unwrap()
             .generate_docs(&edge_template)
-            .content;
+            .documents;
         let expected_doc = "Frodo appeared with Gandalf in lines: 0";
         assert_eq!(doc, expected_doc);
     }

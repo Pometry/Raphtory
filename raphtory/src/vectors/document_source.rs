@@ -1,8 +1,9 @@
 use crate::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
-    vectors::{entity_id::EntityId, EntityDocument},
+    vectors::{entity_id::EntityId, EntityDocuments},
 };
+use itertools::Itertools;
 use regex::Regex;
 use tantivy::HasLen;
 
@@ -10,44 +11,44 @@ const DOCUMENT_MAX_SIZE: usize = 1000;
 
 pub(crate) trait DocumentSource: Sized {
     // type Output: Iterator<Item=EntityDocument>;
-    fn generate_docs<T, I>(&self, template: &T) -> Box<dyn Iterator<Item = EntityDocument>>
+    fn generate_docs<T, I>(&self, template: &T) -> EntityDocuments
     where
         T: Fn(&Self) -> I,
         I: Iterator<Item = String>;
 }
 
 impl<G: GraphViewOps> DocumentSource for VertexView<G> {
-    fn generate_docs<T, I>(&self, template: &T) -> Box<dyn Iterator<Item = EntityDocument>>
+    fn generate_docs<T, I>(&self, template: &T) -> EntityDocuments
     where
         T: Fn(&Self) -> I,
         I: Iterator<Item = String>,
     {
         let documents = template(self)
             .flat_map(|text| split_text_by_line_breaks(text, DOCUMENT_MAX_SIZE).into_iter())
-            .map(|content| EntityDocument {
-                id: EntityId::Node { id: self.id() },
-                content,
-            });
-        Box::new(documents)
+            .collect_vec();
+        EntityDocuments {
+            id: EntityId::Node { id: self.id() },
+            documents,
+        }
     }
 }
 
 impl<G: GraphViewOps> DocumentSource for EdgeView<G> {
-    fn generate_docs<T, I>(&self, template: &T) -> Box<dyn Iterator<Item = EntityDocument>>
+    fn generate_docs<T, I>(&self, template: &T) -> EntityDocuments
     where
         T: Fn(&Self) -> I,
         I: Iterator<Item = String>,
     {
         let documents = template(self)
             .flat_map(|text| split_text_by_line_breaks(text, DOCUMENT_MAX_SIZE).into_iter())
-            .map(|content| EntityDocument {
-                id: EntityId::Edge {
-                    src: self.src().id(),
-                    dst: self.dst().id(),
-                },
-                content,
-            });
-        Box::new(documents)
+            .collect_vec();
+        EntityDocuments {
+            id: EntityId::Edge {
+                src: self.src().id(),
+                dst: self.dst().id(),
+            },
+            documents,
+        }
     }
 }
 

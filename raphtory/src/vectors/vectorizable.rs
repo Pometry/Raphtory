@@ -6,7 +6,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
     vectors::{
         document_source::DocumentSource, entity_id::EntityId, graph_entity::GraphEntity,
-        vectorized_graph::VectorizedGraph, Embedding, EmbeddingFunction, EntityDocument,
+        vectorized_graph::VectorizedGraph, Embedding, EmbeddingFunction, EntityDocuments,
     },
 };
 use async_trait::async_trait;
@@ -24,10 +24,17 @@ use std::{
 
 const CHUNK_SIZE: usize = 1000;
 
+#[derive(Clone)]
+pub(crate) struct HashedEntityDocuments {
+    id: EntityId,
+    hash: u64,
+    documents: Vec<String>,
+}
+
 #[derive(Serialize, Deserialize)]
-struct EmbeddingCache {
-    doc_hash: u64,
-    embedding: Embedding,
+struct EmbeddingsCache {
+    hash: u64,
+    embeddings: Vec<Embedding>,
 }
 
 #[async_trait]
@@ -38,7 +45,7 @@ pub trait Vectorizable<G: GraphViewOps> {
         cache_dir: &Path,
     ) -> VectorizedGraph<G>;
 
-    async fn vectorize_with_templates<N, E>(
+    async fn vectorize_with_templates<N, E, I, O>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
@@ -47,8 +54,10 @@ pub trait Vectorizable<G: GraphViewOps> {
         // FIXME: I tried to put templates behind an option but didn't work and hadn't time to fix it
     ) -> VectorizedGraph<G>
     where
-        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static;
+        N: Fn(&VertexView<G>) -> I + Sync + Send + 'static,
+        E: Fn(&EdgeView<G>) -> O + Sync + Send + 'static,
+        I: Iterator<Item = String>,
+        O: Iterator<Item = String>;
 }
 
 #[async_trait]
@@ -57,7 +66,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path, // TODO: make this optional maybe
-    ) -> VectorizedGraph<G> {
+    ) -> VectorizedGraph<G, I, O> {
         let node_template = |vertex: &VertexView<G>| default_node_template(vertex);
         let edge_template = |edge: &EdgeView<G>| default_edge_template(edge);
 
@@ -65,16 +74,18 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
             .await
     }
 
-    async fn vectorize_with_templates<N, E>(
+    async fn vectorize_with_templates<N, E, I, O>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
         node_template: N,
         edge_template: E,
-    ) -> VectorizedGraph<G>
+    ) -> VectorizedGraph<G, I, O>
     where
-        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static,
+        N: Fn(&VertexView<G>) -> I + Sync + Send + 'static,
+        E: Fn(&EdgeView<G>) -> O + Sync + Send + 'static,
+        I: Iterator<Item = String>,
+        O: Iterator<Item = String>,
     {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
@@ -87,24 +98,30 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
         let edge_embeddings = generate_embeddings(edge_docs, &embedding, cache_dir).await;
 
+        let boxed_node_template: Box<
+            dyn Fn(&VertexView<G>) -> Box<dyn Iterator<Item = String>> + Send + Sync,
+        > = Box::new(|vertex| Box::new(node_template(vertex)));
+
         VectorizedGraph::new(
             self.clone(),
             embedding,
             node_embeddings,
             edge_embeddings,
-            Box::new(node_template),
+            boxed_node_template,
             Box::new(edge_template),
         )
     }
 }
 
-fn default_node_template<G: GraphViewOps>(vertex: &VertexView<G>) -> String {
+fn default_node_template<G: GraphViewOps>(vertex: &VertexView<G>) -> impl Iterator<Item = String> {
     let name = vertex.name();
     let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
-    format!("The entity {name} has the following details:\n{property_list}")
+    std::iter::once(format!(
+        "The entity {name} has the following details:\n{property_list}"
+    ))
 }
 
-fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
+fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> impl Iterator<Item = String> {
     let src = edge.src().name();
     let dst = edge.dst().name();
     // TODO: property list
@@ -121,22 +138,24 @@ fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
             layer => format!("{src} {layer} {dst} at times: {times}"),
         }
     });
-    itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect()
+    let content: String = itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect();
+    std::iter::once(content)
 }
 
 async fn generate_embeddings<I>(
     docs: I,
     embedding: &Box<dyn EmbeddingFunction>,
     cache_dir: &Path,
-) -> HashMap<EntityId, Embedding>
+) -> HashMap<EntityId, Vec<Embedding>>
 where
-    I: Iterator<Item = EntityDocument>,
+    I: Iterator<Item = EntityDocuments>,
 {
+    let docs = docs.map(|doc| hash_doc(doc));
     let mut embeddings = HashMap::new();
     let mut misses = vec![];
 
     for doc in docs {
-        match retrieve_embedding_from_cache(&doc, cache_dir) {
+        match retrieve_embeddings_from_cache(&doc, cache_dir) {
             Some(embedding) => {
                 embeddings.insert(doc.id, embedding);
             }
@@ -146,7 +165,7 @@ where
 
     let embedding_tasks = misses
         .chunks(CHUNK_SIZE)
-        .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), embedding, cache_dir));
+        .map(|chunk| compute_embeddings_updating_cache(chunk.to_vec(), embedding, cache_dir));
     let computed_embeddings = join_all(embedding_tasks).await.into_iter().flatten();
     for (id, embedding) in computed_embeddings {
         embeddings.insert(id, embedding);
@@ -155,47 +174,72 @@ where
     embeddings
 }
 
-async fn compute_embeddings_with_cache(
-    docs: Vec<EntityDocument>,
+async fn compute_embeddings_updating_cache(
+    docs: Vec<HashedEntityDocuments>,
     embedding: &Box<dyn EmbeddingFunction>,
     cache_dir: &Path,
-) -> Vec<(EntityId, Embedding)> {
-    let texts = docs.iter().map(|doc| doc.content.clone()).collect_vec();
+) -> Vec<(EntityId, Vec<Embedding>)> {
+    // TODO: to avoid cloning below, I could here save an iterator of ids, hashed an number of docs
+    let ungrouped_documents = docs.iter().flat_map(|doc| {
+        doc.documents
+            .clone()
+            .into_iter()
+            .map(|text| (doc.id.clone(), text))
+    });
+
+    let texts = ungrouped_documents.map(|(_, text)| text).collect_vec();
     let embeddings = embedding.call(texts).await;
-    docs.into_iter()
-        .zip(embeddings)
-        .map(|(doc, embedding)| {
-            let doc_hash = hash_doc(&doc); // FIXME: I'm hashing twice
-            let embedding_cache = EmbeddingCache {
-                doc_hash,
-                embedding,
-            };
-            let doc_path = cache_dir.join(doc.id.to_string());
-            let doc_file =
-                File::create(doc_path).expect("Couldn't create file to store embedding cache");
-            let mut doc_writer = BufWriter::new(doc_file);
-            bincode::serialize_into(&mut doc_writer, &embedding_cache)
-                .expect("Couldn't serialize embedding cache");
-            (doc.id, embedding_cache.embedding)
+
+    let ungrouped_document_ids = ungrouped_documents.map(|(id, _)| id);
+
+    let grouped_embeddings = ungrouped_document_ids
+        .zip(embeddings.into_iter())
+        .group_by(|(id, _)| id)
+        .into_iter()
+        .map(|(id, group)| {
+            let embeddings = group.map(|(id, embedding)| embedding).collect_vec();
+            (id, embeddings)
         })
-        .collect_vec()
+        .collect_vec();
+
+    let results_for_caching = grouped_embeddings
+        .zip(docs)
+        .map(|((id, embeddings), doc)| (id, doc.hash, embeddings));
+
+    for (id, hash, embeddings) in results_for_caching {
+        let embedding_cache = EmbeddingsCache { hash, embeddings };
+        let doc_path = cache_dir.join(id.to_string());
+        let doc_file =
+            File::create(doc_path).expect("Couldn't create file to store embedding cache");
+        let mut doc_writer = BufWriter::new(doc_file);
+        bincode::serialize_into(&mut doc_writer, &embedding_cache)
+            .expect("Couldn't serialize embedding cache");
+    }
+
+    grouped_embeddings
 }
 
-fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Option<Embedding> {
+fn retrieve_embeddings_from_cache(
+    doc: &HashedEntityDocuments,
+    cache_dir: &Path,
+) -> Option<Vec<Embedding>> {
     let doc_path = cache_dir.join(doc.id.to_string());
     let doc_file = File::open(doc_path).ok()?;
     let mut doc_reader = BufReader::new(doc_file);
-    let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
-    let doc_hash = hash_doc(doc);
-    if doc_hash == embedding_cache.doc_hash {
-        Some(embedding_cache.embedding)
+    let embedding_cache: EmbeddingsCache = bincode::deserialize_from(&mut doc_reader).ok()?;
+    if doc.hash == embedding_cache.hash {
+        Some(embedding_cache.embeddings)
     } else {
-        None
+        None // this means a cache miss
     }
 }
 
-fn hash_doc(doc: &EntityDocument) -> u64 {
+fn hash_doc(doc: EntityDocuments) -> HashedEntityDocuments {
     let mut hasher = DefaultHasher::new();
-    doc.content.hash(&mut hasher);
-    hasher.finish()
+    doc.documents.hash(&mut hasher);
+    HashedEntityDocuments {
+        id: doc.id,
+        hash: hasher.finish(),
+        documents: doc.documents,
+    }
 }

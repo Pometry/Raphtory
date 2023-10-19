@@ -12,23 +12,26 @@ use crate::{
 use itertools::{chain, Itertools};
 use std::{borrow::Borrow, collections::HashMap};
 
-pub struct VectorizedGraph<G: GraphViewOps> {
+pub struct VectorizedGraph<G: GraphViewOps, I: Iterator<Item = String>, O: Iterator<Item = String>>
+{
     graph: G,
     embedding: Box<dyn EmbeddingFunction>,
-    node_embeddings: HashMap<EntityId, Embedding>, // TODO: replace with FxHashMap
-    edge_embeddings: HashMap<EntityId, Embedding>,
-    node_template: Box<dyn Fn(&VertexView<G>) -> String + Sync + Send>,
-    edge_template: Box<dyn Fn(&EdgeView<G>) -> String + Sync + Send>,
+    node_embeddings: HashMap<EntityId, Vec<Embedding>>, // TODO: replace with FxHashMap
+    edge_embeddings: HashMap<EntityId, Vec<Embedding>>,
+    node_template: Box<dyn Fn(&VertexView<G>) -> I + Sync + Send>,
+    edge_template: Box<dyn Fn(&EdgeView<G>) -> O + Sync + Send>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
+impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item = String>>
+    VectorizedGraph<G, I, O>
+{
     pub(crate) fn new(
         graph: G,
         embedding: Box<dyn EmbeddingFunction>,
-        node_embeddings: HashMap<EntityId, Embedding>,
-        edge_embeddings: HashMap<EntityId, Embedding>,
-        node_template: Box<dyn Fn(&VertexView<G>) -> String + Sync + Send>,
-        edge_template: Box<dyn Fn(&EdgeView<G>) -> String + Sync + Send>,
+        node_embeddings: HashMap<EntityId, Vec<Embedding>>,
+        edge_embeddings: HashMap<EntityId, Vec<Embedding>>,
+        node_template: Box<dyn Fn(&VertexView<G>) -> I + Sync + Send>,
+        edge_template: Box<dyn Fn(&EdgeView<G>) -> O + Sync + Send>,
     ) -> Self {
         Self {
             graph,
@@ -163,7 +166,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
                         .vertex(*id)
                         .unwrap()
                         .generate_docs(&self.node_template)
-                        .content,
+                        .documents,
                 },
                 EntityId::Edge { src, dst } => Document::Edge {
                     src: graph.vertex(*src).unwrap().name(),
@@ -173,7 +176,7 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
                         .edge(*src, *dst)
                         .unwrap()
                         .generate_docs(&self.edge_template)
-                        .content,
+                        .documents,
                 },
             })
             .collect_vec()
