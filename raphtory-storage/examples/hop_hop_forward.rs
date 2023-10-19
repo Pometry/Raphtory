@@ -1,20 +1,15 @@
 use std::{
-    collections::BTreeMap,
     sync::atomic::{AtomicUsize, Ordering},
     time::Instant,
 };
 
-use ahash::{HashMap, HashSet};
+use ahash::HashMap;
 use itertools::Itertools;
 use raphtory::{
     arrow::{graph::TemporalGraph, loader::ExternalEdgeList, Time},
     core::{entities::VID, Direction},
 };
-use rayon::{
-    prelude::{IntoParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator},
-    slice::ParallelSlice,
-    ThreadPoolBuilder,
-};
+use rayon::{prelude::ParallelIterator, slice::ParallelSlice, ThreadPoolBuilder};
 
 fn query1(g: &TemporalGraph) -> Option<usize> {
     // layer
@@ -27,7 +22,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
 
-    let res = query1_v3_par(
+    let res = query1_v4(
         g,
         nft,
         events_2v,
@@ -39,8 +34,6 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     println!("vertex count: {:?}", g.num_vertices());
     Some(res)
 }
-
-const STOP_AT: usize = 10;
 
 fn query1_v3_par(
     g: &TemporalGraph,
@@ -82,7 +75,9 @@ fn query1_v3_par(
                                         .unwrap()
                                         .filter_map(|(v, t)| v.map(|v| (v, t)))
                                     {
-                                        if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30
+                                        if *prog1_event_id == 4688
+                                            && prog1_t < nf1_t
+                                            && nf1_t - prog1_t <= 30
                                         // AND prog1.epochtime < nf1.epochtime
                                         {
                                             g.edges_par(b, Direction::IN, events_2v).for_each(
@@ -130,7 +125,7 @@ fn query1_v4(
     event_id_prop_id_2v: usize,
 ) -> usize {
     let mut count = 0;
-    let mut dream_map: HashMap<VID, Vec<(i64, i64)>> = HashMap::default();
+    let mut dream_map: HashMap<VID, Vec<(i64, i64, VID)>> = HashMap::default();
 
     for b in g.all_vertices() {
         for (b2e, e) in g.edges(b, Direction::OUT, nft) {
@@ -153,13 +148,11 @@ fn query1_v4(
                             .unwrap()
                             .filter_map(|(v, t)| v.map(|v| (v, t)))
                         {
-                            if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30
-                            {
-                                count += 1;
+                            if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30 {
                                 dream_map
                                     .entry(b)
-                                    .and_modify(|v| v.push((*prog1_t, *nf1_t)))
-                                    .or_insert(vec![(*prog1_t, *nf1_t)]);
+                                    .and_modify(|v| v.push((*prog1_t, *nf1_t, e)))
+                                    .or_insert_with(|| vec![(*prog1_t, *nf1_t, e)]);
                             }
                         }
                     }
@@ -167,89 +160,79 @@ fn query1_v4(
             }
         }
     }
-    println!("NEW count: {:?}", count);
 
     dream_map.values_mut().for_each(|v| {
         v.sort();
     });
 
-    // for (b, edges) in dream_map {
-    //     for (a2b, a) in g.edges(b, Direction::IN, events_2v) {
-    //         if a != b {
-    //             let login1 = g.edge(a2b, events_2v);
+    for (b, edges) in dream_map {
+        for (a2b, a) in g.edges(b, Direction::IN, events_2v) {
+            if a != b {
+                let login1 = g.edge(a2b, events_2v);
 
-    //             let probe_value = &edges;
+                let probe_value = &edges;
 
-    //             if !probe_value.is_empty() {
-    //                 let max_prog1 = probe_value.last().unwrap().0;
-    //                 // let min_prog1 = probe_value.first().unwrap().0;
+                if !probe_value.is_empty() {
+                    let max_prog1 = probe_value.last().unwrap().0;
+                    // let min_prog1 = probe_value.first().unwrap().0;
 
-    //                 let login1_ts = login1.timestamps();
-    //                 let min_login1 = login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
-    //                 if min_login1 > max_prog1 {
-    //                     continue;
-    //                 }
-    //             }
+                    let login1_ts = login1.timestamps();
+                    let min_login1 = login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
+                    if min_login1 > max_prog1 {
+                        continue;
+                    }
+                }
 
-    //             // nft_t [ 4, 7, 145, 290, 570 ]
-    //             // prog_t [ 5, 7, 9, 19, 23 ]
-    //             // login_t [ 1, 3, 4, 17, 37 ]
+                let iter = login1
+                    .prop_items::<i64>(event_id_prop_id_2v)
+                    .unwrap()
+                    .filter_map(|(v, t)| v.map(|v| (v, t)));
 
-    //             let iter = login1
-    //                 .prop_items::<i64>(event_id_prop_id_2v)
-    //                 .unwrap()
-    //                 .filter_map(|(v, t)| v.map(|v| (v, t)));
-
-    //             // for (login1_event_id, login1_t) in iter {
-
-    //             // }
-                
-
-    //             // binary_search_join(iter, &edges, &mut count);
-    //         }
-    //     }
-    // }
+                binary_search_join(iter, &edges, &a, &mut count);
+            }
+        }
+    }
     count
 }
 
 fn binary_search_join<'a>(
     iter: impl IntoIterator<Item = (&'a Time, &'a Time)>,
-    edges: &'a Vec<(Time, Time)>,
+    edges: &'a Vec<(Time, Time, VID)>,
+    a: &VID,
     count: &'a mut usize,
 ) -> Vec<(&'a Time, &'a Time, &'a Time)> {
     let mut out = vec![];
+
+    // for (login1_event_id, login1_t) in iter {
+    //     for (prog1_t, nft_t, e) in edges {
+    //         if *login1_event_id == 4624 && nft_t - login1_t <= 30 && login1_t < prog1_t && a != e {
+    //             *count += 1;
+    //         }
+    //     }
+    // }
+
     'outer: for (login1_event_id, login1_t) in iter {
         if *login1_event_id == 4624
-        /*&& nf1_t - login1_t <= 30 && login1_t < prog1_t*/
         {
             let pos = edges.binary_search_by(|probe| probe.0.cmp(login1_t));
 
-            match pos {
+            let from = match pos {
                 Ok(i) => {
-                    // this one is smaller than all the prog_t
-                    let sub_slice = &edges[(i+1)..]; // less than not equal
-
-                    for (prog1_t, nft1_1) in sub_slice {
-                        if nft1_1 - login1_t <= 30 {
-                            *count += 1;
-                            out.push((login1_t, prog1_t, nft1_1));
-                        }
-                    }
+                    i + 1 // this one is smaller than all the prog_t
                 }
                 Err(i) => {
                     if i >= edges.len() {
                         break 'outer;
                     } else {
-                        // this one is smaller than all the prog_t
-                        let sub_slice = &edges[i..];
-
-                        for (prog1_t, nft1_1) in sub_slice {
-                            if nft1_1 - login1_t <= 30 {
-                                *count += 1;
-                                out.push((login1_t, prog1_t, nft1_1));
-                            } // maybe break on else
-                        }
+                        i
                     }
+                }
+            };
+
+            for (prog1_t, nft_t, e) in &edges[from..] {
+                if nft_t - login1_t <= 30 && login1_t < prog1_t && a != e {
+                    *count += 1;
+                    // out.push((login1_t, prog1_t, nft1_1));
                 }
             }
         }
@@ -266,7 +249,7 @@ mod test {
         let mut count = 0;
         let prog1_nft = vec![(2, 2)];
         let login = vec![(&4624, &1)];
-        let actual = binary_search_join(login, &prog1_nft, &mut count);
+        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
         assert_eq!(actual, vec![(&1, &2, &2)]);
         assert_eq!(count, 1);
     }
@@ -276,11 +259,40 @@ mod test {
         let mut count = 0;
         let prog1_nft = vec![(1, 1), (2, 2)];
         let login = vec![(&4624, &1)];
-        let actual = binary_search_join(login, &prog1_nft, &mut count);
+        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
         assert_eq!(actual, vec![(&1, &2, &2)]);
         assert_eq!(count, 1);
     }
 
+    #[test]
+    fn bin_search_join_2_2() {
+        let mut count = 0;
+        let prog1_nft = vec![(1, 1), (2, 2)];
+        let login = vec![(&4624, &1), (&4624, &2)];
+        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+        assert_eq!(actual, vec![(&1, &2, &2)]);
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn bin_search_join_cut_half() {
+        let mut count = 0;
+        let prog1_nft = vec![(1, 1), (2, 2), (3, 4), (19, 12)];
+        let login = vec![(&4624, &2)];
+        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+        assert_eq!(actual, vec![(&2, &3, &4), (&2, &19, &12)]);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn bin_search_join_cut_half_2() {
+        let mut count = 0;
+        let prog1_nft = vec![(1, 1), (2, 2), (3, 4), (19, 12)];
+        let login = vec![(&4624, &2), (&4624, &3)];
+        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+        assert_eq!(actual, vec![(&2, &3, &4), (&2, &19, &12), (&3, &19, &12)]);
+        assert_eq!(count, 3);
+    }
 }
 
 fn query1_v3(
@@ -343,7 +355,6 @@ fn query1_v3(
     }
     count
 }
-
 
 fn main() {
     let graph_dir = std::env::args()
