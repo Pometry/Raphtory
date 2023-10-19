@@ -37,10 +37,10 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
-    usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
 use crate::{core::Prop, db::api::view::internal::DynamicGraph, python::graph::edge::PyDirection};
 use ordered_float::OrderedFloat;
