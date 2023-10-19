@@ -194,6 +194,6 @@ mod reciprocity_test {
         hash_map_result.insert("5".to_string(), 0.0);
 
         let res = all_local_reciprocity(&graph, None);
-        assert_eq!(res.get("1".into()), hash_map_result.get("1"));
+        assert_eq!(res.get("1"), hash_map_result.get("1"));
     }
 }
