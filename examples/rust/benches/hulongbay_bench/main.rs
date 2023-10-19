@@ -5,10 +5,7 @@ use raphtory::{
 };
 use regex::Regex;
 use serde::Deserialize;
-use std::error::Error;
-use std::fmt::Debug;
-use std::path::Path;
-use std::time::Instant;
+use std::{error::Error, fmt::Debug, path::Path, time::Instant};
 
 #[derive(Deserialize, Debug)]
 pub struct Edge {
@@ -52,8 +49,7 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
 
 pub fn criterion_benchmark_cc(c: &mut Criterion) {
     let mut group = c.benchmark_group("hulong_large_clustering_coefficient");
-    let data_dir =
-        Path::new("/Users/haaroony/Documents/dev/Data/hulong/sample/hulong_sorted.csv");
+    let data_dir = Path::new("/Users/haaroony/Documents/dev/Data/hulong/sample/hulong_sorted.csv");
     let g: Graph = loader(data_dir).unwrap();
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(100);
