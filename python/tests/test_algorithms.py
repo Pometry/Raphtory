@@ -29,6 +29,14 @@ def test_connected_components():
     assert actual.get_all_with_names() == expected
     assert actual.get("1") == 1
 
+def test_in_components():
+    g = gen_graph()
+    actual = algorithms.in_components(g).get_all_with_names()
+    for key in actual:
+        actual[key].sort()
+    expected = {"1": [], "2": [1], "3": [1], "4": [1,2,5], "5": [1,2,5], "6": [1,2,4,5], "7": [1,2,4,5], "8": [1,2,5]}
+    assert actual == expected
+
 
 def test_empty_algo():
     g = Graph()

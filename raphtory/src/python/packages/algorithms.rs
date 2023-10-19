@@ -13,6 +13,7 @@ use crate::{
             pagerank::unweighted_page_rank,
         },
         community_detection::connected_components,
+        community_detection::in_components as in_comp,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -62,7 +63,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
-/// Weakly connected community_detection -- partitions the graph into node sets which are mutually reachable by an undirected path
+/// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 ///
 /// This function assigns a component id to each vertex such that vertices with the same component id are mutually reachable
 /// by an undirected path.
@@ -72,7 +73,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object with string keys and integer values mapping vertex names to their component ids.
+///     AlgorithmResult : AlgorithmResult object mapping vertices to their component ids.
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
@@ -80,6 +81,19 @@ pub fn weakly_connected_components(
     iter_count: usize,
 ) -> AlgorithmResult<DynamicGraph, u64, u64> {
     connected_components::weakly_connected_components(&g.graph, iter_count, None)
+}
+
+/// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
+///
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///
+/// Returns:
+///     AlgorithmResult : AlgorithmResult object mapping each vertex to an array containing the ids of all vertices within their 'in-component'
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
+    in_comp::in_components(&g.graph, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph

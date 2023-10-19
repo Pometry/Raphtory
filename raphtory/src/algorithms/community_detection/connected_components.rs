@@ -31,7 +31,7 @@ struct WccState {
 ///
 /// Returns:
 ///
-/// An AlgorithmResult containing the mapping from component ID to the number of vertices in the component
+/// An AlgorithmResult containing the mapping from the vertex to its component ID
 ///
 pub fn weakly_connected_components<G>(
     graph: &G,
