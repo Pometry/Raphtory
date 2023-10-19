@@ -905,7 +905,7 @@ fn read_vertices_only<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use crate::{arrow::global_order::GlobalMap, prelude::*};
-    use std::{iter, path::PathBuf};
+    use std::{cmp::Ordering, iter, path::PathBuf};
 
     use super::*;
     use arrow2::datatypes::DataType;
