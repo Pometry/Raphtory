@@ -27,7 +27,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
 
-    let res = query1_v3(
+    let res = query1_v3_par(
         g,
         nft,
         events_2v,
@@ -36,6 +36,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
         event_id_prop_id_1v,
         event_id_prop_id_2v,
     );
+    println!("vertex count: {:?}", g.num_vertices());
     Some(res)
 }
 
@@ -54,7 +55,7 @@ fn query1_v3_par(
     let vs = (0..g.num_vertices()).into_iter().collect_vec();
 
     let pool = ThreadPoolBuilder::new()
-        .num_threads(16)
+        .num_threads(47)
         .build()
         .expect("failed to build pool");
 
@@ -62,7 +63,7 @@ fn query1_v3_par(
         vs.par_chunks(2048).for_each(|b_ids| {
             for b_id in b_ids {
                 let b = VID(*b_id);
-                g.edges(b, Direction::OUT, nft).for_each(|(b2e, e)| {
+                g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
 
@@ -71,7 +72,7 @@ fn query1_v3_par(
                             .unwrap()
                             .filter(|(v, _)| v.as_ref().filter(|&&v| v > &100_000_000).is_some())
                         {
-                            g.edges_par(b, Direction::OUT, events_1v)
+                            g.edges(b, Direction::OUT, events_1v)
                                 .filter(|(_, v)| v == &b)
                                 .for_each(|(b2b, _)| {
                                     let prog1 = g.edge(b2b, events_1v);
@@ -81,7 +82,7 @@ fn query1_v3_par(
                                         .unwrap()
                                         .filter_map(|(v, t)| v.map(|v| (v, t)))
                                     {
-                                        if *prog1_event_id == 4688 && prog1_t < nf1_t
+                                        if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30
                                         // AND prog1.epochtime < nf1.epochtime
                                         {
                                             g.edges_par(b, Direction::IN, events_2v).for_each(
@@ -101,10 +102,6 @@ fn query1_v3_par(
                                                                     1,
                                                                     Ordering::Relaxed,
                                                                 );
-                                                                println!(
-                                                                    "count: {:?}",
-                                                                    count.load(Ordering::Relaxed)
-                                                                );
                                                             }
                                                         }
                                                     }
@@ -123,7 +120,7 @@ fn query1_v3_par(
     count.load(Ordering::Relaxed)
 }
 
-fn query1_v3_nft_v1(
+fn query1_v4(
     g: &TemporalGraph,
     nft: usize,
     events_2v: usize,
@@ -157,7 +154,6 @@ fn query1_v3_nft_v1(
                             .filter_map(|(v, t)| v.map(|v| (v, t)))
                         {
                             if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30
-                            // AND prog1.epochtime < nf1.epochtime
                             {
                                 count += 1;
                                 dream_map
@@ -231,12 +227,9 @@ fn binary_search_join<'a>(
             match pos {
                 Ok(i) => {
                     // this one is smaller than all the prog_t
-                    let sub_slice = &edges[i..];
+                    let sub_slice = &edges[(i+1)..]; // less than not equal
 
                     for (prog1_t, nft1_1) in sub_slice {
-                        if prog1_t > login1_t {
-                            break;
-                        }
                         if nft1_1 - login1_t <= 30 {
                             *count += 1;
                             out.push((login1_t, prog1_t, nft1_1));
@@ -251,9 +244,6 @@ fn binary_search_join<'a>(
                         let sub_slice = &edges[i..];
 
                         for (prog1_t, nft1_1) in sub_slice {
-                            if prog1_t > login1_t {
-                                break;
-                            }
                             if nft1_1 - login1_t <= 30 {
                                 *count += 1;
                                 out.push((login1_t, prog1_t, nft1_1));
@@ -262,12 +252,6 @@ fn binary_search_join<'a>(
                     }
                 }
             }
-
-            // for (prog1_t, nft1_1) in edges {
-            //     if nft1_1 - login1_t <= 30 && login1_t < prog1_t {
-            //         *count += 1;
-            //     }
-            // }
         }
     }
     out
@@ -278,13 +262,25 @@ mod test {
     use crate::binary_search_join;
 
     #[test]
-    fn bin_search_join_1() {
+    fn bin_search_join_1_1() {
         let mut count = 0;
-        let edges = vec![(2, 2)];
-        let actual = binary_search_join(vec![(&4624, &1)], &edges, &mut count);
+        let prog1_nft = vec![(2, 2)];
+        let login = vec![(&4624, &1)];
+        let actual = binary_search_join(login, &prog1_nft, &mut count);
         assert_eq!(actual, vec![(&1, &2, &2)]);
         assert_eq!(count, 1);
     }
+
+    #[test]
+    fn bin_search_join_1_2() {
+        let mut count = 0;
+        let prog1_nft = vec![(1, 1), (2, 2)];
+        let login = vec![(&4624, &1)];
+        let actual = binary_search_join(login, &prog1_nft, &mut count);
+        assert_eq!(actual, vec![(&1, &2, &2)]);
+        assert_eq!(count, 1);
+    }
+
 }
 
 fn query1_v3(
@@ -334,10 +330,6 @@ fn query1_v3(
                                                 && login1_t < prog1_t
                                             {
                                                 count += 1;
-
-                                                // if count == STOP_AT {
-                                                //     return count;
-                                                // }
                                             }
                                         }
                                     }
