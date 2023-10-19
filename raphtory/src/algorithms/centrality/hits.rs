@@ -51,7 +51,7 @@ pub fn hits<G: GraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+) -> AlgorithmResult<G, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -159,20 +159,21 @@ pub fn hits<G: GraphViewOps>(
         None,
     );
 
-    let mut results: HashMap<String, (f32, f32)> = HashMap::new();
+    let mut results: HashMap<usize, (f32, f32)> = HashMap::new();
 
     hub_scores.into_iter().for_each(|(k, v)| {
-        results.insert(k, (v, 0.0));
+        results.insert(g.vertex(k).unwrap().vertex.0, (v, 0.0));
     });
 
     auth_scores.into_iter().for_each(|(k, v)| {
-        let (a, _) = results.get(&k).unwrap();
-        results.insert(k, (*a, v));
+        let vid = g.vertex(k).unwrap().vertex.0;
+        let (a, _) = results.get(&vid).unwrap();
+        results.insert(vid, (*a, v));
     });
 
-    let results_type = std::any::type_name::<HashMap<String, (f32, f32)>>();
+    let results_type = std::any::type_name::<(f32, f32)>();
 
-    AlgorithmResult::new("Hits", results_type, results)
+    AlgorithmResult::new(g.clone(), "Hits", results_type, results)
 }
 
 #[cfg(test)]
@@ -212,49 +213,20 @@ mod hits_tests {
             (8, 1),
         ]);
 
-        let results = hits(&graph, 20, None);
-
-        // NetworkX results
-        // >>> G = nx.DiGraph()
-        // >>> G.add_edge(1, 4)
-        // >>> G.add_edge(2, 3)
-        // >>> G.add_edge(2, 5)
-        // >>> G.add_edge(3, 1)
-        // >>> G.add_edge(4, 2)
-        // >>> G.add_edge(4, 3)
-        // >>> G.add_edge(5, 2)
-        // >>> G.add_edge(5, 3)
-        // >>> G.add_edge(5, 4)
-        // >>> G.add_edge(5, 6)
-        // >>> G.add_edge(6,3)
-        // >>> G.add_edge(6,8)
-        // >>> G.add_edge(7,1)
-        // >>> G.add_edge(7,3)
-        // >>> G.add_edge(8,1)
-        // >>> nx.hits(G)
-        // (
-        //     (1, (0.04305010876408988, 0.08751958702900825)),
-        //     (2, (0.14444089276992705, 0.18704574169397797)),
-        //     (3, (0.02950848945012511, 0.3690360954887363)),
-        //     (4, (0.1874910015340169, 0.12768284011810235)),
-        //     (5, (0.26762580040598083, 0.05936290157587567)),
-        //     (6, (0.144440892769927, 0.10998993251842377)),
-        //     (7, (0.15393432485580819, 5.645162243895331e-17))
-        //     (8, (0.02950848945012511, 0.05936290157587556)),
-        // )
+        let results = hits(&graph, 20, None).get_all_with_names();
 
         assert_eq!(
-            results.sort_by_key(false),
-            vec![
-                ("1".to_string(), (0.0431365, 0.096625775)),
-                ("2".to_string(), (0.14359662, 0.18366566)),
-                ("3".to_string(), (0.030866561, 0.36886504)),
-                ("4".to_string(), (0.1865414, 0.12442485)),
-                ("5".to_string(), (0.26667944, 0.05943252)),
-                ("6".to_string(), (0.14359662, 0.10755368)),
-                ("7".to_string(), (0.15471625, 0.0)),
-                ("8".to_string(), (0.030866561, 0.05943252))
-            ]
+            results,
+            HashMap::from([
+                ("1".to_string(), Some((0.0431365, 0.096625775))),
+                ("2".to_string(), Some((0.14359662, 0.18366566))),
+                ("3".to_string(), Some((0.030866561, 0.36886504))),
+                ("4".to_string(), Some((0.1865414, 0.12442485))),
+                ("5".to_string(), Some((0.26667944, 0.05943252))),
+                ("6".to_string(), Some((0.14359662, 0.10755368))),
+                ("7".to_string(), Some((0.15471625, 0.0))),
+                ("8".to_string(), Some((0.030866561, 0.05943252)))
+            ])
         );
     }
 }
