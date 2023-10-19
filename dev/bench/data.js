@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1697617796730,
+  "lastUpdate": 1697704363967,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -22477,6 +22477,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 160675,
             "range": "± 190",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4eef2ebbef565535a2b8c12f1a6a7e1d97381e2",
+          "message": "Algorithm Result object complete rewrite, Add betweeen centrality, Add Zaks Karate Club (#1327)\n\n* checkpoint, need to fix tests\r\n\r\n* im so happy it works :D\r\n\r\n* remove type_name param\r\n\r\n* algorithm result tests complete, new fmt, fixed group_by, fixed all types\r\n\r\n* renamed old algorithm result, changed base result type to a hashmap instead of vector due to potential issues with sparse vectors if the dataset is large, added missing G type for the graph, brought back results type\r\n\r\n* fix bad 0 checking\r\n\r\n* macro magic but partially implemented\r\n\r\n* added the extra macros, added all missing functions, removed all pointers for clones (:vomit: pyo3)\r\n\r\n* algorithm result object + all macros is complete in both rust and python\r\n\r\n* fixed reciprocity, fixed centrality\r\n\r\n* fixed pagerank, fixed graphql new type issues\r\n\r\n* balance algorithm complete\r\n\r\n* sssp fixed\r\n\r\n* sssp forgot le lib\r\n\r\n* temporal reachability fixed\r\n\r\n* hits fixed\r\n\r\n* connected components nearly fixed, last test\r\n\r\n* removed bad test\r\n\r\n* three node motif completed, algorithm result complte\r\n\r\n* good bye bugs\r\n\r\n* removed all warnings\r\n\r\n* fix lotr bug\r\n\r\n* i think i fixed hulong\r\n\r\n* fix dusty benchmark\r\n\r\n* rename macro rules, fix doctests\r\n\r\n* implement debug for algo result\r\n\r\n* fix pytests\r\n\r\n* Zaks Karate Club Graph (#1326)\r\n\r\n* betweenness centrality for a directed graph with and without normalisation\r\n\r\n* cleanup\r\n\r\n* swapped to algorithm result, added rust docs\r\n\r\n* ported to python, added python docs, added python test\r\n\r\n* fix formatting\r\n\r\n* karate club graph, but its half working, adding 1 extra node and way too many edges\r\n\r\n* fixed issue with rows\r\n\r\n* betweeness has float calc differences but largely the same\r\n\r\n* fix test\r\n\r\n* fixes issue with python?\r\n\r\n* port betweeness centrality to new algo object and fix over python tests\r\n\r\n* Changed State to use Internal ID everywhere, fixed most of the algorithms, fixed the tests\r\n\r\n* fixed all the algos\r\n\r\n* fn name changes\r\n\r\n* added very basic hashing to allow get_all to return a vertex object\r\n\r\n* vertex view now returned by algo rest\r\n\r\n* fix python algo result for vertexview\r\n\r\n* reorder tests\r\n\r\n* implemented custom debug fmt display for vertex view, implemented custom display fmt, fixed algorithm tests, fixed all rust issues\r\n\r\n* extended richcmp for python objects, fixed all python tests\r\n\r\n* connected_components.rs passes\r\n\r\n* moved algos\r\n\r\n* resolved comments\r\n\r\n* changes due to comments\r\n\r\n* windows works, layers dont\r\n\r\n* added tests for windowed graphs\r\n\r\n* complete!\r\n\r\n* bad comments for ubuntu\r\n\r\n* bad colon",
+          "timestamp": "2023-10-19T09:26:31+01:00",
+          "tree_id": "1b22db3fccfee536ef246aed6205e16853789d2a",
+          "url": "https://github.com/Pometry/Raphtory/commit/b4eef2ebbef565535a2b8c12f1a6a7e1d97381e2"
+        },
+        "date": 1697704362995,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 376528,
+            "range": "± 2723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 420051,
+            "range": "± 2298",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 465594,
+            "range": "± 3252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 722062,
+            "range": "± 54260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 1067988,
+            "range": "± 65267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 79,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 78,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_vertices",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_existing",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_nonexisting",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 5215,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 33984,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 21581,
+            "range": "± 391",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 102,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 76,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_vertices",
+            "value": 5539,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_existing",
+            "value": 65,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 14978,
+            "range": "± 100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 239719,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 21384,
+            "range": "± 131",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 108,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 78,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_vertices",
+            "value": 5329,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_existing",
+            "value": 71,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "value": 25,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 9789,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 147430,
+            "range": "± 86",
             "unit": "ns/iter"
           }
         ]
