@@ -46,34 +46,30 @@ impl<G: GraphViewOps> DocumentSource for EdgeView<G> {
 fn split_text_by_line_breaks(text: String, max_size: usize) -> Vec<String> {
     println!("splitting: {text}");
     // TODO: maybe use async_stream crate instead
-    let break_line = Regex::new(r"(.*\n)").unwrap(); // we don't want to remove the pattern!
-    let mut substrings = break_line.split(&text.as_str());
+    let mut substrings = text.split("\n");
     let first_substring = substrings.next().unwrap().to_owned();
     let mut chunks = vec![first_substring];
-    println!("initial result: {chunks:?}");
 
-    // are we sure this excludes the first value? TODO: make a test for this function
+    // TODO: add shortcut, it text is smaller than max size return vec![text]
+
     for substring in substrings {
         let last_chunk = chunks.last_mut().unwrap(); // at least one element
         if substring.len() > max_size {
-            println!("substring is too big: {substring}");
             for subsubstring in split_text_with_constant_size(substring, max_size).into_iter() {
                 chunks.push(subsubstring.to_owned());
             }
         } else if last_chunk.len() + substring.len() <= max_size {
-            println!("adding '{substring}' to last chunk");
+            last_chunk.push_str("\n"); // add back line break removed by split
             last_chunk.push_str(substring);
-            println!("partial result: {chunks:?}");
         } else {
-            println!("pushing '{substring}' to new chunk");
             chunks.push(substring.to_owned());
-            println!("partial result: {chunks:?}");
         }
     }
 
     chunks
 }
 
+// TODO: test this function
 fn split_text_with_constant_size(input: &str, chunk_size: usize) -> Vec<&str> {
     let mut substrings = Vec::new();
     let mut start = 0;
