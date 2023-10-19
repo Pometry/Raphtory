@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use raphtory::{
     algorithms::pathing::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
     graph_loader::source::csv_loader::CsvLoader, prelude::*,
@@ -104,9 +103,12 @@ fn main() {
     assert!(graph.has_vertex(gandalf));
     assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
-    let r = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None);
-    assert_eq!(
-        r.result.keys().sorted().collect_vec(),
-        vec!["Gandalf", "Saruman", "Wormtongue"]
-    )
+    let r: Vec<String> = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None)
+        .get_all_values()
+        .into_iter()
+        .flatten()
+        .map(|(_, s)| s)
+        .collect();
+
+    assert_eq!(r, vec!["Gandalf", "Saruman", "Wormtongue"])
 }

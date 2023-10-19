@@ -15,7 +15,7 @@ pub mod graph;
 pub mod properties;
 pub mod vertices;
 
-// the only reason this is public is because the phisical ids of the vertices don't move
+// the only reason this is public is because the physical ids of the vertices don't move
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,

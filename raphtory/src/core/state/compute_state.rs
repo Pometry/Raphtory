@@ -44,7 +44,7 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
         &self,
         ss: usize,
         g: &G,
-    ) -> HashMap<String, OUT>
+    ) -> HashMap<usize, OUT>
     where
         OUT: StateType,
         A: 'static;
@@ -192,8 +192,8 @@ impl ComputeState for ComputeStateVec {
     fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
         &self,
         ss: usize,
-        g: &G,
-    ) -> HashMap<String, OUT>
+        _g: &G,
+    ) -> HashMap<usize, OUT>
     where
         OUT: StateType,
         A: 'static,
@@ -210,7 +210,7 @@ impl ComputeState for ComputeStateVec {
             .enumerate()
             .map(|(p_id, a)| {
                 let out = ACC::finish(a);
-                (g.vertex_name(p_id.into()), out)
+                (p_id, out)
             })
             .collect()
     }

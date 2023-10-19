@@ -7,3 +7,4 @@ Centrality
 
 .. autofunction:: raphtory.algorithms.hits
 
+.. autofunction:: raphtory.algorithms.betweenness_centrality

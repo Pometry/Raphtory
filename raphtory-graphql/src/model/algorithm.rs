@@ -96,6 +96,15 @@ impl From<(String, f64)> for Pagerank {
     }
 }
 
+impl From<(String, Option<f64>)> for Pagerank {
+    fn from((name, rank): (String, Option<f64>)) -> Self {
+        Self {
+            name,
+            rank: rank.unwrap_or_default(), // use 0.0 if rank is None
+        }
+    }
+}
+
 impl From<(String, OrderedFloat<f64>)> for Pagerank {
     fn from((name, rank): (String, OrderedFloat<f64>)) -> Self {
         let rank = rank.into_inner();
@@ -134,6 +143,7 @@ impl Algorithm for Pagerank {
         let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
         let binding = unweighted_page_rank(graph, iter_count, threads, tol, true);
         let result = binding
+            .get_all_with_names()
             .into_iter()
             .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
         Ok(Some(FieldValue::list(result)))

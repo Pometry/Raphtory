@@ -69,6 +69,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module,
         dijkstra_single_source_shortest_paths,
         global_reciprocity,
+        betweenness_centrality,
         all_local_reciprocity,
         triplet_count,
         local_triangle_count,
@@ -107,6 +108,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         neo4j_movie_graph,
         stable_coin_graph,
         reddit_hyperlink_graph,
+        karate_club_graph,
     );
     m.add_submodule(graph_loader_module)?;
 

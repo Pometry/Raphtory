@@ -84,7 +84,10 @@ impl PyVertex {
         match op {
             CompareOp::Eq => (self.vertex.id() == other.id()).into_py(py),
             CompareOp::Ne => (self.vertex.id() != other.id()).into_py(py),
-            _ => py.NotImplemented(),
+            CompareOp::Lt => (self.vertex.id() < other.id()).into_py(py),
+            CompareOp::Le => (self.vertex.id() <= other.id()).into_py(py),
+            CompareOp::Gt => (self.vertex.id() > other.id()).into_py(py),
+            CompareOp::Ge => (self.vertex.id() >= other.id()).into_py(py),
         }
     }
 

@@ -97,3 +97,29 @@ pub fn neo4j_movie_graph(
     );
     PyGraph::py_from_db_graph(g)
 }
+
+/// `karate_club_graph` constructs a karate club graph.
+///
+/// This function uses the Zachary's karate club dataset to create
+/// a graph object. Vertices represent members of the club, and edges
+/// represent relationships between them. Vertex properties indicate
+/// the club to which each member belongs.
+///
+/// Background:
+///     These are data collected from the members of a university karate club by Wayne
+///     Zachary. The ZACHE matrix represents the presence or absence of ties among the members of the
+///     club; the ZACHC matrix indicates the relative strength of the associations (number of
+///     situations in and outside the club in which interactions occurred).
+///     Zachary (1977) used these data and an information flow model of network conflict resolution
+///     to explain the split-up of this group following disputes among the members.
+///
+/// Reference:
+///   Zachary W. (1977). An information flow model for conflict and fission in small groups. Journal of Anthropological Research, 33, 452-473.
+///
+/// Returns:
+///     A `Graph` object representing the karate club network.
+#[pyfunction]
+#[pyo3(signature = ())]
+pub fn karate_club_graph() -> PyResult<Py<PyGraph>> {
+    PyGraph::py_from_db_graph(crate::graph_loader::example::karate_club::karate_club_graph())
+}

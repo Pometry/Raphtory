@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::vertices::vertex_ref::VertexRef,
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
@@ -58,7 +58,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     threads: Option<usize>,
     tol: Option<f64>,
     use_l2_norm: bool,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let n = g.count_vertices();
     let total_edges = g.count_edges();
 
@@ -157,8 +157,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let num_vertices = g.count_vertices();
-    let results_type = std::any::type_name::<HashMap<VID, f64>>();
-    let out: HashMap<VID, f64> = runner.run(
+
+    let out: HashMap<usize, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_vertices); num_vertices]),
@@ -170,9 +170,9 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 .enumerate()
                 .filter_map(|(v_ref, score)| {
                     g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
-                        .then_some((v_ref.into(), score.score))
+                        .then_some((v_ref, score.score))
                 })
-                .collect::<HashMap<VID, f64>>()
+                .collect::<HashMap<usize, f64>>()
         },
         threads,
         iter_count,
@@ -180,12 +180,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         None,
     );
 
-    let res: HashMap<String, f64> = out
-        .into_iter()
-        .map(|(k, v)| (g.vertex_name(k), v))
-        .collect();
-
-    AlgorithmResult::new("Pagerank", results_type, res)
+    let results_type = std::any::type_name::<f64>();
+    AlgorithmResult::new(g.clone(), "Pagerank", results_type, out)
 }
 
 #[cfg(test)]
@@ -219,10 +215,10 @@ mod page_rank_tests {
 
         let results = unweighted_page_rank(&graph, 1000, Some(1), None, true);
 
-        assert_eq_f64(results.get("1"), Some(&0.38694), 5);
-        assert_eq_f64(results.get("2"), Some(&0.20195), 5);
-        assert_eq_f64(results.get("4"), Some(&0.20195), 5);
-        assert_eq_f64(results.get("3"), Some(&0.20916), 5);
+        assert_eq_f64(results.get("1".into()), Some(&0.38694), 5);
+        assert_eq_f64(results.get("2".into()), Some(&0.20195), 5);
+        assert_eq_f64(results.get("4".into()), Some(&0.20195), 5);
+        assert_eq_f64(results.get("3".into()), Some(&0.20916), 5);
     }
 
     #[test]
@@ -261,17 +257,17 @@ mod page_rank_tests {
 
         let results = unweighted_page_rank(&graph, 1000, Some(4), None, true);
 
-        assert_eq_f64(results.get("10"), Some(&0.072082), 5);
-        assert_eq_f64(results.get("8"), Some(&0.136473), 5);
-        assert_eq_f64(results.get("3"), Some(&0.15484), 5);
-        assert_eq_f64(results.get("6"), Some(&0.07208), 5);
-        assert_eq_f64(results.get("11"), Some(&0.06186), 5);
-        assert_eq_f64(results.get("2"), Some(&0.03557), 5);
-        assert_eq_f64(results.get("1"), Some(&0.11284), 5);
-        assert_eq_f64(results.get("4"), Some(&0.07944), 5);
-        assert_eq_f64(results.get("7"), Some(&0.01638), 5);
-        assert_eq_f64(results.get("9"), Some(&0.06186), 5);
-        assert_eq_f64(results.get("5"), Some(&0.19658), 5);
+        assert_eq_f64(results.get("10".into()), Some(&0.072082), 5);
+        assert_eq_f64(results.get("8".into()), Some(&0.136473), 5);
+        assert_eq_f64(results.get("3".into()), Some(&0.15484), 5);
+        assert_eq_f64(results.get("6".into()), Some(&0.07208), 5);
+        assert_eq_f64(results.get("11".into()), Some(&0.06186), 5);
+        assert_eq_f64(results.get("2".into()), Some(&0.03557), 5);
+        assert_eq_f64(results.get("1".into()), Some(&0.11284), 5);
+        assert_eq_f64(results.get("4".into()), Some(&0.07944), 5);
+        assert_eq_f64(results.get("7".into()), Some(&0.01638), 5);
+        assert_eq_f64(results.get("9".into()), Some(&0.06186), 5);
+        assert_eq_f64(results.get("5".into()), Some(&0.19658), 5);
     }
 
     #[test]
@@ -286,8 +282,8 @@ mod page_rank_tests {
 
         let results = unweighted_page_rank(&graph, 1000, Some(4), None, false);
 
-        assert_eq_f64(results.get("1"), Some(&0.5), 3);
-        assert_eq_f64(results.get("2"), Some(&0.5), 3);
+        assert_eq_f64(results.get("1".into()), Some(&0.5), 3);
+        assert_eq_f64(results.get("2".into()), Some(&0.5), 3);
     }
 
     #[test]
@@ -302,9 +298,9 @@ mod page_rank_tests {
 
         let results = unweighted_page_rank(&graph, 10, Some(4), None, false);
 
-        assert_eq_f64(results.get("1"), Some(&0.303), 3);
-        assert_eq_f64(results.get("2"), Some(&0.393), 3);
-        assert_eq_f64(results.get("3"), Some(&0.303), 3);
+        assert_eq_f64(results.get("1".into()), Some(&0.303), 3);
+        assert_eq_f64(results.get("2".into()), Some(&0.393), 3);
+        assert_eq_f64(results.get("3".into()), Some(&0.303), 3);
     }
 
     #[test]
@@ -338,17 +334,17 @@ mod page_rank_tests {
 
         let results = unweighted_page_rank(&graph, 1000, Some(4), None, true);
 
-        assert_eq_f64(results.get("1"), Some(&0.055), 3);
-        assert_eq_f64(results.get("2"), Some(&0.079), 3);
-        assert_eq_f64(results.get("3"), Some(&0.113), 3);
-        assert_eq_f64(results.get("4"), Some(&0.055), 3);
-        assert_eq_f64(results.get("5"), Some(&0.070), 3);
-        assert_eq_f64(results.get("6"), Some(&0.083), 3);
-        assert_eq_f64(results.get("7"), Some(&0.093), 3);
-        assert_eq_f64(results.get("8"), Some(&0.102), 3);
-        assert_eq_f64(results.get("9"), Some(&0.110), 3);
-        assert_eq_f64(results.get("10"), Some(&0.117), 3);
-        assert_eq_f64(results.get("11"), Some(&0.122), 3);
+        assert_eq_f64(results.get("1".into()), Some(&0.055), 3);
+        assert_eq_f64(results.get("2".into()), Some(&0.079), 3);
+        assert_eq_f64(results.get("3".into()), Some(&0.113), 3);
+        assert_eq_f64(results.get("4".into()), Some(&0.055), 3);
+        assert_eq_f64(results.get("5".into()), Some(&0.070), 3);
+        assert_eq_f64(results.get("6".into()), Some(&0.083), 3);
+        assert_eq_f64(results.get("7".into()), Some(&0.093), 3);
+        assert_eq_f64(results.get("8".into()), Some(&0.102), 3);
+        assert_eq_f64(results.get("9".into()), Some(&0.110), 3);
+        assert_eq_f64(results.get("10".into()), Some(&0.117), 3);
+        assert_eq_f64(results.get("11".into()), Some(&0.122), 3);
     }
 
     fn assert_eq_f64<T: Borrow<f64> + PartialEq + std::fmt::Debug>(

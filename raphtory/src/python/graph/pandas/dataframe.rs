@@ -5,14 +5,10 @@ use arrow2::{
     offset::Offset,
     types::NativeType,
 };
-use futures_util::StreamExt;
 use itertools::Itertools;
 use pyo3::{
-    create_exception,
-    exceptions::PyException,
-    ffi::Py_uintptr_t,
-    types::{IntoPyDict, PyDict},
-    PyAny, PyErr, PyResult, Python,
+    create_exception, exceptions::PyException, ffi::Py_uintptr_t, types::IntoPyDict, PyAny, PyErr,
+    PyResult, Python,
 };
 
 pub(crate) struct PretendDF {
@@ -141,7 +137,7 @@ pub(crate) fn process_pandas_py_df(
         df
     };
 
-    let df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
+    let _df_columns: Vec<String> = dropped_df.getattr("columns")?.extract()?;
 
     let table = pa_table.call_method("from_pandas", (dropped_df,), None)?;
 
