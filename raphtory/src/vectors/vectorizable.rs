@@ -37,27 +37,60 @@ struct EmbeddingsCache {
     embeddings: Vec<Embedding>,
 }
 
+// TODO: move this to different file
+pub trait DocumentTemplate: Send + Sync {
+    fn template_node<G: GraphViewOps>(vertex: &VertexView<G>) -> Box<dyn Iterator<Item = String>>;
+    fn template_edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = String>>;
+}
+
+pub struct DefaultTemplate;
+
+impl DocumentTemplate for DefaultTemplate {
+    fn template_node<G: GraphViewOps>(vertex: &VertexView<G>) -> Box<dyn Iterator<Item = String>> {
+        let name = vertex.name();
+        let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
+        Box::new(std::iter::once(format!(
+            "The entity {name} has the following details:\n{property_list}"
+        )))
+    }
+
+    fn template_edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = String>> {
+        let src = edge.src().name();
+        let dst = edge.dst().name();
+        // TODO: property list
+
+        let layer_lines = edge.layer_names().map(|layer| {
+            let times = edge
+                .layer(layer.clone())
+                .unwrap()
+                .history()
+                .iter()
+                .join(", ");
+            match layer.as_ref() {
+                "_default" => format!("{src} interacted with {dst} at times: {times}"),
+                layer => format!("{src} {layer} {dst} at times: {times}"),
+            }
+        });
+        let content: String =
+            itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect();
+        Box::new(std::iter::once(content))
+    }
+}
+
 #[async_trait]
 pub trait Vectorizable<G: GraphViewOps> {
     async fn vectorize(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-    ) -> VectorizedGraph<G>;
+    ) -> VectorizedGraph<G, DefaultTemplate>;
 
-    async fn vectorize_with_templates<N, E, I, O>(
+    async fn vectorize_with_template<T: DocumentTemplate>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-        node_template: N,
-        edge_template: E,
-        // FIXME: I tried to put templates behind an option but didn't work and hadn't time to fix it
-    ) -> VectorizedGraph<G>
-    where
-        N: Fn(&VertexView<G>) -> I + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> O + Sync + Send + 'static,
-        I: Iterator<Item = String>,
-        O: Iterator<Item = String>;
+        template: T, // FIXME: I tried to put templates behind an option but didn't work and hadn't time to fix it
+    ) -> VectorizedGraph<G, T>;
 }
 
 #[async_trait]
@@ -66,80 +99,36 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path, // TODO: make this optional maybe
-    ) -> VectorizedGraph<G, I, O> {
-        let node_template = |vertex: &VertexView<G>| default_node_template(vertex);
-        let edge_template = |edge: &EdgeView<G>| default_edge_template(edge);
-
-        self.vectorize_with_templates(embedding, cache_dir, node_template, edge_template)
+    ) -> VectorizedGraph<G, DefaultTemplate> {
+        self.vectorize_with_template(embedding, cache_dir, DefaultTemplate)
             .await
     }
 
-    async fn vectorize_with_templates<N, E, I, O>(
+    async fn vectorize_with_template<T: DocumentTemplate>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-        node_template: N,
-        edge_template: E,
-    ) -> VectorizedGraph<G, I, O>
-    where
-        N: Fn(&VertexView<G>) -> I + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> O + Sync + Send + 'static,
-        I: Iterator<Item = String>,
-        O: Iterator<Item = String>,
-    {
+        template: T,
+    ) -> VectorizedGraph<G, T> {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
         let node_docs = self
             .vertices()
             .iter()
-            .map(|vertex| vertex.generate_docs(&node_template));
-        let edge_docs = self.edges().map(|edge| edge.generate_docs(&edge_template));
+            .map(|vertex| vertex.generate_docs(&template));
+        let edge_docs = self.edges().map(|edge| edge.generate_docs(&template));
 
         let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
         let edge_embeddings = generate_embeddings(edge_docs, &embedding, cache_dir).await;
-
-        let boxed_node_template: Box<
-            dyn Fn(&VertexView<G>) -> Box<dyn Iterator<Item = String>> + Send + Sync,
-        > = Box::new(|vertex| Box::new(node_template(vertex)));
 
         VectorizedGraph::new(
             self.clone(),
             embedding,
             node_embeddings,
             edge_embeddings,
-            boxed_node_template,
-            Box::new(edge_template),
+            template,
         )
     }
-}
-
-fn default_node_template<G: GraphViewOps>(vertex: &VertexView<G>) -> impl Iterator<Item = String> {
-    let name = vertex.name();
-    let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
-    std::iter::once(format!(
-        "The entity {name} has the following details:\n{property_list}"
-    ))
-}
-
-fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> impl Iterator<Item = String> {
-    let src = edge.src().name();
-    let dst = edge.dst().name();
-    // TODO: property list
-
-    let layer_lines = edge.layer_names().map(|layer| {
-        let times = edge
-            .layer(layer.clone())
-            .unwrap()
-            .history()
-            .iter()
-            .join(", ");
-        match layer.as_ref() {
-            "_default" => format!("{src} interacted with {dst} at times: {times}"),
-            layer => format!("{src} {layer} {dst} at times: {times}"),
-        }
-    });
-    let content: String = itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect();
-    std::iter::once(content)
 }
 
 async fn generate_embeddings<I>(
@@ -180,33 +169,45 @@ async fn compute_embeddings_updating_cache(
     cache_dir: &Path,
 ) -> Vec<(EntityId, Vec<Embedding>)> {
     // TODO: to avoid cloning below, I could here save an iterator of ids, hashed an number of docs
-    let ungrouped_documents = docs.iter().flat_map(|doc| {
-        doc.documents
-            .clone()
-            .into_iter()
-            .map(|text| (doc.id.clone(), text))
-    });
+    let ungrouped_documents = docs
+        .iter()
+        .flat_map(|doc| {
+            doc.documents
+                .clone()
+                .into_iter()
+                .map(|text| (doc.id.clone(), text))
+        })
+        .collect_vec(); // because we need to use this twice
 
-    let texts = ungrouped_documents.map(|(_, text)| text).collect_vec();
+    let ungrouped_document_ids = ungrouped_documents
+        .iter()
+        .map(move |(id, _)| id.clone()) // TODO: review use of move
+        .collect_vec();
+
+    let texts = ungrouped_documents
+        .into_iter()
+        .map(|(_, text)| text)
+        .collect_vec();
     let embeddings = embedding.call(texts).await;
 
-    let ungrouped_document_ids = ungrouped_documents.map(|(id, _)| id);
-
     let grouped_embeddings = ungrouped_document_ids
+        .into_iter()
         .zip(embeddings.into_iter())
-        .group_by(|(id, _)| id)
+        .group_by(|(id, _)| id.clone())
         .into_iter()
         .map(|(id, group)| {
             let embeddings = group.map(|(id, embedding)| embedding).collect_vec();
-            (id, embeddings)
+            (id.clone(), embeddings) // TODO: remove clone if not needed
         })
         .collect_vec();
 
     let results_for_caching = grouped_embeddings
+        .iter()
         .zip(docs)
         .map(|((id, embeddings), doc)| (id, doc.hash, embeddings));
 
     for (id, hash, embeddings) in results_for_caching {
+        let embeddings = embeddings.to_vec(); // TODO remove to_vec if we can consume the iterator
         let embedding_cache = EmbeddingsCache { hash, embeddings };
         let doc_path = cache_dir.join(id.to_string());
         let doc_file =

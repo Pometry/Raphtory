@@ -1,45 +1,39 @@
 use crate::{
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic},
-        graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+        graph::views::window_graph::WindowedGraph,
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
     vectors::{
-        document_source::DocumentSource, entity_id::EntityId, Document, Embedding,
-        EmbeddingFunction,
+        document_source::DocumentSource, entity_id::EntityId, vectorizable::DocumentTemplate,
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
 use std::{borrow::Borrow, collections::HashMap};
 
-pub struct VectorizedGraph<G: GraphViewOps, I: Iterator<Item = String>, O: Iterator<Item = String>>
-{
+pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
     graph: G,
     embedding: Box<dyn EmbeddingFunction>,
     node_embeddings: HashMap<EntityId, Vec<Embedding>>, // TODO: replace with FxHashMap
     edge_embeddings: HashMap<EntityId, Vec<Embedding>>,
-    node_template: Box<dyn Fn(&VertexView<G>) -> I + Sync + Send>,
-    edge_template: Box<dyn Fn(&EdgeView<G>) -> O + Sync + Send>,
+    template: T,
 }
 
-impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item = String>>
-    VectorizedGraph<G, I, O>
-{
+impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
         embedding: Box<dyn EmbeddingFunction>,
         node_embeddings: HashMap<EntityId, Vec<Embedding>>,
         edge_embeddings: HashMap<EntityId, Vec<Embedding>>,
-        node_template: Box<dyn Fn(&VertexView<G>) -> I + Sync + Send>,
-        edge_template: Box<dyn Fn(&EdgeView<G>) -> O + Sync + Send>,
+        template: T,
     ) -> Self {
         Self {
             graph,
             embedding,
             node_embeddings,
             edge_embeddings,
-            node_template,
-            edge_template,
+            template,
         }
     }
 
@@ -63,8 +57,17 @@ impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item
         ) = match (window_start, window_end) {
             (None, None) => (
                 self.graph.clone().into_dynamic(),
-                Box::new(self.node_embeddings.iter()),
-                Box::new(self.edge_embeddings.iter()),
+                // TODO: remove both unwraps here below?
+                Box::new(
+                    self.node_embeddings
+                        .iter()
+                        .map(|(id, embeddings)| (id, embeddings.first().unwrap())),
+                ),
+                Box::new(
+                    self.edge_embeddings
+                        .iter()
+                        .map(|(id, embeddings)| (id, embeddings.first().unwrap())),
+                ),
             ),
             (start, end) => {
                 let start = start.unwrap_or(i64::MIN);
@@ -123,7 +126,13 @@ impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item
                     edges
                         .map(|edge| {
                             let edge_id = edge.into();
-                            let edge_embedding = self.edge_embeddings.get(&edge_id).unwrap();
+                            let edge_embedding = self
+                                .edge_embeddings
+                                .get(&edge_id)
+                                .unwrap()
+                                .into_iter()
+                                .next()
+                                .unwrap(); // TODO: take the full vector instead
                             (edge_id, edge_embedding)
                         })
                         .collect_vec()
@@ -132,8 +141,20 @@ impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item
                     let edge = graph.edge(*src, *dst).unwrap();
                     let src_id: EntityId = edge.src().into();
                     let dst_id: EntityId = edge.dst().into();
-                    let src_embedding = self.node_embeddings.get(&src_id).unwrap();
-                    let dst_embedding = self.node_embeddings.get(&dst_id).unwrap();
+                    let src_embedding = self
+                        .node_embeddings
+                        .get(&src_id)
+                        .unwrap()
+                        .into_iter()
+                        .next()
+                        .unwrap(); // TODO: take the full vector instead
+                    let dst_embedding = self
+                        .node_embeddings
+                        .get(&dst_id)
+                        .unwrap()
+                        .into_iter()
+                        .next()
+                        .unwrap(); // TODO: take the full vector instead
                     vec![(src_id, src_embedding), (dst_id, dst_embedding)]
                 }
             });
@@ -165,8 +186,11 @@ impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item
                         .graph
                         .vertex(*id)
                         .unwrap()
-                        .generate_docs(&self.node_template)
-                        .documents,
+                        .generate_docs(&self.template)
+                        .documents
+                        .into_iter()
+                        .next()
+                        .unwrap(), // TODO: review unwrap
                 },
                 EntityId::Edge { src, dst } => Document::Edge {
                     src: graph.vertex(*src).unwrap().name(),
@@ -175,8 +199,11 @@ impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item
                         .graph
                         .edge(*src, *dst)
                         .unwrap()
-                        .generate_docs(&self.edge_template)
-                        .documents,
+                        .generate_docs(&self.template)
+                        .documents
+                        .into_iter()
+                        .next()
+                        .unwrap(), // TODO: review unwrap
                 },
             })
             .collect_vec()
@@ -187,14 +214,18 @@ impl<G: GraphViewOps + IntoDynamic, I: Iterator<Item = String>, O: Iterator<Item
         embeddings: I,
         window: &WindowedGraph<G>,
     ) -> impl Iterator<Item = (&'a EntityId, &'a Embedding)> + 'a
+    // TODO: return Vec<Embedding>
     where
-        I: IntoIterator<Item = (&'a EntityId, &'a Embedding)> + 'a,
+        I: IntoIterator<Item = (&'a EntityId, &'a Vec<Embedding>)> + 'a,
     {
         let window = window.clone();
-        embeddings.into_iter().filter(move |(id, _)| match id {
-            EntityId::Node { id } => window.has_vertex(*id),
-            EntityId::Edge { src, dst } => window.has_edge(*src, *dst, Layer::All),
-        })
+        embeddings
+            .into_iter()
+            .filter(move |(id, _)| match id {
+                EntityId::Node { id } => window.has_vertex(*id),
+                EntityId::Edge { src, dst } => window.has_edge(*src, *dst, Layer::All),
+            })
+            .map(|(id, embeddings)| (id, embeddings.into_iter().next().unwrap()))
     }
 }
 

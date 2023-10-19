@@ -71,8 +71,10 @@ mod vector_tests {
         db::graph::{edge::EdgeView, vertex::VertexView},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
-            document_source::DocumentSource, embeddings::openai_embedding,
-            graph_entity::GraphEntity, vectorizable::Vectorizable,
+            document_source::DocumentSource,
+            embeddings::openai_embedding,
+            graph_entity::GraphEntity,
+            vectorizable::{DocumentTemplate, Vectorizable},
         },
     };
     use dotenv::dotenv;
@@ -86,20 +88,45 @@ mod vector_tests {
         format!("line {time}")
     }
 
-    fn node_template(vertex: &VertexView<Graph>) -> String {
-        let name = vertex.name();
-        let node_type = vertex.properties().get("type").unwrap().to_string();
-        let property_list =
-            vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
-        format!("{name} is a {node_type} with the following details:\n{property_list}")
+    struct CustomTemplate;
+
+    impl DocumentTemplate for CustomTemplate {
+        fn template_node<G: GraphViewOps>(
+            vertex: &VertexView<G>,
+        ) -> Box<dyn Iterator<Item = String>> {
+            let name = vertex.name();
+            let node_type = vertex.properties().get("type").unwrap().to_string();
+            let property_list =
+                vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
+            Box::new(std::iter::once(format!(
+                "{name} is a {node_type} with the following details:\n{property_list}"
+            )))
+        }
+
+        fn template_edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = String>> {
+            let src = edge.src().name();
+            let dst = edge.dst().name();
+            let lines = edge.history().iter().join(",");
+            Box::new(std::iter::once(format!(
+                "{src} appeared with {dst} in lines: {lines}"
+            )))
+        }
     }
 
-    fn edge_template(edge: &EdgeView<Graph>) -> String {
-        let src = edge.src().name();
-        let dst = edge.dst().name();
-        let lines = edge.history().iter().join(",");
-        format!("{src} appeared with {dst} in lines: {lines}")
-    }
+    // fn node_template(vertex: &VertexView<Graph>) -> String {
+    //     let name = vertex.name();
+    //     let node_type = vertex.properties().get("type").unwrap().to_string();
+    //     let property_list =
+    //         vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
+    //     format!("{name} is a {node_type} with the following details:\n{property_list}")
+    // }
+    //
+    // fn edge_template(edge: &EdgeView<Graph>) -> String {
+    //     let src = edge.src().name();
+    //     let dst = edge.dst().name();
+    //     let lines = edge.history().iter().join(",");
+    //     Box::new(std::iter::once(format!("{src} appeared with {dst} in lines: {lines}")))
+    // }
 
     // TODO: test default templates
 
@@ -134,8 +161,11 @@ mod vector_tests {
         let doc = g
             .vertex("Frodo")
             .unwrap()
-            .generate_docs(&node_template)
-            .documents;
+            .generate_docs(&CustomTemplate)
+            .documents
+            .into_iter()
+            .next()
+            .unwrap(); // TODO: review
         let expected_doc = r###"Frodo is a hobbit with the following details:
 earliest activity: line 0
 latest activity: line 0
@@ -152,8 +182,11 @@ age: 30"###;
         let doc = g
             .edge("Frodo", "Gandalf")
             .unwrap()
-            .generate_docs(&edge_template)
-            .documents;
+            .generate_docs(&CustomTemplate)
+            .documents
+            .into_iter()
+            .next()
+            .unwrap(); // TODO: review
         let expected_doc = "Frodo appeared with Gandalf in lines: 0";
         assert_eq!(doc, expected_doc);
     }
@@ -194,11 +227,10 @@ age: 30"###;
 
         dotenv().ok();
         let vectors = g
-            .vectorize_with_templates(
+            .vectorize_with_template(
                 Box::new(openai_embedding),
                 &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
-                node_template,
-                edge_template,
+                CustomTemplate,
             )
             .await;
 
