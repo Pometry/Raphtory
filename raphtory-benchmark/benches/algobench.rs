@@ -1,10 +1,15 @@
 use crate::common::bench;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use raphtory::{
-    algorithms::metrics::{
-        local_clustering_coefficient::local_clustering_coefficient,
-        local_triangle_count::local_triangle_count,
+    algorithms::{
+        centrality::pagerank::unweighted_page_rank,
+        metrics::{
+            clustering_coefficient::clustering_coefficient,
+            local_clustering_coefficient::local_clustering_coefficient,
+        },
+        motifs::local_triangle_count::local_triangle_count,
     },
+    graphgen::random_attachment::random_attachment,
     prelude::*,
 };
 use rayon::prelude::*;
@@ -88,9 +93,61 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
     group.finish();
 }
 
+pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
+    let mut group = c.benchmark_group("graphgen_large_clustering_coeff");
+    // generate graph
+    println!("Generating graph..");
+    let graph = Graph::new();
+    let seed: [u8; 32] = [1; 32];
+    random_attachment(&graph, 10000, 100, Some(seed));
+
+    group.sampling_mode(SamplingMode::Flat);
+    group.measurement_time(std::time::Duration::from_secs(20));
+    group.sample_size(10);
+    println!("Running benchmark..");
+    group.bench_with_input(
+        BenchmarkId::new("graphgen_large_clustering_coeff", &graph),
+        &graph,
+        |b, graph| {
+            b.iter(|| {
+                let result = clustering_coefficient(graph);
+                black_box(result);
+            });
+        },
+    );
+    group.finish()
+}
+
+pub fn graphgen_large_pagerank(c: &mut Criterion) {
+    let mut group = c.benchmark_group("graphgen_large_pagerank");
+    // generate graph
+    println!("Generating graph..");
+    let graph = Graph::new();
+    let seed: [u8; 32] = [1; 32];
+    random_attachment(&graph, 1000, 10, Some(seed));
+
+    group.sampling_mode(SamplingMode::Flat);
+    group.measurement_time(std::time::Duration::from_secs(20));
+    group.sample_size(10);
+    println!("Running benchmark..");
+    group.bench_with_input(
+        BenchmarkId::new("graphgen_large_pagerank", &graph),
+        &graph,
+        |b, graph| {
+            b.iter(|| {
+                let result = unweighted_page_rank(graph, 100, None, None, true);
+                black_box(result);
+            });
+        },
+    );
+    group.finish()
+}
+
 criterion_group!(
     benches,
     local_triangle_count_analysis,
-    local_clustering_coefficient_analysis
+    local_clustering_coefficient_analysis,
+    graphgen_large_clustering_coeff,
+    graphgen_large_pagerank,
 );
 criterion_main!(benches);

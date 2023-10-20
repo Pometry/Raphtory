@@ -19,7 +19,7 @@ use crate::{
     },
     prelude::NO_PROPS,
 };
-use rand::{prelude::*, rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::collections::HashSet;
 
 /// Generates a graph using the preferential attachment model.
@@ -39,7 +39,7 @@ use std::collections::HashSet;
 /// * `graph` - The graph you wish to add vertices and edges to
 /// * `vertices_to_add` - The amount of vertices you wish to add to the graph (steps)
 /// * `edges_per_step` - The amount of edges a joining vertex should add to the graph
-/// * `seed` - an optional array for a seed value of bytes
+/// * `seed` - an optional byte array for the seed used in rng, can be None
 /// # Examples
 ///
 /// ```
@@ -158,7 +158,7 @@ mod preferential_attachment_tests {
     #[test]
     fn prior_graph() {
         let graph = Graph::new();
-        random_attachment(&graph, 1000, 3);
+        random_attachment(&graph, 1000, 3, None);
         ba_preferential_attachment(&graph, 500, 4, None);
         assert_eq!(graph.count_edges(), 5000);
         assert_eq!(graph.count_vertices(), 1503);

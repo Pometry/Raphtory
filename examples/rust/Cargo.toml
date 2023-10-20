@@ -33,13 +33,6 @@ name = "crypto"
 [[bin]]
 name = "pokec"
 
-[dev-dependencies]
-criterion = "0.3"
-
-[[bench]]
-name = "hulongbay_bench"
-harness = false
-
 [target.x86_64-unknown-linux-gnu]
 linker = "/usr/bin/clang"
 rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment"]

@@ -25,7 +25,7 @@ use pyo3::prelude::*;
 ///  None
 #[pyfunction]
 pub fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
-    ra(&g.graph, vertices_to_add, edges_per_step);
+    ra(&g.graph, vertices_to_add, edges_per_step, None);
 }
 
 /// Generates a graph using the preferential attachment model.
