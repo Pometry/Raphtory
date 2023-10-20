@@ -20,12 +20,19 @@ use pyo3::prelude::*;
 ///   g: The graph you wish to add vertices and edges to
 ///   vertices_to_add: The amount of vertices you wish to add to the graph (steps)
 ///   edges_per_step: The amount of edges a joining vertex should add to the graph
+///   seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
 ///  None
 #[pyfunction]
-pub fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
-    ra(&g.graph, vertices_to_add, edges_per_step);
+#[pyo3[signature = (g, vertices_to_add, edges_per_step, seed=None)]]
+pub fn random_attachment(
+    g: &PyGraph,
+    vertices_to_add: usize,
+    edges_per_step: usize,
+    seed: Option<[u8; 32]>,
+) {
+    ra(&g.graph, vertices_to_add, edges_per_step, seed);
 }
 
 /// Generates a graph using the preferential attachment model.
@@ -45,11 +52,18 @@ pub fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: us
 ///    g: The graph you wish to add vertices and edges to
 ///    vertices_to_add: The amount of vertices you wish to add to the graph (steps)
 ///    edges_per_step: The amount of edges a joining vertex should add to the graph
+///    seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
 ///
 /// None
 #[pyfunction]
-pub fn ba_preferential_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
-    pa(&g.graph, vertices_to_add, edges_per_step);
+#[pyo3[signature = (g, vertices_to_add, edges_per_step, seed=None)]]
+pub fn ba_preferential_attachment(
+    g: &PyGraph,
+    vertices_to_add: usize,
+    edges_per_step: usize,
+    seed: Option<[u8; 32]>,
+) {
+    pa(&g.graph, vertices_to_add, edges_per_step, seed);
 }

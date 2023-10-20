@@ -431,7 +431,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(20));
         assert_eq!(g.earliest_time(), Some(5));
 
-        random_attachment(&g, 100, 10);
+        random_attachment(&g, 100, 10, None);
         assert_eq!(g.latest_time(), Some(126));
         assert_eq!(g.earliest_time(), Some(5));
     }
