@@ -99,10 +99,10 @@ pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
     // generate graph
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 1000000, 4, Some(seed));
+    random_attachment(&graph, 500000, 4, Some(seed));
 
     group.sampling_mode(SamplingMode::Flat);
-    group.measurement_time(std::time::Duration::from_secs(20));
+    group.measurement_time(std::time::Duration::from_secs(60));
     group.sample_size(10);
     group.bench_with_input(
         BenchmarkId::new("graphgen_large_clustering_coeff", &graph),
@@ -122,7 +122,7 @@ pub fn graphgen_large_pagerank(c: &mut Criterion) {
     // generate graph
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 1000000, 4, Some(seed));
+    random_attachment(&graph, 500000, 4, Some(seed));
 
     group.sampling_mode(SamplingMode::Flat);
     group.measurement_time(std::time::Duration::from_secs(20));
@@ -145,10 +145,10 @@ pub fn graphgen_large_concomp(c: &mut Criterion) {
     // generate graph
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 1000000, 4, Some(seed));
+    random_attachment(&graph, 500000, 4, Some(seed));
 
     group.sampling_mode(SamplingMode::Flat);
-    group.measurement_time(std::time::Duration::from_secs(120));
+    group.measurement_time(std::time::Duration::from_secs(60));
     group.sample_size(10);
     group.bench_with_input(
         BenchmarkId::new("graphgen_large_concomp", &graph),
