@@ -970,6 +970,7 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core",
+ "rayon",
  "serde",
 ]
 
@@ -3257,6 +3258,7 @@ dependencies = [
  "ahash",
  "arrow2",
  "clap 4.4.6",
+ "dashmap",
  "heed",
  "itertools 0.11.0",
  "memmap2 0.8.0",

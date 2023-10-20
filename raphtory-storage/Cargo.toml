@@ -25,6 +25,7 @@ arrow2 = {version="0.18.0", features=["io_ipc", "io_parquet", "io_parquet_compre
 ahash = "0.8.3"
 tempfile = "3.8.0"
 clap = {version="4.4.6", features = ["derive"]}
+dashmap = {version = "5.5.3", features = ["rayon"]}
 
 [dev-dependencies]
 serde = { version = "1", features = ["derive","rc"] }
