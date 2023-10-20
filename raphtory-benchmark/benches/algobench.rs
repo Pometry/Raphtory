@@ -3,6 +3,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank,
+        community_detection::connected_components::weakly_connected_components,
         metrics::{
             clustering_coefficient::clustering_coefficient,
             local_clustering_coefficient::local_clustering_coefficient,
@@ -96,15 +97,13 @@ pub fn local_clustering_coefficient_analysis(c: &mut Criterion) {
 pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
     let mut group = c.benchmark_group("graphgen_large_clustering_coeff");
     // generate graph
-    println!("Generating graph..");
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 10000, 100, Some(seed));
+    random_attachment(&graph, 1000000, 4, Some(seed));
 
     group.sampling_mode(SamplingMode::Flat);
     group.measurement_time(std::time::Duration::from_secs(20));
     group.sample_size(10);
-    println!("Running benchmark..");
     group.bench_with_input(
         BenchmarkId::new("graphgen_large_clustering_coeff", &graph),
         &graph,
@@ -121,15 +120,13 @@ pub fn graphgen_large_clustering_coeff(c: &mut Criterion) {
 pub fn graphgen_large_pagerank(c: &mut Criterion) {
     let mut group = c.benchmark_group("graphgen_large_pagerank");
     // generate graph
-    println!("Generating graph..");
     let graph = Graph::new();
     let seed: [u8; 32] = [1; 32];
-    random_attachment(&graph, 1000, 10, Some(seed));
+    random_attachment(&graph, 1000000, 4, Some(seed));
 
     group.sampling_mode(SamplingMode::Flat);
     group.measurement_time(std::time::Duration::from_secs(20));
     group.sample_size(10);
-    println!("Running benchmark..");
     group.bench_with_input(
         BenchmarkId::new("graphgen_large_pagerank", &graph),
         &graph,
@@ -143,11 +140,35 @@ pub fn graphgen_large_pagerank(c: &mut Criterion) {
     group.finish()
 }
 
+pub fn graphgen_large_concomp(c: &mut Criterion) {
+    let mut group = c.benchmark_group("graphgen_large_concomp");
+    // generate graph
+    let graph = Graph::new();
+    let seed: [u8; 32] = [1; 32];
+    random_attachment(&graph, 1000000, 4, Some(seed));
+
+    group.sampling_mode(SamplingMode::Flat);
+    group.measurement_time(std::time::Duration::from_secs(120));
+    group.sample_size(10);
+    group.bench_with_input(
+        BenchmarkId::new("graphgen_large_concomp", &graph),
+        &graph,
+        |b, graph| {
+            b.iter(|| {
+                let result = weakly_connected_components(graph, 20, None);
+                black_box(result);
+            });
+        },
+    );
+    group.finish()
+}
+
 criterion_group!(
     benches,
     local_triangle_count_analysis,
     local_clustering_coefficient_analysis,
     graphgen_large_clustering_coeff,
     graphgen_large_pagerank,
+    graphgen_large_concomp,
 );
 criterion_main!(benches);

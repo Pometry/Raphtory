@@ -20,7 +20,7 @@ use crate::{
     },
     prelude::NO_PROPS,
 };
-use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
 /// Given a graph this function will add a user defined number of vertices, each with a
 /// user defined number of edges.
@@ -72,7 +72,7 @@ pub fn random_attachment(
     }
 
     for _ in 0..vertices_to_add {
-        let edges = ids.choose_multiple(rng, edges_per_step);
+        let edges = ids.choose_multiple(&mut rng, edges_per_step);
         max_id += 1;
         latest_time += 1;
         edges.for_each(|neighbour| {
