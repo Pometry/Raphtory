@@ -135,8 +135,12 @@ impl GqlGraph {
             .collect()
     }
 
-    async fn search_count(&self, query: String) -> usize {
-        self.graph.search_count(&query).unwrap_or(0)
+    async fn search_vertex_count(&self, query: String) -> usize {
+        self.graph.search_vertex_count(&query).unwrap_or(0)
+    }
+
+    async fn search_edge_count(&self, query: String) -> usize {
+        self.graph.search_edge_count(&query).unwrap_or(0)
     }
 
     async fn node_count(&self, filter: Option<NodeFilter>) -> usize {
@@ -175,6 +179,10 @@ impl GqlGraph {
             (None, None, None) => {
                 return self.graph.edges().into_iter().map(|ev| ev.into()).collect()
             }
+            (Some(filter), None, None) => return get_edges_with_filter(&self.graph, filter),
+            (None, Some(limit), Some(offset)) => {
+                return get_edges_with_limit(&self.graph, limit, offset)
+            }
             (Some(filter), Some(limit), Some(offset)) => {
                 return get_edges_with_filter_limit(&self.graph, filter, limit, offset);
             }
@@ -183,10 +191,6 @@ impl GqlGraph {
             }
             (Some(filter), Some(limit), None) => {
                 return get_edges_with_filter_limit(&self.graph, filter, limit, 0)
-            }
-            (Some(filter), None, None) => return get_edges_with_filter(&self.graph, filter),
-            (None, Some(limit), Some(offset)) => {
-                return get_edges_with_limit(&self.graph, limit, offset)
             }
             (None, None, Some(offset)) => return get_edges_with_limit(&self.graph, 10, offset),
             (None, Some(limit), None) => return get_edges_with_limit(&self.graph, limit, 0),
@@ -198,15 +202,15 @@ impl GqlGraph {
             limit: usize,
             offset: usize,
         ) -> Vec<Edge> {
-            let start_time = limit * offset;
-            let end_time = start_time + limit;
+            let start_position = limit * offset;
+            let end_position = start_position + limit;
             graph
                 .edges()
                 .into_iter()
                 .enumerate()
                 .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
                 .filter_map(|(i, ev)| {
-                    if filter.matches(&ev) && i >= start_time && i < end_time {
+                    if filter.matches(&ev) && i >= start_position && i < end_position {
                         Some(ev)
                     } else {
                         None
@@ -232,15 +236,15 @@ impl GqlGraph {
             limit: usize,
             offset: usize,
         ) -> Vec<Edge> {
-            let start_time = limit * offset;
-            let end_time = start_time + limit;
+            let start_position = limit * offset;
+            let end_position = start_position + limit;
             graph
                 .edges()
                 .into_iter()
                 .enumerate()
                 .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
                 .filter_map(|(i, ev)| {
-                    if i >= start_time && i < end_time {
+                    if i >= start_position && i < end_position {
                         Some(ev)
                     } else {
                         None
