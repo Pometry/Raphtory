@@ -246,8 +246,9 @@ fn query1_v4_par(
                                         .unwrap()
                                         .filter_map(|(v, t)| v.map(|v| (v, t)))
                                     {
-                                        if *prog1_event_id == 4688 && prog1_t < nf1_t
-                                        // && nf1_t - prog1_t <= 30
+                                        if *prog1_event_id == 4688
+                                            && prog1_t < nf1_t
+                                            && nf1_t - prog1_t <= 30
                                         {
                                             probe_map
                                                 .entry(b)
@@ -327,9 +328,7 @@ fn binary_search_join_par<'a>(
             };
 
             for (prog1_t, nft_t, e) in &edges[from..] {
-                if
-                /*nft_t - login1_t <= 30 &&*/
-                login1_t < prog1_t && a != e {
+                if nft_t - login1_t <= 30 && login1_t < prog1_t && a != e {
                     count.fetch_add(1, Ordering::Relaxed);
                     // out.push((login1_t, prog1_t, nft1_1));
                 }
