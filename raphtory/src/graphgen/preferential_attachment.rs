@@ -9,7 +9,7 @@
 //! use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 //!
 //! let graph = Graph::new();
-//! ba_preferential_attachment(&graph, 1000, 10);
+//! ba_preferential_attachment(&graph, 1000, 10, None);
 //! ```
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
     },
     prelude::NO_PROPS,
 };
-use rand::prelude::*;
+use rand::{prelude::*, rngs::StdRng, Rng, SeedableRng};
 use std::collections::HashSet;
 
 /// Generates a graph using the preferential attachment model.
@@ -39,6 +39,7 @@ use std::collections::HashSet;
 /// * `graph` - The graph you wish to add vertices and edges to
 /// * `vertices_to_add` - The amount of vertices you wish to add to the graph (steps)
 /// * `edges_per_step` - The amount of edges a joining vertex should add to the graph
+/// * `seed` - an optional array for a seed value of bytes
 /// # Examples
 ///
 /// ```
@@ -46,10 +47,20 @@ use std::collections::HashSet;
 /// use raphtory::graphgen::preferential_attachment::ba_preferential_attachment;
 ///
 /// let graph = Graph::new();
-/// ba_preferential_attachment(&graph, 1000, 10);
+/// ba_preferential_attachment(&graph, 1000, 10, None);
 /// ```
-pub fn ba_preferential_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
-    let mut rng = thread_rng();
+pub fn ba_preferential_attachment(
+    graph: &Graph,
+    vertices_to_add: usize,
+    edges_per_step: usize,
+    seed: Option<[u8; 32]>,
+) {
+    let mut rng: StdRng;
+    if let Some(seed_value) = seed {
+        rng = StdRng::from_seed(seed_value);
+    } else {
+        rng = StdRng::from_entropy();
+    }
     let mut latest_time = graph.end().unwrap_or(0);
     let view = graph.window(i64::MIN, i64::MAX);
     let mut ids: Vec<u64> = view.vertices().id().collect();
@@ -124,7 +135,7 @@ mod preferential_attachment_tests {
     #[test]
     fn blank_graph() {
         let graph = Graph::new();
-        ba_preferential_attachment(&graph, 1000, 10);
+        ba_preferential_attachment(&graph, 1000, 10, None);
         assert_eq!(graph.count_edges(), 10009);
         assert_eq!(graph.count_vertices(), 1010);
     }
@@ -139,7 +150,7 @@ mod preferential_attachment_tests {
                 .ok();
         }
 
-        ba_preferential_attachment(&graph, 1000, 5);
+        ba_preferential_attachment(&graph, 1000, 5, None);
         assert_eq!(graph.count_edges(), 5009);
         assert_eq!(graph.count_vertices(), 1010);
     }
@@ -148,7 +159,7 @@ mod preferential_attachment_tests {
     fn prior_graph() {
         let graph = Graph::new();
         random_attachment(&graph, 1000, 3);
-        ba_preferential_attachment(&graph, 500, 4);
+        ba_preferential_attachment(&graph, 500, 4, None);
         assert_eq!(graph.count_edges(), 5000);
         assert_eq!(graph.count_vertices(), 1503);
     }

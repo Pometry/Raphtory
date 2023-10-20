@@ -103,7 +103,7 @@ mod random_graph_test {
     #[test]
     fn prior_graph() {
         let graph = Graph::new();
-        ba_preferential_attachment(&graph, 300, 7);
+        ba_preferential_attachment(&graph, 300, 7, None);
         random_attachment(&graph, 4000, 12);
         assert_eq!(graph.count_edges(), 50106);
         assert_eq!(graph.count_vertices(), 4307);

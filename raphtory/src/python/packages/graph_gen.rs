@@ -51,5 +51,5 @@ pub fn random_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: us
 /// None
 #[pyfunction]
 pub fn ba_preferential_attachment(g: &PyGraph, vertices_to_add: usize, edges_per_step: usize) {
-    pa(&g.graph, vertices_to_add, edges_per_step);
+    pa(&g.graph, vertices_to_add, edges_per_step, None);
 }
