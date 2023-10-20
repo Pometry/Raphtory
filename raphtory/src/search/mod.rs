@@ -605,6 +605,16 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         Ok(results)
     }
 
+    pub fn search_count(&self, q: &str) -> Result<usize, GraphError> {
+        let searcher = self.reader.searcher();
+        let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+        let query = query_parser.parse_query(q)?;
+
+        let count = searcher.search(&query, &tantivy::collector::Count)?;
+
+        Ok(count)
+    }
+
     pub fn search_edges(
         &self,
         q: &str,
