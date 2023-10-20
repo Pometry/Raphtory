@@ -152,7 +152,7 @@ impl GqlGraph {
                 .filter(|n| filter.matches(n))
                 .count()
         } else {
-            self.graph.vertices().len()
+            self.graph.count_vertices()
         }
     }
 
@@ -165,7 +165,7 @@ impl GqlGraph {
                 .filter(|ev| filter.matches(ev))
                 .count()
         } else {
-            self.graph.edges().count()
+            self.graph.count_edges()
         }
     }
 
