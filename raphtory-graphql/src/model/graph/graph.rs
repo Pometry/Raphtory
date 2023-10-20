@@ -136,11 +136,7 @@ impl GqlGraph {
     }
 
     async fn search_count(&self, query: String) -> usize {
-        self.graph
-            .search(&query, 999999, 0)
-            .into_iter()
-            .flatten()
-            .count()
+        self.graph.search_count(&query).unwrap_or(0)
     }
 
     async fn node_count(&self, filter: Option<NodeFilter>) -> usize {
