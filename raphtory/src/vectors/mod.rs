@@ -1,7 +1,15 @@
-use crate::vectors::entity_id::EntityId;
+use crate::vectors::{
+    document_ref::{DocumentRef, Life},
+    entity_id::EntityId,
+};
 use futures_util::future::BoxFuture;
-use std::future::Future;
+use std::{
+    collections::hash_map::DefaultHasher,
+    future::Future,
+    hash::{Hash, Hasher},
+};
 
+mod document_ref;
 mod document_source;
 pub mod embeddings;
 mod entity_id;
@@ -23,6 +31,7 @@ pub enum Document {
     },
 }
 
+// TODO: remove this interface, only used by Document (?)
 pub trait DocumentOps {
     fn content(&self) -> &str;
     fn into_content(self) -> String;
@@ -44,9 +53,49 @@ impl DocumentOps for Document {
 }
 
 #[derive(Clone)]
+pub struct InputDocument {
+    pub content: String,
+    pub life: Life,
+}
+
+impl From<String> for InputDocument {
+    fn from(value: String) -> Self {
+        Self {
+            content: value,
+            life: Life::Inherited,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct EntityDocuments {
     id: EntityId,
-    documents: Vec<String>,
+    documents: Vec<InputDocument>,
+}
+
+impl EntityDocuments {
+    fn new(id: EntityId, documents: Vec<InputDocument>) -> Self {
+        Self { id, documents }
+    }
+    fn hash(self) -> HashedEntityDocuments {
+        let mut hasher = DefaultHasher::new();
+        for doc in &self.documents {
+            doc.content.hash(&mut hasher);
+        }
+        HashedEntityDocuments {
+            id: self.id,
+            hash: hasher.finish(),
+            documents: self.documents,
+        }
+    }
+}
+
+// FIXME: I want this to be private !!
+#[derive(Clone)]
+pub struct HashedEntityDocuments {
+    id: EntityId,
+    hash: u64,
+    documents: Vec<InputDocument>,
 }
 
 pub trait EmbeddingFunction: Send + Sync {
@@ -71,7 +120,6 @@ mod vector_tests {
         db::graph::{edge::EdgeView, vertex::VertexView},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
-            document_source::DocumentSource,
             embeddings::openai_embedding,
             graph_entity::GraphEntity,
             vectorizable::{DocumentTemplate, Vectorizable},
@@ -93,23 +141,24 @@ mod vector_tests {
     impl DocumentTemplate for CustomTemplate {
         fn template_node<G: GraphViewOps>(
             vertex: &VertexView<G>,
-        ) -> Box<dyn Iterator<Item = String>> {
+        ) -> Box<dyn Iterator<Item = InputDocument>> {
             let name = vertex.name();
             let node_type = vertex.properties().get("type").unwrap().to_string();
             let property_list =
                 vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
-            Box::new(std::iter::once(format!(
-                "{name} is a {node_type} with the following details:\n{property_list}"
-            )))
+            let content =
+                format!("{name} is a {node_type} with the following details:\n{property_list}");
+            Box::new(std::iter::once(content.into()))
         }
 
-        fn template_edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = String>> {
+        fn template_edge<G: GraphViewOps>(
+            edge: &EdgeView<G>,
+        ) -> Box<dyn Iterator<Item = InputDocument>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
-            Box::new(std::iter::once(format!(
-                "{src} appeared with {dst} in lines: {lines}"
-            )))
+            let content = format!("{src} appeared with {dst} in lines: {lines}");
+            Box::new(std::iter::once(content.into()))
         }
     }
 
@@ -158,14 +207,10 @@ mod vector_tests {
         )
         .unwrap();
 
-        let doc = g
-            .vertex("Frodo")
-            .unwrap()
-            .generate_docs(&CustomTemplate)
-            .documents
-            .into_iter()
+        let doc = CustomTemplate::template_node(&g.vertex("Frodo").unwrap())
             .next()
-            .unwrap(); // TODO: review
+            .unwrap()
+            .content; // TODO: review
         let expected_doc = r###"Frodo is a hobbit with the following details:
 earliest activity: line 0
 latest activity: line 0
@@ -179,14 +224,10 @@ age: 30"###;
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
 
-        let doc = g
-            .edge("Frodo", "Gandalf")
-            .unwrap()
-            .generate_docs(&CustomTemplate)
-            .documents
-            .into_iter()
+        let doc = CustomTemplate::template_edge(&g.edge("Frodo", "Gandalf").unwrap())
             .next()
-            .unwrap(); // TODO: review
+            .unwrap()
+            .content; // TODO: review
         let expected_doc = "Frodo appeared with Gandalf in lines: 0";
         assert_eq!(doc, expected_doc);
     }

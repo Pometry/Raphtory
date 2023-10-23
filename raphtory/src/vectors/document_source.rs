@@ -9,37 +9,39 @@ use tantivy::HasLen;
 
 const DOCUMENT_MAX_SIZE: usize = 1000;
 
-pub(crate) trait DocumentSource: Sized {
-    // TODO: make this take a DocumentTemplate instead!!
-    fn generate_docs<T: DocumentTemplate>(&self, template: &T) -> EntityDocuments;
-}
+// pub(crate) trait DocumentSource: Sized {
+//     // TODO: make this take a DocumentTemplate instead!!
+//     fn generate_docs<T: DocumentTemplate>(&self, template: &T) -> EntityDocuments;
+// }
+//
+// impl<G: GraphViewOps> DocumentSource for VertexView<G> {
+//     fn generate_docs<T: DocumentTemplate>(&self, template: &T) -> EntityDocuments {
+//         let documents = T::template_node(self)
+//             .flat_map(|text| split_text_by_line_breaks(text, DOCUMENT_MAX_SIZE).into_iter())
+//             .collect_vec();
+//         EntityDocuments {
+//             id: EntityId::Node { id: self.id() },
+//             documents,
+//         }
+//     }
+// }
+//
+// impl<G: GraphViewOps> DocumentSource for EdgeView<G> {
+//     fn generate_docs<T: DocumentTemplate>(&self, template: &T) -> EntityDocuments {
+//         let documents = T::template_edge(self)
+//             .flat_map(|text| split_text_by_line_breaks(text, DOCUMENT_MAX_SIZE).into_iter())
+//             .collect_vec();
+//         EntityDocuments {
+//             id: EntityId::Edge {
+//                 src: self.src().id(),
+//                 dst: self.dst().id(),
+//             },
+//             documents,
+//         }
+//     }
+// }
 
-impl<G: GraphViewOps> DocumentSource for VertexView<G> {
-    fn generate_docs<T: DocumentTemplate>(&self, template: &T) -> EntityDocuments {
-        let documents = T::template_node(self)
-            .flat_map(|text| split_text_by_line_breaks(text, DOCUMENT_MAX_SIZE).into_iter())
-            .collect_vec();
-        EntityDocuments {
-            id: EntityId::Node { id: self.id() },
-            documents,
-        }
-    }
-}
-
-impl<G: GraphViewOps> DocumentSource for EdgeView<G> {
-    fn generate_docs<T: DocumentTemplate>(&self, template: &T) -> EntityDocuments {
-        let documents = T::template_edge(self)
-            .flat_map(|text| split_text_by_line_breaks(text, DOCUMENT_MAX_SIZE).into_iter())
-            .collect_vec();
-        EntityDocuments {
-            id: EntityId::Edge {
-                src: self.src().id(),
-                dst: self.dst().id(),
-            },
-            documents,
-        }
-    }
-}
+// TODO: make the following two function public in the appropriate file
 
 /// Splits the input text in chunks of no more than max_size trying to use line breaks
 /// as much as possible

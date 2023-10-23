@@ -5,7 +5,7 @@ use crate::{
 use serde::Serializer;
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub(crate) enum EntityId {
     Node { id: u64 },
     Edge { src: u64, dst: u64 },
