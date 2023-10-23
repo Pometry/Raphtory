@@ -1,15 +1,12 @@
 use crate::{
-    db::{
-        api::view::internal::IntoDynamic,
-        graph::{edge::EdgeView, vertex::VertexView},
-    },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
+    db::api::view::internal::IntoDynamic,
+    prelude::GraphViewOps,
     vectors::{
-        document_ref::{DocumentRef, Life},
+        document_ref::DocumentRef,
+        document_template::{DefaultTemplate, DocumentTemplate},
         entity_id::EntityId,
-        graph_entity::GraphEntity,
         vectorized_graph::VectorizedGraph,
-        Embedding, EmbeddingFunction, EntityDocuments, HashedEntityDocuments, InputDocument,
+        Embedding, EmbeddingFunction, InputDocument,
     },
 };
 use async_trait::async_trait;
@@ -18,7 +15,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, VecDeque},
-    convert::identity,
     fs::{create_dir_all, File},
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
@@ -28,57 +24,46 @@ use std::{
 
 const CHUNK_SIZE: usize = 1000;
 
+#[derive(Clone)]
+struct DocumentGroup {
+    id: EntityId,
+    documents: Vec<InputDocument>,
+}
+
+impl DocumentGroup {
+    fn new(id: EntityId, documents: Vec<InputDocument>) -> Self {
+        Self { id, documents }
+    }
+    fn hash(self) -> HashedDocumentGroup {
+        let mut hasher = DefaultHasher::new();
+        for doc in &self.documents {
+            doc.content.hash(&mut hasher);
+        }
+        HashedDocumentGroup {
+            id: self.id,
+            hash: hasher.finish(),
+            documents: self.documents,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct HashedDocumentGroup {
+    id: EntityId,
+    hash: u64,
+    documents: Vec<InputDocument>,
+}
+
+struct EmbeddedDocumentGroup {
+    id: EntityId,
+    hash: u64,
+    documents: Vec<(DocumentRef)>,
+}
+
 #[derive(Serialize, Deserialize)]
-struct EmbeddingsCache {
+struct EmbeddingCache {
     hash: u64,
     embeddings: Vec<Embedding>,
-}
-
-// TODO: move this to different file
-pub trait DocumentTemplate: Send + Sync {
-    fn template_node<G: GraphViewOps>(
-        vertex: &VertexView<G>,
-    ) -> Box<dyn Iterator<Item = InputDocument>>;
-    fn template_edge<G: GraphViewOps>(
-        edge: &EdgeView<G>,
-    ) -> Box<dyn Iterator<Item = InputDocument>>;
-}
-
-pub struct DefaultTemplate;
-
-impl DocumentTemplate for DefaultTemplate {
-    fn template_node<G: GraphViewOps>(
-        vertex: &VertexView<G>,
-    ) -> Box<dyn Iterator<Item = InputDocument>> {
-        let name = vertex.name();
-        let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
-        let content = format!("The entity {name} has the following details:\n{property_list}");
-        Box::new(std::iter::once(content.into()))
-    }
-
-    fn template_edge<G: GraphViewOps>(
-        edge: &EdgeView<G>,
-    ) -> Box<dyn Iterator<Item = InputDocument>> {
-        let src = edge.src().name();
-        let dst = edge.dst().name();
-        // TODO: property list
-
-        let layer_lines = edge.layer_names().map(|layer| {
-            let times = edge
-                .layer(layer.clone())
-                .unwrap()
-                .history()
-                .iter()
-                .join(", ");
-            match layer.as_ref() {
-                "_default" => format!("{src} interacted with {dst} at times: {times}"),
-                layer => format!("{src} {layer} {dst} at times: {times}"),
-            }
-        });
-        let content: String =
-            itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect();
-        Box::new(std::iter::once(content.into()))
-    }
 }
 
 #[async_trait]
@@ -115,12 +100,12 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
         let node_docs = self.vertices().iter().map(|vertex| {
-            let documents = T::template_node(&vertex).collect_vec();
-            EntityDocuments::new(vertex.into(), documents)
+            let documents = T::node(&vertex).collect_vec();
+            DocumentGroup::new(vertex.into(), documents)
         });
         let edge_docs = self.edges().map(|edge| {
-            let documents = T::template_edge(&edge).collect_vec();
-            EntityDocuments::new(edge.into(), documents)
+            let documents = T::edge(&edge).collect_vec();
+            DocumentGroup::new(edge.into(), documents)
         });
 
         let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
@@ -143,7 +128,7 @@ async fn generate_embeddings<I>(
     cache_dir: &Path,
 ) -> HashMap<EntityId, Vec<DocumentRef>>
 where
-    I: Iterator<Item = EntityDocuments>,
+    I: Iterator<Item = DocumentGroup>,
 {
     let hashed_docs_by_entity = docs_by_entity.map(|entity_documents| (entity_documents.hash()));
     let mut document_refs = HashMap::new();
@@ -170,7 +155,7 @@ where
 }
 
 async fn compute_embeddings_updating_cache(
-    docs: Vec<HashedEntityDocuments>,
+    docs: Vec<HashedDocumentGroup>,
     embedding: &Box<dyn EmbeddingFunction>,
     cache_dir: &Path,
 ) -> impl Iterator<Item = (EntityId, Vec<DocumentRef>)> {
@@ -183,7 +168,7 @@ async fn compute_embeddings_updating_cache(
             .iter()
             .map(|doc| doc.embedding.clone())
             .collect_vec();
-        let embedding_cache = EmbeddingsCache {
+        let embedding_cache = EmbeddingCache {
             hash: group.hash,
             embeddings,
         };
@@ -200,16 +185,10 @@ async fn compute_embeddings_updating_cache(
         .map(|group| (group.id, group.documents))
 }
 
-struct EmbeddedEntityDocuments {
-    id: EntityId,
-    hash: u64,
-    documents: Vec<(DocumentRef)>,
-}
-
 async fn compute_embeddings(
-    docs_by_entity: Vec<HashedEntityDocuments>,
+    docs_by_entity: Vec<HashedDocumentGroup>,
     embedding: &Box<dyn EmbeddingFunction>,
-) -> Vec<EmbeddedEntityDocuments> {
+) -> Vec<EmbeddedDocumentGroup> {
     let texts = docs_by_entity
         .iter()
         .flat_map(|docs| docs.documents.iter().map(|doc| doc.content.clone()))
@@ -231,7 +210,7 @@ async fn compute_embeddings(
                 DocumentRef::new(entity_docs.id, index, embedding, doc.life)
             })
             .collect_vec();
-        let embedded = EmbeddedEntityDocuments {
+        let embedded = EmbeddedDocumentGroup {
             id: entity_docs.id,
             hash: entity_docs.hash,
             documents: document_refs,
@@ -242,13 +221,13 @@ async fn compute_embeddings(
 }
 
 fn retrieve_embeddings_from_cache(
-    entity_docs: &HashedEntityDocuments,
+    entity_docs: &HashedDocumentGroup,
     cache_dir: &Path,
 ) -> Option<Vec<DocumentRef>> {
     let doc_path = cache_dir.join(entity_docs.id.to_string());
     let doc_file = File::open(doc_path).ok()?;
     let mut doc_reader = BufReader::new(doc_file);
-    let embedding_cache: EmbeddingsCache = bincode::deserialize_from(&mut doc_reader).ok()?;
+    let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
     if entity_docs.hash == embedding_cache.hash {
         let id = entity_docs.id;
         let document_refs = entity_docs

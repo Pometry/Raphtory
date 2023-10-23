@@ -5,9 +5,7 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
     vectors::{
-        document_ref::DocumentRef,
-        entity_id::EntityId,
-        vectorizable::{DefaultTemplate, DocumentTemplate},
+        document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
         Document, Embedding, EmbeddingFunction,
     },
 };

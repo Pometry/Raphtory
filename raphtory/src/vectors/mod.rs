@@ -1,16 +1,13 @@
-use crate::vectors::{
-    document_ref::{DocumentRef, Life},
-    entity_id::EntityId,
-};
+use crate::vectors::document_ref::Life;
 use futures_util::future::BoxFuture;
 use std::{
-    collections::hash_map::DefaultHasher,
     future::Future,
     hash::{Hash, Hasher},
 };
 
 mod document_ref;
 mod document_source;
+pub mod document_template;
 pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
@@ -67,37 +64,6 @@ impl From<String> for InputDocument {
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct EntityDocuments {
-    id: EntityId,
-    documents: Vec<InputDocument>,
-}
-
-impl EntityDocuments {
-    fn new(id: EntityId, documents: Vec<InputDocument>) -> Self {
-        Self { id, documents }
-    }
-    fn hash(self) -> HashedEntityDocuments {
-        let mut hasher = DefaultHasher::new();
-        for doc in &self.documents {
-            doc.content.hash(&mut hasher);
-        }
-        HashedEntityDocuments {
-            id: self.id,
-            hash: hasher.finish(),
-            documents: self.documents,
-        }
-    }
-}
-
-// FIXME: I want this to be private !!
-#[derive(Clone)]
-pub struct HashedEntityDocuments {
-    id: EntityId,
-    hash: u64,
-    documents: Vec<InputDocument>,
-}
-
 pub trait EmbeddingFunction: Send + Sync {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>>;
 }
@@ -120,9 +86,8 @@ mod vector_tests {
         db::graph::{edge::EdgeView, vertex::VertexView},
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
-            embeddings::openai_embedding,
-            graph_entity::GraphEntity,
-            vectorizable::{DocumentTemplate, Vectorizable},
+            document_template::DocumentTemplate, embeddings::openai_embedding,
+            graph_entity::GraphEntity, vectorizable::Vectorizable,
         },
     };
     use dotenv::dotenv;
@@ -139,7 +104,7 @@ mod vector_tests {
     struct CustomTemplate;
 
     impl DocumentTemplate for CustomTemplate {
-        fn template_node<G: GraphViewOps>(
+        fn node<G: GraphViewOps>(
             vertex: &VertexView<G>,
         ) -> Box<dyn Iterator<Item = InputDocument>> {
             let name = vertex.name();
@@ -151,9 +116,7 @@ mod vector_tests {
             Box::new(std::iter::once(content.into()))
         }
 
-        fn template_edge<G: GraphViewOps>(
-            edge: &EdgeView<G>,
-        ) -> Box<dyn Iterator<Item = InputDocument>> {
+        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = InputDocument>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
@@ -192,7 +155,7 @@ mod vector_tests {
         )
         .unwrap();
 
-        let doc = CustomTemplate::template_node(&g.vertex("Frodo").unwrap())
+        let doc = CustomTemplate::node(&g.vertex("Frodo").unwrap())
             .next()
             .unwrap()
             .content; // TODO: review
@@ -209,7 +172,7 @@ age: 30"###;
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
 
-        let doc = CustomTemplate::template_edge(&g.edge("Frodo", "Gandalf").unwrap())
+        let doc = CustomTemplate::edge(&g.edge("Frodo", "Gandalf").unwrap())
             .next()
             .unwrap()
             .content; // TODO: review

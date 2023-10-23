@@ -1,7 +1,6 @@
 use crate::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
-    vectors::{entity_id::EntityId, vectorizable::DocumentTemplate, EntityDocuments},
 };
 use itertools::Itertools;
 use regex::Regex;

@@ -1,10 +1,10 @@
 use crate::{
-    prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
-    vectors::{
-        entity_id::EntityId, vectorizable::DocumentTemplate, Document, Embedding, EntityDocuments,
-    },
+    prelude::{GraphViewOps, Layer, TimeOps, VertexViewOps},
+    vectors::{document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding},
 };
 
+/// this struct contains the minimum amount of information need to regenerate a document using a
+/// template and to quickly apply windows over them
 #[derive(Clone)]
 pub(crate) struct DocumentRef {
     pub(crate) entity_id: EntityId,
@@ -63,7 +63,7 @@ impl DocumentRef {
         match self.entity_id {
             EntityId::Node { id } => Document::Node {
                 name: original_graph.vertex(id).unwrap().name(),
-                content: T::template_node(&original_graph.vertex(id).unwrap())
+                content: T::node(&original_graph.vertex(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
@@ -71,7 +71,7 @@ impl DocumentRef {
             EntityId::Edge { src, dst } => Document::Edge {
                 src: original_graph.vertex(src).unwrap().name(),
                 dst: original_graph.vertex(dst).unwrap().name(),
-                content: T::template_edge(&original_graph.edge(src, dst).unwrap())
+                content: T::edge(&original_graph.edge(src, dst).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
