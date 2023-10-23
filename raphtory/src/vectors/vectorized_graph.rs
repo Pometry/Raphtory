@@ -16,8 +16,8 @@ pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
     graph: G,
     embedding: Box<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
-    node_embeddings: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
-    edge_embeddings: HashMap<EntityId, Vec<DocumentRef>>,
+    node_documents: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
+    edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
     phantom: PhantomData<T>,
 }
 
@@ -25,15 +25,15 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
         embedding: Box<dyn EmbeddingFunction>,
-        node_embeddings: HashMap<EntityId, Vec<DocumentRef>>,
-        edge_embeddings: HashMap<EntityId, Vec<DocumentRef>>,
+        node_documents: HashMap<EntityId, Vec<DocumentRef>>,
+        edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
         phantom: PhantomData<T>,
     ) -> Self {
         Self {
             graph,
             embedding,
-            node_embeddings,
-            edge_embeddings,
+            node_documents,
+            edge_documents,
             phantom,
         }
     }
@@ -60,12 +60,12 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
                 self.graph.clone().into_dynamic(),
                 // TODO: remove both unwraps here below?
                 Box::new(
-                    self.node_embeddings
+                    self.node_documents
                         .iter()
                         .flat_map(|(_, embeddings)| embeddings),
                 ),
                 Box::new(
-                    self.edge_embeddings
+                    self.edge_documents
                         .iter()
                         .flat_map(|(_, embeddings)| embeddings),
                 ),
@@ -74,8 +74,8 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
                 let start = start.unwrap_or(i64::MIN);
                 let end = end.unwrap_or(i64::MAX);
                 let window = self.graph.window(start, end);
-                let nodes = self.window_embeddings(&self.node_embeddings, &window);
-                let edges = self.window_embeddings(&self.edge_embeddings, &window);
+                let nodes = self.window_embeddings(&self.node_documents, &window);
+                let edges = self.window_embeddings(&self.edge_documents, &window);
                 (
                     window.clone().into_dynamic(),
                     Box::new(nodes),
@@ -158,21 +158,21 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
         match document.entity_id {
             EntityId::Node { id } => {
-                let self_docs = self.node_embeddings.get(&document.entity_id).unwrap();
+                let self_docs = self.node_documents.get(&document.entity_id).unwrap();
                 let edges = graph.vertex(id).unwrap().edges();
                 let edge_docs = edges.flat_map(|edge| {
                     let edge_id = edge.into();
-                    self.edge_embeddings.get(&edge_id).unwrap()
+                    self.edge_documents.get(&edge_id).unwrap()
                 });
                 Box::new(chain!(self_docs, edge_docs))
             }
             EntityId::Edge { src, dst } => {
-                let self_docs = self.edge_embeddings.get(&document.entity_id).unwrap();
+                let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
                 let edge = graph.edge(src, dst).unwrap();
                 let src_id: EntityId = edge.src().into();
                 let dst_id: EntityId = edge.dst().into();
-                let src_docs = self.node_embeddings.get(&src_id).unwrap();
-                let dst_docs = self.node_embeddings.get(&dst_id).unwrap();
+                let src_docs = self.node_documents.get(&src_id).unwrap();
+                let dst_docs = self.node_documents.get(&dst_id).unwrap();
                 Box::new(chain!(self_docs, src_docs, dst_docs))
             }
         }

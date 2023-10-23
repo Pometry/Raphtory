@@ -99,66 +99,59 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
     ) -> VectorizedGraph<G, T> {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
-        let node_docs = self.vertices().iter().map(|vertex| {
+        let nodes = self.vertices().iter().map(|vertex| {
             let documents = T::node(&vertex).collect_vec();
             DocumentGroup::new(vertex.into(), documents)
         });
-        let edge_docs = self.edges().map(|edge| {
+        let edges = self.edges().map(|edge| {
             let documents = T::edge(&edge).collect_vec();
             DocumentGroup::new(edge.into(), documents)
         });
 
-        let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
-        let edge_embeddings = generate_embeddings(edge_docs, &embedding, cache_dir).await;
+        let node_refs = attach_embeddings(nodes, &embedding, cache_dir).await;
+        let edge_refs = attach_embeddings(edges, &embedding, cache_dir).await;
 
-        VectorizedGraph::new(
-            self.clone(),
-            embedding,
-            node_embeddings,
-            edge_embeddings,
-            PhantomData,
-        )
+        VectorizedGraph::new(self.clone(), embedding, node_refs, edge_refs, PhantomData)
     }
 }
 
-// TODO: rename to attach_embeddings. Input
-async fn generate_embeddings<I>(
-    docs_by_entity: I,
+async fn attach_embeddings<I>(
+    doc_groups: I,
     embedding: &Box<dyn EmbeddingFunction>,
     cache_dir: &Path,
 ) -> HashMap<EntityId, Vec<DocumentRef>>
 where
     I: Iterator<Item = DocumentGroup>,
 {
-    let hashed_docs_by_entity = docs_by_entity.map(|entity_documents| (entity_documents.hash()));
-    let mut document_refs = HashMap::new();
+    let hashed_doc_groups = doc_groups.map(|entity_documents| (entity_documents.hash()));
+    let mut document_groups = HashMap::new();
     let mut misses = vec![];
 
-    for doc in hashed_docs_by_entity {
-        match retrieve_embeddings_from_cache(&doc, cache_dir) {
-            Some(embedding) => {
-                document_refs.insert(doc.id, embedding);
+    for group in hashed_doc_groups {
+        match retrieve_embeddings_from_cache(&group, cache_dir) {
+            Some(document_refs) => {
+                document_groups.insert(group.id, document_refs);
             }
-            None => misses.push(doc),
+            None => misses.push(group),
         }
     }
 
     let embedding_tasks = misses
         .chunks(CHUNK_SIZE)
         .map(|chunk| compute_embeddings_updating_cache(chunk.to_vec(), embedding, cache_dir));
-    let computed_embeddings = join_all(embedding_tasks).await.into_iter().flatten();
-    for (id, documents) in computed_embeddings {
-        document_refs.insert(id, documents);
+    let new_computed_groups = join_all(embedding_tasks).await.into_iter().flatten();
+    for group in new_computed_groups {
+        document_groups.insert(group.id, group.documents);
     }
 
-    document_refs
+    document_groups
 }
 
 async fn compute_embeddings_updating_cache(
     docs: Vec<HashedDocumentGroup>,
     embedding: &Box<dyn EmbeddingFunction>,
     cache_dir: &Path,
-) -> impl Iterator<Item = (EntityId, Vec<DocumentRef>)> {
+) -> Vec<EmbeddedDocumentGroup> {
     // TODO: use this naming convention everywhere, "groups" for sets of documents referring to the same entity
     let embedded_document_groups = compute_embeddings(docs, embedding).await;
 
@@ -181,56 +174,53 @@ async fn compute_embeddings_updating_cache(
     }
 
     embedded_document_groups
-        .into_iter()
-        .map(|group| (group.id, group.documents))
 }
 
 async fn compute_embeddings(
-    docs_by_entity: Vec<HashedDocumentGroup>,
+    doc_groups: Vec<HashedDocumentGroup>,
     embedding: &Box<dyn EmbeddingFunction>,
 ) -> Vec<EmbeddedDocumentGroup> {
-    let texts = docs_by_entity
+    let texts = doc_groups
         .iter()
-        .flat_map(|docs| docs.documents.iter().map(|doc| doc.content.clone()))
+        .flat_map(|group| group.documents.iter().map(|doc| doc.content.clone()))
         .collect_vec();
 
     let embeddings = embedding.call(texts).await;
     let mut embeddings_queue = VecDeque::from(embeddings);
-    let mut embedded_entity_docs = vec![];
+    // VecDeque for efficient drain from the front of it
+    let mut embedded_groups = vec![];
 
-    for entity_docs in docs_by_entity {
-        let size = entity_docs.documents.len();
+    for group in doc_groups {
+        let size = group.documents.len();
         let entity_embeddings = embeddings_queue.drain(..size);
-        let document_refs = entity_docs
+        let document_refs = group
             .documents
             .into_iter()
             .enumerate()
             .zip(entity_embeddings)
-            .map(|((index, doc), embedding)| {
-                DocumentRef::new(entity_docs.id, index, embedding, doc.life)
-            })
+            .map(|((index, doc), embedding)| DocumentRef::new(group.id, index, embedding, doc.life))
             .collect_vec();
-        let embedded = EmbeddedDocumentGroup {
-            id: entity_docs.id,
-            hash: entity_docs.hash,
+        let embedded_group = EmbeddedDocumentGroup {
+            id: group.id,
+            hash: group.hash,
             documents: document_refs,
         };
-        embedded_entity_docs.push(embedded);
+        embedded_groups.push(embedded_group);
     }
-    embedded_entity_docs
+    embedded_groups
 }
 
 fn retrieve_embeddings_from_cache(
-    entity_docs: &HashedDocumentGroup,
+    doc_group: &HashedDocumentGroup,
     cache_dir: &Path,
 ) -> Option<Vec<DocumentRef>> {
-    let doc_path = cache_dir.join(entity_docs.id.to_string());
+    let doc_path = cache_dir.join(doc_group.id.to_string());
     let doc_file = File::open(doc_path).ok()?;
     let mut doc_reader = BufReader::new(doc_file);
     let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
-    if entity_docs.hash == embedding_cache.hash {
-        let id = entity_docs.id;
-        let document_refs = entity_docs
+    if doc_group.hash == embedding_cache.hash {
+        let id = doc_group.id;
+        let document_refs = doc_group
             .documents
             .iter()
             .map(|doc| doc.life.clone())
