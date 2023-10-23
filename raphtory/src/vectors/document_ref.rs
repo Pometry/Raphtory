@@ -52,7 +52,7 @@ impl DocumentRef {
             },
         }
     }
-    pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
+    pub fn regenerate<G, T>(&self, original_graph: &G) -> Document
     where
         G: GraphViewOps,
         T: DocumentTemplate,

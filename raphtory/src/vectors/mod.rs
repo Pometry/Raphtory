@@ -162,21 +162,6 @@ mod vector_tests {
         }
     }
 
-    // fn node_template(vertex: &VertexView<Graph>) -> String {
-    //     let name = vertex.name();
-    //     let node_type = vertex.properties().get("type").unwrap().to_string();
-    //     let property_list =
-    //         vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
-    //     format!("{name} is a {node_type} with the following details:\n{property_list}")
-    // }
-    //
-    // fn edge_template(edge: &EdgeView<Graph>) -> String {
-    //     let src = edge.src().name();
-    //     let dst = edge.dst().name();
-    //     let lines = edge.history().iter().join(",");
-    //     Box::new(std::iter::once(format!("{src} appeared with {dst} in lines: {lines}")))
-    // }
-
     // TODO: test default templates
 
     #[ignore = "this test needs an OpenAI API key to run"]
@@ -268,10 +253,9 @@ age: 30"###;
 
         dotenv().ok();
         let vectors = g
-            .vectorize_with_template(
+            .vectorize_with_template::<CustomTemplate>(
                 Box::new(openai_embedding),
                 &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
-                CustomTemplate,
             )
             .await;
 

@@ -22,6 +22,7 @@ use std::{
     fs::{create_dir_all, File},
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
+    marker::PhantomData,
     path::Path,
 };
 
@@ -92,7 +93,6 @@ pub trait Vectorizable<G: GraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-        template: T, // FIXME: I tried to put templates behind an option but didn't work and hadn't time to fix it
     ) -> VectorizedGraph<G, T>;
 }
 
@@ -103,7 +103,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path, // TODO: make this optional maybe
     ) -> VectorizedGraph<G, DefaultTemplate> {
-        self.vectorize_with_template(embedding, cache_dir, DefaultTemplate)
+        self.vectorize_with_template::<DefaultTemplate>(embedding, cache_dir)
             .await
     }
 
@@ -111,7 +111,6 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-        template: T,
     ) -> VectorizedGraph<G, T> {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
@@ -132,7 +131,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
             embedding,
             node_embeddings,
             edge_embeddings,
-            template,
+            PhantomData,
         )
     }
 }
@@ -251,15 +250,6 @@ fn retrieve_embeddings_from_cache(
     let mut doc_reader = BufReader::new(doc_file);
     let embedding_cache: EmbeddingsCache = bincode::deserialize_from(&mut doc_reader).ok()?;
     if entity_docs.hash == embedding_cache.hash {
-        // let document_refs = embedding_cache
-        //     .embeddings
-        //     .into_iter()
-        //     .enumerate()
-        //     .zip(entity_docs.documents)
-        //     .map(|((index, embedding), input_doc)| {
-        //         DocumentRef::new(entity_docs.id, index, embedding, input_doc.life)
-        //     })
-        //     .collect_vec();
         let id = entity_docs.id;
         let document_refs = entity_docs
             .documents

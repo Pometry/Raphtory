@@ -5,12 +5,14 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
     vectors::{
-        document_ref::DocumentRef, entity_id::EntityId, vectorizable::DocumentTemplate, Document,
-        Embedding, EmbeddingFunction,
+        document_ref::DocumentRef,
+        entity_id::EntityId,
+        vectorizable::{DefaultTemplate, DocumentTemplate},
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
     graph: G,
@@ -18,7 +20,7 @@ pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
     // it is not the end of the world but we are storing the entity id twice
     node_embeddings: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
     edge_embeddings: HashMap<EntityId, Vec<DocumentRef>>,
-    template: T,
+    phantom: PhantomData<T>,
 }
 
 impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
@@ -27,14 +29,14 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         embedding: Box<dyn EmbeddingFunction>,
         node_embeddings: HashMap<EntityId, Vec<DocumentRef>>,
         edge_embeddings: HashMap<EntityId, Vec<DocumentRef>>,
-        template: T,
+        phantom: PhantomData<T>,
     ) -> Self {
         Self {
             graph,
             embedding,
             node_embeddings,
             edge_embeddings,
-            template,
+            phantom,
         }
     }
 
@@ -147,7 +149,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         selected_docs
             .iter()
             .take(limit)
-            .map(|doc| doc.regenerate(&self.graph, &self.template))
+            .map(|doc| doc.regenerate::<_, T>(&self.graph))
             .collect_vec()
     }
 
