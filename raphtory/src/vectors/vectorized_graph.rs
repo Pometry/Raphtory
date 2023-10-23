@@ -3,7 +3,7 @@ use crate::{
         api::view::internal::{DynamicGraph, IntoDynamic},
         graph::views::window_graph::WindowedGraph,
     },
-    prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
         Document, Embedding, EmbeddingFunction,

@@ -6,11 +6,11 @@ use std::{
 };
 
 mod document_ref;
-mod document_source;
 pub mod document_template;
 pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
+pub mod splitting;
 pub mod vectorizable;
 pub mod vectorized_graph;
 
