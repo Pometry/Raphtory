@@ -14,10 +14,7 @@ use crate::{
         },
     },
 };
-use std::{
-    cmp,
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, Default)]
 struct InState {
@@ -42,7 +39,6 @@ where
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
         let mut in_components = HashSet::new();
-        let id = vv.id();
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().id().for_each(|id| {
             in_components.insert(id);
@@ -127,7 +123,7 @@ mod components_test {
         correct.insert("6".to_string(), Some(vec![1, 2, 4, 5]));
         correct.insert("7".to_string(), Some(vec![1, 2, 4, 5]));
         correct.insert("8".to_string(), Some(vec![1, 2, 5]));
-        let mut map: HashMap<String, Option<Vec<u64>>> = results
+        let map: HashMap<String, Option<Vec<u64>>> = results
             .into_iter()
             .map(|(k, v)| {
                 (
