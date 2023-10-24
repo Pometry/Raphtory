@@ -30,7 +30,7 @@ pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     pub(crate) last_edge: Option<(GID, GID)>,
     last_dst_idx: usize,
     last_src_idx: usize,
-    vertex_count: usize,
+    last_chunk: Option<usize>,
     e_id: u64,
     location_path: PathBuf,
 }
@@ -48,7 +48,7 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             last_edge: None,
             last_dst_idx: 0,
             last_src_idx: 0,
-            vertex_count: 0,
+            last_chunk: None,
             e_id: 0,
             location_path: path.as_ref().to_path_buf(),
         }
@@ -109,6 +109,11 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             if not_same_source {
                 // new source or first edge
                 self.last_src_idx = self.find_or_push_vertex(&src);
+                let chunk_id = self.last_src_idx / self.chunk_size;
+                if let Some(last_chunk) = self.last_chunk{
+                    assert!(chunk_id >= last_chunk, "Chunk id {} is less than last chunk {}", chunk_id, last_chunk);
+                }
+                self.last_chunk = Some(chunk_id);
                 // figure out what chunk are we in
                 self.extend_empty(self.last_src_idx)?;
             }

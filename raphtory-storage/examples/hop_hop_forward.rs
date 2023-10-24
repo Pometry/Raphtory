@@ -493,24 +493,19 @@ fn query1_v3(
 fn main() {
     let graph_dir = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "/mnt/work/pometry/graph_netflow_85".to_string());
-    // .unwrap_or_else(|| "/mnt/work/pometry/graph_small".to_string());
-    // .expect("please supply a graph directory");
+        .expect("please supply a graph directory");
 
     let netflow_dir = std::env::args()
         .nth(2)
-        .unwrap_or_else(|| "/mnt/work/pometry/netflow_parquet_day85".to_string());
-    // .expect("please supply a wls directory");
+        .expect("please supply a wls directory");
 
     let v1_dir = std::env::args()
         .nth(3)
-        .unwrap_or_else(|| "/mnt/work/pometry/v1_parquet_day85".to_string());
-    // .expect("please supply a v1 directory");
+        .expect("please supply a v1 directory");
 
     let v2_dir = std::env::args()
         .nth(4)
-        .unwrap_or_else(|| "/mnt/work/pometry/v2_parquet_day85".to_string());
-    // .expect("please supply a v2 directory");
+        .expect("please supply a v2 directory");
 
     let now = Instant::now();
     let graph = if std::fs::read_dir(&graph_dir).is_ok() {
@@ -520,9 +515,9 @@ fn main() {
             ExternalEdgeList::new(
                 "netflow",
                 netflow_dir,
-                "src_device",
+                "src",
                 "src_hash",
-                "dst_device",
+                "dst",
                 "dst_hash",
                 "epoch_time",
             )
@@ -542,18 +537,17 @@ fn main() {
                 v2_dir,
                 "src",
                 "src_hash",
-                "destination",
+                "dst",
                 "dst_hash",
                 "epoch_time",
             )
             .expect("failed to load events_v2"),
         ];
         let graph =
-            TemporalGraph::from_edge_lists(4096, 1024, 1_000_000, graph_dir, layered_edge_list)
+            TemporalGraph::from_edge_lists(16384, 2048, 500_000, graph_dir, layered_edge_list)
                 .expect("failed to load graph");
         graph
     };
-    // TemporalGraph::new(graph_dir).unwrap()
     println!("Time taken to load graph: {:?}", now.elapsed());
 
     let now = Instant::now();
