@@ -1,17 +1,26 @@
 use super::*;
-use crate::algorithms::algorithm_result::AlgorithmResult;
-use crate::algorithms::community_detection::out_components::out_components;
-use crate::core::entities::vertices::vertex_ref::VertexRef;
-use crate::core::entities::VID;
-use crate::core::state::compute_state::ComputeStateVec;
-use crate::db::api::mutation::AdditionOps;
-use crate::db::api::view::internal::{Base, BoxableGraphView, InheritViewOps};
-use crate::db::task::context::Context;
-use crate::db::task::task::{ATask, Job, Step};
-use crate::db::task::task_runner::TaskRunner;
-use crate::db::task::vertex::eval_vertex::EvalVertexView;
-use crate::prelude::*;
-use crate::prelude::{GraphViewOps, VertexViewOps};
+use crate::{
+    algorithms::{
+        algorithm_result::AlgorithmResult, community_detection::out_components::out_components,
+    },
+    core::{
+        entities::{vertices::vertex_ref::VertexRef, VID},
+        state::compute_state::ComputeStateVec,
+    },
+    db::{
+        api::{
+            mutation::AdditionOps,
+            view::internal::{Base, BoxableGraphView, InheritViewOps},
+        },
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
+    },
+    prelude::{GraphViewOps, VertexViewOps, *},
+};
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
@@ -96,8 +105,10 @@ where
 
 #[cfg(test)]
 mod cycle_detection_tests {
-    use crate::algorithms::pathing::cycle_detection::cycle_detection;
-    use crate::prelude::{AdditionOps, Graph, NO_PROPS};
+    use crate::{
+        algorithms::pathing::cycle_detection::cycle_detection,
+        prelude::{AdditionOps, Graph, NO_PROPS},
+    };
     use itertools::Itertools;
 
     #[test]
