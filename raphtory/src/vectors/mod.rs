@@ -1,4 +1,3 @@
-use crate::vectors::document_ref::Life;
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -52,14 +51,21 @@ impl DocumentOps for Document {
 #[derive(Clone)]
 pub struct DocumentInput {
     pub content: String,
-    pub life: Life,
+    pub life: Lifespan,
+}
+
+#[derive(Clone, Debug)]
+pub enum Lifespan {
+    Interval { start: i64, end: i64 },
+    Event { time: i64 },
+    Inherited,
 }
 
 impl From<String> for DocumentInput {
     fn from(value: String) -> Self {
         Self {
             content: value,
-            life: Life::Inherited,
+            life: Lifespan::Inherited,
         }
     }
 }
@@ -68,7 +74,7 @@ impl From<&str> for DocumentInput {
     fn from(value: &str) -> Self {
         Self {
             content: value.to_owned(),
-            life: Life::Inherited,
+            life: Lifespan::Inherited,
         }
     }
 }
@@ -246,12 +252,12 @@ age: 30"###;
         fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
-                life: Life::Event { time: 20 },
+                life: Lifespan::Event { time: 20 },
             };
 
             let doc_interval_30_40: DocumentInput = DocumentInput {
                 content: "interval from 30 to 40".to_owned(),
-                life: Life::Interval { start: 30, end: 40 },
+                life: Lifespan::Interval { start: 30, end: 40 },
             };
             vec![doc_event_20, doc_interval_30_40].into_iter()
         }

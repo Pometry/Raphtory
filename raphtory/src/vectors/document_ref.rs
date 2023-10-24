@@ -1,6 +1,8 @@
 use crate::{
-    prelude::{GraphViewOps, Layer, TimeOps, VertexViewOps},
-    vectors::{document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding},
+    prelude::{GraphViewOps, Layer, VertexViewOps},
+    vectors::{
+        document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
+    },
 };
 
 /// this struct contains the minimum amount of information need to regenerate a document using a
@@ -10,14 +12,7 @@ pub(crate) struct DocumentRef {
     pub(crate) entity_id: EntityId,
     index: usize,
     pub(crate) embedding: Embedding,
-    life: Life,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum Life {
-    Interval { start: i64, end: i64 },
-    Event { time: i64 },
-    Inherited,
+    life: Lifespan,
 }
 
 impl PartialEq for DocumentRef {
@@ -27,7 +22,7 @@ impl PartialEq for DocumentRef {
 }
 
 impl DocumentRef {
-    pub fn new(entity_id: EntityId, index: usize, embedding: Embedding, life: Life) -> Self {
+    pub fn new(entity_id: EntityId, index: usize, embedding: Embedding, life: Lifespan) -> Self {
         Self {
             entity_id,
             index,
@@ -43,12 +38,12 @@ impl DocumentRef {
         G: GraphViewOps,
     {
         match self.life {
-            Life::Event { time } => {
+            Lifespan::Event { time } => {
                 self.entity_exists_in_graph(graph)
                     && start.map(|start| start <= time).unwrap_or(true)
                     && end.map(|end| time < end).unwrap_or(true)
             }
-            Life::Interval {
+            Lifespan::Interval {
                 start: doc_start,
                 end: doc_end,
             } => {
@@ -56,7 +51,7 @@ impl DocumentRef {
                     && start.map(|start| doc_end > start).unwrap_or(true)
                     && end.map(|end| doc_start < end).unwrap_or(true)
             }
-            Life::Inherited => self.entity_exists_in_graph(graph),
+            Lifespan::Inherited => self.entity_exists_in_graph(graph),
         }
     }
 
