@@ -58,7 +58,6 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         ) = match (window_start, window_end) {
             (None, None) => (
                 self.graph.clone().into_dynamic(),
-                // TODO: remove both unwraps here below?
                 Box::new(
                     self.node_documents
                         .iter()
@@ -74,8 +73,10 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
                 let start = start.unwrap_or(i64::MIN);
                 let end = end.unwrap_or(i64::MAX);
                 let window = self.graph.window(start, end);
-                let nodes = self.window_embeddings(&self.node_documents, &window);
-                let edges = self.window_embeddings(&self.edge_documents, &window);
+                let nodes =
+                    self.window_embeddings(&self.node_documents, &window, window_start, window_end);
+                let edges =
+                    self.window_embeddings(&self.edge_documents, &window, window_start, window_end);
                 (
                     window.clone().into_dynamic(),
                     Box::new(nodes),
@@ -123,7 +124,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         while selected_docs.len() < limit {
             let candidates = selected_docs
                 .iter()
-                .flat_map(|doc| self.get_context(doc, &graph));
+                .flat_map(|doc| self.get_context(doc, &graph, window_start, window_end));
 
             let unique_candidates = candidates.unique_by(|doc| doc.id());
             let valid_candidates = unique_candidates.filter(|doc| !selected_docs.contains(doc));
@@ -143,7 +144,6 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         }
 
         // FINAL STEP: REPRODUCE DOCUMENTS:
-
         selected_docs
             .iter()
             .take(limit)
@@ -151,10 +151,12 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
             .collect_vec()
     }
 
-    fn get_context<V: GraphViewOps>(
-        &self,
+    fn get_context<'a, V: GraphViewOps>(
+        &'a self,
         document: &DocumentRef,
-        graph: &V,
+        graph: &'a V,
+        start: Option<i64>,
+        end: Option<i64>,
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
         match document.entity_id {
             EntityId::Node { id } => {
@@ -164,7 +166,10 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
                     let edge_id = edge.into();
                     self.edge_documents.get(&edge_id).unwrap()
                 });
-                Box::new(chain!(self_docs, edge_docs))
+                Box::new(
+                    chain!(self_docs, edge_docs)
+                        .filter(move |doc| doc.exists_on_window(graph, start, end)),
+                )
             }
             EntityId::Edge { src, dst } => {
                 let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
@@ -173,7 +178,10 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
                 let dst_id: EntityId = edge.dst().into();
                 let src_docs = self.node_documents.get(&src_id).unwrap();
                 let dst_docs = self.node_documents.get(&dst_id).unwrap();
-                Box::new(chain!(self_docs, src_docs, dst_docs))
+                Box::new(
+                    chain!(self_docs, src_docs, dst_docs)
+                        .filter(move |doc| doc.exists_on_window(graph, start, end)),
+                )
             }
         }
     }
@@ -182,6 +190,8 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         &self,
         documents: I,
         window: &WindowedGraph<G>,
+        start: Option<i64>,
+        end: Option<i64>,
     ) -> impl Iterator<Item = &'a DocumentRef> + 'a
     where
         I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
@@ -190,7 +200,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         documents
             .into_iter()
             .flat_map(|(_, documents)| documents)
-            .filter(move |document| document.exists_on_window(&window))
+            .filter(move |document| document.exists_on_window(&window, start, end))
     }
 }
 

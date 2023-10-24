@@ -5,7 +5,7 @@ use crate::{
 
 /// this struct contains the minimum amount of information need to regenerate a document using a
 /// template and to quickly apply windows over them
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct DocumentRef {
     pub(crate) entity_id: EntityId,
     index: usize,
@@ -13,7 +13,7 @@ pub(crate) struct DocumentRef {
     life: Life,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum Life {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
@@ -38,20 +38,36 @@ impl DocumentRef {
     pub fn id(&self) -> (EntityId, usize) {
         (self.entity_id, self.index)
     }
-    pub fn exists_on_window<G: GraphViewOps>(&self, graph: &G) -> bool {
+    pub fn exists_on_window<G>(&self, graph: &G, start: Option<i64>, end: Option<i64>) -> bool
+    where
+        G: GraphViewOps,
+    {
         match self.life {
-            Life::Event { time } => graph.start().unwrap() <= time && time <= graph.end().unwrap(),
+            Life::Event { time } => {
+                self.entity_exists_in_graph(graph)
+                    && start.map(|start| start <= time).unwrap_or(true)
+                    && end.map(|end| time < end).unwrap_or(true)
+            }
             Life::Interval {
-                start: start,
-                end: end,
-            } => end >= graph.start().unwrap() && start <= graph.end().unwrap(),
-            Life::Inherited => match self.entity_id {
-                EntityId::Node { id } => graph.has_vertex(id),
-                EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
-                // FIXME: Edge should probably contain a layer filter that we can pass to has_edge()
-            },
+                start: doc_start,
+                end: doc_end,
+            } => {
+                self.entity_exists_in_graph(graph)
+                    && start.map(|start| doc_end > start).unwrap_or(true)
+                    && end.map(|end| doc_start < end).unwrap_or(true)
+            }
+            Life::Inherited => self.entity_exists_in_graph(graph),
         }
     }
+
+    fn entity_exists_in_graph<G: GraphViewOps>(&self, graph: &G) -> bool {
+        match self.entity_id {
+            EntityId::Node { id } => graph.has_vertex(id),
+            EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
+            // FIXME: Edge should probably contain a layer filter that we can pass to has_edge()
+        }
+    }
+
     pub fn regenerate<G, T>(&self, original_graph: &G) -> Document
     where
         G: GraphViewOps,
@@ -66,6 +82,7 @@ impl DocumentRef {
                 content: T::node(&original_graph.vertex(id).unwrap())
                     .nth(self.index)
                     .unwrap()
+                    .into()
                     .content,
             },
             EntityId::Edge { src, dst } => Document::Edge {
@@ -74,6 +91,7 @@ impl DocumentRef {
                 content: T::edge(&original_graph.edge(src, dst).unwrap())
                     .nth(self.index)
                     .unwrap()
+                    .into()
                     .content,
             },
         }

@@ -1,9 +1,6 @@
 use crate::vectors::document_ref::Life;
 use futures_util::future::BoxFuture;
-use std::{
-    future::Future,
-    hash::{Hash, Hasher},
-};
+use std::future::Future;
 
 mod document_ref;
 pub mod document_template;
@@ -16,6 +13,7 @@ pub mod vectorized_graph;
 
 pub type Embedding = Vec<f32>;
 
+#[derive(Debug)]
 pub enum Document {
     Node {
         name: String,
@@ -66,6 +64,15 @@ impl From<String> for DocumentInput {
     }
 }
 
+impl From<&str> for DocumentInput {
+    fn from(value: &str) -> Self {
+        Self {
+            content: value.to_owned(),
+            life: Life::Inherited,
+        }
+    }
+}
+
 pub trait EmbeddingFunction: Send + Sync {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>>;
 }
@@ -94,7 +101,7 @@ mod vector_tests {
     };
     use dotenv::dotenv;
     use itertools::Itertools;
-    use std::path::PathBuf;
+    use std::{iter::Once, path::PathBuf, vec::IntoIter};
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
@@ -103,27 +110,31 @@ mod vector_tests {
         format!("line {time}")
     }
 
+    async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
+        texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
+    }
+
     struct CustomTemplate;
 
     impl DocumentTemplate for CustomTemplate {
-        fn node<G: GraphViewOps>(
-            vertex: &VertexView<G>,
-        ) -> Box<dyn Iterator<Item = DocumentInput>> {
+        type Output = Once<Self::DocumentOutput>;
+        type DocumentOutput = String;
+        fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
             let name = vertex.name();
             let node_type = vertex.properties().get("type").unwrap().to_string();
             let property_list =
                 vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
             let content =
                 format!("{name} is a {node_type} with the following details:\n{property_list}");
-            Box::new(std::iter::once(content.into()))
+            std::iter::once(content)
         }
 
-        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self::Output {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
             let content = format!("{src} appeared with {dst} in lines: {lines}");
-            Box::new(std::iter::once(content.into()))
+            std::iter::once(content)
         }
     }
 
@@ -157,15 +168,16 @@ mod vector_tests {
         )
         .unwrap();
 
-        let doc = CustomTemplate::node(&g.vertex("Frodo").unwrap())
+        let doc: DocumentInput = CustomTemplate::node(&g.vertex("Frodo").unwrap())
             .next()
             .unwrap()
-            .content; // TODO: review
-        let expected_doc = r###"Frodo is a hobbit with the following details:
+            .into();
+        let content = doc.content;
+        let expected_content = r###"Frodo is a hobbit with the following details:
 earliest activity: line 0
 latest activity: line 0
 age: 30"###;
-        assert_eq!(doc, expected_doc);
+        assert_eq!(content, expected_content);
     }
 
     #[test]
@@ -174,12 +186,120 @@ age: 30"###;
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
 
-        let doc = CustomTemplate::edge(&g.edge("Frodo", "Gandalf").unwrap())
+        let doc: DocumentInput = CustomTemplate::edge(&g.edge("Frodo", "Gandalf").unwrap())
             .next()
             .unwrap()
-            .content; // TODO: review
-        let expected_doc = "Frodo appeared with Gandalf in lines: 0";
-        assert_eq!(doc, expected_doc);
+            .into();
+        let content = doc.content;
+        let expected_content = "Frodo appeared with Gandalf in lines: 0";
+        assert_eq!(content, expected_content);
+    }
+
+    // const FAKE_DOCUMENTS: Vec<&str> = vec!["doc1", "doc2", "doc3"];
+    const FAKE_DOCUMENTS: [&str; 3] = ["doc1", "doc2", "doc3"];
+    struct FakeMultiDocumentTemplate {}
+
+    impl DocumentTemplate for FakeMultiDocumentTemplate {
+        type Output = IntoIter<Self::DocumentOutput>;
+        type DocumentOutput = &'static str;
+        fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
+            Vec::from(FAKE_DOCUMENTS).into_iter()
+        }
+        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self::Output {
+            vec![].into_iter()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_vector_store_with_fake_embedding() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", NO_PROPS).unwrap();
+
+        let vectors = g
+            .vectorize_with_template::<FakeMultiDocumentTemplate>(
+                Box::new(fake_embedding),
+                &PathBuf::from("/tmp/raphtory/vector-cache-fake-test"),
+            )
+            .await;
+
+        let docs = vectors
+            .similarity_search("whatever", 1, 0, 0, 10, None, None)
+            .await;
+        assert_eq!(docs.len(), 3);
+        // all documents are present in the result
+        for doc_content in FAKE_DOCUMENTS {
+            assert!(
+                docs.iter().any(|doc| match doc {
+                    Document::Node { content, name } => content == doc_content && name == "test",
+                    _ => false,
+                }),
+                "document {doc_content:?} is not present in the result: {docs:?}"
+            );
+        }
+    }
+
+    struct FakeTemplateWithIntervals {}
+
+    impl DocumentTemplate for FakeTemplateWithIntervals {
+        type Output = IntoIter<Self::DocumentOutput>;
+        type DocumentOutput = DocumentInput;
+        fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
+            let doc_event_20: DocumentInput = DocumentInput {
+                content: "event at 20".to_owned(),
+                life: Life::Event { time: 20 },
+            };
+
+            let doc_interval_30_40: DocumentInput = DocumentInput {
+                content: "interval from 30 to 40".to_owned(),
+                life: Life::Interval { start: 30, end: 40 },
+            };
+            vec![doc_event_20, doc_interval_30_40].into_iter()
+        }
+        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self::Output {
+            vec![].into_iter()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_vector_store_with_window() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
+
+        let vectors = g
+            .vectorize_with_template::<FakeTemplateWithIntervals>(
+                Box::new(fake_embedding),
+                &PathBuf::from("/tmp/raphtory/vector-cache-fake-test"),
+            )
+            .await;
+
+        let docs = vectors
+            .similarity_search("whatever", 1, 0, 0, 10, None, None)
+            .await;
+        assert_eq!(docs.len(), 2);
+
+        let docs = vectors
+            .similarity_search("whatever", 1, 0, 0, 10, None, Some(25))
+            .await;
+        assert!(
+            match &docs[..] {
+                [Document::Node { name, content }] => name == "test" && content == "event at 20",
+                _ => false,
+            },
+            "{docs:?} has the wrong content"
+        );
+
+        let docs = vectors
+            .similarity_search("whatever", 1, 0, 0, 10, Some(35), None)
+            .await;
+        assert!(
+            match &docs[..] {
+                [Document::Node { name, content }] =>
+                    name == "test" && content == "interval from 30 to 40",
+                _ => false,
+            },
+            "{docs:?} has the wrong content"
+        );
     }
 
     #[ignore = "this test needs an OpenAI API key to run"]

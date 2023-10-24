@@ -100,11 +100,11 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
         let nodes = self.vertices().iter().map(|vertex| {
-            let documents = T::node(&vertex).collect_vec();
+            let documents = T::node(&vertex).map(|doc| doc.into()).collect_vec();
             DocumentGroup::new(vertex.into(), documents)
         });
         let edges = self.edges().map(|edge| {
-            let documents = T::edge(&edge).collect_vec();
+            let documents = T::edge(&edge).map(|doc| doc.into()).collect_vec();
             DocumentGroup::new(edge.into(), documents)
         });
 
