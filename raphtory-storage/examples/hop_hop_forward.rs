@@ -6,12 +6,15 @@ use std::{
     time::Instant,
 };
 
-use ahash::HashMap;
+use ahash::{AHasher, HashMap};
 use dashmap::DashMap;
 use itertools::Itertools;
 use raphtory::{
     arrow::{graph::TemporalGraph, loader::ExternalEdgeList, Time},
-    core::{entities::VID, Direction},
+    core::{
+        entities::{EID, VID},
+        Direction,
+    },
 };
 use rayon::{
     prelude::{IntoParallelRefIterator, ParallelIterator},
@@ -182,7 +185,6 @@ fn query1_v4(
 
                 if !probe_value.is_empty() {
                     let max_prog1 = probe_value.last().unwrap().0;
-                    // let min_prog1 = probe_value.first().unwrap().0;
 
                     let login1_ts = login1.timestamps();
                     let min_login1 = login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
@@ -213,18 +215,18 @@ fn query1_v4_par(
     event_id_prop_id_2v: usize,
 ) -> usize {
     // let mut count = 0;
-    let probe_map: Arc<DashMap<VID, Vec<(i64, i64, VID)>>> = Arc::new(DashMap::default());
+    let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
 
     let count = AtomicUsize::new(0);
     let vs = (0..g.num_vertices()).into_iter().collect_vec();
 
-    let pool = ThreadPoolBuilder::new()
-        .num_threads(16)
+    let pool: rayon::ThreadPool = ThreadPoolBuilder::new()
+        .num_threads(24)
         .build()
         .expect("failed to build pool");
 
     pool.install(|| {
-        vs.par_chunks(2048).for_each(|b_ids| {
+        vs.par_chunks(1024).for_each(|b_ids| {
             for b_id in b_ids {
                 let b = VID(*b_id);
                 g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
@@ -241,6 +243,7 @@ fn query1_v4_par(
                                 .for_each(|(b2b, _)| {
                                     let prog1 = g.edge(b2b, events_1v);
 
+                                    // let ts = prog1.timestamps()
                                     for (prog1_event_id, prog1_t) in prog1
                                         .prop_items::<i64>(event_id_prop_id_1v)
                                         .unwrap()
@@ -250,10 +253,19 @@ fn query1_v4_par(
                                             && prog1_t < nf1_t
                                             && nf1_t - prog1_t <= 30
                                         {
+                                            let e_small: u32 = Into::<usize>::into(e) as u32;
                                             probe_map
                                                 .entry(b)
-                                                .and_modify(|v| v.push((*prog1_t, *nf1_t, e)))
-                                                .or_insert_with(|| vec![(*prog1_t, *nf1_t, e)]);
+                                                .and_modify(|v| {
+                                                    v.push((
+                                                        *prog1_t as i32,
+                                                        *nf1_t as i32,
+                                                        e_small,
+                                                    ))
+                                                })
+                                                .or_insert_with(|| {
+                                                    vec![(*prog1_t as i32, *nf1_t as i32, e_small)]
+                                                });
                                         }
                                     }
                                 });
@@ -272,36 +284,80 @@ fn query1_v4_par(
         probe_map.par_iter().for_each(|entry| {
             let b = *entry.key();
             let edges = entry.value();
-            for (a2b, a) in g.edges(b, Direction::IN, events_2v) {
-                if a != b {
-                    let login1 = g.edge(a2b, events_2v);
+            g.edges_par(b, Direction::IN, events_2v)
+                .for_each(|(a2b, a)| {
+                    if a != b {
+                        let login1 = g.edge(a2b, events_2v);
 
-                    let probe_value = &edges;
+                        let probe_value = &edges;
 
-                    if !probe_value.is_empty() {
-                        let max_prog1 = probe_value.last().unwrap().0;
-                        // let min_prog1 = probe_value.first().unwrap().0;
+                        let mut skip = false;
+                        if !probe_value.is_empty() {
+                            let max_prog1 = probe_value.last().unwrap().0 as i64;
+                            // let min_prog1 = probe_value.first().unwrap().0;
 
-                        let login1_ts = login1.timestamps();
-                        let min_login1 =
-                            login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
-                        if min_login1 > max_prog1 {
-                            continue;
+                            let login1_ts = login1.timestamps();
+                            let min_login1 =
+                                login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
+                            if min_login1 > max_prog1 {
+                                skip = true;
+                            }
+                        }
+
+                        if !skip {
+                            let iter = login1
+                                .prop_items::<i64>(event_id_prop_id_2v)
+                                .unwrap()
+                                .filter_map(|(v, t)| v.map(|v| (v, t)));
+
+                            binary_search_join_par_small(iter, &edges, &a, &count);
                         }
                     }
-
-                    let iter = login1
-                        .prop_items::<i64>(event_id_prop_id_2v)
-                        .unwrap()
-                        .filter_map(|(v, t)| v.map(|v| (v, t)));
-
-                    binary_search_join_par(iter, &edges, &a, &count);
-                }
-            }
+                });
         })
     });
     count.load(Ordering::Relaxed)
 }
+
+fn binary_search_join_par_small<'a>(
+    iter: impl IntoIterator<Item = (&'a Time, &'a Time)>,
+    edges: &'a Vec<(i32, i32, u32)>,
+    a: &VID,
+    count: &'a AtomicUsize,
+) -> Vec<(&'a Time, &'a Time, &'a Time)> {
+    let mut out = vec![]; // use this if we have to output the data
+
+    'outer: for (login1_event_id, login1_t) in iter {
+        if *login1_event_id == 4624 {
+            let login1_t_small: i32 = *login1_t as i32;
+
+            let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
+
+            let from = match pos {
+                Ok(i) => {
+                    i + 1 // this one is smaller than all the prog_t
+                }
+                Err(i) => {
+                    if i >= edges.len() {
+                        break 'outer;
+                    } else {
+                        i
+                    }
+                }
+            };
+
+            for (prog1_t, nft_t, e) in &edges[from..] {
+                let e_vid = VID(*e as usize);
+                if nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid {
+                    count.fetch_add(1, Ordering::Relaxed);
+                    // out.push((login1_t, prog1_t, nft1_1));
+                }
+            }
+        }
+    }
+    out
+}
+
 fn binary_search_join_par<'a>(
     iter: impl IntoIterator<Item = (&'a Time, &'a Time)>,
     edges: &'a Vec<(Time, Time, VID)>,
