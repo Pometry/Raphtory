@@ -14,9 +14,7 @@ use crate::{
         },
     },
 };
-use std::{
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, Default)]
 struct InState {

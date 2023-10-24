@@ -88,13 +88,12 @@ impl PyGraphWithDeletions {
         )
     }
 
-
-    pub fn soft_deletions(&self,py:Python) -> PyObject {
-        self.graph.set_soft_deletions().into_py(py)
+    pub fn soft_deletions(&self, py: Python) -> PyObject {
+        self.graph.include_deletions_in_window().into_py(py)
     }
 
-    pub fn hard_deletions(&self,py:Python) -> PyObject {
-        self.graph.set_hard_deletions().into_py(py)
+    pub fn hard_deletions(&self, py: Python) -> PyObject {
+        self.graph.ignore_deletions_in_window().into_py(py)
     }
     /// Adds a new vertex with the given id and properties to the graph.
     ///
