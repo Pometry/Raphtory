@@ -79,11 +79,7 @@ mod state_test {
         actual.sort();
         assert_eq!(
             actual,
-            vec![
-                ("1".to_string(), actual_min),
-                ("2".to_string(), actual_min),
-                ("3".to_string(), actual_min),
-            ]
+            vec![(0, actual_min), (1, actual_min), (2, actual_min),]
         );
     }
 
@@ -116,11 +112,7 @@ mod state_test {
         actual.sort();
         assert_eq!(
             actual,
-            vec![
-                ("1".to_string(), actual_avg),
-                ("2".to_string(), actual_avg),
-                ("3".to_string(), actual_avg),
-            ]
+            vec![(0, actual_avg), (1, actual_avg), (2, actual_avg),]
         );
     }
 
@@ -146,9 +138,9 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                ("1".to_string(), expected.clone()),
-                ("2".to_string(), expected.clone()),
-                ("3".to_string(), expected.clone()),
+                (0, expected.clone()),
+                (1, expected.clone()),
+                (2, expected.clone()),
             ]
         );
     }
@@ -181,11 +173,7 @@ mod state_test {
         actual.sort();
         assert_eq!(
             actual,
-            vec![
-                ("1".to_string(), actual_sum),
-                ("2".to_string(), actual_sum),
-                ("3".to_string(), actual_sum),
-            ]
+            vec![(0, actual_sum), (1, actual_sum), (2, actual_sum),]
         );
     }
 
@@ -310,14 +298,7 @@ mod state_test {
 
         actual.sort();
 
-        assert_eq!(
-            actual,
-            vec![
-                ("1".to_string(), actual_sum_1),
-                ("2".to_string(), actual_sum_1),
-                ("3".to_string(), 0),
-            ]
-        );
+        assert_eq!(actual, vec![(0, actual_sum_1), (1, actual_sum_1), (2, 0),]);
 
         let mut actual = part1_state
             .clone()
@@ -329,11 +310,7 @@ mod state_test {
 
         assert_eq!(
             actual,
-            vec![
-                ("1".to_string(), actual_min_1),
-                ("2".to_string(), actual_min_1),
-                ("3".to_string(), i32::MAX),
-            ]
+            vec![(0, actual_min_1), (1, actual_min_1), (2, i32::MAX),]
         );
 
         let mut actual = part2_state
@@ -344,14 +321,7 @@ mod state_test {
 
         actual.sort();
 
-        assert_eq!(
-            actual,
-            vec![
-                ("1".to_string(), actual_sum_2),
-                ("2".to_string(), 0),
-                ("3".to_string(), actual_sum_2),
-            ]
-        );
+        assert_eq!(actual, vec![(0, actual_sum_2), (1, 0), (2, actual_sum_2),]);
 
         let mut actual = part2_state
             .clone()
@@ -363,11 +333,7 @@ mod state_test {
 
         assert_eq!(
             actual,
-            vec![
-                ("1".to_string(), actual_min_2),
-                ("2".to_string(), i32::MAX),
-                ("3".to_string(), actual_min_2),
-            ]
+            vec![(0, actual_min_2), (1, i32::MAX), (2, actual_min_2),]
         );
 
         ShuffleComputeState::merge_mut(&mut part1_state, &part2_state, sum, 0);
@@ -382,9 +348,9 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                ("1".to_string(), (actual_sum_1 + actual_sum_2)),
-                ("2".to_string(), actual_sum_1),
-                ("3".to_string(), actual_sum_2),
+                (0, (actual_sum_1 + actual_sum_2)),
+                (1, actual_sum_1),
+                (2, actual_sum_2),
             ]
         );
 
@@ -400,9 +366,9 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                ("1".to_string(), actual_min_1.min(actual_min_2)),
-                ("2".to_string(), actual_min_1),
-                ("3".to_string(), actual_min_2),
+                (0, actual_min_1.min(actual_min_2)),
+                (1, actual_min_1),
+                (2, actual_min_2),
             ]
         );
     }

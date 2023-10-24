@@ -125,6 +125,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let components = weakly_connected_components(&graph, 5, Some(16));
 
     components
+        .result
         .into_iter()
         .counts_by(|(_, cc)| cc)
         .iter()

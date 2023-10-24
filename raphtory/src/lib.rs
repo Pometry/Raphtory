@@ -89,7 +89,6 @@ pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
-pub mod usecase_algorithms;
 
 #[cfg(feature = "python")]
 pub mod python;

@@ -4,7 +4,9 @@
 //! It finds the shortest paths from a given source vertex to all other vertices in a graph.
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::entities::vertices::input_vertex::InputVertex, prelude::*,
+    core::entities::{vertices::input_vertex::InputVertex, VID},
+    db::graph::vertex::VertexView,
+    prelude::*,
 };
 use std::collections::HashMap;
 
@@ -24,32 +26,38 @@ pub fn single_source_shortest_path<G: GraphViewOps, T: InputVertex>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> AlgorithmResult<String, Vec<String>> {
-    let results_type = std::any::type_name::<HashMap<String, Vec<String>>>();
-    let mut paths: HashMap<String, Vec<String>> = HashMap::new();
+) -> AlgorithmResult<G, Vec<String>, Vec<String>> {
+    let results_type = std::any::type_name::<Vec<String>>();
+    let mut paths: HashMap<usize, Vec<String>> = HashMap::new();
     if g.has_vertex(source.clone()) {
         let source_node = g.vertex(source).unwrap();
+        let vertex_internal_id = source_node.vertex.0;
         let mut level = 0;
-        let mut nextlevel: HashMap<String, usize> = HashMap::new();
-        nextlevel.insert(source_node.name(), 1);
+        let mut nextlevel: HashMap<usize, String> = HashMap::new();
+        nextlevel.insert(vertex_internal_id, "1".to_string());
 
-        paths.insert(source_node.name(), vec![source_node.name()]);
+        paths.insert(vertex_internal_id, vec![source_node.name()]);
 
         if let Some(0) = cutoff {
-            return AlgorithmResult::new("Single Source Shortest Path", results_type, paths);
+            return AlgorithmResult::new(
+                g.clone(),
+                "Single Source Shortest Path",
+                results_type,
+                paths,
+            );
         }
 
         while !nextlevel.is_empty() {
-            let thislevel: HashMap<String, usize> = nextlevel.clone();
+            let thislevel: HashMap<usize, String> = nextlevel.clone();
             nextlevel.clear();
-
             for v in thislevel.keys() {
-                for w in g.vertex(v.clone()).unwrap().neighbours() {
-                    if !paths.contains_key(&w.name()) {
+                let vertex = VertexView::new_internal(g.clone(), VID::from(*v));
+                for w in vertex.neighbours() {
+                    if !paths.contains_key(&w.vertex.0) {
                         let mut new_path = paths.get(v).unwrap().clone();
                         new_path.push(w.name());
-                        paths.insert(w.name(), new_path);
-                        nextlevel.insert(w.name(), 1);
+                        paths.insert(w.vertex.0, new_path);
+                        nextlevel.insert(w.vertex.0, "1".to_string());
                     }
                 }
             }
@@ -61,7 +69,12 @@ pub fn single_source_shortest_path<G: GraphViewOps, T: InputVertex>(
             }
         }
     }
-    AlgorithmResult::new("Single Source Shortest Path", results_type, paths)
+    AlgorithmResult::new(
+        g.clone(),
+        "Single Source Shortest Path",
+        results_type,
+        paths,
+    )
 }
 
 #[cfg(test)]
@@ -92,26 +105,37 @@ mod sssp_tests {
         ]);
 
         let binding = single_source_shortest_path(&graph, 1, Some(4));
-        let results = binding.get_all();
-        let expected = HashMap::from([
-            ("1".to_string(), vec!["1".to_string()]),
-            ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
-            ("3".to_string(), vec!["1".to_string(), "3".to_string()]),
-            ("4".to_string(), vec!["1".to_string(), "4".to_string()]),
+        let results = binding.get_all_with_names();
+        let expected: HashMap<String, Option<Vec<String>>> = HashMap::from([
+            ("1".to_string(), Some(vec!["1".to_string()])),
+            (
+                "2".to_string(),
+                Some(vec!["1".to_string(), "2".to_string()]),
+            ),
+            (
+                "3".to_string(),
+                Some(vec!["1".to_string(), "3".to_string()]),
+            ),
+            (
+                "4".to_string(),
+                Some(vec!["1".to_string(), "4".to_string()]),
+            ),
             (
                 "5".to_string(),
-                vec!["1".to_string(), "4".to_string(), "5".to_string()],
+                Some(vec!["1".to_string(), "4".to_string(), "5".to_string()]),
             ),
             (
                 "6".to_string(),
-                vec![
+                Some(vec![
                     "1".to_string(),
                     "4".to_string(),
                     "5".to_string(),
                     "6".to_string(),
-                ],
+                ]),
             ),
         ]);
-        assert_eq!(results, &expected)
+        assert_eq!(results, expected);
+        let binding = single_source_shortest_path(&graph, 5, Some(4));
+        println!("{:?}", binding.get_all_with_names());
     }
 }

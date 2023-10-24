@@ -135,16 +135,122 @@ impl GqlGraph {
             .collect()
     }
 
-    async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .graph
+    async fn search_vertex_count(&self, query: String) -> usize {
+        self.graph.search_vertex_count(&query).unwrap_or(0)
+    }
+
+    async fn search_edge_count(&self, query: String) -> usize {
+        self.graph.search_edge_count(&query).unwrap_or(0)
+    }
+
+    async fn node_count(&self, filter: Option<NodeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
+                .vertices()
+                .iter()
+                .map(|vv| vv.into())
+                .filter(|n| filter.matches(n))
+                .count()
+        } else {
+            self.graph.count_vertices()
+        }
+    }
+
+    async fn edge_count(&self, filter: Option<EdgeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
                 .edges()
                 .into_iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.graph.edges().into_iter().map(|ev| ev.into()).collect(),
+                .count()
+        } else {
+            self.graph.count_edges()
+        }
+    }
+
+    async fn edges<'a>(
+        &self,
+        filter: Option<EdgeFilter>,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Vec<Edge> {
+        match (filter, limit, offset) {
+            (None, None, None) => {
+                return self.graph.edges().into_iter().map(|ev| ev.into()).collect()
+            }
+            (Some(filter), None, None) => return get_edges_with_filter(&self.graph, filter),
+            (None, Some(limit), Some(offset)) => {
+                return get_edges_with_limit(&self.graph, limit, offset)
+            }
+            (Some(filter), Some(limit), Some(offset)) => {
+                return get_edges_with_filter_limit(&self.graph, filter, limit, offset);
+            }
+            (Some(filter), None, Some(offset)) => {
+                return get_edges_with_filter_limit(&self.graph, filter, 10, offset)
+            }
+            (Some(filter), Some(limit), None) => {
+                return get_edges_with_filter_limit(&self.graph, filter, limit, 0)
+            }
+            (None, None, Some(offset)) => return get_edges_with_limit(&self.graph, 10, offset),
+            (None, Some(limit), None) => return get_edges_with_limit(&self.graph, limit, 0),
+        }
+
+        fn get_edges_with_filter_limit(
+            graph: &IndexedGraph<DynamicGraph>,
+            filter: EdgeFilter,
+            limit: usize,
+            offset: usize,
+        ) -> Vec<Edge> {
+            let start_position = limit * offset;
+            let end_position = start_position + limit;
+            graph
+                .edges()
+                .into_iter()
+                .enumerate()
+                .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
+                .filter_map(|(i, ev)| {
+                    if filter.matches(&ev) && i >= start_position && i < end_position {
+                        Some(ev)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        }
+
+        fn get_edges_with_filter(
+            graph: &IndexedGraph<DynamicGraph>,
+            filter: EdgeFilter,
+        ) -> Vec<Edge> {
+            graph
+                .edges()
+                .into_iter()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect()
+        }
+
+        fn get_edges_with_limit(
+            graph: &IndexedGraph<DynamicGraph>,
+            limit: usize,
+            offset: usize,
+        ) -> Vec<Edge> {
+            let start_position = limit * offset;
+            let end_position = start_position + limit;
+            graph
+                .edges()
+                .into_iter()
+                .enumerate()
+                .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
+                .filter_map(|(i, ev)| {
+                    if i >= start_position && i < end_position {
+                        Some(ev)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
         }
     }
 
