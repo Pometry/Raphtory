@@ -155,7 +155,7 @@ impl GraphWithDeletions {
                     (Some(last_addition_before), Some(last_deletion_before)) => {
                         (last_addition_before.0 > last_deletion_before.0)
                             || (last_addition_before.0 == last_deletion_before.0
-                                && last_addition_before.0 == t-1) //this is the case as we only want to include this entity if it is EXACTLY the time it was added/deleted
+                                && last_addition_before.0 == t - 1) //this is the case as we only want to include this entity if it is EXACTLY the time it was added/deleted
                     }
                     (Some(_), None) => true,
                     (None, Some(_)) => false,
@@ -686,6 +686,24 @@ mod test_deletions {
         assert_eq!(g2.window(5, 9).count_edges(), 1);
         assert_eq!(g2.window(5, 10).count_edges(), 1);
         assert_eq!(g2.window(5, 11).count_edges(), 1);
+    }
+
+    #[test]
+    fn test_timestamps() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+        assert_eq!(e.earliest_time().unwrap(), 1);
+        assert_eq!(e.latest_time(), None);
+        g.delete_edge(10, 1, 2, None).unwrap();
+        assert_eq!(e.latest_time().unwrap(), 10);
+
+        g.delete_edge(10, 3, 4, None).unwrap();
+        let e = g.edge(3, 4).unwrap();
+        assert_eq!(e.earliest_time(), None);
+        assert_eq!(e.latest_time().unwrap(), 10);
+        g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+        assert_eq!(e.latest_time().unwrap(), 10);
+        assert_eq!(e.earliest_time().unwrap(), 1);
     }
 
     #[test]
