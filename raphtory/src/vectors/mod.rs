@@ -49,13 +49,15 @@ impl DocumentOps for Document {
     }
 }
 
+/// struct containing all the necessary information to allow Raphtory creating a document and
+/// storing it
 #[derive(Clone)]
-pub struct InputDocument {
+pub struct DocumentInput {
     pub content: String,
     pub life: Life,
 }
 
-impl From<String> for InputDocument {
+impl From<String> for DocumentInput {
     fn from(value: String) -> Self {
         Self {
             content: value,
@@ -106,7 +108,7 @@ mod vector_tests {
     impl DocumentTemplate for CustomTemplate {
         fn node<G: GraphViewOps>(
             vertex: &VertexView<G>,
-        ) -> Box<dyn Iterator<Item = InputDocument>> {
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
             let name = vertex.name();
             let node_type = vertex.properties().get("type").unwrap().to_string();
             let property_list =
@@ -116,7 +118,7 @@ mod vector_tests {
             Box::new(std::iter::once(content.into()))
         }
 
-        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = InputDocument>> {
+        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");

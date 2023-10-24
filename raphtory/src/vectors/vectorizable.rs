@@ -6,7 +6,7 @@ use crate::{
         document_template::{DefaultTemplate, DocumentTemplate},
         entity_id::EntityId,
         vectorized_graph::VectorizedGraph,
-        Embedding, EmbeddingFunction, InputDocument,
+        DocumentInput, Embedding, EmbeddingFunction,
     },
 };
 use async_trait::async_trait;
@@ -27,11 +27,11 @@ const CHUNK_SIZE: usize = 1000;
 #[derive(Clone)]
 struct DocumentGroup {
     id: EntityId,
-    documents: Vec<InputDocument>,
+    documents: Vec<DocumentInput>,
 }
 
 impl DocumentGroup {
-    fn new(id: EntityId, documents: Vec<InputDocument>) -> Self {
+    fn new(id: EntityId, documents: Vec<DocumentInput>) -> Self {
         Self { id, documents }
     }
     fn hash(self) -> HashedDocumentGroup {
@@ -51,7 +51,7 @@ impl DocumentGroup {
 struct HashedDocumentGroup {
     id: EntityId,
     hash: u64,
-    documents: Vec<InputDocument>,
+    documents: Vec<DocumentInput>,
 }
 
 struct EmbeddedDocumentGroup {

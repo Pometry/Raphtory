@@ -1,27 +1,27 @@
 use crate::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
-    vectors::{graph_entity::GraphEntity, InputDocument},
+    vectors::{graph_entity::GraphEntity, DocumentInput},
 };
 use itertools::Itertools;
 use std::convert::identity;
 
 pub trait DocumentTemplate: Send + Sync {
-    fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Box<dyn Iterator<Item = InputDocument>>;
-    fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = InputDocument>>;
+    fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
+    fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
 }
 
 pub struct DefaultTemplate;
 
 impl DocumentTemplate for DefaultTemplate {
-    fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Box<dyn Iterator<Item = InputDocument>> {
+    fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let name = vertex.name();
         let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
         let content = format!("The entity {name} has the following details:\n{property_list}");
         Box::new(std::iter::once(content.into()))
     }
 
-    fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = InputDocument>> {
+    fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let src = edge.src().name();
         let dst = edge.dst().name();
         // TODO: property list
