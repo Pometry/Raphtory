@@ -18,7 +18,6 @@ use std::{
     fs::{create_dir_all, File},
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
-    marker::PhantomData,
     path::Path,
 };
 
@@ -78,6 +77,7 @@ pub trait Vectorizable<G: GraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
+        template: T,
     ) -> VectorizedGraph<G, T>;
 }
 
@@ -88,7 +88,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path, // TODO: make this optional maybe
     ) -> VectorizedGraph<G, DefaultTemplate> {
-        self.vectorize_with_template::<DefaultTemplate>(embedding, cache_dir)
+        self.vectorize_with_template(embedding, cache_dir, DefaultTemplate)
             .await
     }
 
@@ -96,22 +96,23 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
+        template: T,
     ) -> VectorizedGraph<G, T> {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
         let nodes = self.vertices().iter().map(|vertex| {
-            let documents = T::node(&vertex).map(|doc| doc.into()).collect_vec();
+            let documents = template.node(&vertex).map(|doc| doc.into()).collect_vec();
             DocumentGroup::new(vertex.into(), documents)
         });
         let edges = self.edges().map(|edge| {
-            let documents = T::edge(&edge).map(|doc| doc.into()).collect_vec();
+            let documents = template.edge(&edge).map(|doc| doc.into()).collect_vec();
             DocumentGroup::new(edge.into(), documents)
         });
 
         let node_refs = attach_embeddings(nodes, &embedding, cache_dir).await;
         let edge_refs = attach_embeddings(edges, &embedding, cache_dir).await;
 
-        VectorizedGraph::new(self.clone(), embedding, node_refs, edge_refs, PhantomData)
+        VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
     }
 }
 

@@ -10,31 +10,31 @@ use crate::{
     },
 };
 use itertools::{chain, Itertools};
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
     graph: G,
+    template: T,
     embedding: Box<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
     node_documents: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
     edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
-    phantom: PhantomData<T>,
 }
 
 impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
+        template: T,
         embedding: Box<dyn EmbeddingFunction>,
         node_documents: HashMap<EntityId, Vec<DocumentRef>>,
         edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
-        phantom: PhantomData<T>,
     ) -> Self {
         Self {
             graph,
+            template,
             embedding,
             node_documents,
             edge_documents,
-            phantom,
         }
     }
 
@@ -147,7 +147,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
         selected_docs
             .iter()
             .take(limit)
-            .map(|doc| doc.regenerate::<_, T>(&self.graph))
+            .map(|doc| doc.regenerate(&self.graph, &self.template))
             .collect_vec()
     }
 

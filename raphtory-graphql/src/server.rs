@@ -11,7 +11,7 @@ use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Ser
 use raphtory::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::Graph,
-    vectors::{vectorizable::Vectorizable, Embedding},
+    vectors::{document_template::DocumentTemplate, vectorizable::Vectorizable, Embedding},
 };
 use std::{collections::HashMap, future::Future, ops::Deref, path::Path};
 use tokio::{io::Result as IoResult, signal};
@@ -37,18 +37,17 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub async fn with_vectorized<F, U, N, E>(
+    pub async fn with_vectorized<F, U, T>(
         self,
         graph_names: Vec<String>,
         embedding: F,
         cache_dir: &Path,
-        templates: Option<(N, E)>,
+        template: Option<T>,
     ) -> Self
     where
         F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
         U: Future<Output = Vec<Embedding>> + Send + 'static,
-        N: Fn(&VertexView<Graph>) -> String + Sync + Send + Copy + 'static,
-        E: Fn(&EdgeView<Graph>) -> String + Sync + Send + Copy + 'static,
+        T: DocumentTemplate,
     {
         {
             let graphs_map = self.data.graphs.read();
@@ -59,14 +58,13 @@ impl RaphtoryServer {
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
 
                 println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-                let vectorized = match templates {
-                    Some((node_template, edge_template)) => {
+                let vectorized = match template {
+                    Some(template) => {
                         graph
-                            .vectorize_with_templates(
+                            .vectorize_with_template(
                                 Box::new(embedding),
                                 &graph_cache,
-                                node_template,
-                                edge_template,
+                                Box::new(template),
                             )
                             .await
                     }

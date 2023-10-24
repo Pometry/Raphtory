@@ -63,7 +63,7 @@ impl DocumentRef {
         }
     }
 
-    pub fn regenerate<G, T>(&self, original_graph: &G) -> Document
+    pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
     where
         G: GraphViewOps,
         T: DocumentTemplate,
@@ -74,19 +74,19 @@ impl DocumentRef {
         match self.entity_id {
             EntityId::Node { id } => Document::Node {
                 name: original_graph.vertex(id).unwrap().name(),
-                content: T::node(&original_graph.vertex(id).unwrap())
+                content: template
+                    .node(&original_graph.vertex(id).unwrap())
                     .nth(self.index)
                     .unwrap()
-                    .into()
                     .content,
             },
             EntityId::Edge { src, dst } => Document::Edge {
                 src: original_graph.vertex(src).unwrap().name(),
                 dst: original_graph.vertex(dst).unwrap().name(),
-                content: T::edge(&original_graph.edge(src, dst).unwrap())
+                content: template
+                    .edge(&original_graph.edge(src, dst).unwrap())
                     .nth(self.index)
                     .unwrap()
-                    .into()
                     .content,
             },
         }

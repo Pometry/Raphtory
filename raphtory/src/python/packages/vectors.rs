@@ -3,11 +3,13 @@ use crate::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{EdgeViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::graph::views::graph_view::PyGraphView,
     vectors::{
-        vectorizable::Vectorizable, vectorized_graph::VectorizedGraph, DocumentOps, Embedding,
-        EmbeddingFunction,
+        document_template::{DefaultTemplate, DocumentTemplate},
+        vectorizable::Vectorizable,
+        vectorized_graph::VectorizedGraph,
+        DocumentInput, DocumentOps, Embedding, EmbeddingFunction,
     },
 };
 use futures_util::future::BoxFuture;
@@ -18,10 +20,41 @@ use pyo3::{
 };
 use std::{path::PathBuf, sync::Arc};
 
+struct PyDefaultTemplate {
+    node_document: Option<String>,
+    edge_document: Option<String>,
+    default_template: DefaultTemplate,
+}
+
+impl DocumentTemplate for PyDefaultTemplate {
+    fn node<G: GraphViewOps>(
+        &self,
+        vertex: &VertexView<G>,
+    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+        match &self.node_document {
+            Some(node_document) => {
+                let prop = vertex.properties().get(node_document).unwrap();
+                Box::new(std::iter::once(prop.to_string().into()))
+            }
+            None => self.default_template.node(vertex),
+        }
+    }
+
+    fn edge<G: GraphViewOps>(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        match &self.edge_document {
+            Some(edge_document) => {
+                let prop = edge.properties().get(edge_document).unwrap();
+                Box::new(std::iter::once(prop.to_string().into()))
+            }
+            None => self.default_template.edge(edge),
+        }
+    }
+}
+
 /// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "VectorizedGraph", frozen)]
 pub struct PyVectorizedGraph {
-    vectors: Arc<VectorizedGraph<DynamicGraph>>,
+    vectors: Arc<VectorizedGraph<DynamicGraph, PyDefaultTemplate>>,
 }
 
 #[pymethods]
@@ -44,24 +77,14 @@ impl PyVectorizedGraph {
         // FIXME: Maybe we should have two versions: a VectorizedGraph (sync) and AsyncVectorizedGraph, in both python and rust
         // this instead is just terrible
         pyo3_asyncio::tokio::run(py, async move {
-            let vectorized_graph = match (node_document, edge_document) {
-                (Some(node_document), Some(edge_document)) => {
-                    let node_template = move |vertex: &VertexView<DynamicGraph>| {
-                        vertex.properties().get(&node_document).unwrap().to_string()
-                    };
-                    let edge_template = move |edge: &EdgeView<DynamicGraph>| {
-                        edge.properties().get(&edge_document).unwrap().to_string()
-                    };
-                    graph.vectorize_with_templates(
-                        Box::new(embedding.clone()),
-                        &cache,
-                        node_template,
-                        edge_template,
-                    )
-                }
-                (None, None) => graph.vectorize(Box::new(embedding.clone()), &cache),
-                _ => panic!("you need to specify both templates for now sadly"),
+            let template = PyDefaultTemplate {
+                node_document,
+                edge_document,
+                default_template: DefaultTemplate,
             };
+
+            let vectorized_graph =
+                graph.vectorize_with_template(Box::new(embedding.clone()), &cache, template);
 
             Ok(PyVectorizedGraph {
                 vectors: Arc::new(vectorized_graph.await),

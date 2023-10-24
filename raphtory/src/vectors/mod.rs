@@ -123,24 +123,28 @@ mod vector_tests {
     struct CustomTemplate;
 
     impl DocumentTemplate for CustomTemplate {
-        type Output = Once<Self::DocumentOutput>;
-        type DocumentOutput = String;
-        fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
+        fn node<G: GraphViewOps>(
+            &self,
+            vertex: &VertexView<G>,
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
             let name = vertex.name();
             let node_type = vertex.properties().get("type").unwrap().to_string();
             let property_list =
                 vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
             let content =
                 format!("{name} is a {node_type} with the following details:\n{property_list}");
-            std::iter::once(content)
+            Box::new(std::iter::once(content.into()))
         }
 
-        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self::Output {
+        fn edge<G: GraphViewOps>(
+            &self,
+            edge: &EdgeView<G>,
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
             let content = format!("{src} appeared with {dst} in lines: {lines}");
-            std::iter::once(content)
+            Box::new(std::iter::once(content.into()))
         }
     }
 
@@ -174,7 +178,9 @@ mod vector_tests {
         )
         .unwrap();
 
-        let doc: DocumentInput = CustomTemplate::node(&g.vertex("Frodo").unwrap())
+        let custom_template = CustomTemplate;
+        let doc: DocumentInput = custom_template
+            .node(&g.vertex("Frodo").unwrap())
             .next()
             .unwrap()
             .into();
@@ -192,7 +198,9 @@ age: 30"###;
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
 
-        let doc: DocumentInput = CustomTemplate::edge(&g.edge("Frodo", "Gandalf").unwrap())
+        let custom_template = CustomTemplate;
+        let doc: DocumentInput = custom_template
+            .edge(&g.edge("Frodo", "Gandalf").unwrap())
             .next()
             .unwrap()
             .into();
@@ -203,16 +211,24 @@ age: 30"###;
 
     // const FAKE_DOCUMENTS: Vec<&str> = vec!["doc1", "doc2", "doc3"];
     const FAKE_DOCUMENTS: [&str; 3] = ["doc1", "doc2", "doc3"];
-    struct FakeMultiDocumentTemplate {}
+    struct FakeMultiDocumentTemplate;
 
     impl DocumentTemplate for FakeMultiDocumentTemplate {
-        type Output = IntoIter<Self::DocumentOutput>;
-        type DocumentOutput = &'static str;
-        fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
-            Vec::from(FAKE_DOCUMENTS).into_iter()
+        fn node<G: GraphViewOps>(
+            &self,
+            vertex: &VertexView<G>,
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
+            Box::new(
+                Vec::from(FAKE_DOCUMENTS)
+                    .into_iter()
+                    .map(|text| text.into()),
+            )
         }
-        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self::Output {
-            vec![].into_iter()
+        fn edge<G: GraphViewOps>(
+            &self,
+            edge: &EdgeView<G>,
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
+            Box::new(std::iter::empty())
         }
     }
 
@@ -222,9 +238,10 @@ age: 30"###;
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         let vectors = g
-            .vectorize_with_template::<FakeMultiDocumentTemplate>(
+            .vectorize_with_template(
                 Box::new(fake_embedding),
                 &PathBuf::from("/tmp/raphtory/vector-cache-fake-test"),
+                FakeMultiDocumentTemplate,
             )
             .await;
 
@@ -244,12 +261,13 @@ age: 30"###;
         }
     }
 
-    struct FakeTemplateWithIntervals {}
+    struct FakeTemplateWithIntervals;
 
     impl DocumentTemplate for FakeTemplateWithIntervals {
-        type Output = IntoIter<Self::DocumentOutput>;
-        type DocumentOutput = DocumentInput;
-        fn node<G: GraphViewOps>(vertex: &VertexView<G>) -> Self::Output {
+        fn node<G: GraphViewOps>(
+            &self,
+            vertex: &VertexView<G>,
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
                 life: Lifespan::Event { time: 20 },
@@ -259,10 +277,13 @@ age: 30"###;
                 content: "interval from 30 to 40".to_owned(),
                 life: Lifespan::Interval { start: 30, end: 40 },
             };
-            vec![doc_event_20, doc_interval_30_40].into_iter()
+            Box::new(vec![doc_event_20, doc_interval_30_40].into_iter())
         }
-        fn edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self::Output {
-            vec![].into_iter()
+        fn edge<G: GraphViewOps>(
+            &self,
+            edge: &EdgeView<G>,
+        ) -> Box<dyn Iterator<Item = DocumentInput>> {
+            Box::new(std::iter::empty())
         }
     }
 
@@ -273,9 +294,10 @@ age: 30"###;
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
-            .vectorize_with_template::<FakeTemplateWithIntervals>(
+            .vectorize_with_template(
                 Box::new(fake_embedding),
                 &PathBuf::from("/tmp/raphtory/vector-cache-fake-test"),
+                FakeTemplateWithIntervals,
             )
             .await;
 
@@ -344,9 +366,10 @@ age: 30"###;
 
         dotenv().ok();
         let vectors = g
-            .vectorize_with_template::<CustomTemplate>(
+            .vectorize_with_template(
                 Box::new(openai_embedding),
                 &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
+                CustomTemplate,
             )
             .await;
 
