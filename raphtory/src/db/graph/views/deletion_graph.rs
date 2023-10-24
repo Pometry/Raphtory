@@ -701,7 +701,7 @@ mod test_deletions {
         let e = g.edge(3, 4).unwrap();
         assert_eq!(e.earliest_time(), None);
         assert_eq!(e.latest_time().unwrap(), 10);
-        g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+        g.add_edge(1, 3, 4, [("test", "test")], None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10);
         assert_eq!(e.earliest_time().unwrap(), 1);
     }
