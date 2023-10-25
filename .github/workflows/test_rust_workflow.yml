@@ -57,7 +57,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv sccache-dist-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
 
       - name: Install sccache (Windows)
         if: matrix.os == 'windows-latest'
