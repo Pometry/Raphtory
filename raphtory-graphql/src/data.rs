@@ -1,16 +1,9 @@
-use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
-    db::{
-        api::view::internal::DynamicGraph,
-        graph::{edge::EdgeView, vertex::VertexView},
-    },
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::{
-        document_template::DocumentTemplate, vectorized_graph::VectorizedGraph, DocumentInput,
-    },
+    vectors::{document_template::DocumentTemplate, vectorized_graph::VectorizedGraph},
 };
 use std::{
     collections::{HashMap, HashSet},

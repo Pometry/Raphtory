@@ -56,7 +56,7 @@ struct HashedDocumentGroup {
 struct EmbeddedDocumentGroup {
     id: EntityId,
     hash: u64,
-    documents: Vec<(DocumentRef)>,
+    documents: Vec<DocumentRef>,
 }
 
 #[derive(Serialize, Deserialize)]

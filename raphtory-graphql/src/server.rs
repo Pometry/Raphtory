@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
-    data::{Data, DynamicTemplate},
+    data::Data,
     model::{algorithm::Algorithm, App},
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
@@ -9,7 +9,6 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
-    db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::Graph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
