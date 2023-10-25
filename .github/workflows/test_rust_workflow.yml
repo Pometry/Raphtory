@@ -20,7 +20,7 @@ jobs:
           - os: ubuntu-latest
             sccache-path: /home/runner/.cache/sccache
           - os: windows-latest
-            sccache-path: %LOCALAPPDATA%\Mozilla\sccache
+            sccache-path: "%LOCALAPPDATA%\Mozilla\sccache"
     env:
       RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
