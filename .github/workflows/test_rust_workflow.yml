@@ -46,9 +46,31 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
-      - name: Install sccache
+
+      - name: Install sccache (macOS)
+        if: matrix.os == 'macos-latest'
         run: |
-          cargo install sccache
+          curl -L https://github.com/mozilla/sccache/releases/download/{VERSION}/sccache-{VERSION}-x86_64-apple-darwin.tar.gz | tar xz
+          sudo mv sccache-{VERSION}-x86_64-apple-darwin/sccache /usr/local/bin/
+
+      - name: Install sccache (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          curl -L https://github.com/mozilla/sccache/releases/download/{VERSION}/sccache-{VERSION}-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-{VERSION}-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+
+      - name: Install sccache (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Invoke-WebRequest -Uri https://github.com/mozilla/sccache/releases/download/{VERSION}/sccache-{VERSION}-x86_64-pc-windows-msvc.tar.gz -OutFile sccache.tar.gz
+          tar -xzvf .\sccache.tar.gz
+          Move-Item .\sccache-{VERSION}-x86_64-pc-windows-msvc\sccache.exe C:\ProgramData\sccache.exe
+
+      - name: Set up sccache
+        run: |
+          echo "SCCACHE_DIR=~/.cache/sccache" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+
       - name: Set up sccache
         run: |
           echo "SCCACHE_DIR=~/.cache/sccache" >> $GITHUB_ENV
