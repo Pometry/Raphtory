@@ -31,6 +31,7 @@ jobs:
     strategy:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
+        os: [macos-latest, ubuntu-latest, windows-latest]
         include:
           - os: macos-latest
             sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
@@ -40,11 +41,20 @@ jobs:
             sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
     runs-on: '${{ matrix.os }}'
     env:
-      RUST_BACKTRACE: full
       RUSTC_WRAPPER: sccache
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ matrix.sccache-path }}
+      SCCACHE_PATH: ${{ matrix.sccache-path }}
     steps:
+      - name: Setting sccache-path
+        run: echo "SCCACHE_PATH=${{ matrix.sccache-path }}"
+        if: matrix.os == 'macos-latest'
+      - name: Setting sccache-path
+        run: echo "SCCACHE_PATH=/home/runner/.cache/sccache"
+        if: matrix.os == 'ubuntu-latest'
+      - name: Setting sccache-path
+        run: echo "SCCACHE_PATH=C:\Users\runner\AppData\Local\Mozilla\sccache"
+        if: matrix.os == 'windows-latest'
       - uses: actions/checkout@v3
         name: Checkout
       - name: Cache sccache
