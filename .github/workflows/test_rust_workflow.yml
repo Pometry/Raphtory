@@ -50,21 +50,21 @@ jobs:
       - name: Install sccache (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          curl -L https://github.com/mozilla/sccache/releases/download/{VERSION}/sccache-{VERSION}-x86_64-apple-darwin.tar.gz | tar xz
-          sudo mv sccache-{VERSION}-x86_64-apple-darwin/sccache /usr/local/bin/
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-apple-darwin.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-apple-darwin/sccache /usr/local/bin/
 
       - name: Install sccache (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          curl -L https://github.com/mozilla/sccache/releases/download/{VERSION}/sccache-{VERSION}-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv sccache-{VERSION}-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-dist-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
 
       - name: Install sccache (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          Invoke-WebRequest -Uri https://github.com/mozilla/sccache/releases/download/{VERSION}/sccache-{VERSION}-x86_64-pc-windows-msvc.tar.gz -OutFile sccache.tar.gz
+          Invoke-WebRequest -Uri https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-pc-windows-msvc.tar.gz -OutFile sccache.tar.gz
           tar -xzvf .\sccache.tar.gz
-          Move-Item .\sccache-{VERSION}-x86_64-pc-windows-msvc\sccache.exe C:\ProgramData\sccache.exe
+          Move-Item .\sccache-v0.5.4-x86_64-pc-windows-msvc\sccache.exe C:\ProgramData\sccache.exe
 
       - name: Set up sccache
         run: |
