@@ -1,0 +1,27 @@
+name: Inform internal projects of raphtory push
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.DISPATCH_PAT }}
+          script: |
+            const result = await github.rest.repos.createDispatchEvent({
+              owner: 'pometry',
+              repo: '${{ secrets.PROJECT_ONE }}',
+              event_type: 'raphtory-update',
+              client_payload: {"update": "master"}
+            });
+
+            // Check the status code of the response
+            if (result.status !== 204) {  // 204 No Content is a typical successful response for dispatch events
+              console.error('Failed to dispatch the event. Response:', result);
+              throw new Error('Dispatch event failed');  // Throwing an error will fail the job
+            }
+            console.log('Dispatch event was successful:', result);

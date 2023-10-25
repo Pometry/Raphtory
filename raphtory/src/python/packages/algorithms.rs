@@ -8,10 +8,13 @@ use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
         centrality::{
+            betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
         community_detection::connected_components,
+        community_detection::in_components as in_comp,
+        community_detection::out_components as out_comp,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -38,12 +41,12 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
-    usecase_algorithms::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
 };
-use crate::{core::Prop, python::graph::edge::PyDirection};
+use crate::{core::Prop, db::api::view::internal::DynamicGraph, python::graph::edge::PyDirection};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
@@ -63,7 +66,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
-/// Weakly connected community_detection -- partitions the graph into node sets which are mutually reachable by an undirected path
+/// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 ///
 /// This function assigns a component id to each vertex such that vertices with the same component id are mutually reachable
 /// by an undirected path.
@@ -73,14 +76,40 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object with string keys and integer values mapping vertex names to their component ids.
+///     AlgorithmResult : AlgorithmResult object mapping vertices to their component ids.
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
-) -> AlgorithmResult<String, u64> {
+) -> AlgorithmResult<DynamicGraph, u64, u64> {
     connected_components::weakly_connected_components(&g.graph, iter_count, None)
+}
+
+/// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
+///
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///
+/// Returns:
+///     AlgorithmResult : AlgorithmResult object mapping each vertex to an array containing the ids of all vertices within their 'in-component'
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
+    in_comp::in_components(&g.graph, None)
+}
+
+/// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
+///
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///
+/// Returns:
+///     AlgorithmResult : AlgorithmResult object mapping each vertex to an array containing the ids of all vertices within their 'out-component'
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
+    out_comp::out_components(&g.graph, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
@@ -103,7 +132,7 @@ pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
 }
 
@@ -129,7 +158,7 @@ pub fn temporally_reachable_nodes(
     start_time: i64,
     seed_nodes: Vec<PyInputVertex>,
     stop_nodes: Option<Vec<PyInputVertex>>,
-) -> AlgorithmResult<String, Vec<(i64, String)>> {
+) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
 
@@ -253,7 +282,9 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(g: &PyGraphView) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+pub fn all_local_reciprocity(
+    g: &PyGraphView,
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     all_local_reciprocity_rs(&g.graph, None)
 }
 
@@ -390,7 +421,7 @@ pub fn hits(
     g: &PyGraphView,
     iter_count: usize,
     threads: Option<usize>,
-) -> AlgorithmResult<String, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
+) -> AlgorithmResult<DynamicGraph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
     hits_rs(&g.graph, iter_count, threads)
 }
 
@@ -417,13 +448,13 @@ pub fn balance(
     name: String,
     direction: PyDirection,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }
 
 #[pyfunction]
 #[pyo3[signature = (g, no_time=false, threads=None)]]
-pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
+pub fn one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
     netflow_one_path_vertex_rs(&g.graph, no_time, threads)
 }
 
@@ -442,7 +473,7 @@ pub fn netflow_one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<u
 pub fn degree_centrality(
     g: &PyGraphView,
     threads: Option<usize>,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     degree_centrality_rs(&g.graph, threads)
 }
 
@@ -488,7 +519,7 @@ pub fn single_source_shortest_path(
     g: &PyGraphView,
     source: PyInputVertex,
     cutoff: Option<usize>,
-) -> AlgorithmResult<String, Vec<String>> {
+) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
 }
 
@@ -515,4 +546,24 @@ pub fn dijkstra_single_source_shortest_paths(
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+/// Computes the betweenness centrality for nodes in a given graph.
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph.
+///     k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
+///     normalized (boolean, optional): Indicates whether to normalize the centrality values.
+///
+/// # Returns
+///
+/// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+#[pyfunction]
+#[pyo3[signature = (g, k=None, normalized=true)]]
+pub fn betweenness_centrality(
+    g: &PyGraphView,
+    k: Option<usize>,
+    normalized: Option<bool>,
+) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
+    betweenness_rs(&g.graph, k, normalized)
 }

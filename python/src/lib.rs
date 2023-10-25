@@ -69,6 +69,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         algorithm_module,
         dijkstra_single_source_shortest_paths,
         global_reciprocity,
+        betweenness_centrality,
         all_local_reciprocity,
         triplet_count,
         local_triangle_count,
@@ -87,6 +88,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         temporally_reachable_nodes,
         local_clustering_coefficient,
         weakly_connected_components,
+        in_components,
+        out_components,
         global_temporal_three_node_motif,
         global_temporal_three_node_motif_multi,
         local_temporal_three_node_motifs,
@@ -96,7 +99,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_submodule(algorithm_module)?;
 
     let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
-    add_functions!(usecase_algorithm_module, netflow_one_path_vertex,);
+    add_functions!(usecase_algorithm_module, one_path_vertex);
     m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER
@@ -107,6 +110,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         neo4j_movie_graph,
         stable_coin_graph,
         reddit_hyperlink_graph,
+        karate_club_graph,
     );
     m.add_submodule(graph_loader_module)?;
 

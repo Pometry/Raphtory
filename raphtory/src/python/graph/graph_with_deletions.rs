@@ -88,6 +88,13 @@ impl PyGraphWithDeletions {
         )
     }
 
+    pub fn include_deletions_in_window(&self, py: Python) -> PyObject {
+        self.graph.include_deletions_in_window().into_py(py)
+    }
+
+    pub fn ignore_deletions_in_window(&self, py: Python) -> PyObject {
+        self.graph.ignore_deletions_in_window().into_py(py)
+    }
     /// Adds a new vertex with the given id and properties to the graph.
     ///
     /// Arguments:
@@ -136,6 +143,20 @@ impl PyGraphWithDeletions {
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
         self.graph.add_constant_properties(properties)
+    }
+
+    /// Updates static properties to the graph.
+    ///
+    /// Arguments:
+    ///     properties (dict): The static properties of the graph.
+    ///
+    /// Returns:
+    ///    None
+    pub fn update_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
+        self.graph.update_constant_properties(properties)
     }
 
     /// Adds a new edge with the given source and destination vertices and properties to the graph.

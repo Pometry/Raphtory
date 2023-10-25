@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::vertices::vertex_ref::VertexRef,
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
@@ -58,7 +58,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     threads: Option<usize>,
     tol: Option<f64>,
     use_l2_norm: bool,
-) -> AlgorithmResult<String, f64, OrderedFloat<f64>> {
+) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let n = g.count_vertices();
     let total_edges = g.count_edges();
 
@@ -157,8 +157,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
     let num_vertices = g.count_vertices();
-    let results_type = std::any::type_name::<HashMap<VID, f64>>();
-    let out: HashMap<VID, f64> = runner.run(
+
+    let out: HashMap<usize, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_vertices); num_vertices]),
@@ -170,9 +170,9 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 .enumerate()
                 .filter_map(|(v_ref, score)| {
                     g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
-                        .then_some((v_ref.into(), score.score))
+                        .then_some((v_ref, score.score))
                 })
-                .collect::<HashMap<VID, f64>>()
+                .collect::<HashMap<usize, f64>>()
         },
         threads,
         iter_count,
@@ -180,12 +180,8 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
         None,
     );
 
-    let res: HashMap<String, f64> = out
-        .into_iter()
-        .map(|(k, v)| (g.vertex_name(k), v))
-        .collect();
-
-    AlgorithmResult::new("Pagerank", results_type, res)
+    let results_type = std::any::type_name::<f64>();
+    AlgorithmResult::new(g.clone(), "Pagerank", results_type, out)
 }
 
 #[cfg(test)]
