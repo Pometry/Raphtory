@@ -49,6 +49,8 @@ jobs:
         run: |
           echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+      - name: Start sccache server
+        run: sccache --start-server
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -87,4 +89,8 @@ jobs:
           verbose: true
           fail_ci_if_error: false
           files: ./coverage.xml, ${{ steps.coveragerust.outputs.report }}
-      
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true
+
