@@ -61,7 +61,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ matrix.sccache-path }}
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          key: pytest-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-sccache-
       - name: Set up cargo cache
