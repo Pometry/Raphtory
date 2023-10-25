@@ -1,4 +1,5 @@
 use crate::{
+    core::entities::LayerIds,
     db::api::view::internal::IntoDynamic,
     prelude::GraphViewOps,
     vectors::{
@@ -100,17 +101,29 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
     ) -> VectorizedGraph<G, T> {
         create_dir_all(cache_dir).expect("Impossible to use cache dir");
 
+        println!(
+            "Computing embeddings for {} vertices and {} edges",
+            self.vertices_len(LayerIds::All, None),
+            self.edges_len(LayerIds::All, None),
+        );
+
         let nodes = self.vertices().iter().map(|vertex| {
-            let documents = template.node(&vertex).map(|doc| doc.into()).collect_vec();
+            let documents = template.node(&vertex).collect_vec();
             DocumentGroup::new(vertex.into(), documents)
         });
         let edges = self.edges().map(|edge| {
-            let documents = template.edge(&edge).map(|doc| doc.into()).collect_vec();
+            let documents = template.edge(&edge).collect_vec();
             DocumentGroup::new(edge.into(), documents)
         });
 
         let node_refs = attach_embeddings(nodes, &embedding, cache_dir).await;
         let edge_refs = attach_embeddings(edges, &embedding, cache_dir).await;
+
+        println!(
+            "Successfully computed embeddings for {} vertices and {} edges",
+            node_refs.len(),
+            edge_refs.len(),
+        );
 
         VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
     }
