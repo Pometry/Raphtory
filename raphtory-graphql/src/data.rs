@@ -15,13 +15,15 @@ use raphtory::{
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
+    sync::Arc,
 };
 use walkdir::WalkDir;
+pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<Graph>>;
 
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<Graph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<Graph>>>,
+    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<Graph, DynamicTemplate>>>,
 }
 
 impl Data {

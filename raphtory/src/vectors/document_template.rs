@@ -4,25 +4,28 @@ use crate::{
     vectors::{graph_entity::GraphEntity, splitting::split_text_by_line_breaks, DocumentInput},
 };
 use itertools::Itertools;
-use std::{convert::identity, iter::Once, vec::IntoIter};
+use std::{convert::identity, sync::Arc};
 
-pub trait DocumentTemplate: Send + Sync {
-    fn node<G: GraphViewOps>(
-        &self,
-        vertex: &VertexView<G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput>>;
-    fn edge<G: GraphViewOps>(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
+pub trait DocumentTemplate<G: GraphViewOps>: Send + Sync {
+    fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
+    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
+}
+
+impl<G: GraphViewOps> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
+    fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        self.as_ref().node(vertex)
+    }
+    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        self.as_ref().edge(edge)
+    }
 }
 
 pub struct DefaultTemplate;
 
 const DEFAULT_MAX_SIZE: usize = 1000;
 
-impl DocumentTemplate for DefaultTemplate {
-    fn node<G: GraphViewOps>(
-        &self,
-        vertex: &VertexView<G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+impl<G: GraphViewOps> DocumentTemplate<G> for DefaultTemplate {
+    fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let name = vertex.name();
         let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
         let content = format!("The entity {name} has the following details:\n{property_list}");
@@ -30,7 +33,7 @@ impl DocumentTemplate for DefaultTemplate {
         Box::new(text_chunks.into_iter().map(|text| text.into()))
     }
 
-    fn edge<G: GraphViewOps>(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let src = edge.src().name();
         let dst = edge.dst().name();
         // TODO: property list

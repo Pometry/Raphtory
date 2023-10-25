@@ -66,7 +66,7 @@ impl DocumentRef {
     pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
     where
         G: GraphViewOps,
-        T: DocumentTemplate,
+        T: DocumentTemplate<G>,
     {
         // FIXME: there is a problem here. We need to use the original graph so the number of
         // documents is the same and the index is therefore consistent. However, we want to return

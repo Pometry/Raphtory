@@ -26,11 +26,8 @@ struct PyDefaultTemplate {
     default_template: DefaultTemplate,
 }
 
-impl DocumentTemplate for PyDefaultTemplate {
-    fn node<G: GraphViewOps>(
-        &self,
-        vertex: &VertexView<G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput>> {
+impl<G: GraphViewOps> DocumentTemplate<G> for PyDefaultTemplate {
+    fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
             Some(node_document) => {
                 let prop = vertex.properties().get(node_document).unwrap();
@@ -40,7 +37,7 @@ impl DocumentTemplate for PyDefaultTemplate {
         }
     }
 
-    fn edge<G: GraphViewOps>(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
             Some(edge_document) => {
                 let prop = edge.properties().get(edge_document).unwrap();

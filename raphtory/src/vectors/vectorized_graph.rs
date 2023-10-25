@@ -12,7 +12,7 @@ use crate::{
 use itertools::{chain, Itertools};
 use std::collections::HashMap;
 
-pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
+pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     graph: G,
     template: T,
     embedding: Box<dyn EmbeddingFunction>,
@@ -21,7 +21,7 @@ pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate> {
     edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
 }
 
-impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate> VectorizedGraph<G, T> {
+impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
         template: T,

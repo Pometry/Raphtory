@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
-    data::Data,
+    data::{Data, DynamicTemplate},
     model::{algorithm::Algorithm, App},
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
@@ -11,9 +11,13 @@ use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Ser
 use raphtory::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::Graph,
-    vectors::{document_template::DocumentTemplate, vectorizable::Vectorizable, Embedding},
+    vectors::{
+        document_template::{DefaultTemplate, DocumentTemplate},
+        vectorizable::Vectorizable,
+        Embedding,
+    },
 };
-use std::{collections::HashMap, future::Future, ops::Deref, path::Path};
+use std::{collections::HashMap, future::Future, ops::Deref, path::Path, sync::Arc};
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -47,29 +51,23 @@ impl RaphtoryServer {
     where
         F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
         U: Future<Output = Vec<Embedding>> + Send + 'static,
-        T: DocumentTemplate,
+        T: DocumentTemplate<Graph> + 'static,
     {
         {
             let graphs_map = self.data.graphs.read();
             let mut stores_map = self.data.vector_stores.write();
 
+            let template = template
+                .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<Graph>>)
+                .unwrap_or(Arc::new(DefaultTemplate));
+
             for graph_name in graph_names {
                 let graph_cache = cache_dir.join(&graph_name);
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
-
                 println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-                let vectorized = match template {
-                    Some(template) => {
-                        graph
-                            .vectorize_with_template(
-                                Box::new(embedding),
-                                &graph_cache,
-                                Box::new(template),
-                            )
-                            .await
-                    }
-                    None => graph.vectorize(Box::new(embedding), &graph_cache).await,
-                };
+                let vectorized = graph
+                    .vectorize_with_template(Box::new(embedding), &graph_cache, template.clone())
+                    .await;
                 stores_map.insert(graph_name, vectorized);
             }
         }

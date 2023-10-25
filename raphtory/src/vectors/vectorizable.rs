@@ -73,7 +73,7 @@ pub trait Vectorizable<G: GraphViewOps> {
         cache_dir: &Path,
     ) -> VectorizedGraph<G, DefaultTemplate>;
 
-    async fn vectorize_with_template<T: DocumentTemplate>(
+    async fn vectorize_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
@@ -92,7 +92,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
             .await
     }
 
-    async fn vectorize_with_template<T: DocumentTemplate>(
+    async fn vectorize_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
