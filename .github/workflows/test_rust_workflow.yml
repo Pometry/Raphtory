@@ -56,17 +56,15 @@ jobs:
           components: rustfmt, clippy
       - name: Install sccache (macOS)
         if: matrix.os == 'macos-latest'
-        run: |
-          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-apple-darwin.tar.gz | tar xz
-          sudo mv sccache-v0.5.4-x86_64-apple-darwin/sccache /usr/local/bin/
+        run: brew install sccache
       - name: Install sccache (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          brew install sccache
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
       - name: Install sccache (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          choco install sccache
+        run: choco install sccache
       - name: Start sccache server
         run: sccache --start-server
       - name: Run Tests
