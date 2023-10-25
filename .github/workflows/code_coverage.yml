@@ -18,7 +18,7 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v3
         with:
-          path: ~/.cache/sccache
+          path: /home/runner/.cache/sccache
           key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-sccache-
@@ -47,7 +47,7 @@ jobs:
           sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
       - name: Set up sccache
         run: |
-          echo "SCCACHE_DIR=~/.cache/sccache" >> $GITHUB_ENV
+          echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> $GITHUB_ENV
           echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
       - name: Setup Python
         uses: actions/setup-python@v4
