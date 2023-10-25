@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
+      - name: Cache sccache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -34,6 +41,14 @@ jobs:
           toolchain: nightly
           override: true
           components: rustfmt, clippy
+      - name: Install sccache (Ubuntu)
+        run: |
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+      - name: Set up sccache
+        run: |
+          echo "SCCACHE_DIR=~/.cache/sccache" >> $GITHUB_ENV
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -43,13 +58,11 @@ jobs:
         with:
           working-directory: ./python
           command: build
+          sccache: true
       - name: Install Python dependencies
         run: |
           python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis pytest-cov coverage
           python -m pip install target/wheels/raphtory-*.whl
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clean
       - name: Run tests (rust)
         run: cargo test -p raphtory --features "io python"
         env:
