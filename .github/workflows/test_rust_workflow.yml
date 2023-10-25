@@ -56,8 +56,8 @@ jobs:
       - name: Install sccache (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-dist-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv sccache-dist-v0.5.4-x86_64-unknown-linux-musl/sccache-dist /usr/local/bin/sccache
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-dist-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
 
       - name: Install sccache (Windows)
         if: matrix.os == 'windows-latest'
@@ -65,11 +65,6 @@ jobs:
           Invoke-WebRequest -Uri https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-pc-windows-msvc.tar.gz -OutFile sccache.tar.gz
           tar -xzvf .\sccache.tar.gz
           Move-Item .\sccache-v0.5.4-x86_64-pc-windows-msvc\sccache.exe C:\ProgramData\sccache.exe
-
-      - name: Set up sccache
-        run: |
-          echo "SCCACHE_DIR=~/.cache/sccache" >> $GITHUB_ENV
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
 
       - name: Set up sccache
         run: |
