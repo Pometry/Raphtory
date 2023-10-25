@@ -99,7 +99,7 @@ jobs:
           path: /home/runner/.cache/sccache
           key: doc-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-
+            doc-${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -109,8 +109,8 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: doc-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: doc-${{ runner.os }}-cargo-
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:

@@ -63,7 +63,7 @@ jobs:
           path: ${{ matrix.sccache-path }}
           key: pytest-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-
+            pytest-${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -75,8 +75,8 @@ jobs:
             ~/.cargo/git/db/
             target/debug
             target/release
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: pytest-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: pytest-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:

@@ -24,9 +24,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /home/runner/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          key: codecov-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-sccache-
+            codecov-${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -39,7 +39,7 @@ jobs:
               target/debug
               target/release
           key: codecov-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-coverage
-          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-coverage
+          restore-keys: codecov-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-coverage
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:
