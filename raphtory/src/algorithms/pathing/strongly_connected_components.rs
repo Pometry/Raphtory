@@ -24,17 +24,94 @@ use crate::{
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone, Debug, Default)]
-struct CycleNode {
-    is_cycle_node: bool,
+fn tarjan<G>(
+    node: u64,
+    graph: &G,
+    index: &mut u64,
+    stack: &mut Vec<u64>,
+    indices: &mut HashMap<u64, u64>,
+    lowlink: &mut HashMap<u64, u64>,
+    on_stack: &mut HashSet<u64>,
+    result: &mut Vec<Vec<u64>>,
+) where
+    G: GraphViewOps,
+{
+    *index += 1;
+    indices.insert(node, *index);
+    lowlink.insert(node, *index);
+    stack.push(node);
+    on_stack.insert(node);
+
+    let out_neighbours = graph
+        .vertex(node)
+        .map(|vv| vv.out_neighbours().iter().map(|vv| vv.id()).collect_vec());
+
+    if let Some(neighbors) = out_neighbours {
+        for neighbor in neighbors {
+            if !indices.contains_key(&neighbor) {
+                tarjan(
+                    neighbor, graph, index, stack, indices, lowlink, on_stack, result,
+                );
+                lowlink.insert(node, lowlink[&node].min(lowlink[&neighbor]));
+            } else if on_stack.contains(&neighbor) {
+                lowlink.insert(node, lowlink[&node].min(indices[&neighbor]));
+            }
+        }
+    }
+
+    if indices[&node] == lowlink[&node] {
+        let mut component = Vec::new();
+        let mut top = stack.pop().unwrap();
+        on_stack.remove(&top);
+        component.push(top);
+        while top != node {
+            top = stack.pop().unwrap();
+            on_stack.remove(&top);
+            component.push(top);
+        }
+        result.push(component);
+    }
 }
 
-pub fn cycle_detection<G>(graph: &G, threads: Option<usize>) -> Vec<String>
+fn tarjan_scc<G>(graph: &G) -> Vec<Vec<u64>>
 where
     G: GraphViewOps,
 {
-    // let results = out_components(graph, None).get_all_with_names();
-    // println!("{:?}", results)
+    let mut index = 0;
+    let mut stack = Vec::new();
+    let mut indices: HashMap<u64, u64> = HashMap::new();
+    let mut lowlink: HashMap<u64, u64> = HashMap::new();
+    let mut on_stack: HashSet<u64> = HashSet::new();
+    let mut result: Vec<Vec<u64>> = Vec::new();
+
+    let vertices = graph.vertices().id().collect::<Vec<u64>>();
+
+    for node in vertices {
+        if !indices.contains_key(&node) {
+            tarjan(
+                node,
+                graph,
+                &mut index,
+                &mut stack,
+                &mut indices,
+                &mut lowlink,
+                &mut on_stack,
+                &mut result,
+            );
+        }
+    }
+
+    result
+}
+
+pub fn strongly_connected_components<G>(graph: &G, threads: Option<usize>) -> Vec<Vec<u64>>
+where
+    G: GraphViewOps,
+{
+    #[derive(Clone, Debug, Default)]
+    struct SCCNode {
+        is_scc_node: bool,
+    }
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
@@ -57,8 +134,8 @@ where
             }
         }
 
-        let state: &mut CycleNode = vv.get_mut();
-        state.is_cycle_node = out_components.into_iter().contains(&id);
+        let state: &mut SCCNode = vv.get_mut();
+        state.is_scc_node = out_components.into_iter().contains(&id);
         Step::Done
     });
 
@@ -69,7 +146,7 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<CycleNode>| {
+        |_, _, _, local: Vec<SCCNode>| {
             let layers: crate::core::entities::LayerIds = graph.layer_ids();
             let edge_filter = graph.edge_filter();
             local
@@ -79,7 +156,7 @@ where
                     let v_ref = VID(v_ref_id);
                     graph
                         .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.is_cycle_node.clone()))
+                        .then_some((v_ref_id, state.is_scc_node.clone()))
                 })
                 .collect::<HashMap<_, _>>()
         },
@@ -98,21 +175,21 @@ where
         .map(|(v, _)| v)
         .collect_vec();
 
-    // let sub_graph = graph.subgraph(cycle_nodes.clone());
+    let sub_graph = graph.subgraph(cycle_nodes.clone());
 
-    return cycle_nodes;
+    return tarjan_scc(&sub_graph);
 }
 
 #[cfg(test)]
-mod cycle_detection_tests {
+mod strongly_connected_components_tests {
+    use crate::prelude::VertexViewOps;
     use crate::{
-        algorithms::pathing::cycle_detection::cycle_detection,
+        algorithms::pathing::strongly_connected_components::strongly_connected_components,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
-    use itertools::Itertools;
 
     #[test]
-    fn cycle_detection_test() {
+    fn scc_test() {
         let graph = Graph::new();
         let edges = vec![
             (1, 1, 2),
@@ -131,6 +208,8 @@ mod cycle_detection_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        println!("{:?}", cycle_detection(&graph, None));
+        let scc_nodes = strongly_connected_components(&graph, None);
+
+        assert_eq!(scc_nodes, vec![vec![8, 7, 5, 2, 6]]);
     }
 }
