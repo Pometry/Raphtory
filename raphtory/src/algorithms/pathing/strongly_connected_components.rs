@@ -182,10 +182,9 @@ where
 
 #[cfg(test)]
 mod strongly_connected_components_tests {
-    use crate::prelude::VertexViewOps;
     use crate::{
         algorithms::pathing::strongly_connected_components::strongly_connected_components,
-        prelude::{AdditionOps, Graph, NO_PROPS},
+        prelude::{AdditionOps, Graph, VertexViewOps, NO_PROPS},
     };
 
     #[test]
