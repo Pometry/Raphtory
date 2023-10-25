@@ -16,15 +16,23 @@ jobs:
       matrix:
         include:
           - os: macos-latest
+            sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
           - os: ubuntu-latest
+            sccache-path: /home/runner/.cache/sccache
           - os: windows-latest
+            sccache-path: %LOCALAPPDATA%\Mozilla\sccache
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: sccache
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ matrix.sccache-path }}
     steps:
       - uses: actions/checkout@v3
         name: Checkout
       - name: Cache sccache
         uses: actions/cache@v3
         with:
-          path: ~/.cache/sccache
+          path: ${{ matrix.sccache-path }}
           key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-sccache-
@@ -66,10 +74,8 @@ jobs:
           tar -xzvf .\sccache.tar.gz
           Move-Item .\sccache-v0.5.4-x86_64-pc-windows-msvc\sccache.exe C:\ProgramData\sccache.exe
 
-      - name: Set up sccache
-        run: |
-          echo "SCCACHE_DIR=~/.cache/sccache" >> $GITHUB_ENV
-          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+      - name: Start sccache server
+        run: sccache --start-server
       - name: Run Tests
         uses: actions-rs/cargo@v1
         env:
@@ -77,6 +83,10 @@ jobs:
         with:
           command: test
           args: --all --no-default-features --features "raphtory/io raphtory/python"
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
