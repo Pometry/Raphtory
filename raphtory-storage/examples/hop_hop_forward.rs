@@ -1,4 +1,5 @@
 use std::{
+    path::Path,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -6,13 +7,24 @@ use std::{
     time::Instant,
 };
 
-use ahash::{AHasher, HashMap};
+use ahash::HashMap;
+use arrow2::{
+    array::{Array, PrimitiveArray},
+    chunk::Chunk,
+    compute::sort::{SortColumn, SortOptions},
+    datatypes::{Field, Schema},
+};
 use dashmap::DashMap;
 use itertools::Itertools;
 use raphtory::{
-    arrow::{graph::TemporalGraph, loader::ExternalEdgeList, Time},
+    arrow::{
+        graph::TemporalGraph,
+        loader::ExternalEdgeList,
+        mmap::{mmap_batch, write_batches},
+        Time,
+    },
     core::{
-        entities::{EID, VID},
+        entities::VID,
         Direction,
     },
 };
@@ -225,6 +237,7 @@ fn query1_v4_par(
         .build()
         .expect("failed to build pool");
 
+    let now = Instant::now();
     pool.install(|| {
         vs.par_chunks(1024).for_each(|b_ids| {
             for b_id in b_ids {
@@ -276,9 +289,53 @@ fn query1_v4_par(
         });
     });
 
+    println!("Done probe map build: {:?}", now.elapsed());
+
+    let now = Instant::now();
+
     probe_map.iter_mut().for_each(|mut entry| {
         entry.value_mut().sort();
     });
+
+    println!(
+        "Done sorting map len: {:?}, duration: {:?}",
+        probe_map.len(),
+        now.elapsed()
+    );
+
+    let min_edge_len = probe_map
+        .iter()
+        .map(|entry| entry.value().len())
+        .min()
+        .unwrap();
+    let max_edge_len = probe_map
+        .iter()
+        .map(|entry| entry.value().len())
+        .max()
+        .unwrap();
+    let avg_edge_len = probe_map
+        .iter()
+        .map(|entry| entry.value().len())
+        .sum::<usize>() as f64
+        / probe_map.len() as f64;
+    let one_len = probe_map
+        .iter()
+        .filter(|entry| entry.value().len() == 1)
+        .count();
+
+    let median = probe_map
+        .iter()
+        .map(|entry| entry.value().len())
+        .sorted()
+        .nth(probe_map.len() / 2)
+        .unwrap();
+
+    println!(
+        "min_edge_len: {:?}, max_edge_len: {:?}, avg_edge_len: {:?}, one_len: {:?}, median: {:?}",
+        min_edge_len, max_edge_len, avg_edge_len, one_len, median
+    );
+
+    let now: Instant = Instant::now();
 
     pool.install(|| {
         probe_map.par_iter().for_each(|entry| {
@@ -316,6 +373,9 @@ fn query1_v4_par(
                 });
         })
     });
+
+    println!("Done 3rd join duration: {:?}", now.elapsed());
+
     count.load(Ordering::Relaxed)
 }
 
@@ -432,56 +492,69 @@ fn binary_search_join<'a>(
 
 #[cfg(test)]
 mod test {
-    use crate::binary_search_join;
+    use raphtory::core::entities::VID;
+
+    use crate::{binary_search_join, SpillMap};
+
+    // #[test]
+    // fn bin_search_join_1_1() {
+    //     let mut count = 0;
+    //     let prog1_nft = vec![(2, 2, 2)];
+    //     let login = vec![(&4624, &1)];
+    //     let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+    //     // assert_eq!(actual, vec![(&1, &2, &2)]);
+    //     assert_eq!(count, 1);
+    // }
+
+    // #[test]
+    // fn bin_search_join_1_2() {
+    //     let mut count = 0;
+    //     let prog1_nft = vec![(1, 1), (2, 2, 2)];
+    //     let login = vec![(&4624, &1)];
+    //     let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+    //     // assert_eq!(actual, vec![(&1, &2, &2)]);
+    //     assert_eq!(count, 1);
+    // }
+
+    // #[test]
+    // fn bin_search_join_2_2() {
+    //     let mut count = 0;
+    //     let prog1_nft = vec![(1, 1), (2, 2, 2)];
+    //     let login = vec![(&4624, &1), (&4624, &2)];
+    //     let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+    //     // assert_eq!(actual, vec![(&1, &2, &2)]);
+    //     assert_eq!(count, 1);
+    // }
+
+    // #[test]
+    // fn bin_search_join_cut_half() {
+    //     let mut count = 0;
+    //     let prog1_nft = vec![(1, 1, 3), (2, 2, 3), (3, 4, 4), (19, 12, 4)];
+    //     let login = vec![(&4624, &2)];
+    //     let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+    //     // assert_eq!(actual, vec![(&2, &3, &4), (&2, &19, &12)]);
+    //     assert_eq!(count, 2);
+    // }
+
+    // #[test]
+    // fn bin_search_join_cut_half_2() {
+    //     let mut count = 0;
+    //     let prog1_nft = vec![(1, 1, 4), (2, 2, 4), (3, 4, 6), (19, 12, 7)];
+    //     let login = vec![(&4624, &2), (&4624, &3)];
+    //     let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
+    //     // assert_eq!(actual, vec![(&2, &3, &4), (&2, &19, &12), (&3, &19, &12)]);
+    //     assert_eq!(count, 3);
+    // }
 
     #[test]
-    fn bin_search_join_1_1() {
-        let mut count = 0;
-        let prog1_nft = vec![(2, 2)];
-        let login = vec![(&4624, &1)];
-        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
-        // assert_eq!(actual, vec![(&1, &2, &2)]);
-        assert_eq!(count, 1);
-    }
+    fn spill_map_one_key() {
+        let tmp = tempfile::tempdir().unwrap();
+        let m = SpillMap::new(tmp.path(), 2);
+        m.push(VID(3), &12, &3, VID(4));
+        m.push(VID(3), &13, &4, VID(5));
+        m.push(VID(3), &1, &5, VID(6));
 
-    #[test]
-    fn bin_search_join_1_2() {
-        let mut count = 0;
-        let prog1_nft = vec![(1, 1), (2, 2)];
-        let login = vec![(&4624, &1)];
-        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
-        // assert_eq!(actual, vec![(&1, &2, &2)]);
-        assert_eq!(count, 1);
-    }
-
-    #[test]
-    fn bin_search_join_2_2() {
-        let mut count = 0;
-        let prog1_nft = vec![(1, 1), (2, 2)];
-        let login = vec![(&4624, &1), (&4624, &2)];
-        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
-        // assert_eq!(actual, vec![(&1, &2, &2)]);
-        assert_eq!(count, 1);
-    }
-
-    #[test]
-    fn bin_search_join_cut_half() {
-        let mut count = 0;
-        let prog1_nft = vec![(1, 1), (2, 2), (3, 4), (19, 12)];
-        let login = vec![(&4624, &2)];
-        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
-        // assert_eq!(actual, vec![(&2, &3, &4), (&2, &19, &12)]);
-        assert_eq!(count, 2);
-    }
-
-    #[test]
-    fn bin_search_join_cut_half_2() {
-        let mut count = 0;
-        let prog1_nft = vec![(1, 1), (2, 2), (3, 4), (19, 12)];
-        let login = vec![(&4624, &2), (&4624, &3)];
-        let actual = binary_search_join(login, &prog1_nft, &VID(0), &mut count);
-        // assert_eq!(actual, vec![(&2, &3, &4), (&2, &19, &12), (&3, &19, &12)]);
-        assert_eq!(count, 3);
+        m.sort_merge()
     }
 }
 
@@ -563,6 +636,11 @@ fn main() {
         .nth(4)
         .expect("please supply a v2 directory");
 
+    println!("graph_dir: {:?}", graph_dir);
+    println!("netflow_dir: {:?}", netflow_dir);
+    println!("v1_dir: {:?}", v1_dir);
+    println!("v2_dir: {:?}", v2_dir);
+
     let now = Instant::now();
     let graph = if std::fs::read_dir(&graph_dir).is_ok() {
         TemporalGraph::new(&graph_dir).expect("failed to load graph")
@@ -634,4 +712,174 @@ fn main() {
     let count = query1(&graph);
 
     println!("Time taken: {:?}, count: {:?}", now.elapsed(), count);
+}
+
+struct SpillRow<P> {
+    max_size: usize,
+    key: usize,
+    root_path: P,
+    prog1_t: Vec<i32>,
+    nft_t: Vec<i32>,
+    e: Vec<u32>,
+    rest: Vec<Chunk<Box<dyn Array>>>,
+}
+
+impl<P: AsRef<Path> + Send + Sync> SpillRow<P> {
+
+    fn arrays_at(&self, i:usize) -> Option<(PrimitiveArray<i32>, PrimitiveArray<i32>, PrimitiveArray<u32>)>{
+        let c = &self.rest[i];
+
+        let prog1_t = c[0].as_ref().as_any().downcast_ref::<PrimitiveArray<i32>>()?;
+        let nft_t = c[1].as_ref().as_any().downcast_ref::<PrimitiveArray<i32>>()?;
+        let e = c[2].as_ref().as_any().downcast_ref::<PrimitiveArray<u32>>()?;
+
+        Some((prog1_t.clone(), nft_t.clone(), e.clone()))
+    }
+
+    fn new(key: VID, max_size: usize, root_path: P, prog1_t: &Time, nft_t: &Time, e: VID) -> Self {
+        let e_small: u32 = Into::<usize>::into(e) as u32;
+        Self {
+            max_size,
+            key: key.into(),
+            root_path,
+            prog1_t: vec![*prog1_t as i32],
+            nft_t: vec![*nft_t as i32],
+            e: vec![e_small],
+            rest: vec![],
+        }
+    }
+
+    fn spill(&mut self) {
+        // spill
+        let prog1_t =
+            PrimitiveArray::from_vec(std::mem::replace(&mut self.prog1_t, vec![])).boxed();
+        let nft_t = PrimitiveArray::from_vec(std::mem::replace(&mut self.nft_t, vec![])).boxed();
+        let e = PrimitiveArray::from_vec(std::mem::replace(&mut self.e, vec![])).boxed();
+
+        arrow2::compute::sort::lexsort::<i32>(
+            &[
+                SortColumn {
+                    values: prog1_t.as_ref(),
+                    options: None,
+                },
+                SortColumn {
+                    values: nft_t.as_ref(),
+                    options: None,
+                },
+                SortColumn {
+                    values: e.as_ref(),
+                    options: None,
+                },
+            ],
+            None,
+        )
+        .unwrap();
+
+        let schema = Schema::from(vec![
+            Field::new("prog1_t", prog1_t.data_type().clone(), false),
+            Field::new("nft_t", nft_t.data_type().clone(), false),
+            Field::new("e", e.data_type().clone(), false),
+        ]);
+
+        let chunk = [Chunk::try_new(vec![prog1_t, nft_t, e]).unwrap()];
+
+        let file_path =
+            self.root_path
+                .as_ref()
+                .join(format!("{}_{}.arrow", self.key, self.rest.len()));
+
+        write_batches(&file_path, schema, &chunk).unwrap();
+        let mmapped_chunk =
+            unsafe { mmap_batch(file_path.as_path(), 0).expect("failed to remap chunk") };
+        self.rest.push(mmapped_chunk);
+    }
+
+    fn push(&mut self, prog1_t: &Time, nft_t: &Time, e: VID) {
+        let e_small: u32 = Into::<usize>::into(e) as u32;
+        self.prog1_t.push(*prog1_t as i32);
+        self.nft_t.push(*nft_t as i32);
+        self.e.push(e_small);
+
+        if self.prog1_t.len() == self.max_size {
+            self.spill()
+        }
+    }
+
+    fn merge_sort(&mut self) {
+        if self.prog1_t.len() > 0 {
+            self.spill()
+        }
+        self.rest
+            .par_iter()
+            .map(|c| c.clone())
+            .reduce_with(|chunk1, chunk2| Self::merge_array_slices(chunk1, chunk2, &[0, 1]));
+    }
+
+    fn merge_array_slices(
+        l_chunk: Chunk<Box<dyn Array>>,
+        r_chunk: Chunk<Box<dyn Array>>,
+        cols: &[usize],
+    ) -> Chunk<Box<dyn Array>> {
+        let mut pairs = vec![];
+        let options = SortOptions::default();
+
+        for col in cols {
+            let lhs = l_chunk[*col].as_ref();
+            let rhs = r_chunk[*col].as_ref();
+            let tuple = vec![lhs, rhs];
+            pairs.push(tuple);
+        }
+
+        let mut type_fix = vec![];
+        for arr in &pairs {
+            type_fix.push((&arr[..], &options));
+        }
+
+        let slices = arrow2::compute::merge_sort::slices(&type_fix[..]).unwrap();
+
+        let arrays = type_fix.into_iter().map(|(arrays, _)|{
+            arrow2::compute::merge_sort::take_arrays(arrays, slices.iter().copied(), None)
+        }).collect_vec();
+
+        Chunk::try_new(arrays).unwrap()
+    }
+}
+
+struct SpillMap<P> {
+    max_size: usize,
+    root_path: P,
+    map: DashMap<VID, SpillRow<P>>,
+}
+
+impl<P: AsRef<Path> + Clone + Send + Sync> SpillMap<P> {
+    fn new(path: P, max_size: usize) -> Self {
+        Self {
+            max_size,
+            root_path: path,
+            map: DashMap::new(),
+        }
+    }
+
+    fn push(&self, key: VID, prog1_t: &Time, nft_t: &Time, e: VID) {
+        self.map
+            .entry(key)
+            .and_modify(|entry| entry.push(prog1_t, nft_t, e))
+            .or_insert_with(|| {
+                SpillRow::new(
+                    key,
+                    self.max_size,
+                    self.root_path.clone(),
+                    prog1_t,
+                    nft_t,
+                    e,
+                )
+            });
+    }
+
+    fn sort_merge(&self) {
+        self.map.par_iter_mut().for_each(|mut entry| {
+            let entry = entry.value_mut();
+            entry.merge_sort()
+        })
+    }
 }

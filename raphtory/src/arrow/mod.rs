@@ -15,7 +15,8 @@ pub(crate) mod global_order;
 pub mod graph;
 pub(crate) mod list_buffer;
 pub mod loader;
-pub(crate) mod mmap;
+pub mod mmap;
+pub mod ipc;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
 

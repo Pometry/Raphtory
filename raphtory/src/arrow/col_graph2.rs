@@ -47,7 +47,7 @@ use super::{
     edge_chunk::EdgeChunk,
     global_order::{GlobalMap, GlobalOrder},
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID,
+    LoadChunk, Time, GID, ipc,
 };
 
 #[derive(Debug)]
@@ -125,11 +125,13 @@ impl TempColGraphFragment {
                 ));
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(unsafe {
-                    mmap_batch(file_path.path(), 0)
+                    // mmap_batch(file_path.path(), 0)
+                    ipc::read_batch(file_path.path())
                 }?));
             } else if file_name.starts_with("adj_out_chunk_") {
                 adj_out_chunks.push(VertexChunk::new(unsafe {
-                    mmap_batch(file_path.path(), 0)
+                    // mmap_batch(file_path.path(), 0)
+                    ipc::read_batch(file_path.path())
                 }?));
             }
         }

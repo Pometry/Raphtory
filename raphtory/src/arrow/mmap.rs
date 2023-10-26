@@ -6,7 +6,7 @@ use arrow2::{
     io::ipc::{read, write},
     mmap::{mmap_dictionaries_unchecked, mmap_unchecked},
 };
-use memmap2::{Mmap, MmapAsRawDesc};
+use memmap2::{Mmap, MmapAsRawDesc, Advice};
 use std::{fs::File, path::Path, sync::Arc};
 
 pub fn write_batches<P: AsRef<Path>>(
@@ -39,7 +39,9 @@ pub unsafe fn mmap_batch<P: AsRef<Path>>(
     chunk_id: usize,
 ) -> Result<Chunk<Box<dyn Array>>> {
     let file = File::open(path)?;
-    let mmap = Arc::new(Mmap::map(&file)?);
+    let mmap = Mmap::map(&file)?;
+    // mmap.advise(Advice::random())?;
+    let mmap = Arc::new(mmap);
     // read the metadata
     let metadata = read::read_file_metadata(&mut std::io::Cursor::new(mmap.as_ref()))?;
 
