@@ -182,8 +182,10 @@ where
 
 #[cfg(test)]
 mod strongly_connected_components_tests {
-    use crate::algorithms::community_detection::scc::strongly_connected_components;
-    use crate::prelude::{AdditionOps, Graph, NO_PROPS};
+    use crate::{
+        algorithms::community_detection::scc::strongly_connected_components,
+        prelude::{AdditionOps, Graph, NO_PROPS},
+    };
 
     #[test]
     fn scc_test() {
