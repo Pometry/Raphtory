@@ -3,7 +3,7 @@ use parking_lot::RwLock;
 use std::{
     collections::HashMap,
     fs::File,
-    io::BufWriter,
+    io::{BufReader, BufWriter},
     path::{Path, PathBuf},
 };
 
@@ -17,11 +17,10 @@ pub(crate) struct EmbeddingCache {
 impl EmbeddingCache {
     pub(crate) fn load_from_disk(path: &Path) -> Option<Self> {
         let path = PathBuf::from(path);
-        // let file = File::open(&path).ok()?;
-        // let mut reader = BufReader::new(file);
-        // let inner_cache: CacheStore =
-        //     bincode::deserialize_from(&mut reader).unwrap_or(HashMap::new());
-        let inner_cache = HashMap::new();
+        let file = File::open(&path).ok()?;
+        let mut reader = BufReader::new(file);
+        let inner_cache: CacheStore =
+            bincode::deserialize_from(&mut reader).unwrap_or(HashMap::new());
         let cache = RwLock::new(inner_cache);
         Some(Self { cache, path })
     }
