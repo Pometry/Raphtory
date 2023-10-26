@@ -93,6 +93,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         template: T,
     ) -> VectorizedGraph<G, T> {
         cache_dir.parent().iter().for_each(|parent_path| {
+            println!("creating path: {}", parent_path.display());
             create_dir_all(parent_path).expect("Impossible to use cache dir");
         });
 
@@ -111,9 +112,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
             DocumentGroup::new(edge.into(), documents)
         });
 
-        let cache = EmbeddingCache::load_from_disk(cache_dir).expect(&format!(
-            "Couldn't create a file for caching with path {cache_dir:?}"
-        ));
+        let cache = EmbeddingCache::load_from_disk(cache_dir);
         let node_refs = attach_embeddings(nodes, &embedding, &cache).await;
         let edge_refs = attach_embeddings(edges, &embedding, &cache).await;
         cache.dump_to_disk();

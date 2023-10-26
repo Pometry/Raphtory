@@ -15,14 +15,17 @@ pub(crate) struct EmbeddingCache {
 }
 
 impl EmbeddingCache {
-    pub(crate) fn load_from_disk(path: &Path) -> Option<Self> {
+    pub(crate) fn load_from_disk(path: &Path) -> Self {
         let path = PathBuf::from(path);
+        let inner_cache = Self::try_reading_from_disk(&path).unwrap_or(HashMap::new());
+        let cache = RwLock::new(inner_cache);
+        Self { cache, path }
+    }
+
+    fn try_reading_from_disk(path: &PathBuf) -> Option<CacheStore> {
         let file = File::open(&path).ok()?;
         let mut reader = BufReader::new(file);
-        let inner_cache: CacheStore =
-            bincode::deserialize_from(&mut reader).unwrap_or(HashMap::new());
-        let cache = RwLock::new(inner_cache);
-        Some(Self { cache, path })
+        bincode::deserialize_from(&mut reader).ok()
     }
 
     pub(crate) fn get_embeddings(&self, id: EntityId, hash: u64) -> Option<Vec<Embedding>> {
