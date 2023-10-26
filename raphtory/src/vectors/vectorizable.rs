@@ -5,20 +5,19 @@ use crate::{
     vectors::{
         document_ref::DocumentRef,
         document_template::{DefaultTemplate, DocumentTemplate},
+        embedding_cache::EmbeddingCache,
         entity_id::EntityId,
         vectorized_graph::VectorizedGraph,
-        DocumentInput, Embedding, EmbeddingFunction,
+        DocumentInput, EmbeddingFunction,
     },
 };
 use async_trait::async_trait;
 use futures_util::future::join_all;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, VecDeque},
-    fs::{create_dir_all, File},
+    fs::create_dir_all,
     hash::{Hash, Hasher},
-    io::{BufReader, BufWriter},
     path::Path,
 };
 
@@ -60,12 +59,6 @@ struct EmbeddedDocumentGroup {
     documents: Vec<DocumentRef>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct EmbeddingCache {
-    hash: u64,
-    embeddings: Vec<Embedding>,
-}
-
 #[async_trait]
 pub trait Vectorizable<G: GraphViewOps> {
     async fn vectorize(
@@ -99,7 +92,9 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         cache_dir: &Path,
         template: T,
     ) -> VectorizedGraph<G, T> {
-        create_dir_all(cache_dir).expect("Impossible to use cache dir");
+        cache_dir.parent().iter().for_each(|parent_path| {
+            create_dir_all(parent_path).expect("Impossible to use cache dir");
+        });
 
         println!(
             "Computing embeddings for {} vertices and {} edges",
@@ -116,8 +111,12 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
             DocumentGroup::new(edge.into(), documents)
         });
 
-        let node_refs = attach_embeddings(nodes, &embedding, cache_dir).await;
-        let edge_refs = attach_embeddings(edges, &embedding, cache_dir).await;
+        let cache = EmbeddingCache::load_from_disk(cache_dir).expect(&format!(
+            "Couldn't create a file for caching with path {cache_dir:?}"
+        ));
+        let node_refs = attach_embeddings(nodes, &embedding, &cache).await;
+        let edge_refs = attach_embeddings(edges, &embedding, &cache).await;
+        cache.dump_to_disk();
 
         println!(
             "Successfully computed embeddings for {} vertices and {} edges",
@@ -132,7 +131,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
 async fn attach_embeddings<I>(
     doc_groups: I,
     embedding: &Box<dyn EmbeddingFunction>,
-    cache_dir: &Path,
+    cache: &EmbeddingCache,
 ) -> HashMap<EntityId, Vec<DocumentRef>>
 where
     I: Iterator<Item = DocumentGroup>,
@@ -142,7 +141,7 @@ where
     let mut misses = vec![];
 
     for group in hashed_doc_groups {
-        match retrieve_embeddings_from_cache(&group, cache_dir) {
+        match retrieve_embeddings_from_cache(&group, cache) {
             Some(document_refs) => {
                 document_groups.insert(group.id, document_refs);
             }
@@ -152,7 +151,7 @@ where
 
     let embedding_tasks = misses
         .chunks(CHUNK_SIZE)
-        .map(|chunk| compute_embeddings_updating_cache(chunk.to_vec(), embedding, cache_dir));
+        .map(|chunk| compute_embeddings_updating_cache(chunk.to_vec(), embedding, cache));
     let new_computed_groups = join_all(embedding_tasks).await.into_iter().flatten();
     for group in new_computed_groups {
         document_groups.insert(group.id, group.documents);
@@ -164,29 +163,17 @@ where
 async fn compute_embeddings_updating_cache(
     docs: Vec<HashedDocumentGroup>,
     embedding: &Box<dyn EmbeddingFunction>,
-    cache_dir: &Path,
+    cache: &EmbeddingCache,
 ) -> Vec<EmbeddedDocumentGroup> {
-    // TODO: use this naming convention everywhere, "groups" for sets of documents referring to the same entity
     let embedded_document_groups = compute_embeddings(docs, embedding).await;
-
     for group in &embedded_document_groups {
         let embeddings = group
             .documents
             .iter()
             .map(|doc| doc.embedding.clone())
             .collect_vec();
-        let embedding_cache = EmbeddingCache {
-            hash: group.hash,
-            embeddings,
-        };
-        let doc_path = cache_dir.join(group.id.to_string());
-        let doc_file =
-            File::create(doc_path).expect("Couldn't create file to store embedding cache");
-        let mut doc_writer = BufWriter::new(doc_file);
-        bincode::serialize_into(&mut doc_writer, &embedding_cache)
-            .expect("Couldn't serialize embedding cache");
+        cache.upsert_embeddings(group.id, group.hash, embeddings);
     }
-
     embedded_document_groups
 }
 
@@ -226,24 +213,19 @@ async fn compute_embeddings(
 
 fn retrieve_embeddings_from_cache(
     doc_group: &HashedDocumentGroup,
-    cache_dir: &Path,
+    cache: &EmbeddingCache,
 ) -> Option<Vec<DocumentRef>> {
-    let doc_path = cache_dir.join(doc_group.id.to_string());
-    let doc_file = File::open(doc_path).ok()?;
-    let mut doc_reader = BufReader::new(doc_file);
-    let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
-    if doc_group.hash == embedding_cache.hash {
-        let id = doc_group.id;
-        let document_refs = doc_group
-            .documents
-            .iter()
-            .map(|doc| doc.life.clone())
-            .zip(embedding_cache.embeddings)
-            .enumerate()
-            .map(|(index, (life, embedding))| DocumentRef::new(id, index, embedding, life))
-            .collect_vec();
-        Some(document_refs)
-    } else {
-        None // this means a cache miss
-    }
+    cache
+        .get_embeddings(doc_group.id, doc_group.hash)
+        .map(|embeddings| {
+            doc_group
+                .documents
+                .iter()
+                .zip(embeddings)
+                .enumerate()
+                .map(|(index, (doc, embedding))| {
+                    DocumentRef::new(doc_group.id, index, embedding, doc.life.clone())
+                })
+                .collect_vec()
+        })
 }

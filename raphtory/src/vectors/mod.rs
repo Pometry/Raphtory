@@ -3,6 +3,7 @@ use std::future::Future;
 
 mod document_ref;
 pub mod document_template;
+mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
@@ -221,14 +222,14 @@ age: 30"###;
     }
 
     #[tokio::test]
-    async fn test_vector_store_with_fake_embedding() {
+    async fn test_vector_store_with_multi_embedding() {
         let g = Graph::new();
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         let vectors = g
             .vectorize_with_template(
                 Box::new(fake_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-fake-test"),
+                &PathBuf::from("/tmp/raphtory/vector-cache-multi-test"),
                 FakeMultiDocumentTemplate,
             )
             .await;
@@ -278,7 +279,7 @@ age: 30"###;
         let vectors = g
             .vectorize_with_template(
                 Box::new(fake_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-fake-test"),
+                &PathBuf::from("/tmp/raphtory/vector-cache-window-test"),
                 FakeTemplateWithIntervals,
             )
             .await;
