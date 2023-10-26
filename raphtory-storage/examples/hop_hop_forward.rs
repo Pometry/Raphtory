@@ -45,7 +45,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
 
-    let res = query1_v4_par(
+    let res = query1_v4(
         g,
         nft,
         events_2v,
@@ -147,6 +147,7 @@ fn query1_v4(
     event_id_prop_id_1v: usize,
     event_id_prop_id_2v: usize,
 ) -> usize {
+    let mut c1 = 0usize;
     let mut count = 0;
     let mut dream_map: HashMap<VID, Vec<(i64, i64, VID)>> = HashMap::default();
 
@@ -214,6 +215,7 @@ fn query1_v4(
             }
         }
     }
+    println!("c1: {:?}", c1);
     count
 }
 
