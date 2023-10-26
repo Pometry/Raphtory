@@ -3,7 +3,7 @@ use parking_lot::RwLock;
 use std::{
     collections::HashMap,
     fs::File,
-    io::{BufReader, BufWriter},
+    io::BufWriter,
     path::{Path, PathBuf},
 };
 
