@@ -26,6 +26,16 @@ struct PyDefaultTemplate {
     default_template: DefaultTemplate,
 }
 
+impl PyDefaultTemplate {
+    fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
+        Self {
+            node_document,
+            edge_document,
+            default_template: DefaultTemplate,
+        }
+    }
+}
+
 impl<G: GraphViewOps> DocumentTemplate<G> for PyDefaultTemplate {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
@@ -73,18 +83,15 @@ impl PyVectorizedGraph {
 
         // FIXME: Maybe we should have two versions: a VectorizedGraph (sync) and AsyncVectorizedGraph, in both python and rust
         // this instead is just terrible
-        pyo3_asyncio::tokio::run(py, async move {
-            let template = PyDefaultTemplate {
-                node_document,
-                edge_document,
-                default_template: DefaultTemplate,
-            };
 
-            let vectorized_graph =
-                graph.vectorize_with_template(Box::new(embedding.clone()), &cache, template);
+        pyo3_asyncio::tokio::run(py, async move {
+            let template = PyDefaultTemplate::new(node_document, edge_document);
+            let vectorized_graph = graph
+                .vectorize_with_template(Box::new(embedding.clone()), &cache, template)
+                .await;
 
             Ok(PyVectorizedGraph {
-                vectors: Arc::new(vectorized_graph.await),
+                vectors: Arc::new(vectorized_graph),
             })
         })
     }
