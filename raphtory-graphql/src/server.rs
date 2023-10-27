@@ -8,6 +8,7 @@ use crate::{
 };
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
+use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
 use raphtory::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::Graph,
@@ -22,7 +23,7 @@ pub struct RaphtoryServer {
 }
 
 impl RaphtoryServer {
-    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, GraphWithDeletions>) -> Self {
         let data = Data::from_map(graphs);
         Self { data }
     }
@@ -32,7 +33,10 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, graph_directory: &str) -> Self {
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, GraphWithDeletions>,
+        graph_directory: &str,
+    ) -> Self {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }
@@ -47,8 +51,8 @@ impl RaphtoryServer {
     where
         F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
         U: Future<Output = Vec<Embedding>> + Send + 'static,
-        N: Fn(&VertexView<Graph>) -> String + Sync + Send + Copy + 'static,
-        E: Fn(&EdgeView<Graph>) -> String + Sync + Send + Copy + 'static,
+        N: Fn(&VertexView<GraphWithDeletions>) -> String + Sync + Send + Copy + 'static,
+        E: Fn(&EdgeView<GraphWithDeletions>) -> String + Sync + Send + Copy + 'static,
     {
         {
             let graphs_map = self.data.graphs.read();

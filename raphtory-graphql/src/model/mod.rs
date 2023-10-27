@@ -13,6 +13,7 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
+use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
 use raphtory::{
     core::{ArcStr, Prop},
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
@@ -190,8 +191,8 @@ impl Mut {
 
             new_subgraph.save_to_file(path)?;
 
-            let gi: IndexedGraph<Graph> = new_subgraph
-                .into_events()
+            let gi: IndexedGraph<GraphWithDeletions> = new_subgraph
+                .into_persistent()
                 .ok_or("Graph with deletions not supported")?
                 .into();
 
@@ -280,8 +281,8 @@ impl Mut {
 
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<Graph> = new_subgraph
-            .into_events()
+        let gi: IndexedGraph<GraphWithDeletions> = new_subgraph
+            .into_persistent()
             .ok_or("Graph with deletions not supported")?
             .into();
 
@@ -312,8 +313,8 @@ impl Mut {
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
             bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
-        let gi: IndexedGraph<Graph> = g
-            .into_events()
+        let gi: IndexedGraph<GraphWithDeletions> = g
+            .into_persistent()
             .ok_or("Graph with deletions not supported")?
             .into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
@@ -330,7 +331,7 @@ impl Mut {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(
             name.clone(),
-            g.into_events()
+            g.into_persistent()
                 .ok_or("Graph with deletions not supported")?
                 .into(),
         );
@@ -368,8 +369,8 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<Graph> = new_subgraph
-            .into_events()
+        let gi: IndexedGraph<GraphWithDeletions> = new_subgraph
+            .into_persistent()
             .ok_or("Graph with deletions not supported")?
             .into();
 

@@ -1,4 +1,5 @@
 use parking_lot::RwLock;
+use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
 use raphtory::{
     core::Prop,
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
@@ -13,12 +14,12 @@ use walkdir::WalkDir;
 
 #[derive(Default)]
 pub(crate) struct Data {
-    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<Graph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<Graph>>>,
+    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<GraphWithDeletions>>>,
+    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<GraphWithDeletions>>>,
 }
 
 impl Data {
-    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, GraphWithDeletions>) -> Self {
         let graphs = RwLock::new(Self::convert_graphs(graphs));
         let vector_stores = RwLock::new(HashMap::new());
         Self {
@@ -36,7 +37,10 @@ impl Data {
         }
     }
 
-    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, directory_path: &str) -> Self {
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, GraphWithDeletions>,
+        directory_path: &str,
+    ) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
         graphs.extend(Self::load_from_file(directory_path));
         let graphs = RwLock::new(graphs);
@@ -47,7 +51,9 @@ impl Data {
         }
     }
 
-    fn convert_graphs(graphs: HashMap<String, Graph>) -> HashMap<String, IndexedGraph<Graph>> {
+    fn convert_graphs(
+        graphs: HashMap<String, GraphWithDeletions>,
+    ) -> HashMap<String, IndexedGraph<GraphWithDeletions>> {
         graphs
             .into_iter()
             .map(|(name, g)| {
@@ -59,7 +65,7 @@ impl Data {
             .collect()
     }
 
-    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<Graph>> {
+    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<GraphWithDeletions>> {
         let mut valid_paths = HashSet::<String>::new();
 
         for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
@@ -82,11 +88,12 @@ impl Data {
             }
         };
 
-        let graphs: HashMap<String, IndexedGraph<Graph>> = valid_paths
+        let graphs: HashMap<String, IndexedGraph<GraphWithDeletions>> = valid_paths
             .into_iter()
             .map(|path| {
                 println!("loading graph from {path}");
-                let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
+                let graph =
+                    GraphWithDeletions::load_from_file(&path).expect("Unable to load from graph");
                 graph
                     .add_constant_properties([("path".to_string(), Prop::str(path.clone()))])
                     .expect("Failed to add static property");
