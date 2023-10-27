@@ -8,9 +8,8 @@ use crate::{
 };
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
-use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
 use raphtory::{
-    db::graph::{edge::EdgeView, vertex::VertexView},
+    db::graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     prelude::Graph,
     vectors::{vectorizable::Vectorizable, Embedding},
 };

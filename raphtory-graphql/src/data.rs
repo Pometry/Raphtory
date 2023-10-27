@@ -1,7 +1,7 @@
 use parking_lot::RwLock;
-use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
 use raphtory::{
     core::Prop,
+    db::graph::views::deletion_graph::GraphWithDeletions,
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::vectorized_graph::VectorizedGraph,

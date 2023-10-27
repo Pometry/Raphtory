@@ -13,10 +13,12 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
-use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
 use raphtory::{
     core::{ArcStr, Prop},
-    db::api::view::internal::{IntoDynamic, MaterializedGraph},
+    db::{
+        api::view::internal::{IntoDynamic, MaterializedGraph},
+        graph::views::deletion_graph::GraphWithDeletions,
+    },
     prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
