@@ -39,8 +39,10 @@ mod graphql_test {
     use crate::{data::Data, model::App};
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
-    use raphtory::db::graph::views::deletion_graph::GraphWithDeletions;
-    use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
+    use raphtory::{
+        db::{api::view::internal::IntoDynamic, graph::views::deletion_graph::GraphWithDeletions},
+        prelude::*,
+    };
     use serde_json::json;
     use std::collections::HashMap;
     use tempfile::tempdir;
