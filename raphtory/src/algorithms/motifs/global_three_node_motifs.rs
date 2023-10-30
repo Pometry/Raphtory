@@ -144,9 +144,7 @@ where
     ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(*mc)
     });
 
-
     ctx_sub.agg(neighbours_set);
-    println!("Running step 1");
 
     let step1 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
@@ -274,10 +272,8 @@ where
     let star_clone = star_mc.clone();
 
     star_mc.iter().for_each(|mc| ctx.global_agg(*mc));
-    println!("done the agg");
 
     let out1 = triangle_motifs(g, deltas.clone(), threads);
-    println!("done triangles");
 
     let step1 = ATask::new(move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, _>| {
         let g = evv.graph;
