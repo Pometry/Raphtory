@@ -15,6 +15,7 @@ use crate::{
         community_detection::connected_components,
         community_detection::in_components as in_comp,
         community_detection::out_components as out_comp,
+        community_detection::scc,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -82,6 +83,21 @@ pub fn weakly_connected_components(
     iter_count: usize,
 ) -> AlgorithmResult<DynamicGraph, u64, u64> {
     connected_components::weakly_connected_components(&g.graph, iter_count, None)
+}
+
+/// Strongly connected components
+///
+/// Partitions the graph into node sets which are mutually reachable by an directed path
+///
+/// Arguments:
+///     g (Raphtory graph) : Raphtory graph
+///
+/// Returns:
+///     Vec<Vec<u64>> : List of strongly connected vertices identified by ids
+#[pyfunction]
+#[pyo3(signature = (g))]
+pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
+    scc::strongly_connected_components(&g.graph, None)
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
