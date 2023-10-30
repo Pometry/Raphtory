@@ -109,7 +109,6 @@ jobs:
           command: build
           target: ${{ matrix.target }}
           args: --release
-          sccache: true
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
