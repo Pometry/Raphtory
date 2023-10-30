@@ -13,7 +13,7 @@ use itertools::{chain, Itertools};
 use std::collections::HashMap;
 
 pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
-    graph: G,
+    pub(crate) graph: G,
     template: T,
     embedding: Box<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice

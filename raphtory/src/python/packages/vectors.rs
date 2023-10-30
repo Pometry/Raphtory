@@ -4,12 +4,12 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
-    python::graph::views::graph_view::PyGraphView,
+    python::graph::{edge::PyEdge, vertex::PyVertex, views::graph_view::PyGraphView},
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
         vectorized_graph::VectorizedGraph,
-        DocumentInput, DocumentOps, Embedding, EmbeddingFunction,
+        Document, DocumentInput, DocumentOps, Embedding, EmbeddingFunction,
     },
 };
 use futures_util::future::BoxFuture;
@@ -109,9 +109,9 @@ impl PyVectorizedGraph {
         limit: usize,
     ) -> Vec<String> {
         let vectors = self.vectors.clone();
-        py.allow_threads(move || {
+        let docs = py.allow_threads(move || {
             spawn_async_task(async move {
-                let docs = vectors
+                vectors
                     .similarity_search(
                         query.as_str(),
                         init,
@@ -121,10 +121,30 @@ impl PyVectorizedGraph {
                         None,
                         None,
                     )
-                    .await;
-                docs.into_iter().map(|doc| doc.into_content()).collect_vec()
+                    .await
             })
-        })
+        });
+
+        docs.into_iter()
+            // TODO: re-enable this
+            // .map(|doc| match doc {
+            //     Document::Node { name, content } => {
+            //         let vertex = self.vectors.graph.vertex(name).unwrap();
+            //         PyGraphDocument {
+            //             content: content,
+            //             entity: vertex.into_py(py),
+            //         }
+            //     }
+            //     Document::Edge { src, dst, content } => {
+            //         let edge = self.vectors.graph.edge(src, dst).unwrap();
+            //         PyGraphDocument {
+            //             content: content,
+            //             entity: edge.into_py(py),
+            //         }
+            //     }
+            // })
+            .map(|doc| doc.into_content())
+            .collect_vec()
     }
 }
 
