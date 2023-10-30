@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use arrow2::{
     array::{Array, ListArray},
     buffer::Buffer,
@@ -10,11 +11,12 @@ use rayon::prelude::*;
 use super::list_buffer::ListColumn;
 
 // this is a list_array<struct_array<(u64, u64)>>, where the struct_array is (vertex, edge)
-#[derive(Debug)]
-pub(crate) struct VertexChunk(Chunk<Box<dyn Array>>);
+#[derive(Debug, Clone)]
+pub(crate) struct VertexChunk(Arc<[Box<dyn Array>]>);
 
 impl VertexChunk {
     pub(crate) fn new(chunk: Chunk<Box<dyn Array>>) -> Self {
+        let chunk = chunk.into_arrays().into();
         VertexChunk(chunk)
     }
 
@@ -43,7 +45,7 @@ impl VertexChunk {
     }
 
     pub(crate) fn len(&self) -> usize {
-        self.0.len()
+        self.0[0].len()
     }
 }
 

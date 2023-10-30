@@ -12,7 +12,7 @@ use super::{list_buffer::ListColumn, vertex_chunk::RowOwned, Time};
 
 #[derive(Debug, Clone)]
 pub(crate) struct EdgeChunk {
-    chunk: Chunk<Box<dyn Array>>,
+    chunk: Arc<[Box<dyn Array>]>,
     overflow: Arc<[EdgeOverflowChunk]>,
 }
 
@@ -38,6 +38,7 @@ impl EdgeChunk {
                 .is_some(),
             "Expected col 1 (source) to be u64"
         );
+        let chunk = chunk.into_arrays().into();
         EdgeChunk { chunk, overflow }
     }
 
