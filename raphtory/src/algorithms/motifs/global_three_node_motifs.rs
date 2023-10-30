@@ -22,7 +22,10 @@ use crate::{
     },
 };
 
-use std::{sync::{Arc, RwLock}, rc::Rc};
+use std::{
+    rc::Rc,
+    sync::{Arc, RwLock},
+};
 
 use crate::core::entities::vertices::vertex_ref::VertexRef;
 use itertools::{enumerate, Itertools};
@@ -135,13 +138,15 @@ where
     let neighbours_set = accumulators::hash_set::<u64>(0);
 
     let tri_mc = deltas
-    .iter()
-    .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * *d as u32))
-    .collect_vec();
+        .iter()
+        .map(|d| accumulators::arr::<usize, SumDef<usize>, 8>(2 * *d as u32))
+        .collect_vec();
     let tri_clone = tri_mc.clone();
 
     tri_mc.clone().iter().for_each(|mc| {
-    ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(*mc)
+        ctx_sub.global_agg::<[usize; 8], [usize; 8], [usize; 8], ArrConst<usize, SumDef<usize>, 8>>(
+            *mc,
+        )
     });
 
     ctx_sub.agg(neighbours_set);
@@ -156,7 +161,7 @@ where
             Step::Continue
         },
     );
-    
+
     let step2 = ATask::new(
         move |u: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
             for v in u.neighbours() {
