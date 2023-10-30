@@ -64,7 +64,7 @@ impl RaphtoryServer {
             let mut stores_map = self.data.vector_stores.write();
 
             let template = template
-                .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<Graph>>)
+                .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<MaterializedGraph>>)
                 .unwrap_or(Arc::new(DefaultTemplate));
 
             for graph_name in graph_names {
