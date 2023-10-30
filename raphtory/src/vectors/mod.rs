@@ -108,7 +108,7 @@ mod vector_tests {
     };
     use dotenv::dotenv;
     use itertools::Itertools;
-    use std::{iter::Once, path::PathBuf, vec::IntoIter};
+    use std::path::PathBuf;
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];

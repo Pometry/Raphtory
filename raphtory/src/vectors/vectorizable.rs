@@ -93,15 +93,8 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         template: T,
     ) -> VectorizedGraph<G, T> {
         cache_dir.parent().iter().for_each(|parent_path| {
-            println!("creating path: {}", parent_path.display());
             create_dir_all(parent_path).expect("Impossible to use cache dir");
         });
-
-        println!(
-            "Computing embeddings for {} vertices and {} edges",
-            self.vertices_len(LayerIds::All, None),
-            self.edges_len(LayerIds::All, None),
-        );
 
         let nodes = self.vertices().iter().map(|vertex| {
             let documents = template.node(&vertex).collect_vec();
@@ -116,12 +109,6 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         let node_refs = attach_embeddings(nodes, &embedding, &cache).await;
         let edge_refs = attach_embeddings(edges, &embedding, &cache).await;
         cache.dump_to_disk();
-
-        println!(
-            "Successfully computed embeddings for {} vertices and {} edges",
-            node_refs.len(),
-            edge_refs.len(),
-        );
 
         VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
     }
@@ -186,6 +173,8 @@ async fn compute_embeddings(
         .collect_vec();
 
     let embeddings = embedding.call(texts).await;
+
+    // let embeddings = embedding.call_async(texts).await;
     let mut embeddings_queue = VecDeque::from(embeddings);
     // VecDeque for efficient drain from the front of it
     let mut embedded_groups = vec![];
