@@ -1,42 +1,40 @@
 use crate::{
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic},
-        graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+        graph::views::window_graph::WindowedGraph,
     },
-    prelude::{EdgeViewOps, GraphViewOps, Layer, TimeOps, VertexViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
     vectors::{
-        document_source::DocumentSource, entity_id::EntityId, Document, Embedding,
-        EmbeddingFunction,
+        document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
-pub struct VectorizedGraph<G: GraphViewOps> {
-    graph: G,
+pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
+    pub(crate) graph: G,
+    template: T,
     embedding: Box<dyn EmbeddingFunction>,
-    node_embeddings: HashMap<EntityId, Embedding>, // TODO: replace with FxHashMap
-    edge_embeddings: HashMap<EntityId, Embedding>,
-    node_template: Box<dyn Fn(&VertexView<G>) -> String + Sync + Send>,
-    edge_template: Box<dyn Fn(&EdgeView<G>) -> String + Sync + Send>,
+    // it is not the end of the world but we are storing the entity id twice
+    node_documents: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
+    edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
+impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
+        template: T,
         embedding: Box<dyn EmbeddingFunction>,
-        node_embeddings: HashMap<EntityId, Embedding>,
-        edge_embeddings: HashMap<EntityId, Embedding>,
-        node_template: Box<dyn Fn(&VertexView<G>) -> String + Sync + Send>,
-        edge_template: Box<dyn Fn(&EdgeView<G>) -> String + Sync + Send>,
+        node_documents: HashMap<EntityId, Vec<DocumentRef>>,
+        edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
     ) -> Self {
         Self {
             graph,
+            template,
             embedding,
-            node_embeddings,
-            edge_embeddings,
-            node_template,
-            edge_template,
+            node_documents,
+            edge_documents,
         }
     }
 
@@ -55,20 +53,30 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
 
         let (graph, window_nodes, window_edges): (
             DynamicGraph,
-            Box<dyn Iterator<Item = (&EntityId, &Embedding)>>,
-            Box<dyn Iterator<Item = (&EntityId, &Embedding)>>,
+            Box<dyn Iterator<Item = &DocumentRef>>,
+            Box<dyn Iterator<Item = &DocumentRef>>,
         ) = match (window_start, window_end) {
             (None, None) => (
                 self.graph.clone().into_dynamic(),
-                Box::new(self.node_embeddings.iter()),
-                Box::new(self.edge_embeddings.iter()),
+                Box::new(
+                    self.node_documents
+                        .iter()
+                        .flat_map(|(_, embeddings)| embeddings),
+                ),
+                Box::new(
+                    self.edge_documents
+                        .iter()
+                        .flat_map(|(_, embeddings)| embeddings),
+                ),
             ),
             (start, end) => {
                 let start = start.unwrap_or(i64::MIN);
                 let end = end.unwrap_or(i64::MAX);
                 let window = self.graph.window(start, end);
-                let nodes = self.window_embeddings(&self.node_embeddings, &window);
-                let edges = self.window_embeddings(&self.edge_embeddings, &window);
+                let nodes =
+                    self.window_embeddings(&self.node_documents, &window, window_start, window_end);
+                let edges =
+                    self.window_embeddings(&self.edge_documents, &window, window_start, window_end);
                 (
                     window.clone().into_dynamic(),
                     Box::new(nodes),
@@ -88,133 +96,134 @@ impl<G: GraphViewOps + IntoDynamic> VectorizedGraph<G> {
         );
         let generic_init = init - min_nodes - min_edges;
 
-        let mut entry_point: Vec<EntityId> = vec![];
+        let mut entry_point: Vec<DocumentRef> = vec![];
 
-        let scored_nodes = score_entities(&query_embedding, window_nodes);
+        let scored_nodes = score_documents(&query_embedding, window_nodes);
         let mut selected_nodes = find_top_k(scored_nodes, init);
 
-        let scored_edges = score_entities(&query_embedding, window_edges);
+        let scored_edges = score_documents(&query_embedding, window_edges);
         let mut selected_edges = find_top_k(scored_edges, init);
 
         for _ in 0..min_nodes {
-            let (id, _) = selected_nodes.next().unwrap();
-            entry_point.push(id.clone());
+            let (document, _) = selected_nodes.next().unwrap();
+            entry_point.push(document.clone());
         }
         for _ in 0..min_edges {
-            let (id, _) = selected_edges.next().unwrap();
-            entry_point.push(id.clone());
+            let (document, _) = selected_edges.next().unwrap();
+            entry_point.push(document.clone());
         }
 
         let remaining_entities = find_top_k(chain!(selected_nodes, selected_edges), generic_init);
-        for (id, _distance) in remaining_entities {
-            entry_point.push(id.clone());
+        for (document, _) in remaining_entities {
+            entry_point.push(document.clone());
         }
 
         // SECONDS STEP: EXPANSION
-        let mut entity_ids = entry_point;
+        let mut selected_docs = entry_point;
 
-        while entity_ids.len() < limit {
-            let candidates = entity_ids.iter().flat_map(|id| match id {
-                EntityId::Node { id } => {
-                    let edges = graph.vertex(*id).unwrap().edges();
-                    edges
-                        .map(|edge| {
-                            let edge_id = edge.into();
-                            let edge_embedding = self.edge_embeddings.get(&edge_id).unwrap();
-                            (edge_id, edge_embedding)
-                        })
-                        .collect_vec()
-                }
-                EntityId::Edge { src, dst } => {
-                    let edge = graph.edge(*src, *dst).unwrap();
-                    let src_id: EntityId = edge.src().into();
-                    let dst_id: EntityId = edge.dst().into();
-                    let src_embedding = self.node_embeddings.get(&src_id).unwrap();
-                    let dst_embedding = self.node_embeddings.get(&dst_id).unwrap();
-                    vec![(src_id, src_embedding), (dst_id, dst_embedding)]
-                }
-            });
+        while selected_docs.len() < limit {
+            let candidates = selected_docs
+                .iter()
+                .flat_map(|doc| self.get_context(doc, &graph, window_start, window_end));
 
-            let unique_candidates = candidates.unique_by(|(id, _)| id.clone());
-            let valid_candidates = unique_candidates.filter(|(id, _)| !entity_ids.contains(id));
-            let scored_candidates = score_entities(&query_embedding, valid_candidates);
-            let sorted_candidates = find_top_k(scored_candidates, usize::MAX);
-            let sorted_candidates_ids = sorted_candidates.map(|(id, _)| id).collect_vec();
+            let unique_candidates = candidates.unique_by(|doc| doc.id());
+            let valid_candidates = unique_candidates.filter(|doc| !selected_docs.contains(doc));
+            let scored_candidates = score_documents(&query_embedding, valid_candidates);
+            let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX)
+                .map(|(doc, _)| doc)
+                .cloned()
+                .collect_vec();
 
-            if sorted_candidates_ids.is_empty() {
+            if top_sorted_candidates.is_empty() {
                 // TODO: use similarity search again with the whole graph with init + 1 !!
                 // TODO: avoid this, put all stop conditions at the top
                 break;
             }
 
-            entity_ids.extend(sorted_candidates_ids);
+            selected_docs.extend(top_sorted_candidates);
         }
 
         // FINAL STEP: REPRODUCE DOCUMENTS:
-
-        entity_ids
+        selected_docs
             .iter()
             .take(limit)
-            .map(|id| match id {
-                EntityId::Node { id } => Document::Node {
-                    name: graph.vertex(*id).unwrap().name(),
-                    content: self
-                        .graph
-                        .vertex(*id)
-                        .unwrap()
-                        .generate_doc(&self.node_template)
-                        .content,
-                },
-                EntityId::Edge { src, dst } => Document::Edge {
-                    src: graph.vertex(*src).unwrap().name(),
-                    dst: graph.vertex(*dst).unwrap().name(),
-                    content: self
-                        .graph
-                        .edge(*src, *dst)
-                        .unwrap()
-                        .generate_doc(&self.edge_template)
-                        .content,
-                },
-            })
+            .map(|doc| doc.regenerate(&self.graph, &self.template))
             .collect_vec()
+    }
+
+    fn get_context<'a, V: GraphViewOps>(
+        &'a self,
+        document: &DocumentRef,
+        graph: &'a V,
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
+        match document.entity_id {
+            EntityId::Node { id } => {
+                let self_docs = self.node_documents.get(&document.entity_id).unwrap();
+                let edges = graph.vertex(id).unwrap().edges();
+                let edge_docs = edges.flat_map(|edge| {
+                    let edge_id = edge.into();
+                    self.edge_documents.get(&edge_id).unwrap()
+                });
+                Box::new(
+                    chain!(self_docs, edge_docs)
+                        .filter(move |doc| doc.exists_on_window(graph, start, end)),
+                )
+            }
+            EntityId::Edge { src, dst } => {
+                let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
+                let edge = graph.edge(src, dst).unwrap();
+                let src_id: EntityId = edge.src().into();
+                let dst_id: EntityId = edge.dst().into();
+                let src_docs = self.node_documents.get(&src_id).unwrap();
+                let dst_docs = self.node_documents.get(&dst_id).unwrap();
+                Box::new(
+                    chain!(self_docs, src_docs, dst_docs)
+                        .filter(move |doc| doc.exists_on_window(graph, start, end)),
+                )
+            }
+        }
     }
 
     fn window_embeddings<'a, I>(
         &self,
-        embeddings: I,
+        documents: I,
         window: &WindowedGraph<G>,
-    ) -> impl Iterator<Item = (&'a EntityId, &'a Embedding)> + 'a
+        start: Option<i64>,
+        end: Option<i64>,
+    ) -> impl Iterator<Item = &'a DocumentRef> + 'a
     where
-        I: IntoIterator<Item = (&'a EntityId, &'a Embedding)> + 'a,
+        I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
     {
         let window = window.clone();
-        embeddings.into_iter().filter(move |(id, _)| match id {
-            EntityId::Node { id } => window.has_vertex(*id),
-            EntityId::Edge { src, dst } => window.has_edge(*src, *dst, Layer::All),
-        })
+        documents
+            .into_iter()
+            .flat_map(|(_, documents)| documents)
+            .filter(move |document| document.exists_on_window(&window, start, end))
     }
 }
 
-fn score_entities<'a, I, E>(
+fn score_documents<'a, I>(
     query: &'a Embedding,
-    entities: I,
-) -> impl Iterator<Item = (E, f32)> + 'a
+    documents: I,
+) -> impl Iterator<Item = (&'a DocumentRef, f32)> + 'a
 where
-    I: IntoIterator<Item = (E, &'a Embedding)> + 'a,
-    E: Borrow<EntityId> + 'a,
+    I: IntoIterator<Item = &'a DocumentRef> + 'a,
 {
-    entities
-        .into_iter()
-        .map(|(id, embedding)| (id, cosine(query, embedding)))
+    documents.into_iter().map(|document| {
+        let score = cosine(query, &document.embedding);
+        (document, score)
+    })
 }
 
 /// Returns the top k nodes in descending order
-fn find_top_k<'a, I, E>(entities: I, k: usize) -> impl Iterator<Item = (E, f32)> + 'a
+fn find_top_k<'a, I, T: 'a>(elements: I, k: usize) -> impl Iterator<Item = (&'a T, f32)> + 'a
 where
-    I: Iterator<Item = (E, f32)> + 'a,
-    E: Borrow<EntityId> + 'a,
+    I: Iterator<Item = (&'a T, f32)> + 'a,
 {
-    entities
+    // TODO: add optimization for when this is used -> don't maintain more candidates than the max number of documents to return !!!
+    elements
         .sorted_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap().reverse())
         // We use reverse because default sorting is ascending but we want it descending
         .take(k)

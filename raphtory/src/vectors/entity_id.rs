@@ -2,10 +2,10 @@ use crate::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
 };
-use serde::Serializer;
+use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
     Node { id: u64 },
     Edge { src: u64, dst: u64 },
