@@ -116,7 +116,7 @@ impl EdgeFrameBuilder {
         let overflows = mem::take(&mut self.overflow_chunks);
         self.in_chunk_overflow = 0;
         self.edge_chunks
-            .push(EdgeChunk::new(mmapped_chunk, overflows));
+            .push(EdgeChunk::new(mmapped_chunk, overflows.into()));
         Ok(())
     }
 

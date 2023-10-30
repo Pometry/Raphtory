@@ -6,13 +6,14 @@ use arrow2::{
     types::{NativeType, Offset},
 };
 use std::iter;
+use std::sync::Arc;
 
 use super::{list_buffer::ListColumn, vertex_chunk::RowOwned, Time};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct EdgeChunk {
     chunk: Chunk<Box<dyn Array>>,
-    overflow: Vec<EdgeOverflowChunk>,
+    overflow: Arc<[EdgeOverflowChunk]>,
 }
 
 const SRC_COL: usize = 0;
@@ -22,7 +23,7 @@ const OV_COL: usize = 2;
 const TIME_COL: usize = 3;
 
 impl EdgeChunk {
-    pub(crate) fn new(chunk: Chunk<Box<dyn Array>>, overflow: Vec<EdgeOverflowChunk>) -> Self {
+    pub(crate) fn new(chunk: Chunk<Box<dyn Array>>, overflow: Arc<[EdgeOverflowChunk]>) -> Self {
         assert!(
             chunk[SRC_COL]
                 .as_any()

@@ -113,7 +113,7 @@ impl TempColGraphFragment {
                             .map(|f| {
                                 EdgeOverflowChunk::new(unsafe {
                                     mmap_all_chunks(f.path()).unwrap()
-                                })
+                                }.into())
                             })
                             .collect()
                     })
@@ -121,7 +121,7 @@ impl TempColGraphFragment {
 
                 edge_chunks.push(EdgeChunk::new(
                     unsafe { mmap_batch(file_path.path(), 0) }?,
-                    overflow_chunks,
+                    overflow_chunks.into(),
                 ));
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(unsafe {

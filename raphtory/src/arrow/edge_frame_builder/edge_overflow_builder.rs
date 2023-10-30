@@ -2,6 +2,7 @@ use std::{
     fs::{File, OpenOptions},
     path::Path,
 };
+use std::sync::Arc;
 
 use crate::arrow::edge_frame_builder::extend_tprops_slice;
 use arrow2::{
@@ -14,13 +15,13 @@ use arrow2::{
 
 use crate::arrow::{mmap::mmap_batches, Error, Time};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct EdgeOverflowChunk {
-    chunks: Vec<Chunk<Box<dyn Array>>>,
+    chunks: Arc<[Chunk<Box<dyn Array>>]>,
 }
 
 impl EdgeOverflowChunk {
-    pub fn new(chunks: Vec<Chunk<Box<dyn Array>>>) -> Self {
+    pub fn new(chunks: Arc<[Chunk<Box<dyn Array>>]>) -> Self {
         Self { chunks }
     }
     pub fn timestamps(&self) -> impl Iterator<Item = &[Time]> {
@@ -112,7 +113,7 @@ impl EdgeOverflowBuilder {
         self.write_values()?;
         self.writer.finish()?;
         let file = self.writer.into_inner();
-        let chunks = unsafe { mmap_batches(&file, 0..self.num_chunks)? };
+        let chunks = unsafe { mmap_batches(&file, 0..self.num_chunks)? }.into();
         Ok(EdgeOverflowChunk { chunks })
     }
 }
