@@ -193,10 +193,7 @@ impl Mut {
 
             new_subgraph.save_to_file(path)?;
 
-            let gi: IndexedGraph<GraphWithDeletions> = new_subgraph
-                .into_persistent()
-                .ok_or("Graph with deletions not supported")?
-                .into();
+            let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
 
             data.insert(new_graph_name, gi);
             data.remove(&graph_name);
@@ -283,10 +280,7 @@ impl Mut {
 
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<GraphWithDeletions> = new_subgraph
-            .into_persistent()
-            .ok_or("Graph with deletions not supported")?
-            .into();
+        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
 
         data.insert(new_graph_name, gi);
 
@@ -315,10 +309,7 @@ impl Mut {
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
             bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
-        let gi: IndexedGraph<GraphWithDeletions> = g
-            .into_persistent()
-            .ok_or("Graph with deletions not supported")?
-            .into();
+        let gi: IndexedGraph<MaterializedGraph> = g.into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi);
         Ok(name)
@@ -331,12 +322,7 @@ impl Mut {
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        data.insert(
-            name.clone(),
-            g.into_persistent()
-                .ok_or("Graph with deletions not supported")?
-                .into(),
-        );
+        data.insert(name.clone(), g.into());
         Ok(name)
     }
 
@@ -371,10 +357,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<GraphWithDeletions> = new_subgraph
-            .into_persistent()
-            .ok_or("Graph with deletions not supported")?
-            .into();
+        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
 
         data.insert(graph_name, gi);
 

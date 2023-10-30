@@ -54,6 +54,18 @@ impl From<Graph> for PyGraph {
     }
 }
 
+impl From<PyGraph> for MaterializedGraph {
+    fn from(value: PyGraph) -> Self {
+        value.graph.into()
+    }
+}
+
+impl From<PyGraphWithDeletions> for MaterializedGraph {
+    fn from(value: PyGraphWithDeletions) -> Self {
+        value.graph.into()
+    }
+}
+
 impl From<PyGraph> for Graph {
     fn from(value: PyGraph) -> Self {
         value.graph
