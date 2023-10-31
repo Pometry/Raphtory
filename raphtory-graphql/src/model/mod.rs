@@ -15,11 +15,8 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{ArcStr, Prop},
-    db::{
-        api::view::internal::{IntoDynamic, MaterializedGraph},
-        graph::views::deletion_graph::GraphWithDeletions,
-    },
-    prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
+    db::api::view::internal::{IntoDynamic, MaterializedGraph},
+    prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
 use std::{

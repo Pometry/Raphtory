@@ -132,7 +132,7 @@ jobs:
           cd examples/custom_python_extension/test && pytest .
       - name: Install dependencies for notebooks
         run: pip install nbconvert
-      - name: Run notebook
+      - name: Run example notebook
         working-directory: examples/python/socio-patterns
         run: jupyter nbconvert --to notebook --execute example.ipynb
       - name: Print sccache stats
