@@ -137,11 +137,26 @@ impl PyVectorizedGraph {
         min_edges: usize,
         limit: usize,
     ) -> Vec<PyGraphDocument> {
+        self.search_with_scores(py, query, init, min_nodes, min_edges, limit)
+            .into_iter()
+            .map(|(doc, _)| doc)
+            .collect_vec()
+    }
+
+    fn search_with_scores(
+        &self,
+        py: Python,
+        query: String,
+        init: usize,
+        min_nodes: usize,
+        min_edges: usize,
+        limit: usize,
+    ) -> Vec<(PyGraphDocument, f32)> {
         let vectors = self.vectors.clone();
         let docs = py.allow_threads(move || {
             spawn_async_task(async move {
                 vectors
-                    .similarity_search(
+                    .similarity_search_with_scores(
                         query.as_str(),
                         init,
                         min_nodes,
@@ -155,20 +170,26 @@ impl PyVectorizedGraph {
         });
 
         docs.into_iter()
-            .map(|doc| match doc {
+            .map(|(doc, score)| match doc {
                 Document::Node { name, content } => {
                     let vertex = self.vectors.graph.vertex(name).unwrap();
-                    PyGraphDocument {
-                        content: content,
-                        entity: vertex.into_py(py),
-                    }
+                    (
+                        PyGraphDocument {
+                            content,
+                            entity: vertex.into_py(py),
+                        },
+                        score,
+                    )
                 }
                 Document::Edge { src, dst, content } => {
                     let edge = self.vectors.graph.edge(src, dst).unwrap();
-                    PyGraphDocument {
-                        content: content,
-                        entity: edge.into_py(py),
-                    }
+                    (
+                        PyGraphDocument {
+                            content,
+                            entity: edge.into_py(py),
+                        },
+                        score,
+                    )
                 }
             })
             .collect_vec()

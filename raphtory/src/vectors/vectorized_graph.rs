@@ -12,6 +12,17 @@ use crate::{
 use itertools::{chain, Itertools};
 use std::collections::HashMap;
 
+struct ScoredDocument {
+    doc: DocumentRef,
+    score: f32,
+}
+
+// impl<'a> PartialEq for ScoredDocument<'a> {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.doc.eq(other.doc)
+//     }
+// }
+
 pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) graph: G,
     template: T,
@@ -38,7 +49,6 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
         }
     }
 
-    // FIXME: this should return a Result
     pub async fn similarity_search(
         &self,
         query: &str,
@@ -49,6 +59,32 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
         window_start: Option<i64>,
         window_end: Option<i64>,
     ) -> Vec<Document> {
+        self.similarity_search_with_scores(
+            query,
+            init,
+            min_nodes,
+            min_edges,
+            limit,
+            window_start,
+            window_end,
+        )
+        .await
+        .into_iter()
+        .map(|(doc, _)| doc)
+        .collect_vec()
+    }
+
+    // FIXME: this should return a Result
+    pub async fn similarity_search_with_scores(
+        &self,
+        query: &str,
+        init: usize,
+        min_nodes: usize,
+        min_edges: usize,
+        limit: usize,
+        window_start: Option<i64>,
+        window_end: Option<i64>,
+    ) -> Vec<(Document, f32)> {
         let query_embedding = self.embedding.call(vec![query.to_owned()]).await.remove(0);
 
         let (graph, window_nodes, window_edges): (
@@ -96,26 +132,26 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
         );
         let generic_init = init - min_nodes - min_edges;
 
-        let mut entry_point: Vec<DocumentRef> = vec![];
+        let mut entry_point: Vec<ScoredDocument> = vec![];
 
-        let scored_nodes = score_documents(&query_embedding, window_nodes);
+        let scored_nodes = score_documents(&query_embedding, window_nodes.cloned());
         let mut selected_nodes = find_top_k(scored_nodes, init);
 
-        let scored_edges = score_documents(&query_embedding, window_edges);
+        let scored_edges = score_documents(&query_embedding, window_edges.cloned());
         let mut selected_edges = find_top_k(scored_edges, init);
 
         for _ in 0..min_nodes {
-            let (document, _) = selected_nodes.next().unwrap();
-            entry_point.push(document.clone());
+            let doc = selected_nodes.next().unwrap();
+            entry_point.push(doc);
         }
         for _ in 0..min_edges {
-            let (document, _) = selected_edges.next().unwrap();
-            entry_point.push(document.clone());
+            let doc = selected_edges.next().unwrap();
+            entry_point.push(doc);
         }
 
         let remaining_entities = find_top_k(chain!(selected_nodes, selected_edges), generic_init);
-        for (document, _) in remaining_entities {
-            entry_point.push(document.clone());
+        for doc in remaining_entities {
+            entry_point.push(doc);
         }
 
         // SECONDS STEP: EXPANSION
@@ -124,15 +160,13 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
         while selected_docs.len() < limit {
             let candidates = selected_docs
                 .iter()
-                .flat_map(|doc| self.get_context(doc, &graph, window_start, window_end));
+                .flat_map(|doc| self.get_context(&doc.doc, &graph, window_start, window_end));
 
             let unique_candidates = candidates.unique_by(|doc| doc.id());
-            let valid_candidates = unique_candidates.filter(|doc| !selected_docs.contains(doc));
-            let scored_candidates = score_documents(&query_embedding, valid_candidates);
-            let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX)
-                .map(|(doc, _)| doc)
-                .cloned()
-                .collect_vec();
+            let valid_candidates =
+                unique_candidates.filter(|&doc| !selected_docs.iter().any(|sel| &sel.doc == doc));
+            let scored_candidates = score_documents(&query_embedding, valid_candidates.cloned());
+            let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX).collect_vec();
 
             if top_sorted_candidates.is_empty() {
                 // TODO: use similarity search again with the whole graph with init + 1 !!
@@ -147,7 +181,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
         selected_docs
             .iter()
             .take(limit)
-            .map(|doc| doc.regenerate(&self.graph, &self.template))
+            .map(|doc| (doc.doc.regenerate(&self.graph, &self.template), doc.score))
             .collect_vec()
     }
 
@@ -207,24 +241,24 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
 fn score_documents<'a, I>(
     query: &'a Embedding,
     documents: I,
-) -> impl Iterator<Item = (&'a DocumentRef, f32)> + 'a
+) -> impl Iterator<Item = ScoredDocument> + 'a
 where
-    I: IntoIterator<Item = &'a DocumentRef> + 'a,
+    I: IntoIterator<Item = DocumentRef> + 'a,
 {
-    documents.into_iter().map(|document| {
-        let score = cosine(query, &document.embedding);
-        (document, score)
+    documents.into_iter().map(|doc| {
+        let score = cosine(query, &doc.embedding);
+        ScoredDocument { doc, score }
     })
 }
 
 /// Returns the top k nodes in descending order
-fn find_top_k<'a, I, T: 'a>(elements: I, k: usize) -> impl Iterator<Item = (&'a T, f32)> + 'a
+fn find_top_k<'a, I>(elements: I, k: usize) -> impl Iterator<Item = ScoredDocument> + 'a
 where
-    I: Iterator<Item = (&'a T, f32)> + 'a,
+    I: Iterator<Item = ScoredDocument> + 'a,
 {
     // TODO: add optimization for when this is used -> don't maintain more candidates than the max number of documents to return !!!
     elements
-        .sorted_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap().reverse())
+        .sorted_by(|doc1, doc2| doc1.score.partial_cmp(&doc2.score).unwrap().reverse())
         // We use reverse because default sorting is ascending but we want it descending
         .take(k)
 }
