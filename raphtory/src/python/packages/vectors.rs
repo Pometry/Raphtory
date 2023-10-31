@@ -4,12 +4,12 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
-    python::graph::{edge::PyEdge, vertex::PyVertex, views::graph_view::PyGraphView},
+    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
         vectorized_graph::VectorizedGraph,
-        Document, DocumentInput, DocumentOps, Embedding, EmbeddingFunction,
+        Document, DocumentInput, Embedding, EmbeddingFunction,
     },
 };
 use futures_util::future::BoxFuture;
@@ -20,10 +20,34 @@ use pyo3::{
 };
 use std::{future::Future, path::PathBuf, sync::Arc, thread};
 
-#[pyclass(name = "GraphDocument")]
-struct PyGraphDocument {
+#[pyclass(name = "GraphDocument", frozen, get_all)]
+pub struct PyGraphDocument {
     content: String,
     entity: PyObject,
+}
+
+#[pymethods]
+impl PyGraphDocument {
+    #[new]
+    fn new(content: String, entity: PyObject) -> Self {
+        Self { content, entity }
+    }
+
+    fn __repr__(&self, py: Python) -> String {
+        let entity_repr = match self.entity.call_method0(py, "__repr__") {
+            Ok(repr) => repr.extract::<String>(py).unwrap_or("None".to_owned()),
+            Err(_) => "None".to_owned(),
+        };
+        let py_content = self.content.clone().into_py(py);
+        let content_repr = match py_content.call_method0(py, "__repr__") {
+            Ok(repr) => repr.extract::<String>(py).unwrap_or("''".to_owned()),
+            Err(_) => "''".to_owned(),
+        };
+        format!(
+            "GraphDocument(content={}, entity={})",
+            content_repr, entity_repr
+        )
+    }
 }
 
 struct PyDocumentTemplate {
@@ -64,7 +88,6 @@ impl<G: GraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
     }
 }
 
-/// Graph view is a read-only version of a graph at a certain point in time.
 #[pyclass(name = "VectorizedGraph", frozen)]
 pub struct PyVectorizedGraph {
     vectors: Arc<VectorizedGraph<DynamicGraph, PyDocumentTemplate>>,
@@ -107,7 +130,7 @@ impl PyVectorizedGraph {
         min_nodes: usize,
         min_edges: usize,
         limit: usize,
-    ) -> Vec<String> {
+    ) -> Vec<PyGraphDocument> {
         let vectors = self.vectors.clone();
         let docs = py.allow_threads(move || {
             spawn_async_task(async move {
@@ -126,24 +149,22 @@ impl PyVectorizedGraph {
         });
 
         docs.into_iter()
-            // TODO: re-enable this
-            // .map(|doc| match doc {
-            //     Document::Node { name, content } => {
-            //         let vertex = self.vectors.graph.vertex(name).unwrap();
-            //         PyGraphDocument {
-            //             content: content,
-            //             entity: vertex.into_py(py),
-            //         }
-            //     }
-            //     Document::Edge { src, dst, content } => {
-            //         let edge = self.vectors.graph.edge(src, dst).unwrap();
-            //         PyGraphDocument {
-            //             content: content,
-            //             entity: edge.into_py(py),
-            //         }
-            //     }
-            // })
-            .map(|doc| doc.into_content())
+            .map(|doc| match doc {
+                Document::Node { name, content } => {
+                    let vertex = self.vectors.graph.vertex(name).unwrap();
+                    PyGraphDocument {
+                        content: content,
+                        entity: vertex.into_py(py),
+                    }
+                }
+                Document::Edge { src, dst, content } => {
+                    let edge = self.vectors.graph.edge(src, dst).unwrap();
+                    PyGraphDocument {
+                        content: content,
+                        entity: edge.into_py(py),
+                    }
+                }
+            })
             .collect_vec()
     }
 }
