@@ -6,18 +6,21 @@ use raphtory::{
     },
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::vectorized_graph::VectorizedGraph,
+    vectors::{document_template::DocumentTemplate, vectorized_graph::VectorizedGraph},
 };
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
+    sync::Arc,
 };
 use walkdir::WalkDir;
+pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
 
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, VectorizedGraph<MaterializedGraph>>>,
+    pub(crate) vector_stores:
+        RwLock<HashMap<String, VectorizedGraph<MaterializedGraph, DynamicTemplate>>>,
 }
 
 impl Data {
