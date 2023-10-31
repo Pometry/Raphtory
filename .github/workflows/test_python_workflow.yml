@@ -112,13 +112,13 @@ jobs:
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           python -m pip install target/wheels/raphtory-*.whl
           python -m pip install -e examples/custom_python_extension
       - name: Install Python dependencies (Windows)
         if: "contains(matrix.os, 'Windows')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           $folder_path = "target/wheels/"
           Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
             python -m pip install "$($_.FullName)"
@@ -130,8 +130,6 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/custom_python_extension/test && pytest .
-      - name: Install dependencies for notebooks
-        run: pip install nbconvert ipywidgets
       - name: Run example notebook
         working-directory: examples/python/socio-patterns
         run: jupyter nbconvert --to notebook --execute example.ipynb
