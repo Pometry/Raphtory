@@ -108,7 +108,7 @@ mod vector_tests {
     };
     use dotenv::dotenv;
     use itertools::Itertools;
-    use std::path::PathBuf;
+    use std::{fs::remove_file, path::PathBuf};
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
@@ -119,6 +119,10 @@ mod vector_tests {
 
     async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
         texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
+    }
+
+    async fn panicking_embedding(texts: Vec<String>) -> Vec<Embedding> {
+        panic!("embedding function was called")
     }
 
     struct CustomTemplate;
@@ -141,6 +145,30 @@ mod vector_tests {
             let content = format!("{src} appeared with {dst} in lines: {lines}");
             Box::new(std::iter::once(content.into()))
         }
+    }
+
+    #[tokio::test]
+    async fn test_embedding_cache() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", NO_PROPS).unwrap();
+
+        // the following succeeds with no cache set up
+        g.vectorize(Box::new(fake_embedding), None).await;
+
+        // TODO: REMOVE FILE BEFORE!!!!!!!!!!!!
+
+        let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
+
+        remove_file(path);
+
+        // the following creates the embeddings, and store them on the cache
+        g.vectorize(Box::new(fake_embedding), Some(PathBuf::from(path)))
+            .await;
+
+        // the following uses the embeddings from the cache, so it doesn't call the panicking
+        // embedding, which would make the test fail
+        g.vectorize(Box::new(panicking_embedding), Some(PathBuf::from(path)))
+            .await;
     }
 
     // TODO: test default templates
