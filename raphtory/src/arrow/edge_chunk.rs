@@ -43,7 +43,7 @@ impl EdgeChunk {
     }
 
     pub(crate) fn len(&self) -> usize {
-        self.chunk.len()
+        self.chunk[0].len()
     }
 
     pub(crate) fn source(&self) -> &PrimitiveArray<u64> {
