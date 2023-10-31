@@ -33,11 +33,12 @@ use arrow2::{
     datatypes::{Field, Schema},
     io::{
         ipc::write::{FileWriter, WriteOptions},
-        parquet::read,
+        parquet::read::{self, schema},
     },
     offset::OffsetsBuffer,
     types::{NativeType, Offset},
 };
+use arrow_array::{ArrayRef, RecordBatch};
 use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile::tempfile_in;
@@ -46,8 +47,9 @@ use super::{
     array_as_id_iter,
     edge_chunk::EdgeChunk,
     global_order::{GlobalMap, GlobalOrder},
+    ipc,
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID, ipc,
+    LoadChunk, Time, GID,
 };
 
 #[derive(Debug)]
@@ -111,9 +113,9 @@ impl TempColGraphFragment {
                             })
                             .sorted_by(|a, b| a.path().cmp(&b.path()))
                             .map(|f| {
-                                EdgeOverflowChunk::new(unsafe {
-                                    mmap_all_chunks(f.path()).unwrap()
-                                }.into())
+                                EdgeOverflowChunk::new(
+                                    unsafe { mmap_all_chunks(f.path()).unwrap() }.into(),
+                                )
                             })
                             .collect()
                     })
@@ -124,15 +126,21 @@ impl TempColGraphFragment {
                     overflow_chunks.into(),
                 ));
             } else if file_name.starts_with("adj_in_chunk_") {
-                adj_in_chunks.push(VertexChunk::new(unsafe {
-                    // mmap_batch(file_path.path(), 0)
-                    ipc::read_batch(file_path.path())
-                }?));
+                adj_in_chunks.push(VertexChunk::new(
+                    unsafe {
+                        // mmap_batch(file_path.path(), 0)
+                        ipc::read_batch(file_path.path())
+                    }?,
+                    ipc::read_schema(file_path.path())?,
+                ));
             } else if file_name.starts_with("adj_out_chunk_") {
-                adj_out_chunks.push(VertexChunk::new(unsafe {
-                    // mmap_batch(file_path.path(), 0)
-                    ipc::read_batch(file_path.path())
-                }?));
+                adj_out_chunks.push(VertexChunk::new(
+                    unsafe {
+                        // mmap_batch(file_path.path(), 0)
+                        ipc::read_batch(file_path.path())
+                    }?,
+                    ipc::read_schema(file_path.path())?,
+                ));
             }
         }
 
@@ -147,6 +155,30 @@ impl TempColGraphFragment {
             edge_chunks,
             graph_dir: graph_dir.as_ref().into(),
         })
+    }
+
+    pub fn to_arrow(&self) -> impl Iterator<Item = RecordBatch> + '_ {
+        self.adj_out_chunks
+            .iter()
+            .map(|chunk| (chunk.to_arrow(), chunk.to_arrow_fields()))
+            .zip(
+                self.adj_out_chunks
+                    .iter()
+                    .map(|chunk| (chunk.to_arrow(), chunk.to_arrow_fields())),
+            )
+            .map(|((out, out_fields), (into, into_fields))| {
+                let mut batch = out.to_vec();
+                batch.extend(into.to_vec());
+                let schema = arrow_schema::Schema::new(
+                    out_fields
+                        .into_iter()
+                        .map(Arc::new)
+                        .chain(into_fields.into_iter().map(Arc::new))
+                        .collect::<Vec<_>>(),
+                );
+
+                RecordBatch::try_new(Arc::new(schema), batch).expect("schema mismatch")
+            })
     }
 
     pub fn edge_property_id(&self, name: &str) -> Option<usize> {
@@ -599,9 +631,10 @@ impl TempColGraphFragment {
             .graph_dir
             .join(format!("adj_in_chunk_{:08}.ipc", self.adj_in_chunks.len()));
         let chunk = [Chunk::try_new(vec![res.boxed()])?];
-        write_batches(file_path.as_path(), schema, &chunk)?;
+        write_batches(file_path.as_path(), schema.clone(), &chunk)?;
         let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_in_chunks.push(VertexChunk::new(mmapped_chunk));
+        self.adj_in_chunks
+            .push(VertexChunk::new(mmapped_chunk, schema));
         Ok(())
     }
 
@@ -805,9 +838,10 @@ impl TempColGraphFragment {
                 .graph_dir
                 .join(format!("adj_in_chunk_{:08}.ipc", self.adj_in_chunks.len()));
             let chunk = [Chunk::try_new(vec![res])?];
-            write_batches(file_path.as_path(), schema, &chunk)?;
+            write_batches(file_path.as_path(), schema.clone(), &chunk)?;
             let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-            self.adj_in_chunks.push(VertexChunk::new(mmapped_chunk));
+            self.adj_in_chunks
+                .push(VertexChunk::new(mmapped_chunk, schema));
         }
         Ok(())
     }
@@ -915,7 +949,7 @@ fn read_vertices_only<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use crate::{arrow::global_order::GlobalMap, prelude::*};
-    use std::{cmp::Ordering, iter, path::PathBuf};
+    use std::{iter, path::PathBuf};
 
     use super::*;
     use arrow2::datatypes::DataType;

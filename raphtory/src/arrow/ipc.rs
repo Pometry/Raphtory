@@ -1,6 +1,6 @@
-use std::{path::Path, fs::File};
+use std::{fs::File, path::Path};
 
-use arrow2::{chunk::Chunk, array::Array, io::ipc::read};
+use arrow2::{array::Array, chunk::Chunk, datatypes::Schema, io::ipc::read};
 
 use super::Error;
 
@@ -10,7 +10,16 @@ pub fn read_batch<P: AsRef<Path>>(
 ) -> Result<Chunk<Box<dyn Array>>, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
-    let mut reader= read::FileReader::new(file, meta, None, None);
+    let mut reader = read::FileReader::new(file, meta, None, None);
     let chunk = reader.next().ok_or_else(|| Error::NoEdgeLists)??;
     Ok(chunk)
+}
+
+pub fn read_schema<P: AsRef<Path>>(
+    path: P,
+    // chunk_id: usize,
+) -> Result<Schema, Error> {
+    let mut file = File::open(path)?;
+    let meta = read::read_file_metadata(&mut file)?;
+    Ok(meta.schema)
 }

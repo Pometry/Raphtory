@@ -82,9 +82,9 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
             self.adj_out_chunks.len()
         ));
         let chunk = [Chunk::try_new(vec![col])?];
-        write_batches(file_path.as_path(), schema, &chunk)?;
+        write_batches(file_path.as_path(), schema.clone(), &chunk)?;
         let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_out_chunks.push(VertexChunk::new(mmapped_chunk));
+        self.adj_out_chunks.push(VertexChunk::new(mmapped_chunk, schema));
         Ok(())
     }
 

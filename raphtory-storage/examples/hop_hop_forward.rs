@@ -45,7 +45,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
 
-    let res = query1_v4(
+    let res = query1_v4_par(
         g,
         nft,
         events_2v,
