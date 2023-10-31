@@ -881,6 +881,14 @@ impl<'a> Edge<'a> {
     ) -> Option<impl Iterator<Item = Option<(&str, &Time)>>> {
         self.edge.temporal_utf8_prop_items::<I>(self.idx, prop_id)
     }
+
+    pub fn src(&self) -> VID {
+        VID(self.edge.source().value(self.idx) as usize)
+    }
+
+    pub fn dst(&self) -> VID {
+        VID(self.edge.destination().value(self.idx) as usize)
+    }
 }
 
 fn read_vertices_only<P: AsRef<Path>>(
@@ -1037,6 +1045,18 @@ mod test {
                 .collect::<Vec<_>>();
 
             assert_eq!(expected_inbound, actual_inbound);
+        }
+
+        let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
+
+
+        for (e_id, (src, dst)) in unique_edges.enumerate() {
+            let edge = graph.edge(EID(e_id));
+            let VID(src_id) = edge.src();
+            let VID(dst_id) = edge.dst();
+
+            assert_eq!(vertices[src_id], src);
+            assert_eq!(vertices[dst_id], dst);
         }
     }
 
