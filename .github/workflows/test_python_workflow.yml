@@ -131,7 +131,7 @@ jobs:
         run: |
           cd examples/custom_python_extension/test && pytest .
       - name: Install dependencies for notebooks
-        run: pip install nbconvert
+        run: pip install nbconvert ipywidgets
       - name: Run example notebook
         working-directory: examples/python/socio-patterns
         run: jupyter nbconvert --to notebook --execute example.ipynb
