@@ -2,7 +2,7 @@ use crate::vectors::{entity_id::EntityId, Embedding};
 use parking_lot::RwLock;
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{create_dir_all, File},
     io::{BufReader, BufWriter},
     path::{Path, PathBuf},
 };
@@ -15,8 +15,7 @@ pub(crate) struct EmbeddingCache {
 }
 
 impl EmbeddingCache {
-    pub(crate) fn load_from_disk(path: &Path) -> Self {
-        let path = PathBuf::from(path);
+    pub(crate) fn from_path(path: PathBuf) -> Self {
         let inner_cache = Self::try_reading_from_disk(&path).unwrap_or(HashMap::new());
         let cache = RwLock::new(inner_cache);
         Self { cache, path }
@@ -40,6 +39,11 @@ impl EmbeddingCache {
 
     // TODO: remove entries that weren't read in the last usage
     pub(crate) fn dump_to_disk(&self) {
+        self.path.parent().iter().for_each(|parent_path| {
+            create_dir_all(parent_path).expect("Impossible to use cache dir");
+        });
+        // TODO: print helpful error if the path is a directory, maybe when creating the cache
+        // instead of here to save the embedding model to be called
         let file = File::create(&self.path).expect("Couldn't create file to store embedding cache");
         let mut writer = BufWriter::new(file);
         bincode::serialize_into::<_, CacheStore>(&mut writer, &self.cache.read())

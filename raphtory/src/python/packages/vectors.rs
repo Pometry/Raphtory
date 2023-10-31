@@ -18,7 +18,13 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, path::PathBuf, sync::Arc, thread};
+use std::{
+    future::Future,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+};
 
 #[pyclass(name = "GraphDocument", frozen, get_all)]
 pub struct PyGraphDocument {
@@ -96,24 +102,24 @@ pub struct PyVectorizedGraph {
 #[pymethods]
 impl PyVectorizedGraph {
     #[new]
-    fn new<'a>(
-        py: Python<'a>,
-        graph: &'a PyGraphView,
-        embedding: &'a PyFunction,
-        cache: &'a str,
+    fn new(
+        py: Python,
+        graph: &PyGraphView,
+        embedding: &PyFunction,
+        cache: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
     ) -> PyVectorizedGraph {
         // FIXME: we should be able to specify templates only for one type of entity: nodes/edges
         let embedding: Py<PyFunction> = embedding.into();
         let graph = graph.graph.clone();
-        let cache = PathBuf::from(cache);
+        let cache = cache.map(|cache| PathBuf::from(cache));
         let template = PyDocumentTemplate::new(node_document, edge_document);
 
         py.allow_threads(move || {
             spawn_async_task(async move {
                 let vectorized_graph = graph
-                    .vectorize_with_template(Box::new(embedding.clone()), &cache, template)
+                    .vectorize_with_template(Box::new(embedding.clone()), cache, template)
                     .await;
                 PyVectorizedGraph {
                     vectors: Arc::new(vectorized_graph),

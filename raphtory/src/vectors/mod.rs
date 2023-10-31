@@ -152,7 +152,7 @@ mod vector_tests {
 
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
-        let vectors = g.vectorize(Box::new(openai_embedding), &cache).await;
+        let vectors = g.vectorize(Box::new(openai_embedding), Some(cache)).await;
         let docs = vectors
             .similarity_search("whatever", 10, 0, 0, 20, None, None)
             .await;
@@ -229,7 +229,7 @@ age: 30"###;
         let vectors = g
             .vectorize_with_template(
                 Box::new(fake_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-multi-test"),
+                Some(PathBuf::from("/tmp/raphtory/vector-cache-multi-test")),
                 FakeMultiDocumentTemplate,
             )
             .await;
@@ -279,7 +279,7 @@ age: 30"###;
         let vectors = g
             .vectorize_with_template(
                 Box::new(fake_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-window-test"),
+                Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
                 FakeTemplateWithIntervals,
             )
             .await;
@@ -351,7 +351,7 @@ age: 30"###;
         let vectors = g
             .vectorize_with_template(
                 Box::new(openai_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
+                Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
                 CustomTemplate,
             )
             .await;
