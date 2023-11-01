@@ -26,8 +26,7 @@ use crate::{
 };
 use arrow2::{
     array::{
-        Array, ListArray, MutableArray, MutableListArray, MutablePrimitiveArray,
-        MutableStructArray, PrimitiveArray, StructArray,
+        Array, ListArray, PrimitiveArray, StructArray,
     },
     chunk::Chunk,
     datatypes::{Field, Schema},
@@ -127,7 +126,8 @@ impl TempColGraphFragment {
                 ));
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(
-                    unsafe { // TODO: this should perhap be configurable
+                    unsafe {
+                        // TODO: this should perhap be configurable
                         // mmap_batch(file_path.path(), 0)
                         ipc::read_batch(file_path.path())
                     }?,
@@ -556,99 +556,6 @@ impl TempColGraphFragment {
         &self.adj_in_chunks
     }
 
-    pub fn naive_build_inbound_adj_index(&mut self) -> Result<(), Error> {
-        let mut inbound: Vec<Vec<(u64, u64)>> = Vec::with_capacity(self.num_vertices());
-
-        for (e_id, src, dst) in self.all_edges() {
-            let src = Into::<usize>::into(src);
-            let dst = Into::<usize>::into(dst);
-            let e_id = Into::<usize>::into(e_id);
-
-            if inbound.len() <= dst {
-                inbound.resize_with(dst + 1, || vec![]);
-            }
-
-            inbound[dst].push((src as u64, e_id as u64));
-        }
-
-        if inbound.len() < self.num_vertices() {
-            inbound.resize_with(self.num_vertices(), || vec![]);
-        }
-        // sort
-
-        inbound
-            .par_iter_mut()
-            .for_each(|adj_inb| adj_inb.sort_unstable());
-
-        // load per chunk
-
-        let mut chunk_inb = Some(Self::make_inbound_builder());
-        for (v_id, inbound) in inbound.into_iter().enumerate() {
-            if v_id % self.vertex_chunk_size == 0 && v_id != 0 {
-                // drop a new chunk
-                if let Some(builder) = chunk_inb.take() {
-                    self.write_inb_chunk_to_disk(builder)?;
-                }
-                chunk_inb = Some(Self::make_inbound_builder());
-            }
-            if let Some(builder) = &mut chunk_inb {
-                let values = builder.mut_values();
-                let values = values.mut_values();
-                for (src, e_id) in inbound {
-                    if let Some(vs) = values[0]
-                        .as_mut_any()
-                        .downcast_mut::<MutablePrimitiveArray<u64>>()
-                    {
-                        vs.push(Some(src));
-                    }
-
-                    if let Some(es) = values[1]
-                        .as_mut_any()
-                        .downcast_mut::<MutablePrimitiveArray<u64>>()
-                    {
-                        es.push(Some(e_id));
-                    }
-                }
-                builder.try_push_valid()?;
-            }
-        }
-
-        if let Some(builder) = chunk_inb.take() {
-            self.write_inb_chunk_to_disk(builder)?;
-        }
-
-        Ok(())
-    }
-
-    fn write_inb_chunk_to_disk(
-        &mut self,
-        builder: MutableListArray<i64, MutableStructArray>,
-    ) -> Result<(), Error> {
-        let res: ListArray<i64> = builder.into();
-        let dtype = res.data_type().clone();
-        let schema = Schema::from(vec![Field::new("adj_in", dtype, false)]);
-        let file_path = self
-            .graph_dir
-            .join(format!("adj_in_chunk_{:08}.ipc", self.adj_in_chunks.len()));
-        let chunk = [Chunk::try_new(vec![res.boxed()])?];
-        write_batches(file_path.as_path(), schema.clone(), &chunk)?;
-        let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_in_chunks
-            .push(VertexChunk::new(mmapped_chunk, schema));
-        Ok(())
-    }
-
-    fn make_inbound_builder() -> MutableListArray<i64, MutableStructArray> {
-        let vs = Box::new(MutablePrimitiveArray::<u64>::new());
-        let es = Box::new(MutablePrimitiveArray::<u64>::new());
-
-        let values = MutableStructArray::new(adj_schema(), vec![vs, es]);
-
-        let dt = <ListArray<i64>>::default_datatype(values.data_type().clone());
-        MutableListArray::new_from(values, dt, 4)
-    }
-
-    // TODO: fix this
     pub fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
         let num_chunks = self.outbound().len();
         let tmp_schema = Schema::from(vec![Field::new(
@@ -845,6 +752,32 @@ impl TempColGraphFragment {
         }
         Ok(())
     }
+
+    pub(crate) fn add_chunks<GO: GlobalOrder>(
+        &self,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        edge_max_list_size: usize,
+        clone: Arc<super::global_order::LMDBOrdering>,
+        load_chunks: impl IntoIterator<Item = LoadChunk>,
+    ) -> Result<(), Error> {
+        let mut last_chunk: Option<LoadChunk> = None;
+        let mut i =
+
+        for chunk in load_chunks {
+            // get the source and destintion columns
+            let src_iter = chunk.sources()?;
+            let dst_iter = chunk.destinations()?;
+
+            for (src, dst) in src_iter.zip(dst_iter) {
+                // resolve the physical id of src
+                let src_id =
+            }
+
+            last_chunk = Some(chunk);
+        }
+        Ok(())
+    }
 }
 
 pub(crate) fn load_chunks<GO: GlobalOrder>(
@@ -909,10 +842,7 @@ impl<'a> Edge<'a> {
         self.edge.temporal_primitive_prop_items(self.idx, prop_id)
     }
 
-    pub fn prop_history<T: NativeType>(
-        &self,
-        prop_id: usize,
-    ) -> impl Iterator<Item = (&T, &Time)> {
+    pub fn prop_history<T: NativeType>(&self, prop_id: usize) -> impl Iterator<Item = (&T, &Time)> {
         if let Some(iter) = self.edge.temporal_primitive_prop_items(self.idx, prop_id) {
             iter.filter_map(|(v, t)| v.map(|v| (v, t)))
         } else {
@@ -1035,7 +965,7 @@ mod test {
             triples,
         )
         .unwrap();
-        graph.naive_build_inbound_adj_index().unwrap();
+        graph.build_inbound_adj_index().unwrap();
         graph
     }
 
@@ -1093,7 +1023,6 @@ mod test {
         }
 
         let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
-
 
         for (e_id, (src, dst)) in unique_edges.enumerate() {
             let edge = graph.edge(EID(e_id));

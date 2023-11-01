@@ -99,7 +99,6 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
             read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None)
                 .expect("failed to load chunks from path")
         })
-        // .flatten()
     }
 }
 

@@ -1,11 +1,10 @@
 use arrow2::{
-    array::{Array, ListArray, PrimitiveArray, StructArray},
+    array::{Array, ListArray},
     buffer::Buffer,
     chunk::Chunk,
     datatypes::Schema,
     types::NativeType,
 };
-use itertools::Itertools;
 use std::sync::Arc;
 
 use rayon::prelude::*;
