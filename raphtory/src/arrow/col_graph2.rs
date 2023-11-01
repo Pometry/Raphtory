@@ -909,6 +909,17 @@ impl<'a> Edge<'a> {
         self.edge.temporal_primitive_prop_items(self.idx, prop_id)
     }
 
+    pub fn prop_history<T: NativeType>(
+        &self,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (&T, &Time)> {
+        if let Some(iter) = self.edge.temporal_primitive_prop_items(self.idx, prop_id) {
+            iter.filter_map(|(v, t)| v.map(|v| (v, t)))
+        } else {
+            panic!("no prop history for {prop_id}")
+        }
+    }
+
     pub fn prop_items_utf8<I: Offset>(
         &self,
         prop_id: usize,
