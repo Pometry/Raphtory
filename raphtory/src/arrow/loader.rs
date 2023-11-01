@@ -343,10 +343,11 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     }))
 }
 
-pub(crate) fn make_global_ordering<'a, GO: GlobalOrder + Default, P: AsRef<Path> + Sync + Send>(
+pub(crate) fn make_global_ordering<'a, GO: GlobalOrder, P: AsRef<Path> + Sync + Send>(
     sorted_gids_path: impl AsRef<Path>,
     edge_lists: &[ExternalEdgeList<'a, P>],
-) -> Result<GO, Error> {
+    go: &mut GO,
+) -> Result<(), Error> {
     let now = std::time::Instant::now();
 
     let sorted_vertices = if sorted_gids_path.as_ref().exists() {
@@ -372,8 +373,6 @@ pub(crate) fn make_global_ordering<'a, GO: GlobalOrder + Default, P: AsRef<Path>
         sorted_vertices
     };
 
-    let mut go: GO = GO::default();
-
     for (i, gid) in array_as_id_iter(&sorted_vertices)?.enumerate() {
         go.insert(gid, i);
     }
@@ -384,35 +383,5 @@ pub(crate) fn make_global_ordering<'a, GO: GlobalOrder + Default, P: AsRef<Path>
         go.len()
     );
 
-    Ok(go)
-}
-
-#[cfg(test)]
-mod test {
-    use crate::arrow::GID;
-
-    use super::read_file_chunks;
-
-    // #[test]
-    // fn strange_parquet_ordering() {
-    //     let mut actual = vec![];
-    //     let chunks = read_file_chunks("/mnt/work/pometry/v1_parquet_day85_sorted/part-00001-c9d6c8e8-a3d3-429f-b97a-711c70c23b6e-c000.snappy.parquet", "src", "dst", "epoch_time", None).unwrap();
-    //     // let chunks = read_file_chunks("/mnt/work/pometry/v1_parquet_day85_sorted_again/v1_parquet_day85_sorted_again.parquet", "src", "dst", "epoch_time", None).unwrap();
-    //     for (id, chunk) in chunks.enumerate() {
-    //         let mut edge = None;
-    //         for (src, dst) in chunk.sources().unwrap().zip(chunk.destinations().unwrap()) {
-    //             if let Some((prev_src, prev_dst)) = &mut edge {
-    //                 if &src != prev_src && &dst != prev_dst {
-    //                     if src == GID::Str("Comp572075".to_owned()) || src == GID::Str("Comp713371".to_owned()) {
-    //                         actual.push(src.clone());
-    //                         println!("{id} src: {:?}, dst: {:?}", src, dst);
-    //                     }
-    //                 }
-    //             }
-    //             edge = Some((src, dst));
-    //         }
-    //     }
-
-    //     assert_eq!(actual, vec![GID::Str("Comp713371".to_owned()), GID::Str("Comp572075".to_owned())]);
-    // }
+    Ok(())
 }

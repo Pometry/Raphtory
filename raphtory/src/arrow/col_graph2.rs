@@ -33,12 +33,12 @@ use arrow2::{
     datatypes::{Field, Schema},
     io::{
         ipc::write::{FileWriter, WriteOptions},
-        parquet::read::{self, schema},
+        parquet::read,
     },
     offset::OffsetsBuffer,
     types::{NativeType, Offset},
 };
-use arrow_array::{ArrayRef, RecordBatch};
+use arrow_array::RecordBatch;
 use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile::tempfile_in;
@@ -127,7 +127,7 @@ impl TempColGraphFragment {
                 ));
             } else if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(
-                    unsafe {
+                    unsafe { // TODO: this should perhap be configurable
                         // mmap_batch(file_path.path(), 0)
                         ipc::read_batch(file_path.path())
                     }?,
@@ -325,7 +325,7 @@ impl TempColGraphFragment {
         Ok(out)
     }
 
-    pub(crate) fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder + Default>(
+    pub(crate) fn build_tables_from_chunked<P: AsRef<Path>, GO: GlobalOrder>(
         base_dir: P,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
@@ -847,7 +847,7 @@ impl TempColGraphFragment {
     }
 }
 
-pub(crate) fn load_chunks<GO: GlobalOrder + Default>(
+pub(crate) fn load_chunks<GO: GlobalOrder>(
     vf_builder: &mut VertexFrameBuilder<GO>,
     edge_builder: &mut EdgeFrameBuilder,
     chunks_iter: impl IntoIterator<Item = LoadChunk>,

@@ -3207,8 +3207,6 @@ version = "0.6.1"
 dependencies = [
  "ahash",
  "arrow-array",
- "arrow-buffer",
- "arrow-data",
  "arrow-schema",
  "arrow2",
  "async-openai",

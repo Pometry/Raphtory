@@ -4,7 +4,7 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
-use std::{path::Path, sync::Arc};
+use std::{path::{Path, PathBuf}, sync::Arc};
 
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
@@ -28,6 +28,8 @@ pub enum Error {
     Arrow(#[from] arrow2::error::Error),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
+    #[error("LMDB error: {0}")]
+    LMDB(#[from] heed::Error),
     #[error("Bad data type for vertex column: {0:?}")]
     DType(DataType),
     #[error("Graph directory is not empty before loading")]
@@ -38,7 +40,11 @@ pub enum Error {
     ColumnNotFound(String),
     #[error("No Edge lists found in input path")]
     NoEdgeLists,
+    #[error("Unable to open database: {0:?}")]
+    DatabaseNotFound(PathBuf),
 }
+
+unsafe impl Send for Error {} // heed::Error can't be made Send
 
 const OUTBOUND_COLUMN: &str = "outbound";
 const INBOUND_COLUMN: &str = "inbound";
