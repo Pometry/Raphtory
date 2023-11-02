@@ -212,92 +212,82 @@ where
             if uu.triangle.len() == 0 {
                 uu.triangle = vec![[0 as usize; 8]; delta_len];
             }
-            for v in u.neighbours() {
+            for mut v in u.neighbours() {
                 // Find triangles on the UV edge
-                if u.id() > v.id() {
-                    let intersection_nbs = {
-                        match (
-                            u.entry(&neighbours_set)
-                                .read_ref()
-                                .unwrap_or(&FxHashSet::default()),
-                            v.entry(&neighbours_set)
-                                .read_ref()
-                                .unwrap_or(&FxHashSet::default()),
-                        ) {
-                            (u_set, v_set) => {
-                                let intersection =
-                                    u_set.intersection(v_set).cloned().collect::<Vec<_>>();
-                                intersection
-                            }
-                        }
-                    };
-
-                    if intersection_nbs.is_empty() {
-                        continue;
+                let intersection_nbs: Vec<u64> = match v.entry(&neighbours_set).read_ref() {
+                    Some(v_set) => {
+                        let u_set = FxHashSet::from_iter(u.neighbours().id());
+                        let intersection = u_set.intersection(v_set).cloned().collect::<Vec<_>>();
+                        intersection
                     }
-                    // let mut nb_ct = 0;
-                    intersection_nbs.iter().for_each(|w| {
-                        // For each triangle, run the triangle count.
+                    None => vec![],
+                };
 
-                        let all_exploded = vec![u.id(), v.id(), *w]
-                            .into_iter()
-                            .sorted()
-                            .permutations(2)
-                            .flat_map(|e| {
-                                g.edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
-                                    .iter()
-                                    .flat_map(|edge| edge.explode())
-                                    .collect::<Vec<_>>()
-                            })
-                            .sorted_by_key(|e| e.time_and_index())
-                            .map(|e| {
-                                let (src_id, dst_id) = (e.src().id(), e.dst().id());
-                                let (uid, _vid) = (u.id(), v.id());
-                                if src_id == w.clone() {
-                                    new_triangle_edge(
-                                        false,
-                                        if dst_id == uid { 0 } else { 1 },
-                                        0,
-                                        0,
-                                        e.time().unwrap(),
-                                    )
-                                } else if dst_id == w.clone() {
-                                    new_triangle_edge(
-                                        false,
-                                        if src_id == uid { 0 } else { 1 },
-                                        0,
-                                        1,
-                                        e.time().unwrap(),
-                                    )
-                                } else if src_id == uid {
-                                    new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
-                                } else {
-                                    new_triangle_edge(true, 0, 0, 0, e.time().unwrap())
-                                }
-                            })
-                            .collect::<Vec<TriangleEdge>>();
-
-                        for i in 0..deltas.len() {
-                            let delta = deltas[i];
-                            let mut tri_count = init_tri_count(2);
-                            tri_count.execute(&all_exploded, delta);
-                            let tmp_counts: Iter<usize> = tri_count.return_counts().iter();
-
-                            // Triangle counts are going to be WRONG without w
-                            // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
-
-                            let mc_u = u.get_mut();
-                            let triangle_u = mc_u.triangle[i]
-                                .iter()
-                                .zip(tmp_counts.clone())
-                                .map(|(&i1, &i2)| i1 + i2)
-                                .collect::<Vec<usize>>()
-                                .try_into()
-                                .unwrap();
-                            mc_u.triangle[i] = triangle_u;
-                        }
-                    })
+                if intersection_nbs.is_empty() {
+                    continue;
                 }
+                // let mut nb_ct = 0;
+                intersection_nbs.iter().for_each(|w| {
+                    // For each triangle, run the triangle count.
+
+                    let all_exploded = vec![u.id(), v.id(), *w]
+                        .into_iter()
+                        .sorted()
+                        .permutations(2)
+                        .flat_map(|e| {
+                            g.edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
+                                .iter()
+                                .flat_map(|edge| edge.explode())
+                                .collect::<Vec<_>>()
+                        })
+                        .sorted_by_key(|e| e.time_and_index())
+                        .map(|e| {
+                            let (src_id, dst_id) = (e.src().id(), e.dst().id());
+                            let (uid, _vid) = (u.id(), v.id());
+                            if src_id == w.clone() {
+                                new_triangle_edge(
+                                    false,
+                                    if dst_id == uid { 0 } else { 1 },
+                                    0,
+                                    0,
+                                    e.time().unwrap(),
+                                )
+                            } else if dst_id == w.clone() {
+                                new_triangle_edge(
+                                    false,
+                                    if src_id == uid { 0 } else { 1 },
+                                    0,
+                                    1,
+                                    e.time().unwrap(),
+                                )
+                            } else if src_id == uid {
+                                new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
+                            } else {
+                                new_triangle_edge(true, 0, 0, 0, e.time().unwrap())
+                            }
+                        })
+                        .collect::<Vec<TriangleEdge>>();
+
+                    for i in 0..deltas.len() {
+                        let delta = deltas[i];
+                        let mut tri_count = init_tri_count(2);
+                        tri_count.execute(&all_exploded, delta);
+                        let tmp_counts: Iter<usize> = tri_count.return_counts().iter();
+
+                        // Triangle counts are going to be WRONG without w
+                        // update_counter(&mut vec![u, &v], motifs_count_id, tmp_counts);
+
+                        let mc_u = u.get_mut();
+                        let triangle_u = mc_u.triangle[i]
+                            .iter()
+                            .zip(tmp_counts.clone())
+                            .map(|(&i1, &i2)| i1 + i2)
+                            .collect::<Vec<usize>>()
+                            .try_into()
+                            .unwrap();
+                        mc_u.triangle[i] = triangle_u;
+                    }
+                })
             }
             Step::Continue
         },
