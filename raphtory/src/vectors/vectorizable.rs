@@ -103,7 +103,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         let cache = cache_file.map(EmbeddingCache::from_path);
         let node_refs = attach_embeddings(nodes, &embedding, &cache).await;
         let edge_refs = attach_embeddings(edges, &embedding, &cache).await;
-        cache.map(|cache| cache.dump_to_disk());
+        cache.iter().for_each(|cache| cache.dump_to_disk());
 
         VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
     }

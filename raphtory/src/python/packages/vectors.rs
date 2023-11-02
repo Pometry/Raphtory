@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::view::internal::DynamicGraph,
+        api::{
+            properties::{internal::PropertiesOps, Properties},
+            view::internal::DynamicGraph,
+        },
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
@@ -9,7 +12,7 @@ use crate::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
         vectorized_graph::VectorizedGraph,
-        Document, DocumentInput, Embedding, EmbeddingFunction,
+        Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
 use futures_util::future::BoxFuture;
@@ -75,21 +78,39 @@ impl PyDocumentTemplate {
 impl<G: GraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
-            Some(node_document) => {
-                let prop = vertex.properties().get(node_document).unwrap();
-                Box::new(std::iter::once(prop.to_string().into()))
-            }
+            Some(node_document) => get_documents_from_prop(vertex.properties(), node_document),
             None => self.default_template.node(vertex),
         }
     }
 
     fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
-            Some(edge_document) => {
-                let prop = edge.properties().get(edge_document).unwrap();
-                Box::new(std::iter::once(prop.to_string().into()))
-            }
+            Some(edge_document) => get_documents_from_prop(edge.properties(), edge_document),
             None => self.default_template.edge(edge),
+        }
+    }
+}
+
+fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
+    properties: Properties<P>,
+    name: &str,
+) -> Box<dyn Iterator<Item = DocumentInput>> {
+    let prop = properties
+        .temporal()
+        .iter()
+        .find(|(key, prop)| key.to_string() == name);
+
+    match prop {
+        Some((_, prop)) => {
+            let iter = prop.iter().map(|(time, prop)| DocumentInput {
+                content: prop.to_string(),
+                life: Lifespan::Event { time },
+            });
+            Box::new(iter)
+        }
+        None => {
+            let content = properties.get(name).unwrap().to_string();
+            Box::new(std::iter::once(content.into()))
         }
     }
 }
