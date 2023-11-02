@@ -25,9 +25,7 @@ use crate::{
     },
 };
 use arrow2::{
-    array::{
-        Array, ListArray, PrimitiveArray, StructArray,
-    },
+    array::{Array, ListArray, PrimitiveArray, StructArray},
     chunk::Chunk,
     datatypes::{Field, Schema},
     io::{
@@ -762,17 +760,17 @@ impl TempColGraphFragment {
         load_chunks: impl IntoIterator<Item = LoadChunk>,
     ) -> Result<(), Error> {
         let mut last_chunk: Option<LoadChunk> = None;
-        let mut i =
+        // let mut i =
 
         for chunk in load_chunks {
             // get the source and destintion columns
             let src_iter = chunk.sources()?;
             let dst_iter = chunk.destinations()?;
 
-            for (src, dst) in src_iter.zip(dst_iter) {
-                // resolve the physical id of src
-                let src_id =
-            }
+            // for (src, dst) in src_iter.zip(dst_iter) {
+            //     // resolve the physical id of src
+            //     let src_id =
+            // }
 
             last_chunk = Some(chunk);
         }

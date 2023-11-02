@@ -4,8 +4,12 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
-use std::{path::{Path, PathBuf}, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
+pub(crate) mod chunked_array;
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
 pub mod edge;
@@ -13,10 +17,10 @@ pub(crate) mod edge_chunk;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod global_order;
 pub mod graph;
+pub mod ipc;
 pub(crate) mod list_buffer;
 pub mod loader;
 pub mod mmap;
-pub mod ipc;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
 
@@ -323,7 +327,7 @@ fn to_arrow_datatype(d_type: &DataType) -> arrow_schema::DataType {
     match d_type {
         DataType::Null => arrow_schema::DataType::Null,
         DataType::Boolean => arrow_schema::DataType::Boolean,
-        DataType::Int8 =>  arrow_schema::DataType::Int8,
+        DataType::Int8 => arrow_schema::DataType::Int8,
         DataType::Int16 => arrow_schema::DataType::Int16,
         DataType::Int32 => arrow_schema::DataType::Int32,
         DataType::Int64 => arrow_schema::DataType::Int64,
@@ -337,8 +341,12 @@ fn to_arrow_datatype(d_type: &DataType) -> arrow_schema::DataType {
         DataType::Utf8 => arrow_schema::DataType::Utf8,
         DataType::LargeUtf8 => arrow_schema::DataType::LargeUtf8,
         DataType::List(field) => arrow_schema::DataType::List(Arc::new(to_arrow_field(&field))),
-        DataType::LargeList(field) => arrow_schema::DataType::LargeList(Arc::new(to_arrow_field(&field))),
-        DataType::Struct(fields) => arrow_schema::DataType::Struct(fields.iter().map(to_arrow_field).collect()),
+        DataType::LargeList(field) => {
+            arrow_schema::DataType::LargeList(Arc::new(to_arrow_field(&field)))
+        }
+        DataType::Struct(fields) => {
+            arrow_schema::DataType::Struct(fields.iter().map(to_arrow_field).collect())
+        }
         // later
         DataType::Timestamp(_, _) => todo!(),
         DataType::Union(_, _, _) => todo!(),
@@ -366,6 +374,6 @@ fn to_arrow_field(field: &Field) -> arrow_schema::Field {
 }
 
 fn to_arrow_schema(schema: &Schema) -> arrow_schema::SchemaRef {
-    let fields:Vec<_> = schema.fields.iter().map(to_arrow_field).collect();
+    let fields: Vec<_> = schema.fields.iter().map(to_arrow_field).collect();
     Arc::new(arrow_schema::Schema::new(fields))
 }

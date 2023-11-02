@@ -94,7 +94,7 @@ tokio = { version = "1.27.0", features = ["full"]} # for vector testing
 dotenv = "0.15.0" # for vector testing
 
 [features]
-default = ["search", "vectors"]
+default = ["arrow"]
 # Enables the graph loader io module
 io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
