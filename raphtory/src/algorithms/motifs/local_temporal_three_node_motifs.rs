@@ -454,7 +454,6 @@ mod motifs_test {
     }
 
     #[test]
-    #[ignore = "This is not correct, local version does not work"]
     fn test_two_node_motif() {
         let g = load_graph(vec![
             (1, 1, 2),
