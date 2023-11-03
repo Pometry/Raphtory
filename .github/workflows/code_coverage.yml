@@ -62,7 +62,6 @@ jobs:
         with:
           working-directory: ./python
           command: build
-          sccache: true
       - name: Install Python dependencies
         run: |
           python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis pytest-cov coverage
