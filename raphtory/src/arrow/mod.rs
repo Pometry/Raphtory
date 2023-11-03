@@ -23,6 +23,7 @@ pub mod loader;
 pub mod mmap;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
+pub(crate) mod flat_edge_frame_builder;
 
 pub type Time = i64;
 
