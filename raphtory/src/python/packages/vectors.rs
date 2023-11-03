@@ -138,7 +138,7 @@ impl PyVectorizedGraph {
         let template = PyDocumentTemplate::new(node_document, edge_document);
 
         py.allow_threads(move || {
-            spawn_async_task(async move {
+            spawn_async_task(move || async move {
                 let vectorized_graph = graph
                     .vectorize_with_template(Box::new(embedding.clone()), cache, template)
                     .await;
@@ -175,7 +175,7 @@ impl PyVectorizedGraph {
     ) -> Vec<(PyGraphDocument, f32)> {
         let vectors = self.vectors.clone();
         let docs = py.allow_threads(move || {
-            spawn_async_task(async move {
+            spawn_async_task(move || async move {
                 vectors
                     .similarity_search_with_scores(
                         query.as_str(),
@@ -217,15 +217,21 @@ impl PyVectorizedGraph {
     }
 }
 
-fn spawn_async_task<O: Send + 'static, F: Future<Output = O> + Send + 'static>(
-    task: F,
-) -> F::Output {
+// This function takes a function that returns a future instead of a just a future because vector
+// APIs return unsendable futures but what we can do is making a function returning those futures
+// which is sendable itself
+fn spawn_async_task<T, F, O>(task: T) -> O
+where
+    T: FnOnce() -> F + Send + 'static,
+    F: Future<Output = O> + 'static,
+    O: Send + 'static,
+{
     thread::spawn(move || {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap()
-            .block_on(task)
+            .block_on(task())
     })
     .join()
     .expect("error when waiting for async task to complete")

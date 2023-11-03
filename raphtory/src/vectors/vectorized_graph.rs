@@ -30,6 +30,7 @@ pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     // it is not the end of the world but we are storing the entity id twice
     node_documents: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
     edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
+    empty_vec: Vec<DocumentRef>,
 }
 
 impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
@@ -46,6 +47,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
             embedding,
             node_documents,
             edge_documents,
+            empty_vec: vec![],
         }
     }
 
@@ -139,7 +141,6 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
 
         let scored_edges = score_documents(&query_embedding, window_edges.cloned());
         let mut selected_edges = find_top_k(scored_edges, init);
-
         for _ in 0..min_nodes {
             let doc = selected_nodes.next().unwrap();
             entry_point.push(doc);
@@ -185,6 +186,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
             .collect_vec()
     }
 
+    // this might return the document used as input, uniqueness need to be check outside of this
     fn get_context<'a, V: GraphViewOps>(
         &'a self,
         document: &DocumentRef,
@@ -198,7 +200,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
                 let edges = graph.vertex(id).unwrap().edges();
                 let edge_docs = edges.flat_map(|edge| {
                     let edge_id = edge.into();
-                    self.edge_documents.get(&edge_id).unwrap()
+                    self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
                 });
                 Box::new(
                     chain!(self_docs, edge_docs)
