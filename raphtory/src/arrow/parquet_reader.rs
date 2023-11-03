@@ -6,12 +6,12 @@ use std::{
 };
 
 use arrow2::{
-    array::Array,
+    array::{Array, StructArray},
     chunk::Chunk,
     datatypes::Schema,
     io::parquet::{
         read::{infer_schema, RowGroupMetaData},
-        write::FileMetaData,
+        write::FileMetaData, self,
     },
 };
 use itertools::Itertools;
@@ -19,32 +19,124 @@ use rayon::prelude::*;
 
 use super::Error;
 
-struct ParquetReader {}
+struct ParquetReader<P: AsRef<Path>> {
+    files: Vec<PathBuf>,
+    graph_dir: P,
+}
 
-impl ParquetReader {
-    fn new(path: impl AsRef<Path> + Clone) -> Result<Self, Error> {
-        let meta = std::fs::metadata(path.as_ref());
+impl<P: AsRef<Path> + Clone> ParquetReader<P> {
+    fn new(graph_dir: P, parquet_path: P) -> Result<Self, Error> {
+        let meta = std::fs::metadata(parquet_path.as_ref());
         if let Ok(meta) = meta {
             let mut files = if meta.is_dir() {
-                let iter = std::fs::read_dir(path.as_ref())?;
+                let iter = std::fs::read_dir(parquet_path.as_ref())?;
                 let entries: Result<Vec<_>, _> =
                     iter.into_iter().map_ok(|res| res.path()).collect();
                 entries?
             } else {
-                vec![path.as_ref().to_path_buf()]
+                vec![parquet_path.as_ref().to_path_buf()]
             };
             files.sort();
 
-            todo!()
+            Ok(Self { files, graph_dir })
         } else {
             Err(Error::NoEdgeLists)
         }
     }
+
+    fn row_group_iter(self) -> impl Iterator<Item = (PathBuf, RowGroupMetaData)> {
+        self.files.into_iter().flat_map(|file| {
+            let metadata = read_file_metadata(&file)
+                .expect(&format!("failed to read metadata for file {:?}", file));
+            metadata
+                .row_groups
+                .into_iter()
+                .map(move |row_group| (file.clone(), row_group))
+        })
+    }
+
+    fn parquet_offset_iter(
+        self,
+        chunk_size: usize,
+    ) -> impl Iterator<Item = Vec<ParquetOffset<RowGroupMetaData>>> {
+        ParquetOffsetIter::new(self.row_group_iter(), chunk_size)
+    }
+
+    fn load_edges(self, chunk_size: usize) {
+        let offset_iter = self.parquet_offset_iter(chunk_size);
+
+        let iter = offset_iter.enumerate().par_bridge();
+        iter.for_each(|(chunk_id, parquet_offsets)| {})
+    }
+}
+
+// fn into_struct_array(offset: &ParquetOffset<RowGroupMetaData>) -> Result<impl Iterator<Item = Result<StructArray, Error>>, Error> {
+//     let metadata = read_file_metadata(&offset.file)?;
+//     let file = std::fs::File::open(&offset.file)?;
+//     let row_group = offset.row_group;
+//     let schema = infer_schema(&metadata)?;
+
+//     let mut reader = arrow2::io::parquet::read::FileReader::new(
+//         file,
+//         vec![row_group],
+//         schema,
+//         None,
+//         None,
+//         None,
+//     );
+//     let batch = reader.next().expect("failed to read batch");
+//     batch
+// }
+
+fn into_struct_arrays(
+    offsets: &[ParquetOffset<RowGroupMetaData>],
+) -> impl Iterator<Item = Result<StructArray, Error>> {
+    let iter = offsets
+        .iter()
+        .group_by(|&offset| &offset.file)
+        .into_iter()
+        .flat_map(|(file, offsets)| {
+            let metadata = read_file_metadata(&file)
+                .expect(&format!("failed to read metadata for file {:?}", file));
+            let file = std::fs::File::open(&file)
+                .expect(&format!("failed to open parquet file {:?}", file));
+            let mut row_groups = vec![];
+            let mut ranges = vec![];
+            for offset in offsets {
+                row_groups.push(offset.row_group.clone());
+                ranges.push(offset.range.clone());
+            }
+            let schema = infer_schema(&metadata).expect("failed to infer schema");
+
+            let reader = parquet::read::FileReader::new(
+                file, row_groups, schema, None, None, None,
+            );
+            reader
+        });
+    std::iter::empty()
+    // offsets.iter().map(|offset| {
+    //     let file = std::fs::File::open(&offset.file).expect(&format!(
+    //         "failed to open parquet file {:?}",
+    //         offset.file
+    //     ));
+    //     let row_group = offset.row_group.clone();
+    //     let schema = infer_schema(&row_group).expect("failed to infer schema");
+    //     let mut reader = arrow2::io::parquet::read::FileReader::new(
+    //         file,
+    //         vec![row_group],
+    //         schema,
+    //         None,
+    //         None,
+    //         None,
+    //     );
+    //     let batch = reader.next().expect("failed to read batch");
+    //     batch
+    // })
 }
 
 fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
     let mut file = std::fs::File::open(path.as_ref())?;
-    let meta = arrow2::io::parquet::read::read_metadata(&mut file)?;
+    let meta = parquet::read::read_metadata(&mut file)?;
     Ok(meta)
 }
 
@@ -75,7 +167,7 @@ fn read_parquet_row_groups<F: Read + Seek + Sync + Send>(
     groups: &[RowGroupMetaData],
     schema: &Schema,
 ) -> impl Iterator<Item = Result<Chunk<Box<dyn Array>>, Error>> + Sync + Send {
-    let iter = arrow2::io::parquet::read::FileReader::new(
+    let iter = parquet::read::FileReader::new(
         r,
         groups.to_vec(),
         schema.clone(),

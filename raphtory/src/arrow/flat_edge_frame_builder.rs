@@ -52,17 +52,21 @@ impl EdgeFrameBuilder {
         }
     }
 
+    fn chunk_size(&self) -> usize {
+        self.temporal.chunk_size()
+    }
+
     pub fn extend_tprops_slice(&mut self, copy_from: &StructArray) -> Result<(), Error> {
         if self.t_props_len > 0 {
             let first_len = min(
-                self.temporal.chunk_size() - self.t_props_len,
+                self.chunk_size() - self.t_props_len,
                 copy_from.len(),
             );
             let first = copy_from.clone().sliced(0, first_len);
             self.t_props_len += first.len();
             self.t_props.push(first);
 
-            if self.t_props_len == self.temporal.chunk_size() {
+            if self.t_props_len == self.chunk_size() {
                 let mut refs: Vec<&dyn Array> = Vec::with_capacity(self.t_props.len());
                 for v in self.t_props.iter() {
                     refs.push(v);
@@ -84,16 +88,16 @@ impl EdgeFrameBuilder {
                 self.extend_tprops_slice(&remainder)?;
             }
         } else {
-            if copy_from.len() < self.temporal.chunk_size() {
+            if copy_from.len() < self.chunk_size() {
                 self.t_props_len += copy_from.len();
                 self.t_props.push(copy_from.clone());
             } else {
-                let first = copy_from.clone().sliced(0, self.temporal.chunk_size());
+                let first = copy_from.clone().sliced(0, self.chunk_size());
                 self.push_temporal(first)?;
-                if copy_from.len() > self.temporal.chunk_size() {
+                if copy_from.len() > self.chunk_size() {
                     let remainder = copy_from.clone().sliced(
-                        self.temporal.chunk_size(),
-                        copy_from.len() - self.temporal.chunk_size(),
+                        self.chunk_size(),
+                        copy_from.len() - self.chunk_size(),
                     );
                     self.extend_tprops_slice(&remainder)?;
                 }
