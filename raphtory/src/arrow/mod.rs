@@ -21,6 +21,7 @@ pub mod ipc;
 pub(crate) mod list_buffer;
 pub mod loader;
 pub mod mmap;
+pub(crate) mod parquet_reader;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
 pub(crate) mod flat_edge_frame_builder;
