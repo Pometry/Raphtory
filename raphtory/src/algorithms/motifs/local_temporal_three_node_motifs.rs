@@ -400,42 +400,6 @@ where
     out2
 }
 
-pub fn global_temporal_three_node_motif_from_local(
-    counts: HashMap<String, Vec<usize>>,
-) -> Vec<usize> {
-    let tmp_counts = counts.values().fold(vec![0; 40], |acc, x| {
-        acc.iter().zip(x.iter()).map(|(x1, x2)| x1 + x2).collect()
-    });
-    tmp_counts
-}
-
-pub fn global_temporal_three_node_motif<G: GraphViewOps>(
-    graph: &G,
-    delta: i64,
-    threads: Option<usize>,
-) -> Vec<usize> {
-    let counts = global_temporal_three_node_motif_general(graph, vec![delta], threads);
-    counts[0].clone()
-}
-
-pub fn global_temporal_three_node_motif_general<G: GraphViewOps>(
-    graph: &G,
-    deltas: Vec<i64>,
-    threads: Option<usize>,
-) -> Vec<Vec<usize>> {
-    let counts = temporal_three_node_motif(graph, deltas.clone(), threads);
-
-    let mut result: Vec<Vec<usize>> = vec![vec![0; 40]; deltas.len()];
-    for (_, values) in counts.iter() {
-        for i in 0..deltas.len() {
-            for j in 0..40 {
-                result[i][j] += values[i][j]
-            }
-        }
-    }
-    result
-}
-
 #[cfg(test)]
 mod motifs_test {
     use super::*;
@@ -454,7 +418,7 @@ mod motifs_test {
     }
 
     #[test]
-    fn test_two_node_motif() {
+    fn test_local_motif() {
         let g = load_graph(vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -574,48 +538,5 @@ mod motifs_test {
                 expected.get(&ind.to_string()).unwrap()
             );
         }
-    }
-
-    #[test]
-    fn test_global() {
-        let g = load_graph(vec![
-            (1, 1, 2),
-            (1, 1, 2),
-            (2, 1, 3),
-            (2, 1, 3),
-            (3, 1, 4),
-            (4, 3, 1),
-            (5, 3, 4),
-            (6, 3, 5),
-            (7, 4, 5),
-            (8, 5, 6),
-            (9, 5, 8),
-            (10, 7, 5),
-            (11, 8, 5),
-            (12, 1, 9),
-            (13, 9, 1),
-            (14, 6, 3),
-            (15, 4, 8),
-            (16, 8, 3),
-            (17, 5, 10),
-            (18, 10, 5),
-            (19, 10, 8),
-            (20, 1, 11),
-            (21, 11, 1),
-            (22, 9, 11),
-            (23, 11, 9),
-        ]);
-
-        let global_motifs = &global_temporal_three_node_motif(&g, 10, None);
-        assert_eq!(
-            *global_motifs,
-            vec![
-                0, 2, 3, 8, 2, 4, 1, 5, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1, 6, 0, 0, 1, 10, 2, 0, 1, 0,
-                0, 0, 0, 1, 0, 2, 3, 2, 4, 1, 2, 4, 1
-            ]
-            .into_iter()
-            .map(|x| x as usize)
-            .collect::<Vec<usize>>()
-        );
     }
 }
