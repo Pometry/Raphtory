@@ -1,6 +1,8 @@
 use std::{
+    cmp::min,
     io::{Read, Seek},
-    path::{Path, PathBuf}, ops::Range,
+    ops::Range,
+    path::{Path, PathBuf},
 };
 
 use arrow2::{
@@ -90,35 +92,64 @@ struct ParquetOffset {
     range: Range<usize>,
 }
 
-struct ParquetOffsetIter<P:AsRef<Path>, I: Iterator<Item = P>>{
-    files: I,
+struct ParquetOffsetIter<P: AsRef<Path>, I: Iterator<Item = (P, RowGroupMetaData)>> {
+    row_groups: I,
     chunk_size: usize,
+    current: Option<(P, RowGroupMetaData)>,
+    offset: usize,
 }
 
-impl <P:AsRef<Path>, I: Iterator<Item = P>> ParquetOffsetIter<P, I> {
-    fn new(files: I, chunk_size: usize) -> Self {
+impl<P: AsRef<Path>, I: Iterator<Item = (P, RowGroupMetaData)>> ParquetOffsetIter<P, I> {
+    fn new(mut row_groups: I, chunk_size: usize) -> Self {
+        let first = row_groups.next();
         Self {
-            files,
+            row_groups,
             chunk_size,
+            current: first,
+            offset: 0,
         }
     }
 }
 
 // iterator
-impl <P:AsRef<Path>, I: Iterator<Item = P>> Iterator for ParquetOffsetIter<P, I> {
-    type Item = Result<ParquetOffset, Error>;
+impl<P: AsRef<Path>, I: Iterator<Item = (P, RowGroupMetaData)>> Iterator
+    for ParquetOffsetIter<P, I>
+{
+    type Item = Vec<ParquetOffset>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let file = self.files.next()?;
-        let meta = read_file_metadata(file.as_ref()).ok()?;
-        let row_groups = meta.row_groups;
-        None
+        let mut chunks: Vec<ParquetOffset> = vec![];
+        let mut chunk_len: usize = 0;
+        while chunk_len < self.chunk_size {
+            if let Some((file, current)) = self.current.as_ref() {
+                let remaining_in_current = current.num_rows() - self.offset;
+                let needed = self.chunk_size - chunk_len;
+                let from_current = min(needed, remaining_in_current);
+                let next_parquet_chunk = ParquetOffset {
+                    file: file.as_ref().to_path_buf(),
+                    row_group: current.clone(),
+                    range: self.offset..self.offset + from_current,
+                };
+                chunk_len += from_current;
+                chunks.push(next_parquet_chunk);
+                if remaining_in_current <= needed {
+                    self.offset = 0;
+                    self.current = self.row_groups.next();
+                } else {
+                    self.offset += from_current;
+                }
+            } else {
+                // no more data, could be partial last chunk
+                break;
+            }
+        }
+        if chunks.is_empty() {
+            None
+        } else {
+            Some(chunks)
+        }
     }
 }
 
-
-
 #[cfg(test)]
-mod test {
-
-}
+mod test {}
