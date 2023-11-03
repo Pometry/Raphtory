@@ -155,15 +155,14 @@ mod vector_tests {
         // the following succeeds with no cache set up
         g.vectorize(Box::new(fake_embedding), None).await;
 
-        // TODO: REMOVE FILE BEFORE!!!!!!!!!!!!
-
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
-
-        remove_file(path);
+        let _ = remove_file(path);
 
         // the following creates the embeddings, and store them on the cache
         g.vectorize(Box::new(fake_embedding), Some(PathBuf::from(path)))
             .await;
+
+        println!("now the embeddings should be already in the cache");
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
