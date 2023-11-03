@@ -9,11 +9,14 @@ use arrow2::{
     compute::{concatenate, concatenate::concatenate},
     datatypes::{DataType, Field, Schema},
 };
-use std::{cmp::min, path::PathBuf};
+use std::{
+    cmp::min,
+    path::{Path, PathBuf},
+};
 
 pub struct EdgeFrameBuilder {
-    temporal: ChunkedListArray<StructArray>,
-    constant: ChunkedArray<StructArray>,
+    pub temporal: ChunkedListArray<StructArray>,
+    pub constant: ChunkedArray<StructArray>,
 
     t_props: Vec<StructArray>,
     edge_src_id: Vec<u64>,  // the src ids for the edge in the current chunk
@@ -28,7 +31,12 @@ pub struct EdgeFrameBuilder {
 }
 
 impl EdgeFrameBuilder {
-    fn new(temporal_chunk_size: usize, constant_chunk_size: usize) -> EdgeFrameBuilder {
+    fn new<P: AsRef<Path>>(
+        location_path: P,
+        temporal_chunk_size: usize,
+        constant_chunk_size: usize,
+    ) -> EdgeFrameBuilder {
+        let location_path = location_path.as_ref().into();
         Self {
             temporal: ChunkedListArray::new(temporal_chunk_size),
             constant: ChunkedArray::new(constant_chunk_size),
@@ -40,7 +48,7 @@ impl EdgeFrameBuilder {
             no_edge_updates: 0,
             last_update: None,
             edge_count: 0,
-            location_path: Default::default(),
+            location_path,
         }
     }
 
@@ -109,4 +117,46 @@ impl EdgeFrameBuilder {
 }
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use crate::arrow::flat_edge_frame_builder::EdgeFrameBuilder;
+    use arrow2::{
+        array::{PrimitiveArray, StructArray},
+        datatypes::{DataType, Field},
+    };
+    use itertools::Itertools;
+    use tempfile::tempdir;
+
+    fn make_chunks(data: Vec<Vec<i32>>) -> Vec<StructArray> {
+        let schema = DataType::Struct(vec![Field::new("test", DataType::Int32, false)]);
+        data.into_iter()
+            .map(|v| {
+                StructArray::new(
+                    schema.clone(),
+                    vec![PrimitiveArray::from_vec(v).boxed()],
+                    None,
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_push() {
+        let data = make_chunks(vec![vec![0, 1, 2, 3], vec![4, 5], vec![6, 7, 8, 9, 10, 11]]);
+        let test_dir = tempdir().unwrap();
+        let mut builder = EdgeFrameBuilder::new(test_dir.path(), 3, 1);
+        for chunk in data.iter() {
+            builder.extend_tprops_slice(chunk).unwrap();
+        }
+        let values: Vec<i32> = builder
+            .temporal
+            .values()
+            .primitive_col::<i32>(0)
+            .unwrap()
+            .iter_chunks()
+            .flatten()
+            .flatten()
+            .collect();
+        assert_eq!(builder.temporal.values().num_chunks(), 4);
+        assert_eq!(values, (0..=11).collect_vec())
+    }
+}
