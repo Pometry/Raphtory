@@ -8,7 +8,7 @@ use std::{
 use arrow2::{
     array::{Array, StructArray},
     chunk::Chunk,
-    datatypes::Schema,
+    datatypes::{Schema, DataType},
     io::parquet::{
         read::{infer_schema, RowGroupMetaData},
         write::FileMetaData, self,
@@ -70,24 +70,6 @@ impl<P: AsRef<Path> + Clone> ParquetReader<P> {
     }
 }
 
-// fn into_struct_array(offset: &ParquetOffset<RowGroupMetaData>) -> Result<impl Iterator<Item = Result<StructArray, Error>>, Error> {
-//     let metadata = read_file_metadata(&offset.file)?;
-//     let file = std::fs::File::open(&offset.file)?;
-//     let row_group = offset.row_group;
-//     let schema = infer_schema(&metadata)?;
-
-//     let mut reader = arrow2::io::parquet::read::FileReader::new(
-//         file,
-//         vec![row_group],
-//         schema,
-//         None,
-//         None,
-//         None,
-//     );
-//     let batch = reader.next().expect("failed to read batch");
-//     batch
-// }
-
 fn into_struct_arrays(
     offsets: &[ParquetOffset<RowGroupMetaData>],
 ) -> impl Iterator<Item = Result<StructArray, Error>> {
@@ -109,29 +91,18 @@ fn into_struct_arrays(
             let schema = infer_schema(&metadata).expect("failed to infer schema");
 
             let reader = parquet::read::FileReader::new(
-                file, row_groups, schema, None, None, None,
+                file, row_groups, schema.clone(), None, None, None,
             );
-            reader
+
+            // we assume the rowgroup maps to a chunk 1-1
+            reader.zip(ranges.into_iter()).map(move |(chunk, range)|{
+                let chunk = chunk.expect("failed to read parquet chunk").into_arrays();
+                let mut chunk = StructArray::new(DataType::Struct(schema.fields.clone()), chunk, None);
+                chunk.slice(range.start, range.end);
+                chunk
+            })
         });
     std::iter::empty()
-    // offsets.iter().map(|offset| {
-    //     let file = std::fs::File::open(&offset.file).expect(&format!(
-    //         "failed to open parquet file {:?}",
-    //         offset.file
-    //     ));
-    //     let row_group = offset.row_group.clone();
-    //     let schema = infer_schema(&row_group).expect("failed to infer schema");
-    //     let mut reader = arrow2::io::parquet::read::FileReader::new(
-    //         file,
-    //         vec![row_group],
-    //         schema,
-    //         None,
-    //         None,
-    //         None,
-    //     );
-    //     let batch = reader.next().expect("failed to read batch");
-    //     batch
-    // })
 }
 
 fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
