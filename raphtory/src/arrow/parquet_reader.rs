@@ -6,7 +6,7 @@ use std::{
 
 use arrow2::{
     array::{Array, StructArray},
-    chunk::Chunk,
+    chunk::{self, Chunk},
     compute::concatenate::concatenate,
     datatypes::{DataType, Schema},
     io::parquet::{
@@ -19,22 +19,28 @@ use itertools::Itertools;
 use rayon::prelude::*;
 
 use super::{
+    array_as_id_iter,
     chunked_array::chunked_array::ChunkedArray,
     ipc::read_schema,
     mmap::{mmap_batch, write_batches},
-    Error,
+    Error, GID,
 };
 
 pub(crate) struct ParquetReader<P> {
     files: Vec<PathBuf>,
     graph_dir: P,
-    schema: Schema,
+    edge_t_prop_schema: Schema,
+    src_dest_schema: Schema,
+    src_col_idx: usize,
+    dst_col_idx: usize,
 }
 
 impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
     pub(crate) fn new(
         graph_dir: P,
         parquet_path: P,
+        src_col: &str,
+        dst_col: &str,
         excluded_cols: Vec<String>,
     ) -> Result<Self, Error> {
         let meta = std::fs::metadata(parquet_path.as_ref());
@@ -52,21 +58,40 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
             // read the first file and map the excluded columns to their indices
             let first_file = files.first().ok_or_else(|| Error::NoEdgeLists)?;
             let parquet_meta = read_file_metadata(first_file)?;
-            let schema = infer_schema(&parquet_meta)?
-                .filter(|_, field| !excluded_cols.contains(&field.name));
+            let schema = infer_schema(&parquet_meta)?;
+
+            let src_dest_schema = schema
+                .clone()
+                .filter(|_, field| field.name == src_col || field.name == dst_col);
+
+            let src_col = src_dest_schema
+                .fields
+                .iter()
+                .position(|f| f.name == src_col)
+                .ok_or_else(|| Error::ColumnNotFound(src_col.to_owned()))?;
+            let dst_col = src_dest_schema
+                .fields
+                .iter()
+                .position(|f| f.name == dst_col)
+                .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
+
+            let edge_t_prop_schema = schema.filter(|_, field| !excluded_cols.contains(&field.name));
 
             Ok(Self {
                 files,
                 graph_dir,
-                schema,
+                edge_t_prop_schema,
+                src_dest_schema,
+                src_col_idx: src_col,
+                dst_col_idx: dst_col,
             })
         } else {
             Err(Error::NoEdgeLists)
         }
     }
 
-    fn row_group_iter(self) -> impl Iterator<Item = (PathBuf, RowGroupMetaData)> {
-        self.files.into_iter().flat_map(|file| {
+    fn row_group_iter(&self) -> impl Iterator<Item = (PathBuf, RowGroupMetaData)> + '_ {
+        self.files.iter().flat_map(|file| {
             let metadata = read_file_metadata(&file)
                 .expect(&format!("failed to read metadata for file {:?}", file));
             metadata
@@ -77,15 +102,15 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
     }
 
     fn parquet_offset_iter(
-        self,
+        &self,
         chunk_size: usize,
-    ) -> impl Iterator<Item = Vec<ParquetOffset<RowGroupMetaData>>> {
+    ) -> impl Iterator<Item = Vec<ParquetOffset<RowGroupMetaData>>> + '_ {
         ParquetOffsetIter::new(self.row_group_iter(), chunk_size)
     }
 
-    pub(crate) fn load_edges(self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
+    pub(crate) fn load_edges(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
         let graph_dir = self.graph_dir.clone();
-        let schema = self.schema.clone();
+        let schema = self.edge_t_prop_schema.clone();
 
         let offset_iter = self.parquet_offset_iter(chunk_size).collect_vec();
 
@@ -105,6 +130,32 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
 
         Ok(ChunkedArray::from_vec(chunk_size, arrays))
     }
+
+    pub(crate) fn load_temporal_props_offsets(&self) {
+        self.files
+            .par_iter()
+            .flat_map_iter(|path| {
+                read_parquet_file(path, self.src_dest_schema.clone())
+                    .expect("failed to read parquet file")
+            })
+            .map(|chunk| {});
+    }
+
+    fn count_chunk(&self, chunk: Result<Chunk<Box<dyn Array>>, arrow2::error::Error>) -> Result<(), Error> {
+        let chunk = chunk?;
+        let srcs = &chunk[self.src_col_idx];
+        let dests = &chunk[self.dst_col_idx];
+
+        let srcs = array_as_id_iter(srcs)?;
+        let dests = array_as_id_iter(dests)?;
+
+        Ok(())
+    }
+}
+
+struct EdgeBounds {
+    first: (GID, GID),
+    last: (GID, GID),
 }
 
 fn write_temporal_properties(
@@ -119,6 +170,18 @@ fn write_temporal_properties(
     Ok(mmapped)
 }
 
+fn read_parquet_file(
+    path: impl AsRef<Path>,
+    schema: Schema,
+) -> Result<impl Iterator<Item = Result<Chunk<Box<dyn Array>>, arrow2::error::Error>>, Error> {
+    let file = std::fs::File::open(&path)?;
+    let metadata = read_file_metadata(&path)?;
+    let row_groups = metadata.row_groups;
+
+    let reader = parquet::read::FileReader::new(file, row_groups, schema, None, None, None);
+    Ok(reader)
+}
+
 fn into_struct_arrays<'a>(
     offsets: Vec<ParquetOffset<RowGroupMetaData>>,
     schema: &Schema,
@@ -126,8 +189,6 @@ fn into_struct_arrays<'a>(
     let group = offsets.iter().group_by(|&offset| &offset.file);
 
     let iter = group.into_iter().flat_map(|(file, offsets)| {
-        let metadata = read_file_metadata(&file)
-            .expect(&format!("failed to read metadata for file {:?}", file));
         let file =
             std::fs::File::open(&file).expect(&format!("failed to open parquet file {:?}", file));
         let mut row_groups = vec![];
@@ -413,12 +474,12 @@ mod test {
         assert_eq!(&time[0..3], [7263521, 7257667, 7296325]);
 
         match chunked_array.data_type().unwrap() {
-            DataType::Struct(fields) =>{
+            DataType::Struct(fields) => {
                 assert_eq!(fields.len(), 9, "expected 9 fields, got {:?}", fields);
                 assert_eq!(fields[0].name, "epoch_time");
                 assert_eq!(fields[0].data_type(), &DataType::Int64);
             }
-            _ => panic!("expected struct array")
+            _ => panic!("expected struct array"),
         }
     }
 }
