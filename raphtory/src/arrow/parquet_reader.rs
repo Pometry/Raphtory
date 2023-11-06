@@ -5,24 +5,25 @@ use std::{
 };
 
 use arrow2::{
-    array::{Array, StructArray},
+    array::{Array, PrimitiveArray, StructArray},
     buffer::Buffer,
-    chunk::{self, Chunk},
+    chunk::Chunk,
     compute::concatenate::concatenate,
-    datatypes::{DataType, Schema},
+    datatypes::{DataType, Field, PhysicalType, Schema},
     io::parquet::{
         self,
         read::{infer_schema, RowGroupMetaData},
         write::FileMetaData,
     },
     offset::OffsetsBuffer,
+    types::NativeType,
 };
 use itertools::Itertools;
 use rayon::prelude::*;
 
 use super::{
     array_as_id_iter,
-    chunked_array::chunked_array::ChunkedArray,
+    chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
     ipc::read_schema,
     mmap::{mmap_batch, write_batches},
     Error, GID,
@@ -110,7 +111,16 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         ParquetOffsetIter::new(self.row_group_iter(), chunk_size)
     }
 
-    pub(crate) fn load_edges(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
+    pub(crate) fn load_edges(
+        &self,
+        chunk_size: usize,
+    ) -> Result<ChunkedListArray<StructArray>, Error> {
+        let edge_values = self.load_t_edge_values(chunk_size)?;
+        let edge_offsets = self.load_t_edge_offsets()?;
+        Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
+    }
+
+    fn load_t_edge_values(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
         let graph_dir = self.graph_dir.clone();
         let schema = self.edge_t_prop_schema.clone();
 
@@ -133,7 +143,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         Ok(ChunkedArray::from_vec(chunk_size, arrays))
     }
 
-    pub(crate) fn load_temporal_props_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
+    fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
         let bounds_and_counts = self
             .files
             .par_iter()
@@ -172,8 +182,13 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
             old_bounds = bounds;
         }
 
+        let buffer = Buffer::from(offsets);
+        write_buffer(
+            self.graph_dir.as_ref().join("edge_offsets.ipc"),
+            buffer.clone(),
+        )?;
         //safety: we made some offsets that are increasing and start at 0
-        Ok(unsafe { OffsetsBuffer::new_unchecked(Buffer::from(offsets)) })
+        Ok(unsafe { OffsetsBuffer::new_unchecked(buffer) })
     }
 
     fn count_chunk(
@@ -208,6 +223,19 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
 struct EdgeBounds {
     first: (GID, GID),
     last: (GID, GID),
+}
+
+fn write_buffer<T: NativeType>(
+    file_path: impl AsRef<Path>,
+    buffer: Buffer<T>,
+) -> Result<(), Error> {
+    let arr: PrimitiveArray<T> =
+        unsafe { PrimitiveArray::from_inner_unchecked(T::PRIMITIVE.into(), buffer, None) };
+
+    let schema = Schema::from(vec![Field::new("offsets", arr.data_type().clone(), false)]);
+    let chunk = Chunk::new(vec![arr.boxed()]);
+    write_batches(file_path, schema, &[chunk])?;
+    Ok(())
 }
 
 fn write_temporal_properties(
@@ -513,10 +541,12 @@ mod test {
             ParquetReader::new(graph_dir.path(), nft.as_path(), "src", "dst", excluded_cols)
                 .unwrap();
 
-        let chunked_array = reader.load_edges(17).unwrap();
-        assert_eq!(chunked_array.len(), 100);
+        let list_arr = reader.load_edges(17).unwrap();
+        let list_arr_vs = list_arr.values();
+        assert_eq!(list_arr.len(), 97);
+        assert_eq!(list_arr_vs.len(), 100);
 
-        let time = chunked_array
+        let time = list_arr_vs
             .primitive_col::<i64>(0)
             .unwrap()
             .iter_chunks()
@@ -527,7 +557,8 @@ mod test {
         assert_eq!(time.len(), 100);
         assert_eq!(&time[0..3], [7263521, 7257667, 7296325]);
 
-        match chunked_array.data_type().unwrap() {
+
+        match list_arr_vs.data_type().unwrap() {
             DataType::Struct(fields) => {
                 assert_eq!(fields.len(), 9, "expected 9 fields, got {:?}", fields);
                 assert_eq!(fields[0].name, "epoch_time");
@@ -535,5 +566,26 @@ mod test {
             }
             _ => panic!("expected struct array"),
         }
+
+        let slice = list_arr.value(11);
+        assert_eq!(slice.len(), 3);
+        let epoch_time: Vec<i64> = slice
+            .primitive_col(0)
+            .unwrap()
+            .into_iter()
+            .flatten()
+            .collect();
+        assert_eq!(epoch_time, [7258036, 7264284, 7318417]);
+
+        // check the 3rd column
+        let src_port = slice
+            .primitive_col::<i64>(3)
+            .unwrap()
+            .iter_chunks()
+            .flat_map(|arr| arr.into_iter())
+            .flatten()
+            .collect_vec();
+        assert_eq!(src_port, [56987, 94271, 79502]);
+
     }
 }
