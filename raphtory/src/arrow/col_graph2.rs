@@ -42,11 +42,10 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
-    edge_chunk::EdgeChunk,
     global_order::{GlobalMap, GlobalOrder},
     ipc,
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID,
+    LoadChunk, Time, GID, edges::Edges,
 };
 
 #[derive(Debug)]
@@ -55,7 +54,7 @@ pub struct TempColGraphFragment {
     edge_chunk_size: usize,
     adj_out_chunks: Vec<VertexChunk>,
     adj_in_chunks: Vec<VertexChunk>,
-    edge_chunks: Vec<EdgeChunk>,
+    edges: Edges,
     graph_dir: Box<Path>,
 }
 
@@ -343,7 +342,7 @@ impl TempColGraphFragment {
             edge_chunk_size,
             adj_out_chunks: vf_builder.adj_out_chunks,
             adj_in_chunks: Vec::default(),
-            edge_chunks: edge_builder.edge_chunks,
+            edge_chunks: edge_builder.src_chunks,
             graph_dir: base_dir.as_ref().into(),
         })
     }
@@ -786,13 +785,6 @@ pub(crate) fn load_chunks<GO: GlobalOrder>(
     let mut last_chunk: Option<LoadChunk> = None;
     // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
     for mut chunk in chunks_iter.into_iter() {
-        // when new chunk comes in, we need to finalise the previous chunk aka, copy the column?
-        if let Some(last_chunk) = last_chunk {
-            if let Some(t_prop_cols) = last_chunk.t_prop_cols() {
-                edge_builder.extend_tprops_slice(t_prop_cols)?;
-            }
-        }
-
         // get the source and destintion columns
         let src_iter = chunk.sources()?;
         let dst_iter = chunk.destinations()?;
@@ -800,7 +792,7 @@ pub(crate) fn load_chunks<GO: GlobalOrder>(
         for (src, dst) in src_iter.zip(dst_iter) {
             let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
 
-            edge_builder.push_update_with_props(src_id, dst_id, &mut chunk)?;
+            edge_builder.push_update(src_id, dst_id)?;
         }
 
         last_chunk = Some(chunk);
