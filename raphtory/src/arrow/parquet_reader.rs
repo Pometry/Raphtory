@@ -509,14 +509,9 @@ mod test {
             "src_hash".to_string(),
         ];
 
-        let reader = ParquetReader::new(
-            graph_dir.path(),
-            nft.as_path(),
-            "src",
-            "dest",
-            excluded_cols,
-        )
-        .unwrap();
+        let reader =
+            ParquetReader::new(graph_dir.path(), nft.as_path(), "src", "dst", excluded_cols)
+                .unwrap();
 
         let chunked_array = reader.load_edges(17).unwrap();
         assert_eq!(chunked_array.len(), 100);
