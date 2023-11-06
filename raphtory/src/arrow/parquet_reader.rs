@@ -6,6 +6,7 @@ use std::{
 
 use arrow2::{
     array::{Array, StructArray},
+    buffer::Buffer,
     chunk::{self, Chunk},
     compute::concatenate::concatenate,
     datatypes::{DataType, Schema},
@@ -14,6 +15,7 @@ use arrow2::{
         read::{infer_schema, RowGroupMetaData},
         write::FileMetaData,
     },
+    offset::OffsetsBuffer,
 };
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -131,17 +133,53 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         Ok(ChunkedArray::from_vec(chunk_size, arrays))
     }
 
-    pub(crate) fn load_temporal_props_offsets(&self) {
-        self.files
+    pub(crate) fn load_temporal_props_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
+        let bounds_and_counts = self
+            .files
             .par_iter()
             .flat_map_iter(|path| {
                 read_parquet_file(path, self.src_dest_schema.clone())
                     .expect("failed to read parquet file")
             })
-            .map(|chunk| {});
+            .map(|chunk| self.count_chunk(chunk))
+            .collect::<Result<Vec<_>, Error>>()?;
+
+        let mut bounds_and_counts_iter = bounds_and_counts.into_iter();
+        let (mut old_bounds, counts) = bounds_and_counts_iter
+            .next()
+            .ok_or_else(|| Error::NoEdgeLists)?;
+
+        let mut offsets: Vec<i64> = vec![0];
+        offsets.extend(counts.into_iter().scan(0i64, |state, v| {
+            let new = v as i64 + *state;
+            *state = new;
+            Some(new)
+        }));
+
+        for (bounds, counts) in bounds_and_counts_iter {
+            let mut counts_iter = counts.into_iter();
+
+            if bounds.first == old_bounds.last {
+                let first_count = counts_iter.next().ok_or_else(|| Error::EmptyChunk)?;
+                *offsets.last_mut().unwrap() += first_count as i64;
+            }
+            let last_value = *offsets.last().unwrap();
+            offsets.extend(counts_iter.scan(last_value, |state, v| {
+                let new = v as i64 + *state;
+                *state = new;
+                Some(new)
+            }));
+            old_bounds = bounds;
+        }
+
+        //safety: we made some offsets that are increasing and start at 0
+        Ok(unsafe { OffsetsBuffer::new_unchecked(Buffer::from(offsets)) })
     }
 
-    fn count_chunk(&self, chunk: Result<Chunk<Box<dyn Array>>, arrow2::error::Error>) -> Result<(), Error> {
+    fn count_chunk(
+        &self,
+        chunk: Result<Chunk<Box<dyn Array>>, arrow2::error::Error>,
+    ) -> Result<(EdgeBounds, Vec<usize>), Error> {
         let chunk = chunk?;
         let srcs = &chunk[self.src_col_idx];
         let dests = &chunk[self.dst_col_idx];
@@ -149,7 +187,21 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         let srcs = array_as_id_iter(srcs)?;
         let dests = array_as_id_iter(dests)?;
 
-        Ok(())
+        let mut iter = srcs.zip(dests);
+        let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
+        let mut last = first.clone();
+        let mut counts: Vec<usize> = vec![1];
+
+        for edge in iter {
+            if edge == last {
+                *counts.last_mut().expect("this is not empty") += 1;
+            } else {
+                counts.push(1);
+            }
+            last = edge;
+        }
+
+        Ok((EdgeBounds { first, last }, counts))
     }
 }
 

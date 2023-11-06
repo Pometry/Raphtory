@@ -15,6 +15,7 @@ pub(crate) mod columnar_graph;
 pub mod edge;
 pub(crate) mod edge_chunk;
 pub(crate) mod edge_frame_builder;
+pub(crate) mod flat_edge_frame_builder;
 pub(crate) mod global_order;
 pub mod graph;
 pub mod ipc;
@@ -24,7 +25,6 @@ pub mod mmap;
 pub(crate) mod parquet_reader;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
-pub(crate) mod flat_edge_frame_builder;
 
 pub type Time = i64;
 
@@ -48,6 +48,8 @@ pub enum Error {
     NoEdgeLists,
     #[error("Unable to open database: {0:?}")]
     DatabaseNotFound(PathBuf),
+    #[error("Empty parquet chunk")]
+    EmptyChunk,
 }
 
 unsafe impl Send for Error {} // heed::Error can't be made Send
