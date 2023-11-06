@@ -57,7 +57,7 @@ impl EdgeFrameBuilder {
         ]);
         let file_path = self
             .location_path
-            .join(format!("edge_{:08}.ipc", self.src_chunks.len()));
+            .join(format!("edge_ids_{:08}.ipc", self.src_chunks.len()));
         let chunk = Chunk::new(vec![
             PrimitiveArray::from_vec(src).boxed(),
             PrimitiveArray::from_vec(dst).boxed(),

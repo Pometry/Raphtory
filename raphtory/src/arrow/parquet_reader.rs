@@ -9,7 +9,7 @@ use arrow2::{
     buffer::Buffer,
     chunk::Chunk,
     compute::concatenate::concatenate,
-    datatypes::{DataType, Field, PhysicalType, Schema},
+    datatypes::{DataType, Field, Schema},
     io::parquet::{
         self,
         read::{infer_schema, RowGroupMetaData},
@@ -24,7 +24,6 @@ use rayon::prelude::*;
 use super::{
     array_as_id_iter,
     chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
-    ipc::read_schema,
     mmap::{mmap_batch, write_batches},
     Error, GID,
 };

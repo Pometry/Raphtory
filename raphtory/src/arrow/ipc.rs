@@ -6,7 +6,6 @@ use super::Error;
 
 pub fn read_batch<P: AsRef<Path>>(
     path: P,
-    // chunk_id: usize,
 ) -> Result<Chunk<Box<dyn Array>>, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
@@ -17,7 +16,6 @@ pub fn read_batch<P: AsRef<Path>>(
 
 pub fn read_schema<P: AsRef<Path>>(
     path: P,
-    // chunk_id: usize,
 ) -> Result<Schema, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
