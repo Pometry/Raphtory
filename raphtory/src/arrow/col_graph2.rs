@@ -51,7 +51,6 @@ use super::{
 #[derive(Debug)]
 pub struct TempColGraphFragment {
     vertex_chunk_size: usize,
-    edge_chunk_size: usize,
     adj_out_chunks: Vec<VertexChunk>,
     adj_in_chunks: Vec<VertexChunk>,
     edges: Edges,
@@ -80,48 +79,12 @@ impl TempColGraphFragment {
 
         let mut adj_out_chunks = Vec::default();
         let mut adj_in_chunks = Vec::default();
-        let mut edge_chunks = Vec::default();
         for file_path in iter {
             let file_name = file_path.file_name();
             let file_name = file_name
                 .to_str()
                 .expect("file names are already filtered and thus valid");
-            if file_name.starts_with("edge_chunk_") {
-                let overflow_dir = graph_dir.as_ref().join(
-                    &(file_path
-                        .path()
-                        .file_stem()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_owned()
-                        + "_overflow"),
-                );
-                let overflow_chunks: Vec<_> = std::fs::read_dir(&overflow_dir)
-                    .map(|iter| {
-                        iter.flatten()
-                            .filter(|dir_entry| {
-                                dir_entry
-                                    .file_name()
-                                    .to_str()
-                                    .map(|file_name| file_name.starts_with("edge_chunk_overflow_"))
-                                    .unwrap_or(false)
-                            })
-                            .sorted_by(|a, b| a.path().cmp(&b.path()))
-                            .map(|f| {
-                                EdgeOverflowChunk::new(
-                                    unsafe { mmap_all_chunks(f.path()).unwrap() }.into(),
-                                )
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                edge_chunks.push(EdgeChunk::new(
-                    unsafe { mmap_batch(file_path.path(), 0) }?,
-                    overflow_chunks.into(),
-                ));
-            } else if file_name.starts_with("adj_in_chunk_") {
+         if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(
                     unsafe {
                         // TODO: this should perhap be configurable
@@ -142,14 +105,14 @@ impl TempColGraphFragment {
         }
 
         let vertex_chunk_size = adj_out_chunks.first().map(|v| v.len()).unwrap_or(0);
-        let edge_chunk_size = edge_chunks.first().map(|e| e.len()).unwrap_or(0);
+
+        let edges = Edges::from_path(graph_dir.as_ref(), false)?;
 
         Ok(Self {
             vertex_chunk_size,
-            edge_chunk_size,
             adj_out_chunks,
             adj_in_chunks,
-            edge_chunks,
+            edges,
             graph_dir: graph_dir.as_ref().into(),
         })
     }
