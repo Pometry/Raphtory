@@ -34,6 +34,12 @@ impl From<usize> for VID {
     }
 }
 
+impl From<u64> for VID {
+    fn from(id: u64) -> Self {
+        VID(id as usize)
+    }
+}
+
 impl From<VID> for usize {
     fn from(id: VID) -> Self {
         id.0

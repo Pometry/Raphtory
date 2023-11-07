@@ -1,6 +1,7 @@
 use std::{
     io,
     io::BufReader,
+    iter,
     path::Path,
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -11,6 +12,7 @@ use std::{
 use crate::{
     arrow::{
         adj_schema,
+        chunked_array::chunked_array::{ChunkedArraySlice, ChunkedPrimitiveCol},
         edge_frame_builder::EdgeFrameBuilder,
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
@@ -46,7 +48,7 @@ use super::{
     global_order::{GlobalMap, GlobalOrder},
     ipc,
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID,
+    LoadChunk, Time, GID, TIME_COLUMN, TIME_COLUMN_IDX,
 };
 
 #[derive(Debug)]
@@ -307,6 +309,7 @@ impl TempColGraphFragment {
             adj_in_chunks: Vec::default(),
             edge_chunks: edge_builder.src_chunks,
             graph_dir: base_dir.as_ref().into(),
+            edges: (),
         })
     }
 
@@ -397,24 +400,11 @@ impl TempColGraphFragment {
     }
 
     pub fn edge(&self, e_id: EID) -> Edge<'_> {
-        let chunk_idx = e_id.0 / self.edge_chunk_size;
-        let idx = e_id.0 % self.edge_chunk_size;
-        let chunk = &self.edge_chunks[chunk_idx];
-        Edge::new(chunk, idx)
+        self.edges.edge(e_id)
     }
 
-    pub fn all_edges(&self) -> impl Iterator<Item = (EID, VID, VID)> + '_ {
-        self.edge_chunks
-            .iter()
-            .flat_map(|chunk| {
-                chunk
-                    .source()
-                    .into_iter()
-                    .flatten()
-                    .zip(chunk.destination().into_iter().flatten())
-            })
-            .enumerate()
-            .map(|(eid, (src, dst))| (EID(eid), VID(*src as usize), VID(*dst as usize)))
+    pub fn all_edges(&self) -> impl Iterator<Item = Edge> + '_ {
+        self.edges.iter()
     }
 
     pub fn exploded_edges(&self) -> impl Iterator<Item = (EID, VID, VID, Time)> + '_ {
@@ -771,51 +761,65 @@ pub(crate) fn load_chunks<GO: GlobalOrder>(
 }
 
 pub struct Edge<'a> {
-    edge: &'a EdgeChunk,
-    idx: usize,
+    props: ChunkedArraySlice<'a, StructArray>,
+    src_id: VID,
+    dst_id: VID,
 }
 
 impl<'a> Edge<'a> {
-    fn new(edge: &'a EdgeChunk, idx: usize) -> Self {
-        Self { edge, idx }
+    pub(crate) fn new(props: ChunkedArraySlice<'a, StructArray>, src_id: VID, dst_id: VID) -> Self {
+        Self {
+            props,
+            src_id,
+            dst_id,
+        }
     }
 
-    pub fn timestamps(&self) -> impl Iterator<Item = &[Time]> {
-        self.edge.timestamps(self.idx)
+    pub fn timestamps(&self) -> ChunkedPrimitiveCol<i64> {
+        self.props.primitive_col(TIME_COLUMN_IDX).unwrap()
     }
 
-    pub fn props<T: NativeType>(&self, prop_id: usize) -> Option<impl Iterator<Item = Option<&T>>> {
-        self.edge.temporal_primitive_prop(self.idx, prop_id)
+    pub fn props<T: NativeType>(
+        &self,
+        prop_id: usize,
+    ) -> Option<impl Iterator<Item = Option<T>> + '_> {
+        self.props
+            .primitive_col::<T>(prop_id)
+            .map(|col| col.into_iter())
     }
 
     pub fn prop_items<T: NativeType>(
         &self,
         prop_id: usize,
-    ) -> Option<impl Iterator<Item = (Option<&T>, &Time)>> {
-        self.edge.temporal_primitive_prop_items(self.idx, prop_id)
+    ) -> Option<impl Iterator<Item = (Time, Option<T>)> + '_> {
+        let values = self.props(prop_id)?;
+        let timestamps = self.timestamps().into_iter().flatten();
+        Some(timestamps.zip(values))
     }
 
-    pub fn prop_history<T: NativeType>(&self, prop_id: usize) -> impl Iterator<Item = (&T, &Time)> {
-        if let Some(iter) = self.edge.temporal_primitive_prop_items(self.idx, prop_id) {
-            iter.filter_map(|(v, t)| v.map(|v| (v, t)))
-        } else {
-            panic!("no prop history for {prop_id}")
-        }
+    pub fn prop_history<T: NativeType>(
+        &self,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (Time, T)> + '_ {
+        self.prop_items(prop_id)
+            .into_iter()
+            .flatten()
+            .filter_map(|(t, value)| value.map(|v| (t, v)))
     }
 
     pub fn prop_items_utf8<I: Offset>(
         &self,
         prop_id: usize,
     ) -> Option<impl Iterator<Item = Option<(&str, &Time)>>> {
-        self.edge.temporal_utf8_prop_items::<I>(self.idx, prop_id)
+        Some(iter::empty())
     }
 
     pub fn src(&self) -> VID {
-        VID(self.edge.source().value(self.idx) as usize)
+        self.src_id
     }
 
     pub fn dst(&self) -> VID {
-        VID(self.edge.destination().value(self.idx) as usize)
+        self.dst_id
     }
 }
 

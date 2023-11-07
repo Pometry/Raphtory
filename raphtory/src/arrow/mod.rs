@@ -70,6 +70,7 @@ const SRC_COLUMN: &str = "src";
 const DST_COLUMN: &str = "dst";
 
 const TIME_COLUMN: &str = "rap_time";
+const TIME_COLUMN_IDX: usize = 0;
 
 pub(crate) const V_COLUMN: &str = "v";
 pub(crate) const E_COLUMN: &str = "e";
