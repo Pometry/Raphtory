@@ -35,6 +35,7 @@ pub(crate) struct ParquetReader<P> {
     src_dest_schema: Schema,
     src_col_idx: usize,
     dst_col_idx: usize,
+    time_col_idx: usize,
 }
 
 impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
@@ -43,6 +44,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         parquet_path: P,
         src_col: &str,
         dst_col: &str,
+        time_col: &str,
         excluded_cols: Vec<String>,
     ) -> Result<Self, Error> {
         let meta = std::fs::metadata(parquet_path.as_ref());
@@ -78,6 +80,11 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
                 .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
 
             let edge_t_prop_schema = schema.filter(|_, field| !excluded_cols.contains(&field.name));
+            let time_col = edge_t_prop_schema
+                .fields
+                .iter()
+                .position(|f| f.name == time_col)
+                .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
 
             Ok(Self {
                 files,
@@ -86,6 +93,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
                 src_dest_schema,
                 src_col_idx: src_col,
                 dst_col_idx: dst_col,
+                time_col_idx: time_col,
             })
         } else {
             Err(Error::NoEdgeLists)
@@ -135,7 +143,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
                     .as_ref()
                     .join(format!("edge_chunk_{:08}.ipc", chunk_id));
 
-                write_temporal_properties(file_path, struct_arr)
+                write_temporal_properties(file_path, struct_arr, self.time_col_idx)
             })
             .collect::<Result<Vec<_>, Error>>()?;
 
@@ -240,9 +248,14 @@ fn write_buffer<T: NativeType>(
 fn write_temporal_properties(
     file_path: impl AsRef<Path>,
     chunk: StructArray,
+    time_col_idx: usize,
 ) -> Result<StructArray, Error> {
-    let (fields, values, _) = chunk.into_data();
+    let (mut fields, mut values, _) = chunk.into_data();
     let schema = Schema::from(fields.clone());
+    // make sure the time column is first
+    values.swap(0, time_col_idx);
+    fields.swap(0, time_col_idx);
+
     write_batches(file_path.as_ref(), schema, &[Chunk::new(values)])?;
     let mmapped_chunk = unsafe { mmap_batch(file_path.as_ref(), 0)? };
     let mmapped = StructArray::new(DataType::Struct(fields), mmapped_chunk.into_arrays(), None);
@@ -536,9 +549,15 @@ mod test {
             "src_hash".to_string(),
         ];
 
-        let reader =
-            ParquetReader::new(graph_dir.path(), nft.as_path(), "src", "dst", excluded_cols)
-                .unwrap();
+        let reader = ParquetReader::new(
+            graph_dir.path(),
+            nft.as_path(),
+            "src",
+            "dst",
+            "epoch_time",
+            excluded_cols,
+        )
+        .unwrap();
 
         let list_arr = reader.load_edges(17).unwrap();
         let list_arr_vs = list_arr.values();
@@ -555,7 +574,6 @@ mod test {
 
         assert_eq!(time.len(), 100);
         assert_eq!(&time[0..3], [7263521, 7257667, 7296325]);
-
 
         match list_arr_vs.data_type().unwrap() {
             DataType::Struct(fields) => {
@@ -585,6 +603,5 @@ mod test {
             .flatten()
             .collect_vec();
         assert_eq!(src_port, [56987, 94271, 79502]);
-
     }
 }
