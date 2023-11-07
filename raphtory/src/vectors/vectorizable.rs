@@ -137,8 +137,12 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         });
 
         let cache = cache_file.map(EmbeddingCache::from_path);
-        let node_refs = compute_embedding_groups(nodes, &embedding, &cache).await;
-        let edge_refs = compute_embedding_groups(edges, &embedding, &cache).await;
+        println!("> processing nodes");
+        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
+        println!("> processing edges");
+        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
+                                                                                           // let edge_refs = HashMap::new();
+        println!("> dumping embeddings to disk cache");
         cache.iter().for_each(|cache| cache.dump_to_disk());
 
         VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
@@ -147,15 +151,24 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
 
 async fn compute_embedding_groups<I>(
     documents: I,
-    embedding: &Box<dyn EmbeddingFunction>,
+    embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
 ) -> HashMap<EntityId, Vec<DocumentRef>>
 where
     I: Iterator<Item = IndexedDocumentInput>,
 {
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
+    let mut num_processed = 0;
     for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
+        println!(
+            "> processing documents {} to {}",
+            num_processed + 1,
+            num_processed + CHUNK_SIZE
+        );
+        num_processed += CHUNK_SIZE;
+
         let doc_refs = compute_chunk(chunk, embedding, cache).await;
+        println!("> after calling compute_chunk");
         for doc in doc_refs {
             match embedding_groups.get_mut(&doc.entity_id) {
                 Some(group) => group.push(doc),
@@ -164,13 +177,15 @@ where
                 }
             }
         }
+        println!("> added refs to map");
     }
+    println!("> for loop completed");
     embedding_groups
 }
 
 async fn compute_chunk<I>(
     documents: I,
-    embedding: &Box<dyn EmbeddingFunction>,
+    embedding: &dyn EmbeddingFunction,
     cache: &Option<EmbeddingCache>,
 ) -> Vec<DocumentRef>
 where
