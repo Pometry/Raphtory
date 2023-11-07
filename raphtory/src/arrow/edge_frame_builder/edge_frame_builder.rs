@@ -11,7 +11,7 @@ use arrow2::{
 };
 use std::path::{Path, PathBuf};
 
-use crate::arrow::{Error, LoadChunk};
+use crate::arrow::Error;
 
 pub struct EdgeFrameBuilder {
     pub(crate) src_chunks: ChunkedArray<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
@@ -78,12 +78,12 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn write_down_chunk(&mut self, load_chunk: &mut LoadChunk) -> Result<(), Error> {
+    pub(crate) fn write_down_chunk(&mut self) -> Result<(), Error> {
         self.push_chunk()?;
         Ok(())
     }
 
-    pub(crate) fn finalize(&mut self, load_chunk: &mut LoadChunk) -> Result<(), Error> {
+    pub(crate) fn finalize(&mut self) -> Result<(), Error> {
         self.push_chunk()?;
         Ok(())
     }

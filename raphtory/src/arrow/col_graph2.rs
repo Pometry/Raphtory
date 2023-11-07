@@ -12,7 +12,7 @@ use crate::{
     arrow::{
         adj_schema,
         edge::{Edge, ExplodedEdge},
-        edge_frame_builder::EdgeFrameBuilder,
+        edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
         mmap::{mmap_batch, mmap_batches, write_batches},
@@ -25,6 +25,7 @@ use crate::{
         entities::{EID, VID},
         Direction,
     },
+    prelude::Graph,
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray},
@@ -46,9 +47,9 @@ use super::{
     array_as_id_iter,
     edges::Edges,
     global_order::{GlobalMap, GlobalOrder},
-    ipc,
+    ipc, split_chunk, split_struct_chunk,
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID,
+    GraphChunk, Time, GID,
 };
 
 #[derive(Debug)]
@@ -145,18 +146,22 @@ impl TempColGraphFragment {
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         go: GlobalMap,
-        // time, src, dst
-        edge_list: Vec<StructArray>, 
+        src_col_idx: usize,
+        dst_col_idx: usize,
+        time_col_idx: usize,
+        edge_list: Vec<StructArray>,
     ) -> Result<Self, Error> {
         let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, Arc::new(go), test_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, 0, test_dir);
+        let mut edge_props_builder =
+            EdgePropsBuilder::new(test_dir, src_col_idx, dst_col_idx, time_col_idx);
 
-        let triples = edge_list.into_iter().map(|arr|{
-            let (fields, arrays, _) = arr.into_data();
-            LoadChunk::new(arrays, 1, 2, 0, Schema::from(fields))
-        });
-
-        load_chunks(&mut vf_builder, &mut edge_builder, triples)?;
+        let (edges, props): (Vec<_>, Vec<_>) = edge_list
+            .into_iter()
+            .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
+            .unzip();
+        
+        load_chunks(&mut vf_builder, &mut edge_builder, edges)?;
 
         let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, vec![]);
 
@@ -637,20 +642,18 @@ impl TempColGraphFragment {
             let chunk = [Chunk::try_new(vec![res])?];
             write_batches(file_path.as_path(), schema, &chunk)?;
             let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-            self.adj_in_chunks
-                .push(VertexChunk::new(mmapped_chunk));
+            self.adj_in_chunks.push(VertexChunk::new(mmapped_chunk));
         }
         Ok(())
     }
-
 }
 
 pub(crate) fn load_chunks<GO: GlobalOrder>(
     vf_builder: &mut VertexFrameBuilder<GO>,
     edge_builder: &mut EdgeFrameBuilder,
-    chunks_iter: impl IntoIterator<Item = LoadChunk>,
+    chunks_iter: impl IntoIterator<Item = GraphChunk>,
 ) -> Result<(), Error> {
-    let mut last_chunk: Option<LoadChunk> = None;
+    let mut last_chunk: Option<GraphChunk> = None;
     // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
     for mut chunk in chunks_iter.into_iter() {
         // get the source and destintion columns
@@ -670,7 +673,7 @@ pub(crate) fn load_chunks<GO: GlobalOrder>(
 
     // finalize edge_builder
     if let Some(mut chunk) = last_chunk {
-        edge_builder.finalize(&mut chunk)?;
+        edge_builder.finalize()?;
     }
     Ok(())
 }
@@ -723,7 +726,7 @@ mod test {
         input_chunk_size: u64,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
-        edge_max_list_size: usize,
+        t_props_chunk_size: usize,
     ) -> TempColGraphFragment {
         let chunks = edges
             .iter()

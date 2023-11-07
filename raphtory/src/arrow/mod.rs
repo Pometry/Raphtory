@@ -114,142 +114,75 @@ impl From<&str> for GID {
     }
 }
 
-pub(crate) struct LoadChunk {
-    graph_cols: Vec<Box<dyn Array>>,
-    t_prop_cols: Option<StructArray>,
+pub(crate) struct GraphChunk {
+    srcs: Box<dyn Array>,
+    dsts: Box<dyn Array>,
 }
 
-impl LoadChunk {
-    pub(crate) fn new<I: IntoIterator<Item = Box<dyn Array>>>(
-        columns_in_chunk: I,
-        src_col_idx: usize,
-        dst_col_idx: usize,
-        time_col_idx: usize,
-        chunk_schema: Schema,
-    ) -> Self {
-        let mut temporal_props = vec![];
+pub(crate) struct PropsChunk(pub StructArray);
 
-        let all_cols = columns_in_chunk.into_iter().collect_vec();
+pub(crate) fn split_struct_chunk(
+    chunk: StructArray,
+    src_col_idx: usize,
+    dst_col_idx: usize,
+    time_col_idx: usize,
+) -> (GraphChunk, PropsChunk) {
+    let (fields, cols, _) = chunk.into_data();
+    split_chunk(cols, src_col_idx, dst_col_idx, time_col_idx, fields.into())
+}
 
-        let time_d_type = all_cols[time_col_idx].data_type().clone();
-        assert_eq!(time_d_type, DataType::Int64, "time column must be i64");
+pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(
+    columns_in_chunk: I,
+    src_col_idx: usize,
+    dst_col_idx: usize,
+    time_col_idx: usize,
+    chunk_schema: Schema,
+) -> (GraphChunk, PropsChunk) {
+    let all_cols = columns_in_chunk.into_iter().collect_vec();
 
-        // shove time as the first column in temporal_props
-        temporal_props.push(all_cols[time_col_idx].clone());
+    let time_d_type = all_cols[time_col_idx].data_type().clone();
+    assert_eq!(time_d_type, DataType::Int64, "time column must be i64");
+    let first_len = all_cols.first().unwrap().len();
+    if all_cols.iter().any(|arr| arr.len() != first_len) {
+        panic!("All arrays in a chunk must have the same length");
+    }
 
-        for (i, column) in all_cols.iter().enumerate() {
-            if !(i == src_col_idx || i == dst_col_idx || i == time_col_idx) {
-                temporal_props.push(column.clone());
-            }
-        }
-
-        let mut graph_cols =
-            vec![PrimitiveArray::<i32>::from_vec(Vec::with_capacity(0)).boxed(); 3];
-
-        for (i, col) in all_cols.into_iter().enumerate() {
-            if i == src_col_idx {
-                graph_cols[0] = col;
-            } else if i == dst_col_idx {
-                graph_cols[1] = col;
-            } else if i == time_col_idx {
-                graph_cols[2] = col;
-            }
-        }
-
-        let first_len = graph_cols.first().unwrap().len();
-        if graph_cols.iter().any(|arr| arr.len() != first_len) {
-            panic!("All arrays in a chunk must have the same length");
-        }
-
-        if temporal_props.iter().any(|arr| arr.len() != first_len) {
-            panic!("All arrays in a chunk must have the same length");
-        }
-
-        if temporal_props.is_empty() {
-            Self {
-                graph_cols,
-                t_prop_cols: None,
-            }
-        } else {
-            let mut props_only_schema = chunk_schema
-                .filter(|i, _| !(i == src_col_idx || i == dst_col_idx || i == time_col_idx));
-            // put time as the first column in the struct
-            props_only_schema
-                .fields
-                .insert(0, Field::new(TIME_COLUMN, time_d_type, false));
-            let data_type = DataType::Struct(props_only_schema.fields);
-            let t_prop_cols = Some(StructArray::new(data_type, temporal_props, None));
-            Self {
-                graph_cols,
-                t_prop_cols,
-            }
+    let mut temporal_props = vec![all_cols[time_col_idx].clone()];
+    for (i, column) in all_cols.iter().enumerate() {
+        if !(i == src_col_idx || i == dst_col_idx || i == time_col_idx) {
+            temporal_props.push(column.clone());
         }
     }
 
-    pub(crate) fn from_chunk(
-        chunk: Chunk<Box<dyn Array>>,
-        src_col_idx: usize,
-        dst_col_idx: usize,
-        time_col_idx: usize,
-        chunk_schema: Schema,
-    ) -> Self {
-        Self::new(
-            chunk.into_arrays(),
-            src_col_idx,
-            dst_col_idx,
-            time_col_idx,
-            chunk_schema,
-        )
-    }
+    let mut props_only_schema =
+        chunk_schema.filter(|i, _| !(i == src_col_idx || i == dst_col_idx || i == time_col_idx));
+    // put time as the first column in the struct
+    props_only_schema
+        .fields
+        .insert(0, Field::new(TIME_COLUMN, time_d_type, false));
+    let data_type = DataType::Struct(props_only_schema.fields);
+    let t_prop_cols = StructArray::new(data_type, temporal_props, None);
 
+    (
+        GraphChunk {
+            srcs: all_cols[src_col_idx].clone(),
+            dsts: all_cols[dst_col_idx].clone(),
+        },
+        PropsChunk(t_prop_cols),
+    )
+}
+
+impl GraphChunk {
     fn sources(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.graph_cols[0])
+        array_as_id_iter(&self.srcs)
     }
 
     fn destinations(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.graph_cols[1])
-    }
-
-    fn t_prop_cols(&self) -> Option<&StructArray> {
-        self.t_prop_cols.as_ref()
-    }
-
-    fn timestamp_arr(&self) -> Result<PrimitiveArray<i64>, Error> {
-        let arr = &self.graph_cols[2];
-        let times = arr
-            .as_any()
-            .downcast_ref::<PrimitiveArray<i64>>()
-            .ok_or_else(|| {
-                Error::InvalidTypeColumn(format!("expected i64 column, got {:?}", arr.data_type()))
-            })?
-            .clone();
-        Ok(times)
-    }
-
-    fn split_timestamps_at(&mut self, split_at: usize) -> PrimitiveArray<i64> {
-        let time_arr = &mut self.graph_cols[2];
-        let time_arr = time_arr
-            .as_any_mut()
-            .downcast_mut::<PrimitiveArray<i64>>()
-            .unwrap();
-        let out = time_arr.clone().sliced(0, split_at);
-        time_arr.slice(split_at, time_arr.len() - split_at);
-        out
-    }
-
-    fn split_t_props_at(&mut self, split_at: usize) -> Option<StructArray> {
-        if split_at == 0 {
-            None
-        } else {
-            let t_prop_cols = self.t_prop_cols.as_mut()?;
-            let out = t_prop_cols.clone().sliced(0, split_at);
-            t_prop_cols.slice(split_at, t_prop_cols.len() - split_at);
-            Some(out)
-        }
+        array_as_id_iter(&self.dsts)
     }
 
     fn len(&self) -> usize {
-        self.graph_cols[0].len()
+        self.srcs.len()
     }
 }
 

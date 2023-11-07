@@ -5,7 +5,7 @@ use std::{
 };
 
 use arrow2::{
-    array::{Array,StructArray},
+    array::{Array, StructArray},
     chunk::Chunk,
     compute::concatenate::concatenate,
     datatypes::{DataType, Field, Schema},
@@ -94,21 +94,21 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         }
     }
 
-    fn row_group_iter(&self) -> impl Iterator<Item = (PathBuf, RowGroupMetaData)> + '_ {
+    fn row_group_iter(&self) -> impl Iterator<Item = RowGroupRef<PathBuf>> + '_ {
         self.files.iter().flat_map(|file| {
             let metadata = read_file_metadata(&file)
                 .expect(&format!("failed to read metadata for file {:?}", file));
             metadata
                 .row_groups
                 .into_iter()
-                .map(move |row_group| (file.clone(), row_group))
+                .map(move |row_group| RowGroupRef::new(file.clone(), row_group))
         })
     }
 
     fn parquet_offset_iter(
         &self,
         chunk_size: usize,
-    ) -> impl Iterator<Item = Vec<ParquetOffset<PathBuf, RowGroupMetaData>>> + '_ {
+    ) -> impl Iterator<Item = Vec<ParquetOffset<RowGroupRef<PathBuf>>>> + '_ {
         ParquetOffsetIter::new(self.row_group_iter(), chunk_size)
     }
 
@@ -138,7 +138,8 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
         });
-        self.edge_props_builder.load_t_edge_offsets_from_par_chunks(chunks)
+        self.edge_props_builder
+            .load_t_edge_offsets_from_par_chunks(chunks)
     }
 }
 
@@ -155,10 +156,10 @@ fn read_parquet_file(
 }
 
 fn into_struct_arrays<'a>(
-    offsets: Vec<ParquetOffset<PathBuf, RowGroupMetaData>>,
+    offsets: Vec<ParquetOffset<RowGroupRef<PathBuf>>>,
     schema: &Schema,
 ) -> StructArray {
-    let group = offsets.iter().group_by(|&offset| &offset.file);
+    let group = offsets.iter().group_by(|&offset| &offset.index.file);
 
     let iter = group.into_iter().flat_map(|(file, offsets)| {
         let file =
@@ -166,7 +167,7 @@ fn into_struct_arrays<'a>(
         let mut row_groups = vec![];
         let mut ranges = vec![];
         for offset in offsets {
-            row_groups.push(offset.row_group.clone());
+            row_groups.push(offset.index.row_group.clone());
             ranges.push(offset.range.clone());
         }
 
@@ -208,9 +209,21 @@ trait NumRows: Clone {
     fn num_rows(&self) -> usize;
 }
 
-impl NumRows for RowGroupMetaData {
+#[derive(Clone, Debug)]
+struct RowGroupRef<P> {
+    file: P,
+    row_group: RowGroupMetaData,
+}
+
+impl<P> RowGroupRef<P> {
+    fn new(file: P, row_group: RowGroupMetaData) -> Self {
+        Self { file, row_group }
+    }
+}
+
+impl<P: Clone> NumRows for RowGroupRef<P> {
     fn num_rows(&self) -> usize {
-        self.num_rows()
+        self.row_group.num_rows()
     }
 }
 
@@ -221,24 +234,23 @@ impl NumRows for StructArray {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct ParquetOffset<P, G> {
-    file: P,
-    row_group: G,
+pub(crate) struct ParquetOffset<G> {
+    index: G,
     range: Range<usize>,
 }
 
-struct ParquetOffsetIter<G, P, I> {
-    row_groups: I,
+struct ParquetOffsetIter<G, I> {
+    iter: I,
     chunk_size: usize,
-    current: Option<(P, G)>,
+    current: Option<G>,
     offset: usize,
 }
 
-impl<G, P, I: Iterator<Item = (P, G)>> ParquetOffsetIter<G, P, I> {
-    fn new(mut row_groups: I, chunk_size: usize) -> Self {
-        let first = row_groups.next();
+impl<G, I: Iterator<Item = G>> ParquetOffsetIter<G, I> {
+    fn new(mut iter: I, chunk_size: usize) -> Self {
+        let first = iter.next();
         Self {
-            row_groups,
+            iter,
             chunk_size,
             current: first,
             offset: 0,
@@ -247,27 +259,26 @@ impl<G, P, I: Iterator<Item = (P, G)>> ParquetOffsetIter<G, P, I> {
 }
 
 // iterator
-impl<G: NumRows, P: Clone, I: Iterator<Item = (P, G)>> Iterator for ParquetOffsetIter<G, P, I> {
-    type Item = Vec<ParquetOffset<P, G>>;
+impl<G: NumRows, I: Iterator<Item = G>> Iterator for ParquetOffsetIter<G, I> {
+    type Item = Vec<ParquetOffset<G>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut chunks: Vec<ParquetOffset<P, G>> = vec![];
+        let mut chunks: Vec<ParquetOffset<G>> = vec![];
         let mut chunk_len: usize = 0;
         while chunk_len < self.chunk_size {
-            if let Some((file, current)) = self.current.as_ref() {
+            if let Some(current) = self.current.as_ref() {
                 let remaining_in_current = current.num_rows() - self.offset;
                 let needed = self.chunk_size - chunk_len;
                 let from_current = min(needed, remaining_in_current);
                 let next_parquet_chunk = ParquetOffset {
-                    file: file.clone(),
-                    row_group: current.clone(),
+                    index: current.clone(),
                     range: self.offset..self.offset + from_current,
                 };
                 chunk_len += from_current;
                 chunks.push(next_parquet_chunk);
                 if remaining_in_current <= needed {
                     self.offset = 0;
-                    self.current = self.row_groups.next();
+                    self.current = self.iter.next();
                 } else {
                     self.offset += from_current;
                 }
@@ -302,7 +313,7 @@ mod test {
 
     #[test]
     fn rechunk_row_group1_empty() {
-        let row_groups: Vec<(String, MockRowGroup)> = vec![];
+        let row_groups: Vec<MockRowGroup> = vec![];
         let chunk_size = 100;
         let mut iter = ParquetOffsetIter::new(row_groups.into_iter(), chunk_size);
         assert_eq!(iter.next(), None);
@@ -310,15 +321,13 @@ mod test {
 
     #[test]
     fn rechunk_row_group1() {
-        let row_groups: Vec<(String, MockRowGroup)> =
-            vec![("file1".to_string(), MockRowGroup { num_rows: 100 })];
+        let row_groups: Vec<MockRowGroup> = vec![MockRowGroup { num_rows: 100 }];
         let chunk_size = 100;
         let mut iter = ParquetOffsetIter::new(row_groups.into_iter(), chunk_size);
         assert_eq!(
             iter.next(),
             Some(vec![ParquetOffset {
-                file: "file1".into(),
-                row_group: MockRowGroup { num_rows: 100 },
+                index: MockRowGroup { num_rows: 100 },
                 range: 0..100
             }])
         );
@@ -327,21 +336,17 @@ mod test {
 
     #[test]
     fn rechunk_row_group2_half() {
-        let row_groups: Vec<(String, MockRowGroup)> = vec![
-            ("file1".to_string(), MockRowGroup { num_rows: 50 }),
-            ("file1".to_string(), MockRowGroup { num_rows: 50 }),
-        ];
+        let row_groups: Vec<MockRowGroup> =
+            vec![MockRowGroup { num_rows: 50 }, MockRowGroup { num_rows: 50 }];
         let chunk_size = 100;
         let mut iter = ParquetOffsetIter::new(row_groups.into_iter(), chunk_size);
         let actual = vec![
             ParquetOffset {
-                file: "file1".into(),
-                row_group: MockRowGroup { num_rows: 50 },
+                index: MockRowGroup { num_rows: 50 },
                 range: 0..50,
             },
             ParquetOffset {
-                file: "file1".into(),
-                row_group: MockRowGroup { num_rows: 50 },
+                index: MockRowGroup { num_rows: 50 },
                 range: 0..50,
             },
         ];
@@ -351,21 +356,17 @@ mod test {
 
     #[test]
     fn rechunk_row_group2_uneven() {
-        let row_groups: Vec<(String, MockRowGroup)> = vec![
-            ("file1".to_string(), MockRowGroup { num_rows: 30 }),
-            ("file1".to_string(), MockRowGroup { num_rows: 70 }),
-        ];
+        let row_groups: Vec<MockRowGroup> =
+            vec![MockRowGroup { num_rows: 30 }, MockRowGroup { num_rows: 70 }];
         let chunk_size = 100;
         let mut iter = ParquetOffsetIter::new(row_groups.into_iter(), chunk_size);
         let actual = vec![
             ParquetOffset {
-                file: "file1".into(),
-                row_group: MockRowGroup { num_rows: 30 },
+                index: MockRowGroup { num_rows: 30 },
                 range: 0..30,
             },
             ParquetOffset {
-                file: "file1".into(),
-                row_group: MockRowGroup { num_rows: 70 },
+                index: MockRowGroup { num_rows: 70 },
                 range: 0..70,
             },
         ];
@@ -375,40 +376,35 @@ mod test {
 
     #[test]
     fn rechunk_row_group3_larger_than_chunk_size() {
-        let row_groups: Vec<(String, MockRowGroup)> = vec![
-            ("file1".to_string(), MockRowGroup { num_rows: 150 }),
-            ("file1".to_string(), MockRowGroup { num_rows: 130 }),
-            ("file2".to_string(), MockRowGroup { num_rows: 12 }),
+        let row_groups: Vec<MockRowGroup> = vec![
+            MockRowGroup { num_rows: 150 },
+            MockRowGroup { num_rows: 130 },
+            MockRowGroup { num_rows: 12 },
         ];
         let chunk_size = 100;
         let iter = ParquetOffsetIter::new(row_groups.into_iter(), chunk_size);
         let expected = vec![
             vec![ParquetOffset {
-                file: "file1".into(),
-                row_group: MockRowGroup { num_rows: 150 },
+                index: MockRowGroup { num_rows: 150 },
                 range: 0..100,
             }],
             vec![
                 ParquetOffset {
-                    file: "file1".into(),
-                    row_group: MockRowGroup { num_rows: 150 },
+                    index: MockRowGroup { num_rows: 150 },
                     range: 100..150,
                 },
                 ParquetOffset {
-                    file: "file1".into(),
-                    row_group: MockRowGroup { num_rows: 130 },
+                    index: MockRowGroup { num_rows: 130 },
                     range: 0..50,
                 },
             ],
             vec![
                 ParquetOffset {
-                    file: "file1".into(),
-                    row_group: MockRowGroup { num_rows: 130 },
+                    index: MockRowGroup { num_rows: 130 },
                     range: 50..130,
                 },
                 ParquetOffset {
-                    file: "file2".into(),
-                    row_group: MockRowGroup { num_rows: 12 },
+                    index: MockRowGroup { num_rows: 12 },
                     range: 0..12,
                 },
             ],

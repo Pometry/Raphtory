@@ -19,9 +19,10 @@ use rayon::prelude::*;
 use crate::arrow::{
     array_as_id_iter,
     mmap::{mmap_batch, write_batches},
+    split_chunk,
 };
 
-use super::{global_order::GlobalOrder, Error, LoadChunk};
+use super::{global_order::GlobalOrder, Error, GraphChunk};
 
 #[derive(Debug)]
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
@@ -94,7 +95,7 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
             .flatten()
     }
 
-    pub(crate) fn load_chunks(&self) -> impl Iterator<Item = LoadChunk> + '_ {
+    pub(crate) fn load_chunks(&self) -> impl Iterator<Item = GraphChunk> + '_ {
         self.parquet_files.iter().flat_map(|path| {
             read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None)
                 .expect("failed to load chunks from path")
@@ -286,7 +287,7 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     dst_col: &str,
     time_col: &str,
     projection: Option<&Vec<&str>>,
-) -> Result<impl Iterator<Item = LoadChunk>, Error> {
+) -> Result<impl Iterator<Item = GraphChunk>, Error> {
     println!("reading file: {:?}", parquet_file.as_ref());
 
     let file = std::fs::File::open(&parquet_file)?;
@@ -332,13 +333,14 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
         None,
     );
     Ok(reader.flatten().map(move |chunk| {
-        LoadChunk::from_chunk(
+        split_chunk(
             chunk,
             src_col_idx,
             dst_col_idx,
             time_col_idx,
             schema.clone(),
         )
+        .0
     }))
 }
 
