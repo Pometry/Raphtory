@@ -1,7 +1,6 @@
 use std::{
     io,
     io::BufReader,
-    iter,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -137,6 +136,37 @@ impl TempColGraphFragment {
 
     pub fn edge_property_id(&self, name: &str) -> Option<usize> {
         self.edges.property_id(name)
+    }
+
+    #[cfg(test)]
+    pub fn load_from_edge_list(
+        test_dir: &Path,
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        t_props_chunk_size: usize,
+        go: GlobalMap,
+        // time, src, dst
+        edge_list: Vec<StructArray>, 
+    ) -> Result<Self, Error> {
+        let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, Arc::new(go), test_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, 0, test_dir);
+
+        let triples = edge_list.into_iter().map(|arr|{
+            let (fields, arrays, _) = arr.into_data();
+            LoadChunk::new(arrays, 1, 2, 0, Schema::from(fields))
+        });
+
+        load_chunks(&mut vf_builder, &mut edge_builder, triples)?;
+
+        let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, vec![]);
+
+        Ok(TempColGraphFragment {
+            vertex_chunk_size,
+            adj_out_chunks: vf_builder.adj_out_chunks,
+            adj_in_chunks: Vec::default(),
+            edges,
+            graph_dir: test_dir.into(),
+        })
     }
 
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone + Send + Sync>(
@@ -605,39 +635,14 @@ impl TempColGraphFragment {
                 .graph_dir
                 .join(format!("adj_in_chunk_{:08}.ipc", self.adj_in_chunks.len()));
             let chunk = [Chunk::try_new(vec![res])?];
-            write_batches(file_path.as_path(), schema.clone(), &chunk)?;
+            write_batches(file_path.as_path(), schema, &chunk)?;
             let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
             self.adj_in_chunks
-                .push(VertexChunk::new(mmapped_chunk, schema));
+                .push(VertexChunk::new(mmapped_chunk));
         }
         Ok(())
     }
 
-    pub(crate) fn add_chunks<GO: GlobalOrder>(
-        &self,
-        vertex_chunk_size: usize,
-        edge_chunk_size: usize,
-        edge_max_list_size: usize,
-        clone: Arc<super::global_order::LMDBOrdering>,
-        load_chunks: impl IntoIterator<Item = LoadChunk>,
-    ) -> Result<(), Error> {
-        let mut last_chunk: Option<LoadChunk> = None;
-        // let mut i =
-
-        for chunk in load_chunks {
-            // get the source and destintion columns
-            let src_iter = chunk.sources()?;
-            let dst_iter = chunk.destinations()?;
-
-            // for (src, dst) in src_iter.zip(dst_iter) {
-            //     // resolve the physical id of src
-            //     let src_id =
-            // }
-
-            last_chunk = Some(chunk);
-        }
-        Ok(())
-    }
 }
 
 pub(crate) fn load_chunks<GO: GlobalOrder>(
@@ -760,11 +765,11 @@ mod test {
 
         let go: GlobalMap = vertices.iter().copied().collect();
 
-        let mut graph = TempColGraphFragment::build_tables_from_chunked(
+        let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.as_ref(),
             vertex_chunk_size,
             edge_chunk_size,
-            edge_max_list_size,
+            t_props_chunk_size,
             go.into(),
             triples,
         )
@@ -861,7 +866,7 @@ mod test {
         check_graph_sanity(&edges, &vertices, &graph);
 
         // check that reloading from graph dir works
-        let reloaded_graph = TempColGraphFragment::new(test_dir.path()).unwrap();
+        let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true).unwrap();
         check_graph_sanity(&edges, &vertices, &reloaded_graph)
     }
 
@@ -969,13 +974,13 @@ mod test {
 
         let g = TempColGraphFragment::from_sorted_parquet_edge_list(
             file_path.as_path(),
+            test_dir.path(),
             "source",
             "destination",
             "time",
             5,
             5,
             5,
-            test_dir.path(),
         )
         .unwrap();
 

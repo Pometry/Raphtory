@@ -5,8 +5,7 @@ use std::{
 };
 
 use arrow2::{
-    array::{Array, PrimitiveArray, StructArray},
-    buffer::Buffer,
+    array::{Array,StructArray},
     chunk::Chunk,
     compute::concatenate::concatenate,
     datatypes::{DataType, Field, Schema},
@@ -16,26 +15,22 @@ use arrow2::{
         write::FileMetaData,
     },
     offset::OffsetsBuffer,
-    types::NativeType,
 };
 use itertools::Itertools;
 use rayon::prelude::*;
 
 use super::{
-    array_as_id_iter,
     chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
+    edge_frame_builder::edge_props_builder::EdgePropsBuilder,
     mmap::{mmap_batch, write_batches},
-    Error, GID,
+    Error,
 };
 
 pub(crate) struct ParquetReader<P> {
     files: Vec<PathBuf>,
-    graph_dir: P,
     edge_t_prop_schema: Schema,
     src_dest_schema: Schema,
-    src_col_idx: usize,
-    dst_col_idx: usize,
-    time_col_idx: usize,
+    edge_props_builder: EdgePropsBuilder<P>,
 }
 
 impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
@@ -86,14 +81,13 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
                 .position(|f| f.name == time_col)
                 .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
 
+            let edge_props_builder = EdgePropsBuilder::new(graph_dir, src_col, dst_col, time_col);
+
             Ok(Self {
                 files,
-                graph_dir,
                 edge_t_prop_schema,
                 src_dest_schema,
-                src_col_idx: src_col,
-                dst_col_idx: dst_col,
-                time_col_idx: time_col,
+                edge_props_builder,
             })
         } else {
             Err(Error::NoEdgeLists)
@@ -114,7 +108,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
     fn parquet_offset_iter(
         &self,
         chunk_size: usize,
-    ) -> impl Iterator<Item = Vec<ParquetOffset<RowGroupMetaData>>> + '_ {
+    ) -> impl Iterator<Item = Vec<ParquetOffset<PathBuf, RowGroupMetaData>>> + '_ {
         ParquetOffsetIter::new(self.row_group_iter(), chunk_size)
     }
 
@@ -128,138 +122,24 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
     }
 
     fn load_t_edge_values(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
-        let graph_dir = self.graph_dir.clone();
         let schema = self.edge_t_prop_schema.clone();
 
         let offset_iter = self.parquet_offset_iter(chunk_size).collect_vec();
 
-        let iter = offset_iter.into_par_iter().enumerate();
+        let iter = offset_iter
+            .into_par_iter()
+            .map(|parquet_offsets| into_struct_arrays(parquet_offsets, &schema));
 
-        let arrays = iter
-            .map(|(chunk_id, parquet_offsets)| {
-                let struct_arr = into_struct_arrays(parquet_offsets, &schema);
-
-                let file_path = graph_dir
-                    .as_ref()
-                    .join(format!("edge_chunk_{:08}.ipc", chunk_id));
-
-                write_temporal_properties(file_path, struct_arr, self.time_col_idx)
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
-
-        Ok(ChunkedArray::from_vec(chunk_size, arrays))
+        self.edge_props_builder.load_t_edges_from_par_structs(iter)
     }
 
     fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
-        let bounds_and_counts = self
-            .files
-            .par_iter()
-            .flat_map_iter(|path| {
-                read_parquet_file(path, self.src_dest_schema.clone())
-                    .expect("failed to read parquet file")
-            })
-            .map(|chunk| self.count_chunk(chunk))
-            .collect::<Result<Vec<_>, Error>>()?;
-
-        let mut bounds_and_counts_iter = bounds_and_counts.into_iter();
-        let (mut old_bounds, counts) = bounds_and_counts_iter
-            .next()
-            .ok_or_else(|| Error::NoEdgeLists)?;
-
-        let mut offsets: Vec<i64> = vec![0];
-        offsets.extend(counts.into_iter().scan(0i64, |state, v| {
-            let new = v as i64 + *state;
-            *state = new;
-            Some(new)
-        }));
-
-        for (bounds, counts) in bounds_and_counts_iter {
-            let mut counts_iter = counts.into_iter();
-
-            if bounds.first == old_bounds.last {
-                let first_count = counts_iter.next().ok_or_else(|| Error::EmptyChunk)?;
-                *offsets.last_mut().unwrap() += first_count as i64;
-            }
-            let last_value = *offsets.last().unwrap();
-            offsets.extend(counts_iter.scan(last_value, |state, v| {
-                let new = v as i64 + *state;
-                *state = new;
-                Some(new)
-            }));
-            old_bounds = bounds;
-        }
-
-        let buffer = Buffer::from(offsets);
-        write_buffer(
-            self.graph_dir.as_ref().join("edge_offsets.ipc"),
-            buffer.clone(),
-        )?;
-        //safety: we made some offsets that are increasing and start at 0
-        Ok(unsafe { OffsetsBuffer::new_unchecked(buffer) })
+        let chunks = self.files.par_iter().flat_map_iter(|path| {
+            read_parquet_file(path, self.src_dest_schema.clone())
+                .expect("failed to read parquet file")
+        });
+        self.edge_props_builder.load_t_edge_offsets_from_par_chunks(chunks)
     }
-
-    fn count_chunk(
-        &self,
-        chunk: Result<Chunk<Box<dyn Array>>, arrow2::error::Error>,
-    ) -> Result<(EdgeBounds, Vec<usize>), Error> {
-        let chunk = chunk?;
-        let srcs = &chunk[self.src_col_idx];
-        let dests = &chunk[self.dst_col_idx];
-
-        let srcs = array_as_id_iter(srcs)?;
-        let dests = array_as_id_iter(dests)?;
-
-        let mut iter = srcs.zip(dests);
-        let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
-        let mut last = first.clone();
-        let mut counts: Vec<usize> = vec![1];
-
-        for edge in iter {
-            if edge == last {
-                *counts.last_mut().expect("this is not empty") += 1;
-            } else {
-                counts.push(1);
-            }
-            last = edge;
-        }
-
-        Ok((EdgeBounds { first, last }, counts))
-    }
-}
-
-struct EdgeBounds {
-    first: (GID, GID),
-    last: (GID, GID),
-}
-
-fn write_buffer<T: NativeType>(
-    file_path: impl AsRef<Path>,
-    buffer: Buffer<T>,
-) -> Result<(), Error> {
-    let arr: PrimitiveArray<T> =
-        unsafe { PrimitiveArray::from_inner_unchecked(T::PRIMITIVE.into(), buffer, None) };
-
-    let schema = Schema::from(vec![Field::new("offsets", arr.data_type().clone(), false)]);
-    let chunk = Chunk::new(vec![arr.boxed()]);
-    write_batches(file_path, schema, &[chunk])?;
-    Ok(())
-}
-
-fn write_temporal_properties(
-    file_path: impl AsRef<Path>,
-    chunk: StructArray,
-    time_col_idx: usize,
-) -> Result<StructArray, Error> {
-    let (mut fields, mut values, _) = chunk.into_data();
-    let schema = Schema::from(fields.clone());
-    // make sure the time column is first
-    values.swap(0, time_col_idx);
-    fields.swap(0, time_col_idx);
-
-    write_batches(file_path.as_ref(), schema, &[Chunk::new(values)])?;
-    let mmapped_chunk = unsafe { mmap_batch(file_path.as_ref(), 0)? };
-    let mmapped = StructArray::new(DataType::Struct(fields), mmapped_chunk.into_arrays(), None);
-    Ok(mmapped)
 }
 
 fn read_parquet_file(
@@ -275,7 +155,7 @@ fn read_parquet_file(
 }
 
 fn into_struct_arrays<'a>(
-    offsets: Vec<ParquetOffset<RowGroupMetaData>>,
+    offsets: Vec<ParquetOffset<PathBuf, RowGroupMetaData>>,
     schema: &Schema,
 ) -> StructArray {
     let group = offsets.iter().group_by(|&offset| &offset.file);
@@ -334,21 +214,27 @@ impl NumRows for RowGroupMetaData {
     }
 }
 
+impl NumRows for StructArray {
+    fn num_rows(&self) -> usize {
+        self.len()
+    }
+}
+
 #[derive(PartialEq, Debug)]
-pub(crate) struct ParquetOffset<G> {
-    file: PathBuf,
+pub(crate) struct ParquetOffset<P, G> {
+    file: P,
     row_group: G,
     range: Range<usize>,
 }
 
-struct ParquetOffsetIter<G: NumRows, P: AsRef<Path>, I: Iterator<Item = (P, G)>> {
+struct ParquetOffsetIter<G, P, I> {
     row_groups: I,
     chunk_size: usize,
     current: Option<(P, G)>,
     offset: usize,
 }
 
-impl<G: NumRows, P: AsRef<Path>, I: Iterator<Item = (P, G)>> ParquetOffsetIter<G, P, I> {
+impl<G, P, I: Iterator<Item = (P, G)>> ParquetOffsetIter<G, P, I> {
     fn new(mut row_groups: I, chunk_size: usize) -> Self {
         let first = row_groups.next();
         Self {
@@ -361,13 +247,11 @@ impl<G: NumRows, P: AsRef<Path>, I: Iterator<Item = (P, G)>> ParquetOffsetIter<G
 }
 
 // iterator
-impl<G: NumRows, P: AsRef<Path>, I: Iterator<Item = (P, G)>> Iterator
-    for ParquetOffsetIter<G, P, I>
-{
-    type Item = Vec<ParquetOffset<G>>;
+impl<G: NumRows, P: Clone, I: Iterator<Item = (P, G)>> Iterator for ParquetOffsetIter<G, P, I> {
+    type Item = Vec<ParquetOffset<P, G>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut chunks: Vec<ParquetOffset<G>> = vec![];
+        let mut chunks: Vec<ParquetOffset<P, G>> = vec![];
         let mut chunk_len: usize = 0;
         while chunk_len < self.chunk_size {
             if let Some((file, current)) = self.current.as_ref() {
@@ -375,7 +259,7 @@ impl<G: NumRows, P: AsRef<Path>, I: Iterator<Item = (P, G)>> Iterator
                 let needed = self.chunk_size - chunk_len;
                 let from_current = min(needed, remaining_in_current);
                 let next_parquet_chunk = ParquetOffset {
-                    file: file.as_ref().to_path_buf(),
+                    file: file.clone(),
                     row_group: current.clone(),
                     range: self.offset..self.offset + from_current,
                 };
@@ -402,8 +286,6 @@ impl<G: NumRows, P: AsRef<Path>, I: Iterator<Item = (P, G)>> Iterator
 
 #[cfg(test)]
 mod test {
-
-    use arrow2::chunk;
 
     use super::*;
 

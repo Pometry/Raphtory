@@ -4,7 +4,7 @@ use crate::arrow::{
     DST_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
-    array::{Array, ListArray, PrimitiveArray, StructArray},
+    array::PrimitiveArray,
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
