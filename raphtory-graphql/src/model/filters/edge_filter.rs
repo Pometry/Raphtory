@@ -23,7 +23,9 @@ impl EdgeFilter {
         if let Some(ids_filter) = &self.node_ids {
             let src = edge.ee.src().id();
             let dst = edge.ee.dst().id();
-            if !ids_filter.contains(&src.to_string()) || !ids_filter.contains(&dst.to_string()) {
+            if ids_filter.contains(&src.to_string()) || ids_filter.contains(&dst.to_string()) {
+                return true;
+            } else {
                 return false;
             }
         }
@@ -31,7 +33,9 @@ impl EdgeFilter {
         if let Some(names_filter) = &self.node_names {
             let src = edge.ee.src().name();
             let dst = edge.ee.dst().name();
-            if !names_filter.contains(&src) || !names_filter.contains(&dst) {
+            if names_filter.contains(&src) || names_filter.contains(&dst) {
+                return true;
+            } else {
                 return false;
             }
         }

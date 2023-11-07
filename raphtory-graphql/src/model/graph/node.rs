@@ -33,8 +33,8 @@ impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for Node {
 
 #[ResolvedObjectFields]
 impl Node {
-    async fn id(&self) -> u64 {
-        self.vv.id()
+    async fn id(&self) -> String {
+        self.vv.id().to_string()
     }
 
     pub async fn name(&self) -> String {
