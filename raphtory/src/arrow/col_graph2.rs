@@ -11,10 +11,10 @@ use std::{
 use crate::{
     arrow::{
         adj_schema,
-        edge_frame_builder::{EdgeFrameBuilder, EdgeOverflowChunk},
+        edge_frame_builder::EdgeFrameBuilder,
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
-        mmap::{mmap_all_chunks, mmap_batch, mmap_batches, write_batches},
+        mmap::{mmap_batch, mmap_batches, write_batches},
         prepare_graph_dir,
         vertex_frame_builder::VertexFrameBuilder,
         Error,
@@ -42,10 +42,11 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
+    edges::Edges,
     global_order::{GlobalMap, GlobalOrder},
     ipc,
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID, edges::Edges,
+    LoadChunk, Time, GID,
 };
 
 #[derive(Debug)]
@@ -84,7 +85,7 @@ impl TempColGraphFragment {
             let file_name = file_name
                 .to_str()
                 .expect("file names are already filtered and thus valid");
-         if file_name.starts_with("adj_in_chunk_") {
+            if file_name.starts_with("adj_in_chunk_") {
                 adj_in_chunks.push(VertexChunk::new(
                     unsafe {
                         // TODO: this should perhap be configurable
@@ -142,8 +143,7 @@ impl TempColGraphFragment {
     }
 
     pub fn edge_property_id(&self, name: &str) -> Option<usize> {
-        let edge_chunk = self.edge_chunks.first()?;
-        edge_chunk.temporal_edge_property_id(name)
+        self.edges.property_id(name)
     }
 
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone, P2: AsRef<Path>>(
