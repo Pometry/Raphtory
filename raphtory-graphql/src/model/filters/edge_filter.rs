@@ -20,22 +20,20 @@ pub struct EdgeFilter {
 
 impl EdgeFilter {
     pub(crate) fn matches(&self, edge: &Edge) -> bool {
+        // Filters edges where BOTH the src and dst id match one of the ids in the filter
         if let Some(ids_filter) = &self.node_ids {
             let src = edge.ee.src().id();
             let dst = edge.ee.dst().id();
-            if ids_filter.contains(&src.to_string()) || ids_filter.contains(&dst.to_string()) {
-                return true;
-            } else {
+            if !ids_filter.contains(&src.to_string()) || !ids_filter.contains(&dst.to_string()) {
                 return false;
             }
         }
 
+        // Filters edges where BOTH the src and dst name match one of the names in the filter
         if let Some(names_filter) = &self.node_names {
             let src = edge.ee.src().name();
             let dst = edge.ee.dst().name();
-            if names_filter.contains(&src) || names_filter.contains(&dst) {
-                return true;
-            } else {
+            if !names_filter.contains(&src) || !names_filter.contains(&dst) {
                 return false;
             }
         }
