@@ -1,5 +1,5 @@
+use crate::arrow::edge::Edge;
 #[cfg(feature = "arrow")]
-use crate::arrow::edge::CoreArrowEdgeView;
 use crate::{
     core::{
         entities::{
@@ -26,7 +26,7 @@ use enum_dispatch::enum_dispatch;
 pub enum CoreEdgeView<'a> {
     Mem(&'a EdgeStore),
     #[cfg(feature = "arrow")]
-    Arrow(CoreArrowEdgeView<'a>),
+    Arrow(Edge<'a>),
 }
 
 impl<'a> CoreEdgeView<'a> {}
