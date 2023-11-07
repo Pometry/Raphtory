@@ -120,9 +120,9 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
 
     pub(crate) fn load_edges(
         &self,
-        chunk_size: usize,
+        t_prop_chunk_size: usize,
     ) -> Result<ChunkedListArray<StructArray>, Error> {
-        let edge_values = self.load_t_edge_values(chunk_size)?;
+        let edge_values = self.load_t_edge_values(t_prop_chunk_size)?;
         let edge_offsets = self.load_t_edge_offsets()?;
         Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
     }

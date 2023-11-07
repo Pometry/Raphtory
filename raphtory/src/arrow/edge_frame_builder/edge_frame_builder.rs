@@ -8,7 +8,6 @@ use arrow2::{
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
-    offset::OffsetsBuffer,
 };
 use std::path::{Path, PathBuf};
 

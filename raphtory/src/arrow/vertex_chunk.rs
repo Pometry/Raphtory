@@ -2,7 +2,6 @@ use arrow2::{
     array::{Array, ListArray},
     buffer::Buffer,
     chunk::Chunk,
-    datatypes::Schema,
     types::NativeType,
 };
 use std::sync::Arc;
@@ -17,13 +16,12 @@ use arrow_array::ArrayRef;
 #[derive(Debug, Clone)]
 pub(crate) struct VertexChunk {
     columns: Arc<[Box<dyn Array>]>,
-    schema: Schema,
 }
 
 impl VertexChunk {
-    pub(crate) fn new(chunk: Chunk<Box<dyn Array>>, schema: Schema) -> Self {
+    pub(crate) fn new(chunk: Chunk<Box<dyn Array>>) -> Self {
         let columns = chunk.into_arrays().into();
-        VertexChunk { columns, schema }
+        VertexChunk { columns}
     }
 
     pub(crate) fn neighbours_col(&self) -> Option<ListColumn<u64>> {
@@ -62,13 +60,6 @@ impl VertexChunk {
             .collect()
     }
 
-    pub(crate) fn to_arrow_fields(&self) -> Vec<arrow_schema::Field> {
-        self.schema
-            .fields
-            .iter()
-            .map(|field| super::to_arrow_field(field))
-            .collect()
-    }
 }
 
 #[derive(Debug)]
