@@ -1,20 +1,15 @@
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
-    chunk::Chunk,
-    datatypes::{DataType, Field, Schema},
+    datatypes::{DataType, Field, Schema}, chunk::Chunk,
 };
 use itertools::Itertools;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std:: path::{Path, PathBuf};
 
 pub(crate) mod chunked_array;
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
 pub mod edge;
 pub(crate) mod edges;
-// pub(crate) mod edge_chunk;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod global_order;
 pub mod graph;
@@ -117,6 +112,18 @@ impl From<&str> for GID {
 pub(crate) struct GraphChunk {
     srcs: Box<dyn Array>,
     dsts: Box<dyn Array>,
+}
+
+impl GraphChunk {
+    pub fn from_chunk(
+        chunk: Chunk<Box<dyn Array>>,
+        src_col_idx: usize,
+        dst_col_idx: usize,
+    ) -> Self {
+        let srcs = chunk[src_col_idx].clone();
+        let dsts = chunk[dst_col_idx].clone();
+        Self { srcs, dsts }
+    }
 }
 
 pub(crate) struct PropsChunk(pub StructArray);
@@ -259,59 +266,4 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // }
 
     return Ok(());
-}
-
-fn to_arrow_datatype(d_type: &DataType) -> arrow_schema::DataType {
-    match d_type {
-        DataType::Null => arrow_schema::DataType::Null,
-        DataType::Boolean => arrow_schema::DataType::Boolean,
-        DataType::Int8 => arrow_schema::DataType::Int8,
-        DataType::Int16 => arrow_schema::DataType::Int16,
-        DataType::Int32 => arrow_schema::DataType::Int32,
-        DataType::Int64 => arrow_schema::DataType::Int64,
-        DataType::UInt8 => arrow_schema::DataType::UInt8,
-        DataType::UInt16 => arrow_schema::DataType::UInt16,
-        DataType::UInt32 => arrow_schema::DataType::UInt32,
-        DataType::UInt64 => arrow_schema::DataType::UInt64,
-        DataType::Float16 => arrow_schema::DataType::Float16,
-        DataType::Float32 => arrow_schema::DataType::Float32,
-        DataType::Float64 => arrow_schema::DataType::Float64,
-        DataType::Utf8 => arrow_schema::DataType::Utf8,
-        DataType::LargeUtf8 => arrow_schema::DataType::LargeUtf8,
-        DataType::List(field) => arrow_schema::DataType::List(Arc::new(to_arrow_field(&field))),
-        DataType::LargeList(field) => {
-            arrow_schema::DataType::LargeList(Arc::new(to_arrow_field(&field)))
-        }
-        DataType::Struct(fields) => {
-            arrow_schema::DataType::Struct(fields.iter().map(to_arrow_field).collect())
-        }
-        // later
-        DataType::Timestamp(_, _) => todo!(),
-        DataType::Union(_, _, _) => todo!(),
-        DataType::Map(_, _) => todo!(),
-        DataType::Dictionary(_, _, _) => todo!(),
-        DataType::Decimal(_, _) => todo!(),
-        DataType::Decimal256(_, _) => todo!(),
-        DataType::Extension(_, _, _) => todo!(),
-        DataType::FixedSizeList(_, _) => todo!(),
-        DataType::Date32 => todo!(),
-        DataType::Date64 => todo!(),
-        DataType::Time32(_) => todo!(),
-        DataType::Time64(_) => todo!(),
-        DataType::Duration(_) => todo!(),
-        DataType::Interval(_) => todo!(),
-        DataType::Binary => todo!(),
-        DataType::FixedSizeBinary(_) => todo!(),
-        DataType::LargeBinary => todo!(),
-    }
-}
-
-fn to_arrow_field(field: &Field) -> arrow_schema::Field {
-    let data_type = to_arrow_datatype(field.data_type());
-    arrow_schema::Field::new(&field.name, data_type, field.is_nullable)
-}
-
-fn to_arrow_schema(schema: &Schema) -> arrow_schema::SchemaRef {
-    let fields: Vec<_> = schema.fields.iter().map(to_arrow_field).collect();
-    Arc::new(arrow_schema::Schema::new(fields))
 }

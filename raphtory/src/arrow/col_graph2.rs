@@ -12,7 +12,7 @@ use crate::{
     arrow::{
         adj_schema,
         edge::{Edge, ExplodedEdge},
-        edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
+        edge_frame_builder::EdgeFrameBuilder,
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
         mmap::{mmap_batch, mmap_batches, write_batches},
@@ -25,7 +25,6 @@ use crate::{
         entities::{EID, VID},
         Direction,
     },
-    prelude::Graph,
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray},
@@ -45,6 +44,8 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
+    chunked_array::list_array::ChunkedListArray,
+    edge_frame_builder::edge_props_builder::EdgePropsBuilder,
     edges::Edges,
     global_order::{GlobalMap, GlobalOrder},
     ipc, split_chunk, split_struct_chunk,
@@ -139,7 +140,6 @@ impl TempColGraphFragment {
         self.edges.property_id(name)
     }
 
-    #[cfg(test)]
     pub fn load_from_edge_list(
         test_dir: &Path,
         vertex_chunk_size: usize,
@@ -160,10 +160,24 @@ impl TempColGraphFragment {
             .into_iter()
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
-        
+
         load_chunks(&mut vf_builder, &mut edge_builder, edges)?;
 
-        let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, vec![]);
+        let edge_props_builder =
+            EdgePropsBuilder::new(test_dir, src_col_idx, dst_col_idx, time_col_idx);
+
+        let offsets = edge_props_builder
+            .load_t_edge_offsets_from_par_chunks(edges.into_par_iter().map(Ok))?;
+        let values = edge_props_builder
+            .load_t_edges_from_par_structs(props.into_par_iter().map(|props| props.0))?;
+
+        let temporal_props = ChunkedListArray::new_from_parts(values, offsets);
+
+        let edges = Edges::new(
+            edge_builder.src_chunks,
+            edge_builder.dst_chunks,
+            temporal_props,
+        );
 
         Ok(TempColGraphFragment {
             vertex_chunk_size,
@@ -750,20 +764,13 @@ mod test {
             .into_iter()
             .map(|chunk| PrimitiveArray::from_vec(chunk.collect()));
 
-        let schema = Schema::from(vec![
-            Field::new("srcs", DataType::UInt64, false),
-            Field::new("dsts", DataType::UInt64, false),
-            Field::new("time", DataType::Int64, false),
-        ]);
-
-        let triples = srcs.zip(dsts).zip(times).map(move |((a, b), c)| {
-            LoadChunk::new(
-                vec![a.boxed(), b.boxed(), c.boxed()],
-                0,
-                1,
-                2,
-                schema.clone(),
-            )
+        let edge_list = srcs.zip(dsts).zip(times).map(move |((src, dst), times)| {
+            let d_type = DataType::Struct(vec![
+                Field::new("time", DataType::Int64, false),
+                Field::new("srcs", DataType::UInt64, false),
+                Field::new("dsts", DataType::UInt64, false),
+            ]);
+            StructArray::new(d_type, vec![times.boxed(), src.boxed(), dst.boxed()], None)
         });
 
         let go: GlobalMap = vertices.iter().copied().collect();
@@ -773,10 +780,14 @@ mod test {
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
-            go.into(),
-            triples,
+            go,
+            1,
+            2,
+            0,
+            edge_list.collect(),
         )
         .unwrap();
+
         graph.build_inbound_adj_index().unwrap();
         graph
     }

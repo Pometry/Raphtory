@@ -8,7 +8,7 @@ use arrow2::{
     array::{Array, StructArray},
     chunk::Chunk,
     compute::concatenate::concatenate,
-    datatypes::{DataType, Field, Schema},
+    datatypes::{DataType, Schema},
     io::parquet::{
         self,
         read::{infer_schema, RowGroupMetaData},
@@ -22,8 +22,7 @@ use rayon::prelude::*;
 use super::{
     chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
     edge_frame_builder::edge_props_builder::EdgePropsBuilder,
-    mmap::{mmap_batch, write_batches},
-    Error,
+    Error, GraphChunk,
 };
 
 pub(crate) struct ParquetReader<P> {
@@ -137,6 +136,13 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         let chunks = self.files.par_iter().flat_map_iter(|path| {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
+                .map_ok(|chunk| {
+                    GraphChunk::from_chunk(
+                        chunk,
+                        self.edge_props_builder.src_col_idx,
+                        self.edge_props_builder.dst_col_idx,
+                    )
+                })
         });
         self.edge_props_builder
             .load_t_edge_offsets_from_par_chunks(chunks)

@@ -10,12 +10,12 @@ use arrow2::{
 };
 use rayon::prelude::*;
 
-use crate::arrow::{array_as_id_iter, Error, GID, mmap::{mmap_batch, write_batches}, chunked_array::chunked_array::ChunkedArray};
+use crate::arrow::{array_as_id_iter, Error, GID, mmap::{mmap_batch, write_batches}, chunked_array::chunked_array::ChunkedArray, GraphChunk};
 
 pub struct EdgePropsBuilder<P> {
     graph_dir: P,
-    src_col_idx: usize,
-    dst_col_idx: usize,
+    pub(crate) src_col_idx: usize,
+    pub(crate) dst_col_idx: usize,
     time_col_idx: usize,
 }
 
@@ -36,7 +36,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
     pub(crate) fn load_t_edge_offsets_from_par_chunks(
         &self,
-        chunks: impl ParallelIterator<Item = Result<Chunk<Box<dyn Array>>, arrow2::error::Error>>,
+        chunks: impl ParallelIterator<Item = Result<GraphChunk, arrow2::error::Error>>,
     ) -> Result<OffsetsBuffer<i64>, Error> {
         let bounds_and_counts = chunks
             .map(|chunk| self.count_chunk(chunk))
@@ -97,11 +97,11 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
     fn count_chunk(
         &self,
-        chunk: Result<Chunk<Box<dyn Array>>, arrow2::error::Error>,
+        chunk: Result<GraphChunk, arrow2::error::Error>,
     ) -> Result<(EdgeBounds, Vec<usize>), Error> {
         let chunk = chunk?;
-        let srcs = &chunk[self.src_col_idx];
-        let dests = &chunk[self.dst_col_idx];
+        let srcs = &chunk.srcs;
+        let dests = &chunk.dsts;
 
         let srcs = array_as_id_iter(srcs)?;
         let dests = array_as_id_iter(dests)?;
