@@ -84,7 +84,7 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema.clone(), &chunk)?;
         let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_out_chunks.push(VertexChunk::new(mmapped_chunk, schema));
+        self.adj_out_chunks.push(VertexChunk::new(mmapped_chunk));
         Ok(())
     }
 
@@ -110,8 +110,13 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
                 // new source or first edge
                 self.last_src_idx = self.find_or_push_vertex(&src);
                 let chunk_id = self.last_src_idx / self.chunk_size;
-                if let Some(last_chunk) = self.last_chunk{
-                    assert!(chunk_id >= last_chunk, "Chunk id {} is less than last chunk {}", chunk_id, last_chunk);
+                if let Some(last_chunk) = self.last_chunk {
+                    assert!(
+                        chunk_id >= last_chunk,
+                        "Chunk id {} is less than last chunk {}",
+                        chunk_id,
+                        last_chunk
+                    );
                 }
                 self.last_chunk = Some(chunk_id);
                 // figure out what chunk are we in
