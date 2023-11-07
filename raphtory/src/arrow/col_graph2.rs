@@ -12,7 +12,7 @@ use std::{
 use crate::{
     arrow::{
         adj_schema,
-        chunked_array::chunked_array::{ChunkedArraySlice, ChunkedPrimitiveCol},
+        edge::{Edge, ExplodedEdge},
         edge_frame_builder::EdgeFrameBuilder,
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
@@ -48,7 +48,7 @@ use super::{
     global_order::{GlobalMap, GlobalOrder},
     ipc,
     vertex_chunk::{RowOwned, VertexChunk},
-    LoadChunk, Time, GID, TIME_COLUMN, TIME_COLUMN_IDX,
+    LoadChunk, Time, GID,
 };
 
 #[derive(Debug)]
@@ -407,29 +407,8 @@ impl TempColGraphFragment {
         self.edges.iter()
     }
 
-    pub fn exploded_edges(&self) -> impl Iterator<Item = (EID, VID, VID, Time)> + '_ {
-        let edge_chunk_size = self.edge_chunk_size;
-        self.edge_chunks
-            .iter()
-            .enumerate()
-            .flat_map(move |(chunk_id, chunk)| {
-                chunk
-                    .source()
-                    .into_iter()
-                    .flatten()
-                    .zip(chunk.destination().into_iter().flatten())
-                    .enumerate()
-                    .flat_map(move |(eid, (src, dst))| {
-                        chunk.timestamps(eid).flatten().map(move |time| {
-                            (
-                                EID(chunk_id * edge_chunk_size + eid),
-                                VID(*src as usize),
-                                VID(*dst as usize),
-                                *time,
-                            )
-                        })
-                    })
-            })
+    pub fn exploded_edges(&self) -> impl Iterator<Item = ExplodedEdge> + '_ {
+        self.edges.iter().flat_map(|e| e.explode())
     }
 
     fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<(RowOwned<u64>, RowOwned<u64>)> {
@@ -760,69 +739,6 @@ pub(crate) fn load_chunks<GO: GlobalOrder>(
     Ok(())
 }
 
-pub struct Edge<'a> {
-    props: ChunkedArraySlice<'a, StructArray>,
-    src_id: VID,
-    dst_id: VID,
-}
-
-impl<'a> Edge<'a> {
-    pub(crate) fn new(props: ChunkedArraySlice<'a, StructArray>, src_id: VID, dst_id: VID) -> Self {
-        Self {
-            props,
-            src_id,
-            dst_id,
-        }
-    }
-
-    pub fn timestamps(&self) -> ChunkedPrimitiveCol<i64> {
-        self.props.primitive_col(TIME_COLUMN_IDX).unwrap()
-    }
-
-    pub fn props<T: NativeType>(
-        &self,
-        prop_id: usize,
-    ) -> Option<impl Iterator<Item = Option<T>> + '_> {
-        self.props
-            .primitive_col::<T>(prop_id)
-            .map(|col| col.into_iter())
-    }
-
-    pub fn prop_items<T: NativeType>(
-        &self,
-        prop_id: usize,
-    ) -> Option<impl Iterator<Item = (Time, Option<T>)> + '_> {
-        let values = self.props(prop_id)?;
-        let timestamps = self.timestamps().into_iter().flatten();
-        Some(timestamps.zip(values))
-    }
-
-    pub fn prop_history<T: NativeType>(
-        &self,
-        prop_id: usize,
-    ) -> impl Iterator<Item = (Time, T)> + '_ {
-        self.prop_items(prop_id)
-            .into_iter()
-            .flatten()
-            .filter_map(|(t, value)| value.map(|v| (t, v)))
-    }
-
-    pub fn prop_items_utf8<I: Offset>(
-        &self,
-        prop_id: usize,
-    ) -> Option<impl Iterator<Item = Option<(&str, &Time)>>> {
-        Some(iter::empty())
-    }
-
-    pub fn src(&self) -> VID {
-        self.src_id
-    }
-
-    pub fn dst(&self) -> VID {
-        self.dst_id
-    }
-}
-
 fn read_vertices_only<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
@@ -943,7 +859,7 @@ mod test {
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
             .all_edges()
-            .all(|(_, VID(src), VID(dst))| src < g_num_verts && dst < g_num_verts));
+            .all(|e| e.src().0 < g_num_verts && e.dst().0 < g_num_verts));
 
         for v in 0..g_num_verts {
             let v = VID(v);
@@ -961,7 +877,7 @@ mod test {
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|(_, VID(v1), VID(v2), t)| (vertices[v1], vertices[v2], t))
+            .map(|e| (vertices[e.src().0], vertices[e.dst().0], e.timestamp()))
             .collect();
         assert_eq!(exploded_edges, edges);
 
@@ -1181,13 +1097,16 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.all_edges().collect::<Vec<_>>();
-        let expected = vec![(EID(0), VID(0), VID(1))];
+        let actual = graph
+            .all_edges()
+            .map(|e| (e.src(), e.dst()))
+            .collect::<Vec<_>>();
+        let expected = vec![(VID(0), VID(1))];
         assert_eq!(actual, expected)
     }
 
@@ -1211,13 +1130,16 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.all_edges().collect::<Vec<_>>();
-        let expected = vec![(EID(0), VID(0), VID(1))];
+        let actual = graph
+            .all_edges()
+            .map(|e| (e.src(), e.dst()))
+            .collect::<Vec<_>>();
+        let expected = vec![(VID(0), VID(1))];
         assert_eq!(actual, expected)
     }
 
@@ -1254,33 +1176,36 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.all_edges().collect::<Vec<_>>();
+        let actual = graph
+            .all_edges()
+            .map(|e| (e.src(), e.dst()))
+            .collect::<Vec<_>>();
         let expected = vec![
-            (EID(0), VID(0), VID(1)),
-            (EID(1), VID(0), VID(2)),
-            (EID(2), VID(0), VID(3)),
-            (EID(3), VID(1), VID(2)),
-            (EID(4), VID(1), VID(3)),
-            (EID(5), VID(1), VID(4)),
-            (EID(6), VID(2), VID(3)),
-            (EID(7), VID(2), VID(4)),
-            (EID(8), VID(2), VID(5)),
-            (EID(9), VID(3), VID(4)),
-            (EID(10), VID(3), VID(5)),
-            (EID(11), VID(3), VID(6)),
+            (VID(0), VID(1)),
+            (VID(0), VID(2)),
+            (VID(0), VID(3)),
+            (VID(1), VID(2)),
+            (VID(1), VID(3)),
+            (VID(1), VID(4)),
+            (VID(2), VID(3)),
+            (VID(2), VID(4)),
+            (VID(2), VID(5)),
+            (VID(3), VID(4)),
+            (VID(3), VID(5)),
+            (VID(3), VID(6)),
         ];
         assert_eq!(actual, expected);
 
         let e0 = graph.edge(0.into());
-        assert_eq!(e0.timestamps().next().unwrap(), &[0i64]);
+        assert_eq!(e0.timestamps().into_iter().next().unwrap(), Some(0i64));
 
         let e5 = graph.edge(5.into());
-        assert_eq!(e5.timestamps().next().unwrap(), &[5i64]);
+        assert_eq!(e5.timestamps().into_iter().next().unwrap(), Some(5i64));
     }
 
     #[test]
@@ -1306,22 +1231,25 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
         assert_eq!(actual, expected);
 
         graph.build_inbound_adj_index().unwrap();
-        let actual: Vec<_> = graph.edges(2.into(), Direction::IN).collect();
+        let actual: Vec<_> = graph.edges(VID(2), Direction::IN).collect();
         let expected = vec![(EID(1), VID(0)), (EID(2), VID(1))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.all_edges().collect::<Vec<_>>();
+        let actual = graph
+            .all_edges()
+            .map(|e| (e.src(), e.dst()))
+            .collect::<Vec<_>>();
         let expected = vec![
-            (EID(0), VID(0), VID(1)),
-            (EID(1), VID(0), VID(2)),
-            (EID(2), VID(1), VID(2)),
-            (EID(3), VID(1), VID(3)),
+            (VID(0), VID(1)),
+            (VID(0), VID(2)),
+            (VID(1), VID(2)),
+            (VID(1), VID(3)),
         ];
         assert_eq!(actual, expected);
     }
@@ -1354,19 +1282,22 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.exploded_edges().collect::<Vec<_>>();
+        let actual = graph
+            .exploded_edges()
+            .map(|e| (e.src(), e.dst(), e.timestamp()))
+            .collect::<Vec<_>>();
         let expected = vec![
-            (EID(0), VID(0), VID(1), 0),
-            (EID(1), VID(0), VID(2), 1),
-            (EID(1), VID(0), VID(2), 2),
-            (EID(2), VID(1), VID(2), 3),
-            (EID(3), VID(1), VID(3), 4),
-            (EID(3), VID(1), VID(3), 5),
+            (VID(0), VID(1), 0),
+            (VID(0), VID(2), 1),
+            (VID(0), VID(2), 2),
+            (VID(1), VID(2), 3),
+            (VID(1), VID(3), 4),
+            (VID(1), VID(3), 5),
         ];
         assert_eq!(actual, expected);
     }
@@ -1394,17 +1325,20 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.all_edges().collect::<Vec<_>>();
+        let actual = graph
+            .all_edges()
+            .map(|e| (e.src(), e.dst()))
+            .collect::<Vec<_>>();
         let expected = vec![
-            (EID(0), VID(0), VID(1)),
-            (EID(1), VID(0), VID(2)),
-            (EID(2), VID(1), VID(2)),
-            (EID(3), VID(1), VID(3)),
+            (VID(0), VID(1)),
+            (VID(0), VID(2)),
+            (VID(1), VID(2)),
+            (VID(1), VID(3)),
         ];
         assert_eq!(actual, expected);
     }
@@ -1446,25 +1380,28 @@ mod test {
         )
         .unwrap();
 
-        let actual = graph.edges(0.into(), Direction::OUT).collect::<Vec<_>>();
+        let actual = graph.edges(VID(0), Direction::OUT).collect::<Vec<_>>();
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2)), (EID(2), VID(3))];
         assert_eq!(actual, expected);
 
         // check edges
-        let actual = graph.all_edges().collect::<Vec<_>>();
+        let actual = graph
+            .all_edges()
+            .map(|e| (e.src(), e.dst()))
+            .collect::<Vec<_>>();
         let expected = vec![
-            (EID(0), VID(0), VID(1)),
-            (EID(1), VID(0), VID(2)),
-            (EID(2), VID(0), VID(3)),
-            (EID(3), VID(1), VID(2)),
-            (EID(4), VID(1), VID(3)),
-            (EID(5), VID(1), VID(4)),
-            (EID(6), VID(2), VID(3)),
-            (EID(7), VID(2), VID(4)),
-            (EID(8), VID(2), VID(5)),
-            (EID(9), VID(3), VID(4)),
-            (EID(10), VID(3), VID(5)),
-            (EID(11), VID(3), VID(6)),
+            (VID(0), VID(1)),
+            (VID(0), VID(2)),
+            (VID(0), VID(3)),
+            (VID(1), VID(2)),
+            (VID(1), VID(3)),
+            (VID(1), VID(4)),
+            (VID(2), VID(3)),
+            (VID(2), VID(4)),
+            (VID(2), VID(5)),
+            (VID(3), VID(4)),
+            (VID(3), VID(5)),
+            (VID(3), VID(6)),
         ];
         assert_eq!(actual, expected);
     }
@@ -1528,8 +1465,11 @@ mod test {
         )
         .unwrap();
 
-        let all_exploded: Vec<_> = graph.exploded_edges().collect();
-        let expected: Vec<_> = (0i64..10).map(|t| (EID(0), VID(0), VID(1), t)).collect();
+        let all_exploded: Vec<_> = graph
+            .exploded_edges()
+            .map(|e| (e.src(), e.dst(), e.timestamp()))
+            .collect();
+        let expected: Vec<_> = (0i64..10).map(|t| (VID(0), VID(1), t)).collect();
         assert_eq!(all_exploded, expected);
     }
 
@@ -1553,12 +1493,15 @@ mod test {
         )
         .unwrap();
 
-        let all_exploded: Vec<_> = graph.exploded_edges().collect();
+        let all_exploded: Vec<_> = graph
+            .exploded_edges()
+            .map(|e| (e.src(), e.dst(), e.timestamp()))
+            .collect();
         let expected: Vec<_> = vec![
-            (EID(0), VID(0), VID(1), 0),
-            (EID(0), VID(0), VID(1), 1),
-            (EID(0), VID(0), VID(1), 2),
-            (EID(1), VID(1), VID(2), 3),
+            (VID(0), VID(1), 0),
+            (VID(0), VID(1), 1),
+            (VID(0), VID(1), 2),
+            (VID(1), VID(2), 3),
         ];
         assert_eq!(all_exploded, expected);
         graph.build_inbound_adj_index().unwrap();
