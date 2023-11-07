@@ -334,7 +334,7 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     );
     Ok(reader.flatten().map(move |chunk| {
         split_chunk(
-            chunk,
+            chunk.into_arrays(),
             src_col_idx,
             dst_col_idx,
             time_col_idx,
