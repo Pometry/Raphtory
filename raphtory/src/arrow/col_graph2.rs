@@ -5,7 +5,7 @@ use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
-    },
+    }, borrow::Borrow,
 };
 
 use crate::{
@@ -140,7 +140,7 @@ impl TempColGraphFragment {
         self.edges.property_id(name)
     }
 
-    pub fn load_from_edge_list(
+    pub(crate) fn load_from_edge_list(
         test_dir: &Path,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
@@ -161,7 +161,7 @@ impl TempColGraphFragment {
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
 
-        load_chunks(&mut vf_builder, &mut edge_builder, edges)?;
+        load_chunks(&mut vf_builder, &mut edge_builder, edges.iter())?;
 
         let edge_props_builder =
             EdgePropsBuilder::new(test_dir, src_col_idx, dst_col_idx, time_col_idx);
@@ -189,7 +189,7 @@ impl TempColGraphFragment {
     }
 
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone + Send + Sync>(
-        parquet_dir: P,
+        parquet_path: P,
         graph_dir: P,
         src_col: &str,
         src_hash_col: &str,
@@ -202,7 +202,7 @@ impl TempColGraphFragment {
         t_props_chunk_size: usize,
         edge_max_list_size: usize,
     ) -> Result<Self, Error> {
-        let sorted_gids_path = parquet_dir
+        let sorted_gids_path = parquet_path
             .as_ref()
             .to_path_buf()
             .join("sorted_global_ids.ipc");
@@ -210,10 +210,10 @@ impl TempColGraphFragment {
         prepare_graph_dir(graph_dir.as_ref())?;
 
         let srcs_parquet_files =
-            list_sorted_files(&parquet_dir, |path| is_parquet_file(path))?.collect_vec();
+            list_sorted_files(&parquet_path, |path| is_parquet_file(path))?.collect_vec();
 
         let triplets_parquet_files2 =
-            list_sorted_files(&parquet_dir, |path| is_parquet_file(path))?;
+            list_sorted_files(&parquet_path, |path| is_parquet_file(path))?;
 
         let now = std::time::Instant::now();
 
@@ -268,8 +268,8 @@ impl TempColGraphFragment {
         load_chunks(&mut vf_builder, &mut edge_builder, chunks)?;
 
         let reader = ParquetReader::new(
-            graph_dir,
-            parquet_dir,
+            graph_dir.as_ref(),
+            parquet_path.as_ref(),
             src_col,
             dst_col,
             time_col,
@@ -662,14 +662,14 @@ impl TempColGraphFragment {
     }
 }
 
-pub(crate) fn load_chunks<GO: GlobalOrder>(
+pub(crate) fn load_chunks<GO: GlobalOrder, C: Borrow<GraphChunk>>(
     vf_builder: &mut VertexFrameBuilder<GO>,
     edge_builder: &mut EdgeFrameBuilder,
-    chunks_iter: impl IntoIterator<Item = GraphChunk>,
+    chunks_iter: impl Iterator<Item = C>,
 ) -> Result<(), Error> {
-    let mut last_chunk: Option<GraphChunk> = None;
     // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-    for mut chunk in chunks_iter.into_iter() {
+    for chunk in chunks_iter {
+        let chunk = chunk.borrow();
         // get the source and destintion columns
         let src_iter = chunk.sources()?;
         let dst_iter = chunk.destinations()?;
@@ -680,15 +680,12 @@ pub(crate) fn load_chunks<GO: GlobalOrder>(
             edge_builder.push_update(src_id, dst_id)?;
         }
 
-        last_chunk = Some(chunk);
     }
 
     vf_builder.finalise_empty_chunks()?;
 
     // finalize edge_builder
-    if let Some(mut chunk) = last_chunk {
-        edge_builder.finalize()?;
-    }
+    edge_builder.finalize()?;
     Ok(())
 }
 
@@ -716,7 +713,7 @@ fn read_vertices_only<P: AsRef<Path>>(
 #[cfg(test)]
 mod test {
     use crate::{arrow::global_order::GlobalMap, prelude::*};
-    use std::{iter, path::PathBuf};
+    use std::iter;
 
     use super::*;
     use arrow2::datatypes::DataType;

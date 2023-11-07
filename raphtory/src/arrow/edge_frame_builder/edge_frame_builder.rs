@@ -84,7 +84,9 @@ impl EdgeFrameBuilder {
     }
 
     pub(crate) fn finalize(&mut self) -> Result<(), Error> {
-        self.push_chunk()?;
+        if self.edge_src_id.len() > 0 {
+            self.push_chunk()?;
+        }
         Ok(())
     }
 
