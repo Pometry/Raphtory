@@ -152,8 +152,8 @@ impl TempColGraphFragment {
         edge_list: I,
     ) -> Result<Self, Error> {
         let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, Arc::new(go), test_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, 0, test_dir);
-        let mut edge_props_builder = EdgePropsBuilder::new(test_dir, 0, 1, 0);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, test_dir);
+        let edge_props_builder = EdgePropsBuilder::new(test_dir, 0, 1, 0);
 
         let (edges, props): (Vec<_>, Vec<_>) = edge_list
             .into_iter()
@@ -196,7 +196,6 @@ impl TempColGraphFragment {
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
-        edge_max_list_size: usize,
     ) -> Result<Self, Error> {
         let sorted_gids_path = parquet_path
             .as_ref()
@@ -207,9 +206,6 @@ impl TempColGraphFragment {
 
         let srcs_parquet_files =
             list_sorted_files(&parquet_path, |path| is_parquet_file(path))?.collect_vec();
-
-        let triplets_parquet_files2 =
-            list_sorted_files(&parquet_path, |path| is_parquet_file(path))?;
 
         let now = std::time::Instant::now();
 
@@ -250,7 +246,7 @@ impl TempColGraphFragment {
             go.len()
         );
 
-        let chunks = triplets_parquet_files2
+        let chunks = srcs_parquet_files.iter()
             .flat_map(|dir_entry| {
                 read_file_chunks(dir_entry, src_col, dst_col, time_col, projection.as_ref())
             })
@@ -259,7 +255,7 @@ impl TempColGraphFragment {
         let mut vf_builder =
             VertexFrameBuilder::new(vertex_chunk_size, Arc::new(go), graph_dir.as_ref());
         let mut edge_builder =
-            EdgeFrameBuilder::new(edge_chunk_size, edge_max_list_size, graph_dir.as_ref());
+            EdgeFrameBuilder::new(edge_chunk_size, graph_dir.as_ref());
 
         load_chunks(&mut vf_builder, &mut edge_builder, chunks)?;
 
@@ -712,7 +708,6 @@ mod test {
 
     use super::*;
     use arrow2::datatypes::DataType;
-    use arrow_schema::DataType::Struct;
     use proptest::prelude::*;
     use tempfile::TempDir;
 
@@ -974,32 +969,37 @@ mod test {
         edges_sanity_check_inner(edges, 1, 1, 1, 1)
     }
 
-    // #[test]
-    // fn load_from_parquet() {
-    //     let file_path: PathBuf = [
-    //         env!("CARGO_MANIFEST_DIR"),
-    //         "resources",
-    //         "test",
-    //         "part-00000-b406cce6-7ed0-4efb-883d-e6766f36d8cf-c000.snappy.parquet",
-    //     ]
-    //     .iter()
-    //     .collect();
-    //     let test_dir = TempDir::new().unwrap();
-    //
-    //     let g = TempColGraphFragment::from_sorted_parquet_edge_list(
-    //         file_path.as_path(),
-    //         test_dir.path(),
-    //         "source",
-    //         "destination",
-    //         "time",
-    //         5,
-    //         5,
-    //         5,
-    //     )
-    //     .unwrap();
-    //
-    //     println!("{:?}", g)
-    // }
+    #[test]
+    fn load_from_parquet() {
+        let file_path: PathBuf = [
+            env!("CARGO_MANIFEST_DIR"),
+            "resources",
+            "test",
+            "nft",
+        ]
+        .iter()
+        .collect();
+        let test_dir = TempDir::new().unwrap();
+    
+        let g = TempColGraphFragment::from_sorted_parquet_dir_edge_list(
+            file_path.as_path(),
+            test_dir.path(),
+            "src",
+            "src_hash",
+            "dst",
+            "dst_hash",
+            "epoch_time",
+            None,
+            5,
+            5,
+            5,
+        )
+        .unwrap();
+    
+        let v0_out_deg = g.edges(VID(0), Direction::OUT).count();
+        assert_eq!(v0_out_deg, 3);
+
+    }
 
     fn schema() -> Schema {
         let srcs = Field::new("srcs", DataType::UInt64, false);

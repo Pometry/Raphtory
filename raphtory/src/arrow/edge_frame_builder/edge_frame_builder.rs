@@ -26,7 +26,7 @@ pub struct EdgeFrameBuilder {
 }
 
 impl EdgeFrameBuilder {
-    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, max_list_size: usize, path: P) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, path: P) -> Self {
         Self {
             src_chunks: ChunkedArray::new(chunk_size),
             dst_chunks: ChunkedArray::new(chunk_size),

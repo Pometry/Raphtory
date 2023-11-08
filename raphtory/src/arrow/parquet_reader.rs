@@ -47,7 +47,9 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
             let mut files = if meta.is_dir() {
                 let iter = std::fs::read_dir(parquet_path.as_ref())?;
                 let entries: Result<Vec<_>, _> =
-                    iter.into_iter().map_ok(|res| res.path()).collect();
+                    iter.into_iter().map_ok(|res| res.path()).filter_ok(|path| 
+                        path.extension().map(|ext| ext == "parquet").unwrap_or(false)
+                    ).collect();
                 entries?
             } else {
                 vec![parquet_path.as_ref().to_path_buf()]
