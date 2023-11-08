@@ -91,18 +91,28 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         iter: impl IndexedParallelIterator<Item = impl LoadStruct>,
         schema: &Schema,
     ) -> Result<ChunkedArray<StructArray>, Error> {
-        let arrays = iter
-            .map(|parquet_offsets| parquet_offsets.load_struct(schema))
-            .enumerate()
-            .map(|(chunk_id, struct_arr)| {
-                let file_path = self
-                    .graph_dir
-                    .as_ref()
-                    .join(format!("edge_chunk_{:08}.ipc", chunk_id));
+        // TODO: make this dependent on number of cores, number of columns and available memory
 
-                write_temporal_properties(file_path, struct_arr, self.time_col_idx)
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(4)
+            .build()
+            .unwrap();
+
+        let arrays = pool.install(|| {
+            let arrays = iter
+                .map(|parquet_offsets| parquet_offsets.load_struct(schema))
+                .enumerate()
+                .map(|(chunk_id, struct_arr)| {
+                    let file_path = self
+                        .graph_dir
+                        .as_ref()
+                        .join(format!("edge_chunk_{:08}.ipc", chunk_id));
+
+                    write_temporal_properties(file_path, struct_arr, self.time_col_idx)
+                })
+                .collect::<Result<Vec<_>, Error>>().unwrap(); // TODO: handle error
+            arrays
+        });
 
         Ok(ChunkedArray::from_vec(arrays))
     }
