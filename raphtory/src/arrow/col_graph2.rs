@@ -991,6 +991,8 @@ mod test {
 
         let v1_out_deg = g.edges(VID(1), Direction::OUT).count();
         assert_eq!(v1_out_deg, 3);
+        assert_eq!(g.exploded_edges().count(), 24);
+        assert_eq!(g.all_edges().count(), 24);
     }
 
     fn schema() -> Schema {
