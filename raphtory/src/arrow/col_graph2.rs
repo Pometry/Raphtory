@@ -1,11 +1,12 @@
 use std::{
+    borrow::Borrow,
     io,
     io::BufReader,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
-    }, borrow::Borrow,
+    },
 };
 
 use crate::{
@@ -165,9 +166,7 @@ impl TempColGraphFragment {
         let schema = Vec::from(props.first().ok_or(Error::NoEdgeLists)?.0.fields()).into();
         let edge_props_values = edge_props_builder
             .load_t_edges_from_par_structs(edge_chunks.into_par_iter(), &schema)?;
-        let graph_chunks_iter = edges
-            .into_par_iter()
-            .map(|chunk| Ok(Chunk::new(vec![chunk.srcs, chunk.dsts])));
+        let graph_chunks_iter = edges.into_par_iter().map(Ok);
         let offsets = edge_props_builder.load_t_edge_offsets_from_par_chunks(graph_chunks_iter)?;
 
         let edges = Edges::new(
@@ -676,7 +675,6 @@ pub(crate) fn load_chunks<GO: GlobalOrder, C: Borrow<GraphChunk>>(
 
             edge_builder.push_update(src_id, dst_id)?;
         }
-
     }
 
     vf_builder.finalise_empty_chunks()?;

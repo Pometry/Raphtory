@@ -6,14 +6,14 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
-use std:: path::{Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 pub(crate) mod chunked_array;
 pub mod col_graph2;
 pub(crate) mod columnar_graph;
 pub mod edge;
-pub(crate) mod edges;
 pub(crate) mod edge_frame_builder;
+pub(crate) mod edges;
 pub(crate) mod global_order;
 // pub mod graph;
 pub mod ipc;
@@ -119,6 +119,10 @@ pub(crate) struct GraphChunk {
 }
 
 impl GraphChunk {
+    pub fn new(srcs: Box<dyn Array>, dsts: Box<dyn Array>) -> Self {
+        Self { srcs, dsts }
+    }
+
     pub fn from_chunk(
         chunk: Chunk<Box<dyn Array>>,
         src_col_idx: usize,

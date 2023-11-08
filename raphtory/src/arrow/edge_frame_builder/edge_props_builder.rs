@@ -10,7 +10,13 @@ use arrow2::{
 };
 use rayon::prelude::*;
 
-use crate::arrow::{array_as_id_iter, Error, GID, mmap::{mmap_batch, write_batches}, chunked_array::chunked_array::ChunkedArray, GraphChunk};
+use crate::arrow::{
+    array_as_id_iter,
+    chunked_array::chunked_array::ChunkedArray,
+    mmap::{mmap_batch, write_batches},
+    parquet_reader::LoadStruct,
+    Error, GraphChunk, GID,
+};
 
 pub struct EdgePropsBuilder<P> {
     graph_dir: P,
