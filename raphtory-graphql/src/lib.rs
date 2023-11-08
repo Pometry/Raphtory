@@ -119,7 +119,7 @@ mod graphql_test {
                 "graph": {
                     "nodes": [
                         {
-                            "id": 11
+                            "id": "11"
                         }
                     ]
                 }
@@ -359,7 +359,7 @@ mod graphql_test {
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
 
         // reload all graphs from folder
         let req = Request::new(load_all);
@@ -369,13 +369,13 @@ mod graphql_test {
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 2}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "2"}]}}));
 
         // g1 still has node 1
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
     }
 
     #[tokio::test]
@@ -425,7 +425,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
     }
 
     #[tokio::test]
@@ -465,7 +465,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
 
         let receive_graph = r#"
         query {
