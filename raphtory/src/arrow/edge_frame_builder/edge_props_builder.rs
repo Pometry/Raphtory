@@ -13,6 +13,7 @@ use rayon::prelude::*;
 use crate::arrow::{
     array_as_id_iter,
     chunked_array::chunked_array::ChunkedArray,
+    ipc,
     mmap::{mmap_batch, write_batches},
     parquet_reader::LoadStruct,
     Error, GraphChunk, GID,
@@ -159,12 +160,13 @@ fn write_temporal_properties(
     time_col_idx: usize,
 ) -> Result<StructArray, Error> {
     let (mut fields, mut values, _) = chunk.into_data();
-    let schema = Schema::from(fields.clone());
     // make sure the time column is first
     values.swap(0, time_col_idx);
     fields.swap(0, time_col_idx);
+    let schema = Schema::from(fields.clone());
 
     write_batches(file_path.as_ref(), schema, &[Chunk::new(values)])?;
+    // let mmapped_chunk = ipc::read_batch(file_path.as_ref()).unwrap(); // uncomment for better errors in case of broken ipc file
     let mmapped_chunk = unsafe { mmap_batch(file_path.as_ref(), 0)? };
     let mmapped = StructArray::new(DataType::Struct(fields), mmapped_chunk.into_arrays(), None);
     Ok(mmapped)
