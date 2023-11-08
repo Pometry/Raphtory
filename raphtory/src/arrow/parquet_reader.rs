@@ -41,69 +41,59 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         src_col: &str,
         dst_col: &str,
         time_col: &str,
-        excluded_cols: Vec<String>,
+        excluded_cols: &[&str],
     ) -> Result<Self, Error> {
-        let meta = std::fs::metadata(parquet_path.as_ref());
-        if let Ok(meta) = meta {
-            let mut files = if meta.is_dir() {
-                let iter = std::fs::read_dir(parquet_path.as_ref())?;
-                let entries: Result<Vec<_>, _> = iter
-                    .into_iter()
-                    .map_ok(|res| res.path())
-                    .filter_ok(|path| {
-                        path.extension()
-                            .map(|ext| ext == "parquet")
-                            .unwrap_or(false)
-                    })
-                    .collect();
-                entries?
-            } else {
-                vec![parquet_path.as_ref().to_path_buf()]
-            };
-            files.sort();
-
-            // read the first file and map the excluded columns to their indices
-            let first_file = files.first().ok_or_else(|| Error::NoEdgeLists)?;
-            let parquet_meta = read_file_metadata(first_file)?;
-            let schema = infer_schema(&parquet_meta)?;
-
-            let src_dest_schema = schema
-                .clone()
-                .filter(|_, field| field.name == src_col || field.name == dst_col);
-
-            let src_col = src_dest_schema
-                .fields
-                .iter()
-                .position(|f| f.name == src_col)
-                .ok_or_else(|| Error::ColumnNotFound(src_col.to_owned()))?;
-            let dst_col = src_dest_schema
-                .fields
-                .iter()
-                .position(|f| f.name == dst_col)
-                .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
-
-            let edge_t_prop_schema = schema.filter(|_, field| !excluded_cols.contains(&field.name));
-            let time_col = edge_t_prop_schema
-                .fields
-                .iter()
-                .position(|f| f.name == time_col)
-                .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
-
-            let edge_props_builder = EdgePropsBuilder::new(graph_dir, src_col, dst_col, time_col);
-
-            Ok(Self {
-                files,
-                edge_t_prop_schema,
-                src_dest_schema,
-                edge_props_builder,
-            })
-        } else {
-            Err(Error::NoEdgeLists)
-        }
+        let files = list_parquet_files(parquet_path.as_ref())?;
+        Self::new_from_filelist(graph_dir, files, src_col, dst_col, time_col, excluded_cols)
     }
 }
 
 impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> ParquetReader<P, V> {
+    pub(crate) fn new_from_filelist(
+        graph_dir: P,
+        files: V,
+        src_col: &str,
+        dst_col: &str,
+        time_col: &str,
+        excluded_cols: &[&str],
+    ) -> Result<ParquetReader<P, V>, Error> {
+        // read the first file and map the excluded columns to their indices
+        let first_file = files.borrow().first().ok_or_else(|| Error::NoEdgeLists)?;
+        let parquet_meta = read_file_metadata(first_file)?;
+        let schema = infer_schema(&parquet_meta)?;
+
+        let src_dest_schema = schema
+            .clone()
+            .filter(|_, field| field.name == src_col || field.name == dst_col);
+
+        let src_col = src_dest_schema
+            .fields
+            .iter()
+            .position(|f| f.name == src_col)
+            .ok_or_else(|| Error::ColumnNotFound(src_col.to_owned()))?;
+        let dst_col = src_dest_schema
+            .fields
+            .iter()
+            .position(|f| f.name == dst_col)
+            .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
+
+        let edge_t_prop_schema =
+            schema.filter(|_, field| !excluded_cols.contains(&field.name.as_str()));
+        let time_col = edge_t_prop_schema
+            .fields
+            .iter()
+            .position(|f| f.name == time_col)
+            .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
+
+        let edge_props_builder = EdgePropsBuilder::new(graph_dir, src_col, dst_col, time_col);
+
+        Ok(Self {
+            files,
+            edge_t_prop_schema,
+            src_dest_schema,
+            edge_props_builder,
+        })
+    }
     fn row_group_iter(&self) -> impl Iterator<Item = RowGroupRef<PathBuf>> + '_ {
         self.files.borrow().iter().flat_map(|file| {
             let metadata = read_file_metadata(&file)
@@ -168,6 +158,26 @@ fn read_parquet_file(
 
     let reader = parquet::read::FileReader::new(file, row_groups, schema, None, None, None);
     Ok(reader)
+}
+
+pub fn list_parquet_files(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, Error> {
+    let meta = std::fs::metadata(path.as_ref()).map_err(|_| Error::NoEdgeLists)?;
+    if meta.is_dir() {
+        let iter = std::fs::read_dir(path.as_ref())?;
+        let mut entries = iter
+            .into_iter()
+            .map_ok(|res| res.path())
+            .filter_ok(|path| {
+                path.extension()
+                    .map(|ext| ext == "parquet")
+                    .unwrap_or(false)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        entries.sort();
+        Ok(entries)
+    } else {
+        Ok(vec![path.as_ref().to_path_buf()])
+    }
 }
 
 pub trait LoadStruct {
@@ -427,12 +437,7 @@ mod test {
             PathBuf::from_iter([root, "resources", "test", "chunked.snappy.parquet"]);
         let graph_dir = tempfile::tempdir().unwrap();
 
-        let excluded_cols = vec![
-            "src".to_string(),
-            "dst".to_string(),
-            "dst_hash".to_string(),
-            "src_hash".to_string(),
-        ];
+        let excluded_cols = vec!["src", "dst", "dst_hash", "src_hash"];
 
         let reader = ParquetReader::new(
             graph_dir.path(),
@@ -440,7 +445,7 @@ mod test {
             "src",
             "dst",
             "epoch_time",
-            excluded_cols,
+            &excluded_cols,
         )
         .unwrap();
 

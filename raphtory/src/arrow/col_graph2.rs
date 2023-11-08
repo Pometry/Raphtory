@@ -16,7 +16,7 @@ use crate::{
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         list_buffer::{as_primitive_column, ListColumn},
-        loader::{read_file_chunks, sort_dedup_2, sort_within_chunks},
+        loader::{read_file_chunks, sort_dedup_2, sort_within_chunks, ExternalEdgeList},
         mmap::{mmap_batch, mmap_batches, write_batches},
         parquet_reader::{ParquetOffsetIter, ParquetReader},
         prepare_graph_dir,
@@ -39,7 +39,6 @@ use arrow2::{
     offset::OffsetsBuffer,
     types::{NativeType, Offset},
 };
-use arrow_array::RecordBatch;
 use itertools::Itertools;
 use rayon::prelude::*;
 use tempfile::tempfile_in;
@@ -48,9 +47,9 @@ use super::{
     array_as_id_iter,
     edges::Edges,
     global_order::{GlobalMap, GlobalOrder},
-    ipc, split_chunk, split_struct_chunk,
+    ipc, split_struct_chunk,
     vertex_chunk::{RowOwned, VertexChunk},
-    GraphChunk, Time, GID,
+    GraphChunk, GID,
 };
 
 #[derive(Debug)]
@@ -184,6 +183,79 @@ impl TempColGraphFragment {
         })
     }
 
+    pub(crate) fn from_external_edge_list<GO: GlobalOrder, P: AsRef<Path>>(
+        el: &ExternalEdgeList<P>,
+        graph_dir: &Path,
+        global_order: Arc<GO>,
+        exclude_cols: &[&str],
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> Result<TempColGraphFragment, Error> {
+        Self::from_sorted_parquet_files_edge_list(
+            el.files(),
+            global_order,
+            graph_dir.as_ref(),
+            el.src_col,
+            el.src_hash_col,
+            el.dst_col,
+            el.dst_hash_col,
+            el.time_col,
+            exclude_cols,
+            vertex_chunk_size,
+            edge_chunk_size,
+            t_props_chunk_size,
+        )
+    }
+
+    fn from_sorted_parquet_files_edge_list<GO: GlobalOrder>(
+        files: &[PathBuf],
+        global_order: Arc<GO>,
+        graph_dir: &Path,
+        src_col: &str,
+        src_hash_col: &str,
+        dst_col: &str,
+        dst_hash_col: &str,
+        time_col: &str,
+        exclude_cols: &[&str],
+        vertex_chunk_size: usize,
+        edge_chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> Result<Self, Error> {
+        prepare_graph_dir(graph_dir)?;
+        let chunks = files
+            .iter()
+            .flat_map(|dir_entry| read_file_chunks(dir_entry, src_col, dst_col))
+            .flatten();
+
+        let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, global_order, graph_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
+
+        load_chunks(&mut vf_builder, &mut edge_builder, chunks)?;
+        let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
+        excluded_cols.extend_from_slice(exclude_cols);
+
+        let reader = ParquetReader::new_from_filelist(
+            graph_dir,
+            files,
+            src_col,
+            dst_col,
+            time_col,
+            &excluded_cols,
+        )?;
+
+        let t_props = reader.load_edges(t_props_chunk_size)?;
+        let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, t_props);
+
+        Ok(TempColGraphFragment {
+            vertex_chunk_size,
+            adj_out_chunks: vf_builder.adj_out_chunks,
+            adj_in_chunks: Vec::default(),
+            edges,
+            graph_dir: graph_dir.into(),
+        })
+    }
+
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone + Send + Sync>(
         parquet_path: P,
         graph_dir: P,
@@ -192,7 +264,7 @@ impl TempColGraphFragment {
         dst_col: &str,
         dst_hash_col: &str,
         time_col: &str,
-        projection: Option<Vec<&str>>,
+        exclude_cols: &[&str],
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
@@ -201,8 +273,6 @@ impl TempColGraphFragment {
             .as_ref()
             .to_path_buf()
             .join("sorted_global_ids.ipc");
-
-        prepare_graph_dir(graph_dir.as_ref())?;
 
         let srcs_parquet_files =
             list_sorted_files(&parquet_path, |path| is_parquet_file(path))?.collect_vec();
@@ -246,41 +316,20 @@ impl TempColGraphFragment {
             go.len()
         );
 
-        let chunks = srcs_parquet_files
-            .iter()
-            .flat_map(|dir_entry| read_file_chunks(dir_entry, src_col, dst_col))
-            .flatten();
-
-        let mut vf_builder =
-            VertexFrameBuilder::new(vertex_chunk_size, Arc::new(go), graph_dir.as_ref());
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir.as_ref());
-
-        load_chunks(&mut vf_builder, &mut edge_builder, chunks)?;
-
-        let reader = ParquetReader::new(
+        Self::from_sorted_parquet_files_edge_list(
+            &srcs_parquet_files,
+            Arc::new(go),
             graph_dir.as_ref(),
-            parquet_path.as_ref(),
             src_col,
+            src_hash_col,
             dst_col,
+            dst_hash_col,
             time_col,
-            vec![
-                src_col.to_owned(),
-                dst_col.to_owned(),
-                src_hash_col.to_owned(),
-                dst_hash_col.to_owned(),
-            ],
-        )?;
-
-        let t_props = reader.load_edges(t_props_chunk_size)?;
-        let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, t_props);
-
-        Ok(TempColGraphFragment {
+            exclude_cols,
             vertex_chunk_size,
-            adj_out_chunks: vf_builder.adj_out_chunks,
-            adj_in_chunks: Vec::default(),
-            edges,
-            graph_dir: graph_dir.as_ref().into(),
-        })
+            edge_chunk_size,
+            t_props_chunk_size,
+        )
     }
 
     pub fn num_vertices(&self) -> usize {
@@ -982,7 +1031,7 @@ mod test {
             "dst",
             "dst_hash",
             "epoch_time",
-            None,
+            &[],
             5,
             5,
             5,

@@ -26,14 +26,14 @@ use super::{global_order::GlobalOrder, Error, GraphChunk};
 
 #[derive(Debug)]
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
-    layer: &'a str,
-    path: P,
-    src_col: &'a str,
-    src_hash_col: &'a str,
-    dst_col: &'a str,
-    dst_hash_col: &'a str,
-    time_col: &'a str,
-    parquet_files: Vec<PathBuf>,
+    pub layer: &'a str,
+    pub path: P,
+    pub src_col: &'a str,
+    pub src_hash_col: &'a str,
+    pub dst_col: &'a str,
+    pub dst_hash_col: &'a str,
+    pub time_col: &'a str,
+    pub parquet_files: Vec<PathBuf>,
 }
 
 impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
@@ -100,6 +100,10 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
             read_file_chunks(path, self.src_col, self.dst_col)
                 .expect("failed to load chunks from path")
         })
+    }
+
+    pub(crate) fn files(&self) -> &[PathBuf] {
+        &self.parquet_files
     }
 }
 
