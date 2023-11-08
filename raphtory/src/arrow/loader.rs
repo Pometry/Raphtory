@@ -97,7 +97,7 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
 
     pub(crate) fn load_chunks(&self) -> impl Iterator<Item = GraphChunk> + '_ {
         self.parquet_files.iter().flat_map(|path| {
-            read_file_chunks(path, self.src_col, self.dst_col, self.time_col, None)
+            read_file_chunks(path, self.src_col, self.dst_col)
                 .expect("failed to load chunks from path")
         })
     }
@@ -285,8 +285,6 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
     dst_col: &str,
-    time_col: &str,
-    projection: Option<&Vec<&str>>,
 ) -> Result<impl Iterator<Item = GraphChunk>, Error> {
     println!("reading file: {:?}", parquet_file.as_ref());
 
@@ -294,35 +292,19 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     let mut reader = BufReader::new(file);
     let metadata = read::read_metadata(&mut reader)?;
     let schema = read::infer_schema(&metadata)?;
-
-    let schema = schema.filter(|_, field| {
-        field.name == src_col
-            || field.name == dst_col
-            || field.name == time_col
-            || projection.is_none()
-            || projection
-                .as_ref()
-                .filter(|proj| proj.contains(&field.name.as_str()))
-                .is_some()
-    });
-
-    let src_col_idx = schema
+    let src_col_field = schema
         .fields
         .iter()
-        .position(|field| field.name == src_col)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_string()))?;
-
-    let dst_col_idx = schema
+        .find(|field| &field.name == src_col)
+        .ok_or_else(|| Error::ColumnNotFound(src_col.to_owned()))?;
+    let dst_col_field = schema
         .fields
         .iter()
-        .position(|field| field.name == dst_col)
-        .ok_or_else(|| Error::ColumnNotFound(dst_col.to_string()))?;
+        .find(|field| &field.name == dst_col)
+        .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
 
-    let time_col_idx = schema
-        .fields
-        .iter()
-        .position(|field| field.name == time_col)
-        .ok_or_else(|| Error::ColumnNotFound(time_col.to_string()))?;
+    let schema = Schema::from(vec![src_col_field.clone(), dst_col_field.clone()])
+        .with_metadata(schema.metadata);
 
     let reader = read::FileReader::new(
         reader,
@@ -332,16 +314,9 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
         None,
         None,
     );
-    Ok(reader.flatten().map(move |chunk| {
-        split_chunk(
-            chunk.into_arrays(),
-            src_col_idx,
-            dst_col_idx,
-            time_col_idx,
-            schema.clone(),
-        )
-        .0
-    }))
+    Ok(reader
+        .flatten()
+        .map(|chunk| GraphChunk::from_chunk(chunk, 0, 1)))
 }
 
 pub(crate) fn make_global_ordering<'a, GO: GlobalOrder, P: AsRef<Path> + Sync + Send>(
