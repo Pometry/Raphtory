@@ -23,10 +23,7 @@ use raphtory::{
         mmap::{mmap_batch, write_batches},
         Time,
     },
-    core::{
-        entities::VID,
-        Direction,
-    },
+    core::{entities::VID, Direction},
 };
 use rayon::{
     prelude::{IntoParallelRefIterator, ParallelIterator},
@@ -83,10 +80,10 @@ fn query1_v3_par(
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
 
-                        for (_, nf1_t) in nf1
+                        for (nf1_t, _) in nf1
                             .prop_items::<i64>(bytes_prop_id)
                             .unwrap()
-                            .filter(|(v, _)| v.as_ref().filter(|&&v| v > &100_000_000).is_some())
+                            .filter(|(_, v)| v.as_ref().filter(|&&v| v > 100_000_000).is_some())
                         {
                             g.edges(b, Direction::OUT, events_1v)
                                 .filter(|(_, v)| v == &b)
@@ -96,9 +93,9 @@ fn query1_v3_par(
                                     for (prog1_event_id, prog1_t) in prog1
                                         .prop_items::<i64>(event_id_prop_id_1v)
                                         .unwrap()
-                                        .filter_map(|(v, t)| v.map(|v| (v, t)))
+                                        .filter_map(|(t, v)| v.map(|v| (v, t)))
                                     {
-                                        if *prog1_event_id == 4688
+                                        if prog1_event_id == 4688
                                             && prog1_t < nf1_t
                                             && nf1_t - prog1_t <= 30
                                         // AND prog1.epochtime < nf1.epochtime
@@ -110,9 +107,9 @@ fn query1_v3_par(
                                                         for (login1_event_id, login1_t) in login1
                                                             .prop_items::<i64>(event_id_prop_id_2v)
                                                             .unwrap()
-                                                            .filter_map(|(v, t)| v.map(|v| (v, t)))
+                                                            .filter_map(|(t, v)| v.map(|v| (v, t)))
                                                         {
-                                                            if *login1_event_id == 4624
+                                                            if login1_event_id == 4624
                                                                 && nf1_t - login1_t <= 30
                                                                 && login1_t < prog1_t
                                                             {
@@ -156,10 +153,10 @@ fn query1_v4(
             if e != b {
                 let nf1 = g.edge(b2e, nft);
 
-                for (_, nf1_t) in nf1
+                for (nf1_t, _) in nf1
                     .prop_items::<i64>(bytes_prop_id)
                     .unwrap()
-                    .filter(|(v, _)| v.as_ref().filter(|&&v| v > &100_000_000).is_some())
+                    .filter(|(_, v)| v.as_ref().filter(|&&v| v > 100_000_000).is_some())
                 {
                     for (b2b, _) in g
                         .edges(b, Direction::OUT, events_1v)
@@ -170,13 +167,13 @@ fn query1_v4(
                         for (prog1_event_id, prog1_t) in prog1
                             .prop_items::<i64>(event_id_prop_id_1v)
                             .unwrap()
-                            .filter_map(|(v, t)| v.map(|v| (v, t)))
+                            .filter_map(|(t, v)| v.map(|v| (v, t)))
                         {
-                            if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30 {
+                            if prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30 {
                                 dream_map
                                     .entry(b)
-                                    .and_modify(|v| v.push((*prog1_t, *nf1_t, e)))
-                                    .or_insert_with(|| vec![(*prog1_t, *nf1_t, e)]);
+                                    .and_modify(|v| v.push((prog1_t, nf1_t, e)))
+                                    .or_insert_with(|| vec![(prog1_t, nf1_t, e)]);
                             }
                         }
                     }
@@ -200,7 +197,7 @@ fn query1_v4(
                     let max_prog1 = probe_value.last().unwrap().0;
 
                     let login1_ts = login1.timestamps();
-                    let min_login1 = login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
+                    let min_login1 = login1_ts.iter().flatten().next().unwrap();
                     if min_login1 > max_prog1 {
                         continue;
                     }
@@ -209,7 +206,7 @@ fn query1_v4(
                 let iter = login1
                     .prop_items::<i64>(event_id_prop_id_2v)
                     .unwrap()
-                    .filter_map(|(v, t)| v.map(|v| (v, t)));
+                    .filter_map(|(t, v)| v.map(|v| (v, t)));
 
                 binary_search_join(iter, &edges, &a, &mut count);
             }
@@ -248,10 +245,10 @@ fn query1_v4_par(
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
 
-                        for (_, nf1_t) in nf1
+                        for (nf1_t, _) in nf1
                             .prop_items::<i64>(bytes_prop_id)
                             .unwrap()
-                            .filter(|(v, _)| v.as_ref().filter(|&&v| v > &100_000_000).is_some())
+                            .filter(|(_, v)| v.as_ref().filter(|&&v| v > 100_000_000).is_some())
                         {
                             g.edges_par(b, Direction::OUT, events_1v)
                                 .filter(|(_, v)| v == &b)
@@ -262,9 +259,9 @@ fn query1_v4_par(
                                     for (prog1_event_id, prog1_t) in prog1
                                         .prop_items::<i64>(event_id_prop_id_1v)
                                         .unwrap()
-                                        .filter_map(|(v, t)| v.map(|v| (v, t)))
+                                        .filter_map(|(t, v)| v.map(|v| (v, t)))
                                     {
-                                        if *prog1_event_id == 4688
+                                        if prog1_event_id == 4688
                                             && prog1_t < nf1_t
                                             && nf1_t - prog1_t <= 30
                                         {
@@ -272,14 +269,10 @@ fn query1_v4_par(
                                             probe_map
                                                 .entry(b)
                                                 .and_modify(|v| {
-                                                    v.push((
-                                                        *prog1_t as i32,
-                                                        *nf1_t as i32,
-                                                        e_small,
-                                                    ))
+                                                    v.push((prog1_t as i32, nf1_t as i32, e_small))
                                                 })
                                                 .or_insert_with(|| {
-                                                    vec![(*prog1_t as i32, *nf1_t as i32, e_small)]
+                                                    vec![(prog1_t as i32, nf1_t as i32, e_small)]
                                                 });
                                         }
                                     }
@@ -356,8 +349,7 @@ fn query1_v4_par(
                             // let min_prog1 = probe_value.first().unwrap().0;
 
                             let login1_ts = login1.timestamps();
-                            let min_login1 =
-                                login1_ts.flat_map(|ts| ts.first()).copied().min().unwrap();
+                            let min_login1 = login1_ts.iter().flatten().next().unwrap();
                             if min_login1 > max_prog1 {
                                 skip = true;
                             }
@@ -367,7 +359,7 @@ fn query1_v4_par(
                             let iter = login1
                                 .prop_items::<i64>(event_id_prop_id_2v)
                                 .unwrap()
-                                .filter_map(|(v, t)| v.map(|v| (v, t)));
+                                .filter_map(|(t, v)| v.map(|v| (v, t)));
 
                             binary_search_join_par_small(iter, &edges, &a, &count);
                         }
@@ -382,7 +374,7 @@ fn query1_v4_par(
 }
 
 fn binary_search_join_par_small<'a>(
-    iter: impl IntoIterator<Item = (&'a Time, &'a Time)>,
+    iter: impl IntoIterator<Item = (Time, Time)>,
     edges: &'a Vec<(i32, i32, u32)>,
     a: &VID,
     count: &'a AtomicUsize,
@@ -390,8 +382,8 @@ fn binary_search_join_par_small<'a>(
     let mut out = vec![]; // use this if we have to output the data
 
     'outer: for (login1_event_id, login1_t) in iter {
-        if *login1_event_id == 4624 {
-            let login1_t_small: i32 = *login1_t as i32;
+        if login1_event_id == 4624 {
+            let login1_t_small: i32 = login1_t as i32;
 
             let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
 
@@ -457,16 +449,16 @@ fn binary_search_join_par<'a>(
 }
 
 fn binary_search_join<'a>(
-    iter: impl IntoIterator<Item = (&'a Time, &'a Time)>,
+    iter: impl IntoIterator<Item = (Time, Time)>,
     edges: &'a Vec<(Time, Time, VID)>,
     a: &VID,
     count: &'a mut usize,
 ) -> Vec<(&'a Time, &'a Time, &'a Time)> {
     let mut out = vec![];
 
-    'outer: for (login1_event_id, login1_t) in iter {
-        if *login1_event_id == 4624 {
-            let pos = edges.binary_search_by(|probe| probe.0.cmp(login1_t));
+    'outer: for (login1_t, login1_event_id) in iter {
+        if login1_event_id == 4624 {
+            let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t));
 
             let from = match pos {
                 Ok(i) => {
@@ -482,7 +474,7 @@ fn binary_search_join<'a>(
             };
 
             for (prog1_t, nft_t, e) in &edges[from..] {
-                if nft_t - login1_t <= 30 && login1_t < prog1_t && a != e {
+                if nft_t - login1_t <= 30 && &login1_t < prog1_t && a != e {
                     *count += 1;
                     // out.push((login1_t, prog1_t, nft1_1));
                 }
@@ -575,10 +567,10 @@ fn query1_v3(
             if e != b {
                 let nf1 = g.edge(b2e, nft);
 
-                for (_, nf1_t) in nf1
+                for (nf1_t, _) in nf1
                     .prop_items::<i64>(bytes_prop_id)
                     .unwrap()
-                    .filter(|(v, _)| v.as_ref().filter(|&&v| v > &100_000_000).is_some())
+                    .filter(|(_, v)| v.as_ref().filter(|&&v| v > 100_000_000).is_some())
                 {
                     for (b2b, _) in g
                         .edges(b, Direction::OUT, events_1v)
@@ -589,9 +581,9 @@ fn query1_v3(
                         for (prog1_event_id, prog1_t) in prog1
                             .prop_items::<i64>(event_id_prop_id_1v)
                             .unwrap()
-                            .filter_map(|(v, t)| v.map(|v| (v, t)))
+                            .filter_map(|(t, v)| v.map(|v| (v, t)))
                         {
-                            if *prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30
+                            if prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30
                             // AND prog1.epochtime < nf1.epochtime
                             {
                                 for (a2b, a) in g.edges(b, Direction::IN, events_2v) {
@@ -600,9 +592,9 @@ fn query1_v3(
                                         for (login1_event_id, login1_t) in login1
                                             .prop_items::<i64>(event_id_prop_id_2v)
                                             .unwrap()
-                                            .filter_map(|(v, t)| v.map(|v| (v, t)))
+                                            .filter_map(|(t, v)| v.map(|v| (v, t)))
                                         {
-                                            if *login1_event_id == 4624
+                                            if login1_event_id == 4624
                                                 && nf1_t - login1_t <= 30
                                                 && login1_t < prog1_t
                                             {
@@ -727,13 +719,28 @@ struct SpillRow<P> {
 }
 
 impl<P: AsRef<Path> + Send + Sync> SpillRow<P> {
-
-    fn arrays_at(&self, i:usize) -> Option<(PrimitiveArray<i32>, PrimitiveArray<i32>, PrimitiveArray<u32>)>{
+    fn arrays_at(
+        &self,
+        i: usize,
+    ) -> Option<(
+        PrimitiveArray<i32>,
+        PrimitiveArray<i32>,
+        PrimitiveArray<u32>,
+    )> {
         let c = &self.rest[i];
 
-        let prog1_t = c[0].as_ref().as_any().downcast_ref::<PrimitiveArray<i32>>()?;
-        let nft_t = c[1].as_ref().as_any().downcast_ref::<PrimitiveArray<i32>>()?;
-        let e = c[2].as_ref().as_any().downcast_ref::<PrimitiveArray<u32>>()?;
+        let prog1_t = c[0]
+            .as_ref()
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i32>>()?;
+        let nft_t = c[1]
+            .as_ref()
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i32>>()?;
+        let e = c[2]
+            .as_ref()
+            .as_any()
+            .downcast_ref::<PrimitiveArray<u32>>()?;
 
         Some((prog1_t.clone(), nft_t.clone(), e.clone()))
     }
@@ -839,9 +846,12 @@ impl<P: AsRef<Path> + Send + Sync> SpillRow<P> {
 
         let slices = arrow2::compute::merge_sort::slices(&type_fix[..]).unwrap();
 
-        let arrays = type_fix.into_iter().map(|(arrays, _)|{
-            arrow2::compute::merge_sort::take_arrays(arrays, slices.iter().copied(), None)
-        }).collect_vec();
+        let arrays = type_fix
+            .into_iter()
+            .map(|(arrays, _)| {
+                arrow2::compute::merge_sort::take_arrays(arrays, slices.iter().copied(), None)
+            })
+            .collect_vec();
 
         Chunk::try_new(arrays).unwrap()
     }
