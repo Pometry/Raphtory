@@ -40,7 +40,8 @@ pub unsafe fn mmap_batch<P: AsRef<Path>>(
 ) -> Result<Chunk<Box<dyn Array>>> {
     let file = File::open(path)?;
     let mmap = Mmap::map(&file)?;
-    // mmap.advise(Advice::random())?;
+    // mmap.advise(Advice::huge_page())?;
+    // mmap.advise(Advice::sequential())?;
     let mmap = Arc::new(mmap);
     // read the metadata
     let metadata = read::read_file_metadata(&mut std::io::Cursor::new(mmap.as_ref()))?;

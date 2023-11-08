@@ -93,8 +93,9 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
     ) -> Result<ChunkedArray<StructArray>, Error> {
         // TODO: make this dependent on number of cores, number of columns and available memory
 
+        let num_threads = std::thread::available_parallelism()?;
         let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(4)
+            .num_threads(num_threads.get() / 2)
             .build()
             .unwrap();
 

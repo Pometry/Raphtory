@@ -10,7 +10,7 @@ use std::{
 use ahash::HashMap;
 use arrow2::{
     array::{Array, PrimitiveArray},
-    chunk::Chunk,
+    chunk::{Chunk, self},
     compute::sort::{SortColumn, SortOptions},
     datatypes::{Field, Schema},
 };
@@ -671,8 +671,10 @@ fn main() {
             )
             .expect("failed to load events_v2"),
         ];
+        let chunk_size = 8_388_608;
+        let t_props_chunk_size = 20_970_100;
         let graph =
-            TemporalGraph::from_edge_lists(16384, 2048, 500_000, graph_dir, layered_edge_list)
+            TemporalGraph::from_edge_lists(chunk_size, chunk_size, t_props_chunk_size, graph_dir, layered_edge_list)
                 .expect("failed to load graph");
         graph
     };
