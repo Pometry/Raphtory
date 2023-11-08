@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     cmp::min,
     ops::Range,
     path::{Path, PathBuf},
@@ -26,8 +27,8 @@ use super::{
     Error, GraphChunk,
 };
 
-pub(crate) struct ParquetReader<P> {
-    files: Vec<PathBuf>,
+pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
+    files: V,
     edge_t_prop_schema: Schema,
     src_dest_schema: Schema,
     edge_props_builder: EdgePropsBuilder<P>,
@@ -46,10 +47,15 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
         if let Ok(meta) = meta {
             let mut files = if meta.is_dir() {
                 let iter = std::fs::read_dir(parquet_path.as_ref())?;
-                let entries: Result<Vec<_>, _> =
-                    iter.into_iter().map_ok(|res| res.path()).filter_ok(|path| 
-                        path.extension().map(|ext| ext == "parquet").unwrap_or(false)
-                    ).collect();
+                let entries: Result<Vec<_>, _> = iter
+                    .into_iter()
+                    .map_ok(|res| res.path())
+                    .filter_ok(|path| {
+                        path.extension()
+                            .map(|ext| ext == "parquet")
+                            .unwrap_or(false)
+                    })
+                    .collect();
                 entries?
             } else {
                 vec![parquet_path.as_ref().to_path_buf()]
@@ -95,9 +101,11 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
             Err(Error::NoEdgeLists)
         }
     }
+}
 
+impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> ParquetReader<P, V> {
     fn row_group_iter(&self) -> impl Iterator<Item = RowGroupRef<PathBuf>> + '_ {
-        self.files.iter().flat_map(|file| {
+        self.files.borrow().iter().flat_map(|file| {
             let metadata = read_file_metadata(&file)
                 .expect(&format!("failed to read metadata for file {:?}", file));
             metadata
@@ -134,7 +142,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
     }
 
     fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
-        let chunks = self.files.par_iter().flat_map_iter(|path| {
+        let chunks = self.files.borrow().par_iter().flat_map_iter(|path| {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
                 .map_ok(|chunk| {
