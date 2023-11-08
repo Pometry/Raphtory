@@ -1,4 +1,5 @@
 use crate::{
+    core::utils::time::IntoTime,
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic},
         graph::views::window_graph::WindowedGraph,
@@ -51,15 +52,15 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
         }
     }
 
-    pub async fn similarity_search(
+    pub async fn similarity_search<I: IntoTime>(
         &self,
         query: &str,
         init: usize,
         min_nodes: usize,
         min_edges: usize,
         limit: usize,
-        window_start: Option<i64>,
-        window_end: Option<i64>,
+        window_start: Option<I>,
+        window_end: Option<I>,
     ) -> Vec<Document> {
         self.similarity_search_with_scores(
             query,
@@ -77,17 +78,20 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
     }
 
     // FIXME: this should return a Result
-    pub async fn similarity_search_with_scores(
+    pub async fn similarity_search_with_scores<I: IntoTime>(
         &self,
         query: &str,
         init: usize,
         min_nodes: usize,
         min_edges: usize,
         limit: usize,
-        window_start: Option<i64>,
-        window_end: Option<i64>,
+        window_start: Option<I>,
+        window_end: Option<I>,
     ) -> Vec<(Document, f32)> {
         let query_embedding = self.embedding.call(vec![query.to_owned()]).await.remove(0);
+
+        let window_start = window_start.map(|time| time.into_time());
+        let window_end = window_end.map(|time| time.into_time());
 
         let (graph, window_nodes, window_edges): (
             DynamicGraph,

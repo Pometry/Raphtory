@@ -7,7 +7,7 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
-    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
+    python::{graph::views::graph_view::PyGraphView, types::repr::Repr, utils::PyTime},
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
@@ -117,6 +117,8 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
 
 #[pyclass(name = "VectorizedGraph", frozen)]
 pub struct PyVectorizedGraph {
+    start: Option<PyTime>,
+    end: Option<PyTime>,
     vectors: Arc<VectorizedGraph<DynamicGraph, PyDocumentTemplate>>,
 }
 
@@ -143,10 +145,21 @@ impl PyVectorizedGraph {
                     .vectorize_with_template(Box::new(embedding.clone()), cache, template)
                     .await;
                 PyVectorizedGraph {
+                    start: None,
+                    end: None,
                     vectors: Arc::new(vectorized_graph),
                 }
             })
         })
+    }
+
+    #[pyo3(signature = (start=None, end=None))]
+    pub fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> Self {
+        Self {
+            start, //: start.unwrap_or(PyTime::MIN),
+            end,   //: end.unwrap_or(PyTime::MAX),
+            vectors: self.vectors.clone(),
+        }
     }
 
     fn search(
@@ -174,6 +187,8 @@ impl PyVectorizedGraph {
         limit: usize,
     ) -> Vec<(PyGraphDocument, f32)> {
         let vectors = self.vectors.clone();
+        let start = self.start.clone();
+        let end = self.end.clone();
         let docs = py.allow_threads(move || {
             spawn_async_task(move || async move {
                 vectors
@@ -183,8 +198,8 @@ impl PyVectorizedGraph {
                         min_nodes,
                         min_edges,
                         limit,
-                        None,
-                        None,
+                        start,
+                        end,
                     )
                     .await
             })

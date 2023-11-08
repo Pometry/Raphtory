@@ -181,7 +181,7 @@ mod vector_tests {
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
         let vectors = g.vectorize(Box::new(openai_embedding), Some(cache)).await;
         let docs = vectors
-            .similarity_search("whatever", 10, 0, 0, 20, None, None)
+            .similarity_search::<i64>("whatever", 10, 0, 0, 20, None, None)
             .await;
 
         assert!(docs.is_empty())
@@ -262,7 +262,7 @@ age: 30"###;
             .await;
 
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, None, None)
+            .similarity_search::<i64>("whatever", 1, 0, 0, 10, None, None)
             .await;
         assert_eq!(docs.len(), 3);
         // all documents are present in the result
@@ -312,7 +312,7 @@ age: 30"###;
             .await;
 
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, None, None)
+            .similarity_search::<i64>("whatever", 1, 0, 0, 10, None, None)
             .await;
         assert_eq!(docs.len(), 2);
 
@@ -384,13 +384,13 @@ age: 30"###;
             .await;
 
         let docs = vectors
-            .similarity_search("Find a magician", 1, 0, 0, 1, None, None)
+            .similarity_search::<i64>("Find a magician", 1, 0, 0, 1, None, None)
             .await;
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content().contains("Gandalf is a wizard"));
 
         let docs = vectors
-            .similarity_search("Find a young person", 1, 0, 0, 1, None, None)
+            .similarity_search::<i64>("Find a young person", 1, 0, 0, 1, None, None)
             .await;
         assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
@@ -401,7 +401,7 @@ age: 30"###;
         assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let docs = vectors
-            .similarity_search(
+            .similarity_search::<i64>(
                 "Has anyone appeared with anyone else?",
                 1,
                 0,
