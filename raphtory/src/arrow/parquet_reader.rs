@@ -21,6 +21,7 @@ use rayon::prelude::*;
 
 use super::{
     chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
+    concat,
     edge_frame_builder::edge_props_builder::EdgePropsBuilder,
     Error, GraphChunk,
 };
@@ -121,15 +122,13 @@ impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
     }
 
     fn load_t_edge_values(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
-        let schema = self.edge_t_prop_schema.clone();
+        let schema = &self.edge_t_prop_schema;
 
         let offset_iter = self.parquet_offset_iter(chunk_size).collect_vec();
+        let iter = offset_iter.into_par_iter();
 
-        let iter = offset_iter
-            .into_par_iter()
-            .map(|parquet_offsets| into_struct_arrays(parquet_offsets, &schema));
-
-        self.edge_props_builder.load_t_edges_from_par_structs(iter)
+        self.edge_props_builder
+            .load_t_edges_from_par_structs(iter, schema)
     }
 
     fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
@@ -161,48 +160,40 @@ fn read_parquet_file(
     Ok(reader)
 }
 
-fn into_struct_arrays<'a>(
-    offsets: Vec<ParquetOffset<RowGroupRef<PathBuf>>>,
-    schema: &Schema,
-) -> StructArray {
-    let group = offsets.iter().group_by(|&offset| &offset.index.file);
+pub trait LoadStruct {
+    fn load_struct(self, schema: &Schema) -> StructArray;
+}
 
-    let iter = group.into_iter().flat_map(|(file, offsets)| {
-        let file =
-            std::fs::File::open(&file).expect(&format!("failed to open parquet file {:?}", file));
-        let mut row_groups = vec![];
-        let mut ranges = vec![];
-        for offset in offsets {
-            row_groups.push(offset.index.row_group.clone());
-            ranges.push(offset.range.clone());
-        }
+impl LoadStruct for Vec<ParquetOffset<RowGroupRef<PathBuf>>> {
+    fn load_struct(self, schema: &Schema) -> StructArray {
+        let group = self.iter().group_by(|&offset| &offset.index.file);
 
-        let reader =
-            parquet::read::FileReader::new(file, row_groups, schema.clone(), None, None, None);
+        let iter = group.into_iter().flat_map(|(file, offsets)| {
+            let file = std::fs::File::open(&file)
+                .expect(&format!("failed to open parquet file {:?}", file));
+            let mut row_groups = vec![];
+            let mut ranges = vec![];
+            for offset in offsets {
+                row_groups.push(offset.index.row_group.clone());
+                ranges.push(offset.range.clone());
+            }
 
-        // we assume the rowgroup maps to a chunk 1-1
-        reader.zip(ranges.into_iter()).map(move |(chunk, range)| {
-            let chunk = chunk.expect("failed to read parquet chunk").into_arrays();
-            let mut chunk = StructArray::new(DataType::Struct(schema.fields.clone()), chunk, None);
-            chunk.slice(range.start, range.end - range.start);
-            chunk
-        })
-    });
+            let reader =
+                parquet::read::FileReader::new(file, row_groups, schema.clone(), None, None, None);
 
-    let all_structs = iter.collect::<Vec<_>>();
+            // we assume the rowgroup maps to a chunk 1-1
+            reader.zip(ranges.into_iter()).map(move |(chunk, range)| {
+                let chunk = chunk.expect("failed to read parquet chunk").into_arrays();
+                let mut chunk =
+                    StructArray::new(DataType::Struct(schema.fields.clone()), chunk, None);
+                chunk.slice(range.start, range.end - range.start);
+                chunk
+            })
+        });
 
-    let mut type_coerce: Vec<&dyn Array> = Vec::with_capacity(all_structs.len());
-
-    for arr in all_structs.iter() {
-        type_coerce.push(arr);
+        let all_structs = iter.collect::<Vec<_>>();
+        concat(all_structs).unwrap()
     }
-
-    let struct_arr = concatenate(&type_coerce).expect("failed to concatenate");
-    struct_arr
-        .as_any()
-        .downcast_ref::<StructArray>()
-        .unwrap()
-        .clone()
 }
 
 fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
@@ -211,7 +202,7 @@ fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
     Ok(meta)
 }
 
-trait NumRows: Clone {
+pub trait NumRows: Clone {
     fn num_rows(&self) -> usize;
 }
 
@@ -240,12 +231,12 @@ impl NumRows for StructArray {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct ParquetOffset<G> {
-    index: G,
-    range: Range<usize>,
+pub struct ParquetOffset<G> {
+    pub index: G,
+    pub range: Range<usize>,
 }
 
-struct ParquetOffsetIter<G, I> {
+pub struct ParquetOffsetIter<G, I> {
     iter: I,
     chunk_size: usize,
     current: Option<G>,
@@ -253,7 +244,7 @@ struct ParquetOffsetIter<G, I> {
 }
 
 impl<G, I: Iterator<Item = G>> ParquetOffsetIter<G, I> {
-    fn new(mut iter: I, chunk_size: usize) -> Self {
+    pub fn new(mut iter: I, chunk_size: usize) -> Self {
         let first = iter.next();
         Self {
             iter,

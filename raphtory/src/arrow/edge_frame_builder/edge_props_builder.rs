@@ -4,7 +4,7 @@ use arrow2::{
     array::{Array, PrimitiveArray, StructArray},
     buffer::Buffer,
     chunk::Chunk,
-    datatypes::{Field, Schema, DataType},
+    datatypes::{DataType, Field, Schema},
     offset::OffsetsBuffer,
     types::NativeType,
 };
@@ -81,12 +81,17 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
     pub(crate) fn load_t_edges_from_par_structs(
         &self,
-        iter: impl IndexedParallelIterator<Item = StructArray>,
+        iter: impl IndexedParallelIterator<Item = impl LoadStruct>,
+        schema: &Schema,
     ) -> Result<ChunkedArray<StructArray>, Error> {
         let arrays = iter
+            .map(|parquet_offsets| parquet_offsets.load_struct(schema))
             .enumerate()
             .map(|(chunk_id, struct_arr)| {
-                let file_path = self.graph_dir.as_ref().join(format!("edge_chunk_{:08}.ipc", chunk_id));
+                let file_path = self
+                    .graph_dir
+                    .as_ref()
+                    .join(format!("edge_chunk_{:08}.ipc", chunk_id));
 
                 write_temporal_properties(file_path, struct_arr, self.time_col_idx)
             })

@@ -1,6 +1,9 @@
+use crate::arrow::parquet_reader::{LoadStruct, NumRows, ParquetOffset};
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
-    datatypes::{DataType, Field, Schema}, chunk::Chunk,
+    chunk::Chunk,
+    compute::concatenate::concatenate,
+    datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
 use std:: path::{Path, PathBuf};
@@ -12,7 +15,7 @@ pub mod edge;
 pub(crate) mod edges;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod global_order;
-pub mod graph;
+// pub mod graph;
 pub mod ipc;
 pub(crate) mod list_buffer;
 pub mod loader;
@@ -109,6 +112,7 @@ impl From<&str> for GID {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct GraphChunk {
     srcs: Box<dyn Array>,
     dsts: Box<dyn Array>,
@@ -126,7 +130,40 @@ impl GraphChunk {
     }
 }
 
+#[derive(Debug, Clone)]
 pub(crate) struct PropsChunk(pub StructArray);
+
+impl NumRows for &PropsChunk {
+    fn num_rows(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl LoadStruct for Vec<ParquetOffset<&PropsChunk>> {
+    fn load_struct(self, schema: &Schema) -> StructArray {
+        let sliced: Vec<_> = self
+            .into_iter()
+            .map(|v| {
+                let array = v.index.0.clone();
+                assert_eq!(&schema.fields, array.fields());
+                array.sliced(v.range.start, v.range.end - v.range.start)
+            })
+            .collect();
+        concat(sliced).unwrap()
+    }
+}
+
+pub fn concat<A: Array + Clone>(arrays: Vec<A>) -> Result<A, Error> {
+    let mut refs: Vec<&dyn Array> = Vec::with_capacity(arrays.len());
+    for array in arrays.iter() {
+        refs.push(array);
+    }
+    Ok(concatenate(&refs)?
+        .as_any()
+        .downcast_ref::<A>()
+        .unwrap()
+        .clone())
+}
 
 pub(crate) fn split_struct_chunk(
     chunk: StructArray,
