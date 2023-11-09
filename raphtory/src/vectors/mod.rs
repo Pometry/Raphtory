@@ -172,17 +172,20 @@ mod vector_tests {
 
     // TODO: test default templates
 
-    #[ignore = "this test needs an OpenAI API key to run"]
     #[tokio::test]
     async fn test_empty_graph() {
         dotenv().ok();
 
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
-        let vectors = g.vectorize(Box::new(openai_embedding), Some(cache)).await;
+        let vectors = g.vectorize(Box::new(fake_embedding), Some(cache)).await;
         let docs = vectors
-            .similarity_search::<i64>("whatever", 10, 0, 0, 20, None, None)
-            .await;
+            .search_similar_entities("whatever", 10)
+            .await
+            .expand_with_search("whatever", 10)
+            .await
+            .expand(2)
+            .get_documents();
 
         assert!(docs.is_empty())
     }
@@ -262,8 +265,11 @@ age: 30"###;
             .await;
 
         let docs = vectors
-            .similarity_search::<i64>("whatever", 1, 0, 0, 10, None, None)
-            .await;
+            .search_similar_entities("whatever", 1)
+            .await
+            .expand_with_search("whatever", 9)
+            .await
+            .get_documents();
         assert_eq!(docs.len(), 3);
         // all documents are present in the result
         for doc_content in FAKE_DOCUMENTS {
@@ -312,13 +318,20 @@ age: 30"###;
             .await;
 
         let docs = vectors
-            .similarity_search::<i64>("whatever", 1, 0, 0, 10, None, None)
-            .await;
+            .search_similar_entities("whatever", 1)
+            .await
+            .expand_with_search("whatever", 9)
+            .await
+            .get_documents();
         assert_eq!(docs.len(), 2);
 
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, None, Some(25))
-            .await;
+            .window(None, Some(25))
+            .search_similar_entities("whatever", 1)
+            .await
+            .expand_with_search("whatever", 9)
+            .await
+            .get_documents();
         assert!(
             match &docs[..] {
                 [Document::Node { name, content }] => name == "test" && content == "event at 20",
@@ -328,8 +341,12 @@ age: 30"###;
         );
 
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, Some(35), None)
-            .await;
+            .window(Some(35), None)
+            .search_similar_entities("whatever", 1)
+            .await
+            .expand_with_search("whatever", 9)
+            .await
+            .get_documents();
         assert!(
             match &docs[..] {
                 [Document::Node { name, content }] =>
@@ -384,33 +401,30 @@ age: 30"###;
             .await;
 
         let docs = vectors
-            .similarity_search::<i64>("Find a magician", 1, 0, 0, 1, None, None)
-            .await;
+            .search_similar_nodes("Find a magician", 1)
+            .await
+            .get_documents();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content().contains("Gandalf is a wizard"));
 
         let docs = vectors
-            .similarity_search::<i64>("Find a young person", 1, 0, 0, 1, None, None)
-            .await;
+            .search_similar_nodes("Find a young person", 1)
+            .await
+            .get_documents();
         assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
         let docs = vectors
-            .similarity_search("Find a young person", 1, 0, 0, 1, Some(1), Some(3))
-            .await;
+            .window(Some(1), Some(3))
+            .search_similar_nodes("Find a young person", 1)
+            .await
+            .get_documents();
         assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         let docs = vectors
-            .similarity_search::<i64>(
-                "Has anyone appeared with anyone else?",
-                1,
-                0,
-                0,
-                1,
-                None,
-                None,
-            )
-            .await;
+            .search_similar_edges("Has anyone appeared with anyone else?", 1)
+            .await
+            .get_documents();
         assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
     }
 }

@@ -1,8 +1,11 @@
 use crate::{
-    core::utils::time::IntoTime,
+    core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime},
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic},
-        graph::views::window_graph::WindowedGraph,
+        graph::{
+            edge::EdgeView, vertex::VertexView, vertices::Vertices,
+            views::window_graph::WindowedGraph,
+        },
     },
     prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
     vectors::{
@@ -11,161 +14,146 @@ use crate::{
     },
 };
 use itertools::{chain, Itertools};
-use std::collections::HashMap;
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+    sync::Arc,
+};
 
+#[derive(Clone)]
 struct ScoredDocument {
     doc: DocumentRef,
     score: f32,
 }
 
-// impl<'a> PartialEq for ScoredDocument<'a> {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.doc.eq(other.doc)
-//     }
-// }
-
-pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
-    pub(crate) graph: G,
-    template: T,
-    embedding: Box<dyn EmbeddingFunction>,
-    // it is not the end of the world but we are storing the entity id twice
-    node_documents: HashMap<EntityId, Vec<DocumentRef>>, // TODO: replace with FxHashMap
-    edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
-    empty_vec: Vec<DocumentRef>,
+impl ScoredDocument {
+    fn new(doc: DocumentRef, score: f32) -> Self {
+        Self { doc, score }
+    }
 }
 
-impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
+pub struct VectorizedGraphSelection<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> {
+    pub(crate) vectors: VectorizedGraph<S, W, T>,
+    selected_docs: Vec<ScoredDocument>,
+}
+
+impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone
+    for VectorizedGraphSelection<S, W, T>
+{
+    fn clone(&self) -> Self {
+        Self {
+            vectors: self.vectors.clone(),
+            selected_docs: self.selected_docs.clone(),
+        }
+    }
+}
+
+impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSelection<S, W, T> {
     pub(crate) fn new(
-        graph: G,
-        template: T,
-        embedding: Box<dyn EmbeddingFunction>,
-        node_documents: HashMap<EntityId, Vec<DocumentRef>>,
-        edge_documents: HashMap<EntityId, Vec<DocumentRef>>,
+        vectors: VectorizedGraph<S, W, T>,
+        selected_docs: Vec<ScoredDocument>,
     ) -> Self {
         Self {
-            graph,
-            template,
-            embedding,
-            node_documents,
-            edge_documents,
-            empty_vec: vec![],
+            vectors,
+            selected_docs,
         }
     }
 
-    pub async fn similarity_search<I: IntoTime>(
-        &self,
-        query: &str,
-        init: usize,
-        min_nodes: usize,
-        min_edges: usize,
-        limit: usize,
-        window_start: Option<I>,
-        window_end: Option<I>,
-    ) -> Vec<Document> {
-        self.similarity_search_with_scores(
-            query,
-            init,
-            min_nodes,
-            min_edges,
-            limit,
-            window_start,
-            window_end,
-        )
-        .await
-        .into_iter()
-        .map(|(doc, _)| doc)
-        .collect_vec()
+    pub fn nodes(&self) -> Vec<VertexView<S>> {
+        self.selected_docs
+            .iter()
+            .filter_map(|doc| match doc.doc.entity_id {
+                EntityId::Node { id } => self.vectors.source_graph.vertex(id),
+                EntityId::Edge { .. } => None,
+            })
+            .collect_vec()
     }
 
-    // FIXME: this should return a Result
-    pub async fn similarity_search_with_scores<I: IntoTime>(
-        &self,
-        query: &str,
-        init: usize,
-        min_nodes: usize,
-        min_edges: usize,
-        limit: usize,
-        window_start: Option<I>,
-        window_end: Option<I>,
-    ) -> Vec<(Document, f32)> {
-        let query_embedding = self.embedding.call(vec![query.to_owned()]).await.remove(0);
+    pub fn edges(&self) -> Vec<EdgeView<S>> {
+        self.selected_docs
+            .iter()
+            .filter_map(|doc| match doc.doc.entity_id {
+                EntityId::Node { .. } => None,
+                EntityId::Edge { src, dst } => self.vectors.source_graph.edge(src, dst),
+            })
+            .collect_vec()
+    }
 
-        let window_start = window_start.map(|time| time.into_time());
-        let window_end = window_end.map(|time| time.into_time());
+    pub fn get_documents(&self) -> Vec<Document> {
+        self.get_documents_with_scores()
+            .into_iter()
+            .map(|(doc, _)| doc)
+            .collect_vec()
+    }
 
-        let (graph, window_nodes, window_edges): (
-            DynamicGraph,
-            Box<dyn Iterator<Item = &DocumentRef>>,
-            Box<dyn Iterator<Item = &DocumentRef>>,
-        ) = match (window_start, window_end) {
-            (None, None) => (
-                self.graph.clone().into_dynamic(),
-                Box::new(
-                    self.node_documents
-                        .iter()
-                        .flat_map(|(_, embeddings)| embeddings),
-                ),
-                Box::new(
-                    self.edge_documents
-                        .iter()
-                        .flat_map(|(_, embeddings)| embeddings),
-                ),
-            ),
-            (start, end) => {
-                let start = start.unwrap_or(i64::MIN);
-                let end = end.unwrap_or(i64::MAX);
-                let window = self.graph.window(start, end);
-                let nodes =
-                    self.window_embeddings(&self.node_documents, &window, window_start, window_end);
-                let edges =
-                    self.window_embeddings(&self.edge_documents, &window, window_start, window_end);
+    pub fn get_documents_with_scores(&self) -> Vec<(Document, f32)> {
+        self.selected_docs
+            .iter()
+            .map(|doc| {
                 (
-                    window.clone().into_dynamic(),
-                    Box::new(nodes),
-                    Box::new(edges),
+                    doc.doc
+                        .regenerate(&self.vectors.source_graph, self.vectors.template.as_ref()),
+                    doc.score,
                 )
-            }
-        };
+            })
+            .collect_vec()
+    }
 
-        // TODO: split the remaining code into a different function so that it can handle a graph
-        // with generic type G, and therefore we don't need to hold a reference to a DynamicGraph
-        // for this to work
-
-        // FIRST STEP: ENTRY POINT SELECTION:
-        assert!(
-            min_nodes + min_edges <= init,
-            "min_nodes + min_edges needs to be less or equal to init"
+    pub async fn add_new_entities(&self, query: &str, limit: usize) -> Self {
+        let joined = chain!(
+            self.vectors.node_documents.iter(),
+            self.vectors.edge_documents.iter()
         );
-        let generic_init = init - min_nodes - min_edges;
+        self.add_top_documents(joined, query, limit).await
+    }
 
-        let mut entry_point: Vec<ScoredDocument> = vec![];
+    pub async fn add_new_nodes(&self, query: &str, limit: usize) -> Self {
+        self.add_top_documents(self.vectors.node_documents.as_ref(), query, limit)
+            .await
+    }
+    pub async fn add_new_edges(&self, query: &str, limit: usize) -> Self {
+        self.add_top_documents(self.vectors.node_documents.as_ref(), query, limit)
+            .await
+    }
 
-        let scored_nodes = score_documents(&query_embedding, window_nodes.cloned());
-        let mut selected_nodes = find_top_k(scored_nodes, init);
-
-        let scored_edges = score_documents(&query_embedding, window_edges.cloned());
-        let mut selected_edges = find_top_k(scored_edges, init);
-        for _ in 0..min_nodes {
-            let doc = selected_nodes.next().unwrap();
-            entry_point.push(doc);
+    /// This assumes forced documents to have a score of 0
+    pub fn expand(&self, hops: usize) -> Self {
+        let mut selected_docs = self.selected_docs.clone();
+        for _ in 0..hops {
+            let context = selected_docs
+                .iter()
+                .flat_map(|doc| {
+                    self.vectors.get_context(
+                        &doc.doc,
+                        &self.vectors.windowed_graph,
+                        self.vectors.window_start,
+                        self.vectors.window_end,
+                    )
+                })
+                .map(|doc| ScoredDocument::new(doc.clone(), 0.0))
+                .collect_vec();
+            selected_docs.extend(context);
         }
-        for _ in 0..min_edges {
-            let doc = selected_edges.next().unwrap();
-            entry_point.push(doc);
-        }
 
-        let remaining_entities = find_top_k(chain!(selected_nodes, selected_edges), generic_init);
-        for doc in remaining_entities {
-            entry_point.push(doc);
+        Self {
+            vectors: self.vectors.clone(),
+            selected_docs,
         }
+    }
 
-        // SECONDS STEP: EXPANSION
-        let mut selected_docs = entry_point;
+    pub async fn expand_with_search(&self, query: &str, limit: usize) -> Self {
+        let mut selected_docs = self.selected_docs.clone();
+        let query_embedding = self.embed_query(query).await;
 
         while selected_docs.len() < limit {
-            let candidates = selected_docs
-                .iter()
-                .flat_map(|doc| self.get_context(&doc.doc, &graph, window_start, window_end));
+            let candidates = selected_docs.iter().flat_map(|doc| {
+                self.vectors.get_context(
+                    &doc.doc,
+                    &self.vectors.windowed_graph,
+                    self.vectors.window_start,
+                    self.vectors.window_end,
+                )
+            });
 
             let unique_candidates = candidates.unique_by(|doc| doc.id());
             let valid_candidates =
@@ -182,12 +170,190 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
             selected_docs.extend(top_sorted_candidates);
         }
 
-        // FINAL STEP: REPRODUCE DOCUMENTS:
-        selected_docs
-            .iter()
+        Self {
+            vectors: self.vectors.clone(),
+            selected_docs,
+        }
+    }
+
+    async fn embed_query(&self, query: &str) -> Embedding {
+        let embedding = &self.vectors.embedding;
+        embedding.call(vec![query.to_owned()]).await.remove(0)
+    }
+
+    async fn add_top_documents<'a, I>(&self, document_groups: I, query: &str, limit: usize) -> Self
+    where
+        I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
+    {
+        let query_embedding = self.embed_query(query).await;
+        let start = self.vectors.window_start;
+        let end = self.vectors.window_end;
+        let documents = document_groups
+            .into_iter()
+            .flat_map(|(_, embeddings)| embeddings);
+
+        let window_nodes: Box<dyn Iterator<Item = &DocumentRef>> = match (start, end) {
+            (None, None) => Box::new(documents),
+            _ => {
+                let window = self.vectors.windowed_graph.clone();
+                let filtered = documents
+                    .filter(move |document| document.exists_on_window(&window, start, end));
+                Box::new(filtered)
+            }
+        };
+
+        let new_len = self.selected_docs.len() + limit;
+        let mut selected_docs = self.selected_docs.clone();
+        let scored_nodes = score_documents(&query_embedding, window_nodes.cloned()); // TODO: try to remove this clone
+        let candidates = find_top_k(scored_nodes, new_len);
+        let new_selected = candidates
+            .filter(|new_doc| !selected_docs.iter().any(|doc| doc.doc == new_doc.doc))
             .take(limit)
-            .map(|doc| (doc.doc.regenerate(&self.graph, &self.template), doc.score))
-            .collect_vec()
+            .collect_vec();
+        selected_docs.extend(new_selected);
+
+        Self {
+            vectors: self.vectors.clone(),
+            selected_docs,
+        }
+    }
+}
+
+pub struct VectorizedGraph<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> {
+    pub(crate) source_graph: S,
+    pub(crate) template: Arc<T>,
+    pub(crate) embedding: Arc<dyn EmbeddingFunction>,
+    // it is not the end of the world but we are storing the entity id twice
+    pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
+    pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+    pub(crate) windowed_graph: W, // TODO: maybe put all window realted stuff on single struct
+    pub(crate) window_start: Option<i64>,
+    pub(crate) window_end: Option<i64>,
+    empty_vec: Vec<DocumentRef>,
+}
+
+impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone for VectorizedGraph<S, W, T> {
+    fn clone(&self) -> Self {
+        Self::new(
+            self.source_graph.clone(),
+            self.template.clone(),
+            self.embedding.clone(),
+            self.node_documents.clone(),
+            self.edge_documents.clone(),
+            self.windowed_graph.clone(),
+            self.window_start.clone(),
+            self.window_end.clone(),
+        )
+    }
+}
+
+impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S, W, T> {
+    pub(crate) fn new(
+        graph: S,
+        template: Arc<T>,
+        embedding: Arc<dyn EmbeddingFunction>,
+        node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+        edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+        windowed_graph: W,
+        window_start: Option<i64>,
+        window_end: Option<i64>,
+    ) -> Self {
+        Self {
+            source_graph: graph,
+            template,
+            embedding,
+            node_documents,
+            edge_documents,
+            windowed_graph,
+            window_start,
+            window_end,
+            empty_vec: vec![],
+        }
+    }
+
+    pub fn window<I: IntoTime>(
+        &self,
+        start: Option<I>,
+        end: Option<I>,
+    ) -> VectorizedGraph<S, WindowedGraph<W>, T> {
+        let start = start.map(|start| start.into_time()).unwrap_or(i64::MIN);
+        let end = end.map(|end| end.into_time()).unwrap_or(i64::MAX);
+        let w_start = self.window_start;
+        let w_end = self.window_end;
+        VectorizedGraph::new(
+            self.source_graph.clone(),
+            self.template.clone(),
+            self.embedding.clone(),
+            self.node_documents.clone(),
+            self.edge_documents.clone(),
+            self.windowed_graph.window(start, end),
+            w_start.map(|w_start| max(w_start, start)).or(Some(start)),
+            w_end.map(|w_end| min(w_end, end)).or(Some(end)),
+        )
+    }
+
+    pub fn empty_selection(&self) -> VectorizedGraphSelection<S, W, T> {
+        VectorizedGraphSelection::new(self.clone(), vec![])
+    }
+
+    /// This assumes forced documents to have a score of 0
+    pub fn select<V: Into<VertexRef>>(
+        &self,
+        nodes: Vec<V>,
+        edges: Vec<(V, V)>,
+    ) -> VectorizedGraphSelection<S, W, T> {
+        let node_docs = nodes.into_iter().flat_map(|id| {
+            let vertex = self.source_graph.vertex(id);
+            let opt = vertex.map(|vertex| self.node_documents.get(&EntityId::from_node(&vertex)));
+            opt.flatten().unwrap_or(&self.empty_vec)
+        });
+        let edge_docs = edges.into_iter().flat_map(|(src, dst)| {
+            let edge = self.source_graph.edge(src, dst);
+            let opt = edge.map(|edge| self.edge_documents.get(&EntityId::from_edge(&edge)));
+            opt.flatten().unwrap_or(&self.empty_vec)
+        });
+        let selected = chain!(node_docs, edge_docs)
+            .map(|doc| ScoredDocument::new(doc.clone(), 0.0))
+            .collect_vec();
+        VectorizedGraphSelection::new(self.clone(), selected)
+    }
+
+    pub fn select_nodes<V: Into<VertexRef>>(
+        &self,
+        nodes: Vec<V>,
+    ) -> VectorizedGraphSelection<S, W, T> {
+        self.select(nodes, vec![])
+    }
+
+    pub fn select_edges<V: Into<VertexRef>>(
+        &self,
+        edges: Vec<(V, V)>,
+    ) -> VectorizedGraphSelection<S, W, T> {
+        self.select(vec![], edges)
+    }
+
+    pub async fn search_similar_entities(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> VectorizedGraphSelection<S, W, T> {
+        self.empty_selection().add_new_entities(query, limit).await
+    }
+
+    pub async fn search_similar_nodes(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> VectorizedGraphSelection<S, W, T> {
+        self.empty_selection().add_new_nodes(query, limit).await
+    }
+
+    pub async fn search_similar_edges(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> VectorizedGraphSelection<S, W, T> {
+        self.empty_selection().add_new_edges(query, limit).await
     }
 
     // this might return the document used as input, uniqueness need to be check outside of this
@@ -203,7 +369,7 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
                 let self_docs = self.node_documents.get(&document.entity_id).unwrap();
                 let edges = graph.vertex(id).unwrap().edges();
                 let edge_docs = edges.flat_map(|edge| {
-                    let edge_id = edge.into();
+                    let edge_id = EntityId::from_edge(&edge);
                     self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
                 });
                 Box::new(
@@ -214,8 +380,8 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
             EntityId::Edge { src, dst } => {
                 let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
                 let edge = graph.edge(src, dst).unwrap();
-                let src_id: EntityId = edge.src().into();
-                let dst_id: EntityId = edge.dst().into();
+                let src_id = EntityId::from_node(&edge.src());
+                let dst_id = EntityId::from_node(&edge.dst());
                 let src_docs = self.node_documents.get(&src_id).unwrap();
                 let dst_docs = self.node_documents.get(&dst_id).unwrap();
                 Box::new(
@@ -224,23 +390,6 @@ impl<G: GraphViewOps + IntoDynamic, T: DocumentTemplate<G>> VectorizedGraph<G, T
                 )
             }
         }
-    }
-
-    fn window_embeddings<'a, I>(
-        &self,
-        documents: I,
-        window: &WindowedGraph<G>,
-        start: Option<i64>,
-        end: Option<i64>,
-    ) -> impl Iterator<Item = &'a DocumentRef> + 'a
-    where
-        I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
-    {
-        let window = window.clone();
-        documents
-            .into_iter()
-            .flat_map(|(_, documents)| documents)
-            .filter(move |document| document.exists_on_window(&window, start, end))
     }
 }
 

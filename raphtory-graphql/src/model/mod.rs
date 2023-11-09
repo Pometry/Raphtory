@@ -112,24 +112,35 @@ impl QueryRoot {
         let limit = limit.unwrap_or(1);
         let data = ctx.data_unchecked::<Data>();
         let binding = data.vector_stores.read();
-        let vec_store = binding.get(graph)?;
+        let vectors = binding.get(graph)?;
         println!("running similarity search for {query}");
-        Some(
-            vec_store
-                .similarity_search(
-                    query,
-                    init,
-                    min_nodes,
-                    min_edges,
-                    limit,
-                    window_start,
-                    window_end,
-                )
+
+        let documents = match (window_start, window_end) {
+            (None, None) => vectors
+                .empty_selection()
+                .add_new_nodes(query, min_nodes)
                 .await
-                .into_iter()
-                .map(|doc| doc.into())
-                .collect_vec(),
-        )
+                .add_new_edges(query, min_edges)
+                .await
+                .add_new_entities(query, init - min_nodes - min_edges)
+                .await
+                .expand_with_search(query, limit - init)
+                .await
+                .get_documents(),
+            _ => vectors
+                .window(window_start, window_end)
+                .empty_selection()
+                .add_new_nodes(query, min_nodes)
+                .await
+                .add_new_edges(query, min_edges)
+                .await
+                .add_new_entities(query, init - min_nodes - min_edges)
+                .await
+                .expand_with_search(query, limit - init)
+                .await
+                .get_documents(),
+        };
+        Some(documents.into_iter().map(|doc| doc.into()).collect_vec())
     }
 }
 

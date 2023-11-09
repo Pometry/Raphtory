@@ -18,6 +18,7 @@ use std::{
     collections::{hash_map::DefaultHasher, HashMap, VecDeque},
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 const CHUNK_SIZE: usize = 1000;
@@ -72,14 +73,14 @@ pub trait Vectorizable<G: GraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
-    ) -> VectorizedGraph<G, DefaultTemplate>;
+    ) -> VectorizedGraph<G, G, DefaultTemplate>;
 
     async fn vectorize_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         template: T,
-    ) -> VectorizedGraph<G, T>;
+    ) -> VectorizedGraph<G, G, T>;
 }
 
 #[async_trait(?Send)]
@@ -88,7 +89,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>, // TODO: make this optional maybe
-    ) -> VectorizedGraph<G, DefaultTemplate> {
+    ) -> VectorizedGraph<G, G, DefaultTemplate> {
         self.vectorize_with_template(embedding, cache_file, DefaultTemplate)
             .await
     }
@@ -98,27 +99,13 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         template: T,
-    ) -> VectorizedGraph<G, T> {
-        // let nodes = self.vertices().iter().map(|vertex| {
-        //     let documents = template.node(&vertex).collect_vec();
-        //     DocumentGroup::new(vertex.into(), documents)
-        // });
-        // let edges = self.edges().map(|edge| {
-        //     let documents = template.edge(&edge).collect_vec();
-        //     DocumentGroup::new(edge.into(), documents)
-        // });
-        //
-        // let cache = cache_file.map(EmbeddingCache::from_path);
-        // let node_refs = attach_embeddings(nodes, &embedding, &cache).await;
-        // let edge_refs = attach_embeddings(edges, &embedding, &cache).await;
-        // cache.iter().for_each(|cache| cache.dump_to_disk());
-
+    ) -> VectorizedGraph<G, G, T> {
         let nodes = self.vertices().iter().flat_map(|vertex| {
             template
                 .node(&vertex)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: (&vertex).into(), // FIXME: this syntax is very confusing...
+                    entity_id: EntityId::from_node(&vertex),
                     content: doc.content,
                     index,
                     life: doc.life,
@@ -129,7 +116,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
                 .edge(&edge)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: (&edge).into(), // FIXME: this syntax is very confusing...
+                    entity_id: EntityId::from_edge(&edge), // FIXME: this syntax is very confusing...
                     content: doc.content,
                     index,
                     life: doc.life,
@@ -145,7 +132,16 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         println!("> dumping embeddings to disk cache");
         cache.iter().for_each(|cache| cache.dump_to_disk());
 
-        VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
+        VectorizedGraph::new(
+            self.clone(),
+            template.into(),
+            embedding.into(),
+            node_refs.into(),
+            edge_refs.into(),
+            self.clone(),
+            None,
+            None,
+        )
     }
 }
 
