@@ -13,9 +13,9 @@ use rayon::prelude::*;
 use crate::arrow::{
     array_as_id_iter,
     chunked_array::chunked_array::ChunkedArray,
-    concat, ipc,
+    concat,
     mmap::{mmap_batch, write_batches},
-    parquet_reader::{LoadStruct, ParquetOffset, TrySlice},
+    parquet_reader::{ParquetOffset, TrySlice},
     Error, GraphChunk, GID,
 };
 

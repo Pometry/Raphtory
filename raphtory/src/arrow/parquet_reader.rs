@@ -1,6 +1,5 @@
 use super::{
     chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
-    concat,
     edge_frame_builder::edge_props_builder::EdgePropsBuilder,
     Error, GraphChunk,
 };
@@ -17,14 +16,12 @@ use arrow2::{
 };
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
-use parking_lot::RwLock;
 use rayon::prelude::*;
 use std::{
     borrow::Borrow,
     cmp::min,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
@@ -176,42 +173,6 @@ pub fn list_parquet_files(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, Error>
         Ok(entries)
     } else {
         Ok(vec![path.as_ref().to_path_buf()])
-    }
-}
-
-pub trait LoadStruct {
-    fn load_struct(self, schema: &Schema) -> StructArray;
-}
-
-impl LoadStruct for Vec<ParquetOffset<RowGroupRef<PathBuf>>> {
-    fn load_struct(self, schema: &Schema) -> StructArray {
-        let group = self.iter().group_by(|&offset| &offset.index.file);
-
-        let iter = group.into_iter().flat_map(|(file, offsets)| {
-            let file = std::fs::File::open(&file)
-                .expect(&format!("failed to open parquet file {:?}", file));
-            let mut row_groups = vec![];
-            let mut ranges = vec![];
-            for offset in offsets {
-                row_groups.push(offset.index.row_group.clone());
-                ranges.push(offset.range.clone());
-            }
-
-            let reader =
-                parquet::read::FileReader::new(file, row_groups, schema.clone(), None, None, None);
-
-            // we assume the rowgroup maps to a chunk 1-1
-            reader.zip(ranges.into_iter()).map(move |(chunk, range)| {
-                let chunk = chunk.expect("failed to read parquet chunk").into_arrays();
-                let mut chunk =
-                    StructArray::new(DataType::Struct(schema.fields.clone()), chunk, None);
-                chunk.slice(range.start, range.end - range.start);
-                chunk
-            })
-        });
-
-        let all_structs = iter.collect::<Vec<_>>();
-        concat(all_structs).unwrap()
     }
 }
 

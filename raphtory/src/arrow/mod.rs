@@ -1,4 +1,4 @@
-use crate::arrow::parquet_reader::{LoadStruct, NumRows, ParquetOffset, TrySlice};
+use crate::arrow::parquet_reader::{NumRows, TrySlice};
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
@@ -149,20 +149,6 @@ impl NumRows for &PropsChunk {
 impl TrySlice for &PropsChunk {
     fn try_slice(&self, range: Range<usize>) -> Result<StructArray, Error> {
         self.0.try_slice(range)
-    }
-}
-
-impl LoadStruct for Vec<ParquetOffset<&PropsChunk>> {
-    fn load_struct(self, schema: &Schema) -> StructArray {
-        let sliced: Vec<_> = self
-            .into_iter()
-            .map(|v| {
-                let array = v.index.0.clone();
-                assert_eq!(&schema.fields, array.fields());
-                array.sliced(v.range.start, v.range.end - v.range.start)
-            })
-            .collect();
-        concat(sliced).unwrap()
     }
 }
 
