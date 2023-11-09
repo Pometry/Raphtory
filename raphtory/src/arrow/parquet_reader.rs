@@ -8,7 +8,6 @@ use std::{
 use arrow2::{
     array::{Array, StructArray},
     chunk::Chunk,
-    compute::concatenate::concatenate,
     datatypes::{DataType, Schema},
     io::parquet::{
         self,

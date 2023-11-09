@@ -426,6 +426,10 @@ impl TempColGraphFragment {
         self.edges.iter()
     }
 
+    pub fn all_edges_par(&self) -> impl ParallelIterator<Item = Edge> + '_ {
+        self.edges.par_iter()
+    }
+
     pub fn exploded_edges(&self) -> impl Iterator<Item = ExplodedEdge> + '_ {
         self.edges.iter().flat_map(|e| e.explode())
     }
