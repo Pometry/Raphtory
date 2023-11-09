@@ -693,7 +693,7 @@ mod test_deletions {
         let g = GraphWithDeletions::new();
         let e = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
         assert_eq!(e.earliest_time().unwrap(), 1);
-        assert_eq!(e.latest_time(), None);
+        assert_eq!(e.latest_time(), Some(i64::MAX));
         g.delete_edge(10, 1, 2, None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10);
 
