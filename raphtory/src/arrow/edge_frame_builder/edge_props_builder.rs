@@ -13,9 +13,9 @@ use rayon::prelude::*;
 use crate::arrow::{
     array_as_id_iter,
     chunked_array::chunked_array::ChunkedArray,
-    ipc,
+    concat, ipc,
     mmap::{mmap_batch, write_batches},
-    parquet_reader::LoadStruct,
+    parquet_reader::{LoadStruct, ParquetOffset, TrySlice},
     Error, GraphChunk, GID,
 };
 
@@ -88,8 +88,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
     pub(crate) fn load_t_edges_from_par_structs(
         &self,
-        iter: impl IndexedParallelIterator<Item = impl LoadStruct>,
-        schema: &Schema,
+        iter: impl IndexedParallelIterator<Item = Vec<ParquetOffset<impl TrySlice>>>,
     ) -> Result<ChunkedArray<StructArray>, Error> {
         // TODO: make this dependent on number of cores, number of columns and available memory
 
@@ -101,22 +100,33 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
         let arrays = pool.install(|| {
             let arrays = iter
-                .map(|parquet_offsets| parquet_offsets.load_struct(schema))
+                .map(|parquet_offsets| {
+                    parquet_offsets
+                        .into_iter()
+                        .map(|offset| offset.index.try_slice(offset.range))
+                        .collect::<Result<Vec<_>, _>>()
+                        .and_then(|arrays| concat(arrays))
+                })
                 .enumerate()
                 .map(|(chunk_id, struct_arr)| {
-                    let file_path = self
-                        .graph_dir
-                        .as_ref()
-                        .join(format!("edge_chunk_{:08}.ipc", chunk_id));
+                    struct_arr.and_then(|struct_arr| {
+                        let file_path = self
+                            .graph_dir
+                            .as_ref()
+                            .join(format!("edge_chunk_{:08}.ipc", chunk_id));
 
-                    write_temporal_properties(file_path, struct_arr, self.time_col_idx)
+                        write_temporal_properties(file_path, struct_arr, self.time_col_idx)
+                    })
                 })
-                .collect::<Result<Vec<_>, Error>>()
-                .unwrap(); // TODO: handle error
+                .collect::<Result<Vec<_>, Error>>();
             arrays
         });
-
-        Ok(ChunkedArray::from_vec(arrays))
+        let arrays = arrays?;
+        if arrays.is_empty() {
+            Err(Error::NoEdgeLists)
+        } else {
+            Ok(ChunkedArray::from_vec(arrays))
+        }
     }
 
     fn count_chunk(

@@ -1,10 +1,9 @@
-use std::{
-    borrow::Borrow,
-    cmp::min,
-    ops::Range,
-    path::{Path, PathBuf},
+use super::{
+    chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
+    concat,
+    edge_frame_builder::edge_props_builder::EdgePropsBuilder,
+    Error, GraphChunk,
 };
-
 use arrow2::{
     array::{Array, StructArray},
     chunk::Chunk,
@@ -17,13 +16,15 @@ use arrow2::{
     offset::OffsetsBuffer,
 };
 use itertools::Itertools;
+use once_cell::sync::OnceCell;
+use parking_lot::RwLock;
 use rayon::prelude::*;
-
-use super::{
-    chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
-    concat,
-    edge_frame_builder::edge_props_builder::EdgePropsBuilder,
-    Error, GraphChunk,
+use std::{
+    borrow::Borrow,
+    cmp::min,
+    ops::{Deref, DerefMut, Range},
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
@@ -94,13 +95,15 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         })
     }
     fn row_group_iter(&self) -> impl Iterator<Item = RowGroupRef<PathBuf>> + '_ {
-        self.files.borrow().iter().flat_map(|file| {
+        let schema = self.edge_t_prop_schema.clone();
+        self.files.borrow().iter().flat_map(move |file| {
+            let schema = schema.clone();
             let metadata = read_file_metadata(&file)
                 .expect(&format!("failed to read metadata for file {:?}", file));
             metadata
                 .row_groups
                 .into_iter()
-                .map(move |row_group| RowGroupRef::new(file.clone(), row_group))
+                .map(move |row_group| RowGroupRef::new(file.clone(), row_group, schema.clone()))
         })
     }
 
@@ -121,13 +124,10 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
     }
 
     fn load_t_edge_values(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
-        let schema = &self.edge_t_prop_schema;
-
         let offset_iter = self.parquet_offset_iter(chunk_size).collect_vec();
         let iter = offset_iter.into_par_iter();
 
-        self.edge_props_builder
-            .load_t_edges_from_par_structs(iter, schema)
+        self.edge_props_builder.load_t_edges_from_par_structs(iter)
     }
 
     fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
@@ -225,21 +225,75 @@ pub trait NumRows: Clone {
     fn num_rows(&self) -> usize;
 }
 
+pub trait TrySlice {
+    fn try_slice(&self, range: Range<usize>) -> Result<StructArray, Error>;
+}
+
 #[derive(Clone, Debug)]
 struct RowGroupRef<P> {
     file: P,
     row_group: RowGroupMetaData,
+    schema: Schema,
+    chunk: OnceCell<Chunk<Box<dyn Array>>>,
+}
+
+impl<P: AsRef<Path>> RowGroupRef<P> {
+    fn read(&self) -> Result<&Chunk<Box<dyn Array>>, Error> {
+        self.chunk.get_or_try_init(|| {
+            let file = std::fs::File::open(&self.file)?;
+            let mut reader = parquet::read::FileReader::new(
+                file,
+                vec![self.row_group.clone()],
+                self.schema.clone(),
+                None,
+                None,
+                None,
+            );
+            if let Some(chunk_res) = reader.next() {
+                Ok(chunk_res?)
+            } else {
+                Err(Error::EmptyChunk)
+            }
+        })
+    }
 }
 
 impl<P> RowGroupRef<P> {
-    fn new(file: P, row_group: RowGroupMetaData) -> Self {
-        Self { file, row_group }
+    fn new(file: P, row_group: RowGroupMetaData, schema: Schema) -> Self {
+        Self {
+            file,
+            row_group,
+            chunk: OnceCell::new(),
+            schema,
+        }
     }
 }
 
 impl<P: Clone> NumRows for RowGroupRef<P> {
     fn num_rows(&self) -> usize {
         self.row_group.num_rows()
+    }
+}
+
+impl<P: AsRef<Path>> TrySlice for RowGroupRef<P> {
+    fn try_slice(&self, range: Range<usize>) -> Result<StructArray, Error> {
+        let chunk = self.read()?;
+        let sliced_arrays: Vec<_> = chunk
+            .arrays()
+            .iter()
+            .map(|array| array.sliced(range.start, range.end - range.start))
+            .collect();
+        Ok(StructArray::new(
+            DataType::Struct(self.schema.fields.clone()),
+            sliced_arrays,
+            None,
+        ))
+    }
+}
+
+impl TrySlice for StructArray {
+    fn try_slice(&self, range: Range<usize>) -> Result<StructArray, Error> {
+        Ok(self.clone().sliced(range.start, range.end - range.start))
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::arrow::parquet_reader::{LoadStruct, NumRows, ParquetOffset};
+use crate::arrow::parquet_reader::{LoadStruct, NumRows, ParquetOffset, TrySlice};
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
@@ -6,7 +6,10 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
-use std::path::{Path, PathBuf};
+use std::{
+    ops::Range,
+    path::{Path, PathBuf},
+};
 
 pub(crate) mod chunked_array;
 pub mod col_graph2;
@@ -140,6 +143,12 @@ pub(crate) struct PropsChunk(pub StructArray);
 impl NumRows for &PropsChunk {
     fn num_rows(&self) -> usize {
         self.0.len()
+    }
+}
+
+impl TrySlice for &PropsChunk {
+    fn try_slice(&self, range: Range<usize>) -> Result<StructArray, Error> {
+        self.0.try_slice(range)
     }
 }
 

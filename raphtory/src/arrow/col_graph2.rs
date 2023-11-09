@@ -161,9 +161,8 @@ impl TempColGraphFragment {
         load_chunks(&mut vf_builder, &mut edge_builder, edges.iter().cloned())?;
 
         let edge_chunks = ParquetOffsetIter::new(props.iter(), t_props_chunk_size).collect_vec();
-        let schema = Vec::from(props.first().ok_or(Error::NoEdgeLists)?.0.fields()).into();
-        let edge_props_values = edge_props_builder
-            .load_t_edges_from_par_structs(edge_chunks.into_par_iter(), &schema)?;
+        let edge_props_values =
+            edge_props_builder.load_t_edges_from_par_structs(edge_chunks.into_par_iter())?;
         let graph_chunks_iter = edges.into_par_iter().map(Ok);
         let offsets = edge_props_builder.load_t_edge_offsets_from_par_chunks(graph_chunks_iter)?;
 
