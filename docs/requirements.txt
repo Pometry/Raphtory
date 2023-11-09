@@ -55,7 +55,7 @@ platformdirs==3.10.0
 prompt-toolkit==3.0.39
 ptyprocess==0.7.0
 pure-eval==0.2.2
-pyarrow==13.0.0
+pyarrow==14.0.1
 pydata-sphinx-theme==0.14.1
 pyparsing==3.1.1
 python-dateutil==2.8.2
