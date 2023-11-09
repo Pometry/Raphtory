@@ -21,6 +21,11 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
+                // let count: usize = edge
+                //     .prop_history_par::<i64>(event_id_prop_id_1v)
+                //     .filter(|(_, v)| v == &Some(4608))
+                //     .count();
+
                 let count: usize = edge
                     .prop_history::<i64>(event_id_prop_id_1v)
                     .filter(|(_, v)| *v == 4608)

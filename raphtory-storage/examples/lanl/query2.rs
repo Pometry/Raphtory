@@ -1,5 +1,4 @@
-use itertools::Itertools;
-use raphtory::{arrow::graph::TemporalGraph, core::Direction};
+use raphtory::arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 
 use crate::thread_pool;
@@ -17,6 +16,7 @@ use crate::thread_pool;
 
 const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
+const WINDOW:i64 = 5;
 
 pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
@@ -29,36 +29,38 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let boot_t = edge
-                    .prop_history::<i64>(event_id_prop_id_1v)
-                    .filter(|(_, v)| *v == BOOT)
-                    .map(|(t, _)| t)
-                    .collect_vec();
 
-                let count: usize = g
-                    .edges(edge.dst(), Direction::OUT, events_1v)
-                    .map(|(edge, _)| {
-                        let program = g.edge(edge, events_1v);
+                let mut count = 0;
+                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
+                let edge_ts = edge.timestamps();
+                let len = event_ids.len();
 
-                        // let program_timestamps = program.timestamps().into_iter_chunks();
-
-                        let program_t = program
-                            .prop_history::<i64>(event_id_prop_id_1v)
-                            .filter(|(_, v)| *v == PROGRAM)
-                            .map(|(t, _)| t);
-
-                        let mut count = 0;
-                        for program_t in program_t {
-                            for boot_t in &boot_t {
-                                if program_t >= *boot_t && program_t - boot_t < 4 {
-                                    count += 1;
-                                }
-                            }
+                for (i, t) in edge
+                    .prop_items::<i64>(event_id_prop_id_1v)
+                    .unwrap()
+                    .enumerate()
+                    .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
+                {
+                    for (v, program_t) in event_ids.slice(i+1..len).into_iter().zip(edge_ts.slice(i+1..len).into_iter().flatten()) {
+                        if program_t - t >= WINDOW {
+                            break;
                         }
-                        count
+                        if v == Some(PROGRAM) {
+                            count+=1;
+                        }
+                    }
 
-                    })
-                    .sum();
+                    for i in (0..i).rev() {
+                        let (v, program_t) = (event_ids.get(i), edge_ts.get(i).unwrap());
+                        if program_t != t {
+                            break;
+                        }
+                        if v == Some(PROGRAM) {
+                            count+=1;
+                        }
+                    }
+                }
+
                 count
             })
             .sum()

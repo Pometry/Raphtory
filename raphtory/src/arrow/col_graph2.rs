@@ -37,7 +37,6 @@ use arrow2::{
         parquet::read,
     },
     offset::OffsetsBuffer,
-    types::{NativeType, Offset},
 };
 use itertools::Itertools;
 use rayon::prelude::*;
