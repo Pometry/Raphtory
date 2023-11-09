@@ -433,7 +433,7 @@ impl TimeSemantics for GraphWithDeletions {
             )),
             None => {
                 let entry = self.core_edge(e.pid());
-                if self.edge_alive_at(&entry, i64::MIN..i64::MIN, &layer_ids) {
+                if self.edge_alive_at(&entry, i64::MIN..i64::MAX, &layer_ids) {
                     Some(i64::MAX)
                 } else {
                     self.edge_deletions(e, layer_ids).last_t()
@@ -789,5 +789,17 @@ mod test_deletions {
         assert!(g2.window(1, 2).has_edge(1, 2, Layer::Default));
         assert!(g2.window(2, 3).has_edge(3, 4, Layer::Default));
         assert!(!g2.window(3, 4).has_edge(3, 4, Layer::Default));
+    }
+
+    #[test]
+    fn test_edge_latest_time() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.delete(2, None).unwrap();
+        assert_eq!(e.latest_time(), Some(2));
+        e.add_updates(4, NO_PROPS, None).unwrap();
+        assert_eq!(e.latest_time(), Some(i64::MAX));
+
+        assert_eq!(e.window(0, 3).latest_time(), Some(2));
     }
 }
