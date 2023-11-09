@@ -8,9 +8,9 @@ mod query3;
 fn main() {
     let graph = load::load_graph_from_params(std::env::args());
 
-    measure("query1", || query1::run(&graph));
+    // measure("query1", || query1::run(&graph));
     // measure("query2", || query2::run(&graph));
-    // measure("query3", || query3::run(&graph));
+    measure("query3", || query3::run(&graph));
 }
 
 fn measure<B: Debug>(name: &str, f: impl Fn() -> B) -> B {

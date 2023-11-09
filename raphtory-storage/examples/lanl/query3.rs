@@ -27,6 +27,7 @@ use crate::thread_pool;
 
 const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
+const WINDOW: i64 = 4;
 
 pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
@@ -53,38 +54,54 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 });
         });
 
-        println!("probe_map.len(): {}, took {:?}", probe_map.len(), now.elapsed());
+        println!(
+            "probe_map.len(): {}, took {:?}",
+            probe_map.len(),
+            now.elapsed()
+        );
 
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let boot_t = edge
-                    .prop_history::<i64>(event_id_prop_id_1v)
-                    .filter(|(_, v)| *v == BOOT)
-                    .map(|(t, _)| t)
-                    .collect_vec();
+                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
+                let edge_ts = edge.timestamps();
+                let len = event_ids.len();
 
                 let count: usize = g
-                    .edges(edge.dst(), Direction::OUT, events_1v)
+                    .edges_par(edge.dst(), Direction::OUT, events_1v)
                     .filter(|(_, a)| probe_map.contains_key(a))
-                    .map(|(edge, v)| {
-                        let program = g.edge(edge, events_1v);
-
-                        // let program_timestamps = program.timestamps().into_iter_chunks();
-
-                        let program_t = program
-                            .prop_history::<i64>(event_id_prop_id_1v)
-                            .filter(|(_, v)| *v == PROGRAM)
-                            .map(|(t, _)| t);
-
-                        let nft_times = probe_map.get(&v).unwrap();
+                    .map(|(_, a)| {
+                        let entry = probe_map.get(&a).unwrap();
+                        let (_, nft_ts) = entry.value();
                         let mut count = 0;
-                        for program_t in program_t {
-                            for boot_t in &boot_t {
-                                if program_t >= *boot_t {
-                                    for nft_t in nft_times.1.iter(){
-                                        if *nft_t >= program_t && nft_t - boot_t < 4 {
-                                            count += 1;
-                                        }
+
+                        for (i, t) in edge
+                            .prop_items::<i64>(event_id_prop_id_1v)
+                            .unwrap()
+                            .enumerate()
+                            .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
+                        {
+                            for nft_t in nft_ts.iter() {
+                                for (v, program_t) in event_ids
+                                    .slice(i + 1..len)
+                                    .into_iter()
+                                    .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
+                                {
+                                    if program_t < t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                        break;
+                                    }
+                                    if v == Some(PROGRAM) {
+                                        count += 1;
+                                    }
+                                }
+
+                                for i in (0..i).rev() {
+                                    let (v, program_t) =
+                                        (event_ids.get(i), edge_ts.get(i).unwrap());
+                                    if program_t != t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                        break;
+                                    }
+                                    if v == Some(PROGRAM) {
+                                        count += 1;
                                     }
                                 }
                             }
@@ -92,6 +109,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                         count
                     })
                     .sum();
+
                 count
             })
             .sum()
