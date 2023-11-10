@@ -1,14 +1,8 @@
-use std::sync::Arc;
-
-use dashmap::DashMap;
 use itertools::Itertools;
-use raphtory::{
-    arrow::graph::TemporalGraph,
-    core::{entities::VID, Direction},
-};
+use raphtory::{arrow::graph::TemporalGraph, core::Direction};
 use rayon::prelude::*;
 
-use crate::thread_pool;
+use crate::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
 //          <-[nf1:Netflow]-(b)
@@ -38,10 +32,8 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
     let src_port_prop_id = g.edge_property_id("src_port", nft)?;
 
-    let pool = thread_pool(8);
+    let pool = thread_pool(NUM_THREADS);
     let count = pool.install(|| {
-        let probe_map: Arc<DashMap<VID, Vec<i64>>> = Arc::new(DashMap::new());
-
         g.all_edges_par(events_1v)
             .map(|edge| {
                 let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
@@ -53,12 +45,15 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                     .map(|(_, a)| {
                         let nft_ts = g
                             .edges_par(a, Direction::IN, nft)
-                            .flat_map_iter(|(eid, _)| {
-                                g.edge(eid, nft)
-                                    .prop_history::<i64>(src_port_prop_id)
-                                    .filter(|(_, v)| *v == 3128)
-                                    .map(|(t, _)| t)
-                                    .collect_vec()
+                            .map(|(eid, b)| {
+                                (
+                                    b,
+                                    g.edge(eid, nft)
+                                        .prop_history::<i64>(src_port_prop_id)
+                                        .filter(|(_, v)| *v == 3128)
+                                        .map(|(t, _)| t)
+                                        .collect_vec(),
+                                )
                             })
                             .collect::<Vec<_>>();
 
@@ -70,28 +65,36 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                             .enumerate()
                             .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                         {
-                            for nft_t in nft_ts.iter() {
-                                for (v, program_t) in event_ids
-                                    .slice(i + 1..len)
-                                    .into_iter()
-                                    .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
-                                {
-                                    if program_t < t || nft_t < &program_t || nft_t - t >= WINDOW {
-                                        break;
+                            for (b, nft_ts) in nft_ts.iter() {
+                                for nft_t in nft_ts {
+                                    for (v, program_t) in event_ids
+                                        .slice(i + 1..len)
+                                        .into_iter()
+                                        .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
+                                    {
+                                        if program_t < t
+                                            || nft_t < &program_t
+                                            || nft_t - t >= WINDOW
+                                        {
+                                            break;
+                                        }
+                                        if v == Some(PROGRAM) {
+                                            count += 1;
+                                        }
                                     }
-                                    if v == Some(PROGRAM) {
-                                        count += 1;
-                                    }
-                                }
 
-                                for i in (0..i).rev() {
-                                    let (v, program_t) =
-                                        (event_ids.get(i), edge_ts.get(i).unwrap());
-                                    if program_t != t || nft_t < &program_t || nft_t - t >= WINDOW {
-                                        break;
-                                    }
-                                    if v == Some(PROGRAM) {
-                                        count += 1;
+                                    for i in (0..i).rev() {
+                                        let (v, program_t) =
+                                            (event_ids.get(i), edge_ts.get(i).unwrap());
+                                        if program_t != t
+                                            || nft_t < &program_t
+                                            || nft_t - t >= WINDOW
+                                        {
+                                            break;
+                                        }
+                                        if v == Some(PROGRAM) {
+                                            count += 1;
+                                        }
                                     }
                                 }
                             }

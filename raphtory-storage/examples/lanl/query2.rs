@@ -1,7 +1,7 @@
 use raphtory::arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 
-use crate::thread_pool;
+use crate::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
 // WHERE boot.eventID = 4608
@@ -25,7 +25,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // properties
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
 
-    let pool = thread_pool(8);
+    let pool = thread_pool(NUM_THREADS);
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
