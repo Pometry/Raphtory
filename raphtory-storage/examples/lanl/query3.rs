@@ -40,25 +40,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
     let pool = thread_pool(8);
     let count = pool.install(|| {
-        let probe_map: Arc<DashMap<VID, (VID, Vec<i64>)>> = Arc::new(DashMap::new());
-
-        let now = std::time::Instant::now();
-        g.all_edges_par(nft).for_each(|edge| {
-            edge.prop_history::<i64>(src_port_prop_id)
-                .filter(|(_, v)| *v == 3128)
-                .for_each(|(t, _)| {
-                    probe_map
-                        .entry(edge.dst())
-                        .and_modify(|(_, time)| time.push(t))
-                        .or_insert((edge.src(), vec![t]));
-                });
-        });
-
-        println!(
-            "probe_map.len(): {}, took {:?}",
-            probe_map.len(),
-            now.elapsed()
-        );
+        let probe_map: Arc<DashMap<VID, Vec<i64>>> = Arc::new(DashMap::new());
 
         g.all_edges_par(events_1v)
             .map(|edge| {
@@ -68,10 +50,18 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                 let count: usize = g
                     .edges_par(edge.dst(), Direction::OUT, events_1v)
-                    .filter(|(_, a)| probe_map.contains_key(a))
                     .map(|(_, a)| {
-                        let entry = probe_map.get(&a).unwrap();
-                        let (_, nft_ts) = entry.value();
+                        let nft_ts = g
+                            .edges_par(a, Direction::IN, nft)
+                            .flat_map_iter(|(eid, _)| {
+                                g.edge(eid, nft)
+                                    .prop_history::<i64>(src_port_prop_id)
+                                    .filter(|(_, v)| *v == 3128)
+                                    .map(|(t, _)| t)
+                                    .collect_vec()
+                            })
+                            .collect::<Vec<_>>();
+
                         let mut count = 0;
 
                         for (i, t) in edge
