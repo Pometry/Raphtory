@@ -14,7 +14,7 @@ fn main() {
     // measure("query1", || query1::run(&graph));
     // measure("query2", || query2::run(&graph));
     // measure("query3", || query3::run(&graph));
-    measure("query4", || query4::run(&graph));
+    measure("query4", || query4::run2(&graph));
 }
 
 fn measure<B: Debug>(name: &str, f: impl Fn() -> B) -> B {
