@@ -21,6 +21,7 @@ use raphtory::{
     },
     prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
+    vectors::embeddings::openai_embedding,
 };
 use std::{
     collections::HashMap,
@@ -113,31 +114,24 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let binding = data.vector_stores.read();
         let vectors = binding.get(graph)?;
+        let embedding = openai_embedding(vec![query.to_owned()]).await.remove(0);
         println!("running similarity search for {query}");
 
         let documents = match (window_start, window_end) {
             (None, None) => vectors
                 .empty_selection()
-                .add_new_nodes(query, min_nodes)
-                .await
-                .add_new_edges(query, min_edges)
-                .await
-                .add_new_entities(query, init - min_nodes - min_edges)
-                .await
-                .expand_with_search(query, limit - init)
-                .await
+                .add_new_nodes(&embedding, min_nodes)
+                .add_new_edges(&embedding, min_edges)
+                .add_new_entities(&embedding, init - min_nodes - min_edges)
+                .expand_with_search(&embedding, limit - init)
                 .get_documents(),
             _ => vectors
                 .window(window_start, window_end)
                 .empty_selection()
-                .add_new_nodes(query, min_nodes)
-                .await
-                .add_new_edges(query, min_edges)
-                .await
-                .add_new_entities(query, init - min_nodes - min_edges)
-                .await
-                .expand_with_search(query, limit - init)
-                .await
+                .add_new_nodes(&embedding, min_nodes)
+                .add_new_edges(&embedding, min_edges)
+                .add_new_entities(&embedding, init - min_nodes - min_edges)
+                .expand_with_search(&embedding, limit - init)
                 .get_documents(),
         };
         Some(documents.into_iter().map(|doc| doc.into()).collect_vec())

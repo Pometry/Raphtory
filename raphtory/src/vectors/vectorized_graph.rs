@@ -1,12 +1,6 @@
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime},
-    db::{
-        api::view::internal::{DynamicGraph, IntoDynamic},
-        graph::{
-            edge::EdgeView, vertex::VertexView, vertices::Vertices,
-            views::window_graph::WindowedGraph,
-        },
-    },
+    db::graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
     prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
@@ -99,21 +93,19 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
             .collect_vec()
     }
 
-    pub async fn add_new_entities(&self, query: &str, limit: usize) -> Self {
+    pub fn add_new_entities(&self, query: &Embedding, limit: usize) -> Self {
         let joined = chain!(
             self.vectors.node_documents.iter(),
             self.vectors.edge_documents.iter()
         );
-        self.add_top_documents(joined, query, limit).await
+        self.add_top_documents(joined, query, limit)
     }
 
-    pub async fn add_new_nodes(&self, query: &str, limit: usize) -> Self {
+    pub fn add_new_nodes(&self, query: &Embedding, limit: usize) -> Self {
         self.add_top_documents(self.vectors.node_documents.as_ref(), query, limit)
-            .await
     }
-    pub async fn add_new_edges(&self, query: &str, limit: usize) -> Self {
+    pub fn add_new_edges(&self, query: &Embedding, limit: usize) -> Self {
         self.add_top_documents(self.vectors.node_documents.as_ref(), query, limit)
-            .await
     }
 
     /// This assumes forced documents to have a score of 0
@@ -141,9 +133,8 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
         }
     }
 
-    pub async fn expand_with_search(&self, query: &str, limit: usize) -> Self {
+    pub fn expand_with_search(&self, query: &Embedding, limit: usize) -> Self {
         let mut selected_docs = self.selected_docs.clone();
-        let query_embedding = self.embed_query(query).await;
 
         while selected_docs.len() < limit {
             let candidates = selected_docs.iter().flat_map(|doc| {
@@ -158,7 +149,7 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
             let unique_candidates = candidates.unique_by(|doc| doc.id());
             let valid_candidates =
                 unique_candidates.filter(|&doc| !selected_docs.iter().any(|sel| &sel.doc == doc));
-            let scored_candidates = score_documents(&query_embedding, valid_candidates.cloned());
+            let scored_candidates = score_documents(&query, valid_candidates.cloned());
             let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX).collect_vec();
 
             if top_sorted_candidates.is_empty() {
@@ -176,16 +167,10 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
         }
     }
 
-    async fn embed_query(&self, query: &str) -> Embedding {
-        let embedding = &self.vectors.embedding;
-        embedding.call(vec![query.to_owned()]).await.remove(0)
-    }
-
-    async fn add_top_documents<'a, I>(&self, document_groups: I, query: &str, limit: usize) -> Self
+    fn add_top_documents<'a, I>(&self, document_groups: I, query: &Embedding, limit: usize) -> Self
     where
         I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
     {
-        let query_embedding = self.embed_query(query).await;
         let start = self.vectors.window_start;
         let end = self.vectors.window_end;
         let documents = document_groups
@@ -204,7 +189,7 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
 
         let new_len = self.selected_docs.len() + limit;
         let mut selected_docs = self.selected_docs.clone();
-        let scored_nodes = score_documents(&query_embedding, window_nodes.cloned()); // TODO: try to remove this clone
+        let scored_nodes = score_documents(&query, window_nodes.cloned()); // TODO: try to remove this clone
         let candidates = find_top_k(scored_nodes, new_len);
         let new_selected = candidates
             .filter(|new_doc| !selected_docs.iter().any(|doc| doc.doc == new_doc.doc))
@@ -318,43 +303,29 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S
         VectorizedGraphSelection::new(self.clone(), selected)
     }
 
-    pub fn select_nodes<V: Into<VertexRef>>(
-        &self,
-        nodes: Vec<V>,
-    ) -> VectorizedGraphSelection<S, W, T> {
-        self.select(nodes, vec![])
-    }
-
-    pub fn select_edges<V: Into<VertexRef>>(
-        &self,
-        edges: Vec<(V, V)>,
-    ) -> VectorizedGraphSelection<S, W, T> {
-        self.select(vec![], edges)
-    }
-
-    pub async fn search_similar_entities(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> VectorizedGraphSelection<S, W, T> {
-        self.empty_selection().add_new_entities(query, limit).await
-    }
-
-    pub async fn search_similar_nodes(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> VectorizedGraphSelection<S, W, T> {
-        self.empty_selection().add_new_nodes(query, limit).await
-    }
-
-    pub async fn search_similar_edges(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> VectorizedGraphSelection<S, W, T> {
-        self.empty_selection().add_new_edges(query, limit).await
-    }
+    // pub async fn search_similar_entities(
+    //     &self,
+    //     query: &str,
+    //     limit: usize,
+    // ) -> VectorizedGraphSelection<S, W, T> {
+    //     self.empty_selection().add_new_entities(query, limit).await
+    // }
+    //
+    // pub async fn search_similar_nodes(
+    //     &self,
+    //     query: &str,
+    //     limit: usize,
+    // ) -> VectorizedGraphSelection<S, W, T> {
+    //     self.empty_selection().add_new_nodes(query, limit).await
+    // }
+    //
+    // pub async fn search_similar_edges(
+    //     &self,
+    //     query: &str,
+    //     limit: usize,
+    // ) -> VectorizedGraphSelection<S, W, T> {
+    //     self.empty_selection().add_new_edges(query, limit).await
+    // }
 
     // this might return the document used as input, uniqueness need to be check outside of this
     fn get_context<'a, V: GraphViewOps>(

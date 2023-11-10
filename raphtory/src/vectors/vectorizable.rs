@@ -1,5 +1,4 @@
 use crate::{
-    core::entities::LayerIds,
     db::api::view::internal::IntoDynamic,
     prelude::GraphViewOps,
     vectors::{
@@ -8,18 +7,12 @@ use crate::{
         embedding_cache::EmbeddingCache,
         entity_id::EntityId,
         vectorized_graph::VectorizedGraph,
-        DocumentInput, EmbeddingFunction, Lifespan,
+        EmbeddingFunction, Lifespan,
     },
 };
 use async_trait::async_trait;
-use futures_util::future::join_all;
-use itertools::{chain, Itertools};
-use std::{
-    collections::{hash_map::DefaultHasher, HashMap, VecDeque},
-    hash::{Hash, Hasher},
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use itertools::Itertools;
+use std::{collections::HashMap, path::PathBuf};
 
 const CHUNK_SIZE: usize = 1000;
 

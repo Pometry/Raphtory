@@ -23,16 +23,39 @@ use crate::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
+    exceptions::PyTypeError,
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{
-    future::Future,
-    ops::Deref,
-    path::{Path, PathBuf},
-    sync::Arc,
-    thread,
-};
+use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, thread};
+
+#[derive(Clone)]
+pub enum PyQuery {
+    Raw(String),
+    Computed(Embedding),
+}
+
+impl PyQuery {
+    async fn into_embedding<E: EmbeddingFunction + ?Sized>(self, embedding: &E) -> Embedding {
+        match self {
+            Self::Raw(query) => embedding.call(vec![query]).await.remove(0),
+            Self::Computed(embedding) => embedding,
+        }
+    }
+}
+
+impl<'source> FromPyObject<'source> for PyQuery {
+    fn extract(query: &'source PyAny) -> PyResult<Self> {
+        if let Ok(text) = query.extract::<String>() {
+            return Ok(PyQuery::Raw(text));
+        }
+        if let Ok(embedding) = query.extract::<Embedding>() {
+            return Ok(PyQuery::Computed(embedding));
+        }
+        let message = format!("query '{query}' must be a str, or a list of float");
+        Err(PyTypeError::new_err(message))
+    }
+}
 
 #[pyclass(name = "GraphDocument", frozen, get_all)]
 pub struct PyGraphDocument {
@@ -103,7 +126,7 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     let prop = properties
         .temporal()
         .iter()
-        .find(|(key, prop)| key.to_string() == name);
+        .find(|(key, _)| key.to_string() == name);
 
     match prop {
         Some((_, prop)) => {
@@ -188,36 +211,28 @@ impl PyVectorizedGraphSelection {
             .collect_vec()
     }
 
-    fn add_new_entities(&self, query: String, limit: usize) -> InnerVectorizedGraphSelection {
-        let selection = self.0.clone();
-        spawn_async_task(
-            move || async move { selection.add_new_entities(query.as_str(), limit).await },
-        )
+    fn add_new_entities(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+        let embedding = compute_embedding(&self.0.vectors, query);
+        self.0.add_new_entities(&embedding, limit)
     }
 
-    fn add_new_nodes(&self, query: String, limit: usize) -> InnerVectorizedGraphSelection {
-        let selection = self.0.clone();
-        spawn_async_task(
-            move || async move { selection.add_new_nodes(query.as_str(), limit).await },
-        )
+    fn add_new_nodes(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+        let embedding = compute_embedding(&self.0.vectors, query);
+        self.0.add_new_nodes(&embedding, limit)
     }
 
-    fn add_new_edges(&self, query: String, limit: usize) -> InnerVectorizedGraphSelection {
-        let selection = self.0.clone();
-        spawn_async_task(
-            move || async move { selection.add_new_edges(query.as_str(), limit).await },
-        )
+    fn add_new_edges(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+        let embedding = compute_embedding(&self.0.vectors, query);
+        self.0.add_new_edges(&embedding, limit)
     }
 
     fn expand(&self, hops: usize) -> InnerVectorizedGraphSelection {
         self.0.expand(hops)
     }
 
-    fn expand_with_search(&self, query: String, limit: usize) -> InnerVectorizedGraphSelection {
-        let selection = self.0.clone();
-        spawn_async_task(move || async move {
-            selection.expand_with_search(query.as_str(), limit).await
-        })
+    fn expand_with_search(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+        let embedding = compute_embedding(&self.0.vectors, query);
+        self.0.expand_with_search(&embedding, limit)
     }
 }
 
@@ -283,96 +298,41 @@ impl PyVectorizedGraph {
     }
 
     fn select_nodes(&self, nodes: Vec<VertexRef>) -> InnerVectorizedGraphSelection {
-        self.0.select_nodes(nodes)
+        self.select(nodes, vec![])
     }
 
     fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> InnerVectorizedGraphSelection {
-        self.0.select_edges(edges)
+        self.select(vec![], edges)
     }
 
     fn search_similar_entities(
         &self,
-        query: String,
+        query: PyQuery,
         limit: usize,
     ) -> InnerVectorizedGraphSelection {
-        let vectors = self.0.clone();
-        spawn_async_task(move || async move {
-            vectors.search_similar_entities(query.as_str(), limit).await
-        })
+        let embedding = compute_embedding(&self.0, query);
+        self.empty_selection().add_new_entities(&embedding, limit)
     }
 
-    fn search_similar_nodes(&self, query: String, limit: usize) -> InnerVectorizedGraphSelection {
-        let vectors = self.0.clone();
-        spawn_async_task(move || async move {
-            vectors.search_similar_nodes(query.as_str(), limit).await
-        })
+    fn search_similar_nodes(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+        let embedding = compute_embedding(&self.0, query);
+        self.empty_selection().add_new_nodes(&embedding, limit)
     }
 
-    fn search_similar_edges(&self, query: String, limit: usize) -> InnerVectorizedGraphSelection {
-        let vectors = self.0.clone();
-        spawn_async_task(move || async move {
-            vectors.search_similar_edges(query.as_str(), limit).await
-        })
+    fn search_similar_edges(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+        let embedding = compute_embedding(&self.0, query);
+        self.empty_selection().add_new_edges(&embedding, limit)
     }
-
-    // fn search_with_scores(
-    //     &self,
-    //     py: Python,
-    //     query: String,
-    //     init: usize,
-    //     min_nodes: usize,
-    //     min_edges: usize,
-    //     limit: usize,
-    // ) -> Vec<(PyGraphDocument, f32)> {
-    //     let vectors = self.vectors.clone();
-    //     let start = self.start.clone();
-    //     let end = self.end.clone();
-    //     let docs = py.allow_threads(move || {
-    //         spawn_async_task(move || async move {
-    //             vectors
-    //                 .similarity_search_with_scores(
-    //                     query.as_str(),
-    //                     init,
-    //                     min_nodes,
-    //                     min_edges,
-    //                     limit,
-    //                     start,
-    //                     end,
-    //                 )
-    //                 .await
-    //         })
-    //     });
-    //
-    //     docs.into_iter()
-    //         .map(|(doc, score)| match doc {
-    //             Document::Node { name, content } => {
-    //                 let vertex = self.vectors.source_graph.vertex(name).unwrap();
-    //                 (
-    //                     PyGraphDocument {
-    //                         content,
-    //                         entity: vertex.into_py(py),
-    //                     },
-    //                     score,
-    //                 )
-    //             }
-    //             Document::Edge { src, dst, content } => {
-    //                 let edge = self.vectors.source_graph.edge(src, dst).unwrap();
-    //                 (
-    //                     PyGraphDocument {
-    //                         content,
-    //                         entity: edge.into_py(py),
-    //                     },
-    //                     score,
-    //                 )
-    //             }
-    //         })
-    //         .collect_vec()
-    // }
 }
 
-// This function takes a function that returns a future instead of just a future because vector
-// APIs return unsendable futures but what we can do is making a function returning those futures
-// which is sendable itself
+fn compute_embedding(vectors: &InnerVectorizedGraph, query: PyQuery) -> Embedding {
+    let embedding = vectors.embedding.clone();
+    spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
+}
+
+// This function takes a function that returns a future instead of taking just a future because
+// a task might return an unsendable future but what we can do is making a function returning that
+// future which is sendable itself
 fn spawn_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
@@ -393,24 +353,6 @@ where
         })
     })
 }
-
-// old version
-// fn spawn_async_task<T, F, O>(task: T) -> O
-// where
-//     T: FnOnce() -> F + Send + 'static,
-//     F: Future<Output = O> + 'static,
-//     O: Send + 'static,
-// {
-//     thread::spawn(move || {
-//         tokio::runtime::Builder::new_multi_thread()
-//             .enable_all()
-//             .build()
-//             .unwrap()
-//             .block_on(task())
-//     })
-//     .join()
-//     .expect("error when waiting for async task to complete")
-// }
 
 impl EmbeddingFunction for Py<PyFunction> {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
