@@ -43,10 +43,7 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone
 }
 
 impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSelection<S, W, T> {
-    pub(crate) fn new(
-        vectors: VectorizedGraph<S, W, T>,
-        selected_docs: Vec<ScoredDocument>,
-    ) -> Self {
+    fn new(vectors: VectorizedGraph<S, W, T>, selected_docs: Vec<ScoredDocument>) -> Self {
         Self {
             vectors,
             selected_docs,
