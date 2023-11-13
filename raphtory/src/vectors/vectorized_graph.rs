@@ -300,30 +300,6 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S
         VectorizedGraphSelection::new(self.clone(), selected)
     }
 
-    // pub async fn search_similar_entities(
-    //     &self,
-    //     query: &str,
-    //     limit: usize,
-    // ) -> VectorizedGraphSelection<S, W, T> {
-    //     self.empty_selection().add_new_entities(query, limit).await
-    // }
-    //
-    // pub async fn search_similar_nodes(
-    //     &self,
-    //     query: &str,
-    //     limit: usize,
-    // ) -> VectorizedGraphSelection<S, W, T> {
-    //     self.empty_selection().add_new_nodes(query, limit).await
-    // }
-    //
-    // pub async fn search_similar_edges(
-    //     &self,
-    //     query: &str,
-    //     limit: usize,
-    // ) -> VectorizedGraphSelection<S, W, T> {
-    //     self.empty_selection().add_new_edges(query, limit).await
-    // }
-
     // this might return the document used as input, uniqueness need to be check outside of this
     fn get_context<'a, V: GraphViewOps>(
         &'a self,
@@ -396,7 +372,8 @@ fn cosine(vector1: &Embedding, vector2: &Embedding) -> f32 {
     // Vectors are already normalized for ada but nor for all the models:
     // see: https://platform.openai.com/docs/guides/embeddings/which-distance-function-should-i-use
 
-    dot_product / (x_length.sqrt() * y_length.sqrt())
-    // dot_product
-    // TODO: assert that the result is between -1 and 1
+    let normalized = dot_product / (x_length.sqrt() * y_length.sqrt());
+    assert!(normalized <= 1.0);
+    assert!(normalized >= -1.0);
+    normalized
 }
