@@ -59,7 +59,7 @@ impl DocumentRef {
         match self.entity_id {
             EntityId::Node { id } => graph.has_vertex(id),
             EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
-            // FIXME: Edge should probably contain a layer filter that we can pass to has_edge()
+            // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
     }
 
