@@ -211,7 +211,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
             .into_iter()
             .flat_map(|(_, embeddings)| embeddings);
 
-        let window_nodes: Box<dyn Iterator<Item = &DocumentRef>> = match (start, end) {
+        let window_docs: Box<dyn Iterator<Item = &DocumentRef>> = match (start, end) {
             (None, None) => Box::new(documents),
             _ => {
                 let start = self.get_window_start();
@@ -226,7 +226,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
 
         let new_len = self.selected_docs.len() + limit;
         let mut selected_docs = self.selected_docs.clone();
-        let scored_nodes = score_documents(&query, window_nodes.cloned()); // TODO: try to remove this clone
+        let scored_nodes = score_documents(&query, window_docs.cloned()); // TODO: try to remove this clone
         let candidates = find_top_k(scored_nodes, new_len);
         let new_selected = candidates
             .filter(|new_doc| !selected_docs.iter().any(|doc| doc.doc == new_doc.doc))
