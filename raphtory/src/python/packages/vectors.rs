@@ -143,8 +143,7 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     }
 }
 
-type InnerVectorizedGraphSelection =
-    VectorizedGraphSelection<DynamicGraph, DynamicGraph, PyDocumentTemplate>;
+type InnerVectorizedGraphSelection = VectorizedGraphSelection<DynamicGraph, PyDocumentTemplate>;
 
 #[pyclass(name = "VectorizedGraphSelection", frozen)]
 pub struct PyVectorizedGraphSelection(InnerVectorizedGraphSelection);
@@ -236,7 +235,7 @@ impl PyVectorizedGraphSelection {
     }
 }
 
-type InnerVectorizedGraph = VectorizedGraph<DynamicGraph, DynamicGraph, PyDocumentTemplate>;
+type InnerVectorizedGraph = VectorizedGraph<DynamicGraph, PyDocumentTemplate>;
 
 #[pyclass(name = "VectorizedGraph", frozen)]
 pub struct PyVectorizedGraph(InnerVectorizedGraph);
@@ -272,17 +271,7 @@ impl PyVectorizedGraph {
 
     #[pyo3(signature = (start=None, end=None))]
     pub fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> InnerVectorizedGraph {
-        let window = self.0.window(start, end);
-        InnerVectorizedGraph::new(
-            window.source_graph,
-            window.template,
-            window.embedding,
-            window.node_documents,
-            window.edge_documents,
-            window.windowed_graph.into_dynamic(),
-            window.window_start,
-            window.window_end,
-        )
+        self.0.window(start, end)
     }
 
     fn empty_selection(&self) -> InnerVectorizedGraphSelection {

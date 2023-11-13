@@ -26,14 +26,12 @@ impl ScoredDocument {
     }
 }
 
-pub struct VectorizedGraphSelection<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> {
-    pub(crate) vectors: VectorizedGraph<S, W, T>,
+pub struct VectorizedGraphSelection<G: GraphViewOps, T: DocumentTemplate<G>> {
+    pub(crate) vectors: VectorizedGraph<G, T>,
     selected_docs: Vec<ScoredDocument>,
 }
 
-impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone
-    for VectorizedGraphSelection<S, W, T>
-{
+impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorizedGraphSelection<G, T> {
     fn clone(&self) -> Self {
         Self {
             vectors: self.vectors.clone(),
@@ -42,15 +40,15 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone
     }
 }
 
-impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSelection<S, W, T> {
-    fn new(vectors: VectorizedGraph<S, W, T>, selected_docs: Vec<ScoredDocument>) -> Self {
+impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
+    fn new(vectors: VectorizedGraph<G, T>, selected_docs: Vec<ScoredDocument>) -> Self {
         Self {
             vectors,
             selected_docs,
         }
     }
 
-    pub fn nodes(&self) -> Vec<VertexView<S>> {
+    pub fn nodes(&self) -> Vec<VertexView<G>> {
         self.selected_docs
             .iter()
             .filter_map(|doc| match doc.doc.entity_id {
@@ -60,7 +58,7 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
             .collect_vec()
     }
 
-    pub fn edges(&self) -> Vec<EdgeView<S>> {
+    pub fn edges(&self) -> Vec<EdgeView<G>> {
         self.selected_docs
             .iter()
             .filter_map(|doc| match doc.doc.entity_id {
@@ -107,6 +105,18 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
 
     /// This assumes forced documents to have a score of 0
     pub fn expand(&self, hops: usize) -> Self {
+        match (self.vectors.window_start, self.vectors.window_end) {
+            (None, None) => self.expand_with_window(hops, self.vectors.source_graph.clone()),
+            _ => {
+                let start = self.get_window_start();
+                let end = self.get_window_end();
+                let window = self.vectors.source_graph.window(start, end);
+                self.expand_with_window(hops, window)
+            }
+        }
+    }
+
+    pub fn expand_with_window<W: GraphViewOps>(&self, hops: usize, window: W) -> Self {
         let mut selected_docs = self.selected_docs.clone();
         for _ in 0..hops {
             let context = selected_docs
@@ -114,7 +124,7 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
                 .flat_map(|doc| {
                     self.vectors.get_context(
                         &doc.doc,
-                        &self.vectors.windowed_graph,
+                        &window,
                         self.vectors.window_start,
                         self.vectors.window_end,
                     )
@@ -131,13 +141,32 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
     }
 
     pub fn expand_with_search(&self, query: &Embedding, limit: usize) -> Self {
+        match (self.vectors.window_start, self.vectors.window_end) {
+            (None, None) => {
+                self.expand_with_search_and_window(query, limit, self.vectors.source_graph.clone())
+            }
+            _ => {
+                let start = self.get_window_start();
+                let end = self.get_window_end();
+                let window = self.vectors.source_graph.window(start, end);
+                self.expand_with_search_and_window(query, limit, window)
+            }
+        }
+    }
+
+    fn expand_with_search_and_window<W: GraphViewOps>(
+        &self,
+        query: &Embedding,
+        limit: usize,
+        window: W,
+    ) -> Self {
         let mut selected_docs = self.selected_docs.clone();
 
         while selected_docs.len() < limit {
             let candidates = selected_docs.iter().flat_map(|doc| {
                 self.vectors.get_context(
                     &doc.doc,
-                    &self.vectors.windowed_graph,
+                    &window,
                     self.vectors.window_start,
                     self.vectors.window_end,
                 )
@@ -164,6 +193,14 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
         }
     }
 
+    fn get_window_start(&self) -> i64 {
+        self.vectors.window_start.unwrap_or(i64::MIN)
+    }
+
+    fn get_window_end(&self) -> i64 {
+        self.vectors.window_end.unwrap_or(i64::MAX)
+    }
+
     fn add_top_documents<'a, I>(&self, document_groups: I, query: &Embedding, limit: usize) -> Self
     where
         I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
@@ -177,9 +214,12 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
         let window_nodes: Box<dyn Iterator<Item = &DocumentRef>> = match (start, end) {
             (None, None) => Box::new(documents),
             _ => {
-                let window = self.vectors.windowed_graph.clone();
-                let filtered = documents
-                    .filter(move |document| document.exists_on_window(&window, start, end));
+                let start = self.get_window_start();
+                let end = self.get_window_end();
+                let window = self.vectors.source_graph.window(start, end);
+                let filtered = documents.filter(move |document| {
+                    document.exists_on_window(&window, Some(start), Some(end))
+                });
                 Box::new(filtered)
             }
         };
@@ -201,20 +241,20 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraphSe
     }
 }
 
-pub struct VectorizedGraph<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> {
-    pub(crate) source_graph: S,
+pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
+    pub(crate) source_graph: G,
     pub(crate) template: Arc<T>,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
     pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
     pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-    pub(crate) windowed_graph: W, // TODO: maybe put all window realted stuff on single struct
+    // pub(crate) windowed_graph: W, // TODO: maybe put all window realted stuff on single struct
     pub(crate) window_start: Option<i64>,
     pub(crate) window_end: Option<i64>,
     empty_vec: Vec<DocumentRef>,
 }
 
-impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone for VectorizedGraph<S, W, T> {
+impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorizedGraph<G, T> {
     fn clone(&self) -> Self {
         Self::new(
             self.source_graph.clone(),
@@ -222,21 +262,21 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> Clone for Vectori
             self.embedding.clone(),
             self.node_documents.clone(),
             self.edge_documents.clone(),
-            self.windowed_graph.clone(),
+            // self.windowed_graph.clone(),
             self.window_start.clone(),
             self.window_end.clone(),
         )
     }
 }
 
-impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S, W, T> {
+impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
     pub(crate) fn new(
-        graph: S,
+        graph: G,
         template: Arc<T>,
         embedding: Arc<dyn EmbeddingFunction>,
         node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
         edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-        windowed_graph: W,
+        // windowed_graph: W,
         window_start: Option<i64>,
         window_end: Option<i64>,
     ) -> Self {
@@ -246,35 +286,27 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S
             embedding,
             node_documents,
             edge_documents,
-            windowed_graph,
+            // windowed_graph,
             window_start,
             window_end,
             empty_vec: vec![],
         }
     }
 
-    pub fn window<I: IntoTime>(
-        &self,
-        start: Option<I>,
-        end: Option<I>,
-    ) -> VectorizedGraph<S, WindowedGraph<W>, T> {
+    pub fn window<I: IntoTime>(&self, start: Option<I>, end: Option<I>) -> Self {
         let start = start.map(|start| start.into_time()).unwrap_or(i64::MIN);
         let end = end.map(|end| end.into_time()).unwrap_or(i64::MAX);
         let w_start = self.window_start;
         let w_end = self.window_end;
-        VectorizedGraph::new(
-            self.source_graph.clone(),
-            self.template.clone(),
-            self.embedding.clone(),
-            self.node_documents.clone(),
-            self.edge_documents.clone(),
-            self.windowed_graph.window(start, end),
-            w_start.map(|w_start| max(w_start, start)).or(Some(start)),
-            w_end.map(|w_end| min(w_end, end)).or(Some(end)),
-        )
+        let cloned_graph = self.clone();
+        Self {
+            window_start: w_start.map(|w_start| max(w_start, start)).or(Some(start)),
+            window_end: w_end.map(|w_end| min(w_end, end)).or(Some(end)),
+            ..cloned_graph
+        }
     }
 
-    pub fn empty_selection(&self) -> VectorizedGraphSelection<S, W, T> {
+    pub fn empty_selection(&self) -> VectorizedGraphSelection<G, T> {
         VectorizedGraphSelection::new(self.clone(), vec![])
     }
 
@@ -283,7 +315,7 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S
         &self,
         nodes: Vec<V>,
         edges: Vec<(V, V)>,
-    ) -> VectorizedGraphSelection<S, W, T> {
+    ) -> VectorizedGraphSelection<G, T> {
         let node_docs = nodes.into_iter().flat_map(|id| {
             let vertex = self.source_graph.vertex(id);
             let opt = vertex.map(|vertex| self.node_documents.get(&EntityId::from_node(&vertex)));
@@ -301,36 +333,36 @@ impl<S: GraphViewOps, W: GraphViewOps, T: DocumentTemplate<S>> VectorizedGraph<S
     }
 
     // this might return the document used as input, uniqueness need to be check outside of this
-    fn get_context<'a, V: GraphViewOps>(
+    fn get_context<'a, W: GraphViewOps>(
         &'a self,
         document: &DocumentRef,
-        graph: &'a V,
+        windowed_graph: &'a W,
         start: Option<i64>,
         end: Option<i64>,
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
         match document.entity_id {
             EntityId::Node { id } => {
                 let self_docs = self.node_documents.get(&document.entity_id).unwrap();
-                let edges = graph.vertex(id).unwrap().edges();
+                let edges = windowed_graph.vertex(id).unwrap().edges();
                 let edge_docs = edges.flat_map(|edge| {
                     let edge_id = EntityId::from_edge(&edge);
                     self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
                 });
                 Box::new(
                     chain!(self_docs, edge_docs)
-                        .filter(move |doc| doc.exists_on_window(graph, start, end)),
+                        .filter(move |doc| doc.exists_on_window(windowed_graph, start, end)),
                 )
             }
             EntityId::Edge { src, dst } => {
                 let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
-                let edge = graph.edge(src, dst).unwrap();
+                let edge = windowed_graph.edge(src, dst).unwrap();
                 let src_id = EntityId::from_node(&edge.src());
                 let dst_id = EntityId::from_node(&edge.dst());
                 let src_docs = self.node_documents.get(&src_id).unwrap();
                 let dst_docs = self.node_documents.get(&dst_id).unwrap();
                 Box::new(
                     chain!(self_docs, src_docs, dst_docs)
-                        .filter(move |doc| doc.exists_on_window(graph, start, end)),
+                        .filter(move |doc| doc.exists_on_window(windowed_graph, start, end)),
                 )
             }
         }

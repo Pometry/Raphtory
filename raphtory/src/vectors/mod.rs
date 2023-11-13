@@ -326,7 +326,7 @@ age: 30"###;
             .window(None, Some(25))
             .empty_selection()
             .add_new_entities(&embedding, 1)
-            .expand_with_search(&embedding, 9)
+            .expand_with_search(&embedding, 9)windo
             .get_documents();
         assert!(
             match &docs[..] {
