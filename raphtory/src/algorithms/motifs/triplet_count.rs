@@ -159,7 +159,7 @@ mod triplet_test {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
         let exp_triplet_count = 20;
-        let results = triplet_count(&graph.at(1), None);
+        let results = triplet_count(&graph, None);
 
         assert_eq!(results, exp_triplet_count);
     }

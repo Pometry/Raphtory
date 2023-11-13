@@ -802,4 +802,24 @@ mod test_deletions {
 
         assert_eq!(e.window(0, 3).latest_time(), Some(2));
     }
+
+    #[test]
+    fn test_view_start_end() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        assert_eq!(g.start(), Some(0));
+        assert_eq!(g.end(), Some(1));
+        e.delete(2, None).unwrap();
+        assert_eq!(g.start(), Some(0));
+        assert_eq!(g.end(), Some(3));
+        let w = g.window(g.start().unwrap(), g.end().unwrap());
+        assert!(g.has_edge(1, 2, Layer::All));
+        assert!(w.has_edge(1, 2, Layer::All));
+        assert_eq!(w.start(), Some(0));
+        assert_eq!(w.end(), Some(3));
+
+        e.add_updates(4, NO_PROPS, None).unwrap();
+        assert_eq!(g.start(), Some(0));
+        assert_eq!(g.end(), Some(5));
+    }
 }
