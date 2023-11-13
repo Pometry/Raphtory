@@ -100,7 +100,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
         self.add_top_documents(self.vectors.node_documents.as_ref(), query, limit)
     }
     pub fn add_new_edges(&self, query: &Embedding, limit: usize) -> Self {
-        self.add_top_documents(self.vectors.node_documents.as_ref(), query, limit)
+        self.add_top_documents(self.vectors.edge_documents.as_ref(), query, limit)
     }
 
     /// This assumes forced documents to have a score of 0

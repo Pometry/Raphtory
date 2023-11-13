@@ -352,7 +352,7 @@ age: 30"###;
         );
     }
 
-    #[ignore = "this test needs an OpenAI API key to run"]
+    // #[ignore = "this test needs an OpenAI API key to run"]
     #[tokio::test]
     async fn test_vector_store() {
         let g = Graph::new();

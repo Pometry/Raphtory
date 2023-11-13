@@ -270,7 +270,7 @@ impl PyVectorizedGraph {
     }
 
     #[pyo3(signature = (start=None, end=None))]
-    pub fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> InnerVectorizedGraph {
+    fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> InnerVectorizedGraph {
         self.0.window(start, end)
     }
 
