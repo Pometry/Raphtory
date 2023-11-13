@@ -22,9 +22,8 @@ pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
-    pub(crate) vector_stores: RwLock<
-        HashMap<String, VectorizedGraph<MaterializedGraph, MaterializedGraph, DynamicTemplate>>,
-    >,
+    pub(crate) vector_stores:
+        RwLock<HashMap<String, VectorizedGraph<MaterializedGraph, DynamicTemplate>>>,
 }
 
 impl Data {
