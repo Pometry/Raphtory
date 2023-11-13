@@ -63,7 +63,7 @@ impl Display for GraphWithDeletions {
 
 impl GraphWithDeletions {
     fn edge_alive_at(&self, e: &EdgeStore, t: i64, layer_ids: &LayerIds) -> bool {
-        // FIXME: assumes additions are before deletions if at the same timestamp (need to have strict ordering/secondary index)
+        let range = i64::MIN..t.saturating_add(1);
         let (
             first_addition,
             first_deletion,
@@ -76,11 +76,11 @@ impl GraphWithDeletions {
                 e.deletions().iter().flat_map(|v| v.first()).min().copied(),
                 e.additions()
                     .iter()
-                    .flat_map(|v| v.range(i64::MIN..t.saturating_add(1)).last().copied())
+                    .flat_map(|v| v.range(range.clone()).last().copied())
                     .max(),
                 e.deletions()
                     .iter()
-                    .flat_map(|v| v.range(i64::MIN..t).last().copied())
+                    .flat_map(|v| v.range(range.clone()).last().copied())
                     .max(),
             ),
             LayerIds::One(l_id) => (
@@ -88,10 +88,10 @@ impl GraphWithDeletions {
                 e.deletions().get(*l_id).and_then(|v| v.first().copied()),
                 e.additions()
                     .get(*l_id)
-                    .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last().copied()),
+                    .and_then(|v| v.range(range.clone()).last().copied()),
                 e.deletions()
                     .get(*l_id)
-                    .and_then(|v| v.range(i64::MIN..t).last().copied()),
+                    .and_then(|v| v.range(range.clone()).last().copied()),
             ),
             LayerIds::Multiple(ids) => (
                 ids.iter()
@@ -106,14 +106,14 @@ impl GraphWithDeletions {
                     .flat_map(|l_id| {
                         e.additions()
                             .get(*l_id)
-                            .and_then(|v| v.range(i64::MIN..t.saturating_add(1)).last().copied())
+                            .and_then(|v| v.range(range.clone()).last().copied())
                     })
                     .max(),
                 ids.iter()
                     .flat_map(|l_id| {
                         e.deletions()
                             .get(*l_id)
-                            .and_then(|v| v.range(i64::MIN..t).last().copied())
+                            .and_then(|v| v.range(range.clone()).last().copied())
                     })
                     .max(),
             ),
@@ -277,6 +277,8 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
         // includes edge if it is alive at the start of the window or added during the window
+        let active = e.active(layer_ids, w.clone());
+        let alive = self.edge_alive_at(e, w.start, layer_ids);
         e.active(layer_ids, w.clone()) || self.edge_alive_at(e, w.start, layer_ids)
     }
 
@@ -618,7 +620,7 @@ mod test_deletions {
     }
 
     #[test]
-    fn test_partial_vs_explicit_deletions() {
+    fn test_window_semantics() {
         let g = GraphWithDeletions::new();
         g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
@@ -631,16 +633,10 @@ mod test_deletions {
         assert_eq!(g.at(9).count_edges(), 1);
         assert_eq!(g.window(5, 9).count_edges(), 1);
         assert_eq!(g.window(5, 10).count_edges(), 1);
-        assert_eq!(g.window(5, 11).count_edges(), 0);
-
-        let g2 = g.ignore_deletions_in_window();
-        assert_eq!(g2.at(12).count_edges(), 1);
-        assert_eq!(g2.at(11).count_edges(), 1);
-        assert_eq!(g2.at(10).count_edges(), 1);
-        assert_eq!(g2.at(9).count_edges(), 1);
-        assert_eq!(g2.window(5, 9).count_edges(), 1);
-        assert_eq!(g2.window(5, 10).count_edges(), 1);
-        assert_eq!(g2.window(5, 11).count_edges(), 1);
+        assert_eq!(g.window(5, 11).count_edges(), 1);
+        assert_eq!(g.window(10, 12).count_edges(), 0);
+        assert_eq!(g.before(10).count_edges(), 1);
+        assert_eq!(g.after(10).count_edges(), 0);
     }
 
     #[test]
