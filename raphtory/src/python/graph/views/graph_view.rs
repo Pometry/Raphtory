@@ -243,119 +243,6 @@ impl PyGraphView {
         (move || clone.edges()).into()
     }
 
-    //******  Perspective APIS  ******//
-
-    /// Returns the default start time for perspectives over the view
-    ///
-    /// Returns:
-    ///     the default start time for perspectives over the view
-    #[getter]
-    pub fn start(&self) -> Option<i64> {
-        self.graph.start()
-    }
-
-    /// Returns the default start datetime for perspectives over the view
-    ///
-    /// Returns:
-    ///     the default start datetime for perspectives over the view
-    #[getter]
-    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
-        let start_time = self.graph.start()?;
-        NaiveDateTime::from_timestamp_millis(start_time)
-    }
-
-    /// Returns the default end time for perspectives over the view
-    ///
-    /// Returns:
-    ///    the default end time for perspectives over the view
-    #[getter]
-    pub fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    #[doc = window_size_doc_string!()]
-    pub fn window_size(&self) -> Option<u64> {
-        self.graph.window_size()
-    }
-
-    /// Returns the default end datetime for perspectives over the view
-    ///
-    /// Returns:
-    ///    the default end datetime for perspectives over the view
-    #[getter]
-    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
-        let end_time = self.graph.end()?;
-        NaiveDateTime::from_timestamp_millis(end_time)
-    }
-
-    /// Creates a `WindowSet` with the given `step` size and optional `start` and `end` times,    
-    /// using an expanding window.
-    ///
-    /// An expanding window is a window that grows by `step` size at each iteration.
-    ///
-    /// Arguments:
-    ///     step (int) : the size of the window
-    ///     start (int): the start time of the window (optional)
-    ///     end (int): the end time of the window (optional)
-    ///
-    /// Returns:
-    ///     A `WindowSet` with the given `step` size and optional `start` and `end` times,
-    #[pyo3(signature = (step))]
-    fn expanding(&self, step: PyInterval) -> Result<WindowSet<DynamicGraph>, ParseTimeError> {
-        self.graph.expanding(step)
-    }
-
-    /// Creates a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    /// using a rolling window.
-    ///
-    /// A rolling window is a window that moves forward by `step` size at each iteration.
-    ///
-    /// Arguments:
-    ///     window (int): the size of the window
-    ///     step (int): the size of the step (optional)
-    ///     start (int): the start time of the window (optional)
-    ///     end: the end time of the window (optional)
-    ///
-    /// Returns:
-    ///  a `WindowSet` with the given `window` size and optional `step`, `start` and `end` times,
-    fn rolling(
-        &self,
-        window: PyInterval,
-        step: Option<PyInterval>,
-    ) -> Result<WindowSet<DynamicGraph>, ParseTimeError> {
-        self.graph.rolling(window, step)
-    }
-
-    /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
-    ///
-    /// Arguments:
-    ///   start (int): the start time of the window (optional)
-    ///   end (int): the end time of the window (optional)
-    ///
-    /// Returns:
-    ///     a view including all events between `start` (inclusive) and `end` (exclusive)
-    #[pyo3(signature = (start=None, end=None))]
-    pub fn window(
-        &self,
-        start: Option<PyTime>,
-        end: Option<PyTime>,
-    ) -> WindowedGraph<DynamicGraph> {
-        self.graph
-            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
-    }
-
-    /// Create a view including all events until `end` (inclusive)
-    ///
-    /// Arguments:
-    ///     end (int) : the end time of the window
-    ///
-    /// Returns:
-    ///     a view including all events until `end` (inclusive)
-    #[pyo3(signature = (end))]
-    pub fn at(&self, end: PyTime) -> WindowedGraph<DynamicGraph> {
-        self.graph.at(end)
-    }
-
     #[doc = default_layer_doc_string!()]
     pub fn default_layer(&self) -> LayeredGraph<DynamicGraph> {
         self.graph.default_layer()
@@ -415,6 +302,8 @@ impl PyGraphView {
         self.repr()
     }
 }
+
+impl_timeops!(PyGraphView, graph, DynamicGraph, "graph");
 
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
