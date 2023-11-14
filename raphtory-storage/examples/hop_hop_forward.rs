@@ -1,7 +1,7 @@
 use ahash::HashMap;
 use arrow2::{
     array::{Array, PrimitiveArray},
-    chunk::{Chunk},
+    chunk::Chunk,
     compute::sort::{SortColumn, SortOptions},
     datatypes::{Field, Schema},
 };
