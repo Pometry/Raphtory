@@ -1,5 +1,6 @@
 use crate::{data::DynamicVectorizedGraph, model::algorithms::vector_algorithms::VectorAlgorithms};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use raphtory::vectors::Embedding;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlVectorizedGraph {
@@ -16,9 +17,9 @@ impl From<DynamicVectorizedGraph> for GqlVectorizedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorizedGraph {
-
-    async 
-
+    async fn search(embedding: Embedding) -> String {
+        "".to_owned()
+    }
     async fn algorithms(&self) -> VectorAlgorithms {
         self.graph.clone().into()
     }

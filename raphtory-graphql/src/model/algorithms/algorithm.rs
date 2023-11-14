@@ -5,22 +5,22 @@ use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
     FieldResult,
 };
-use async_trait::async_trait;
 use dynamic_graphql::{
     internal::{Register, Registry, TypeName},
     SimpleObject,
 };
+use futures_util::future::BoxFuture;
+use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
 
-#[async_trait]
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'static {
     fn output_type() -> TypeRef;
-    fn args<'b>() -> Vec<(&'b str, TypeRef)>;
-    async fn apply_algo<'b>(
+    fn args() -> Vec<(&'a str, TypeRef)>;
+    fn apply_algo<'b>(
         entry_point: &A,
         ctx: ResolverContext,
-    ) -> FieldResult<Option<FieldValue<'b>>>;
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
     fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
         let registry = registry.register::<Self>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
@@ -74,32 +74,37 @@ impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
     }
 }
 
-#[async_trait]
 impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
     fn output_type() -> TypeRef {
         // first _nn means that the list is never null, second _nn means no element is null
         TypeRef::named_nn_list_nn(Self::get_type_name()) //
     }
-    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
+    fn args() -> Vec<(&'a str, TypeRef)> {
         vec![
             ("iterCount", TypeRef::named_nn(TypeRef::INT)), // _nn stands for not null
             ("threads", TypeRef::named(TypeRef::INT)),      // this one though might be null
             ("tol", TypeRef::named(TypeRef::FLOAT)),
         ]
     }
-    async fn apply_algo<'b>(
+    fn apply_algo<'b>(
         entry_point: &GraphAlgorithms,
         ctx: ResolverContext,
-    ) -> FieldResult<Option<FieldValue<'b>>> {
-        let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
-        let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        let iter_count = ctx.args.try_get("iterCount").unwrap().u64().unwrap() as usize;
+        let threads = ctx
+            .args
+            .get("threads")
+            .map(|v| v.u64())
+            .transpose()
+            .unwrap();
         let threads = threads.map(|v| v as usize);
-        let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
+        let tol = ctx.args.get("tol").map(|v| v.f64()).transpose().unwrap();
         let binding = unweighted_page_rank(&entry_point.graph, iter_count, threads, tol, true);
         let result = binding
             .get_all_with_names()
             .into_iter()
-            .map(|pair| FieldValue::owned_any(Pagerank::from(pair)));
-        Ok(Some(FieldValue::list(result)))
+            .map(|pair| FieldValue::owned_any(Pagerank::from(pair)))
+            .collect_vec();
+        Box::pin(async move { Ok(Some(FieldValue::list(result))) })
     }
 }

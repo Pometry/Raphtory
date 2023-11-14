@@ -3,7 +3,9 @@ use async_graphql::dynamic::Object;
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use std::{collections::HashMap, sync::MutexGuard};
 
-pub trait AlgorithmEntryPoint<'a>: Register + TypeName + OutputTypeName + ResolveOwned<'a> {
+pub trait AlgorithmEntryPoint<'a>:
+    Register + TypeName + OutputTypeName + ResolveOwned<'a> + Sync
+{
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction>;
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>>;
     fn register_algos(registry: Registry) -> Registry {

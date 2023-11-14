@@ -2963,7 +2963,6 @@ dependencies = [
  "async-graphql",
  "async-graphql-poem",
  "async-stream",
- "async-trait",
  "base64 0.21.2",
  "bincode",
  "chrono",
