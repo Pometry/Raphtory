@@ -16,7 +16,7 @@ use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
 
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'static {
     fn output_type() -> TypeRef;
-    fn args() -> Vec<(&'a str, TypeRef)>;
+    fn args<'b>() -> Vec<(&'b str, TypeRef)>;
     fn apply_algo<'b>(
         entry_point: &A,
         ctx: ResolverContext,
@@ -79,7 +79,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
         // first _nn means that the list is never null, second _nn means no element is null
         TypeRef::named_nn_list_nn(Self::get_type_name()) //
     }
-    fn args() -> Vec<(&'a str, TypeRef)> {
+    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("iterCount", TypeRef::named_nn(TypeRef::INT)), // _nn stands for not null
             ("threads", TypeRef::named(TypeRef::INT)),      // this one though might be null
