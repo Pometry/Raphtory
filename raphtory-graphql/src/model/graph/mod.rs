@@ -15,6 +15,7 @@ pub(crate) mod graph;
 pub(crate) mod node;
 pub(crate) mod property;
 pub(crate) mod property_update;
+pub(crate) mod vectorized_graph;
 
 fn get_expanded_edges(
     graph_nodes: HashSet<String>,

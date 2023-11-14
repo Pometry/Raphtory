@@ -1,79 +1,28 @@
+use crate::model::algorithms::{
+    algorithm_entry_point::AlgorithmEntryPoint, graph_algorithms::GraphAlgorithms,
+};
 use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
-    Context, FieldResult,
+    FieldResult,
 };
 use dynamic_graphql::{
-    internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName},
+    internal::{Register, Registry, TypeName},
     SimpleObject,
 };
-use once_cell::sync::Lazy;
 use ordered_float::OrderedFloat;
-use raphtory::{
-    algorithms::centrality::pagerank::unweighted_page_rank,
-    db::api::view::{internal::DynamicGraph, GraphViewOps},
-};
-use std::{borrow::Cow, collections::HashMap, sync::Mutex};
+use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
 
-type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
-
-pub(crate) static PLUGIN_ALGOS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
-
-pub(crate) struct Algorithms {
-    graph: DynamicGraph,
-}
-
-impl From<DynamicGraph> for Algorithms {
-    fn from(graph: DynamicGraph) -> Self {
-        Self { graph }
-    }
-}
-
-impl Register for Algorithms {
-    fn register(registry: Registry) -> Registry {
-        let mut registry = registry;
-        let mut object = Object::new("Algorithms");
-
-        let algos = HashMap::from([("pagerank", Pagerank::register_algo)]);
-        for (name, register_algo) in algos {
-            (registry, object) = register_algo(name, registry, object);
-        }
-
-        for (name, register_algo) in PLUGIN_ALGOS.lock().unwrap().iter() {
-            (registry, object) = register_algo(name, registry, object);
-        }
-
-        registry.register_type(object)
-    }
-}
-
-impl TypeName for Algorithms {
-    fn get_type_name() -> Cow<'static, str> {
-        "Algorithms".into()
-    }
-}
-
-impl OutputTypeName for Algorithms {}
-
-impl<'a> ResolveOwned<'a> for Algorithms {
-    fn resolve_owned(self, _ctx: &Context) -> dynamic_graphql::Result<Option<FieldValue<'a>>> {
-        Ok(Some(FieldValue::owned_any(self)))
-    }
-}
-
-pub trait Algorithm: Register + 'static {
+pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'static {
     fn output_type() -> TypeRef;
-    fn args<'a>() -> Vec<(&'a str, TypeRef)>;
-    fn apply_algo<'a, G: GraphViewOps>(
-        graph: &G,
-        ctx: ResolverContext,
-    ) -> FieldResult<Option<FieldValue<'a>>>;
+    fn args<'b>() -> Vec<(&'b str, TypeRef)>;
+    fn apply_algo<'b>(entry_point: &A, ctx: ResolverContext)
+        -> FieldResult<Option<FieldValue<'b>>>;
     fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
         let registry = registry.register::<Self>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
-                let algos: &Algorithms = ctx.parent_value.downcast_ref().unwrap();
-                Self::apply_algo(&algos.graph, ctx)
+                let algos: &A = ctx.parent_value.downcast_ref().unwrap();
+                Self::apply_algo(&algos, ctx)
             })
         });
         for (name, type_ref) in Self::args() {
@@ -85,7 +34,7 @@ pub trait Algorithm: Register + 'static {
 }
 
 #[derive(SimpleObject)]
-struct Pagerank {
+pub(crate) struct Pagerank {
     name: String,
     rank: f64,
 }
@@ -121,27 +70,27 @@ impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
     }
 }
 
-impl Algorithm for Pagerank {
+impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
     fn output_type() -> TypeRef {
         // first _nn means that the list is never null, second _nn means no element is null
         TypeRef::named_nn_list_nn(Self::get_type_name()) //
     }
-    fn args<'a>() -> Vec<(&'a str, TypeRef)> {
+    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
             ("iterCount", TypeRef::named_nn(TypeRef::INT)), // _nn stands for not null
             ("threads", TypeRef::named(TypeRef::INT)),      // this one though might be null
             ("tol", TypeRef::named(TypeRef::FLOAT)),
         ]
     }
-    fn apply_algo<'a, G: GraphViewOps>(
-        graph: &G,
+    fn apply_algo<'b>(
+        entry_point: &GraphAlgorithms,
         ctx: ResolverContext,
-    ) -> FieldResult<Option<FieldValue<'a>>> {
+    ) -> FieldResult<Option<FieldValue<'b>>> {
         let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
         let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
         let threads = threads.map(|v| v as usize);
         let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
-        let binding = unweighted_page_rank(graph, iter_count, threads, tol, true);
+        let binding = unweighted_page_rank(&entry_point.graph, iter_count, threads, tol, true);
         let result = binding
             .get_all_with_names()
             .into_iter()

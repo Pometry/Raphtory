@@ -2,7 +2,10 @@
 
 use crate::{
     data::Data,
-    model::{algorithm::Algorithm, App},
+    model::{
+        algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
+        App,
+    },
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
@@ -87,11 +90,11 @@ impl RaphtoryServer {
         self
     }
 
-    pub fn register_algorithm<T: Algorithm>(self, name: &str) -> Self {
-        crate::model::algorithm::PLUGIN_ALGOS
-            .lock()
-            .unwrap()
-            .insert(name.to_string(), T::register_algo);
+    pub fn register_algorithm<'a, E: AlgorithmEntryPoint<'a> + 'static, A: Algorithm<'a, E>>(
+        self,
+        name: &str,
+    ) -> Self {
+        E::lock_plugins().insert(name.to_string(), A::register_algo);
         self
     }
 
