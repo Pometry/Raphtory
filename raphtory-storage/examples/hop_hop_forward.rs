@@ -1,7 +1,7 @@
 use ahash::HashMap;
 use arrow2::{
     array::{Array, PrimitiveArray},
-    chunk::{self, Chunk},
+    chunk::{Chunk},
     compute::sort::{SortColumn, SortOptions},
     datatypes::{Field, Schema},
 };
@@ -144,7 +144,7 @@ fn query1_v4(
     event_id_prop_id_1v: usize,
     event_id_prop_id_2v: usize,
 ) -> usize {
-    let mut c1 = 0usize;
+    let c1 = 0usize;
     let mut count = 0;
     let mut dream_map: HashMap<VID, Vec<(i64, i64, VID)>> = HashMap::default();
 
@@ -379,7 +379,7 @@ fn binary_search_join_par_small<'a>(
     a: &VID,
     count: &'a AtomicUsize,
 ) -> Vec<(&'a Time, &'a Time, &'a Time)> {
-    let mut out = vec![]; // use this if we have to output the data
+    let out = vec![]; // use this if we have to output the data
 
     'outer: for (login1_event_id, login1_t) in iter {
         if login1_event_id == 4624 {
@@ -418,7 +418,7 @@ fn binary_search_join_par<'a>(
     a: &VID,
     count: &'a AtomicUsize,
 ) -> Vec<(&'a Time, &'a Time, &'a Time)> {
-    let mut out = vec![]; // use this if we have to output the data
+    let out = vec![]; // use this if we have to output the data
 
     'outer: for (login1_event_id, login1_t) in iter {
         if *login1_event_id == 4624 {
@@ -454,7 +454,7 @@ fn binary_search_join<'a>(
     a: &VID,
     count: &'a mut usize,
 ) -> Vec<(&'a Time, &'a Time, &'a Time)> {
-    let mut out = vec![];
+    let out = vec![];
 
     'outer: for (login1_t, login1_event_id) in iter {
         if login1_event_id == 4624 {

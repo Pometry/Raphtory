@@ -19,7 +19,6 @@ use rayon::prelude::*;
 use crate::arrow::{
     array_as_id_iter,
     mmap::{mmap_batch, write_batches},
-    split_chunk,
 };
 
 use super::{global_order::GlobalOrder, Error, GraphChunk};

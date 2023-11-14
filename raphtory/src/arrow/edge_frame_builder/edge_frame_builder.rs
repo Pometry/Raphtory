@@ -1,5 +1,4 @@
 use crate::arrow::{
-    chunked_array::chunked_array::ChunkedArray,
     mmap::{mmap_batch, write_batches},
     DST_COLUMN, SRC_COLUMN,
 };

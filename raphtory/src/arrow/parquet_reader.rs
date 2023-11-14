@@ -20,7 +20,7 @@ use rayon::prelude::*;
 use std::{
     borrow::Borrow,
     cmp::min,
-    ops::{Deref, DerefMut, Range},
+    ops::{Range},
     path::{Path, PathBuf},
 };
 
