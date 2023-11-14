@@ -14,6 +14,7 @@ homepage.workspace = true
 
 [dependencies]
 raphtory = { path = "../raphtory", version = "0.6.1", features = ['vectors'] }
+async-trait = "0.1.74"
 bincode = "1"
 base64 = "0.21.2"
 thiserror = "1.0.44"

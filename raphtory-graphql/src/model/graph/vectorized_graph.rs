@@ -16,6 +16,9 @@ impl From<DynamicVectorizedGraph> for GqlVectorizedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorizedGraph {
+
+    async 
+
     async fn algorithms(&self) -> VectorAlgorithms {
         self.graph.clone().into()
     }

@@ -5,6 +5,7 @@ use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef},
     FieldResult,
 };
+use async_trait::async_trait;
 use dynamic_graphql::{
     internal::{Register, Registry, TypeName},
     SimpleObject,
@@ -12,17 +13,20 @@ use dynamic_graphql::{
 use ordered_float::OrderedFloat;
 use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
 
+#[async_trait]
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'static {
     fn output_type() -> TypeRef;
     fn args<'b>() -> Vec<(&'b str, TypeRef)>;
-    fn apply_algo<'b>(entry_point: &A, ctx: ResolverContext)
-        -> FieldResult<Option<FieldValue<'b>>>;
+    async fn apply_algo<'b>(
+        entry_point: &A,
+        ctx: ResolverContext,
+    ) -> FieldResult<Option<FieldValue<'b>>>;
     fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
         let registry = registry.register::<Self>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
                 let algos: &A = ctx.parent_value.downcast_ref().unwrap();
-                Self::apply_algo(&algos, ctx)
+                Self::apply_algo(&algos, ctx).await
             })
         });
         for (name, type_ref) in Self::args() {
@@ -70,6 +74,7 @@ impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
     }
 }
 
+#[async_trait]
 impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
     fn output_type() -> TypeRef {
         // first _nn means that the list is never null, second _nn means no element is null
@@ -82,7 +87,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
             ("tol", TypeRef::named(TypeRef::FLOAT)),
         ]
     }
-    fn apply_algo<'b>(
+    async fn apply_algo<'b>(
         entry_point: &GraphAlgorithms,
         ctx: ResolverContext,
     ) -> FieldResult<Option<FieldValue<'b>>> {

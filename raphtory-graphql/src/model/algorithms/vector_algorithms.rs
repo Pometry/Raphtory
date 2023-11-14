@@ -15,7 +15,7 @@ pub static VECTOR_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub struct VectorAlgorithms {
-    graph: DynamicVectorizedGraph,
+    pub graph: DynamicVectorizedGraph,
 }
 
 impl From<DynamicVectorizedGraph> for VectorAlgorithms {
