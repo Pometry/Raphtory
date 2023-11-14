@@ -5,6 +5,9 @@ use raphtory::{
 };
 use rayon::prelude::*;
 
+use ahash::HashMap;
+use parking_lot::Mutex;
+
 use crate::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
@@ -163,22 +166,24 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
     let nft = g.find_layer_id("netflow")?;
     let events_1v = g.find_layer_id("events_1v")?;
 
+    let intermediate_result = Mutex::new(<HashMap<(VID, VID, i64), usize>>::default());
+
     // properties
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
     let src_port_prop_id = g.edge_property_id("src_port", nft)?;
     let duration = g.edge_property_id("duration", nft)?;
 
     let pool = thread_pool(NUM_THREADS);
-    let count = pool.install(|| {
+    pool.install(|| {
         g.all_edges_par(events_1v)
-            .map(|edge| {
+            .for_each(|edge| {
                 let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
                 let edge_ts = edge.timestamps();
                 let len = event_ids.len();
 
-                let count: usize = g
+                g
                     .edges_par(edge.dst(), Direction::OUT, events_1v)
-                    .map(|(_, a)| {
+                    .for_each(|(_, a)| {
                         let nft_ts = g
                             .edges_par(a, Direction::IN, nft)
                             .map(|(eid, b)| {
@@ -192,8 +197,6 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                                 )
                             })
                             .collect::<Vec<_>>();
-
-                        let mut count = 0;
 
                         for (i, t) in edge
                             .prop_items::<i64>(event_id_prop_id_1v)
@@ -215,8 +218,10 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                                             break;
                                         }
                                         if v == Some(PROGRAM) {
-                                            count +=
-                                                expand_nf2_hop(*b, a, *nft_t, g, nft, duration);
+                                            intermediate_result.lock()
+                                                .entry((*b, a, *nft_t))
+                                                .and_modify(|v| *v += 1usize)
+                                                .or_insert_with(|| 1);
                                         }
                                     }
 
@@ -229,22 +234,23 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                                         {
                                             break;
                                         }
-                                        if v == Some(PROGRAM) {
-                                            count +=
-                                                expand_nf2_hop(*b, a, *nft_t, g, nft, duration);
+                                        if v == Some(PROGRAM) { 
+                                            intermediate_result.lock()
+                                                .entry((*b, a, *nft_t))
+                                                .and_modify(|v| *v += 1usize)
+                                                .or_insert_with(|| 1);
                                         }
                                     }
                                 }
                             }
                         }
-                        count
                     })
-                    .sum();
-
-                count
             })
-            .sum()
     });
+
+    let count = intermediate_result.into_inner().into_par_iter().map(|((b, a, nft_t), count)| {
+        expand_nf2_hop(b, a, nft_t, g, nft, duration) * count
+    }).sum();
 
     Some(count)
 }
@@ -258,18 +264,19 @@ fn expand_nf2_hop(
     duration_prop_id: usize,
 ) -> usize {
     let mut count = 0;
-    for (e_id, _) in g
+    for (e_id, c) in g
         .edges(b, Direction::OUT, nft_layer)
         .filter(|(_, c)| *c != a && *c != b)
-    {
+    {   
         let edge = g.edge(e_id, nft_layer);
-        for (t, _) in edge
+        for (t, dur) in edge
             .prop_history::<i64>(duration_prop_id)
             .filter(|(t, duration)| duration >= &SESSION_DURATION && t + duration >= nf1_t)
         {
             if t >= nf1_t {
                 break;
             }
+
             count += 1;
         }
     }

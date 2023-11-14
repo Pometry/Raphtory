@@ -5,6 +5,7 @@ mod query1;
 mod query2;
 mod query3;
 mod query4;
+mod queryX;
 
 const NUM_THREADS:usize = 16;
 
@@ -14,7 +15,8 @@ fn main() {
     // measure("query1", || query1::run(&graph));
     // measure("query2", || query2::run(&graph));
     // measure("query3", || query3::run(&graph));
-    measure("query4", || query4::run2(&graph));
+    // measure("query4", || query4::run2(&graph));
+    measure("queryX", || queryX::run(&graph));
 }
 
 fn measure<B: Debug>(name: &str, f: impl Fn() -> B) -> B {
