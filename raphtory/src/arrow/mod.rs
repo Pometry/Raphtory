@@ -29,6 +29,10 @@ pub(crate) mod vertex_frame_builder;
 
 pub type Time = i64;
 
+pub mod prelude {
+    pub use super::chunked_array::array_ops::*;
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Arrow error: {0}")]

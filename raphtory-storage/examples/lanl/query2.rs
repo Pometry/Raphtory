@@ -1,4 +1,4 @@
-use raphtory::arrow::graph::TemporalGraph;
+use raphtory::arrow::{graph::TemporalGraph, prelude::*};
 use rayon::prelude::*;
 
 use crate::{thread_pool, NUM_THREADS};

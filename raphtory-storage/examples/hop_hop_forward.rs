@@ -1,12 +1,3 @@
-use std::{
-    path::Path,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-    time::Instant,
-};
-
 use ahash::HashMap;
 use arrow2::{
     array::{Array, PrimitiveArray},
@@ -21,6 +12,7 @@ use raphtory::{
         graph::TemporalGraph,
         loader::ExternalEdgeList,
         mmap::{mmap_batch, write_batches},
+        prelude::*,
         Time,
     },
     core::{entities::VID, Direction},
@@ -29,6 +21,14 @@ use rayon::{
     prelude::{IntoParallelRefIterator, ParallelIterator},
     slice::ParallelSlice,
     ThreadPoolBuilder,
+};
+use std::{
+    path::Path,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Instant,
 };
 
 fn query1(g: &TemporalGraph) -> Option<usize> {
