@@ -114,7 +114,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
     pub(crate) fn load_edges(
         &self,
         t_prop_chunk_size: usize,
-    ) -> Result<ChunkedListArray<StructArray>, Error> {
+    ) -> Result<ChunkedListArray<ChunkedArray<StructArray>>, Error> {
         let edge_values = self.load_t_edge_values(t_prop_chunk_size)?;
         let edge_offsets = self.load_t_edge_offsets()?;
         Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
@@ -131,13 +131,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         let chunks = self.files.borrow().par_iter().flat_map_iter(|path| {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
-                .map_ok(|chunk| {
-                    GraphChunk::from_chunk(
-                        chunk,
-                        self.edge_props_builder.src_col_idx,
-                        self.edge_props_builder.dst_col_idx,
-                    )
-                })
+                .map_ok(|chunk| GraphChunk::from_chunk(chunk, 0, 1))
         });
         self.edge_props_builder
             .load_t_edge_offsets_from_par_chunks(chunks)
@@ -328,8 +322,8 @@ impl<G: NumRows, I: Iterator<Item = G>> Iterator for ParquetOffsetIter<G, I> {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
+    use crate::arrow::chunked_array::array_ops::{ArrayOps, BaseArrayOps, PrimitiveCol};
 
     #[derive(Clone, PartialEq, Debug)]
     struct MockRowGroup {
@@ -471,8 +465,7 @@ mod test {
         let time = list_arr_vs
             .primitive_col::<i64>(0)
             .unwrap()
-            .iter_chunks()
-            .flat_map(|arr| arr.into_iter())
+            .iter()
             .flatten()
             .collect_vec();
 
@@ -502,8 +495,7 @@ mod test {
         let src_port = slice
             .primitive_col::<i64>(3)
             .unwrap()
-            .iter_chunks()
-            .flat_map(|arr| arr.into_iter())
+            .iter()
             .flatten()
             .collect_vec();
         assert_eq!(src_port, [56987, 94271, 79502]);

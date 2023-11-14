@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use crate::arrow::Error;
 
 pub struct EdgeFrameBuilder {
-    pub(crate) src_chunks: ChunkedArray<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) dst_chunks: ChunkedArray<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) src_chunks: Vec<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) dst_chunks: Vec<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
 
     edge_src_id: Vec<u64>, // the src ids for the edge in the current chunk
     edge_dst_id: Vec<u64>, // the dst ids for the edge in the current chunk
@@ -28,8 +28,8 @@ pub struct EdgeFrameBuilder {
 impl EdgeFrameBuilder {
     pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, path: P) -> Self {
         Self {
-            src_chunks: ChunkedArray::new(chunk_size),
-            dst_chunks: ChunkedArray::new(chunk_size),
+            src_chunks: vec![],
+            dst_chunks: vec![],
             edge_src_id: vec![],
             edge_dst_id: vec![],
             chunk_size,
@@ -72,8 +72,8 @@ impl EdgeFrameBuilder {
             .downcast_ref::<PrimitiveArray<u64>>()
             .unwrap();
 
-        self.src_chunks.push_chunk(src.clone());
-        self.dst_chunks.push_chunk(dst.clone());
+        self.src_chunks.push(src.clone());
+        self.dst_chunks.push(dst.clone());
 
         Ok(())
     }
