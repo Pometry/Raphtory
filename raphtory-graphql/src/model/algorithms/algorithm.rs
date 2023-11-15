@@ -35,6 +35,7 @@ pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
             field = field.argument(InputValue::new(name, type_ref));
         }
         let parent = parent.field(field);
+        println!("registering algo {name} on parent {}", parent.type_name());
         (registry, parent)
     }
 }
