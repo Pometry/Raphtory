@@ -27,6 +27,12 @@ pub trait AlgorithmEntryPoint<'a>:
             Self::lock_plugins().keys().collect_vec()
         );
 
+        println!(
+            "input object is {} with content: {:?}",
+            object.type_name(),
+            object
+        );
+
         registry.register_type(object)
     }
 }
