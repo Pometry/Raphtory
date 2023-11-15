@@ -5,7 +5,7 @@ def single_embedding(text: str) -> list[float]:
     match text:
         case "node1": return [1.0, 0.0, 0.0]
         case "node2": return [0.0, 1.0, 0.0]
-        case "node3": return [0.0, 1.0, 1.0]
+        case "node3": return [0.0, 0.0, 1.0]
         case "node4": return [1.0, 1.0, 0.0]
         case "edge1": return [1.0, 0.1, 0.0]
         case "edge2": return [0.0, 1.0, 0.1]
@@ -97,6 +97,10 @@ def test_search():
     assert(doc1.entity.name == "node1")
     assert(doc1.content == "node1")
     assert((doc2.entity.src.name, doc2.entity.dst.name) == ("node1", "node2"))
+
+    docs = v.search_similar_entities([0.0, 0.0, 1.1], 3).get_documents()
+    doc_contents = [doc.content for doc in docs]
+    assert(doc_contents == ["node3", "edge3", "edge2"])
 
 def test_expansion():
     v = create_graph()
