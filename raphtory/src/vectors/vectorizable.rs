@@ -81,12 +81,8 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         });
 
         let cache = cache_file.map(EmbeddingCache::from_path);
-        println!("> processing nodes");
         let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
-        println!("> processing edges");
         let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
-                                                                                           // let edge_refs = HashMap::new();
-        println!("> dumping embeddings to disk cache");
         cache.iter().for_each(|cache| cache.dump_to_disk());
 
         VectorizedGraph::new(
