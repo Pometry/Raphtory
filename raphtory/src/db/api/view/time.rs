@@ -21,14 +21,31 @@ pub trait TimeOps {
     /// Create a view including all events between `start` (inclusive) and `end` (exclusive)
     fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType;
 
-    /// Create a view including all events until `end` (inclusive)
-    fn at<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
+    /// Create a view that only includes events at `time`
+    fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
+        let start = time.into_time();
+        self.window(start, start.saturating_add(1))
+    }
+
+    /// Create a view that only includes events after `start` (exclusive)
+    fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
+        let start = start.into_time().saturating_add(1);
+        let end = self.end().unwrap_or(start.saturating_add(1));
+        if end < start {
+            self.window(start, start)
+        } else {
+            self.window(start, end)
+        }
+    }
+
+    /// Create a view that only includes events before `end` (exclusive)
+    fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
         let end = end.into_time();
         let start = self.start().unwrap_or(end);
-        if start > end {
-            self.window(end, end.saturating_add(1))
+        if end < start {
+            self.window(end, end)
         } else {
-            self.window(start, end.saturating_add(1))
+            self.window(start, end)
         }
     }
 

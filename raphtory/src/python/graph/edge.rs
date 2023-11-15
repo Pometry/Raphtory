@@ -6,7 +6,10 @@
 //!
 use crate::{
     core::{
-        utils::{errors::GraphError, time::error::ParseTimeError},
+        utils::{
+            errors::GraphError,
+            time::{error::ParseTimeError, IntoTime},
+        },
         ArcStr, Direction,
     },
     db::{
@@ -211,103 +214,6 @@ impl PyEdge {
         self.edge.dst().into()
     }
 
-    //******  Perspective APIS  ******//
-
-    /// Get the start time of the Edge.
-    ///
-    /// Returns:
-    ///  The start time of the Edge.
-    #[getter]
-    pub fn start(&self) -> Option<i64> {
-        self.edge.start()
-    }
-
-    /// Get the start datetime of the Edge.
-    ///
-    /// Returns:
-    ///     The start datetime of the Edge.
-    #[getter]
-    pub fn start_date_time(&self) -> Option<NaiveDateTime> {
-        let start_time = self.edge.start()?;
-        NaiveDateTime::from_timestamp_millis(start_time)
-    }
-
-    /// Get the end time of the Edge.
-    ///
-    /// Returns:
-    ///   The end time of the Edge.
-    #[getter]
-    pub fn end(&self) -> Option<i64> {
-        self.edge.end()
-    }
-
-    /// Get the end datetime of the Edge.
-    ///
-    /// Returns:
-    ///    The end datetime of the Edge
-    #[getter]
-    pub fn end_date_time(&self) -> Option<NaiveDateTime> {
-        let end_time = self.edge.end()?;
-        NaiveDateTime::from_timestamp_millis(end_time)
-    }
-
-    /// Get the duration of the Edge.
-    ///
-    /// Arguments:
-    ///   step (int or str): The step size to use when calculating the duration.
-    ///
-    /// Returns:
-    ///   A set of windows containing edges that fall in the time period
-    #[pyo3(signature = (step))]
-    fn expanding(
-        &self,
-        step: PyInterval,
-    ) -> Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError> {
-        self.edge.expanding(step)
-    }
-
-    /// Get a set of Edge windows for a given window size, step, start time
-    /// and end time using rolling window.
-    /// A rolling window is a window that moves forward by `step` size at each iteration.
-    ///
-    /// Arguments:
-    ///   window (int or str): The size of the window.
-    ///   step (int or str): The step size to use when calculating the duration. (optional)
-    ///
-    /// Returns:
-    ///   A set of windows containing edges that fall in the time period
-    fn rolling(
-        &self,
-        window: PyInterval,
-        step: Option<PyInterval>,
-    ) -> Result<WindowSet<EdgeView<DynamicGraph>>, ParseTimeError> {
-        self.edge.rolling(window, step)
-    }
-
-    /// Get a new Edge with the properties of this Edge within the specified time window.
-    ///
-    /// Arguments:
-    ///   start (int or str): The start time of the window (optional).
-    ///   end (int or str): The end time of the window (optional).
-    ///
-    /// Returns:
-    ///   A new Edge with the properties of this Edge within the specified time window.
-    #[pyo3(signature = (start = None, end = None))]
-    pub fn window(
-        &self,
-        start: Option<PyTime>,
-        end: Option<PyTime>,
-    ) -> EdgeView<WindowedGraph<DynamicGraph>> {
-        self.edge
-            .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
-    }
-    /// Get a new Edge with the properties of this Edge within the specified layer.
-    ///
-    /// Arguments:
-    ///   layer_names (str): Layer to be included in the new edge.
-    ///
-    /// Returns:
-    ///   A new Edge with the properties of this Edge within the specified time window.
     #[pyo3(signature = (name))]
     pub fn layer(&self, name: String) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
         if let Some(edge) = self.edge.layer(name.clone()) {
@@ -342,18 +248,6 @@ impl PyEdge {
                 format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
             ))
         }
-    }
-
-    /// Get a new Edge with the properties of this Edge at a specified time.
-    ///
-    /// Arguments:
-    ///   end (int, str or datetime(utrc)): The time to get the properties at.
-    ///
-    /// Returns:
-    ///   A new Edge with the properties of this Edge at a specified time.
-    #[pyo3(signature = (end))]
-    pub fn at(&self, end: PyTime) -> EdgeView<WindowedGraph<DynamicGraph>> {
-        self.edge.at(end)
     }
 
     /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over
@@ -456,6 +350,8 @@ impl PyEdge {
         self.repr()
     }
 }
+
+impl_timeops!(PyEdge, edge, EdgeView<DynamicGraph>, "edge");
 
 impl Repr for PyEdge {
     fn repr(&self) -> String {
@@ -843,6 +739,52 @@ impl PyEdges {
                 Box::new(
                     builder()
                         .map(move |e| e.at(end.clone()))
+                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
+                );
+            box_builder
+        })
+        .into()
+    }
+
+    /// Filter edges to only include events before `end`.
+    ///
+    /// Arguments:
+    ///     end(int): The end time of the window (exclusive).
+    ///
+    /// Returns:
+    ///    A list of edges with the window filter applied.
+    fn before(&self, end: PyTime) -> PyEdges {
+        let builder = self.builder.clone();
+        let end = end.into_time();
+
+        (move || {
+            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
+                Box::new(
+                    builder()
+                        .map(move |e| e.before(end))
+                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
+                );
+            box_builder
+        })
+        .into()
+    }
+
+    /// Filter edges to only include events after `start`.
+    ///
+    /// Arguments:
+    ///     start(int): The start time of the window (exclusive).
+    ///
+    /// Returns:
+    ///    A list of edges with the window filter applied.
+    fn after(&self, start: PyTime) -> PyEdges {
+        let builder = self.builder.clone();
+        let start = start.into_time();
+
+        (move || {
+            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
+                Box::new(
+                    builder()
+                        .map(move |e| e.after(start))
                         .map(|e| <EdgeView<DynamicGraph>>::from(e)),
                 );
             box_builder
