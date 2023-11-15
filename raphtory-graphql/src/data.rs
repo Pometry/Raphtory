@@ -1,8 +1,12 @@
+use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
-    db::api::view::internal::MaterializedGraph,
-    prelude::{GraphViewOps, PropertyAdditionOps},
+    db::{
+        api::{properties::internal::ConstPropertiesOps, view::internal::MaterializedGraph},
+        graph::views::deletion_graph::GraphWithDeletions,
+    },
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorized_graph::VectorizedGraph},
 };
@@ -12,6 +16,7 @@ use std::{
     sync::Arc,
 };
 use walkdir::WalkDir;
+
 pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
 
 #[derive(Default)]
@@ -98,7 +103,7 @@ impl Data {
                 let graph =
                     MaterializedGraph::load_from_file(&path).expect("Unable to load from graph");
                 graph
-                    .add_constant_properties([("path".to_string(), Prop::str(path.clone()))])
+                    .update_constant_properties([("path".to_string(), Prop::str(path.clone()))])
                     .expect("Failed to add static property");
                 let maybe_graph_name = graph.properties().get("name");
 
