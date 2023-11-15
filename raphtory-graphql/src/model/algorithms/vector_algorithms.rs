@@ -1,6 +1,9 @@
 use crate::{
     data::DynamicVectorizedGraph,
-    model::algorithms::{algorithm_entry_point::AlgorithmEntryPoint, RegisterFunction},
+    model::algorithms::{
+        algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint,
+        similarity_search::SimilaritySearch, RegisterFunction,
+    },
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -26,7 +29,10 @@ impl From<DynamicVectorizedGraph> for VectorAlgorithms {
 
 impl<'a> AlgorithmEntryPoint<'a> for VectorAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::new()
+        HashMap::from([(
+            "similaritySearch",
+            SimilaritySearch::register_algo as RegisterFunction,
+        )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         VECTOR_ALGO_PLUGINS.lock().unwrap()

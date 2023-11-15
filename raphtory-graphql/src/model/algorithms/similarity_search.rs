@@ -9,7 +9,7 @@ use dynamic_graphql::internal::TypeName;
 use futures_util::future::BoxFuture;
 use raphtory::vectors::embeddings::openai_embedding;
 
-struct SimilaritySearch;
+pub(crate) struct SimilaritySearch;
 
 impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
     type OutputType = GqlDocument;
