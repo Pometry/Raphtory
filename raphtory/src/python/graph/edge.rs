@@ -746,6 +746,13 @@ impl PyEdges {
         .into()
     }
 
+    /// Filter edges to only include events before `end`.
+    ///
+    /// Arguments:
+    ///     end(int): The end time of the window (exclusive).
+    ///
+    /// Returns:
+    ///    A list of edges with the window filter applied.
     fn before(&self, end: PyTime) -> PyEdges {
         let builder = self.builder.clone();
         let end = end.into_time();
@@ -762,6 +769,13 @@ impl PyEdges {
         .into()
     }
 
+    /// Filter edges to only include events after `start`.
+    ///
+    /// Arguments:
+    ///     start(int): The start time of the window (exclusive).
+    ///
+    /// Returns:
+    ///    A list of edges with the window filter applied.
     fn after(&self, start: PyTime) -> PyEdges {
         let builder = self.builder.clone();
         let start = start.into_time();
