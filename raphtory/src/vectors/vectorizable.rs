@@ -112,15 +112,9 @@ where
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
     let mut num_processed = 0;
     for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
-        println!(
-            "> processing documents {} to {}",
-            num_processed + 1,
-            num_processed + CHUNK_SIZE
-        );
         num_processed += CHUNK_SIZE;
 
         let doc_refs = compute_chunk(chunk, embedding, cache).await;
-        println!("> after calling compute_chunk");
         for doc in doc_refs {
             match embedding_groups.get_mut(&doc.entity_id) {
                 Some(group) => group.push(doc),
@@ -129,9 +123,7 @@ where
                 }
             }
         }
-        println!("> added refs to map");
     }
-    println!("> for loop completed");
     embedding_groups
 }
 
