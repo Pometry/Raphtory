@@ -17,6 +17,7 @@ impl From<DynamicVectorizedGraph> for GqlVectorizedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorizedGraph {
+    // TODO: remove this
     async fn search(embedding: Embedding) -> String {
         "".to_owned()
     }

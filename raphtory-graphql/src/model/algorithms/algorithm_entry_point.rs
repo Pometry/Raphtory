@@ -10,7 +10,7 @@ pub trait AlgorithmEntryPoint<'a>:
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>>;
     fn register_algos(registry: Registry) -> Registry {
         let mut registry = registry;
-        let mut object = Object::new("Algorithms");
+        let mut object = Object::new(Self::get_type_name());
 
         for (name, register_algo) in Self::predefined_algos() {
             (registry, object) = register_algo(name, registry, object);
