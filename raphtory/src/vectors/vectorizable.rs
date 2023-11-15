@@ -149,7 +149,7 @@ where
     };
 
     let texts = misses.iter().map(|doc| doc.content.clone()).collect_vec();
-    let embeddings = if texts.len() == 0 {
+    let embeddings = if texts.is_empty() {
         vec![]
     } else {
         embedding.call(texts).await

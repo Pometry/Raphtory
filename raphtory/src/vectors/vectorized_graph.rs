@@ -20,7 +20,6 @@ pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     // it is not the end of the world but we are storing the entity id twice
     pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
     pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-    // pub(crate) windowed_graph: W, // TODO: maybe put all window realted stuff on single struct
     pub(crate) window_start: Option<i64>,
     pub(crate) window_end: Option<i64>,
     empty_vec: Vec<DocumentRef>,
@@ -34,9 +33,8 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorizedGraph<G, T> {
             self.embedding.clone(),
             self.node_documents.clone(),
             self.edge_documents.clone(),
-            // self.windowed_graph.clone(),
-            self.window_start.clone(),
-            self.window_end.clone(),
+            self.window_start,
+            self.window_end,
         )
     }
 }
@@ -48,7 +46,6 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
         embedding: Arc<dyn EmbeddingFunction>,
         node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
         edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-        // windowed_graph: W,
         window_start: Option<i64>,
         window_end: Option<i64>,
     ) -> Self {
@@ -58,7 +55,6 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
             embedding,
             node_documents,
             edge_documents,
-            // windowed_graph,
             window_start,
             window_end,
             empty_vec: vec![],

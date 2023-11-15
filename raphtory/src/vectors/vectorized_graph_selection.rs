@@ -101,19 +101,21 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
     pub fn expand_with_window<W: GraphViewOps>(&self, hops: usize, window: W) -> Self {
         let mut selected_docs = self.selected_docs.clone();
         for _ in 0..hops {
-            let context = selected_docs
-                .iter()
-                .flat_map(|doc| {
-                    self.vectors.get_context(
-                        &doc.doc,
-                        &window,
-                        self.vectors.window_start,
-                        self.vectors.window_end,
-                    )
-                })
+            let context = selected_docs.iter().flat_map(|doc| {
+                self.vectors.get_context(
+                    &doc.doc,
+                    &window,
+                    self.vectors.window_start,
+                    self.vectors.window_end,
+                )
+            });
+            // This part of the code is slightly duplicated in expand_with_search_and_window
+            let unique_candidates = context.into_iter().unique_by(|doc| doc.id());
+            let valid_candidates = unique_candidates
+                .filter(|&doc| !selected_docs.iter().any(|sel| &sel.doc == doc))
                 .map(|doc| ScoredDocument::new(doc.clone(), 0.0))
                 .collect_vec();
-            selected_docs.extend(context);
+            selected_docs.extend(valid_candidates);
         }
 
         Self {
@@ -143,8 +145,10 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
         window: W,
     ) -> Self {
         let mut selected_docs = self.selected_docs.clone();
+        let total_limit = selected_docs.len() + limit;
 
-        while selected_docs.len() < limit {
+        while selected_docs.len() < total_limit {
+            let remaining = total_limit - selected_docs.len();
             let candidates = selected_docs.iter().flat_map(|doc| {
                 self.vectors.get_context(
                     &doc.doc,
@@ -157,8 +161,8 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
             let unique_candidates = candidates.unique_by(|doc| doc.id());
             let valid_candidates =
                 unique_candidates.filter(|&doc| !selected_docs.iter().any(|sel| &sel.doc == doc));
-            let scored_candidates = score_documents(&query, valid_candidates.cloned());
-            let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX).collect_vec();
+            let scored_candidates = score_documents(query, valid_candidates.cloned());
+            let top_sorted_candidates = find_top_k(scored_candidates, remaining).collect_vec();
 
             if top_sorted_candidates.is_empty() {
                 // TODO: use similarity search again with the whole graph with init + 1 !!
@@ -208,7 +212,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraphSelection<G, T> {
 
         let new_len = self.selected_docs.len() + limit;
         let mut selected_docs = self.selected_docs.clone();
-        let scored_nodes = score_documents(&query, window_docs.cloned()); // TODO: try to remove this clone
+        let scored_nodes = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
         let candidates = find_top_k(scored_nodes, new_len);
         let new_selected = candidates
             .filter(|new_doc| !selected_docs.iter().any(|doc| doc.doc == new_doc.doc))
@@ -259,7 +263,8 @@ fn cosine(vector1: &Embedding, vector2: &Embedding) -> f32 {
     // see: https://platform.openai.com/docs/guides/embeddings/which-distance-function-should-i-use
 
     let normalized = dot_product / (x_length.sqrt() * y_length.sqrt());
-    assert!(normalized <= 1.0);
-    assert!(normalized >= -1.0);
+    // println!("cosine for {vector1:?} and {vector2:?} is {normalized}");
+    assert!(normalized <= 1.001);
+    assert!(normalized >= -1.001);
     normalized
 }

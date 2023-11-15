@@ -249,8 +249,8 @@ impl IntoPy<PyObject> for InnerVectorizedGraph {
 
 #[pymethods]
 impl PyVectorizedGraph {
-    #[new]
-    fn new(
+    #[staticmethod]
+    fn build_from_graph(
         graph: &PyGraphView,
         embedding: &PyFunction,
         cache: Option<String>,
