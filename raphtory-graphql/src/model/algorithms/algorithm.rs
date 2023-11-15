@@ -96,21 +96,24 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
         entry_point: &GraphAlgorithms,
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
-        let iter_count = ctx.args.try_get("iterCount").unwrap().u64().unwrap() as usize;
-        let threads = ctx
-            .args
-            .get("threads")
-            .map(|v| v.u64())
-            .transpose()
-            .unwrap();
-        let threads = threads.map(|v| v as usize);
-        let tol = ctx.args.get("tol").map(|v| v.f64()).transpose().unwrap();
-        let binding = unweighted_page_rank(&entry_point.graph, iter_count, threads, tol, true);
-        let result = binding
-            .get_all_with_names()
-            .into_iter()
-            .map(|pair| FieldValue::owned_any(PagerankOutput::from(pair)))
-            .collect_vec();
-        Box::pin(async move { Ok(Some(FieldValue::list(result))) })
+        let result = apply_pagerank(entry_point, ctx);
+        Box::pin(async move { result })
     }
+}
+
+fn apply_pagerank<'b>(
+    entry_point: &GraphAlgorithms,
+    ctx: ResolverContext,
+) -> FieldResult<Option<FieldValue<'b>>> {
+    let iter_count = ctx.args.try_get("iterCount")?.u64()? as usize;
+    let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
+    let threads = threads.map(|v| v as usize);
+    let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
+    let binding = unweighted_page_rank(&entry_point.graph, iter_count, threads, tol, true);
+    let result = binding
+        .get_all_with_names()
+        .into_iter()
+        .map(|pair| FieldValue::owned_any(PagerankOutput::from(pair)))
+        .collect_vec();
+    Ok(Some(FieldValue::list(result)))
 }

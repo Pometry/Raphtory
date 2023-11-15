@@ -1,3 +1,4 @@
+use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -10,6 +11,7 @@ pub mod graph_entity;
 pub mod splitting;
 pub mod vectorizable;
 pub mod vectorized_graph;
+pub mod vectorized_graph_selection;
 
 pub type Embedding = Vec<f32>;
 
@@ -24,6 +26,18 @@ pub enum Document {
         dst: String,
         content: String,
     },
+}
+
+#[derive(Clone)]
+pub(crate) struct ScoredDocument {
+    doc: DocumentRef,
+    score: f32,
+}
+
+impl ScoredDocument {
+    fn new(doc: DocumentRef, score: f32) -> Self {
+        Self { doc, score }
+    }
 }
 
 // TODO: remove this interface, only used by Document (?)

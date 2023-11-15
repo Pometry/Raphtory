@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            view::internal::{DynamicGraph, IntoDynamic},
+            view::internal::DynamicGraph,
         },
         graph::{edge::EdgeView, vertex::VertexView},
     },
@@ -16,7 +16,8 @@ use crate::{
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
-        vectorized_graph::{VectorizedGraph, VectorizedGraphSelection},
+        vectorized_graph::VectorizedGraph,
+        vectorized_graph_selection::VectorizedGraphSelection,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -27,7 +28,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, thread};
+use std::{future::Future, path::PathBuf, sync::Arc, thread};
 
 #[derive(Clone)]
 pub enum PyQuery {
