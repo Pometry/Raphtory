@@ -14,7 +14,9 @@ use itertools::Itertools;
 use ordered_float::OrderedFloat;
 use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
 
-pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'static {
+pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
+    type OutputType: Register + 'static;
+
     fn output_type() -> TypeRef;
     fn args<'b>() -> Vec<(&'b str, TypeRef)>;
     fn apply_algo<'b>(
@@ -22,7 +24,7 @@ pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'stati
         ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
     fn register_algo(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
-        let registry = registry.register::<Self>();
+        let registry = registry.register::<Self::OutputType>();
         let mut field = Field::new(name, Self::output_type(), |ctx| {
             FieldFuture::new(async move {
                 let algos: &A = ctx.parent_value.downcast_ref().unwrap();
@@ -38,18 +40,18 @@ pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static>: Register + 'stati
 }
 
 #[derive(SimpleObject)]
-pub(crate) struct Pagerank {
+pub(crate) struct PagerankOutput {
     name: String,
     rank: f64,
 }
 
-impl From<(String, f64)> for Pagerank {
+impl From<(String, f64)> for PagerankOutput {
     fn from((name, rank): (String, f64)) -> Self {
         Self { name, rank }
     }
 }
 
-impl From<(String, Option<f64>)> for Pagerank {
+impl From<(String, Option<f64>)> for PagerankOutput {
     fn from((name, rank): (String, Option<f64>)) -> Self {
         Self {
             name,
@@ -58,14 +60,14 @@ impl From<(String, Option<f64>)> for Pagerank {
     }
 }
 
-impl From<(String, OrderedFloat<f64>)> for Pagerank {
+impl From<(String, OrderedFloat<f64>)> for PagerankOutput {
     fn from((name, rank): (String, OrderedFloat<f64>)) -> Self {
         let rank = rank.into_inner();
         Self { name, rank }
     }
 }
 
-impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
+impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
     fn from((name, rank): (&String, &OrderedFloat<f64>)) -> Self {
         Self {
             name: name.to_string(),
@@ -74,10 +76,14 @@ impl From<(&String, &OrderedFloat<f64>)> for Pagerank {
     }
 }
 
+pub(crate) struct Pagerank;
+
 impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
+    type OutputType = PagerankOutput;
+
     fn output_type() -> TypeRef {
         // first _nn means that the list is never null, second _nn means no element is null
-        TypeRef::named_nn_list_nn(Self::get_type_name()) //
+        TypeRef::named_nn_list_nn(PagerankOutput::get_type_name()) //
     }
     fn args<'b>() -> Vec<(&'b str, TypeRef)> {
         vec![
@@ -103,7 +109,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Pagerank {
         let result = binding
             .get_all_with_names()
             .into_iter()
-            .map(|pair| FieldValue::owned_any(Pagerank::from(pair)))
+            .map(|pair| FieldValue::owned_any(PagerankOutput::from(pair)))
             .collect_vec();
         Box::pin(async move { Ok(Some(FieldValue::list(result))) })
     }

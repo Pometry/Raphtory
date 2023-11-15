@@ -1,7 +1,6 @@
 use crate::{
     data::Data,
     model::graph::{
-        document::GqlDocument,
         graph::{GqlGraph, GraphMeta},
         vectorized_graph::GqlVectorizedGraph,
     },
