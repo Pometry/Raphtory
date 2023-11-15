@@ -563,13 +563,25 @@ mod vertex_test {
         g.add_vertex(0, 1, NO_PROPS).unwrap();
         g.add_vertex(1, 1, NO_PROPS).unwrap();
         g.add_vertex(2, 1, NO_PROPS).unwrap();
-        let mut view = g.at(1);
+        let view = g.before(2);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
 
-        view = g.at(3);
+        let view = g.before(3);
         assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+
+        let view = g.after(0);
+        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 1);
+        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+
+        let view = g.after(2);
+        assert_eq!(view.vertex(1), None);
+        assert_eq!(view.vertex(1), None);
+
+        let view = g.at(1);
+        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 1);
+        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
     }
 
     #[test]

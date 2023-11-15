@@ -782,10 +782,22 @@ mod db_tests {
         assert_eq!(res, 2);
 
         res = g.at(1).edge(1, 2).unwrap().earliest_time().unwrap();
+        assert_eq!(res, 1);
+
+        res = g.before(1).edge(1, 2).unwrap().earliest_time().unwrap();
         assert_eq!(res, 0);
+
+        res = g.after(1).edge(1, 2).unwrap().earliest_time().unwrap();
+        assert_eq!(res, 2);
 
         res = g.at(1).edge(1, 2).unwrap().latest_time().unwrap();
         assert_eq!(res, 1);
+
+        res = g.before(1).edge(1, 2).unwrap().latest_time().unwrap();
+        assert_eq!(res, 0);
+
+        res = g.after(1).edge(1, 2).unwrap().latest_time().unwrap();
+        assert_eq!(res, 2);
 
         let res_list: Vec<i64> = g
             .vertex(1)
@@ -813,7 +825,27 @@ mod db_tests {
             .earliest_time()
             .flatten()
             .collect();
+        assert_eq!(res_list, vec![1, 1]);
+
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .before(1)
+            .edges()
+            .earliest_time()
+            .flatten()
+            .collect();
         assert_eq!(res_list, vec![0, 0]);
+
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .after(1)
+            .edges()
+            .earliest_time()
+            .flatten()
+            .collect();
+        assert_eq!(res_list, vec![2, 2]);
 
         let res_list: Vec<i64> = g
             .vertex(1)
@@ -824,6 +856,26 @@ mod db_tests {
             .flatten()
             .collect();
         assert_eq!(res_list, vec![1, 1]);
+
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .before(1)
+            .edges()
+            .latest_time()
+            .flatten()
+            .collect();
+        assert_eq!(res_list, vec![0, 0]);
+
+        let res_list: Vec<i64> = g
+            .vertex(1)
+            .unwrap()
+            .after(1)
+            .edges()
+            .latest_time()
+            .flatten()
+            .collect();
+        assert_eq!(res_list, vec![2, 2]);
     }
 
     #[test]
@@ -1158,8 +1210,14 @@ mod db_tests {
         assert_eq!(g.vertex(1).unwrap().earliest_time(), Some(1));
         assert_eq!(g.vertex(1).unwrap().latest_time(), Some(3));
 
-        assert_eq!(g.at(2).vertex(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.at(2).vertex(1).unwrap().earliest_time(), Some(2));
         assert_eq!(g.at(2).vertex(1).unwrap().latest_time(), Some(2));
+
+        assert_eq!(g.before(2).vertex(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.before(2).vertex(1).unwrap().latest_time(), Some(1));
+
+        assert_eq!(g.after(2).vertex(1).unwrap().earliest_time(), Some(3));
+        assert_eq!(g.after(2).vertex(1).unwrap().latest_time(), Some(3));
     }
 
     #[test]

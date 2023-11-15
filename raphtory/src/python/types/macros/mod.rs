@@ -4,3 +4,6 @@ pub mod iterable;
 pub mod nested_iterable;
 #[macro_use]
 pub mod cmp;
+
+#[macro_use]
+pub mod timeops;

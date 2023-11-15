@@ -186,14 +186,10 @@ mod graph_loader_test {
         let g_at_empty = g.at(1);
         let g_astart = g.at(7059);
         let g_at_another = g.at(28373);
-        let g_at_max = g.at(i64::MAX);
-        let g_at_min = g.at(i64::MIN);
 
         assert_eq!(g_at_empty.count_vertices(), 0);
-        assert_eq!(g_astart.count_vertices(), 70);
-        assert_eq!(g_at_another.count_vertices(), 123);
-        assert_eq!(g_at_max.count_vertices(), 139);
-        assert_eq!(g_at_min.count_vertices(), 0);
+        assert_eq!(g_astart.count_vertices(), 3);
+        assert_eq!(g_at_another.count_vertices(), 4);
     }
 
     #[test]

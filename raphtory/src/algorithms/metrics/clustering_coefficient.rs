@@ -91,9 +91,7 @@ mod cc_test {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let graph_at = graph.at(1);
-
-        let results = clustering_coefficient(&graph_at);
+        let results = clustering_coefficient(&graph);
         assert_eq!(results, 0.3);
     }
 }
