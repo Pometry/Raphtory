@@ -33,7 +33,7 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
             .string()
             .unwrap()
             .to_owned();
-        let limit = ctx.args.try_get("query").unwrap().i64().unwrap() as usize;
+        let limit = ctx.args.try_get("query").unwrap().u64().unwrap() as usize;
         let graph = entry_point.graph.clone();
 
         Box::pin(async move {
