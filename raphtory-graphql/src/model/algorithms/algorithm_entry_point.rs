@@ -21,18 +21,6 @@ pub trait AlgorithmEntryPoint<'a>:
             (registry, object) = register_algo(name, registry, object);
         }
 
-        println!(
-            "registering type {} with plugins: {:?}",
-            Self::get_type_name(),
-            Self::lock_plugins().keys().collect_vec()
-        );
-
-        println!(
-            "input object is {} with content: {:?}",
-            object.type_name(),
-            object
-        );
-
         registry.register_type(object)
     }
 }
