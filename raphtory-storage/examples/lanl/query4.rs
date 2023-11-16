@@ -7,6 +7,7 @@ use rayon::prelude::*;
 
 use ahash::HashMap;
 use parking_lot::Mutex;
+use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps};
 
 use crate::{thread_pool, NUM_THREADS};
 
@@ -32,19 +33,6 @@ const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
 const WINDOW: i64 = 4;
 const SESSION_DURATION: i64 = 3600;
-
-fn netflow_b_hop_c(b: VID, g: &TemporalGraph) -> Option<()> {
-    // layer
-    let nft = g.find_layer_id("netflow")?;
-    let events_1v = g.find_layer_id("events_1v")?;
-
-    // properties
-    let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
-    let src_port_prop_id = g.edge_property_id("src_port", nft)?;
-    let duration = g.edge_property_id("duration", nft)?;
-
-    None
-}
 
 pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
@@ -196,6 +184,7 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                         })
                         .collect::<Vec<_>>();
 
+                    let mut count = 0;
                     for (i, t) in edge
                         .prop_items::<i64>(event_id_prop_id_1v)
                         .unwrap()
