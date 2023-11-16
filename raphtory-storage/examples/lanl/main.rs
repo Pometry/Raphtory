@@ -4,8 +4,9 @@ mod load;
 mod query1;
 mod query2;
 mod query3;
+mod query3b;
+mod query3c;
 mod query4;
-mod query_x;
 
 const NUM_THREADS: usize = 16;
 
