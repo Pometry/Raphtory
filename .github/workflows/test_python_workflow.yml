@@ -102,6 +102,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
