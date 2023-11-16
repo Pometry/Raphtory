@@ -81,7 +81,7 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.73.0
           override: true
           components: rustfmt, clippy
       - name: Install sccache (macOS)
@@ -102,6 +102,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
