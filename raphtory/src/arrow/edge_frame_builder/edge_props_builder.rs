@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use arrow2::{
-    array::{PrimitiveArray, StructArray, self},
+    array::{self, PrimitiveArray, StructArray},
     buffer::Buffer,
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},

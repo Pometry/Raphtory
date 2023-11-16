@@ -1,7 +1,12 @@
 use itertools::Itertools;
-use raphtory::{arrow::graph::TemporalGraph, core::Direction};
+use raphtory::{
+    arrow::{
+        graph::TemporalGraph,
+        prelude::{ArrayOps, BaseArrayOps},
+    },
+    core::Direction,
+};
 use rayon::prelude::*;
-use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps};
 
 use crate::{thread_pool, NUM_THREADS};
 
