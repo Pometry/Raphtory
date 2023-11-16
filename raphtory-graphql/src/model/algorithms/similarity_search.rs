@@ -41,8 +41,7 @@ impl<'a> Algorithm<'a, VectorAlgorithms> for SimilaritySearch {
             println!("running similarity search for {query}");
 
             let documents = graph
-                .empty_selection()
-                .add_new_entities(&embedding, limit)
+                .search_similar_entities(&embedding, limit, None)
                 .get_documents();
 
             let gql_documents = documents

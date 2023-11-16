@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::vertices::vertex_ref::VertexRef,
+    core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime},
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
@@ -17,7 +17,6 @@ use crate::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
         vectorized_graph::VectorizedGraph,
-        vectorized_graph_selection::VectorizedGraphSelection,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -144,21 +143,46 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     }
 }
 
-type InnerVectorizedGraphSelection = VectorizedGraphSelection<DynamicGraph, PyDocumentTemplate>;
+type InnerVectorizedGraph = VectorizedGraph<DynamicGraph, PyDocumentTemplate>;
 
-#[pyclass(name = "VectorizedGraphSelection", frozen)]
-pub struct PyVectorizedGraphSelection(InnerVectorizedGraphSelection);
+#[pyclass(name = "VectorizedGraph", frozen)]
+pub struct PyVectorizedGraph(InnerVectorizedGraph);
 
-impl IntoPy<PyObject> for InnerVectorizedGraphSelection {
+impl IntoPy<PyObject> for InnerVectorizedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, PyVectorizedGraphSelection(self))
-            .unwrap()
-            .into_py(py)
+        Py::new(py, PyVectorizedGraph(self)).unwrap().into_py(py)
     }
 }
 
+type Window = Option<(PyTime, PyTime)>;
+
+fn translate(window: Window) -> Option<(i64, i64)> {
+    window.map(|(start, end)| (start.into_time(), end.into_time()))
+}
+
 #[pymethods]
-impl PyVectorizedGraphSelection {
+impl PyVectorizedGraph {
+    #[staticmethod]
+    fn build(
+        graph: &PyGraphView,
+        embedding: &PyFunction,
+        cache: Option<String>,
+        node_document: Option<String>,
+        edge_document: Option<String>,
+    ) -> PyVectorizedGraph {
+        // FIXME: we should be able to specify templates only for one type of entity: nodes/edges
+        let embedding: Py<PyFunction> = embedding.into();
+        let graph = graph.graph.clone();
+        let cache = cache.map(|cache| PathBuf::from(cache));
+        let template = PyDocumentTemplate::new(node_document, edge_document);
+        spawn_async_task(move || async move {
+            let vectorized_graph = graph
+                .vectorize_with_template(Box::new(embedding.clone()), cache, template)
+                .await;
+            PyVectorizedGraph(vectorized_graph)
+        })
+    }
+
     fn nodes(&self) -> Vec<PyVertex> {
         self.0
             .nodes()
@@ -188,7 +212,7 @@ impl PyVectorizedGraphSelection {
         docs.into_iter()
             .map(|(doc, score)| match doc {
                 Document::Node { name, content } => {
-                    let vertex = self.0.vectors.source_graph.vertex(name).unwrap();
+                    let vertex = self.0.source_graph.vertex(name).unwrap();
                     (
                         PyGraphDocument {
                             content,
@@ -198,7 +222,7 @@ impl PyVectorizedGraphSelection {
                     )
                 }
                 Document::Edge { src, dst, content } => {
-                    let edge = self.0.vectors.source_graph.edge(src, dst).unwrap();
+                    let edge = self.0.source_graph.edge(src, dst).unwrap();
                     (
                         PyGraphDocument {
                             content,
@@ -211,107 +235,73 @@ impl PyVectorizedGraphSelection {
             .collect_vec()
     }
 
-    fn add_new_entities(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
-        let embedding = compute_embedding(&self.0.vectors, query);
-        self.0.add_new_entities(&embedding, limit)
+    #[pyo3(signature = (hops, window=None))]
+    fn expand(&self, hops: usize, window: Window) -> InnerVectorizedGraph {
+        self.0.expand(hops, translate(window))
     }
 
-    fn add_new_nodes(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
-        let embedding = compute_embedding(&self.0.vectors, query);
-        self.0.add_new_nodes(&embedding, limit)
-    }
-
-    fn add_new_edges(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
-        let embedding = compute_embedding(&self.0.vectors, query);
-        self.0.add_new_edges(&embedding, limit)
-    }
-
-    fn expand(&self, hops: usize) -> InnerVectorizedGraphSelection {
-        self.0.expand(hops)
-    }
-
-    fn expand_with_search(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
-        let embedding = compute_embedding(&self.0.vectors, query);
-        self.0.expand_with_search(&embedding, limit)
-    }
-}
-
-type InnerVectorizedGraph = VectorizedGraph<DynamicGraph, PyDocumentTemplate>;
-
-#[pyclass(name = "VectorizedGraph", frozen)]
-pub struct PyVectorizedGraph(InnerVectorizedGraph);
-
-impl IntoPy<PyObject> for InnerVectorizedGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, PyVectorizedGraph(self)).unwrap().into_py(py)
-    }
-}
-
-#[pymethods]
-impl PyVectorizedGraph {
-    #[staticmethod]
-    fn build_from_graph(
-        graph: &PyGraphView,
-        embedding: &PyFunction,
-        cache: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
-    ) -> PyVectorizedGraph {
-        // FIXME: we should be able to specify templates only for one type of entity: nodes/edges
-        let embedding: Py<PyFunction> = embedding.into();
-        let graph = graph.graph.clone();
-        let cache = cache.map(|cache| PathBuf::from(cache));
-        let template = PyDocumentTemplate::new(node_document, edge_document);
-        spawn_async_task(move || async move {
-            let vectorized_graph = graph
-                .vectorize_with_template(Box::new(embedding.clone()), cache, template)
-                .await;
-            PyVectorizedGraph(vectorized_graph)
-        })
-    }
-
-    #[pyo3(signature = (start=None, end=None))]
-    fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> InnerVectorizedGraph {
-        self.0.window(start, end)
-    }
-
-    fn empty_selection(&self) -> InnerVectorizedGraphSelection {
-        self.0.empty_selection()
+    #[pyo3(signature = (query, limit, window=None))]
+    fn expand_with_search(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: Window,
+    ) -> InnerVectorizedGraph {
+        let embedding = compute_embedding(&self.0, query);
+        self.0
+            .expand_with_search(&embedding, limit, translate(window))
     }
 
     fn select(
         &self,
         nodes: Vec<VertexRef>,
         edges: Vec<(VertexRef, VertexRef)>,
-    ) -> InnerVectorizedGraphSelection {
+    ) -> InnerVectorizedGraph {
         self.0.select(nodes, edges)
     }
 
-    fn select_nodes(&self, nodes: Vec<VertexRef>) -> InnerVectorizedGraphSelection {
+    fn select_nodes(&self, nodes: Vec<VertexRef>) -> InnerVectorizedGraph {
         self.select(nodes, vec![])
     }
 
-    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> InnerVectorizedGraphSelection {
+    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> InnerVectorizedGraph {
         self.select(vec![], edges)
     }
 
+    #[pyo3(signature = (query, limit, window=None))]
     fn search_similar_entities(
         &self,
         query: PyQuery,
         limit: usize,
-    ) -> InnerVectorizedGraphSelection {
+        window: Window,
+    ) -> InnerVectorizedGraph {
         let embedding = compute_embedding(&self.0, query);
-        self.empty_selection().add_new_entities(&embedding, limit)
+        self.0
+            .search_similar_entities(&embedding, limit, translate(window))
     }
 
-    fn search_similar_nodes(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+    #[pyo3(signature = (query, limit, window=None))]
+    fn search_similar_nodes(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: Window,
+    ) -> InnerVectorizedGraph {
         let embedding = compute_embedding(&self.0, query);
-        self.empty_selection().add_new_nodes(&embedding, limit)
+        self.0
+            .search_similar_nodes(&embedding, limit, translate(window))
     }
 
-    fn search_similar_edges(&self, query: PyQuery, limit: usize) -> InnerVectorizedGraphSelection {
+    #[pyo3(signature = (query, limit, window=None))]
+    fn search_similar_edges(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: Window,
+    ) -> InnerVectorizedGraph {
         let embedding = compute_embedding(&self.0, query);
-        self.empty_selection().add_new_edges(&embedding, limit)
+        self.0
+            .search_similar_edges(&embedding, limit, translate(window))
     }
 }
 

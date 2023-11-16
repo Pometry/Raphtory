@@ -91,8 +91,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
             embedding.into(),
             node_refs.into(),
             edge_refs.into(),
-            None,
-            None,
+            vec![],
         )
     }
 }
