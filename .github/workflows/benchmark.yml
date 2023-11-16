@@ -41,9 +41,13 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.73.0
           override: true
           components: rustfmt, clippy
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
