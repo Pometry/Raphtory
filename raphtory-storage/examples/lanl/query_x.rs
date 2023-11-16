@@ -21,7 +21,6 @@ use crate::{thread_pool, NUM_THREADS};
 
 const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
-const WINDOW: i64 = 4;
 
 pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
@@ -57,35 +56,41 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                             })
                             .collect::<Vec<_>>();
 
+                        // println!("nft_ts: {:?}", nft_ts.len());
                         let mut count = 0;
 
-                        for (i, t) in edge
+                        for i in edge
                             .prop_items::<i64>(event_id_prop_id_1v)
                             .unwrap()
                             .enumerate()
-                            .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
+                            .filter_map(|(i, (_, v))| v.filter(|v| *v == BOOT).map(|_| i))
                         {
-                            for (b, nft_ts) in nft_ts.iter() {
-                                for nft_t in nft_ts {
-                                    for (v, program_t) in event_ids
-                                        .slice(i + 1..len)
-                                        .into_iter()
-                                        .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
-                                    {
-                                        if v == Some(PROGRAM) {
-                                            count += 1;
+                            count += nft_ts
+                                .par_iter()
+                                .map(|(_, nft_ts)| {
+                                    let mut count = 0;
+                                    for _ in nft_ts {
+                                        for (v, _) in event_ids
+                                            .slice(i + 1..len)
+                                            .into_iter()
+                                            .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
+                                        {
+                                            if v == Some(PROGRAM) {
+                                                count += 1;
+                                            }
                                         }
-                                    }
 
-                                    for i in (0..i).rev() {
-                                        let (v, program_t) =
-                                            (event_ids.get(i), edge_ts.get(i).unwrap());
-                                        if v == Some(PROGRAM) {
-                                            count += 1;
+                                        for i in (0..i).rev() {
+                                            let (v, _) =
+                                                (event_ids.get(i), edge_ts.get(i).unwrap());
+                                            if v == Some(PROGRAM) {
+                                                count += 1;
+                                            }
                                         }
                                     }
-                                }
-                            }
+                                    count
+                                })
+                                .sum::<usize>();
                         }
                         count
                     })

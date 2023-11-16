@@ -16,7 +16,7 @@ use crate::{thread_pool, NUM_THREADS};
 
 const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
-const WINDOW:i64 = 5;
+const WINDOW:i64 = 4;
 
 pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
