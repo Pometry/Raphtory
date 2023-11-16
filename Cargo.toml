@@ -3,6 +3,7 @@ members = [
 	"raphtory",
 	"raphtory-benchmark",
 	"examples/rust",
+	"examples/custom_python_extension",
 	"python",
 	"js-raphtory",
 	"raphtory-graphql",
@@ -11,7 +12,7 @@ members = [
 default-members = ["raphtory"]
 
 [workspace.package]
-version = "0.4.3"
+version = "0.6.1"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"

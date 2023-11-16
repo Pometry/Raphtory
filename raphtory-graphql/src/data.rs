@@ -1,56 +1,79 @@
+use itertools::Itertools;
+use parking_lot::RwLock;
 use raphtory::{
-    db::api::view::internal::{DynamicGraph, IntoDynamic},
-    prelude::{Graph, GraphViewOps},
+    core::Prop,
+    db::{
+        api::{properties::internal::ConstPropertiesOps, view::internal::MaterializedGraph},
+        graph::views::deletion_graph::GraphWithDeletions,
+    },
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
+    vectors::{document_template::DocumentTemplate, vectorized_graph::VectorizedGraph},
 };
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
+    sync::Arc,
 };
 use walkdir::WalkDir;
 
+pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
+
+#[derive(Default)]
 pub(crate) struct Data {
-    pub(crate) graphs: HashMap<String, IndexedGraph<DynamicGraph>>,
+    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
+    pub(crate) vector_stores:
+        RwLock<HashMap<String, VectorizedGraph<MaterializedGraph, DynamicTemplate>>>,
 }
 
 impl Data {
-    pub fn from_map(graphs: HashMap<String, DynamicGraph>) -> Self {
-        let graphs = Self::convert_graphs(graphs);
-        Self { graphs }
-    }
-
-    pub fn from_directory(directory_path: &str) -> Self {
-        let graphs = Self::load_from_file(directory_path);
-        Self { graphs }
-    }
-
-    pub fn from_map_and_directory(
-        graphs: HashMap<String, DynamicGraph>,
-        directory_path: &str,
-    ) -> Self {
-        let graphs = Self::convert_graphs(graphs);
-        let mut graphs_from_files = Self::load_from_file(directory_path);
-        graphs_from_files.extend(graphs);
+    pub fn from_map<G: Into<MaterializedGraph>>(graphs: HashMap<String, G>) -> Self {
+        let graphs = RwLock::new(Self::convert_graphs(graphs));
+        let vector_stores = RwLock::new(HashMap::new());
         Self {
-            graphs: graphs_from_files,
+            graphs,
+            vector_stores,
         }
     }
 
-    fn convert_graphs(
-        graphs: HashMap<String, DynamicGraph>,
-    ) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+    pub fn from_directory(directory_path: &str) -> Self {
+        let graphs = RwLock::new(Self::load_from_file(directory_path));
+        let vector_stores = RwLock::new(HashMap::new());
+        Self {
+            graphs,
+            vector_stores,
+        }
+    }
+
+    pub fn from_map_and_directory<G: Into<MaterializedGraph>>(
+        graphs: HashMap<String, G>,
+        directory_path: &str,
+    ) -> Self {
+        let mut graphs = Self::convert_graphs(graphs);
+        graphs.extend(Self::load_from_file(directory_path));
+        let graphs = RwLock::new(graphs);
+        let vector_stores = RwLock::new(HashMap::new());
+        Self {
+            graphs,
+            vector_stores,
+        }
+    }
+
+    fn convert_graphs<G: Into<MaterializedGraph>>(
+        graphs: HashMap<String, G>,
+    ) -> HashMap<String, IndexedGraph<MaterializedGraph>> {
         graphs
             .into_iter()
             .map(|(name, g)| {
                 (
                     name,
-                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
+                    IndexedGraph::from_graph(&g.into()).expect("Unable to index graph"),
                 )
             })
             .collect()
     }
 
-    fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<DynamicGraph>> {
+    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<MaterializedGraph>> {
         let mut valid_paths = HashSet::<String>::new();
 
         for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
@@ -73,11 +96,15 @@ impl Data {
             }
         };
 
-        let graphs: HashMap<String, IndexedGraph<DynamicGraph>> = valid_paths
+        let graphs: HashMap<String, IndexedGraph<MaterializedGraph>> = valid_paths
             .into_iter()
             .map(|path| {
                 println!("loading graph from {path}");
-                let graph = Graph::load_from_file(&path).expect("Unable to load from graph");
+                let graph =
+                    MaterializedGraph::load_from_file(&path).expect("Unable to load from graph");
+                graph
+                    .update_constant_properties([("path".to_string(), Prop::str(path.clone()))])
+                    .expect("Failed to add static property");
                 let maybe_graph_name = graph.properties().get("name");
 
                 return match maybe_graph_name {
@@ -95,7 +122,7 @@ impl Data {
             .map(|(name, g)| {
                 (
                     name,
-                    IndexedGraph::from_graph(&g.into_dynamic()).expect("Unable to index graph"),
+                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
                 )
             })
             .collect();

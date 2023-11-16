@@ -5,8 +5,9 @@ use std::{
 
 use crate::model::{
     algorithm::Algorithms,
-    filters::{edgefilter::EdgeFilter, nodefilter::NodeFilter},
+    filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
     graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
+    schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -45,7 +46,7 @@ impl GraphMeta {
             .properties()
             .constant()
             .into_iter()
-            .map(|(k, v)| Property::new(k, v))
+            .map(|(k, v)| Property::new(k.into(), v))
             .collect()
     }
 
@@ -63,10 +64,10 @@ pub(crate) struct GqlGraph {
     graph: IndexedGraph<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<G> for GqlGraph {
-    fn from(value: G) -> Self {
+impl<G: GraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
+    fn from(value: IndexedGraph<G>) -> Self {
         Self {
-            graph: value.into_dynamic().into(),
+            graph: value.into_dynamic_indexed(),
         }
     }
 }
@@ -79,9 +80,14 @@ impl GqlGraph {
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-    async fn window(&self, t_start: i64, t_end: i64) -> GqlGraph {
-        let w = self.graph.window(t_start, t_end);
-        w.into()
+    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+    async fn window(&self, start: i64, end: i64) -> GqlGraph {
+        let w = self.graph.window(start, end);
+        w.into_dynamic_indexed().into()
+    }
+
+    async fn layer_names(&self) -> Vec<String> {
+        self.graph.unique_layers().map_into().collect()
     }
 
     async fn static_properties(&self) -> Vec<Property> {
@@ -89,7 +95,7 @@ impl GqlGraph {
             .properties()
             .constant()
             .into_iter()
-            .map(|(k, v)| Property::new(k, v))
+            .map(|(k, v)| Property::new(k.into(), v))
             .collect()
     }
 
@@ -104,6 +110,11 @@ impl GqlGraph {
                 .collect(),
             None => self.graph.vertices().iter().map(|vv| vv.into()).collect(),
         }
+    }
+
+    /// Returns the schema of this graph
+    async fn schema(&self) -> GraphSchema {
+        GraphSchema::new(&self.graph)
     }
 
     async fn search_vertices(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
@@ -156,16 +167,122 @@ impl GqlGraph {
             .collect()
     }
 
-    async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .graph
+    async fn search_vertex_count(&self, query: String) -> usize {
+        self.graph.search_vertex_count(&query).unwrap_or(0)
+    }
+
+    async fn search_edge_count(&self, query: String) -> usize {
+        self.graph.search_edge_count(&query).unwrap_or(0)
+    }
+
+    async fn node_count(&self, filter: Option<NodeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
+                .vertices()
+                .iter()
+                .map(|vv| vv.into())
+                .filter(|n| filter.matches(n))
+                .count()
+        } else {
+            self.graph.count_vertices()
+        }
+    }
+
+    async fn edge_count(&self, filter: Option<EdgeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
                 .edges()
                 .into_iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.graph.edges().into_iter().map(|ev| ev.into()).collect(),
+                .count()
+        } else {
+            self.graph.count_edges()
+        }
+    }
+
+    async fn edges<'a>(
+        &self,
+        filter: Option<EdgeFilter>,
+        limit: Option<usize>,
+        offset: Option<usize>,
+    ) -> Vec<Edge> {
+        match (filter, limit, offset) {
+            (None, None, None) => {
+                return self.graph.edges().into_iter().map(|ev| ev.into()).collect()
+            }
+            (Some(filter), None, None) => return get_edges_with_filter(&self.graph, filter),
+            (None, Some(limit), Some(offset)) => {
+                return get_edges_with_limit(&self.graph, limit, offset)
+            }
+            (Some(filter), Some(limit), Some(offset)) => {
+                return get_edges_with_filter_limit(&self.graph, filter, limit, offset);
+            }
+            (Some(filter), None, Some(offset)) => {
+                return get_edges_with_filter_limit(&self.graph, filter, 10, offset)
+            }
+            (Some(filter), Some(limit), None) => {
+                return get_edges_with_filter_limit(&self.graph, filter, limit, 0)
+            }
+            (None, None, Some(offset)) => return get_edges_with_limit(&self.graph, 10, offset),
+            (None, Some(limit), None) => return get_edges_with_limit(&self.graph, limit, 0),
+        }
+
+        fn get_edges_with_filter_limit(
+            graph: &IndexedGraph<DynamicGraph>,
+            filter: EdgeFilter,
+            limit: usize,
+            offset: usize,
+        ) -> Vec<Edge> {
+            let start_position = limit * offset;
+            let end_position = start_position + limit;
+            graph
+                .edges()
+                .into_iter()
+                .enumerate()
+                .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
+                .filter_map(|(i, ev)| {
+                    if filter.matches(&ev) && i >= start_position && i < end_position {
+                        Some(ev)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        }
+
+        fn get_edges_with_filter(
+            graph: &IndexedGraph<DynamicGraph>,
+            filter: EdgeFilter,
+        ) -> Vec<Edge> {
+            graph
+                .edges()
+                .into_iter()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect()
+        }
+
+        fn get_edges_with_limit(
+            graph: &IndexedGraph<DynamicGraph>,
+            limit: usize,
+            offset: usize,
+        ) -> Vec<Edge> {
+            let start_position = limit * offset;
+            let end_position = start_position + limit;
+            graph
+                .edges()
+                .into_iter()
+                .enumerate()
+                .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
+                .filter_map(|(i, ev)| {
+                    if i >= start_position && i < end_position {
+                        Some(ev)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
         }
     }
 

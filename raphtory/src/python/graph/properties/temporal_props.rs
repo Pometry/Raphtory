@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, Prop},
+    core::{utils::time::IntoTime, ArcStr, Prop},
     db::api::{
         properties::{internal::PropertiesOps, TemporalProperties, TemporalPropertyView},
         view::internal::{DynamicGraph, Static},
@@ -8,7 +8,13 @@ use crate::{
         graph::properties::{DynProps, PyPropValueList, PyPropValueListList},
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
-            wrappers::prop::PropHistItems,
+            wrappers::{
+                iterators::{
+                    I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
+                    UsizeIterable,
+                },
+                prop::{PropHistItems, PropValue},
+            },
         },
         utils::{PyGenericIterator, PyTime},
     },
@@ -47,10 +53,10 @@ impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
 }
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsCmp(HashMap<String, PyTemporalPropCmp>);
+pub struct PyTemporalPropsCmp(HashMap<ArcStr, PyTemporalPropCmp>);
 
-impl From<HashMap<String, PyTemporalPropCmp>> for PyTemporalPropsCmp {
-    fn from(value: HashMap<String, PyTemporalPropCmp>) -> Self {
+impl From<HashMap<ArcStr, PyTemporalPropCmp>> for PyTemporalPropsCmp {
+    fn from(value: HashMap<ArcStr, PyTemporalPropCmp>) -> Self {
         Self(value)
     }
 }
@@ -71,7 +77,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalProperties>>() {
             Ok(PyTemporalPropsCmp::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropCmp>>() {
             Ok(PyTemporalPropsCmp::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -90,7 +96,7 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 #[pymethods]
 impl PyTemporalProperties {
     /// List the available property keys
-    fn keys(&self) -> Vec<String> {
+    fn keys(&self) -> Vec<ArcStr> {
         self.props.keys().map(|k| k.clone()).collect()
     }
 
@@ -103,7 +109,7 @@ impl PyTemporalProperties {
     }
 
     /// List the property keys together with the corresponding values
-    fn items(&self) -> Vec<(String, DynTemporalProperty)> {
+    fn items(&self) -> Vec<(ArcStr, DynTemporalProperty)> {
         self.props.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
 
@@ -111,7 +117,7 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, Any]: the mapping of property keys to latest values
-    fn latest(&self) -> HashMap<String, Prop> {
+    fn latest(&self) -> HashMap<ArcStr, Prop> {
         self.props
             .iter_latest()
             .map(|(k, v)| (k.clone(), v))
@@ -122,7 +128,7 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, list[(int, Any)]]: the mapping of property keys to histories
-    fn histories(&self) -> HashMap<String, Vec<(i64, Prop)>> {
+    fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
         self.props
             .iter()
             .map(|(k, v)| (k.clone(), v.iter().collect()))
@@ -244,6 +250,94 @@ impl PyTemporalProp {
         self.prop.latest()
     }
 
+    /// Compute the sum of all property values.
+    ///
+    /// Returns:
+    ///     Prop: The sum of all property values.
+    pub fn sum(&self) -> Prop {
+        let mut it_iter = self.prop.iter();
+        let first = it_iter.next().unwrap();
+        it_iter.fold(first.1, |acc, elem| acc.add(elem.1).unwrap())
+    }
+
+    /// Find the minimum property value and its associated time.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the minimum property value.
+    pub fn min(&self) -> (i64, Prop) {
+        let mut it_iter = self.prop.iter();
+        let first = it_iter.next().unwrap();
+        it_iter.fold(first, |acc, elem| if acc.1 <= elem.1 { acc } else { elem })
+    }
+
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the maximum property value.
+    pub fn max(&self) -> (i64, Prop) {
+        let mut it_iter = self.prop.iter();
+        let first = it_iter.next().unwrap();
+        it_iter.fold(first, |acc, elem| if acc.1 >= elem.1 { acc } else { elem })
+    }
+
+    /// Count the number of properties.
+    ///
+    /// Returns:
+    ///     int: The number of properties.
+    pub fn count(&self) -> usize {
+        self.prop.iter().count()
+    }
+
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     Prop: The average of each property values, or None if count is zero.
+    pub fn average(&self) -> Option<Prop> {
+        self.mean()
+    }
+
+    /// Compute the mean of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     Prop: The mean of each property values, or None if count is zero.
+    pub fn mean(&self) -> Option<Prop> {
+        let sum: Prop = self.sum();
+        let count: usize = self.count();
+        if count == 0 {
+            return None;
+        }
+        match sum {
+            Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
+            Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
+            Prop::U32(s) => Some(Prop::F32(s as f32 / count as f32)),
+            Prop::U8(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
+            Prop::U16(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
+            Prop::U64(s) => Some(Prop::F64(s as f64 / count as f64)),
+            Prop::F32(s) => Some(Prop::F32(s / count as f32)),
+            Prop::F64(s) => Some(Prop::F64(s / count as f64)),
+            _ => None,
+        }
+    }
+
+    /// Compute the median of all property values.
+    ///
+    /// Returns:
+    ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
+    pub fn median(&self) -> Option<(i64, Prop)> {
+        let it_iter = self.prop.iter();
+        let mut vec: Vec<(i64, Prop)> = it_iter.collect_vec();
+        // let mut vec: Vec<(i64, Prop)> = it_iter.map(|(t, v)| (t, v.clone())).collect();
+        vec.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        let len = vec.len();
+        if len == 0 {
+            return None;
+        }
+        if len % 2 == 0 {
+            return Some(vec[len / 2 - 1].clone());
+        }
+        Some(vec[len / 2].clone())
+    }
+
     pub fn __repr__(&self) -> String {
         self.prop.repr()
     }
@@ -320,7 +414,7 @@ py_iterable_base!(
 );
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsListCmp(HashMap<String, PyTemporalPropListCmp>);
+pub struct PyTemporalPropsListCmp(HashMap<ArcStr, PyTemporalPropListCmp>);
 
 impl From<&PyTemporalPropsList> for PyTemporalPropsListCmp {
     fn from(value: &PyTemporalPropsList) -> Self {
@@ -334,8 +428,8 @@ impl From<&PyTemporalPropsList> for PyTemporalPropsListCmp {
     }
 }
 
-impl From<HashMap<String, PyTemporalPropListCmp>> for PyTemporalPropsListCmp {
-    fn from(value: HashMap<String, PyTemporalPropListCmp>) -> Self {
+impl From<HashMap<ArcStr, PyTemporalPropListCmp>> for PyTemporalPropsListCmp {
+    fn from(value: HashMap<ArcStr, PyTemporalPropListCmp>) -> Self {
         Self(value)
     }
 }
@@ -344,7 +438,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsList>>() {
             Ok(PyTemporalPropsListCmp::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropListCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropListCmp>>() {
             Ok(PyTemporalPropsListCmp::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -356,7 +450,7 @@ py_eq!(PyTemporalPropsList, PyTemporalPropsListCmp);
 
 #[pymethods]
 impl PyTemporalPropsList {
-    fn keys(&self) -> Vec<String> {
+    fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
             .map(|p| p.keys().map(|k| k.clone()).collect_vec())
@@ -370,17 +464,17 @@ impl PyTemporalPropsList {
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, PyTemporalPropList)> {
+    fn items(&self) -> Vec<(ArcStr, PyTemporalPropList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn latest(&self) -> HashMap<String, PyPropValueList> {
+    fn latest(&self) -> HashMap<ArcStr, PyPropValueList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
             .map(move |k| {
                 let builder = builder.clone();
-                let nk = Arc::new(k.clone());
+                let nk = k.clone();
                 (
                     k,
                     (move || {
@@ -393,11 +487,11 @@ impl PyTemporalPropsList {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, PyPropHistItemsList> {
+    fn histories(&self) -> HashMap<ArcStr, PyPropHistItemsList> {
         self.keys()
             .into_iter()
             .map(|k| {
-                let kk = Arc::new(k.clone());
+                let kk = k.clone();
                 let builder = self.builder.clone();
                 let v = (move || {
                     let kk = kk.clone();
@@ -413,7 +507,7 @@ impl PyTemporalPropsList {
             .collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<PyTemporalPropList> {
+    fn __getitem__(&self, key: ArcStr) -> PyResult<PyTemporalPropList> {
         self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
@@ -425,13 +519,13 @@ impl PyTemporalPropsList {
         self.keys().into_iter().into()
     }
 
-    fn get(&self, key: String) -> Option<PyTemporalPropList> {
+    fn get(&self, key: ArcStr) -> Option<PyTemporalPropList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
-            let key = Arc::new(key);
+            let key = key.clone();
             (move || {
                 let key = key.clone();
-                builder().map(move |p| p.get(key.as_ref()))
+                builder().map(move |p| p.get(&key))
             })
             .into()
         })
@@ -481,7 +575,8 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropList {
-    pub fn history(&self) -> PyPropHistList {
+    #[getter]
+    pub fn history(&self) -> I64VecIterable {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.history()).unwrap_or_default())).into()
     }
@@ -516,7 +611,7 @@ py_nested_iterable_base!(
 );
 
 #[derive(PartialEq)]
-pub struct PyTemporalPropsListListCmp(HashMap<String, PyTemporalPropListListCmp>);
+pub struct PyTemporalPropsListListCmp(HashMap<ArcStr, PyTemporalPropListListCmp>);
 
 impl From<&PyTemporalPropsListList> for PyTemporalPropsListListCmp {
     fn from(value: &PyTemporalPropsListList) -> Self {
@@ -530,8 +625,8 @@ impl From<&PyTemporalPropsListList> for PyTemporalPropsListListCmp {
     }
 }
 
-impl From<HashMap<String, PyTemporalPropListListCmp>> for PyTemporalPropsListListCmp {
-    fn from(value: HashMap<String, PyTemporalPropListListCmp>) -> Self {
+impl From<HashMap<ArcStr, PyTemporalPropListListCmp>> for PyTemporalPropsListListCmp {
+    fn from(value: HashMap<ArcStr, PyTemporalPropListListCmp>) -> Self {
         Self(value)
     }
 }
@@ -540,7 +635,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropsListListCmp {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(v) = ob.extract::<PyRef<PyTemporalPropsListList>>() {
             Ok(Self::from(v.deref()))
-        } else if let Ok(v) = ob.extract::<HashMap<String, PyTemporalPropListListCmp>>() {
+        } else if let Ok(v) = ob.extract::<HashMap<ArcStr, PyTemporalPropListListCmp>>() {
             Ok(Self::from(v))
         } else {
             Err(PyTypeError::new_err("cannot compare"))
@@ -552,7 +647,7 @@ py_eq!(PyTemporalPropsListList, PyTemporalPropsListListCmp);
 
 #[pymethods]
 impl PyTemporalPropsListList {
-    fn keys(&self) -> Vec<String> {
+    fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(
                 |it|             // FIXME: Still have to clone all those strings which sucks
@@ -568,17 +663,17 @@ impl PyTemporalPropsListList {
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
-    fn items(&self) -> Vec<(String, PyTemporalPropListList)> {
+    fn items(&self) -> Vec<(ArcStr, PyTemporalPropListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
-    fn latest(&self) -> HashMap<String, PyPropValueListList> {
+    fn latest(&self) -> HashMap<ArcStr, PyPropValueListList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
             .map(move |k| {
                 let builder = builder.clone();
-                let nk = Arc::new(k.clone());
+                let nk = k.clone();
                 (
                     k,
                     (move || {
@@ -594,13 +689,13 @@ impl PyTemporalPropsListList {
             .collect()
     }
 
-    fn histories(&self) -> HashMap<String, PyPropHistItemsListList> {
+    fn histories(&self) -> HashMap<ArcStr, PyPropHistItemsListList> {
         let builder = self.builder.clone();
         self.keys()
             .into_iter()
             .map(move |k| {
                 let builder = builder.clone();
-                let kk = Arc::new(k.clone());
+                let kk = k.clone();
                 let v = (move || {
                     let kk = kk.clone();
                     builder().map(move |it| {
@@ -618,7 +713,7 @@ impl PyTemporalPropsListList {
             .collect()
     }
 
-    fn __getitem__(&self, key: String) -> PyResult<PyTemporalPropListList> {
+    fn __getitem__(&self, key: ArcStr) -> PyResult<PyTemporalPropListList> {
         self.get(key).ok_or(PyKeyError::new_err("unknown property"))
     }
 
@@ -630,15 +725,15 @@ impl PyTemporalPropsListList {
         self.keys().into_iter().into()
     }
 
-    fn get(&self, key: String) -> Option<PyTemporalPropListList> {
+    fn get(&self, key: ArcStr) -> Option<PyTemporalPropListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
-            let key = Arc::new(key);
+            let key = key.clone();
             (move || {
                 let key = key.clone();
                 builder().map(move |it| {
                     let key = key.clone();
-                    it.map(move |p| p.get(key.as_ref()))
+                    it.map(move |p| p.get(&key))
                 })
             })
             .into()
@@ -660,7 +755,8 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropListList {
-    pub fn history(&self) -> PyPropHistListList {
+    #[getter]
+    pub fn history(&self) -> NestedI64VecIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.map(|v| v.history()).unwrap_or_default()))).into()
     }
@@ -689,12 +785,495 @@ impl PyTemporalPropListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.and_then(|v| v.latest())))).into()
     }
+
+    pub fn flatten(&self) -> PyTemporalPropList {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
 }
 
-py_iterable!(PyPropHistList, Vec<i64>);
-py_iterable_comp!(PyPropHistList, Vec<i64>, PyPropHistListCmp);
-py_nested_iterable!(PyPropHistListList, Vec<i64>);
-py_iterable_comp!(PyPropHistListList, PyPropHistListCmp, PyPropHistListListCmp);
+#[pymethods]
+impl PyPropHistValueListList {
+    pub fn flatten(&self) -> PyPropHistValueList {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+
+    pub fn count(&self) -> NestedUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.map(|itit| itit.len()))).into()
+    }
+
+    pub fn median(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|itit| {
+                    let mut sorted: Vec<Prop> = itit.into_iter().collect();
+                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    let len = sorted.len();
+                    match len {
+                        0 => None,
+                        1 => Some(sorted[0].clone()),
+                        _ => {
+                            let a = &sorted[len / 2];
+                            Some(a.clone())
+                        }
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn sum(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|itit| {
+                    let mut itit_iter = itit.into_iter();
+                    let first = itit_iter.next();
+                    itit_iter.clone().fold(first, |acc, elem| match acc {
+                        Some(a) => a.add(elem),
+                        _ => None,
+                    })
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn mean(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|itit| {
+                    let mut itit_iter = itit.into_iter();
+                    let first = itit_iter.next();
+                    let sum = itit_iter.clone().fold(first, |acc, elem| match acc {
+                        Some(a) => a.add(elem),
+                        _ => Some(elem),
+                    });
+                    let count = itit_iter.count();
+                    if count == 0 {
+                        return None;
+                    }
+                    match sum {
+                        Some(Prop::U8(s)) => Some(Prop::U8(s / count as u8)),
+                        Some(Prop::U16(s)) => Some(Prop::U16(s / count as u16)),
+                        Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
+                        Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
+                        Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
+                        Some(Prop::U64(s)) => Some(Prop::U64(s / count as u64)),
+                        Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+                        Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+                        _ => None,
+                    }
+                })
+            })
+        })
+        .into()
+    }
+}
+
+#[pymethods]
+impl PropIterable {
+    pub fn sum(&self) -> PropValue {
+        let mut it_iter = self.iter();
+        let first = it_iter.next();
+        it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
+    }
+
+    pub fn median(&self) -> PropValue {
+        let mut sorted: Vec<Prop> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            1 => Some(sorted[0].clone()),
+            _ => {
+                let a = &sorted[len / 2];
+                Some(a.clone())
+            }
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        self.iter().count()
+    }
+
+    pub fn min(&self) -> PropValue {
+        let mut sorted: Vec<Prop> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            _ => {
+                let a = &sorted[0];
+                Some(a.clone())
+            }
+        }
+    }
+
+    pub fn max(&self) -> PropValue {
+        let mut sorted: Vec<Prop> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            _ => {
+                let a = &sorted[len - 1];
+                Some(a.clone())
+            }
+        }
+    }
+
+    pub fn average(&self) -> PropValue {
+        self.mean()
+    }
+
+    pub fn mean(&self) -> PropValue {
+        let sum: PropValue = self.sum();
+        let count: usize = self.iter().collect::<Vec<Prop>>().len();
+        if count == 0 {
+            return None;
+        }
+        match sum {
+            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+            Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+            Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+            Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+            _ => None,
+        }
+    }
+}
+
+#[pymethods]
+impl PyPropHistValueList {
+    pub fn sum(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next();
+                it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
+            })
+        })
+        .into()
+    }
+
+    pub fn min(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone())) {
+                        Some(std::cmp::Ordering::Less) => a,
+                        _ => Some(b),
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn max(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone())) {
+                        Some(std::cmp::Ordering::Greater) => a,
+                        _ => Some(b),
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn median(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut sorted: Vec<Prop> = it.clone();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let len = sorted.len();
+                match len {
+                    0 => None,
+                    1 => Some(sorted[0].clone()),
+                    _ => {
+                        let a = &sorted[len / 2];
+                        Some(a.clone())
+                    }
+                }
+            })
+        })
+        .into()
+    }
+
+    pub fn average(&self) -> PyPropValueList {
+        self.mean()
+    }
+
+    pub fn mean(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.clone().into_iter();
+                let first = it_iter.next();
+                let sum = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
+                let count = it.len();
+                if count == 0 {
+                    return None;
+                }
+                match sum {
+                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+                    Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+                    _ => None,
+                }
+            })
+        })
+        .into()
+    }
+
+    pub fn count(&self) -> UsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.len())).into()
+    }
+
+    pub fn flatten(&self) -> PropIterable {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+}
+
+#[pymethods]
+impl PyPropValueList {
+    pub fn sum(&self) -> Option<Prop> {
+        self.iter()
+            .reduce(|acc, elem| match (acc, elem) {
+                (Some(a), Some(b)) => a.add(b),
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
+                _ => None,
+            })
+            .flatten()
+    }
+
+    pub fn count(&self) -> usize {
+        self.iter().count()
+    }
+
+    pub fn min(&self) -> PropValue {
+        let mut sorted: Vec<PropValue> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            _ => {
+                let a = &sorted[0];
+                a.clone()
+            }
+        }
+    }
+
+    pub fn max(&self) -> PropValue {
+        let mut sorted: Vec<PropValue> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            _ => {
+                let a = &sorted[len - 1];
+                a.clone()
+            }
+        }
+    }
+
+    pub fn drop_none(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || builder().filter(|x| x.is_some())).into()
+    }
+
+    pub fn median(&self) -> PropValue {
+        let mut sorted: Vec<PropValue> = self.iter().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        match len {
+            0 => None,
+            1 => sorted[0].clone(),
+            _ => {
+                let a = &sorted[len / 2];
+                a.clone()
+            }
+        }
+    }
+
+    pub fn mean(&self) -> PropValue {
+        let sum: PropValue = self.sum();
+        let count: usize = self.iter().collect::<Vec<PropValue>>().len();
+        if count == 0 {
+            return None;
+        }
+        match sum {
+            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+            Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+            Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+            Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+            Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+            _ => None,
+        }
+    }
+
+    pub fn average(&self) -> PropValue {
+        self.mean()
+    }
+}
+
+#[pymethods]
+impl PyPropValueListList {
+    pub fn sum(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next().flatten();
+                it_iter.fold(first, |acc, elem| match (acc, elem) {
+                    (Some(a), Some(b)) => a.add(b),
+                    (Some(a), None) => Some(a),
+                    (None, Some(b)) => Some(b),
+                    _ => None,
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn min(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next().unwrap();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone().unwrap())) {
+                        Some(std::cmp::Ordering::Less) => a,
+                        _ => Some(b.clone().unwrap()),
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn max(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut it_iter = it.into_iter();
+                let first = it_iter.next().unwrap();
+                it_iter.fold(first, |a, b| {
+                    match PartialOrd::partial_cmp(&a, &Some(b.clone().unwrap())) {
+                        Some(std::cmp::Ordering::Greater) => a,
+                        _ => Some(b.clone().unwrap()),
+                    }
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn average(&self) -> PyPropValueList {
+        self.mean()
+    }
+
+    pub fn mean(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|mut it| {
+                let mut count: usize = 1;
+                let first = it.next().flatten();
+                let sum = it.fold(first, |acc, elem| {
+                    count += 1;
+                    match (acc, elem) {
+                        (Some(a), Some(b)) => a.add(b),
+                        (Some(a), None) => Some(a),
+                        (None, Some(b)) => Some(b),
+                        _ => None,
+                    }
+                });
+                if count == 0 {
+                    return None;
+                }
+                match sum {
+                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
+                    Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
+                    Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
+                    Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
+                    _ => None,
+                }
+            })
+        })
+        .into()
+    }
+
+    pub fn median(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                let mut sorted: Vec<PropValue> = it.into_iter().collect();
+                sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let len = sorted.len();
+                match len {
+                    0 => None,
+                    1 => sorted[0].clone(),
+                    _ => {
+                        let a = &sorted[len / 2];
+                        a.clone()
+                    }
+                }
+            })
+        })
+        .into()
+    }
+
+    pub fn flatten(&self) -> PyPropValueList {
+        let builder = self.builder.clone();
+        (move || builder().flatten()).into()
+    }
+
+    pub fn count(&self) -> UsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.count())).into()
+    }
+
+    pub fn drop_none(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || builder().map(|it| it.filter(|x| x.is_some()))).into()
+    }
+}
 
 py_iterable!(PyPropHistValueList, Vec<Prop>);
 py_iterable_comp!(PyPropHistValueList, Vec<Prop>, PyPropHistValueListCmp);

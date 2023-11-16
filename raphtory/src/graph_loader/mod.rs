@@ -8,7 +8,7 @@
 //!
 //! Load a pre-built graph
 //! ```rust
-//! use raphtory::algorithms::degree::average_degree;
+//! use raphtory::algorithms::metrics::degree::average_degree;
 //! use raphtory::prelude::*;
 //! use raphtory::graph_loader::example::lotr_graph::lotr_graph;
 //!
@@ -52,14 +52,14 @@
 //!     g.add_vertex(
 //!         lotr.time,
 //!         lotr.src_id.clone(),
-//!         [("type".to_string(), Prop::Str("Character".to_string()))],
+//!         [("type", Prop::str("Character"))],
 //!     )
 //!     .expect("Failed to add vertex");
 //!
 //!     g.add_vertex(
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
-//!         [("type".to_string(), Prop::Str("Character".to_string()))],
+//!         [("type", Prop::str("Character"))],
 //!     )
 //!     .expect("Failed to add vertex");
 //!
@@ -68,8 +68,8 @@
 //!         lotr.src_id.clone(),
 //!         lotr.dst_id.clone(),
 //!         [(
-//!             "type".to_string(),
-//!             Prop::Str("Character Co-occurrence".to_string()),
+//!             "type",
+//!             Prop::str("Character Co-occurrence"),
 //!         )],
 //!         None,
 //!     )
@@ -176,7 +176,7 @@ mod graph_loader_test {
     #[test]
     fn test_lotr_load_graph() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
     }
 
     #[test]
@@ -184,16 +184,19 @@ mod graph_loader_test {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         let g_at_empty = g.at(1);
-        let g_at_start = g.at(7059);
+        let g_astart = g.at(7059);
         let g_at_another = g.at(28373);
-        let g_at_max = g.at(i64::MAX);
-        let g_at_min = g.at(i64::MIN);
 
-        assert_eq!(g_at_empty.num_vertices(), 0);
-        assert_eq!(g_at_start.num_vertices(), 70);
-        assert_eq!(g_at_another.num_vertices(), 123);
-        assert_eq!(g_at_max.num_vertices(), 139);
-        assert_eq!(g_at_min.num_vertices(), 0);
+        assert_eq!(g_at_empty.count_vertices(), 0);
+        assert_eq!(g_astart.count_vertices(), 3);
+        assert_eq!(g_at_another.count_vertices(), 4);
+    }
+
+    #[test]
+    fn test_karate_graph() {
+        let g = crate::graph_loader::example::karate_club::karate_club_graph();
+        assert_eq!(g.count_vertices(), 34);
+        assert_eq!(g.count_edges(), 155);
     }
 
     #[test]
@@ -216,26 +219,15 @@ mod graph_loader_test {
                     let src_id = hashing::calculate_hash(&src);
                     let dst_id = hashing::calculate_hash(&dst);
 
-                    g.add_vertex(
-                        t,
-                        src_id,
-                        [("name".to_string(), Prop::Str("Character".to_string()))],
-                    )
-                    .unwrap();
-                    g.add_vertex(
-                        t,
-                        dst_id,
-                        [("name".to_string(), Prop::Str("Character".to_string()))],
-                    )
-                    .unwrap();
+                    g.add_vertex(t, src_id, [("name", Prop::str("Character"))])
+                        .unwrap();
+                    g.add_vertex(t, dst_id, [("name", Prop::str("Character"))])
+                        .unwrap();
                     g.add_edge(
                         t,
                         src_id,
                         dst_id,
-                        [(
-                            "name".to_string(),
-                            Prop::Str("Character Co-occurrence".to_string()),
-                        )],
+                        [("name", Prop::str("Character Co-occurrence"))],
                         None,
                     )
                     .unwrap();
@@ -252,7 +244,7 @@ mod graph_loader_test {
     fn test_all_degrees_window() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
         assert_eq!(
             g.vertex("Gandalf").unwrap().window(1356, 24792).degree(),
@@ -277,7 +269,7 @@ mod graph_loader_test {
     fn test_all_neighbours_window() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
 
         for v in g
@@ -330,7 +322,7 @@ mod graph_loader_test {
     fn test_all_edges_window() {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
-        assert_eq!(g.num_edges(), 701);
+        assert_eq!(g.count_edges(), 701);
         assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
         assert_eq!(
             g.vertex("Gandalf")

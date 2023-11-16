@@ -1,31 +1,54 @@
 use crate::{
-    core::{storage::timeindex::TimeIndexEntry, utils::errors::GraphError, Prop},
+    core::{
+        entities::{EID, VID},
+        storage::timeindex::TimeIndexEntry,
+        utils::errors::GraphError,
+        Prop,
+    },
     db::api::view::internal::Base,
 };
+use enum_dispatch::enum_dispatch;
 
 /// internal (dyn friendly) methods for adding properties
+#[enum_dispatch]
 pub trait InternalPropertyAdditionOps {
-    /// internal (dyn friendly)
-    fn internal_add_vertex_properties(
-        &self,
-        v: u64,
-        data: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError>;
-
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError>;
 
-    fn internal_add_static_properties(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError>;
+    fn internal_add_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError>;
 
-    fn internal_add_edge_properties(
+    fn internal_update_static_properties(
         &self,
-        src: u64,
-        dst: u64,
-        props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
+
+    fn internal_add_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
+
+    fn internal_update_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
+
+    fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError>;
+
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError>;
 }
 
@@ -50,37 +73,66 @@ pub trait DelegatePropertyAdditionOps {
 
 impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     #[inline(always)]
-    fn internal_add_vertex_properties(
-        &self,
-        v: u64,
-        data: Vec<(String, Prop)>,
-    ) -> Result<(), GraphError> {
-        self.graph().internal_add_vertex_properties(v, data)
-    }
-
-    #[inline(always)]
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
-        props: Vec<(String, Prop)>,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         self.graph().internal_add_properties(t, props)
     }
 
     #[inline(always)]
-    fn internal_add_static_properties(&self, props: Vec<(String, Prop)>) -> Result<(), GraphError> {
+    fn internal_add_static_properties(&self, props: Vec<(usize, Prop)>) -> Result<(), GraphError> {
         self.graph().internal_add_static_properties(props)
     }
 
     #[inline(always)]
-    fn internal_add_edge_properties(
+    fn internal_update_static_properties(
         &self,
-        src: u64,
-        dst: u64,
-        props: Vec<(String, Prop)>,
-        layer: Option<&str>,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph().internal_update_static_properties(props)
+    }
+
+    #[inline]
+    fn internal_add_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         self.graph()
-            .internal_add_edge_properties(src, dst, props, layer)
+            .internal_add_constant_vertex_properties(vid, props)
+    }
+
+    #[inline]
+    fn internal_update_constant_vertex_properties(
+        &self,
+        vid: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph()
+            .internal_update_constant_vertex_properties(vid, props)
+    }
+
+    #[inline]
+    fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph()
+            .internal_add_constant_edge_properties(eid, layer, props)
+    }
+
+    #[inline]
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
+        self.graph()
+            .internal_update_constant_edge_properties(eid, layer, props)
     }
 }

@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use raphtory::{
+    core::ArcStr,
     db::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
@@ -8,6 +9,7 @@ use raphtory::{
 };
 use std::collections::HashSet;
 
+pub(crate) mod document;
 pub(crate) mod edge;
 pub(crate) mod graph;
 pub(crate) mod node;
@@ -26,7 +28,7 @@ fn get_expanded_edges(
 
     let mut filtered_fetched_edges = match maybe_layers {
         Some(layers) => {
-            let layer_set: HashSet<String> = layers.into_iter().collect();
+            let layer_set: HashSet<ArcStr> = layers.into_iter().map_into().collect();
             fetched_edges
                 .filter(|e| {
                     e.layer_names()

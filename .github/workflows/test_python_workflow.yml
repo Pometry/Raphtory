@@ -32,10 +32,38 @@ jobs:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
         os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
+          - os: ubuntu-latest
+            sccache-path: /home/runner/.cache/sccache
+          - os: windows-latest
+            sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
     runs-on: '${{ matrix.os }}'
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ matrix.sccache-path }}
+      SCCACHE_PATH: ${{ matrix.sccache-path }}
     steps:
+      - name: Setting sccache-path
+        run: echo "SCCACHE_PATH=${{ matrix.sccache-path }}"
+        if: matrix.os == 'macos-latest'
+      - name: Setting sccache-path
+        run: echo "SCCACHE_PATH=/home/runner/.cache/sccache"
+        if: matrix.os == 'ubuntu-latest'
+      - name: Setting sccache-path
+        run: echo "SCCACHE_PATH=C:\Users\runner\AppData\Local\Mozilla\sccache"
+        if: matrix.os == 'windows-latest'
       - uses: actions/checkout@v3
         name: Checkout
+      - name: Cache sccache
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: pytest-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            pytest-${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -47,19 +75,37 @@ jobs:
             ~/.cargo/git/db/
             target/debug
             target/release
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: pytest-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: pytest-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.73.0
           override: true
           components: rustfmt, clippy
+      - name: Install sccache (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install sccache
+      - name: Install sccache (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+      - name: Install sccache (Windows)
+        if: matrix.os == 'windows-latest'
+        run: choco install sccache
+      - name: Start sccache server
+        run: sccache --start-server
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
+          cache: 'pip'
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
@@ -70,16 +116,29 @@ jobs:
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           python -m pip install target/wheels/raphtory-*.whl
+          python -m pip install -e examples/custom_python_extension
       - name: Install Python dependencies (Windows)
         if: "contains(matrix.os, 'Windows')"
         run: |
-          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+          python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           $folder_path = "target/wheels/"
           Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
             python -m pip install "$($_.FullName)"
           }
+          python -m pip install -e examples/custom_python_extension
       - name: Run Python tests
         run: |
-          cd python/tests && pytest --nbmake --nbmake-timeout=1200 .    
+          cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
+      - name: Run Python extension tests
+        run: |
+          cd examples/custom_python_extension/test && pytest .
+      - name: Run example notebook
+        working-directory: examples/python/socio-patterns
+        run: jupyter nbconvert --to notebook --execute example.ipynb
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true
+

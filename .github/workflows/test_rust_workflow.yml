@@ -16,11 +16,25 @@ jobs:
       matrix:
         include:
           - os: macos-latest
+            sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
           - os: ubuntu-latest
+            sccache-path: /home/runner/.cache/sccache
           - os: windows-latest
+            sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ matrix.sccache-path }}
     steps:
       - uses: actions/checkout@v3
         name: Checkout
+      - name: Cache sccache
+        uses: actions/cache@v3
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -36,9 +50,28 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.73.0
           override: true
           components: rustfmt, clippy
+      - name: Install sccache (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install sccache
+      - name: Install sccache (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+      - name: Install sccache (Windows)
+        if: matrix.os == 'windows-latest'
+        run: choco install sccache
+      - name: Start sccache server
+        run: sccache --start-server
+      - name: Run
+        run: rustc --version --verbose
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Run Tests
         uses: actions-rs/cargo@v1
         env:
@@ -46,6 +79,10 @@ jobs:
         with:
           command: test
           args: --all --no-default-features --features "raphtory/io raphtory/python"
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
@@ -54,9 +91,21 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+    env:
+      RUSTC_WRAPPER: sccache
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: /home/runner/.cache/sccache
+      SCCACHE_PATH: /home/runner/.cache/sccache
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Cache sccache
+        uses: actions/cache@v3
+        with:
+          path: /home/runner/.cache/sccache
+          key: doc-${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            doc-${{ runner.os }}-sccache-
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -66,19 +115,30 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: doc-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: doc-${{ runner.os }}-cargo-
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.73.0
           override: true
           components: rustfmt, clippy
+      - name: Install sccache (Ubuntu)
+        run: |
+          curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sccache-v0.5.4-x86_64-unknown-linux-musl/sccache /usr/local/bin/
+      - name: Start sccache server
+        run: sccache --start-server
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
+          cache: 'pip'
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Build Rust Docs
         uses: actions-rs/cargo@v1
         env:
@@ -92,3 +152,7 @@ jobs:
           sudo apt update && sudo apt install -y pandoc make python3-sphinx
           pip install -e python
           cd docs && python -m pip install -q -r requirements.txt && make html
+      - name: Print sccache stats
+        run: sccache --show-stats
+      - name: Stop sccache server
+        run: sccache --stop-server || true

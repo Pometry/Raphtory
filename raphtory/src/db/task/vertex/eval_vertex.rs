@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{LayerIds, VID},
+        entities::VID,
         state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
         utils::time::IntoTime,
         Direction,
@@ -23,7 +23,7 @@ use crate::{
             task_state::Local2,
             vertex::{
                 eval_vertex_state::EVState,
-                window_eval_vertex::{WindowEvalPathFromVertex, WindowEvalVertex},
+                window_eval_vertex::{edge_filter, WindowEvalPathFromVertex, WindowEvalVertex},
             },
         },
     },
@@ -282,15 +282,19 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TimeOps
         self.path.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        let start = start.into_time();
+        let end = end.into_time();
+        let edge_filter = edge_filter(self.g, start, end).map(Rc::new);
         WindowEvalPathFromVertex::new(
             self.path.clone(),
             self.ss,
             self.g,
             self.vertex_state.clone(),
             self.local_state_prev,
-            t_start.into_time(),
-            t_end.into_time(),
+            start,
+            end,
+            edge_filter,
         )
     }
 }
@@ -375,7 +379,10 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        let start = start.into_time();
+        let end = end.into_time();
+        let edge_filter = edge_filter(self.graph, start, end).map(Rc::new);
         WindowEvalVertex::new(
             self.ss,
             self.vertex,
@@ -383,8 +390,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S> TimeOps for EvalVertexView<'a, G,
             None,
             self.local_state_prev,
             self.vertex_state.clone(),
-            t_start.into_time(),
-            t_end.into_time(),
+            start,
+            end,
+            edge_filter,
         )
     }
 }
@@ -423,21 +431,34 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
 
     fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
         //FIXME: need to implement this properly without cloning the graph...
-        Properties::new(VertexView::new_local(self.graph.clone(), self.vertex))
+        Properties::new(VertexView::new_internal(self.graph.clone(), self.vertex))
     }
 
     fn degree(&self) -> Self::ValueType<usize> {
-        self.graph
-            .degree(self.vertex, Direction::BOTH, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            Direction::BOTH,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn in_degree(&self) -> Self::ValueType<usize> {
-        self.graph.degree(self.vertex, Direction::IN, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            Direction::IN,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn out_degree(&self) -> Self::ValueType<usize> {
-        self.graph
-            .degree(self.vertex, Direction::OUT, LayerIds::All)
+        self.graph.degree(
+            self.vertex,
+            Direction::OUT,
+            &self.graph.layer_ids(),
+            self.graph.edge_filter(),
+        )
     }
 
     fn edges(&self) -> Self::EList {
@@ -447,7 +468,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::BOTH, LayerIds::All)
+                .vertex_edges(
+                    self.vertex,
+                    Direction::BOTH,
+                    self.graph.layer_ids(),
+                    self.graph.edge_filter(),
+                )
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -459,7 +485,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::IN, LayerIds::All)
+                .vertex_edges(
+                    self.vertex,
+                    Direction::IN,
+                    self.graph.layer_ids(),
+                    self.graph.edge_filter(),
+                )
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -471,7 +502,12 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
         let graph = self.graph;
         Box::new(
             self.graph
-                .vertex_edges(self.vertex, Direction::OUT, LayerIds::All)
+                .vertex_edges(
+                    self.vertex,
+                    Direction::OUT,
+                    self.graph.layer_ids(),
+                    self.graph.edge_filter(),
+                )
                 .map(move |e| EvalEdgeView::new_(ss, e, graph, local, vertex_state.clone())),
         )
     }
@@ -576,10 +612,14 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexListOps
 
     fn window(
         self,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
-        Box::new(self.map(move |v| v.window(t_start, t_end)))
+        Box::new(self.map(move |v| v.window(start, end)))
+    }
+
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+        Box::new(self.map(move |v| v.at(end)))
     }
 
     fn id(self) -> Self::IterType<u64> {

@@ -4,7 +4,9 @@ use crate::db::{
         layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph, window_graph::WindowedGraph,
     },
 };
+use enum_dispatch::enum_dispatch;
 
+#[enum_dispatch]
 pub trait IntoDynamic {
     fn into_dynamic(self) -> DynamicGraph;
 }

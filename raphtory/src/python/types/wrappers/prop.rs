@@ -12,6 +12,8 @@ impl IntoPy<PyObject> for Prop {
         match self {
             Prop::Str(s) => s.into_py(py),
             Prop::Bool(bool) => bool.into_py(py),
+            Prop::U8(u8) => u8.into_py(py),
+            Prop::U16(u16) => u16.into_py(py),
             Prop::I64(i64) => i64.into_py(py),
             Prop::U64(u64) => u64.into_py(py),
             Prop::F64(f64) => f64.into_py(py),
@@ -29,8 +31,7 @@ impl IntoPy<PyObject> for Prop {
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
 impl<'source> FromPyObject<'source> for Prop {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
-        // TODO: This no longer returns result in newer pyo3
-        if ob.is_instance_of::<PyBool>()? {
+        if ob.is_instance_of::<PyBool>() {
             return Ok(Prop::Bool(ob.extract()?));
         }
         if let Ok(v) = ob.extract() {
@@ -42,8 +43,8 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(d) = ob.extract() {
             return Ok(Prop::DTime(d));
         }
-        if let Ok(s) = ob.extract() {
-            return Ok(Prop::Str(s));
+        if let Ok(s) = ob.extract::<String>() {
+            return Ok(Prop::Str(s.into()));
         }
         if let Ok(g) = ob.extract() {
             return Ok(Prop::Graph(g));
@@ -64,6 +65,8 @@ impl Repr for Prop {
             Prop::Str(v) => v.repr(),
             Prop::Bool(v) => v.repr(),
             Prop::I64(v) => v.repr(),
+            Prop::U8(v) => v.repr(),
+            Prop::U16(v) => v.repr(),
             Prop::U64(v) => v.repr(),
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),

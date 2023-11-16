@@ -95,7 +95,11 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
     }
 
     pub fn new(total_len: usize, n_parts: usize, morcel_size: usize) -> Self {
-        let last_one_size = total_len % morcel_size;
+        let last_one_size = if morcel_size == 0 {
+            1
+        } else {
+            total_len % morcel_size
+        };
         let mut parts: Vec<MorcelComputeState<CS>> = (0..n_parts - 1)
             .into_iter()
             .map(|_| MorcelComputeState::new(morcel_size))
@@ -205,9 +209,9 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         ss: usize,
-        g: &G,
+        _g: &G,
         f: F,
-    ) -> HashMap<String, B>
+    ) -> HashMap<usize, B>
     where
         OUT: StateType,
         A: StateType,
@@ -218,7 +222,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
                 let out = a
                     .map(|a| ACC::finish(a))
                     .unwrap_or_else(|| ACC::finish(&ACC::zero()));
-                (g.vertex_name(v_id.into()).to_string(), f(out))
+                (v_id, f(out))
             })
             .collect()
     }
@@ -295,7 +299,7 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
         self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         f: F,
-    ) -> HashMap<String, B>
+    ) -> HashMap<usize, B>
     where
         OUT: StateType,
         A: StateType,
@@ -337,7 +341,7 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
         self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         f: F,
-    ) -> HashMap<String, B>
+    ) -> HashMap<usize, B>
     where
         OUT: StateType,
         A: StateType,
@@ -349,7 +353,7 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
                 if let Some(state) = Arc::try_unwrap(state).ok().flatten() {
                     state.finalize(agg_def, self.ss, &self.g, f)
                 } else {
-                    HashMap::<String, B>::new()
+                    HashMap::<usize, B>::new()
                 }
             })
             .collect()

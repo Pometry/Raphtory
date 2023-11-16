@@ -14,6 +14,7 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
+        ArcStr, PropType,
     },
     db::{
         api::{
@@ -31,11 +32,11 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
-    graph: G,
-    vertex_index: Arc<Index>,
-    edge_index: Arc<Index>,
-    reader: IndexReader,
-    edge_reader: IndexReader,
+    pub(crate) graph: G,
+    pub(crate) vertex_index: Arc<Index>,
+    pub(crate) edge_index: Arc<Index>,
+    pub(crate) reader: IndexReader,
+    pub(crate) edge_reader: IndexReader,
 }
 
 impl<G> Deref for IndexedGraph<G> {
@@ -71,6 +72,18 @@ pub(in crate::search) mod fields {
 impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
         Self::from_graph(&graph).expect("failed to generate index from graph")
+    }
+}
+
+impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
+    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        IndexedGraph {
+            graph: self.graph.into_dynamic(),
+            vertex_index: self.vertex_index,
+            edge_index: self.edge_index,
+            reader: self.reader,
+            edge_reader: self.edge_reader,
+        }
     }
 }
 
@@ -129,6 +142,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             Prop::DTime(_) => {
                 schema.add_date_field(prop, INDEXED);
             }
+            Prop::U8(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
+            Prop::U16(_) => {
+                schema.add_u64_field(prop, INDEXED);
+            }
             Prop::U64(_) => {
                 schema.add_u64_field(prop, INDEXED);
             }
@@ -161,16 +180,19 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         // TODO: load all these from the graph at some point in the future
         let mut prop_names_set = g
-            .all_vertex_prop_names(false)
+            .vertex_meta()
+            .temporal_prop_meta()
+            .get_keys()
             .into_iter()
-            .chain(g.all_vertex_prop_names(true).into_iter())
+            .chain(g.vertex_meta().const_prop_meta().get_keys().into_iter())
             .collect::<HashSet<_>>();
 
         for vertex in g.vertices() {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props = HashSet::from(["name".to_string()]);
+            let mut found_props: HashSet<ArcStr> = HashSet::default();
+            found_props.insert("name".into());
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -184,14 +206,13 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                         continue;
                     }
                     Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                    found_props.insert(prop.to_string());
+                    found_props.insert(prop.clone());
                 }
                 // load static props
                 if let Some(prop_value) = vertex.properties().constant().get(prop) {
-                    let name = if prop == "_id" { fields::NAME } else { prop };
-                    if !found_props.contains(name) {
-                        Self::set_schema_field_from_prop(&mut schema, name, prop_value);
-                        found_props.insert(prop.to_string());
+                    if !found_props.contains(prop) {
+                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+                        found_props.insert(prop.clone());
                     }
                 }
             }
@@ -212,16 +233,18 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         // TODO: load all these from the graph at some point in the future
         let mut prop_names_set = g
-            .all_edge_prop_names(false)
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_keys()
             .into_iter()
-            .chain(g.all_edge_prop_names(true).into_iter())
+            .chain(g.edge_meta().const_prop_meta().get_keys())
             .collect::<HashSet<_>>();
 
         for edge in g.edges() {
             if prop_names_set.is_empty() {
                 break;
             }
-            let mut found_props = HashSet::new();
+            let mut found_props: HashSet<ArcStr> = HashSet::new();
 
             for prop in prop_names_set.iter() {
                 // load temporal props
@@ -235,14 +258,13 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                         continue;
                     }
                     Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
-                    found_props.insert(prop.to_string());
+                    found_props.insert(prop.clone());
                 }
                 // load static props
                 if let Some(prop_value) = edge.properties().constant().get(prop) {
-                    let name = if prop == "_id" { fields::NAME } else { prop };
-                    if !found_props.contains(name) {
-                        Self::set_schema_field_from_prop(&mut schema, name, prop_value);
-                        found_props.insert(prop.to_string());
+                    if !found_props.contains(prop) {
+                        Self::set_schema_field_from_prop(&mut schema, prop, prop_value);
+                        found_props.insert(prop.clone());
                     }
                 }
             }
@@ -265,6 +287,12 @@ impl<G: GraphViewOps> IndexedGraph<G> {
                 let time =
                     tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
                 document.add_date(prop_field, time);
+            }
+            Prop::U8(prop_u8) => {
+                document.add_u64(prop_field, u64::from(prop_u8));
+            }
+            Prop::U16(prop_u16) => {
+                document.add_u64(prop_field, u64::from(prop_u16));
             }
             Prop::U64(prop_u64) => {
                 document.add_u64(prop_field, prop_u64);
@@ -299,14 +327,14 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let v_ids = (0..g.num_vertices()).collect::<Vec<_>>();
+        let v_ids = (0..g.count_vertices()).collect::<Vec<_>>();
 
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             let writer_lock = writer.clone();
             {
                 let writer_guard = writer_lock.read();
                 for v_id in v_ids {
-                    if let Some(vertex) = g.vertex(VertexRef::new_local((*v_id).into())) {
+                    if let Some(vertex) = g.vertex(VertexRef::new((*v_id).into())) {
                         Self::index_vertex_view(
                             vertex,
                             &schema,
@@ -356,6 +384,9 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         document.add_u64(vertex_id_field, vertex_id);
         document.add_u64(vertex_id_rev_field, u64::MAX - vertex_id);
 
+        let name_field = schema.get_field("name")?;
+        document.add_text(name_field, vertex.name());
+
         for (temp_prop_name, temp_prop_value) in vertex.properties().temporal() {
             let prop_field = schema.get_field(&temp_prop_name)?;
             for (time, prop_value) in temp_prop_value {
@@ -367,15 +398,10 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         }
 
         for (prop_name, prop_value) in vertex.properties().constant() {
-            let field_name = if prop_name == "_id" {
-                "name"
-            } else {
-                &prop_name
-            };
-
-            let prop_field = schema.get_field(field_name)?;
+            let prop_field = schema.get_field(&prop_name)?;
             Self::index_prop_value(&mut document, prop_field, prop_value);
         }
+
         writer.add_document(document)?;
         Ok(())
     }
@@ -436,14 +462,16 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let e_ids = (0..g.num_edges()).collect::<Vec<_>>();
-
+        let e_ids = (0..g.count_edges()).collect::<Vec<_>>();
+        let edge_filter = g.edge_filter();
         e_ids.par_chunks(128).try_for_each(|e_ids| {
             let writer_lock = writer.clone();
             {
                 let writer_guard = writer_lock.read();
                 for e_id in e_ids {
-                    if let Some(e_ref) = g.find_edge_id((*e_id).into()) {
+                    if let Some(e_ref) =
+                        g.find_edge_id((*e_id).into(), &g.layer_ids(), edge_filter.as_deref())
+                    {
                         let e_view = EdgeView::new(g.clone(), e_ref);
                         Self::index_edge_view(
                             e_view,
@@ -529,7 +557,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let vertex_id = VertexRef::Local(vertex_id.into());
+        let vertex_id = VertexRef::Internal(vertex_id.into());
         self.graph.vertex(vertex_id)
     }
 
@@ -543,7 +571,11 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let e_ref = self.graph.find_edge_id(edge_id.into())?;
+        let e_ref = self.graph.find_edge_id(
+            edge_id.into(),
+            &self.graph.layer_ids(),
+            self.graph.edge_filter().as_deref(),
+        )?;
         let e_view = EdgeView::new(self.graph.clone(), e_ref);
         Some(e_view)
     }
@@ -573,6 +605,26 @@ impl<G: GraphViewOps> IndexedGraph<G> {
             .collect::<Vec<_>>();
 
         Ok(results)
+    }
+
+    pub fn search_vertex_count(&self, q: &str) -> Result<usize, GraphError> {
+        let searcher = self.reader.searcher();
+        let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+        let query = query_parser.parse_query(q)?;
+
+        let count = searcher.search(&query, &tantivy::collector::Count)?;
+
+        Ok(count)
+    }
+
+    pub fn search_edge_count(&self, q: &str) -> Result<usize, GraphError> {
+        let searcher = self.edge_reader.searcher();
+        let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        let query = query_parser.parse_query(q)?;
+
+        let count = searcher.search(&query, &tantivy::collector::Count)?;
+
+        Ok(count)
     }
 
     pub fn search_edges(
@@ -671,45 +723,83 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 }
 
 impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+    #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()
+    }
+    #[inline]
+    fn resolve_layer(&self, layer: Option<&str>) -> usize {
+        self.graph.resolve_layer(layer)
+    }
+
+    #[inline]
+    fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID {
+        self.graph.resolve_vertex(id, name)
+    }
+
+    #[inline]
+    fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
+        self.graph.resolve_graph_property(prop, is_static)
+    }
+
+    #[inline]
+    fn resolve_vertex_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph.resolve_vertex_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn resolve_edge_property(
+        &self,
+        prop: &str,
+        dtype: PropType,
+        is_static: bool,
+    ) -> Result<usize, GraphError> {
+        self.graph.resolve_edge_property(prop, dtype, is_static)
+    }
+
+    #[inline]
+    fn process_prop_value(&self, prop: Prop) -> Prop {
+        self.graph.process_prop_value(prop)
     }
 
     fn internal_add_vertex(
         &self,
         t: TimeIndexEntry,
-        v: u64,
-        name: Option<&str>,
-        props: Vec<(String, Prop)>,
-    ) -> Result<VID, GraphError> {
+        v: VID,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<(), GraphError> {
         let mut document = Document::new();
         // add time to the document
         let time = self.vertex_index.schema().get_field(fields::TIME)?;
         document.add_i64(time, *t.t());
         // add name to the document
 
-        if let Some(vertex_name) = name {
-            let name = self.vertex_index.schema().get_field(fields::NAME)?;
-            document.add_text(name, vertex_name);
-        }
+        let name = self.vertex_index.schema().get_field(fields::NAME)?;
+        document.add_text(name, self.graph.vertex_name(v));
 
         // index all props that are declared in the schema
-        for (prop_name, prop) in props.iter() {
-            if let Ok(field) = self.vertex_index.schema().get_field(prop_name) {
+        for (prop_id, prop) in props.iter() {
+            let prop_name = self.graph.vertex_meta().get_prop_name(*prop_id, false);
+            if let Ok(field) = self.vertex_index.schema().get_field(&prop_name) {
                 if let Prop::Str(s) = prop {
                     document.add_text(field, s)
                 }
             }
         }
         // add the vertex id to the document
-        let v_id = self.graph.internal_add_vertex(t, v, name, props)?;
+        self.graph.internal_add_vertex(t, v, props)?;
         // get the field from the index
         let vertex_id = self.vertex_index.schema().get_field(fields::VERTEX_ID)?;
         let vertex_id_rev = self
             .vertex_index
             .schema()
             .get_field(fields::VERTEX_ID_REV)?;
-        let index_v_id: u64 = Into::<usize>::into(v_id) as u64;
+        let index_v_id: u64 = Into::<usize>::into(v) as u64;
 
         document.add_u64(vertex_id, index_v_id);
         document.add_u64(vertex_id_rev, u64::MAX - index_v_id);
@@ -720,16 +810,16 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
         writer.commit()?;
 
-        Ok(v_id)
+        Ok(())
     }
 
     fn internal_add_edge(
         &self,
         _t: TimeIndexEntry,
-        _src: u64,
-        _dst: u64,
-        _props: Vec<(String, Prop)>,
-        _layer: Option<&str>,
+        _src: VID,
+        _dst: VID,
+        _props: Vec<(usize, Prop)>,
+        _layer: usize,
     ) -> Result<EID, GraphError> {
         todo!()
     }
@@ -769,7 +859,29 @@ mod test {
         assert_eq!(results, vec!["Blerg"]);
     }
 
-      #[test]
+    #[test]
+    #[ignore = "this test is for experiments with the jira graph"]
+    fn load_jira_graph() -> Result<(), GraphError> {
+        let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
+        assert!(graph.count_vertices() > 0);
+
+        let now = SystemTime::now();
+
+        let index_graph: IndexedGraph<Graph> = graph.into();
+        let elapsed = now.elapsed().unwrap().as_secs();
+        println!("indexing took: {:?}", elapsed);
+
+        let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
+
+        assert!(!issues.is_empty());
+
+        let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        println!("names: {:?}", names);
+
+        Ok(())
+    }
+
+    #[test]
     fn create_indexed_graph_from_existing_graph() {
         let graph = Graph::new();
 
@@ -1089,5 +1201,12 @@ mod test {
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());
+    }
+
+    #[test]
+    fn property_name_on_vertex_does_not_crash() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", [("name", "test")]).unwrap();
+        let _gi: IndexedGraph<_> = g.into();
     }
 }

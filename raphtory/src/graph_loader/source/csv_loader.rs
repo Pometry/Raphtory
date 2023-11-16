@@ -32,14 +32,14 @@
 //!          g.add_vertex(
 //!              time,
 //!              src_id,
-//!              [("name".to_string(), Prop::Str("Character".to_string()))],
+//!              [("name", Prop::str("Character"))],
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
 //!          g.add_vertex(
 //!              time,
 //!              dst_id,
-//!              [("name".to_string(), Prop::Str("Character".to_string()))],
+//!              [("name", Prop::str("Character"))],
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
@@ -48,8 +48,8 @@
 //!              src_id,
 //!              dst_id,
 //!              [(
-//!                  "name".to_string(),
-//!                  Prop::Str("Character Co-occurrence".to_string()),
+//!                  "name",
+//!                  Prop::str("Character Co-occurrence"),
 //!              )],
 //!              None,
 //!          ).expect("Failed to add edge");
@@ -126,6 +126,8 @@ pub struct CsvLoader {
     header: bool,
     /// The delimiter character used in the CSV file.
     delimiter: u8,
+    /// print the name of the file being loaded
+    print_file_name: bool,
 }
 
 impl CsvLoader {
@@ -148,6 +150,7 @@ impl CsvLoader {
             regex_filter: None,
             header: false,
             delimiter: b',',
+            print_file_name: false,
         }
     }
 
@@ -165,6 +168,22 @@ impl CsvLoader {
     /// ```
     pub fn set_header(mut self, h: bool) -> Self {
         self.header = h;
+        self
+    }
+
+    /// If set to true will print the file name as it reads it
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - A boolean value indicating whether the CSV file has a header.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use raphtory::graph_loader::source::csv_loader::CsvLoader;
+    /// let loader = CsvLoader::new("/path/to/csv_file.csv").set_print_file_name(true);
+    /// ```
+    pub fn set_print_file_name(mut self, p: bool) -> Self {
+        self.print_file_name = p;
         self
     }
 
@@ -211,7 +230,7 @@ impl CsvLoader {
     ///
     /// * `p` - A reference to the path to be checked.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing a boolean value indicating whether the path is a directory or not.
     ///
@@ -230,7 +249,7 @@ impl CsvLoader {
     /// * `path` - The path to the file to be checked.
     /// * `paths` - A mutable reference to the vector of paths where the file should be added.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Nothing is returned, the function only modifies the provided vector of paths.
     ///
@@ -256,7 +275,7 @@ impl CsvLoader {
     ///
     /// * No arguments are required.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing a vector of PathBuf objects representing the paths to all files in the directory.
     ///
@@ -300,7 +319,7 @@ impl CsvLoader {
     /// * `g` - A reference to the graph object where the data should be loaded.
     /// * `loader` - A closure that takes a deserialized record and the graph object as arguments and adds the record to the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing an empty Ok value if the data is loaded successfully.
     ///
@@ -329,7 +348,7 @@ impl CsvLoader {
     /// * `g` - A reference to the graph object where the data should be loaded.
     /// * `loader` - A closure that takes a deserialized record and the graph object as arguments and adds the record to the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// A Result containing an empty Ok value if the data is loaded successfully.
     ///
@@ -358,7 +377,7 @@ impl CsvLoader {
     /// * `g` - A reference to the graph to load the data into.
     /// * `loader` - The function to use for loading the CSV records into the graph.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Returns `Ok(())` if the operation was successful, or a `CsvErr` if there was an error.
     ///
@@ -373,7 +392,9 @@ impl CsvLoader {
         F: Fn(REC, &G),
     {
         let file_path: PathBuf = path.into();
-
+        if self.print_file_name {
+            println!("Loading file: {:?}", file_path);
+        }
         let mut csv_reader = self.csv_reader(file_path)?;
         let records_iter = csv_reader.deserialize::<REC>();
 
@@ -412,7 +433,7 @@ impl CsvLoader {
     ///
     /// * `file_path` - The path to the CSV file to read.
     ///
-    /// # Returns
+    /// Returns:
     ///
     /// Returns a `csv::Reader` that can be used to read the CSV file, or a `CsvErr` if there was an error.
     ///
@@ -499,28 +520,17 @@ mod csv_loader_test {
                 let dst_id = calculate_hash(&lotr.dst_id);
                 let time = lotr.time;
 
-                g.add_vertex(
-                    time,
-                    src_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
-                g.add_vertex(
-                    time,
-                    dst_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
+                g.add_vertex(time, src_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
+                g.add_vertex(time, dst_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
                 g.add_edge(
                     time,
                     src_id,
                     dst_id,
-                    [(
-                        "name".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("name", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .unwrap();
@@ -544,28 +554,17 @@ mod csv_loader_test {
                     .unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
-                g.add_vertex(
-                    time,
-                    src_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
-                g.add_vertex(
-                    time,
-                    dst_id,
-                    [("name".to_string(), Prop::Str("Character".to_string()))],
-                )
-                .map_err(|err| println!("{:?}", err))
-                .ok();
+                g.add_vertex(time, src_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
+                g.add_vertex(time, dst_id, [("name", Prop::str("Character"))])
+                    .map_err(|err| println!("{:?}", err))
+                    .ok();
                 g.add_edge(
                     time,
                     src_id,
                     dst_id,
-                    [(
-                        "name".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("name", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .unwrap();

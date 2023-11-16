@@ -6,9 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fmt::Debug, ops::Range};
 
 #[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
-
 // TCells represent a value in time that can be set at multiple times and keeps a history
-pub enum TCell<A: Clone + Default + Debug + PartialEq> {
+pub enum TCell<A: Clone + Debug + PartialEq> {
     #[default]
     Empty,
     TCell1(TimeIndexEntry, A),
@@ -18,7 +17,7 @@ pub enum TCell<A: Clone + Default + Debug + PartialEq> {
 
 const BTREE_CUTOFF: usize = 128;
 
-impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
+impl<A: Clone + Debug + PartialEq> TCell<A> {
     pub fn new(t: TimeIndexEntry, value: A) -> Self {
         TCell::TCell1(t, value)
     }
@@ -85,23 +84,21 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub fn iter_window(
+        &self,
+        r: Range<TimeIndexEntry>,
+    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
-                if r.contains(t.t()) {
-                    Box::new(std::iter::once(value))
+                if r.contains(t) {
+                    Box::new(std::iter::once((t, value)))
                 } else {
                     Box::new(std::iter::empty())
                 }
             }
-            TCell::TCellCap(svm) => {
-                Box::new(svm.range(TimeIndexEntry::range(r)).map(|(_, value)| value))
-            }
-            TCell::TCellN(btm) => {
-                Box::new(btm.range(TimeIndexEntry::range(r)).map(|(_, value)| value))
-            }
+            TCell::TCellCap(svm) => Box::new(svm.range(r)),
+            TCell::TCellN(btm) => Box::new(btm.range(r)),
         }
     }
 
@@ -145,7 +142,10 @@ impl<A: Clone + Default + Debug + PartialEq> TCell<A> {
 #[cfg(test)]
 mod tcell_tests {
     use super::TCell;
-    use crate::{core::storage::timeindex::TimeIndexEntry, db::api::view::TimeIndex};
+    use crate::{
+        core::storage::timeindex::{AsTime, TimeIndexEntry},
+        db::api::view::TimeIndex,
+    };
 
     #[test]
     fn set_new_value_for_tcell_initialized_as_empty() {
@@ -219,8 +219,10 @@ mod tcell_tests {
     fn updates_to_prop_can_be_window_iterated() {
         let tcell: TCell<String> = TCell::default();
 
-        let actual = tcell.iter_window(i64::MIN..i64::MAX).collect::<Vec<_>>();
-        let expected: Vec<&String> = vec![];
+        let actual = tcell
+            .iter_window(TimeIndexEntry::MIN..TimeIndexEntry::MAX)
+            .collect::<Vec<_>>();
+        let expected = vec![];
         assert_eq!(actual, expected);
 
         assert_eq!(
@@ -231,8 +233,10 @@ mod tcell_tests {
         let tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
 
         assert_eq!(
-            tcell.iter_window(3..4).collect::<Vec<_>>(),
-            vec![&"Pometry"]
+            tcell
+                .iter_window(TimeIndexEntry::range(3..4))
+                .collect::<Vec<_>>(),
+            vec![(&TimeIndexEntry(3, 0), &"Pometry")]
         );
 
         assert_eq!(
@@ -244,39 +248,74 @@ mod tcell_tests {
         tcell.set(TimeIndexEntry::start(1), "Pometry Inc.");
         tcell.set(TimeIndexEntry::start(2), "Raphtory");
 
+        let one = TimeIndexEntry::start(1);
+        let two = TimeIndexEntry::start(2);
+        let three = TimeIndexEntry::start(3);
+
         assert_eq!(
             tcell.iter_window_t(2..3).collect::<Vec<_>>(),
             vec![(&2, &"Raphtory")]
         );
 
-        let expected: Vec<&String> = vec![];
-        assert_eq!(tcell.iter_window(4..5).collect::<Vec<_>>(), expected);
-
+        let expected = vec![];
         assert_eq!(
-            tcell.iter_window(1..i64::MAX).collect::<Vec<_>>(),
-            vec![&"Pometry Inc.", &"Raphtory", &"Pometry"]
+            tcell
+                .iter_window(TimeIndexEntry::range(4..5))
+                .collect::<Vec<_>>(),
+            expected
         );
 
         assert_eq!(
-            tcell.iter_window(3..i64::MAX).collect::<Vec<_>>(),
-            vec![&"Pometry"]
+            tcell
+                .iter_window(TimeIndexEntry::range(1..i64::MAX))
+                .collect::<Vec<_>>(),
+            vec![
+                (&one, &"Pometry Inc."),
+                (&two, &"Raphtory"),
+                (&three, &"Pometry")
+            ]
         );
 
         assert_eq!(
-            tcell.iter_window(2..i64::MAX).collect::<Vec<_>>(),
-            vec![&"Raphtory", &"Pometry"]
+            tcell
+                .iter_window(TimeIndexEntry::range(3..i64::MAX))
+                .collect::<Vec<_>>(),
+            vec![(&three, &"Pometry")]
         );
-
-        let expected: Vec<&String> = vec![];
-        assert_eq!(tcell.iter_window(5..i64::MAX).collect::<Vec<_>>(), expected);
 
         assert_eq!(
-            tcell.iter_window(i64::MIN..4).collect::<Vec<_>>(),
-            vec![&"Pometry Inc.", &"Raphtory", &"Pometry"]
+            tcell
+                .iter_window(TimeIndexEntry::range(2..i64::MAX))
+                .collect::<Vec<_>>(),
+            vec![(&two, &"Raphtory"), (&three, &"Pometry")]
         );
 
-        let expected: Vec<&String> = vec![];
-        assert_eq!(tcell.iter_window(i64::MIN..1).collect::<Vec<_>>(), expected);
+        let expected = vec![];
+        assert_eq!(
+            tcell
+                .iter_window(TimeIndexEntry::range(5..i64::MAX))
+                .collect::<Vec<_>>(),
+            expected
+        );
+
+        assert_eq!(
+            tcell
+                .iter_window(TimeIndexEntry::range(i64::MIN..4))
+                .collect::<Vec<_>>(),
+            vec![
+                (&one, &"Pometry Inc."),
+                (&two, &"Raphtory"),
+                (&three, &"Pometry")
+            ]
+        );
+
+        let expected = vec![];
+        assert_eq!(
+            tcell
+                .iter_window(TimeIndexEntry::range(i64::MIN..1))
+                .collect::<Vec<_>>(),
+            expected
+        );
 
         let mut tcell: TCell<i64> = TCell::default();
         for n in 1..130 {
@@ -285,6 +324,11 @@ mod tcell_tests {
 
         assert_eq!(tcell.iter_window_t(i64::MIN..i64::MAX).count(), 129);
 
-        assert_eq!(tcell.iter_window(i64::MIN..i64::MAX).count(), 129)
+        assert_eq!(
+            tcell
+                .iter_window(TimeIndexEntry::range(i64::MIN..i64::MAX))
+                .count(),
+            129
+        )
     }
 }

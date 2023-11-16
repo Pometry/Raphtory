@@ -36,29 +36,29 @@
 //! graph.add_vertex(
 //!   1,
 //!   "Gandalf",
-//!   [("type".to_string(), Prop::Str("Character".to_string()))],
-//! );
+//!   [("type", Prop::str("Character"))],
+//! ).unwrap();
 //!
 //! graph.add_vertex(
 //!   2,
 //!   "Frodo",
-//!   [("type".to_string(), Prop::Str("Character".to_string()))],
-//! );
+//!   [("type", Prop::str("Character"))],
+//! ).unwrap();
 //!
 //! graph.add_edge(
 //!   3,
 //!   "Gandalf",
 //!   "Frodo",
 //!   [(
-//!       "meeting".to_string(),
-//!       Prop::Str("Character Co-occurrence".to_string()),
+//!       "meeting",
+//!       Prop::str("Character Co-occurrence"),
 //!   )],
 //!   None,
-//! );
+//! ).unwrap();
 //!
 //! // Get the in-degree, out-degree and degree of Gandalf
-//! println!("Number of vertices {:?}", graph.num_vertices());
-//! println!("Number of Edges {:?}", graph.num_edges());
+//! println!("Number of vertices {:?}", graph.count_vertices());
+//! println!("Number of Edges {:?}", graph.count_edges());
 //! ```
 //!
 //! ## Supported Operating Systems
@@ -98,6 +98,9 @@ pub mod graph_loader;
 
 #[cfg(feature = "search")]
 pub mod search;
+
+#[cfg(feature = "vectors")]
+pub mod vectors;
 
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];

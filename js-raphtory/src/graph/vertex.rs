@@ -18,7 +18,7 @@ impl From<VertexView<TGraph>> for Vertex {
         let vid = value.vertex;
         let graph = value.graph;
         let js_graph = Graph(UnderGraph::TGraph(Arc::new(graph)));
-        Vertex(VertexView::new_local(js_graph, vid))
+        Vertex(VertexView::new_internal(js_graph, vid))
     }
 }
 
@@ -100,7 +100,7 @@ impl Vertex {
     pub fn properties(&self) -> js_sys::Map {
         let obj = js_sys::Map::new();
         for (k, v) in self.0.properties() {
-            obj.set(&k.into(), &JsProp(v).into());
+            obj.set(&k.to_string().into(), &JsProp(v).into());
         }
         obj
     }

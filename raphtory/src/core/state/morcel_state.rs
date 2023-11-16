@@ -31,7 +31,7 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
         g: &G,
-    ) -> Option<HashMap<String, OUT>>
+    ) -> Option<HashMap<usize, OUT>>
     where
         OUT: StateType,
         A: 'static,
@@ -156,7 +156,7 @@ impl<CS: ComputeState + Send> MorcelComputeState<CS> {
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
         g: &G,
-    ) -> HashMap<String, OUT>
+    ) -> HashMap<usize, OUT>
     where
         OUT: StateType,
         A: 'static,
@@ -164,6 +164,6 @@ impl<CS: ComputeState + Send> MorcelComputeState<CS> {
         self.states
             .get(&agg_ref.id())
             .map(|s| s.finalize::<A, IN, OUT, ACC, G>(ss, g))
-            .unwrap_or(HashMap::<String, OUT>::default())
+            .unwrap_or(HashMap::<usize, OUT>::default())
     }
 }

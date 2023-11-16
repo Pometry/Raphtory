@@ -1,13 +1,13 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{vertices::vertex_ref::VertexRef, VID},
         utils::time::IntoTime,
         Direction,
     },
     db::{
         api::{
             properties::Properties,
-            view::{internal::GraphWindowOps, BoxedIter, Layer, LayerOps},
+            view::{internal::extend_filter, BoxedIter, Layer, LayerOps},
         },
         graph::{
             edge::EdgeView,
@@ -26,8 +26,8 @@ pub enum Operations {
     },
     NeighboursWindow {
         dir: Direction,
-        t_start: i64,
-        t_end: i64,
+        start: i64,
+        end: i64,
     },
 }
 
@@ -37,17 +37,19 @@ impl Operations {
         graph: G,
         iter: Box<dyn Iterator<Item = VID> + Send>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
+        let layer_ids = graph.layer_ids();
+        let edge_filter = graph.edge_filter().cloned();
         match self {
-            Operations::Neighbours { dir } => {
-                Box::new(iter.flat_map(move |v| graph.neighbours(v, dir, LayerIds::All)))
-            }
-            Operations::NeighboursWindow {
-                dir,
-                t_start,
-                t_end,
-            } => {
+            Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
+                graph.neighbours(v, dir, layer_ids.clone(), edge_filter.as_ref())
+            })),
+            Operations::NeighboursWindow { dir, start, end } => {
+                let graph1 = graph.clone();
+                let filter = Some(extend_filter(edge_filter, move |e, l| {
+                    graph1.include_edge_window(e, start..end, l)
+                }));
                 Box::new(iter.flat_map(move |v| {
-                    graph.neighbours_window(v, t_start, t_end, dir, LayerIds::All)
+                    graph.neighbours(v, dir, layer_ids.clone(), filter.as_ref())
                 }))
             }
         }
@@ -71,11 +73,14 @@ impl<G: GraphViewOps> PathFromGraph<G> {
     pub fn iter(&self) -> Box<dyn Iterator<Item = PathFromVertex<G>> + Send> {
         let g = self.graph.clone();
         let ops = self.operations.clone();
-        Box::new(g.vertex_refs().map(move |v| PathFromVertex {
-            graph: g.clone(),
-            vertex: v,
-            operations: ops.clone(),
-        }))
+        Box::new(
+            g.vertex_refs(g.layer_ids(), g.edge_filter())
+                .map(move |v| PathFromVertex {
+                    graph: g.clone(),
+                    vertex: v,
+                    operations: ops.clone(),
+                }),
+        )
     }
 }
 
@@ -186,9 +191,9 @@ impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         PathFromGraph {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
             operations: self.operations.clone(),
         }
     }
@@ -234,7 +239,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         let g = self.graph.clone();
         let iter = self
             .iter_refs()
-            .map(move |v| VertexView::new_local(g.clone(), v));
+            .map(move |v| VertexView::new_internal(g.clone(), v));
         Box::new(iter)
     }
 
@@ -243,7 +248,7 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         vertex: V,
         operation: Operations,
     ) -> PathFromVertex<G> {
-        let v = graph.localise_vertex_unchecked(vertex.into());
+        let v = graph.internalise_vertex_unchecked(vertex.into());
         PathFromVertex {
             graph,
             vertex: v,
@@ -251,13 +256,9 @@ impl<G: GraphViewOps> PathFromVertex<G> {
         }
     }
 
-    pub fn neighbours_window(&self, dir: Direction, t_start: i64, t_end: i64) -> Self {
+    pub fn neighbours_window(&self, dir: Direction, start: i64, end: i64) -> Self {
         let mut new_ops = (*self.operations).clone();
-        new_ops.push(Operations::NeighboursWindow {
-            dir,
-            t_start,
-            t_end,
-        });
+        new_ops.push(Operations::NeighboursWindow { dir, start, end });
         Self {
             graph: self.graph.clone(),
             vertex: self.vertex,
@@ -365,9 +366,9 @@ impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
         self.graph.end()
     }
 
-    fn window<T: IntoTime>(&self, t_start: T, t_end: T) -> Self::WindowedViewType {
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
         PathFromVertex {
-            graph: self.graph.window(t_start, t_end),
+            graph: self.graph.window(start, end),
             vertex: self.vertex,
             operations: self.operations.clone(),
         }

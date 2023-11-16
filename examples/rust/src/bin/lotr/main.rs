@@ -1,6 +1,5 @@
-use itertools::Itertools;
 use raphtory::{
-    algorithms::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
+    algorithms::pathing::temporal_reachability::temporally_reachable_nodes, core::utils::hashing,
     graph_loader::source::csv_loader::CsvLoader, prelude::*,
 };
 use serde::Deserialize;
@@ -44,8 +43,8 @@ fn main() {
         println!(
             "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -59,14 +58,14 @@ fn main() {
                 g.add_vertex(
                     lotr.time,
                     lotr.src_id.clone(),
-                    [("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type", Prop::str("Character"))],
                 )
                 .expect("Failed to add vertex");
 
                 g.add_vertex(
                     lotr.time,
                     lotr.dst_id.clone(),
-                    [("type".to_string(), Prop::Str("Character".to_string()))],
+                    [("type", Prop::str("Character"))],
                 )
                 .expect("Failed to add vertex");
 
@@ -74,10 +73,7 @@ fn main() {
                     lotr.time,
                     lotr.src_id.clone(),
                     lotr.dst_id.clone(),
-                    [(
-                        "type".to_string(),
-                        Prop::Str("Character Co-occurrence".to_string()),
-                    )],
+                    [("type", Prop::str("Character Co-occurrence"))],
                     None,
                 )
                 .expect("Failed to add edge");
@@ -87,8 +83,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -98,8 +94,8 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.num_vertices(), 139);
-    assert_eq!(graph.num_edges(), 701);
+    assert_eq!(graph.count_vertices(), 139);
+    assert_eq!(graph.count_edges(), 701);
 
     let gandalf = hashing::calculate_hash(&"Gandalf");
 
@@ -107,9 +103,12 @@ fn main() {
     assert!(graph.has_vertex(gandalf));
     assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
 
-    let r = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None);
-    assert_eq!(
-        r.result.keys().sorted().collect_vec(),
-        vec!["Gandalf", "Saruman", "Wormtongue"]
-    )
+    let r: Vec<String> = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None)
+        .get_all_values()
+        .into_iter()
+        .flatten()
+        .map(|(_, s)| s)
+        .collect();
+
+    assert_eq!(r, vec!["Gandalf", "Saruman", "Wormtongue"])
 }

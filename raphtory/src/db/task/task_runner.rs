@@ -68,7 +68,11 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let local = Local2::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
-            if g.has_vertex_ref(VertexRef::Local(v_ref.into())) {
+            if g.has_vertex_ref(
+                VertexRef::Internal(v_ref.into()),
+                &g.layer_ids(),
+                g.edge_filter().as_deref(),
+            ) {
                 let mut vv = EvalVertexView::new_local(
                     self.ctx.ss(),
                     v_ref.into(),
@@ -133,7 +137,7 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
             for task in tasks.iter() {
                 let atomic_done = AtomicBool::new(true);
-
+                let morcel_size = if morcel_size == 0 { 1 } else { morcel_size };
                 let updated_state: Option<(Shard<CS>, Global<CS>)> = match task {
                     Job::Write(task) => local_state
                         .par_chunks_mut(morcel_size)
@@ -195,24 +199,22 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         })
     }
 
-    fn make_cur_and_prev_states<S: Clone>(&self, init: S) -> (Vec<S>, Vec<S>) {
+    fn make_cur_and_prev_states<S: Clone + Default>(&self, mut init: Vec<S>) -> (Vec<S>, Vec<S>) {
         let g = self.ctx.graph();
+        init.resize(g.unfiltered_num_vertices(), S::default());
 
-        let states: Vec<S> = vec![init; g.unfiltered_num_vertices()];
-
-        (states.clone(), states)
+        (init.clone(), init)
     }
 
     pub fn run<
         B: std::fmt::Debug,
-        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, &Vec<S>) -> B
-            + std::marker::Copy,
-        S: Send + Sync + Clone + 'static + std::fmt::Debug,
+        F: FnOnce(GlobalState<CS>, EvalShardState<G, CS>, EvalLocalState<G, CS>, Vec<S>) -> B,
+        S: Send + Sync + Clone + 'static + std::fmt::Debug + Default,
     >(
         &mut self,
         init_tasks: Vec<Job<G, CS, S>>,
         tasks: Vec<Job<G, CS, S>>,
-        init: S,
+        init: Option<Vec<S>>,
         f: F,
         num_threads: Option<usize>,
         steps: usize,
@@ -225,14 +227,19 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let num_vertices = self.ctx.graph().unfiltered_num_vertices();
         let morcel_size = num_vertices.min(16_000);
-        let num_chunks = (num_vertices + morcel_size - 1) / morcel_size;
+        let num_chunks = if morcel_size == 0 {
+            1
+        } else {
+            (num_vertices + morcel_size - 1) / morcel_size
+        };
 
         let mut shard_state = shard_initial_state
             .unwrap_or_else(|| Shard::new(num_vertices, num_chunks, morcel_size));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 
-        let (mut cur_local_state, mut prev_local_state) = self.make_cur_and_prev_states::<S>(init);
+        let (mut cur_local_state, mut prev_local_state) =
+            self.make_cur_and_prev_states::<S>(init.unwrap_or_default());
 
         let mut _done = false;
 
@@ -278,12 +285,13 @@ impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         } else {
             prev_local_state
         };
-
-        f(
+        let to_return = f(
             GlobalState::new(global_state, ss),
             EvalShardState::new(ss, self.ctx.graph(), shard_state),
             EvalLocalState::new(ss, self.ctx.graph(), vec![]),
-            &last_local_state,
-        )
+            last_local_state,
+        );
+        self.ctx.reset_ss();
+        to_return
     }
 }

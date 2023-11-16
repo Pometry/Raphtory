@@ -1,42 +1,76 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
-            properties::tprop::{LockedLayeredTProp, TProp},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, VID,
+            properties::{
+                graph_props::GraphProps,
+                props::Meta,
+                tprop::{LockedLayeredTProp, TProp},
+            },
+            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
+            LayerIds, EID, VID,
         },
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            ArcEntry,
         },
+        ArcStr,
     },
-    db::api::view::internal::CoreGraphOps,
+    db::api::view::{internal::CoreGraphOps, BoxedIter},
     prelude::Prop,
 };
 use itertools::Itertools;
 use std::{collections::HashMap, iter};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
+    #[inline]
     fn unfiltered_num_vertices(&self) -> usize {
         self.inner().internal_num_vertices()
     }
 
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> Vec<String> {
+    #[inline]
+    fn vertex_meta(&self) -> &Meta {
+        &self.inner().vertex_meta
+    }
+
+    #[inline]
+    fn edge_meta(&self) -> &Meta {
+        &self.inner().edge_meta
+    }
+
+    #[inline]
+    fn graph_meta(&self) -> &GraphProps {
+        &self.inner().graph_props
+    }
+
+    #[inline]
+    fn get_layer_name(&self, layer_id: usize) -> ArcStr {
+        self.inner().edge_meta.layer_meta().get_name(layer_id)
+    }
+
+    #[inline]
+    fn get_layer_id(&self, name: &str) -> Option<usize> {
+        self.inner().edge_meta.get_layer_id(name)
+    }
+
+    #[inline]
+    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
         self.inner().layer_names(layer_ids)
     }
 
+    #[inline]
     fn vertex_id(&self, v: VID) -> u64 {
-        self.inner()
-            .global_vertex_id(v)
-            .unwrap_or_else(|| panic!("vertex id '{v:?}' doesn't exist"))
+        self.inner().global_vertex_id(v)
     }
 
+    #[inline]
     fn vertex_name(&self, v: VID) -> String {
         self.inner().vertex_name(v)
     }
 
+    #[inline]
     fn edge_additions(
         &self,
         eref: EdgeRef,
@@ -47,109 +81,90 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         edge.additions(layer_ids).unwrap()
     }
 
+    #[inline]
     fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
         let vertex = self.inner().vertex(v);
         vertex.additions().unwrap()
     }
 
-    fn localise_vertex_unchecked(&self, v: VertexRef) -> VID {
+    #[inline]
+    fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
+        self.inner().resolve_vertex_ref(v)
+    }
+
+    #[inline]
+    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
         match v {
-            VertexRef::Local(l) => l,
-            VertexRef::Remote(_) => self.inner().resolve_vertex_ref(&v).unwrap(),
+            VertexRef::Internal(l) => l,
+            VertexRef::External(_) => self.inner().resolve_vertex_ref(v).unwrap(),
         }
     }
 
-    fn static_prop_names(&self) -> Vec<String> {
-        self.inner()
-            .static_property_names()
-            .iter()
-            .cloned()
-            .collect()
+    #[inline]
+    fn constant_prop(&self, id: usize) -> Option<Prop> {
+        self.inner().get_constant_prop(id)
     }
 
-    fn static_prop(&self, name: &str) -> Option<Prop> {
-        self.inner().get_static_prop(name)
+    #[inline]
+    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
+        self.inner().get_temporal_prop(id)
     }
 
-    fn temporal_prop_names(&self) -> Vec<String> {
-        self.inner()
-            .temporal_property_names()
-            .iter()
-            .cloned()
-            .collect()
-    }
-
-    fn temporal_prop(&self, name: &str) -> Option<LockedView<TProp>> {
-        self.inner().get_temporal_prop(name)
-    }
-
-    fn static_vertex_prop(&self, v: VID, name: &str) -> Option<Prop> {
+    #[inline]
+    fn constant_vertex_prop(&self, v: VID, prop_id: usize) -> Option<Prop> {
         let entry = self.inner().node_entry(v);
-        let node = entry.value()?;
-        let prop_id = self.inner().vertex_find_prop(name, true)?;
-        node.static_property(prop_id).cloned()
+        entry.const_prop(prop_id).cloned()
     }
 
-    fn static_vertex_prop_names<'a>(
-        &'a self,
-        v: VID,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        let ids = self.inner().node_entry(v).static_prop_ids();
+    #[inline]
+    fn constant_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        // FIXME: revisit the locking scheme so we don't have to collect the ids
         Box::new(
-            ids.into_iter()
-                .flat_map(|prop_id| self.inner().vertex_reverse_prop_id(prop_id, true)),
+            self.inner()
+                .node_entry(v)
+                .const_prop_ids()
+                .collect_vec()
+                .into_iter(),
         )
     }
 
-    fn temporal_vertex_prop(&self, v: VID, name: &str) -> Option<LockedView<TProp>> {
+    #[inline]
+    fn temporal_vertex_prop(&self, v: VID, prop_id: usize) -> Option<LockedView<TProp>> {
         let vertex = self.inner().vertex(v);
-        let prop_id = self.inner().vertex_find_prop(name, false)?;
-
         vertex.temporal_property(prop_id)
     }
 
-    fn temporal_vertex_prop_names<'a>(
-        &'a self,
-        v: VID,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    #[inline]
+    fn temporal_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        // FIXME: revisit the locking scheme so we don't have to collect the ids
         Box::new(
             self.inner()
-                .vertex_temp_prop_ids(v)
-                .into_iter()
-                .flat_map(|id| self.inner().vertex_reverse_prop_id(id, false)),
+                .node_entry(v)
+                .temporal_prop_ids()
+                .collect_vec()
+                .into_iter(),
         )
     }
 
-    fn all_vertex_prop_names(&self, is_static: bool) -> Vec<String> {
-        self.inner().get_all_vertex_property_names(is_static)
-    }
-
-    fn all_edge_prop_names(&self, is_static: bool) -> Vec<String> {
-        self.inner().get_all_edge_property_names(is_static)
-    }
-
-    fn static_edge_prop(&self, e: EdgeRef, name: &str, layer_ids: LayerIds) -> Option<Prop> {
+    fn get_const_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> Option<Prop> {
         let layer_ids = layer_ids.constrain_from_edge(e);
         let entry = self.inner().edge_entry(e.pid());
-        let prop_id = self.inner().edge_find_prop(name, true)?;
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => {
-                let layers_ids = self.inner().get_all_layers();
-                let num_layers = layers_ids.len();
-                if num_layers == 1 {
-                    let layer_id = layers_ids[0];
-                    let layer = entry.unsafe_layer(layer_id);
-                    layer.static_property(prop_id).cloned()
+                if self.inner().num_layers() == 1 {
+                    // iterator has at most 1 element
+                    entry
+                        .layer_iter()
+                        .next()
+                        .and_then(|layer| layer.const_prop(prop_id).cloned())
                 } else {
-                    let prop_map: HashMap<_, _> = self
-                        .inner()
-                        .get_all_layers()
-                        .into_iter()
-                        .flat_map(|id| {
-                            let layer = entry.unsafe_layer(id);
+                    let prop_map: HashMap<_, _> = entry
+                        .layer_iter()
+                        .enumerate()
+                        .flat_map(|(id, layer)| {
                             layer
-                                .static_property(prop_id)
+                                .const_prop(prop_id)
                                 .map(|p| (self.inner().get_layer_name(id), p.clone()))
                         })
                         .collect();
@@ -160,18 +175,16 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
                     }
                 }
             }
-            LayerIds::One(id) => {
-                let layer = entry.unsafe_layer(id);
-                layer.static_property(prop_id).cloned()
-            }
+            LayerIds::One(id) => entry.layer(id).and_then(|l| l.const_prop(prop_id).cloned()),
             LayerIds::Multiple(ids) => {
                 let prop_map: HashMap<_, _> = ids
                     .iter()
                     .flat_map(|&id| {
-                        let layer = entry.unsafe_layer(id);
-                        layer
-                            .static_property(prop_id)
-                            .map(|p| (self.inner().get_layer_name(id), p.clone()))
+                        entry.layer(id).and_then(|layer| {
+                            layer
+                                .const_prop(prop_id)
+                                .map(|p| (self.inner().get_layer_name(id), p.clone()))
+                        })
                     })
                     .collect();
                 if prop_map.is_empty() {
@@ -183,107 +196,118 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         }
     }
 
-    fn static_edge_prop_names<'a>(
-        &'a self,
+    fn const_edge_prop_ids(
+        &self,
         e: EdgeRef,
         layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        // FIXME: revisit the locking scheme so we don't have to collect all the ids
         let layer_ids = layer_ids.constrain_from_edge(e);
         let entry = self.inner().edge_entry(e.pid());
-        match layer_ids {
-            LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(
-                entry
-                    .layer_iter()
-                    .map(|l| l.static_prop_ids())
-                    .kmerge()
-                    .dedup()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
-            ),
+        let ids: Vec<_> = match layer_ids {
+            LayerIds::None => vec![],
+            LayerIds::All => entry
+                .layer_iter()
+                .map(|l| l.const_prop_ids())
+                .kmerge()
+                .dedup()
+                .collect(),
             LayerIds::One(id) => match entry.layer(id) {
-                Some(l) => Box::new(
-                    l.static_prop_ids()
-                        .into_iter()
-                        .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
-                ),
-                None => Box::new(iter::empty()),
+                Some(l) => l.const_prop_ids().collect(),
+                None => vec![],
             },
-            LayerIds::Multiple(ids) => Box::new(
-                ids.iter()
-                    .flat_map(|id| entry.layer(*id).map(|l| l.static_prop_ids()))
-                    .kmerge()
-                    .dedup()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, true)),
-            ),
-        }
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| entry.layer(*id).map(|l| l.const_prop_ids()))
+                .kmerge()
+                .dedup()
+                .collect(),
+        };
+        Box::new(ids.into_iter())
     }
 
+    #[inline]
     fn temporal_edge_prop(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         layer_ids: LayerIds,
     ) -> Option<LockedLayeredTProp> {
         let layer_ids = layer_ids.constrain_from_edge(e);
         let edge = self.inner().edge(e.pid());
-        let prop_id = self.inner().edge_find_prop(name, false)?;
         edge.temporal_property(layer_ids, prop_id)
     }
 
-    fn temporal_edge_prop_names<'a>(
-        &'a self,
+    fn temporal_edge_prop_ids(
+        &self,
         e: EdgeRef,
         layer_ids: LayerIds,
-    ) -> Box<dyn Iterator<Item = LockedView<'a, String>> + 'a> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
+    ) -> Box<dyn Iterator<Item = usize> + '_> {
+        // FIXME: revisit the locking scheme so we don't have to collect the ids
         let entry = self.inner().edge_entry(e.pid());
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(
-                entry
-                    .temp_prop_ids(None)
-                    .into_iter()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
-            ),
-            LayerIds::One(id) => Box::new(
-                entry
-                    .temp_prop_ids(Some(id))
-                    .into_iter()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
-            ),
+            LayerIds::All => Box::new(entry.temp_prop_ids(None).collect_vec().into_iter()),
+            LayerIds::One(id) => Box::new(entry.temp_prop_ids(Some(id)).collect_vec().into_iter()),
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
                     .map(|id| entry.temp_prop_ids(Some(*id)))
                     .kmerge()
                     .dedup()
-                    .flat_map(|id| self.inner().edge_reverse_prop_id(id, false)),
+                    .collect_vec()
+                    .into_iter(),
             ),
         }
+    }
+
+    #[inline]
+    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+        Box::new(self.inner().storage.edges.read_lock().into_iter())
+    }
+
+    #[inline]
+    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.inner().storage.edges.entry_arc(eid.into())
+    }
+
+    #[inline]
+    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
+        Box::new(self.inner().storage.nodes.read_lock().into_iter())
+    }
+
+    #[inline]
+    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
+        self.inner().storage.nodes.entry_arc(vid.into())
     }
 }
 
 #[cfg(test)]
 mod test_edges {
-    use crate::{core::IntoPropMap, prelude::*};
+    use crate::{
+        core::{ArcStr, IntoPropMap},
+        prelude::*,
+    };
     use std::collections::HashMap;
 
     #[test]
     fn test_edge_properties_for_layers() {
         let g = Graph::new();
 
-        g.add_edge(0, 1, 2, [("t", 0)], Some("layer1")).unwrap();
-        g.add_edge(1, 1, 2, [("t", 1)], Some("layer2")).unwrap();
-        g.add_edge(2, 1, 2, [("t2", 2)], Some("layer3")).unwrap();
-        g.add_edge_properties(
-            1,
-            2,
-            [("layer1", "1".into_prop()), ("layer", 1.into_prop())],
-            Some("layer1"),
-        )
-        .unwrap();
-        g.add_edge_properties(1, 2, [("layer", 2)], Some("layer2"))
+        g.add_edge(0, 1, 2, [("t", 0)], Some("layer1"))
+            .unwrap()
+            .add_constant_properties(
+                [("layer1", "1".into_prop()), ("layer", 1.into_prop())],
+                Some("layer1"),
+            )
             .unwrap();
-        g.add_edge_properties(1, 2, [("layer", 3)], Some("layer3"))
+        g.add_edge(1, 1, 2, [("t", 1)], Some("layer2"))
+            .unwrap()
+            .add_constant_properties([("layer", 2)], Some("layer2"))
+            .unwrap();
+
+        g.add_edge(2, 1, 2, [("t2", 2)], Some("layer3"))
+            .unwrap()
+            .add_constant_properties([("layer", 3)], Some("layer3"))
             .unwrap();
 
         let e_all = g.edge(1, 2).unwrap();
@@ -291,10 +315,10 @@ mod test_edges {
             e_all.properties().constant().as_map(),
             HashMap::from([
                 (
-                    "layer".to_owned(),
+                    ArcStr::from("layer"),
                     [("layer1", 1), ("layer2", 2), ("layer3", 3)].into_prop_map()
                 ),
-                ("layer1".to_owned(), [("layer1", "1")].into_prop_map())
+                (ArcStr::from("layer1"), [("layer1", "1")].into_prop_map())
             ])
         );
         assert_eq!(

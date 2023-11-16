@@ -15,12 +15,12 @@ pub mod graph;
 pub mod properties;
 pub mod vertices;
 
-// the only reason this is public is because the phisical ids of the vertices don't move
+// the only reason this is public is because the physical ids of the vertices don't move
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
-pub struct VID(usize);
+pub struct VID(pub usize);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LocalID {
@@ -40,20 +40,11 @@ impl From<VID> for usize {
     }
 }
 
-impl From<VertexRef> for VID {
-    fn from(id: VertexRef) -> Self {
-        match id {
-            VertexRef::Local(vid) => vid,
-            _ => panic!("Cannot convert remote vertex reference to VID"),
-        }
-    }
-}
-
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
-pub struct EID(usize);
+pub struct EID(pub usize);
 
 impl From<EID> for usize {
     fn from(id: EID) -> Self {
@@ -68,8 +59,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, VertexStore<N>, N>), // returned from graph.vertex
-    LockedEntry(GraphEntry<VertexStore<N>, N>), // returned from locked_vertices
+    Entry(Entry<'a, VertexStore, N>), // returned from graph.vertex
+    LockedEntry(GraphEntry<VertexStore, N>), // returned from locked_vertices
 }
 
 // return index -> usize for VRef
@@ -93,7 +84,7 @@ impl<'a, const N: usize> VRef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for VRef<'a, N> {
-    type Target = VertexStore<N>;
+    type Target = VertexStore;
 
     fn deref(&self) -> &Self::Target {
         match self {

@@ -1,6 +1,6 @@
 use raphtory::{
-    algorithms::pagerank::unweighted_page_rank, graph_loader::source::csv_loader::CsvLoader,
-    prelude::*,
+    algorithms::centrality::pagerank::unweighted_page_rank,
+    graph_loader::source::csv_loader::CsvLoader, prelude::*,
 };
 use serde::Deserialize;
 use std::{
@@ -43,8 +43,8 @@ fn main() {
         println!(
             "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -70,8 +70,8 @@ fn main() {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 

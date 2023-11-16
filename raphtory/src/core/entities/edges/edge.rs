@@ -11,13 +11,13 @@ use crate::core::{
     },
     storage::{
         locked_view::LockedView,
-        timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexOps},
+        timeindex::{LayeredIndex, TimeIndex, TimeIndexOps},
         Entry,
     },
     Direction, Prop,
 };
 // use crate::prelude::Layer::Default;
-use crate::core::storage::timeindex::TimeIndexEntry;
+use crate::core::storage::timeindex::{LockedLayeredIndex, TimeIndexEntry};
 use std::{
     default::Default,
     ops::{Deref, Range},
@@ -26,7 +26,7 @@ use std::{
 
 #[derive(Debug)]
 pub(crate) enum ERef<'a, const N: usize> {
-    ERef(Entry<'a, EdgeStore<N>, N>),
+    ERef(Entry<'a, EdgeStore, N>),
     ELock {
         lock: Arc<LockedGraphStorage<N>>,
         eid: EID,
@@ -53,7 +53,7 @@ impl<'a, const N: usize> ERef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for ERef<'a, N> {
-    type Target = EdgeStore<N>;
+    type Target = EdgeStore;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -100,52 +100,6 @@ impl<'a, const N: usize> PartialOrd for EdgeView<'a, N> {
 }
 
 impl<'a, const N: usize> EdgeView<'a, N> {
-    pub fn temporal_properties(
-        &'a self,
-        name: &str,
-        layer: LayerIds,
-        window: Option<Range<i64>>,
-    ) -> Vec<(i64, Prop)> {
-        let prop_id = self.graph.edge_meta.resolve_prop_id(name, false);
-        let store = &self.edge_id;
-        match layer {
-            LayerIds::All => {
-                let mut props = vec![];
-                for layer in (0..) {
-                    if let Some(layer) = store.layer(layer) {
-                        let mut layer_props = layer.temporal_properties(prop_id, window.clone());
-                        for (t, prop) in layer_props {
-                            props.push((t, prop));
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                props
-            }
-            LayerIds::One(layer_id) => {
-                if let Some(layer) = store.layer(layer_id) {
-                    return layer.temporal_properties(prop_id, window).collect();
-                } else {
-                    return vec![];
-                }
-            }
-            LayerIds::Multiple(layer_ids) => {
-                let mut props = vec![];
-                for layer in layer_ids.iter() {
-                    if let Some(layer) = store.layer(*layer) {
-                        let mut layer_props = layer.temporal_properties(prop_id, window.clone());
-                        for (t, prop) in layer_props {
-                            props.push((t, prop));
-                        }
-                    }
-                }
-                props
-            }
-            LayerIds::None => Vec::default(),
-        }
-    }
-
     pub(crate) fn additions(
         self,
         layer_ids: LayerIds,
@@ -153,7 +107,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.additions());
-                Some(LockedLayeredIndex::new(layer_ids, t_index))
+                Some(LayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -166,7 +120,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| entry.deletions());
-                Some(LockedLayeredIndex::new(layer_ids, t_index))
+                Some(LayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -179,7 +133,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     ) -> Option<LockedLayeredTProp<'a>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                if entry.has_temporal_prop(layer_ids.clone(), prop_id) {
+                if entry.has_temporal_prop(&layer_ids, prop_id) {
                     match layer_ids {
                         LayerIds::None => None,
                         LayerIds::All => {
@@ -286,7 +240,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore<N>, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore, N>, graph: &'a TGraph<N>) -> Self {
         Self {
             src: entry.src().into(),
             dst: entry.dst().into(),
@@ -309,7 +263,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    fn check_layers<E: Deref<Target = EdgeStore<N>>, F: Fn(&TimeIndex<TimeIndexEntry>) -> bool>(
+    fn check_layers<E: Deref<Target = EdgeStore>, F: Fn(&TimeIndex<TimeIndexEntry>) -> bool>(
         &self,
         layer_ids: LayerIds,
         e: E,

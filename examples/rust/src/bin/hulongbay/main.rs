@@ -3,7 +3,8 @@
 use itertools::Itertools;
 use raphtory::{
     algorithms::{
-        connected_components::weakly_connected_components, triangle_count::triangle_count,
+        community_detection::connected_components::weakly_connected_components,
+        motifs::triangle_count::triangle_count,
     },
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
@@ -64,8 +65,8 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
         println!(
             "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
             encoded_data_dir.display(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -95,8 +96,8 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.display(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 
@@ -124,6 +125,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     let components = weakly_connected_components(&graph, 5, Some(16));
 
     components
+        .result
         .into_iter()
         .counts_by(|(_, cc)| cc)
         .iter()
@@ -162,7 +164,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     );
 
     let now = Instant::now();
-    let num_windowed_edges2 = window.num_edges();
+    let num_windowed_edges2 = window.count_edges();
     println!(
         "Window num_edges returned {} in {} seconds",
         num_windowed_edges2,
@@ -190,7 +192,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     println!("graph time range: {}-{}", earliest_time, latest_time);
 
     let now = Instant::now();
-    let num_edges2 = graph.num_edges();
+    let num_edges2 = graph.count_edges();
     println!(
         "num_edges returned {} in {} milliseconds",
         num_edges2,

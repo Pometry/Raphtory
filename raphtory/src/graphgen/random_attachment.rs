@@ -10,7 +10,7 @@
 //! use raphtory::prelude::*;
 //! use raphtory::graphgen::random_attachment::random_attachment;
 //! let graph = Graph::new();
-//! random_attachment(&graph, 1000, 10);
+//! random_attachment(&graph, 1000, 10, None);
 //! ```
 
 use crate::{
@@ -20,7 +20,7 @@ use crate::{
     },
     prelude::NO_PROPS,
 };
-use rand::seq::SliceRandom;
+use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
 /// Given a graph this function will add a user defined number of vertices, each with a
 /// user defined number of edges.
@@ -36,16 +36,27 @@ use rand::seq::SliceRandom;
 /// * `graph` - The graph you wish to add vertices and edges to
 /// * `vertices_to_add` - The amount of vertices you wish to add to the graph (steps)
 /// * `edges_per_step` - The amount of edges a joining vertex should add to the graph
+/// * `seed` - (Optional) An array of u8 bytes to be used as the input seed, Default None
 /// # Examples
 ///
 /// ```
 /// use raphtory::prelude::*;
 /// use raphtory::graphgen::random_attachment::random_attachment;
 /// let graph = Graph::new();
-/// random_attachment(&graph, 1000, 10);
+/// random_attachment(&graph, 1000, 10, None);
 /// ```
-pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: usize) {
-    let rng = &mut rand::thread_rng();
+pub fn random_attachment(
+    graph: &Graph,
+    vertices_to_add: usize,
+    edges_per_step: usize,
+    seed: Option<[u8; 32]>,
+) {
+    let mut rng: StdRng;
+    if let Some(seed_value) = seed {
+        rng = StdRng::from_seed(seed_value);
+    } else {
+        rng = StdRng::from_entropy();
+    }
     let mut latest_time = graph.latest_time().unwrap_or(0);
     let mut ids: Vec<u64> = graph.vertices().id().collect();
     let mut max_id = ids.iter().max().copied().unwrap_or(0);
@@ -61,7 +72,7 @@ pub fn random_attachment(graph: &Graph, vertices_to_add: usize, edges_per_step: 
     }
 
     for _ in 0..vertices_to_add {
-        let edges = ids.choose_multiple(rng, edges_per_step);
+        let edges = ids.choose_multiple(&mut rng, edges_per_step);
         max_id += 1;
         latest_time += 1;
         edges.for_each(|neighbour| {
@@ -80,9 +91,9 @@ mod random_graph_test {
     #[test]
     fn blank_graph() {
         let graph = Graph::new();
-        random_attachment(&graph, 100, 20);
-        assert_eq!(graph.num_edges(), 2000);
-        assert_eq!(graph.num_vertices(), 120);
+        random_attachment(&graph, 100, 20, None);
+        assert_eq!(graph.count_edges(), 2000);
+        assert_eq!(graph.count_vertices(), 120);
     }
 
     #[test]
@@ -95,17 +106,17 @@ mod random_graph_test {
                 .ok();
         }
 
-        random_attachment(&graph, 1000, 5);
-        assert_eq!(graph.num_edges(), 5000);
-        assert_eq!(graph.num_vertices(), 1010);
+        random_attachment(&graph, 1000, 5, None);
+        assert_eq!(graph.count_edges(), 5000);
+        assert_eq!(graph.count_vertices(), 1010);
     }
 
     #[test]
     fn prior_graph() {
         let graph = Graph::new();
-        ba_preferential_attachment(&graph, 300, 7);
-        random_attachment(&graph, 4000, 12);
-        assert_eq!(graph.num_edges(), 50106);
-        assert_eq!(graph.num_vertices(), 4307);
+        ba_preferential_attachment(&graph, 300, 7, None);
+        random_attachment(&graph, 4000, 12, None);
+        assert_eq!(graph.count_edges(), 50106);
+        assert_eq!(graph.count_vertices(), 4307);
     }
 }

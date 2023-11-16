@@ -40,8 +40,8 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
             println!(
                 "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
-                g.num_vertices(),
-                g.num_edges(),
+                g.count_vertices(),
+                g.count_edges(),
                 now.elapsed().as_secs()
             );
 
@@ -78,29 +78,23 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     owner.clone(),
                     NO_PROPS,
                 )
-                .expect("Failed to add vertex");
-
-                g.add_vertex_properties(owner.clone(), [("type", "owner")])
-                    .expect("Failed to add vertex static property");
+                .expect("Failed to add vertex")
+                .add_constant_properties([("type", "owner")])
+                .expect("Failed to add vertex static property");
 
                 g.add_vertex(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     NO_PROPS,
                 )
-                .expect("Failed to add vertex");
-
-                g.add_vertex_properties(
-                    company.clone(),
-                    [
-                        ("type", "company".into_prop()),
-                        (
-                            "flag",
-                            (company_house.illegal_hmo.clone().unwrap_or("None".into()))
-                                .into_prop(),
-                        ),
-                    ],
-                )
+                .expect("Failed to add vertex")
+                .add_constant_properties([
+                    ("type", "company".into_prop()),
+                    (
+                        "flag",
+                        (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
+                    ),
+                ])
                 .expect("Failed to add vertex static property");
 
                 g.add_vertex(
@@ -108,19 +102,14 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     address.clone(),
                     NO_PROPS,
                 )
-                .expect("Failed to add vertex");
-
-                g.add_vertex_properties(
-                    address.clone(),
-                    [
-                        ("type", "address".into_prop()),
-                        (
-                            "flag",
-                            (company_house.illegal_hmo.clone().unwrap_or("None".into()))
-                                .into_prop(),
-                        ),
-                    ],
-                )
+                .expect("Failed to add vertex")
+                .add_constant_properties([
+                    ("type", "address".into_prop()),
+                    (
+                        "flag",
+                        (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
+                    ),
+                ])
                 .expect("Failed to add vertex static property");
 
                 g.add_edge(
@@ -130,10 +119,9 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NO_PROPS,
                     Some(pincode),
                 )
-                .expect("Failed to add edge");
-
-                g.add_edge_properties(owner, company.clone(), [("rel", "owns")], Some(pincode))
-                    .expect("Failed to add edge static property");
+                .expect("Failed to add edge")
+                .add_constant_properties([("rel", "owns")], Some(pincode))
+                .expect("Failed to add edge static property");
 
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
@@ -142,18 +130,17 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NO_PROPS,
                     None,
                 )
-                .expect("Failed to add edge");
-
-                g.add_edge_properties(company, address, [("rel", "owns")], None)
-                    .expect("Failed to add edge static property");
+                .expect("Failed to add edge")
+                .add_constant_properties([("rel", "owns")], None)
+                .expect("Failed to add edge static property");
             })
             .expect("Failed to load graph from CSV data files");
 
         println!(
             "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.num_vertices(),
-            g.num_edges(),
+            g.count_vertices(),
+            g.count_edges(),
             now.elapsed().as_secs()
         );
 

@@ -1,4 +1,7 @@
-use crate::{core::Prop, db::api::properties::internal::ConstPropertiesOps};
+use crate::{
+    core::{ArcStr, Prop},
+    db::api::properties::internal::ConstPropertiesOps,
+};
 use std::{collections::HashMap, iter::Zip};
 
 pub struct ConstProperties<P: ConstPropertiesOps> {
@@ -9,37 +12,35 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
     pub(crate) fn new(props: P) -> Self {
         Self { props }
     }
-    pub fn keys(&self) -> Vec<String> {
-        self.props
-            .const_property_keys()
-            .map(|v| v.clone())
-            .collect()
+    pub fn keys(&self) -> Vec<ArcStr> {
+        self.props.const_prop_keys().map(|v| v.clone()).collect()
     }
 
     pub fn values(&self) -> Vec<Prop> {
-        self.props.const_property_values()
+        self.props.const_prop_values()
     }
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = (String, Prop)> + '_> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (ArcStr, Prop)> + '_> {
         Box::new(self.into_iter())
     }
 
-    pub fn get<Q: AsRef<str>>(&self, key: Q) -> Option<Prop> {
-        self.props.get_const_property(key.as_ref())
+    pub fn get(&self, key: &str) -> Option<Prop> {
+        let id = self.props.get_const_prop_id(key)?;
+        self.props.get_const_prop(id)
     }
 
-    pub fn contains<Q: AsRef<str>>(&self, key: Q) -> bool {
+    pub fn contains(&self, key: &str) -> bool {
         self.get(key).is_some()
     }
 
-    pub fn as_map(&self) -> HashMap<String, Prop> {
+    pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
         self.iter().collect()
     }
 }
 
 impl<P: ConstPropertiesOps> IntoIterator for ConstProperties<P> {
-    type Item = (String, Prop);
-    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<Prop>>;
+    type Item = (ArcStr, Prop);
+    type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();
@@ -49,8 +50,8 @@ impl<P: ConstPropertiesOps> IntoIterator for ConstProperties<P> {
 }
 
 impl<P: ConstPropertiesOps> IntoIterator for &ConstProperties<P> {
-    type Item = (String, Prop);
-    type IntoIter = Zip<std::vec::IntoIter<String>, std::vec::IntoIter<Prop>>;
+    type Item = (ArcStr, Prop);
+    type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
         let keys = self.keys();

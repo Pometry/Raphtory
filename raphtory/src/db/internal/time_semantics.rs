@@ -1,30 +1,29 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            graph::tgraph::InnerTemporalGraph,
+            LayerIds, VID,
+        },
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
+        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use rayon::prelude::*;
 use std::ops::Range;
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().first_t())
+        self.inner().node_entry(v).value().timestamps().first_t()
     }
 
     fn vertex_latest_time(&self, v: VID) -> Option<i64> {
-        self.inner()
-            .node_entry(v)
-            .value()
-            .and_then(|node| node.timestamps().last_t())
+        self.inner().node_entry(v).value().timestamps().last_t()
     }
 
     fn view_start(&self) -> Option<i64> {
@@ -32,7 +31,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|t| t + 1) // so it is exclusive
+        self.latest_time_global().map(|t| t.saturating_add(1)) // so it is exclusive
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
@@ -43,26 +42,58 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.inner().graph_latest_time()
     }
 
-    fn vertex_earliest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        self.inner()
+            .storage
+            .nodes
+            .read_lock()
+            .into_par_iter()
+            .flat_map(|v| v.timestamps().range(start..end).first_t())
+            .min()
+    }
+
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        self.inner()
+            .storage
+            .nodes
+            .read_lock()
+            .into_par_iter()
+            .flat_map(|v| v.timestamps().range(start..end).last_t())
+            .max()
+    }
+
+    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).first_t())
+            .timestamps()
+            .range(start..end)
+            .first_t()
     }
 
-    fn vertex_latest_time_window(&self, v: VID, t_start: i64, t_end: i64) -> Option<i64> {
+    fn vertex_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
-            .and_then(|node| node.timestamps().range(t_start..t_end).last_t())
+            .timestamps()
+            .range(start..end)
+            .last_t()
     }
 
-    fn include_vertex_window(&self, v: VID, w: Range<i64>) -> bool {
+    #[inline]
+    fn include_vertex_window(
+        &self,
+        v: VID,
+        w: Range<i64>,
+        _layer_ids: &LayerIds,
+        _edge_filter: Option<&EdgeFilter>,
+    ) -> bool {
         self.inner().node_entry(v).timestamps().active(w)
     }
 
-    fn include_edge_window(&self, e: EdgeRef, w: Range<i64>, layer_ids: LayerIds) -> bool {
-        self.inner().edge(e.pid()).active(layer_ids, w)
+    #[inline]
+    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+        e.active(layer_ids, w)
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -186,69 +217,110 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .collect()
     }
 
-    fn temporal_prop_vec(&self, name: &str) -> Vec<(i64, Prop)> {
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        prop_id < self.inner().graph_props.temporal_prop_meta().len()
+    }
+
+    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
         self.inner()
-            .get_temporal_prop(name)
+            .get_temporal_prop(prop_id)
             .map(|prop| prop.iter().collect())
             .unwrap_or_default()
     }
 
-    fn temporal_prop_vec_window(&self, name: &str, t_start: i64, t_end: i64) -> Vec<(i64, Prop)> {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.inner()
-            .get_temporal_prop(name)
-            .map(|prop| prop.iter_window(t_start..t_end).collect())
+            .graph_props
+            .get_temporal_prop(prop_id)
+            .filter(|p| p.iter_window_t(w).next().is_some())
+            .is_some()
+    }
+
+    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+        self.inner()
+            .get_temporal_prop(prop_id)
+            .map(|prop| prop.iter_window_t(start..end).collect())
             .unwrap_or_default()
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VID, name: &str) -> Vec<(i64, Prop)> {
+    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
+        let entry = self.inner().storage.get_node(v);
+        entry.temporal_property(prop_id).is_some()
+    }
+
+    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
         self.inner()
             .vertex(v)
-            .temporal_properties(name, None)
+            .temporal_properties(prop_id, None)
             .collect()
+    }
+
+    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        let entry = self.inner().storage.get_node(v);
+        entry
+            .temporal_property(prop_id)
+            .filter(|p| p.iter_window_t(w).next().is_some())
+            .is_some()
     }
 
     fn temporal_vertex_prop_vec_window(
         &self,
         v: VID,
-        name: &str,
-        t_start: i64,
-        t_end: i64,
+        prop_id: usize,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
         self.inner()
             .vertex(v)
-            .temporal_properties(name, Some(t_start..t_end))
+            .temporal_properties(prop_id, Some(start..end))
             .collect()
+    }
+
+    fn has_temporal_edge_prop_window(
+        &self,
+        e: EdgeRef,
+        prop_id: usize,
+        w: Range<i64>,
+        layer_ids: LayerIds,
+    ) -> bool {
+        let entry = self.inner().storage.get_edge(e.pid());
+        entry.has_temporal_prop_window(layer_ids, prop_id, w)
     }
 
     fn temporal_edge_prop_vec_window(
         &self,
         e: EdgeRef,
-        name: &str,
-        t_start: i64,
-        t_end: i64,
+        prop_id: usize,
+        start: i64,
+        end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, name, layer_ids)
+        self.temporal_edge_prop(e, prop_id, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => {
-                    if *t.t() >= t_start && *t.t() < t_end {
+                    if *t.t() >= start && *t.t() < end {
                         p.at(&t).map(|v| vec![(*t.t(), v)]).unwrap_or_default()
                     } else {
                         vec![]
                     }
                 }
-                None => p.iter_window(t_start..t_end).collect(),
+                None => p.iter_window(start..end).collect(),
             })
             .unwrap_or_default()
+    }
+
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+        let entry = self.inner().storage.get_edge(e.pid());
+        entry.has_temporal_prop(&layer_ids, prop_id)
     }
 
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
-        name: &str,
+        prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, name, layer_ids)
+        self.temporal_edge_prop(e, prop_id, layer_ids)
             .map(|p| match e.time() {
                 Some(t) => p.at(&t).map(|v| vec![(*t.t(), v)]).unwrap_or_default(),
                 None => p.iter().collect(),

@@ -4,8 +4,8 @@ use csv::StringRecord;
 use flate2::read::GzDecoder;
 use raphtory::{
     algorithms::{
-        algorithm_result::AlgorithmResult, connected_components::weakly_connected_components,
-        pagerank::unweighted_page_rank,
+        centrality::pagerank::unweighted_page_rank,
+        community_detection::connected_components::weakly_connected_components,
     },
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
@@ -176,8 +176,8 @@ fn main() {
     if debug {
         println!(
             "Graph has {} vertices and {} edges",
-            g.num_vertices(),
-            g.num_edges()
+            g.count_vertices(),
+            g.count_edges()
         )
     }
 
@@ -197,16 +197,14 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank: Vec<_> = unweighted_page_rank(&g, 1000, None, None, true)
-        .into_iter()
-        .collect();
+    let _page_rank = unweighted_page_rank(&g, 1000, None, None, true);
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
-    // connected components with time
+    // connected community_detection with time
     now = Instant::now();
-    let _cc: AlgorithmResult<String, u64> = weakly_connected_components(&g, usize::MAX, None);
+    let _cc = weakly_connected_components(&g, usize::MAX, None);
     println!(
-        "Connected components: {} seconds",
+        "Connected community_detection: {} seconds",
         now.elapsed().as_secs_f64()
     );
 }
