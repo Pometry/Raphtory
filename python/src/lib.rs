@@ -49,7 +49,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyTemporalProperties,
         PyTemporalProp,
         PyDirection,
-        AlgorithmResult
+        AlgorithmResult,
         GraphIndex
     );
 
