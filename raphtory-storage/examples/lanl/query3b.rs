@@ -12,7 +12,7 @@ use crate::{thread_pool, NUM_THREADS};
 //   AND program.eventID = 4688
 // RETURN count(*)
 
-// Number of answers: 2,744,248,943 
+// Number of answers: 2,744,248,943
 // Wall time: 52 s
 
 const SRCPORT: i64 = 3128;
@@ -39,12 +39,10 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let mut count_boot: usize = 0;
                 let mut count_program: usize = 0;
 
-                for event in event_ids.iter().flatten()
-                {
+                for event in event_ids.iter().flatten() {
                     if event == PROGRAM {
                         count_program += 1;
-                    }
-                    else if event == BOOT {
+                    } else if event == BOOT {
                         count_boot += 1;
                     }
                 }

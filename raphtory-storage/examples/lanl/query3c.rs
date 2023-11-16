@@ -38,12 +38,10 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let mut boot_vec = Vec::default();
                 let mut program_vec = Vec::default();
 
-                for (t, event) in event_ids
-                {
+                for (t, event) in event_ids {
                     if event == PROGRAM {
                         program_vec.push(t)
-                    }
-                    else if event == BOOT {
+                    } else if event == BOOT {
                         boot_vec.push(t)
                     }
                 }
@@ -66,6 +64,6 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
             })
             .collect::<Vec<_>>()
     });
-    
+
     Some(result.len())
 }
