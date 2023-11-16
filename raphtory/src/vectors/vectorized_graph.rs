@@ -200,8 +200,6 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
         let mut selected_docs = self.selected_docs.clone();
         let total_limit = selected_docs.len() + limit;
 
-        println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-
         while selected_docs.len() < total_limit {
             let remaining = total_limit - selected_docs.len();
             let candidates = selected_docs
@@ -209,22 +207,15 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
                 .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window));
 
             let scored_candidates = score_documents(query, candidates.cloned());
-            let top_sorted_candidates = find_top_k(scored_candidates, remaining);
+            let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX);
             selected_docs =
                 extend_selection(selected_docs.clone(), top_sorted_candidates, total_limit);
 
             let new_remaining = total_limit - selected_docs.len();
-            dbg!(remaining);
-            dbg!(new_remaining);
-            dbg!(&selected_docs);
-            dbg!(total_limit);
-            println!("---------------------------------------------------------");
             if new_remaining == remaining {
                 break; // TODO: try to move this to the top condition
             }
         }
-
-        println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
 
         Self {
             selected_docs,
