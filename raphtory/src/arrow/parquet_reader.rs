@@ -31,20 +31,6 @@ pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
     edge_props_builder: EdgePropsBuilder<P>,
 }
 
-impl<P: AsRef<Path> + Clone + Send + Sync> ParquetReader<P> {
-    pub(crate) fn new(
-        graph_dir: P,
-        parquet_path: P,
-        src_col: &str,
-        dst_col: &str,
-        time_col: &str,
-        excluded_cols: &[&str],
-    ) -> Result<Self, Error> {
-        let files = list_parquet_files(parquet_path.as_ref())?;
-        Self::new_from_filelist(graph_dir, files, src_col, dst_col, time_col, excluded_cols)
-    }
-}
-
 impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> ParquetReader<P, V> {
     pub(crate) fn new_from_filelist(
         graph_dir: P,
@@ -148,26 +134,6 @@ fn read_parquet_file(
 
     let reader = parquet::read::FileReader::new(file, row_groups, schema, None, None, None);
     Ok(reader)
-}
-
-pub fn list_parquet_files(path: impl AsRef<Path>) -> Result<Vec<PathBuf>, Error> {
-    let meta = std::fs::metadata(path.as_ref()).map_err(|_| Error::NoEdgeLists)?;
-    if meta.is_dir() {
-        let iter = std::fs::read_dir(path.as_ref())?;
-        let mut entries = iter
-            .into_iter()
-            .map_ok(|res| res.path())
-            .filter_ok(|path| {
-                path.extension()
-                    .map(|ext| ext == "parquet")
-                    .unwrap_or(false)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        entries.sort();
-        Ok(entries)
-    } else {
-        Ok(vec![path.as_ref().to_path_buf()])
-    }
 }
 
 fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
@@ -441,15 +407,14 @@ mod test {
     #[test]
     fn load_edges_from_parquet() {
         let root = env!("CARGO_MANIFEST_DIR");
-        let nft: PathBuf =
-            PathBuf::from_iter([root, "resources", "test", "chunked.snappy.parquet"]);
+        let nft: PathBuf = PathBuf::from_iter([root, "resources", "test", "chunked", "chunked.parquet"]);
         let graph_dir = tempfile::tempdir().unwrap();
 
         let excluded_cols = vec!["src", "dst", "dst_hash", "src_hash"];
 
-        let reader = ParquetReader::new(
+        let reader = ParquetReader::new_from_filelist(
             graph_dir.path(),
-            nft.as_path(),
+            vec![nft],
             "src",
             "dst",
             "epoch_time",

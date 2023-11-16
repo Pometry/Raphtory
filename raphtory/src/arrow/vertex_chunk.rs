@@ -10,8 +10,6 @@ use rayon::prelude::*;
 
 use super::list_buffer::ListColumn;
 
-use arrow_array::ArrayRef;
-
 // this is a list_array<struct_array<(u64, u64)>>, where the struct_array is (vertex, edge)
 #[derive(Debug, Clone)]
 pub(crate) struct VertexChunk {
@@ -52,13 +50,6 @@ impl VertexChunk {
         self.columns[0].len()
     }
 
-    // convert to arrow-rs format
-    pub(crate) fn to_arrow(&self) -> Arc<[ArrayRef]> {
-        self.columns
-            .iter()
-            .map(|x| ArrayRef::from(x.clone()))
-            .collect()
-    }
 }
 
 #[derive(Debug)]

@@ -356,12 +356,13 @@ pub(crate) fn make_global_ordering<'a, GO: GlobalOrder, P: AsRef<Path> + Sync + 
         go.insert(gid, i);
     }
 
-    go.maybe_sort();
+    go.finalize();
 
     println!(
-        "DONE global order time: {:?}, len: {}",
+        "DONE global order time: {:?}, len: {}, vec len: {}",
         now.elapsed(),
-        go.len()
+        go.len(),
+        sorted_vertices.len()
     );
 
     Ok(())

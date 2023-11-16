@@ -1,7 +1,6 @@
 use std::{
     borrow::Borrow,
     io,
-    io::BufReader,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -32,10 +31,7 @@ use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray},
     chunk::Chunk,
     datatypes::{Field, Schema},
-    io::{
-        ipc::write::{FileWriter, WriteOptions},
-        parquet::read,
-    },
+    io::ipc::write::{FileWriter, WriteOptions},
     offset::OffsetsBuffer,
 };
 use itertools::Itertools;
@@ -48,7 +44,7 @@ use super::{
     global_order::{GlobalMap, GlobalOrder},
     ipc, split_struct_chunk,
     vertex_chunk::{RowOwned, VertexChunk},
-    GraphChunk, GID,
+    GraphChunk,
 };
 
 #[derive(Debug)]
@@ -138,12 +134,12 @@ impl TempColGraphFragment {
         self.edges.property_id(name)
     }
 
-    pub(crate) fn load_from_edge_list<I: IntoIterator<Item = StructArray>>(
+    pub fn load_from_edge_list<G:GlobalOrder, I: IntoIterator<Item = StructArray>>(
         test_dir: &Path,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
-        go: GlobalMap,
+        go: G,
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
@@ -729,27 +725,6 @@ pub(crate) fn load_chunks<GO: GlobalOrder, C: Borrow<GraphChunk>>(
     Ok(())
 }
 
-fn read_vertices_only<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-    dst_col: &str,
-) -> Result<impl Iterator<Item = GID>, Error> {
-    println!("pre sort reading file: {:?}", parquet_file.as_ref());
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
-
-    let schema = schema.filter(|_, field| field.name == src_col || field.name == dst_col);
-
-    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    Ok(reader.flatten().flat_map(|chunk| {
-        array_as_id_iter(&chunk[0])
-            .unwrap()
-            .chain(array_as_id_iter(&chunk[1]).unwrap())
-    }))
-}
-
 #[cfg(test)]
 mod test {
     use crate::{arrow::global_order::GlobalMap, prelude::*};
@@ -822,7 +797,7 @@ mod test {
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
-            go.into(),
+            go,
             0,
             1,
             2,
@@ -1091,7 +1066,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]).into(),
+            GlobalMap::from(vec![1u64, 2u64]),
             0,
             1,
             2,
@@ -1131,7 +1106,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]).into(),
+            GlobalMap::from(vec![1u64, 2u64]),
             0,
             1,
             2,
@@ -1184,7 +1159,7 @@ mod test {
             4,
             2,
             100,
-            GlobalMap::from(1u64..=7u64).into(),
+            GlobalMap::from(1u64..=7u64),
             0,
             1,
             2,
@@ -1246,7 +1221,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64).into(),
+            GlobalMap::from(1u64..=4u64),
             0,
             1,
             2,
@@ -1308,7 +1283,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64).into(),
+            GlobalMap::from(1u64..=4u64),
             0,
             1,
             2,
@@ -1358,7 +1333,7 @@ mod test {
             1,
             1,
             100,
-            GlobalMap::from(1u64..=4u64).into(),
+            GlobalMap::from(1u64..=4u64),
             0,
             1,
             2,
@@ -1420,7 +1395,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..=7u64).into(),
+            GlobalMap::from(1u64..=7u64),
             0,
             1,
             2,
@@ -1490,7 +1465,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..12u64).into(),
+            GlobalMap::from(1u64..12u64),
             0,
             1,
             2,
@@ -1519,7 +1494,7 @@ mod test {
             2,
             2,
             5,
-            GlobalMap::from([0u64, 1u64]).into(),
+            GlobalMap::from([0u64, 1u64]),
             0,
             1,
             2,
@@ -1554,7 +1529,7 @@ mod test {
             2,
             2,
             1,
-            GlobalMap::from([0u64, 1u64, 2u64]).into(),
+            GlobalMap::from([0u64, 1u64, 2u64]),
             0,
             1,
             2,

@@ -13,7 +13,6 @@ use std::{
 
 pub(crate) mod chunked_array;
 pub mod col_graph2;
-pub(crate) mod columnar_graph;
 pub mod edge;
 pub(crate) mod edge_frame_builder;
 pub(crate) mod edges;
@@ -59,18 +58,6 @@ pub enum Error {
 
 unsafe impl Send for Error {} // heed::Error can't be made Send
 
-const OUTBOUND_COLUMN: &str = "outbound";
-const INBOUND_COLUMN: &str = "inbound";
-
-const V_ADDITIONS_COLUMN: &str = "additions";
-const E_ADDITIONS_COLUMN: &str = "additions";
-const E_DELETIONS_COLUMN: &str = "deletions";
-
-const NAME_COLUMN: &str = "name";
-const TEMPORAL_PROPS_COLUMN: &str = "t_props";
-const EDGE_OVERFLOW_COLUMN: &str = "edge_overflow";
-
-const GID_COLUMN: &str = "global_vertex_id";
 const SRC_COLUMN: &str = "src";
 const DST_COLUMN: &str = "dst";
 
@@ -126,10 +113,6 @@ pub(crate) struct GraphChunk {
 }
 
 impl GraphChunk {
-    pub fn new(srcs: Box<dyn Array>, dsts: Box<dyn Array>) -> Self {
-        Self { srcs, dsts }
-    }
-
     pub fn from_chunk(
         chunk: Chunk<Box<dyn Array>>,
         src_col_idx: usize,
@@ -227,10 +210,6 @@ impl GraphChunk {
     fn destinations(&self) -> Result<impl Iterator<Item = GID>, Error> {
         array_as_id_iter(&self.dsts)
     }
-
-    fn len(&self) -> usize {
-        self.srcs.len()
-    }
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
@@ -300,10 +279,10 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // if it exists make sure it's empty
     std::fs::create_dir_all(&graph_dir)?;
 
-    // let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-    // if dir_iter.next().is_some() {
-    //     return Err(Error::GraphDirNotEmpty);
-    // }
+    let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+    if dir_iter.next().is_some() {
+        return Err(Error::GraphDirNotEmpty);
+    }
 
     return Ok(());
 }
