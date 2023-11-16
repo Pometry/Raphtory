@@ -207,6 +207,7 @@ impl Mut {
         graph_name: String,
         new_graph_name: String,
         props: String,
+        is_archive: u8,
         graph_nodes: Vec<String>,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
@@ -260,6 +261,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
+        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         new_subgraph.save_to_file(path)?;
 
