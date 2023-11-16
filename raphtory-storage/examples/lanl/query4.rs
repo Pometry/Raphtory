@@ -175,82 +175,78 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
 
     let pool = thread_pool(NUM_THREADS);
     pool.install(|| {
-        g.all_edges_par(events_1v)
-            .for_each(|edge| {
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
-                let edge_ts = edge.timestamps();
-                let len = event_ids.len();
+        g.all_edges_par(events_1v).for_each(|edge| {
+            let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
+            let edge_ts = edge.timestamps();
+            let len = event_ids.len();
 
-                g
-                    .edges_par(edge.dst(), Direction::OUT, events_1v)
-                    .for_each(|(_, a)| {
-                        let nft_ts = g
-                            .edges_par(a, Direction::IN, nft)
-                            .map(|(eid, b)| {
-                                (
-                                    b,
-                                    g.edge(eid, nft)
-                                        .prop_history::<i64>(src_port_prop_id)
-                                        .filter(|(_, v)| *v == 3128)
-                                        .map(|(t, _)| t)
-                                        .collect_vec(),
-                                )
-                            })
-                            .collect::<Vec<_>>();
+            g.edges_par(edge.dst(), Direction::OUT, events_1v)
+                .for_each(|(_, a)| {
+                    let nft_ts = g
+                        .edges_par(a, Direction::IN, nft)
+                        .map(|(eid, b)| {
+                            (
+                                b,
+                                g.edge(eid, nft)
+                                    .prop_history::<i64>(src_port_prop_id)
+                                    .filter(|(_, v)| *v == 3128)
+                                    .map(|(t, _)| t)
+                                    .collect_vec(),
+                            )
+                        })
+                        .collect::<Vec<_>>();
 
-                        for (i, t) in edge
-                            .prop_items::<i64>(event_id_prop_id_1v)
-                            .unwrap()
-                            .enumerate()
-                            .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
-                        {
-                            for (b, nft_ts) in nft_ts.iter() {
-                                for nft_t in nft_ts {
-                                    for (v, program_t) in event_ids
-                                        .slice(i + 1..len)
-                                        .into_iter()
-                                        .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
-                                    {
-                                        if program_t < t
-                                            || nft_t < &program_t
-                                            || nft_t - t >= WINDOW
-                                        {
-                                            break;
-                                        }
-                                        if v == Some(PROGRAM) {
-                                            intermediate_result.lock()
-                                                .entry((*b, a, *nft_t))
-                                                .and_modify(|v| *v += 1usize)
-                                                .or_insert_with(|| 1);
-                                        }
+                    for (i, t) in edge
+                        .prop_items::<i64>(event_id_prop_id_1v)
+                        .unwrap()
+                        .enumerate()
+                        .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
+                    {
+                        for (b, nft_ts) in nft_ts.iter() {
+                            for nft_t in nft_ts {
+                                for (v, program_t) in event_ids
+                                    .slice(i + 1..len)
+                                    .into_iter()
+                                    .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
+                                {
+                                    if program_t < t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                        break;
                                     }
+                                    if v == Some(PROGRAM) {
+                                        intermediate_result
+                                            .lock()
+                                            .entry((*b, a, *nft_t))
+                                            .and_modify(|v| *v += 1usize)
+                                            .or_insert_with(|| 1);
+                                    }
+                                }
 
-                                    for i in (0..i).rev() {
-                                        let (v, program_t) =
-                                            (event_ids.get(i), edge_ts.get(i).unwrap());
-                                        if program_t != t
-                                            || nft_t < &program_t
-                                            || nft_t - t >= WINDOW
-                                        {
-                                            break;
-                                        }
-                                        if v == Some(PROGRAM) { 
-                                            intermediate_result.lock()
-                                                .entry((*b, a, *nft_t))
-                                                .and_modify(|v| *v += 1usize)
-                                                .or_insert_with(|| 1);
-                                        }
+                                for i in (0..i).rev() {
+                                    let (v, program_t) =
+                                        (event_ids.get(i), edge_ts.get(i).unwrap());
+                                    if program_t != t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                        break;
+                                    }
+                                    if v == Some(PROGRAM) {
+                                        intermediate_result
+                                            .lock()
+                                            .entry((*b, a, *nft_t))
+                                            .and_modify(|v| *v += 1usize)
+                                            .or_insert_with(|| 1);
                                     }
                                 }
                             }
                         }
-                    })
-            })
+                    }
+                })
+        })
     });
 
-    let count = intermediate_result.into_inner().into_par_iter().map(|((b, a, nft_t), count)| {
-        expand_nf2_hop(b, a, nft_t, g, nft, duration) * count
-    }).sum();
+    let count = intermediate_result
+        .into_inner()
+        .into_par_iter()
+        .map(|((b, a, nft_t), count)| expand_nf2_hop(b, a, nft_t, g, nft, duration) * count)
+        .sum();
 
     Some(count)
 }
@@ -267,7 +263,7 @@ fn expand_nf2_hop(
     for (e_id, c) in g
         .edges(b, Direction::OUT, nft_layer)
         .filter(|(_, c)| *c != a && *c != b)
-    {   
+    {
         let edge = g.edge(e_id, nft_layer);
         for (t, dur) in edge
             .prop_history::<i64>(duration_prop_id)

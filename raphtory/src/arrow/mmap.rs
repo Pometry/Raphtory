@@ -6,7 +6,7 @@ use arrow2::{
     io::ipc::{read, write},
     mmap::{mmap_dictionaries_unchecked, mmap_unchecked},
 };
-use memmap2::{Mmap, MmapAsRawDesc, Advice};
+use memmap2::{Advice, Mmap, MmapAsRawDesc};
 use std::{fs::File, path::Path, sync::Arc};
 
 pub fn write_batches<P: AsRef<Path>>(

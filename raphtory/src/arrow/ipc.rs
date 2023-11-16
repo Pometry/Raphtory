@@ -4,9 +4,7 @@ use arrow2::{array::Array, chunk::Chunk, datatypes::Schema, io::ipc::read};
 
 use super::Error;
 
-pub fn read_batch<P: AsRef<Path>>(
-    path: P,
-) -> Result<Chunk<Box<dyn Array>>, Error> {
+pub fn read_batch<P: AsRef<Path>>(path: P) -> Result<Chunk<Box<dyn Array>>, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
     let mut reader = read::FileReader::new(file, meta, None, None);
@@ -14,9 +12,7 @@ pub fn read_batch<P: AsRef<Path>>(
     Ok(chunk)
 }
 
-pub fn read_schema<P: AsRef<Path>>(
-    path: P,
-) -> Result<Schema, Error> {
+pub fn read_schema<P: AsRef<Path>>(path: P) -> Result<Schema, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
     Ok(meta.schema)

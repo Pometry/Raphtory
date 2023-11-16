@@ -21,7 +21,7 @@ pub(crate) struct VertexChunk {
 impl VertexChunk {
     pub(crate) fn new(chunk: Chunk<Box<dyn Array>>) -> Self {
         let columns = chunk.into_arrays().into();
-        VertexChunk { columns}
+        VertexChunk { columns }
     }
 
     pub(crate) fn neighbours_col(&self) -> Option<ListColumn<u64>> {
@@ -59,7 +59,6 @@ impl VertexChunk {
             .map(|x| ArrayRef::from(x.clone()))
             .collect()
     }
-
 }
 
 #[derive(Debug)]

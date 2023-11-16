@@ -111,7 +111,8 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
                     write_temporal_properties(file_path, struct_arr, self.time_col_idx)
                 })
-                .collect::<Result<Vec<_>, Error>>().unwrap(); // TODO: handle error
+                .collect::<Result<Vec<_>, Error>>()
+                .unwrap(); // TODO: handle error
             arrays
         });
 

@@ -16,7 +16,7 @@ use crate::{thread_pool, NUM_THREADS};
 
 const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
-const WINDOW:i64 = 4;
+const WINDOW: i64 = 4;
 
 pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
@@ -29,7 +29,6 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-
                 let mut count = 0;
                 let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
                 let edge_ts = edge.timestamps();
@@ -41,12 +40,16 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                     .enumerate()
                     .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                 {
-                    for (v, program_t) in event_ids.slice(i+1..len).into_iter().zip(edge_ts.slice(i+1..len).into_iter().flatten()) {
+                    for (v, program_t) in event_ids
+                        .slice(i + 1..len)
+                        .into_iter()
+                        .zip(edge_ts.slice(i + 1..len).into_iter().flatten())
+                    {
                         if program_t - t >= WINDOW {
                             break;
                         }
                         if v == Some(PROGRAM) {
-                            count+=1;
+                            count += 1;
                         }
                     }
 
@@ -56,7 +59,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                             break;
                         }
                         if v == Some(PROGRAM) {
-                            count+=1;
+                            count += 1;
                         }
                     }
                 }
