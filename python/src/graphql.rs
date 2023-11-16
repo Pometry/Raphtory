@@ -1,8 +1,6 @@
 use pyo3::{exceptions, prelude::*};
 use raphtory_core::{
-    db::api::view::internal::MaterializedGraph,
-    prelude::Graph,
-    python::{graph::graph::PyGraph, utils::errors::adapt_err_value},
+    db::api::view::internal::MaterializedGraph, python::utils::errors::adapt_err_value,
 };
 use raphtory_graphql::{url_decode_graph, url_encode_graph, RaphtoryServer};
 use std::collections::HashMap;

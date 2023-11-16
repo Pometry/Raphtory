@@ -4,12 +4,12 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
-    python::graph::{edge::PyEdge, vertex::PyVertex, views::graph_view::PyGraphView},
+    python::graph::views::graph_view::PyGraphView,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
         vectorized_graph::VectorizedGraph,
-        Document, DocumentInput, DocumentOps, Embedding, EmbeddingFunction,
+        DocumentInput, DocumentOps, Embedding, EmbeddingFunction,
     },
 };
 use futures_util::future::BoxFuture;

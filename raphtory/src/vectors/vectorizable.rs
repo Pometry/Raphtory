@@ -1,5 +1,4 @@
 use crate::{
-    core::entities::LayerIds,
     db::api::view::internal::IntoDynamic,
     prelude::GraphViewOps,
     vectors::{

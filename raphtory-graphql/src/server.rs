@@ -9,11 +9,7 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
-    db::{
-        api::view::internal::MaterializedGraph,
-        graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
-    },
-    prelude::Graph,
+    db::api::view::internal::MaterializedGraph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorizable::Vectorizable,
