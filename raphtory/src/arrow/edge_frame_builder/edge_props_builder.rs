@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use arrow2::{
-    array::{Array, PrimitiveArray, StructArray},
+    array::{PrimitiveArray, StructArray, self},
     buffer::Buffer,
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
@@ -125,7 +125,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         if arrays.is_empty() {
             Err(Error::NoEdgeLists)
         } else {
-            Ok(ChunkedArray::from_vec(arrays))
+            Ok(arrays.into())
         }
     }
 
