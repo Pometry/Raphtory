@@ -66,10 +66,8 @@ jobs:
         run: choco install sccache
       - name: Start sccache server
         run: sccache --start-server
-      - name: cargo version
-        uses: actions-rs/cargo@v1
-        with:
-          command: rustc --version --verbose
+      - name: Run
+        run: rustc --version --verbose
       - name: Cargo update
         uses: actions-rs/cargo@v1
         with:
