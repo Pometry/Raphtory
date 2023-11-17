@@ -9,12 +9,11 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::{
-        graph::{edge::PyEdge, vertex::PyVertex, views::graph_view::PyGraphView},
+        graph::{edge::PyEdge, vertex::PyVertex},
         utils::PyTime,
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
-        vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
@@ -26,7 +25,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, path::PathBuf, thread};
+use std::{future::Future, thread};
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -86,14 +85,14 @@ impl PyGraphDocument {
     }
 }
 
-struct PyDocumentTemplate {
+pub(crate) struct PyDocumentTemplate {
     node_document: Option<String>,
     edge_document: Option<String>,
     default_template: DefaultTemplate,
 }
 
 impl PyDocumentTemplate {
-    fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
+    pub(crate) fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
         Self {
             node_document,
             edge_document,
@@ -122,10 +121,7 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     properties: Properties<P>,
     name: &str,
 ) -> Box<dyn Iterator<Item = DocumentInput>> {
-    let prop = properties
-        .temporal()
-        .iter()
-        .find(|(key, _)| key.to_string() == name);
+    let prop = properties.temporal().iter().find(|(key, _)| *key == name);
 
     match prop {
         Some((_, prop)) => {
@@ -142,12 +138,12 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     }
 }
 
-type InnerVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
+pub(crate) type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
 
 #[pyclass(name = "VectorisedGraph", frozen)]
-pub struct PyVectorisedGraph(InnerVectorisedGraph);
+pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
-impl IntoPy<PyObject> for InnerVectorisedGraph {
+impl IntoPy<PyObject> for DynamicVectorisedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
     }
@@ -161,27 +157,6 @@ fn translate(window: Window) -> Option<(i64, i64)> {
 
 #[pymethods]
 impl PyVectorisedGraph {
-    #[staticmethod]
-    fn build(
-        graph: &PyGraphView,
-        embedding: &PyFunction,
-        cache: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
-    ) -> PyVectorisedGraph {
-        // FIXME: we should be able to specify templates only for one type of entity: nodes/edges
-        let embedding: Py<PyFunction> = embedding.into();
-        let graph = graph.graph.clone();
-        let cache = cache.map(|cache| PathBuf::from(cache));
-        let template = PyDocumentTemplate::new(node_document, edge_document);
-        spawn_async_task(move || async move {
-            let vectorised_graph = graph
-                .vectorise_with_template(Box::new(embedding.clone()), cache, template)
-                .await;
-            PyVectorisedGraph(vectorised_graph)
-        })
-    }
-
     fn nodes(&self) -> Vec<PyVertex> {
         self.0
             .nodes()
@@ -235,7 +210,7 @@ impl PyVectorisedGraph {
     }
 
     #[pyo3(signature = (hops, window=None))]
-    fn expand(&self, hops: usize, window: Window) -> InnerVectorisedGraph {
+    fn expand(&self, hops: usize, window: Window) -> DynamicVectorisedGraph {
         self.0.expand(hops, translate(window))
     }
 
@@ -245,7 +220,7 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorisedGraph {
+    ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .expand_with_search(&embedding, limit, translate(window))
@@ -255,15 +230,15 @@ impl PyVectorisedGraph {
         &self,
         nodes: Vec<VertexRef>,
         edges: Vec<(VertexRef, VertexRef)>,
-    ) -> InnerVectorisedGraph {
+    ) -> DynamicVectorisedGraph {
         self.0.select(nodes, edges)
     }
 
-    fn select_nodes(&self, nodes: Vec<VertexRef>) -> InnerVectorisedGraph {
+    fn select_nodes(&self, nodes: Vec<VertexRef>) -> DynamicVectorisedGraph {
         self.select(nodes, vec![])
     }
 
-    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> InnerVectorisedGraph {
+    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> DynamicVectorisedGraph {
         self.select(vec![], edges)
     }
 
@@ -273,7 +248,7 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorisedGraph {
+    ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .search_similar_entities(&embedding, limit, translate(window))
@@ -285,7 +260,7 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorisedGraph {
+    ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .search_similar_nodes(&embedding, limit, translate(window))
@@ -297,14 +272,14 @@ impl PyVectorisedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorisedGraph {
+    ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .search_similar_edges(&embedding, limit, translate(window))
     }
 }
 
-fn compute_embedding(vectors: &InnerVectorisedGraph, query: PyQuery) -> Embedding {
+fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
     let embedding = vectors.embedding.clone();
     spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }
@@ -312,7 +287,7 @@ fn compute_embedding(vectors: &InnerVectorisedGraph, query: PyQuery) -> Embeddin
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-fn spawn_async_task<T, F, O>(task: T) -> O
+pub(crate) fn spawn_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,

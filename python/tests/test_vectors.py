@@ -35,7 +35,7 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(3, "node1", "node3", {"doc": "edge2"})
     g.add_edge(4, "node3", "node4", {"doc": "edge3"})
 
-    vg = VectorisedGraph.build(g, embedding, node_document="doc", edge_document="doc")
+    vg = g.vectorise(embedding, node_document="doc", edge_document="doc")
 
     return vg
 
