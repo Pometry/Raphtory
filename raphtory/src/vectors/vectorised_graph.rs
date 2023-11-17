@@ -13,7 +13,7 @@ use std::{
     sync::Arc,
 };
 
-pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
+pub struct VectorisedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) source_graph: G,
     template: Arc<T>,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
@@ -25,7 +25,7 @@ pub struct VectorizedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     empty_vec: Vec<DocumentRef>,
 }
 
-impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorizedGraph<G, T> {
+impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
     fn clone(&self) -> Self {
         Self::new(
             self.source_graph.clone(),
@@ -38,7 +38,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorizedGraph<G, T> {
     }
 }
 
-impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
+impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
         template: Arc<T>,
@@ -268,27 +268,36 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorizedGraph<G, T> {
         match document.entity_id {
             EntityId::Node { id } => {
                 let self_docs = self.node_documents.get(&document.entity_id).unwrap();
-                let edges = windowed_graph.vertex(id).unwrap().edges();
-                let edge_docs = edges.flat_map(|edge| {
-                    let edge_id = EntityId::from_edge(&edge);
-                    self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
-                });
-                Box::new(
-                    chain!(self_docs, edge_docs)
-                        .filter(move |doc| doc.exists_on_window(windowed_graph, window)),
-                )
+                match windowed_graph.vertex(id) {
+                    None => Box::new(std::iter::empty()),
+                    Some(vertex) => {
+                        let edges = vertex.edges();
+                        let edge_docs = edges.flat_map(|edge| {
+                            let edge_id = EntityId::from_edge(&edge);
+                            self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
+                        });
+                        Box::new(
+                            chain!(self_docs, edge_docs)
+                                .filter(move |doc| doc.exists_on_window(windowed_graph, window)),
+                        )
+                    }
+                }
             }
             EntityId::Edge { src, dst } => {
                 let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
-                let edge = windowed_graph.edge(src, dst).unwrap();
-                let src_id = EntityId::from_node(&edge.src());
-                let dst_id = EntityId::from_node(&edge.dst());
-                let src_docs = self.node_documents.get(&src_id).unwrap();
-                let dst_docs = self.node_documents.get(&dst_id).unwrap();
-                Box::new(
-                    chain!(self_docs, src_docs, dst_docs)
-                        .filter(move |doc| doc.exists_on_window(windowed_graph, window)),
-                )
+                match windowed_graph.edge(src, dst) {
+                    None => Box::new(std::iter::empty()),
+                    Some(edge) => {
+                        let src_id = EntityId::from_node(&edge.src());
+                        let dst_id = EntityId::from_node(&edge.dst());
+                        let src_docs = self.node_documents.get(&src_id).unwrap();
+                        let dst_docs = self.node_documents.get(&dst_id).unwrap();
+                        Box::new(
+                            chain!(self_docs, src_docs, dst_docs)
+                                .filter(move |doc| doc.exists_on_window(windowed_graph, window)),
+                        )
+                    }
+                }
             }
         }
     }
@@ -307,10 +316,6 @@ where
 {
     let selection_set: HashSet<DocumentRef> =
         HashSet::from_iter(selection.iter().map(|(doc, _)| doc.clone()));
-
-    let extension = extension.into_iter().collect_vec(); // TODO: remove this
-    dbg!(&extension);
-
     let new_docs = extension
         .into_iter()
         .unique_by(|(doc, _)| doc.clone())

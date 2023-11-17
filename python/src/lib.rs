@@ -16,7 +16,7 @@ use raphtory_core::python::{
         algorithms::*,
         graph_gen::*,
         graph_loader::*,
-        vectors::{PyGraphDocument, PyVectorizedGraph},
+        vectors::{PyGraphDocument, PyVectorisedGraph},
     },
 };
 
@@ -131,7 +131,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     // VECTORS
     let vectors_module = PyModule::new(py, "vectors")?;
-    vectors_module.add_class::<PyVectorizedGraph>()?;
+    vectors_module.add_class::<PyVectorisedGraph>()?;
     vectors_module.add_class::<PyGraphDocument>()?;
     m.add_submodule(vectors_module)?;
 

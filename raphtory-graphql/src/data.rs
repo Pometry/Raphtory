@@ -8,7 +8,7 @@ use raphtory::{
     },
     prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::{document_template::DocumentTemplate, vectorized_graph::VectorizedGraph},
+    vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -18,12 +18,12 @@ use std::{
 use walkdir::WalkDir;
 
 pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
-pub(crate) type DynamicVectorizedGraph = VectorizedGraph<MaterializedGraph, DynamicTemplate>;
+pub(crate) type DynamicVectorisedGraph = VectorisedGraph<MaterializedGraph, DynamicTemplate>;
 
 #[derive(Default)]
 pub(crate) struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, DynamicVectorizedGraph>>,
+    pub(crate) vector_stores: RwLock<HashMap<String, DynamicVectorisedGraph>>,
 }
 
 impl Data {

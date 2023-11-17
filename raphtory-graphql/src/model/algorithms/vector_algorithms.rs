@@ -1,5 +1,5 @@
 use crate::{
-    data::DynamicVectorizedGraph,
+    data::DynamicVectorisedGraph,
     model::algorithms::{
         algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint,
         similarity_search::SimilaritySearch, RegisterFunction,
@@ -18,11 +18,11 @@ pub static VECTOR_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub struct VectorAlgorithms {
-    pub graph: DynamicVectorizedGraph,
+    pub graph: DynamicVectorisedGraph,
 }
 
-impl From<DynamicVectorizedGraph> for VectorAlgorithms {
-    fn from(graph: DynamicVectorizedGraph) -> Self {
+impl From<DynamicVectorisedGraph> for VectorAlgorithms {
+    fn from(graph: DynamicVectorisedGraph) -> Self {
         Self { graph }
     }
 }

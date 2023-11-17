@@ -9,8 +9,8 @@ pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
 pub mod splitting;
-pub mod vectorizable;
-pub mod vectorized_graph;
+pub mod vectorisable;
+pub mod vectorised_graph;
 
 pub type Embedding = Vec<f32>;
 
@@ -116,7 +116,7 @@ mod vector_tests {
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
             document_template::DocumentTemplate, embeddings::openai_embedding,
-            graph_entity::GraphEntity, vectorizable::Vectorizable,
+            graph_entity::GraphEntity, vectorisable::Vectorisable,
         },
     };
     use dotenv::dotenv;
@@ -166,20 +166,20 @@ mod vector_tests {
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         // the following succeeds with no cache set up
-        g.vectorize(Box::new(fake_embedding), None).await;
+        g.vectorise(Box::new(fake_embedding), None).await;
 
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
         let _ = remove_file(path);
 
         // the following creates the embeddings, and store them on the cache
-        g.vectorize(Box::new(fake_embedding), Some(PathBuf::from(path)))
+        g.vectorise(Box::new(fake_embedding), Some(PathBuf::from(path)))
             .await;
 
         println!("now the embeddings should be already in the cache");
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
-        g.vectorize(Box::new(panicking_embedding), Some(PathBuf::from(path)))
+        g.vectorise(Box::new(panicking_embedding), Some(PathBuf::from(path)))
             .await;
     }
 
@@ -189,7 +189,7 @@ mod vector_tests {
     async fn test_empty_graph() {
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
-        let vectors = g.vectorize(Box::new(fake_embedding), Some(cache)).await;
+        let vectors = g.vectorise(Box::new(fake_embedding), Some(cache)).await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
             .search_similar_entities(&embedding, 10, None)
@@ -266,7 +266,7 @@ age: 30"###;
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         let vectors = g
-            .vectorize_with_template(
+            .vectorise_with_template(
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-multi-test")),
                 FakeMultiDocumentTemplate,
@@ -318,7 +318,7 @@ age: 30"###;
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
-            .vectorize_with_template(
+            .vectorise_with_template(
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
                 FakeTemplateWithIntervals,
@@ -394,7 +394,7 @@ age: 30"###;
 
         dotenv().ok();
         let vectors = g
-            .vectorize_with_template(
+            .vectorise_with_template(
                 Box::new(openai_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
                 CustomTemplate,

@@ -2,7 +2,7 @@ use crate::{
     data::Data,
     model::graph::{
         graph::{GqlGraph, GraphMeta},
-        vectorized_graph::GqlVectorizedGraph,
+        vectorised_graph::GqlVectorisedGraph,
     },
 };
 use async_graphql::Context;
@@ -65,7 +65,7 @@ impl QueryRoot {
         Some(GqlGraph::new(g.into_dynamic_indexed()))
     }
 
-    async fn vectorized_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorizedGraph> {
+    async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.vector_stores.read().get(name).cloned()?;
         Some(g.into())

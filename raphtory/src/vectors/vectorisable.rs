@@ -6,7 +6,7 @@ use crate::{
         document_template::{DefaultTemplate, DocumentTemplate},
         embedding_cache::EmbeddingCache,
         entity_id::EntityId,
-        vectorized_graph::VectorizedGraph,
+        vectorised_graph::VectorisedGraph,
         EmbeddingFunction, Lifespan,
     },
 };
@@ -25,38 +25,38 @@ struct IndexedDocumentInput {
 }
 
 #[async_trait(?Send)]
-pub trait Vectorizable<G: GraphViewOps> {
-    async fn vectorize(
+pub trait Vectorisable<G: GraphViewOps> {
+    async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
-    ) -> VectorizedGraph<G, DefaultTemplate>;
+    ) -> VectorisedGraph<G, DefaultTemplate>;
 
-    async fn vectorize_with_template<T: DocumentTemplate<G>>(
+    async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         template: T,
-    ) -> VectorizedGraph<G, T>;
+    ) -> VectorisedGraph<G, T>;
 }
 
 #[async_trait(?Send)]
-impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
-    async fn vectorize(
+impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
+    async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>, // TODO: make this optional maybe
-    ) -> VectorizedGraph<G, DefaultTemplate> {
-        self.vectorize_with_template(embedding, cache_file, DefaultTemplate)
+    ) -> VectorisedGraph<G, DefaultTemplate> {
+        self.vectorise_with_template(embedding, cache_file, DefaultTemplate)
             .await
     }
 
-    async fn vectorize_with_template<T: DocumentTemplate<G>>(
+    async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         template: T,
-    ) -> VectorizedGraph<G, T> {
+    ) -> VectorisedGraph<G, T> {
         let nodes = self.vertices().iter().flat_map(|vertex| {
             template
                 .node(&vertex)
@@ -85,7 +85,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
         cache.iter().for_each(|cache| cache.dump_to_disk());
 
-        VectorizedGraph::new(
+        VectorisedGraph::new(
             self.clone(),
             template.into(),
             embedding.into(),

@@ -15,8 +15,8 @@ use crate::{
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
-        vectorizable::Vectorizable,
-        vectorized_graph::VectorizedGraph,
+        vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -143,14 +143,14 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     }
 }
 
-type InnerVectorizedGraph = VectorizedGraph<DynamicGraph, PyDocumentTemplate>;
+type InnerVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
 
-#[pyclass(name = "VectorizedGraph", frozen)]
-pub struct PyVectorizedGraph(InnerVectorizedGraph);
+#[pyclass(name = "VectorisedGraph", frozen)]
+pub struct PyVectorisedGraph(InnerVectorisedGraph);
 
-impl IntoPy<PyObject> for InnerVectorizedGraph {
+impl IntoPy<PyObject> for InnerVectorisedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(py, PyVectorizedGraph(self)).unwrap().into_py(py)
+        Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
     }
 }
 
@@ -161,7 +161,7 @@ fn translate(window: Window) -> Option<(i64, i64)> {
 }
 
 #[pymethods]
-impl PyVectorizedGraph {
+impl PyVectorisedGraph {
     #[staticmethod]
     fn build(
         graph: &PyGraphView,
@@ -169,17 +169,17 @@ impl PyVectorizedGraph {
         cache: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
-    ) -> PyVectorizedGraph {
+    ) -> PyVectorisedGraph {
         // FIXME: we should be able to specify templates only for one type of entity: nodes/edges
         let embedding: Py<PyFunction> = embedding.into();
         let graph = graph.graph.clone();
         let cache = cache.map(|cache| PathBuf::from(cache));
         let template = PyDocumentTemplate::new(node_document, edge_document);
         spawn_async_task(move || async move {
-            let vectorized_graph = graph
-                .vectorize_with_template(Box::new(embedding.clone()), cache, template)
+            let vectorised_graph = graph
+                .vectorise_with_template(Box::new(embedding.clone()), cache, template)
                 .await;
-            PyVectorizedGraph(vectorized_graph)
+            PyVectorisedGraph(vectorised_graph)
         })
     }
 
@@ -236,7 +236,7 @@ impl PyVectorizedGraph {
     }
 
     #[pyo3(signature = (hops, window=None))]
-    fn expand(&self, hops: usize, window: Window) -> InnerVectorizedGraph {
+    fn expand(&self, hops: usize, window: Window) -> InnerVectorisedGraph {
         self.0.expand(hops, translate(window))
     }
 
@@ -246,7 +246,7 @@ impl PyVectorizedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorizedGraph {
+    ) -> InnerVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .expand_with_search(&embedding, limit, translate(window))
@@ -256,15 +256,15 @@ impl PyVectorizedGraph {
         &self,
         nodes: Vec<VertexRef>,
         edges: Vec<(VertexRef, VertexRef)>,
-    ) -> InnerVectorizedGraph {
+    ) -> InnerVectorisedGraph {
         self.0.select(nodes, edges)
     }
 
-    fn select_nodes(&self, nodes: Vec<VertexRef>) -> InnerVectorizedGraph {
+    fn select_nodes(&self, nodes: Vec<VertexRef>) -> InnerVectorisedGraph {
         self.select(nodes, vec![])
     }
 
-    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> InnerVectorizedGraph {
+    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> InnerVectorisedGraph {
         self.select(vec![], edges)
     }
 
@@ -274,7 +274,7 @@ impl PyVectorizedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorizedGraph {
+    ) -> InnerVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .search_similar_entities(&embedding, limit, translate(window))
@@ -286,7 +286,7 @@ impl PyVectorizedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorizedGraph {
+    ) -> InnerVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .search_similar_nodes(&embedding, limit, translate(window))
@@ -298,14 +298,14 @@ impl PyVectorizedGraph {
         query: PyQuery,
         limit: usize,
         window: Window,
-    ) -> InnerVectorizedGraph {
+    ) -> InnerVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
             .search_similar_edges(&embedding, limit, translate(window))
     }
 }
 
-fn compute_embedding(vectors: &InnerVectorizedGraph, query: PyQuery) -> Embedding {
+fn compute_embedding(vectors: &InnerVectorisedGraph, query: PyQuery) -> Embedding {
     let embedding = vectors.embedding.clone();
     spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }

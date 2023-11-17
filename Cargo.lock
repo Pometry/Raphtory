@@ -2966,7 +2966,6 @@ dependencies = [
  "base64 0.21.2",
  "bincode",
  "chrono",
- "clap 4.3.11",
  "dotenv",
  "dynamic-graphql",
  "futures-util",
