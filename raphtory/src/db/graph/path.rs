@@ -1,13 +1,16 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
         utils::time::IntoTime,
         Direction,
     },
     db::{
         api::{
             properties::Properties,
-            view::{internal::extend_filter, BoxedIter, Layer, LayerOps},
+            view::{
+                internal::{extend_filter, Base},
+                BaseVertexViewOps, BoxedIter, IntoDynBoxed, Layer, LayerOps,
+            },
         },
         graph::{
             edge::EdgeView,
@@ -17,389 +20,263 @@ use crate::{
     },
     prelude::*,
 };
+use neo4rs::Path;
 use std::{iter, sync::Arc};
 
-#[derive(Copy, Clone)]
-pub enum Operations {
-    Neighbours {
-        dir: Direction,
-    },
-    NeighboursWindow {
-        dir: Direction,
-        start: i64,
-        end: i64,
-    },
-}
-
-impl Operations {
-    fn op<G: GraphViewOps>(
-        self,
-        graph: G,
-        iter: Box<dyn Iterator<Item = VID> + Send>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        let layer_ids = graph.layer_ids();
-        let edge_filter = graph.edge_filter().cloned();
-        match self {
-            Operations::Neighbours { dir } => Box::new(iter.flat_map(move |v| {
-                graph.neighbours(v, dir, layer_ids.clone(), edge_filter.as_ref())
-            })),
-            Operations::NeighboursWindow { dir, start, end } => {
-                let graph1 = graph.clone();
-                let filter = Some(extend_filter(edge_filter, move |e, l| {
-                    graph1.include_edge_window(e, start..end, l)
-                }));
-                Box::new(iter.flat_map(move |v| {
-                    graph.neighbours(v, dir, layer_ids.clone(), filter.as_ref())
-                }))
-            }
-        }
-    }
-}
-
+pub(crate) type Operation = Arc<dyn Fn(VID) -> BoxedIter<VID> + Send + Sync>;
 #[derive(Clone)]
-pub struct PathFromGraph<G: GraphViewOps> {
-    pub graph: G,
-    pub operations: Arc<Vec<Operations>>,
+pub struct PathFromGraph<G: GraphViewOps, GH: GraphViewOps> {
+    pub graph: GH,
+    base_graph: G,
+    op: Operation,
 }
 
-impl<G: GraphViewOps> PathFromGraph<G> {
-    pub fn new(graph: G, operation: Operations) -> PathFromGraph<G> {
+impl<G: GraphViewOps> PathFromGraph<G, G> {
+    pub fn new<OP: Fn(VID) -> BoxedIter<VID> + Send + Sync>(graph: G, op: OP) -> Self {
+        let base_graph = graph.clone();
+        let op: Operation = Arc::new(op);
         PathFromGraph {
             graph,
-            operations: Arc::new(vec![operation]),
-        }
-    }
-
-    pub fn iter(&self) -> Box<dyn Iterator<Item = PathFromVertex<G>> + Send> {
-        let g = self.graph.clone();
-        let ops = self.operations.clone();
-        Box::new(
-            g.vertex_refs(g.layer_ids(), g.edge_filter())
-                .map(move |v| PathFromVertex {
-                    graph: g.clone(),
-                    vertex: v,
-                    operations: ops.clone(),
-                }),
-        )
-    }
-}
-
-impl<G: GraphViewOps> VertexViewOps for PathFromGraph<G> {
-    type Graph = G;
-    type ValueType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
-    type PathType<'a> = Self where Self: 'a;
-    type EList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send>;
-
-    fn id(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = u64> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.id()))
-    }
-
-    fn name(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = String> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.name()))
-    }
-
-    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        Box::new(self.iter().map(|it| it.earliest_time()))
-    }
-
-    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        Box::new(self.iter().map(|it| it.latest_time()))
-    }
-
-    fn history(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Vec<i64>> + Send>> + Send> {
-        Box::new(self.iter().map(move |it| it.history()))
-    }
-
-    fn properties(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = Properties<VertexView<G>>> + Send>> + Send>
-    {
-        Box::new(self.iter().map(move |it| it.properties()))
-    }
-
-    fn degree(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.degree()))
-    }
-
-    fn in_degree(&self) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.in_degree()))
-    }
-
-    fn out_degree(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = usize> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.out_degree()))
-    }
-
-    fn edges(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.edges()))
-    }
-
-    fn in_edges(
-        &self,
-    ) -> Box<dyn Iterator<Item = Box<dyn Iterator<Item = EdgeView<G>> + Send>> + Send> {
-        Box::new(self.iter().map(|it| it.in_edges()))
-    }
-
-    fn out_edges(&self) -> BoxedIter<BoxedIter<EdgeView<G>>> {
-        Box::new(self.iter().map(|it| it.out_edges()))
-    }
-
-    fn neighbours(&self) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        let dir = Direction::BOTH;
-        new_ops.push(Operations::Neighbours { dir });
-        Self {
-            graph: self.graph.clone(),
-            operations: Arc::new(new_ops),
-        }
-    }
-
-    fn in_neighbours(&self) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        let dir = Direction::IN;
-        new_ops.push(Operations::Neighbours { dir });
-        Self {
-            graph: self.graph.clone(),
-            operations: Arc::new(new_ops),
-        }
-    }
-
-    fn out_neighbours(&self) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        let dir = Direction::OUT;
-        new_ops.push(Operations::Neighbours { dir });
-        Self {
-            graph: self.graph.clone(),
-            operations: Arc::new(new_ops),
+            base_graph,
+            op,
         }
     }
 }
 
-impl<G: GraphViewOps> TimeOps for PathFromGraph<G> {
-    type WindowedViewType = PathFromGraph<WindowedGraph<G>>;
-
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
+impl<G: GraphViewOps, GH: GraphViewOps> PathFromGraph<G, GH> {
+    fn base_iter(&self) -> BoxedIter<VID> {
+        self.graph
+            .vertex_refs(self.graph.layer_ids(), self.graph.edge_filter())
     }
 
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+    fn filter_one_hop<GHH: GraphViewOps>(&self, graph: GHH) -> PathFromGraph<G, GHH> {
+        let base_graph = self.base_graph.clone();
+        let op = self.op.clone();
         PathFromGraph {
-            graph: self.graph.window(start, end),
-            operations: self.operations.clone(),
+            graph,
+            base_graph,
+            op,
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = PathFromVertex<G, GH>> + Send {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        let op = self.op.clone();
+        self.base_iter().map(move |vertex| {
+            PathFromVertex::new_one_hop_filtered(
+                base_graph.clone(),
+                graph.clone(),
+                vertex,
+                op.clone(),
+            )
+        })
+    }
+
+    pub fn iter_refs(&self) -> impl Iterator<Item = BoxedIter<VID>> + Send {
+        let op = self.op.clone();
+        self.base_iter().map(move |vid| op(vid))
     }
 }
 
-impl<G: GraphViewOps> LayerOps for PathFromGraph<G> {
-    type LayeredViewType = PathFromGraph<LayeredGraph<G>>;
+impl<G: GraphViewOps, GH: GraphViewOps> BaseVertexViewOps for PathFromGraph<G, GH> {
+    type BaseGraph = G;
+    type Graph = GH;
+    type ValueType<T> = BoxedIter<BoxedIter<T>>;
+    type PropType = VertexView<GH, GH>;
+    type PathType = PathFromGraph<G, G>;
+    type Edge = EdgeView<G>;
+    type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
 
-    fn default_layer(&self) -> Self::LayeredViewType {
-        PathFromGraph {
-            graph: self.graph.default_layer(),
-            operations: self.operations.clone(),
-        }
+    fn map<O, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send>(&self, op: F) -> Self::ValueType<O> {
+        let graph = self.graph.clone();
+        self.iter_refs()
+            .map(move |it| it.map(move |vertex| op(&graph, vertex)).into_dyn_boxed())
+            .into_dyn_boxed()
     }
 
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        Some(PathFromGraph {
-            graph: self.graph.layer(name)?,
-            operations: self.operations.clone(),
+    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
+        self.map(|g, v| Properties::new(VertexView::new_internal(g.clone(), v)))
+    }
+
+    fn map_edges<
+        I: Iterator<Item = EdgeRef> + Send,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+    >(
+        &self,
+        op: F,
+    ) -> Self::EList {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        self.iter_refs()
+            .map(move |it| {
+                it.flat_map(move |vertex| {
+                    op(&graph, vertex).map(|edge| EdgeView::new(base_graph.clone(), edge))
+                })
+                .into_dyn_boxed()
+            })
+            .into_dyn_boxed()
+    }
+
+    fn hop<
+        I: Iterator<Item = VID> + Send,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+    >(
+        &self,
+        op: F,
+    ) -> Self::PathType {
+        let old_op = self.op.clone();
+        let graph = self.graph.clone();
+        PathFromGraph::new(self.base_graph.clone(), move |v| {
+            Box::new(old_op(v).flat_map(move |vv| op(&graph, vv)))
         })
     }
 }
 
-#[derive(Clone)]
-pub struct PathFromVertex<G: GraphViewOps> {
-    pub graph: G,
-    pub vertex: VID,
-    pub operations: Arc<Vec<Operations>>,
+impl<G: GraphViewOps, GH: GraphViewOps> IntoIterator for PathFromGraph<G, GH> {
+    type Item = PathFromVertex<G, GH>;
+    type IntoIter = BoxedIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter().into_dyn_boxed()
+    }
 }
 
-impl<G: GraphViewOps> PathFromVertex<G> {
-    pub fn iter_refs(&self) -> Box<dyn Iterator<Item = VID> + Send> {
-        let init: Box<dyn Iterator<Item = VID> + Send> = Box::new(iter::once(self.vertex));
-        let g = self.graph.clone();
-        let ops = self.operations.clone();
-        let iter = ops
-            .iter()
-            .fold(init, |it, op| Box::new(op.op(g.clone(), it)));
-        Box::new(iter)
-    }
+#[derive(Clone)]
+pub struct PathFromVertex<G: GraphViewOps, GH: GraphViewOps> {
+    pub graph: GH,
+    base_graph: G,
+    pub vertex: VID,
+    pub op: Operation,
+}
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
-        let g = self.graph.clone();
-        let iter = self
-            .iter_refs()
-            .map(move |v| VertexView::new_internal(g.clone(), v));
-        Box::new(iter)
-    }
-
-    pub fn new<V: Into<VertexRef>>(
+impl<G: GraphViewOps> PathFromVertex<G, G> {
+    pub(crate) fn new<V: Into<VertexRef>, OP: Fn(VID) -> BoxedIter<VID> + Send + Sync>(
         graph: G,
         vertex: V,
-        operation: Operations,
-    ) -> PathFromVertex<G> {
-        let v = graph.internalise_vertex_unchecked(vertex.into());
+        op: OP,
+    ) -> PathFromVertex<G, G> {
+        let vertex = graph.internalise_vertex_unchecked(vertex.into());
+        let base_graph = graph.clone();
+        let op: Operation = Arc::new(op);
+        PathFromVertex {
+            base_graph,
+            graph,
+            vertex,
+            op,
+        }
+    }
+}
+
+impl<G: GraphViewOps, GH: GraphViewOps> PathFromVertex<G, GH> {
+    pub fn iter_refs(&self) -> BoxedIter<VID> {
+        let op = &self.op;
+        op(self.vertex)
+    }
+
+    pub fn iter(&self) -> BoxedIter<VertexView<G, GH>> {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        let iter = self.iter_refs().map(move |vertex| {
+            VertexView::new_one_hop_filtered(base_graph.clone(), graph.clone(), vertex)
+        });
+        Box::new(iter)
+    }
+    fn filter_one_hop<GHH: GraphViewOps>(&self, graph: GHH) -> PathFromVertex<G, GHH> {
+        let base_graph = self.base_graph.clone();
+        let op = self.op.clone();
+        let vertex = self.vertex;
         PathFromVertex {
             graph,
-            vertex: v,
-            operations: Arc::new(vec![operation]),
+            base_graph,
+            vertex,
+            op,
         }
     }
 
-    pub fn neighbours_window(&self, dir: Direction, start: i64, end: i64) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        new_ops.push(Operations::NeighboursWindow { dir, start, end });
+    pub(crate) fn new_one_hop_filtered(
+        base_graph: G,
+        graph: GH,
+        vertex: VID,
+        op: Operation,
+    ) -> Self {
         Self {
-            graph: self.graph.clone(),
-            vertex: self.vertex,
-            operations: Arc::new(new_ops),
+            base_graph,
+            graph,
+            vertex,
+            op,
         }
     }
 }
 
-impl<G: GraphViewOps> VertexViewOps for PathFromVertex<G> {
-    type Graph = G;
+impl<G: GraphViewOps, GH: GraphViewOps> BaseVertexViewOps for PathFromVertex<G, GH> {
+    type BaseGraph = G;
+    type Graph = GH;
     type ValueType<T> = BoxedIter<T>;
-    type PathType<'a> = Self where Self: 'a;
+    type PropType = VertexView<GH, GH>;
+    type PathType = PathFromVertex<G, G>;
+    type Edge = EdgeView<G>;
     type EList = BoxedIter<EdgeView<G>>;
 
-    fn id(&self) -> Self::ValueType<u64> {
-        self.iter().id()
+    fn map<O, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send>(&self, op: F) -> Self::ValueType<O> {
+        let graph = self.graph.clone();
+        Box::new(self.iter_refs().map(move |vertex| op(&graph, vertex)))
     }
 
-    fn name(&self) -> Self::ValueType<String> {
-        self.iter().name()
+    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
+        self.map(|g, v| Properties::new(VertexView::new_internal(g.clone(), v)))
     }
 
-    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.iter().earliest_time()
+    fn map_edges<
+        I: Iterator<Item = EdgeRef> + Send,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+    >(
+        &self,
+        op: F,
+    ) -> Self::EList {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        Box::new(self.iter_refs().flat_map(move |vertex| {
+            op(&graph, vertex).map(move |edge| EdgeView::new(base_graph.clone(), edge))
+        }))
     }
 
-    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.iter().latest_time()
-    }
+    fn hop<
+        I: Iterator<Item = VID> + Send,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+    >(
+        &self,
+        op: F,
+    ) -> Self::PathType {
+        let old_op = self.op.clone();
+        let graph = self.graph.clone();
 
-    fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.iter().history()
-    }
-
-    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
-        self.iter().properties()
-    }
-
-    fn degree(&self) -> Self::ValueType<usize> {
-        self.iter().degree()
-    }
-
-    fn in_degree(&self) -> Self::ValueType<usize> {
-        self.iter().in_degree()
-    }
-
-    fn out_degree(&self) -> Self::ValueType<usize> {
-        self.iter().out_degree()
-    }
-
-    fn edges(&self) -> Self::EList {
-        self.iter().edges()
-    }
-
-    fn in_edges(&self) -> Self::EList {
-        self.iter().in_edges()
-    }
-
-    fn out_edges(&self) -> Self::EList {
-        self.iter().out_edges()
-    }
-
-    fn neighbours(&self) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        let dir = Direction::BOTH;
-        new_ops.push(Operations::Neighbours { dir });
-        Self {
-            graph: self.graph.clone(),
-            vertex: self.vertex,
-            operations: Arc::new(new_ops),
-        }
-    }
-
-    fn in_neighbours(&self) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        let dir = Direction::IN;
-        new_ops.push(Operations::Neighbours { dir });
-        Self {
-            graph: self.graph.clone(),
-            vertex: self.vertex,
-            operations: Arc::new(new_ops),
-        }
-    }
-
-    fn out_neighbours(&self) -> Self {
-        let mut new_ops = (*self.operations).clone();
-        let dir = Direction::OUT;
-        new_ops.push(Operations::Neighbours { dir });
-        Self {
-            graph: self.graph.clone(),
-            vertex: self.vertex,
-            operations: Arc::new(new_ops),
-        }
-    }
-}
-
-impl<G: GraphViewOps> TimeOps for PathFromVertex<G> {
-    type WindowedViewType = PathFromVertex<WindowedGraph<G>>;
-
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
-    }
-
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        PathFromVertex {
-            graph: self.graph.window(start, end),
-            vertex: self.vertex,
-            operations: self.operations.clone(),
-        }
-    }
-}
-
-impl<G: GraphViewOps> LayerOps for PathFromVertex<G> {
-    type LayeredViewType = PathFromVertex<LayeredGraph<G>>;
-
-    fn default_layer(&self) -> Self::LayeredViewType {
-        PathFromVertex {
-            graph: self.graph.default_layer(),
-            vertex: self.vertex,
-            operations: self.operations.clone(),
-        }
-    }
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        Some(PathFromVertex {
-            graph: self.graph.layer(name)?,
-            vertex: self.vertex,
-            operations: self.operations.clone(),
+        PathFromVertex::new(self.base_graph.clone(), self.vertex, move |v| {
+            Box::new(old_op(v).flat_map(move |vv| op(&graph, vv)))
         })
     }
 }
 
-impl<G: GraphViewOps> IntoIterator for PathFromVertex<G> {
-    type Item = VertexView<G>;
-    type IntoIter = Box<dyn Iterator<Item = VertexView<G>> + Send>;
+impl<G: GraphViewOps, GH: GraphViewOps> IntoIterator for PathFromVertex<G, GH> {
+    type Item = VertexView<G, GH>;
+    type IntoIter = BoxedIter<VertexView<G, GH>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::*;
+
+    #[test]
+    fn test_vertex_view_ops() {
+        let g = Graph::new();
+
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let n = Vec::from_iter(g.vertex(1).unwrap().neighbours().id());
+        assert_eq!(n, [2])
     }
 }

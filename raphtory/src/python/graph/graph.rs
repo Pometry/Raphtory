@@ -146,7 +146,7 @@ impl PyGraph {
         timestamp: PyTime,
         id: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<VertexView<Graph>, GraphError> {
+    ) -> Result<VertexView<Graph, Graph>, GraphError> {
         self.graph
             .add_vertex(timestamp, id, properties.unwrap_or_default())
     }

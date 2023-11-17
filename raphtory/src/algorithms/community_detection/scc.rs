@@ -105,7 +105,7 @@ where
     }
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
+    let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, &G, _, _>| {
         let id = vv.id();
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();

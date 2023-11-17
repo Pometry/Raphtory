@@ -39,7 +39,7 @@ pub trait AdditionOps: GraphViewOps {
         t: T,
         v: V,
         props: PI,
-    ) -> Result<VertexView<Self>, GraphError>;
+    ) -> Result<VertexView<Self, Self>, GraphError>;
 
     fn add_vertex_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
@@ -47,7 +47,7 @@ pub trait AdditionOps: GraphViewOps {
         fmt: &str,
         v: V,
         props: PI,
-    ) -> Result<VertexView<Self>, GraphError> {
+    ) -> Result<VertexView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_vertex(time, v, props)
     }
@@ -101,7 +101,7 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         t: T,
         v: V,
         props: PI,
-    ) -> Result<VertexView<G>, GraphError> {
+    ) -> Result<VertexView<G, G>, GraphError> {
         let properties = props.collect_properties(
             |name, dtype| self.resolve_vertex_property(name, dtype, false),
             |prop| self.process_prop_value(prop),

@@ -74,7 +74,7 @@ impl<G: GraphViewOps> PartialEq for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
+impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G, G>> for EdgeView<G> {
     fn graph(&self) -> G {
         self.graph.clone()
     }
@@ -83,7 +83,7 @@ impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
         self.edge
     }
 
-    fn new_vertex(&self, v: VID) -> VertexView<G> {
+    fn new_vertex(&self, v: VID) -> VertexView<G, G> {
         VertexView::new_internal(self.graph(), v)
     }
 
@@ -259,7 +259,7 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
 
 impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
     type Graph = G;
-    type Vertex = VertexView<G>;
+    type Vertex = VertexView<G, G>;
     type EList = BoxedIter<Self>;
 
     fn explode(&self) -> Self::EList {
@@ -360,12 +360,12 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
 /// connected to the edges inside the iterator.
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     type Graph = G;
-    type Vertex = VertexView<G>;
+    type Vertex = VertexView<G, G>;
     type Edge = EdgeView<G>;
     type ValueType<T> = T;
 
     /// Specifies the associated type for an iterator over vertices.
-    type VList = Box<dyn Iterator<Item = VertexView<G>> + Send>;
+    type VList = Box<dyn Iterator<Item = VertexView<G, G>> + Send>;
 
     /// Specifies the associated type for the iterator over edges.
     type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
@@ -461,10 +461,10 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
 
 impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
     type Graph = G;
-    type Vertex = VertexView<G>;
+    type Vertex = VertexView<G, G>;
     type Edge = EdgeView<G>;
     type ValueType<T> = Box<dyn Iterator<Item = T> + Send>;
-    type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
+    type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G, G>> + Send>> + Send>;
     type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {

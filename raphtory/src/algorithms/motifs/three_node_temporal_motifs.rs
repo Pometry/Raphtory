@@ -86,12 +86,13 @@ impl Zero for MotifCounter {
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G>(
-    evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
+pub fn star_motif_count<G, GH>(
+    evv: &EvalVertexView<G, GH, ComputeStateVec, MotifCounter>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
     G: GraphViewOps,
+    GH: GraphViewOps,
 {
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
@@ -124,13 +125,14 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G>(
+pub fn twonode_motif_count<G, GH>(
     graph: &G,
-    evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
+    evv: &EvalVertexView<G, GH, ComputeStateVec, MotifCounter>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
     G: GraphViewOps,
+    GH: GraphViewOps,
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
@@ -196,7 +198,12 @@ where
     ctx.agg(neighbours_set);
 
     let step1 = ATask::new(
-        move |u: &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
+        move |u: &mut EvalVertexView<
+            &VertexSubgraph<G>,
+            &VertexSubgraph<G>,
+            ComputeStateVec,
+            MotifCounter,
+        >| {
             for v in u.neighbours() {
                 if u.id() > v.id() {
                     v.update(&neighbours_set, u.id());
@@ -207,7 +214,12 @@ where
     );
 
     let step2 = ATask::new(
-        move |u: &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
+        move |u: &mut EvalVertexView<
+            &VertexSubgraph<G>,
+            &VertexSubgraph<G>,
+            ComputeStateVec,
+            MotifCounter,
+        >| {
             let uu = u.get_mut();
             if uu.triangle.len() == 0 {
                 uu.triangle = vec![[0 as usize; 8]; delta_len];
@@ -351,9 +363,7 @@ where
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
     let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<G, ComputeStateVec, MotifCounter>| {
-            let g = evv.graph;
-
+        move |evv: &mut EvalVertexView<&G, &G, ComputeStateVec, MotifCounter>| {
             let two_nodes = twonode_motif_count(g, evv, deltas.clone());
             let star_nodes = star_motif_count(evv, deltas.clone());
 

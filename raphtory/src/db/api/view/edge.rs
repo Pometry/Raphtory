@@ -173,7 +173,7 @@ pub trait EdgeListOps:
     type ValueType<T>;
 
     /// the type of list of vertices
-    type VList: VertexListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type VList: VertexListOps<Vertex = Self::Vertex>;
 
     /// the type of iterator
     type IterType<T>: Iterator<Item = Self::ValueType<T>>;

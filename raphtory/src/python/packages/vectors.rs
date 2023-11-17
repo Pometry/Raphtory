@@ -102,7 +102,7 @@ impl PyDocumentTemplate {
 }
 
 impl<G: GraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
-    fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn node(&self, vertex: &VertexView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
             Some(node_document) => get_documents_from_prop(vertex.properties(), node_document),
             None => self.default_template.node(vertex),

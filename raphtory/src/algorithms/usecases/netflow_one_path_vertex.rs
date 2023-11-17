@@ -16,15 +16,11 @@ use crate::{
     prelude::{EdgeListOps, EdgeViewOps, LayerOps, Prop, TimeOps},
 };
 
-fn get_one_hop_counts<G: GraphViewOps, CS: ComputeState>(
-    evv: &EvalVertexView<G, CS, ()>,
+fn get_one_hop_counts<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
+    evv: &EvalVertexView<G, GH, CS, ()>,
     no_time: bool,
 ) -> usize {
-    let vid = evv.id();
-    evv.graph
-        .vertex(vid)
-        .unwrap()
-        .layer("Netflow")
+    evv.layer("Netflow")
         .unwrap()
         .in_edges()
         .explode()
@@ -32,8 +28,8 @@ fn get_one_hop_counts<G: GraphViewOps, CS: ComputeState>(
         .sum::<usize>()
 }
 
-fn one_path_algorithm<G: GraphViewOps, CS: ComputeState>(
-    evv: &EvalVertexView<G, CS, ()>,
+fn one_path_algorithm<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
+    evv: &EvalVertexView<G, GH, CS, ()>,
     nf_e_edge_expl: EdgeView<LayeredGraph<G>>,
     no_time: bool,
 ) -> usize {
@@ -71,7 +67,7 @@ fn one_path_algorithm<G: GraphViewOps, CS: ComputeState>(
         time_bound = 0;
     }
 
-    let b_edges = match evv.graph.layer("Events1v4688").and_then(|layer| {
+    let b_edges = match evv.graph().layer("Events1v4688").and_then(|layer| {
         layer
             .window(time_bound, nf1_time)
             .edge(nf_e_edge_expl.src(), nf_e_edge_expl.src())
@@ -85,7 +81,7 @@ fn one_path_algorithm<G: GraphViewOps, CS: ComputeState>(
         .map(|prog1_b_edge| {
             let prog1_time = prog1_b_edge.time().unwrap_or_default();
             let b_layer = match evv
-                .graph
+                .graph()
                 .vertex(prog1_b_edge.src())
                 .and_then(|vertex| vertex.layer("Events2v4624"))
             {

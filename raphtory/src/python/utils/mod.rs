@@ -315,6 +315,16 @@ where
     }
 }
 
+impl IntoIterator for PyGenericIterator {
+    type Item = PyObject;
+
+    type IntoIter = BoxedIter<PyObject>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter
+    }
+}
+
 #[pymethods]
 impl PyGenericIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {

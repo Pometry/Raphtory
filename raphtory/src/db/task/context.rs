@@ -30,7 +30,7 @@ where
     G: GraphViewOps,
     CS: ComputeState,
 {
-    pub fn new_local_state<O: Debug + Default, F: Fn(VertexView<G>) -> O>(
+    pub fn new_local_state<O: Debug + Default, F: Fn(VertexView<G, G>) -> O>(
         &self,
         init_f: F,
     ) -> Vec<O> {

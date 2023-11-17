@@ -39,7 +39,6 @@ pub trait BoxableGraphView:
     + ConstPropertiesOps
     + Send
     + Sync
-    + 'static
 {
 }
 
@@ -54,7 +53,6 @@ impl<
             + ConstPropertiesOps
             + Send
             + Sync
-            + 'static
             + ?Sized,
     > BoxableGraphView for G
 {
@@ -126,6 +124,8 @@ impl Base for DynamicGraph {
 impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
+
+impl<T: GraphViewOps + ?Sized> InheritViewOps for &T {}
 
 #[cfg(test)]
 mod test {

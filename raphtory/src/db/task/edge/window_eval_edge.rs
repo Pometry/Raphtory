@@ -14,13 +14,7 @@ use crate::{
             view::{internal::*, *},
         },
         graph::views::window_graph::WindowedGraph,
-        task::{
-            task_state::Local2,
-            vertex::{
-                eval_vertex_state::EVState,
-                window_eval_vertex::{edge_filter, WindowEvalVertex},
-            },
-        },
+        task::{task_state::Local2, vertex::eval_vertex_state::EVState},
     },
 };
 use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};

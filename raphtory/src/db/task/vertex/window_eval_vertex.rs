@@ -14,7 +14,7 @@ use crate::{
             },
         },
         graph::{
-            path::{Operations, PathFromVertex},
+            // path::{Operations, PathFromVertex},
             vertex::VertexView,
             views::window_graph::WindowedGraph,
         },
@@ -143,7 +143,9 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> VertexViewOps
             .vertex_history_window(self.vertex, self.start..self.end)
     }
 
-    fn properties(&self) -> Self::ValueType<Properties<VertexView<WindowedGraph<G>>>> {
+    fn properties(
+        &self,
+    ) -> Self::ValueType<Properties<VertexView<WindowedGraph<G>, WindowedGraph<G>>>> {
         //FIXME: Need to implement this properly without cloning the graph
         Properties::new(VertexView::new_internal(
             WindowedGraph::new(self.graph.clone(), self.start, self.end),

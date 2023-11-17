@@ -62,10 +62,10 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
 
     /// Get a vertex `v`.
-    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
+    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self, Self>>;
 
     /// Return a View of the vertices in the Graph
-    fn vertices(&self) -> Vertices<Self>;
+    fn vertices(&self) -> Vertices<Self, Self>;
 
     /// Get an edge `(src, dst)`.
     fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
@@ -145,13 +145,13 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         false
     }
 
-    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
+    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self, Self>> {
         let v = v.into();
         self.internal_vertex_ref(v, &self.layer_ids(), self.edge_filter())
             .map(|v| VertexView::new_internal(self.clone(), v))
     }
 
-    fn vertices(&self) -> Vertices<Self> {
+    fn vertices(&self) -> Vertices<Self, Self> {
         let graph = self.clone();
         Vertices::new(graph)
     }

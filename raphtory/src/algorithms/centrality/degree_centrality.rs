@@ -27,7 +27,7 @@ pub fn degree_centrality<G: GraphViewOps>(
     ctx.agg(min);
 
     let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
+        move |evv: &mut EvalVertexView<'_, &G, &G, ComputeStateVec, ()>| {
             // The division below is fine as floating point division of 0.0
             // causes the result to be an NaN
             let res = evv.degree() as f64 / max_degree as f64;

@@ -713,7 +713,7 @@ mod db_tests {
         assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(vertex2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G>) -> Vec<u64> {
+        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G, G>) -> Vec<u64> {
             neighbours.iter().map(|n| n.id()).sorted().collect_vec()
         }
 
