@@ -25,7 +25,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges,index::GraphIndex, vertex::PyVertices},
+        graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
         types::repr::Repr,
         utils::{PyInterval, PyTime},
     },

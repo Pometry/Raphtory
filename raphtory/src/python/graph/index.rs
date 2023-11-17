@@ -39,7 +39,7 @@ impl GraphIndex {
     /// Returns:
     ///    A list of vertices which match the query. The list will be empty if no vertices match.
     #[pyo3(signature = (query, limit=25, offset=0, prefix=false, levenshtein_distance=0))]
-    fn fuzzy_search_vertices(
+    fn fuzzy_search_nodes(
         &self,
         query: &str,
         limit: Option<usize>,
@@ -48,7 +48,7 @@ impl GraphIndex {
         levenshtein_distance: Option<u8>,
     ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
         self.graph
-            .fuzzy_search_vertices(
+            .fuzzy_search_nodes(
                 query,
                 limit.unwrap_or(25),
                 offset.unwrap_or(0),
@@ -99,14 +99,14 @@ impl GraphIndex {
     /// Returns:
     ///    A list of vertices which match the query. The list will be empty if no vertices match.
     #[pyo3(signature = (query, limit=25, offset=0))]
-    fn search_vertices(
+    fn search_nodes(
         &self,
         query: &str,
         limit: Option<usize>,
         offset: Option<usize>,
     ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
         self.graph
-            .search_vertices(query, limit.unwrap_or(25), offset.unwrap_or(0))
+            .search_nodes(query, limit.unwrap_or(25), offset.unwrap_or(0))
             .map_err(|e| adapt_err_value(&e))
     }
 

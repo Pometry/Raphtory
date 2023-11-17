@@ -1848,16 +1848,16 @@ def test_search_in_python():
     index = g.index()
 
     #Name tests
-    assert len(index.search_vertices("name:ben")) == 1
-    assert len(index.search_vertices("name:ben OR name:hamza")) == 2
-    assert len(index.search_vertices("name:ben AND name:hamza")) == 0
-    assert len(index.search_vertices("name: IN [ben, hamza]")) == 2
+    assert len(index.search_nodes("name:ben")) == 1
+    assert len(index.search_nodes("name:ben OR name:hamza")) == 2
+    assert len(index.search_nodes("name:ben AND name:hamza")) == 0
+    assert len(index.search_nodes("name: IN [ben, hamza]")) == 2
 
     #Property tests
-    assert len(index.search_vertices("value:<120 OR value_f:>30")) == 3
-    assert len(index.search_vertices("value: [0 TO 60]")) == 2
-    assert len(index.search_vertices("value: [0 TO 60}")) == 1 # } == exclusive
-    assert len(index.search_vertices("value:>59 AND value_str:abc123")) == 1
+    assert len(index.search_nodes("value:<120 OR value_f:>30")) == 3
+    assert len(index.search_nodes("value: [0 TO 60]")) == 2
+    assert len(index.search_nodes("value: [0 TO 60}")) == 1 # } == exclusive
+    assert len(index.search_nodes("value:>59 AND value_str:abc123")) == 1
 
     #edge tests
     assert len(index.search_edges("from:ben")) == 2
@@ -1880,11 +1880,11 @@ def test_search_in_python():
     index = g.index()
 
     #The semantics here are that the expressions independently need to evaluate at ANY point in the lifetime of the vertex - hence hamza is returned even though at no point does he have both these values at the same time
-    assert len(index.search_vertices("value:<70 AND value_f:<19.2")) == 1
+    assert len(index.search_nodes("value:<70 AND value_f:<19.2")) == 1
 
     g.add_vertex(4,"hamza",properties={"value":100,"value_f":11.3,"value_str":"dsc2312"})
     # the graph isn't currently reindexed so this will not return hamza even though he now has a value which fits the bill
-    assert len(index.search_vertices("value:>99")) == 0
+    assert len(index.search_nodes("value:>99")) == 0
 
 
 def test_search_with_windows():
@@ -1905,9 +1905,9 @@ def test_search_with_windows():
     w_index = w_g.index()
 
     #Testing if windowing works - ben shouldn't be included and Hamza should only have max value of 70
-    assert len(w_index.search_vertices("name:ben")) == 0
-    assert len(w_index.search_vertices("value:70")) == 1
-    assert len(w_index.search_vertices("value:>80")) == 0
+    assert len(w_index.search_nodes("name:ben")) == 0
+    assert len(w_index.search_nodes("value:70")) == 1
+    assert len(w_index.search_nodes("value:>80")) == 0
 
     assert len(w_index.search_edges("from:ben")) == 0
     assert len(w_index.search_edges("from:haaroon AND value:>70")) == 0
@@ -1942,10 +1942,10 @@ def test_fuzzy_search():
 
     index = g.index()
 
-    assert len(index.fuzzy_search_vertices("name:habza",levenshtein_distance=1)) == 1
-    assert len(index.fuzzy_search_vertices("name:haa",levenshtein_distance=1,prefix=True)) == 2
-    assert len(index.fuzzy_search_vertices("value_str:abc123",levenshtein_distance=2,prefix=True)) == 2
-    assert len(index.fuzzy_search_vertices("value_str:dsss312",levenshtein_distance=2,prefix=False)) == 1
+    assert len(index.fuzzy_search_nodes("name:habza",levenshtein_distance=1)) == 1
+    assert len(index.fuzzy_search_nodes("name:haa",levenshtein_distance=1,prefix=True)) == 2
+    assert len(index.fuzzy_search_nodes("value_str:abc123",levenshtein_distance=2,prefix=True)) == 2
+    assert len(index.fuzzy_search_nodes("value_str:dsss312",levenshtein_distance=2,prefix=False)) == 1
 
     assert len(index.fuzzy_search_edges("from:bon",levenshtein_distance=1)) == 2
     assert len(index.fuzzy_search_edges("from:bo",levenshtein_distance=1,prefix=True)) == 2

@@ -117,9 +117,9 @@ impl GqlGraph {
         GraphSchema::new(&self.graph)
     }
 
-    async fn search_vertices(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
+    async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
         self.graph
-            .search_vertices(&query, limit, offset)
+            .search_nodes(&query, limit, offset)
             .into_iter()
             .flat_map(|vv| vv)
             .map(|vv| vv.into())
@@ -135,7 +135,7 @@ impl GqlGraph {
             .collect()
     }
 
-    async fn fuzzy_search_vertices(
+    async fn fuzzy_search_nodes(
         &self,
         query: String,
         limit: usize,
@@ -144,7 +144,7 @@ impl GqlGraph {
         levenshtein_distance: u8,
     ) -> Vec<Node> {
         self.graph
-            .fuzzy_search_vertices(&query, limit, offset, prefix, levenshtein_distance)
+            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
             .into_iter()
             .flat_map(|vv| vv)
             .map(|vv| vv.into())
