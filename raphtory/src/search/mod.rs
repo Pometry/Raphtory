@@ -871,7 +871,7 @@ mod test {
         let elapsed = now.elapsed().unwrap().as_secs();
         println!("indexing took: {:?}", elapsed);
 
-        let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
+        let issues = index_graph.search_nodes("name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
