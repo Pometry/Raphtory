@@ -1,16 +1,22 @@
 from raphtory import Graph
 from raphtory.vectors import VectorisedGraph
 
+embedding_map = {
+    "node1": [1.0, 0.0, 0.0],
+    "node2": [0.0, 1.0, 0.0],
+    "node3": [0.0, 0.0, 1.0],
+    "node4": [1.0, 1.0, 0.0],
+    "edge1": [1.0, 0.1, 0.0],
+    "edge2": [0.0, 1.0, 0.1],
+    "edge3": [0.0, 1.0, 1.0]
+}
+
 def single_embedding(text: str) -> list[float]:
-    match text:
-        case "node1": return [1.0, 0.0, 0.0]
-        case "node2": return [0.0, 1.0, 0.0]
-        case "node3": return [0.0, 0.0, 1.0]
-        case "node4": return [1.0, 1.0, 0.0]
-        case "edge1": return [1.0, 0.1, 0.0]
-        case "edge2": return [0.0, 1.0, 0.1]
-        case "edge3": return [0.0, 1.0, 1.0]
-        case _: raise Exception(f"unexpected document content: {text}")
+    embedding = embedding_map.get(text)
+    if embedding is not None:
+        return embedding
+    else:
+        raise Exception(f"unexpected document content: {text}")
 
 def embedding(texts: list[str]) -> list[list[float]]:
     return [single_embedding(text) for text in texts]
