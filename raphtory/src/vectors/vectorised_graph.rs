@@ -59,7 +59,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     }
 
     /// This assumes forced documents to have a score of 0
-    pub fn select<V: Into<VertexRef>>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
+    pub fn append<V: Into<VertexRef>>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
         let node_docs = nodes.into_iter().flat_map(|id| {
             let vertex = self.source_graph.vertex(id);
             let opt = vertex.map(|vertex| self.node_documents.get(&EntityId::from_node(&vertex)));
@@ -116,7 +116,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             .collect_vec()
     }
 
-    pub fn search_similar_entities(
+    pub fn append_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
@@ -126,7 +126,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         self.add_top_documents(joined, query, limit, window)
     }
 
-    pub fn search_similar_nodes(
+    pub fn append_nodes_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
@@ -134,7 +134,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     ) -> Self {
         self.add_top_documents(self.node_documents.as_ref(), query, limit, window)
     }
-    pub fn search_similar_edges(
+    pub fn append_edges_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
@@ -175,7 +175,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    pub fn expand_with_search(
+    pub fn expand_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,

@@ -215,7 +215,7 @@ impl PyVectorisedGraph {
     }
 
     #[pyo3(signature = (query, limit, window=None))]
-    fn expand_with_search(
+    fn expand_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -223,27 +223,27 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .expand_with_search(&embedding, limit, translate(window))
+            .expand_by_similarity(&embedding, limit, translate(window))
     }
 
-    fn select(
+    fn append(
         &self,
         nodes: Vec<VertexRef>,
         edges: Vec<(VertexRef, VertexRef)>,
     ) -> DynamicVectorisedGraph {
-        self.0.select(nodes, edges)
+        self.0.append(nodes, edges)
     }
 
-    fn select_nodes(&self, nodes: Vec<VertexRef>) -> DynamicVectorisedGraph {
-        self.select(nodes, vec![])
+    fn append_nodes(&self, nodes: Vec<VertexRef>) -> DynamicVectorisedGraph {
+        self.append(nodes, vec![])
     }
 
-    fn select_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> DynamicVectorisedGraph {
-        self.select(vec![], edges)
+    fn append_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> DynamicVectorisedGraph {
+        self.append(vec![], edges)
     }
 
     #[pyo3(signature = (query, limit, window=None))]
-    fn search_similar_entities(
+    fn append_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -251,11 +251,11 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_similar_entities(&embedding, limit, translate(window))
+            .append_by_similarity(&embedding, limit, translate(window))
     }
 
     #[pyo3(signature = (query, limit, window=None))]
-    fn search_similar_nodes(
+    fn append_nodes_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -263,11 +263,11 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_similar_nodes(&embedding, limit, translate(window))
+            .append_nodes_by_similarity(&embedding, limit, translate(window))
     }
 
     #[pyo3(signature = (query, limit, window=None))]
-    fn search_similar_edges(
+    fn append_edges_by_similarity(
         &self,
         query: PyQuery,
         limit: usize,
@@ -275,7 +275,7 @@ impl PyVectorisedGraph {
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .search_similar_edges(&embedding, limit, translate(window))
+            .append_edges_by_similarity(&embedding, limit, translate(window))
     }
 }
 

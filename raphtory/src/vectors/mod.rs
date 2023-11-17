@@ -192,8 +192,8 @@ mod vector_tests {
         let vectors = g.vectorise(Box::new(fake_embedding), Some(cache)).await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
-            .search_similar_entities(&embedding, 10, None)
-            .expand_with_search(&embedding, 10, None)
+            .append_by_similarity(&embedding, 10, None)
+            .expand_by_similarity(&embedding, 10, None)
             .expand(2, None)
             .get_documents();
 
@@ -275,8 +275,8 @@ age: 30"###;
 
         let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
-            .search_similar_entities(&embedding, 1, None)
-            .expand_with_search(&embedding, 9, None)
+            .append_by_similarity(&embedding, 1, None)
+            .expand_by_similarity(&embedding, 9, None)
             .get_documents();
         assert_eq!(docs.len(), 3);
         // all documents are present in the result
@@ -327,14 +327,14 @@ age: 30"###;
 
         let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
-            .search_similar_entities(&embedding, 1, None)
-            .expand_with_search(&embedding, 9, None)
+            .append_by_similarity(&embedding, 1, None)
+            .expand_by_similarity(&embedding, 9, None)
             .get_documents();
         assert_eq!(docs.len(), 2);
 
         let docs = vectors
-            .search_similar_entities(&embedding, 1, Some((-10, 25)))
-            .expand_with_search(&embedding, 9, Some((-10, 25)))
+            .append_by_similarity(&embedding, 1, Some((-10, 25)))
+            .expand_by_similarity(&embedding, 9, Some((-10, 25)))
             .get_documents();
         assert!(
             match &docs[..] {
@@ -345,8 +345,8 @@ age: 30"###;
         );
 
         let docs = vectors
-            .search_similar_entities(&embedding, 1, Some((35, 100)))
-            .expand_with_search(&embedding, 9, Some((35, 100)))
+            .append_by_similarity(&embedding, 1, Some((35, 100)))
+            .expand_by_similarity(&embedding, 9, Some((35, 100)))
             .get_documents();
         assert!(
             match &docs[..] {
@@ -405,7 +405,7 @@ age: 30"###;
             .await
             .remove(0);
         let docs = vectors
-            .search_similar_nodes(&embedding, 1, None)
+            .append_nodes_by_similarity(&embedding, 1, None)
             .get_documents();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content().contains("Gandalf is a wizard"));
@@ -414,7 +414,7 @@ age: 30"###;
             .await
             .remove(0);
         let docs = vectors
-            .search_similar_nodes(&embedding, 1, None)
+            .append_nodes_by_similarity(&embedding, 1, None)
             .get_documents();
         assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
@@ -423,7 +423,7 @@ age: 30"###;
             .await
             .remove(0);
         let docs = vectors
-            .search_similar_nodes(&embedding, 1, Some((1, 3)))
+            .append_nodes_by_similarity(&embedding, 1, Some((1, 3)))
             .get_documents();
         assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
@@ -431,7 +431,7 @@ age: 30"###;
             .await
             .remove(0);
         let docs = vectors
-            .search_similar_edges(&embedding, 1, None)
+            .append_edges_by_similarity(&embedding, 1, None)
             .get_documents();
         assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
     }
