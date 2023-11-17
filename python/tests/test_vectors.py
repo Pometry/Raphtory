@@ -17,7 +17,7 @@ def single_embedding(text: str):
     except:
         raise Exception(f"unexpected document content: {text}")
 
-def embedding(texts: list[str]):
+def embedding(texts):
     return [single_embedding(text) for text in texts]
 
 def floats_are_equals(float1: float, float2: float) -> bool:
