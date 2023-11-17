@@ -64,7 +64,7 @@ mod graphql_test {
         let query = r#"
         {
           graph(name: "lotr") {
-            search(query: "kind:wizard", limit: 10, offset: 0) {
+            searchNodes(query: "kind:wizard", limit: 10, offset: 0) {
               name
             }
           }
@@ -78,7 +78,7 @@ mod graphql_test {
             data,
             json!({
                 "graph": {
-                    "search": [
+                    "searchNodes": [
                         {
                             "name": "Gandalf"
                         }

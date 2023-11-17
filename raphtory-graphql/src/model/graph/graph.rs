@@ -117,9 +117,9 @@ impl GqlGraph {
         GraphSchema::new(&self.graph)
     }
 
-    async fn search(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
+    async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
         self.graph
-            .search(&query, limit, offset)
+            .search_nodes(&query, limit, offset)
             .into_iter()
             .flat_map(|vv| vv)
             .map(|vv| vv.into())
@@ -129,6 +129,38 @@ impl GqlGraph {
     async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
         self.graph
             .search_edges(&query, limit, offset)
+            .into_iter()
+            .flat_map(|vv| vv)
+            .map(|vv| vv.into())
+            .collect()
+    }
+
+    async fn fuzzy_search_nodes(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Vec<Node> {
+        self.graph
+            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
+            .into_iter()
+            .flat_map(|vv| vv)
+            .map(|vv| vv.into())
+            .collect()
+    }
+
+    async fn fuzzy_search_edges(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Vec<Edge> {
+        self.graph
+            .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
             .into_iter()
             .flat_map(|vv| vv)
             .map(|vv| vv.into())

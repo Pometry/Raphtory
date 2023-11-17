@@ -27,6 +27,7 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::*,
+    search::fields::{EDGE_ID, VERTEX_ID},
 };
 
 #[derive(Clone)]
@@ -579,7 +580,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         Some(e_view)
     }
 
-    pub fn search(
+    pub fn search_nodes(
         &self,
         q: &str,
         limit: usize,
@@ -587,6 +588,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     ) -> Result<Vec<VertexView<G>>, GraphError> {
         let searcher = self.reader.searcher();
         let query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit).and_offset(offset);
@@ -633,6 +635,74 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
         let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let edge_id = self.edge_index.schema().get_field(EDGE_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_edge_from_search_result(edge_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn fuzzy_search_nodes(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<VertexView<G>>, GraphError> {
+        let searcher = self.reader.searcher();
+        let mut query_parser = tantivy::query::QueryParser::for_index(&self.vertex_index, vec![]);
+
+        self.vertex_index
+            .schema()
+            .fields()
+            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
+
+        let query = query_parser.parse_query(q)?;
+
+        let ranking = TopDocs::with_limit(limit).and_offset(offset);
+
+        let top_docs = searcher.search(&query, &ranking)?;
+
+        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+
+        let results = top_docs
+            .into_iter()
+            .map(|(_, doc_address)| searcher.doc(doc_address))
+            .filter_map(Result::ok)
+            .filter_map(|doc| self.resolve_vertex_from_search_result(vertex_id, doc))
+            .collect::<Vec<_>>();
+
+        Ok(results)
+    }
+
+    pub fn fuzzy_search_edges(
+        &self,
+        q: &str,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let searcher = self.edge_reader.searcher();
+        let mut query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
+        self.edge_index
+            .schema()
+            .fields()
+            .for_each(|(f, _)| query_parser.set_field_fuzzy(f, prefix, levenshtein_distance, true));
+
         let query = query_parser.parse_query(q)?;
 
         let ranking = TopDocs::with_limit(limit).and_offset(offset);
@@ -758,7 +828,6 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 #[cfg(test)]
 mod test {
     use std::time::SystemTime;
-
     use tantivy::{doc, DocAddress};
 
     use super::*;
@@ -781,7 +850,7 @@ mod test {
         let ig: IndexedGraph<Graph> = graph.into();
 
         let results = ig
-            .search("age:42", 5, 0)
+            .search_nodes("age:42", 5, 0)
             .expect("failed to search for vertex")
             .into_iter()
             .map(|v| v.name())
@@ -802,7 +871,7 @@ mod test {
         let elapsed = now.elapsed().unwrap().as_secs();
         println!("indexing took: {:?}", elapsed);
 
-        let issues = index_graph.search("name:'DEV-1690'", 5, 0)?;
+        let issues = index_graph.search_nodes("name:'DEV-1690'", 5, 0)?;
 
         assert!(!issues.is_empty());
 
@@ -860,7 +929,7 @@ mod test {
         indexed_graph.reload().expect("failed to reload index");
 
         let results = indexed_graph
-            .search("kind:hobbit", 10, 0)
+            .search_nodes("kind:hobbit", 10, 0)
             .expect("search failed");
         let mut actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Frodo", "Merry"];
@@ -871,14 +940,14 @@ mod test {
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search("kind:wizard", 10, 0)
+            .search_nodes("kind:wizard", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
 
         let results = indexed_graph
-            .search("kind:creature", 10, 0)
+            .search_nodes("kind:creature", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -886,7 +955,7 @@ mod test {
 
         // search by name
         let results = indexed_graph
-            .search("name:gollum", 10, 0)
+            .search_nodes("name:gollum", 10, 0)
             .expect("search failed");
         let actual = results.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gollum"];
@@ -904,7 +973,7 @@ mod test {
         graph.reload().expect("reload failed");
 
         let vertices = graph
-            .search(r#"name:gandalf"#, 10, 0)
+            .search_nodes(r#"name:gandalf"#, 10, 0)
             .expect("search failed");
 
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
@@ -936,14 +1005,14 @@ mod test {
         graph.reload().expect("reload failed");
         // Find the Wizard
         let vertices = graph
-            .search(r#"description:wizard"#, 10, 0)
+            .search_nodes(r#"description:wizard"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find the Hobbit
         let vertices = graph
-            .search(r#"description:'hobbit'"#, 10, 0)
+            .search_nodes(r#"description:'hobbit'"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
@@ -973,21 +1042,21 @@ mod test {
         graph.reload().expect("reload failed");
         // Find Saruman
         let vertices = graph
-            .search(r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
+            .search_nodes(r#"description:wizard AND time:[2 TO 5]"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Saruman"];
         assert_eq!(actual, expected);
         // Find Gandalf
         let vertices = graph
-            .search(r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
+            .search_nodes(r#"description:'wizard' AND time:[1 TO 2}"#, 10, 0)
             .expect("search failed");
         let actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Gandalf"];
         assert_eq!(actual, expected);
         // Find both wizards
         let vertices = graph
-            .search(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
+            .search_nodes(r#"description:'wizard' AND time:[1 TO 100]"#, 10, 0)
             .expect("search failed");
         let mut actual = vertices.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let mut expected = vec!["Gandalf", "Saruman"];
