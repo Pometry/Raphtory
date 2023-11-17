@@ -5,6 +5,10 @@ on:
           base:
             type: 'string'
             default: 'master'
+    pull_request:
+        branches:
+            - master
+            
     
 jobs:
     start-runner:
