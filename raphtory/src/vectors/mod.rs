@@ -1,3 +1,4 @@
+use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -8,8 +9,8 @@ pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
 pub mod splitting;
-pub mod vectorizable;
-pub mod vectorized_graph;
+pub mod vectorisable;
+pub mod vectorised_graph;
 
 pub type Embedding = Vec<f32>;
 
@@ -24,6 +25,18 @@ pub enum Document {
         dst: String,
         content: String,
     },
+}
+
+#[derive(Clone)]
+pub(crate) struct ScoredDocument {
+    doc: DocumentRef,
+    score: f32,
+}
+
+impl ScoredDocument {
+    fn new(doc: DocumentRef, score: f32) -> Self {
+        Self { doc, score }
+    }
 }
 
 // TODO: remove this interface, only used by Document (?)
@@ -103,12 +116,12 @@ mod vector_tests {
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
             document_template::DocumentTemplate, embeddings::openai_embedding,
-            graph_entity::GraphEntity, vectorizable::Vectorizable,
+            graph_entity::GraphEntity, vectorisable::Vectorisable,
         },
     };
     use dotenv::dotenv;
     use itertools::Itertools;
-    use std::path::PathBuf;
+    use std::{fs::remove_file, path::PathBuf};
     use tokio;
 
     const NO_PROPS: [(&str, Prop); 0] = [];
@@ -119,6 +132,10 @@ mod vector_tests {
 
     async fn fake_embedding(texts: Vec<String>) -> Vec<Embedding> {
         texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
+    }
+
+    async fn panicking_embedding(texts: Vec<String>) -> Vec<Embedding> {
+        panic!("embedding function was called")
     }
 
     struct CustomTemplate;
@@ -143,19 +160,42 @@ mod vector_tests {
         }
     }
 
+    #[tokio::test]
+    async fn test_embedding_cache() {
+        let g = Graph::new();
+        g.add_vertex(0, "test", NO_PROPS).unwrap();
+
+        // the following succeeds with no cache set up
+        g.vectorise(Box::new(fake_embedding), None).await;
+
+        let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
+        let _ = remove_file(path);
+
+        // the following creates the embeddings, and store them on the cache
+        g.vectorise(Box::new(fake_embedding), Some(PathBuf::from(path)))
+            .await;
+
+        println!("now the embeddings should be already in the cache");
+
+        // the following uses the embeddings from the cache, so it doesn't call the panicking
+        // embedding, which would make the test fail
+        g.vectorise(Box::new(panicking_embedding), Some(PathBuf::from(path)))
+            .await;
+    }
+
     // TODO: test default templates
 
-    #[ignore = "this test needs an OpenAI API key to run"]
     #[tokio::test]
     async fn test_empty_graph() {
-        dotenv().ok();
-
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
-        let vectors = g.vectorize(Box::new(openai_embedding), &cache).await;
+        let vectors = g.vectorise(Box::new(fake_embedding), Some(cache)).await;
+        let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
-            .similarity_search("whatever", 10, 0, 0, 20, None, None)
-            .await;
+            .append_by_similarity(&embedding, 10, None)
+            .expand_by_similarity(&embedding, 10, None)
+            .expand(2, None)
+            .get_documents();
 
         assert!(docs.is_empty())
     }
@@ -204,7 +244,6 @@ age: 30"###;
         assert_eq!(content, expected_content);
     }
 
-    // const FAKE_DOCUMENTS: Vec<&str> = vec!["doc1", "doc2", "doc3"];
     const FAKE_DOCUMENTS: [&str; 3] = ["doc1", "doc2", "doc3"];
     struct FakeMultiDocumentTemplate;
 
@@ -227,16 +266,18 @@ age: 30"###;
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         let vectors = g
-            .vectorize_with_template(
+            .vectorise_with_template(
                 Box::new(fake_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-multi-test"),
+                Some(PathBuf::from("/tmp/raphtory/vector-cache-multi-test")),
                 FakeMultiDocumentTemplate,
             )
             .await;
 
+        let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, None, None)
-            .await;
+            .append_by_similarity(&embedding, 1, None)
+            .expand_by_similarity(&embedding, 9, None)
+            .get_documents();
         assert_eq!(docs.len(), 3);
         // all documents are present in the result
         for doc_content in FAKE_DOCUMENTS {
@@ -277,21 +318,24 @@ age: 30"###;
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
-            .vectorize_with_template(
+            .vectorise_with_template(
                 Box::new(fake_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-window-test"),
+                Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
                 FakeTemplateWithIntervals,
             )
             .await;
 
+        let embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, None, None)
-            .await;
+            .append_by_similarity(&embedding, 1, None)
+            .expand_by_similarity(&embedding, 9, None)
+            .get_documents();
         assert_eq!(docs.len(), 2);
 
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, None, Some(25))
-            .await;
+            .append_by_similarity(&embedding, 1, Some((-10, 25)))
+            .expand_by_similarity(&embedding, 9, Some((-10, 25)))
+            .get_documents();
         assert!(
             match &docs[..] {
                 [Document::Node { name, content }] => name == "test" && content == "event at 20",
@@ -301,8 +345,9 @@ age: 30"###;
         );
 
         let docs = vectors
-            .similarity_search("whatever", 1, 0, 0, 10, Some(35), None)
-            .await;
+            .append_by_similarity(&embedding, 1, Some((35, 100)))
+            .expand_by_similarity(&embedding, 9, Some((35, 100)))
+            .get_documents();
         assert!(
             match &docs[..] {
                 [Document::Node { name, content }] =>
@@ -349,41 +394,45 @@ age: 30"###;
 
         dotenv().ok();
         let vectors = g
-            .vectorize_with_template(
+            .vectorise_with_template(
                 Box::new(openai_embedding),
-                &PathBuf::from("/tmp/raphtory/vector-cache-lotr-test"),
+                Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
                 CustomTemplate,
             )
             .await;
 
+        let embedding = openai_embedding(vec!["Find a magician".to_owned()])
+            .await
+            .remove(0);
         let docs = vectors
-            .similarity_search("Find a magician", 1, 0, 0, 1, None, None)
-            .await;
+            .append_nodes_by_similarity(&embedding, 1, None)
+            .get_documents();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content().contains("Gandalf is a wizard"));
 
+        let embedding = openai_embedding(vec!["Find a young person".to_owned()])
+            .await
+            .remove(0);
         let docs = vectors
-            .similarity_search("Find a young person", 1, 0, 0, 1, None, None)
-            .await;
+            .append_nodes_by_similarity(&embedding, 1, None)
+            .get_documents();
         assert!(docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
         // with window!
+        let embedding = openai_embedding(vec!["Find a young person".to_owned()])
+            .await
+            .remove(0);
         let docs = vectors
-            .similarity_search("Find a young person", 1, 0, 0, 1, Some(1), Some(3))
-            .await;
+            .append_nodes_by_similarity(&embedding, 1, Some((1, 3)))
+            .get_documents();
         assert!(!docs[0].content().contains("Frodo is a hobbit")); // this fails when using gte-small
 
+        let embedding = openai_embedding(vec!["Has anyone appeared with anyone else?".to_owned()])
+            .await
+            .remove(0);
         let docs = vectors
-            .similarity_search(
-                "Has anyone appeared with anyone else?",
-                1,
-                0,
-                0,
-                1,
-                None,
-                None,
-            )
-            .await;
+            .append_edges_by_similarity(&embedding, 1, None)
+            .get_documents();
         assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
     }
 }

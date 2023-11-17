@@ -2,7 +2,7 @@ use dynamic_graphql::SimpleObject;
 use raphtory::vectors::Document;
 
 #[derive(SimpleObject)]
-pub(crate) struct GqlDocument {
+pub struct GqlDocument {
     /// Return a vector with the name of the node or the names of src and dst of the edge: [src, dst]
     name: Vec<String>, // size 1 for nodes, size 2 for edges: [src, dst]
     /// Return the type of entity: "node" or "edge"

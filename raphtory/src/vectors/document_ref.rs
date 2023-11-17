@@ -4,6 +4,7 @@ use crate::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },
 };
+use std::hash::{Hash, Hasher};
 
 /// this struct contains the minimum amount of information need to regenerate a document using a
 /// template and to quickly apply windows over them
@@ -15,11 +16,26 @@ pub(crate) struct DocumentRef {
     life: Lifespan,
 }
 
+impl Hash for DocumentRef {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self.entity_id {
+            EntityId::Node { id } => state.write_u64(id),
+            EntityId::Edge { src, dst } => {
+                state.write_u64(src);
+                state.write_u64(dst);
+            }
+        };
+        state.write_usize(self.index);
+    }
+}
+
 impl PartialEq for DocumentRef {
     fn eq(&self, other: &Self) -> bool {
         self.entity_id == other.entity_id && self.index == other.index
     }
 }
+
+impl Eq for DocumentRef {}
 
 impl DocumentRef {
     pub fn new(entity_id: EntityId, index: usize, embedding: Embedding, life: Lifespan) -> Self {
@@ -33,23 +49,27 @@ impl DocumentRef {
     pub fn id(&self) -> (EntityId, usize) {
         (self.entity_id, self.index)
     }
-    pub fn exists_on_window<G>(&self, graph: &G, start: Option<i64>, end: Option<i64>) -> bool
+
+    // TODO: review -> does window really need to be an Option
+    pub fn exists_on_window<G>(&self, graph: &G, window: Option<(i64, i64)>) -> bool
     where
         G: GraphViewOps,
     {
         match self.life {
             Lifespan::Event { time } => {
                 self.entity_exists_in_graph(graph)
-                    && start.map(|start| start <= time).unwrap_or(true)
-                    && end.map(|end| time < end).unwrap_or(true)
+                    && window
+                        .map(|(start, end)| start <= time && time < end)
+                        .unwrap_or(true)
             }
             Lifespan::Interval {
                 start: doc_start,
                 end: doc_end,
             } => {
                 self.entity_exists_in_graph(graph)
-                    && start.map(|start| doc_end > start).unwrap_or(true)
-                    && end.map(|end| doc_start < end).unwrap_or(true)
+                    && window
+                        .map(|(start, end)| doc_end > start && doc_start < end)
+                        .unwrap_or(true)
             }
             Lifespan::Inherited => self.entity_exists_in_graph(graph),
         }
@@ -59,7 +79,7 @@ impl DocumentRef {
         match self.entity_id {
             EntityId::Node { id } => graph.has_vertex(id),
             EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
-            // FIXME: Edge should probably contain a layer filter that we can pass to has_edge()
+            // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
     }
 

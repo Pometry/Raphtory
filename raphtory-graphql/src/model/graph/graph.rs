@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::model::{
-    algorithm::Algorithms,
+    algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
     graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
     schema::graph_schema::GraphSchema,
@@ -354,7 +354,7 @@ impl GqlGraph {
             .map(|vv| vv.into())
     }
 
-    async fn algorithms(&self) -> Algorithms {
+    async fn algorithms(&self) -> GraphAlgorithms {
         self.graph.deref().clone().into()
     }
 }

@@ -2,7 +2,10 @@
 
 use crate::{
     data::Data,
-    model::{algorithm::Algorithm, App},
+    model::{
+        algorithms::{algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint},
+        App,
+    },
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
@@ -12,7 +15,7 @@ use raphtory::{
     db::api::view::internal::MaterializedGraph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
-        vectorizable::Vectorizable,
+        vectorisable::Vectorisable,
         Embedding,
     },
 };
@@ -43,7 +46,7 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub async fn with_vectorized<F, U, T>(
+    pub async fn with_vectorised<F, U, T>(
         self,
         graph_names: Vec<String>,
         embedding: F,
@@ -55,35 +58,32 @@ impl RaphtoryServer {
         U: Future<Output = Vec<Embedding>> + Send + 'static,
         T: DocumentTemplate<MaterializedGraph> + 'static,
     {
-        {
-            let graphs_map = self.data.graphs.read();
-            let mut stores_map = self.data.vector_stores.write();
+        let graphs = &self.data.graphs;
+        let stores = &self.data.vector_stores;
 
-            let template = template
-                .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<MaterializedGraph>>)
-                .unwrap_or(Arc::new(DefaultTemplate));
+        let template = template
+            .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<MaterializedGraph>>)
+            .unwrap_or(Arc::new(DefaultTemplate));
 
-            for graph_name in graph_names {
-                let graph_cache = cache_dir.join(&graph_name);
-                let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
-                println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-                let vectorized = graph
-                    .vectorize_with_template(Box::new(embedding), &graph_cache, template.clone())
-                    .await;
-                stores_map.insert(graph_name, vectorized);
-            }
+        for graph_name in graph_names {
+            let graph_cache = cache_dir.join(&graph_name);
+            let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
+            println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
+            let vectorised = graph
+                .vectorise_with_template(Box::new(embedding), Some(graph_cache), template.clone())
+                .await;
+            stores.write().insert(graph_name, vectorised);
         }
-
         println!("Embeddings were loaded successfully");
 
         self
     }
 
-    pub fn register_algorithm<T: Algorithm>(self, name: &str) -> Self {
-        crate::model::algorithm::PLUGIN_ALGOS
-            .lock()
-            .unwrap()
-            .insert(name.to_string(), T::register_algo);
+    pub fn register_algorithm<'a, E: AlgorithmEntryPoint<'a> + 'static, A: Algorithm<'a, E>>(
+        self,
+        name: &str,
+    ) -> Self {
+        E::lock_plugins().insert(name.to_string(), A::register_algo);
         self
     }
 

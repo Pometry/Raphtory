@@ -13,7 +13,12 @@ use raphtory_core::python::{
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         vertex::{PyVertex, PyVertices},
     },
-    packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorizedGraph},
+    packages::{
+        algorithms::*,
+        graph_gen::*,
+        graph_loader::*,
+        vectors::{PyGraphDocument, PyVectorisedGraph},
+    },
 };
 
 macro_rules! add_functions {
@@ -128,7 +133,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     // VECTORS
     let vectors_module = PyModule::new(py, "vectors")?;
-    vectors_module.add_class::<PyVectorizedGraph>()?;
+    vectors_module.add_class::<PyVectorisedGraph>()?;
+    vectors_module.add_class::<PyGraphDocument>()?;
     m.add_submodule(vectors_module)?;
 
     Ok(())
