@@ -357,4 +357,12 @@ impl GqlGraph {
     async fn algorithms(&self) -> GraphAlgorithms {
         self.graph.deref().clone().into()
     }
+
+    async fn earliest_time(&self) -> Option<i64> {
+        self.graph.earliest_time()
+    }
+
+    async fn latest_time(&self) -> Option<i64> {
+        self.graph.latest_time()
+    }
 }
