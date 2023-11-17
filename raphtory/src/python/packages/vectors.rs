@@ -10,7 +10,6 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::{
         graph::{edge::PyEdge, vertex::PyVertex, views::graph_view::PyGraphView},
-        types::repr::Repr,
         utils::PyTime,
     },
     vectors::{
@@ -27,7 +26,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, path::PathBuf, sync::Arc, thread};
+use std::{future::Future, path::PathBuf, thread};
 
 #[derive(Clone)]
 pub enum PyQuery {

@@ -13,7 +13,6 @@ use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
     db::api::view::internal::MaterializedGraph,
-    prelude::Graph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,

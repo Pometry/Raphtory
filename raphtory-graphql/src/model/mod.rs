@@ -15,11 +15,8 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{ArcStr, Prop},
-    db::{
-        api::view::internal::{IntoDynamic, MaterializedGraph},
-        graph::views::deletion_graph::GraphWithDeletions,
-    },
-    prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
+    db::api::view::internal::{IntoDynamic, MaterializedGraph},
+    prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
     vectors::embeddings::openai_embedding,
 };
@@ -30,12 +27,14 @@ use std::{
     io::BufReader,
     ops::Deref,
 };
+use utils::path_prefix;
 use uuid::Uuid;
 
 pub mod algorithms;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
+pub(crate) mod utils;
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -191,23 +190,6 @@ impl Mut {
             .to_string();
 
         if new_graph_name.ne(&graph_name) {
-            fn path_prefix(path: String) -> Result<String> {
-                let elements: Vec<&str> = path.split('/').collect();
-                let size = elements.len();
-                return if size > 2 {
-                    let delimiter = "/";
-                    let joined_string = elements
-                        .iter()
-                        .take(size - 1)
-                        .copied()
-                        .collect::<Vec<_>>()
-                        .join(delimiter);
-                    Ok(joined_string)
-                } else {
-                    Err("Invalid graph path".into())
-                };
-            }
-
             path = path_prefix(path)? + "/" + &Uuid::new_v4().hyphenated().to_string();
         }
 
@@ -247,6 +229,7 @@ impl Mut {
 
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
+        new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
 
         new_subgraph.save_to_file(path)?;
 
