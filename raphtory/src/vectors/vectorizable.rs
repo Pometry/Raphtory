@@ -1,33 +1,61 @@
 use crate::{
-    db::{
-        api::view::internal::IntoDynamic,
-        graph::{edge::EdgeView, vertex::VertexView},
-    },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
+    db::api::view::internal::IntoDynamic,
+    prelude::GraphViewOps,
     vectors::{
-        document_source::DocumentSource, entity_id::EntityId, graph_entity::GraphEntity,
-        vectorized_graph::VectorizedGraph, Embedding, EmbeddingFunction, EntityDocument,
+        document_ref::DocumentRef,
+        document_template::{DefaultTemplate, DocumentTemplate},
+        embedding_cache::EmbeddingCache,
+        entity_id::EntityId,
+        vectorized_graph::VectorizedGraph,
+        DocumentInput, EmbeddingFunction,
     },
 };
 use async_trait::async_trait;
 use futures_util::future::join_all;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use std::{
-    collections::{hash_map::DefaultHasher, HashMap},
-    convert::identity,
-    fs::{create_dir_all, File},
+    collections::{hash_map::DefaultHasher, HashMap, VecDeque},
+    fs::create_dir_all,
     hash::{Hash, Hasher},
-    io::{BufReader, BufWriter},
     path::Path,
 };
 
 const CHUNK_SIZE: usize = 1000;
 
-#[derive(Serialize, Deserialize)]
-struct EmbeddingCache {
-    doc_hash: u64,
-    embedding: Embedding,
+#[derive(Clone)]
+struct DocumentGroup {
+    id: EntityId,
+    documents: Vec<DocumentInput>,
+}
+
+impl DocumentGroup {
+    fn new(id: EntityId, documents: Vec<DocumentInput>) -> Self {
+        Self { id, documents }
+    }
+    fn hash(self) -> HashedDocumentGroup {
+        let mut hasher = DefaultHasher::new();
+        for doc in &self.documents {
+            doc.content.hash(&mut hasher);
+        }
+        HashedDocumentGroup {
+            id: self.id,
+            hash: hasher.finish(),
+            documents: self.documents,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct HashedDocumentGroup {
+    id: EntityId,
+    hash: u64,
+    documents: Vec<DocumentInput>,
+}
+
+struct EmbeddedDocumentGroup {
+    id: EntityId,
+    hash: u64,
+    documents: Vec<DocumentRef>,
 }
 
 #[async_trait]
@@ -36,19 +64,14 @@ pub trait Vectorizable<G: GraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-    ) -> VectorizedGraph<G>;
+    ) -> VectorizedGraph<G, DefaultTemplate>;
 
-    async fn vectorize_with_templates<N, E>(
+    async fn vectorize_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-        node_template: N,
-        edge_template: E,
-        // FIXME: I tried to put templates behind an option but didn't work and hadn't time to fix it
-    ) -> VectorizedGraph<G>
-    where
-        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static;
+        template: T,
+    ) -> VectorizedGraph<G, T>;
 }
 
 #[async_trait]
@@ -57,145 +80,139 @@ impl<G: GraphViewOps + IntoDynamic> Vectorizable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path, // TODO: make this optional maybe
-    ) -> VectorizedGraph<G> {
-        let node_template = |vertex: &VertexView<G>| default_node_template(vertex);
-        let edge_template = |edge: &EdgeView<G>| default_edge_template(edge);
-
-        self.vectorize_with_templates(embedding, cache_dir, node_template, edge_template)
+    ) -> VectorizedGraph<G, DefaultTemplate> {
+        self.vectorize_with_template(embedding, cache_dir, DefaultTemplate)
             .await
     }
 
-    async fn vectorize_with_templates<N, E>(
+    async fn vectorize_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_dir: &Path,
-        node_template: N,
-        edge_template: E,
-    ) -> VectorizedGraph<G>
-    where
-        N: Fn(&VertexView<G>) -> String + Sync + Send + 'static,
-        E: Fn(&EdgeView<G>) -> String + Sync + Send + 'static,
-    {
-        create_dir_all(cache_dir).expect("Impossible to use cache dir");
+        template: T,
+    ) -> VectorizedGraph<G, T> {
+        cache_dir.parent().iter().for_each(|parent_path| {
+            create_dir_all(parent_path).expect("Impossible to use cache dir");
+        });
 
-        let node_docs = self
-            .vertices()
-            .iter()
-            .map(|vertex| vertex.generate_doc(&node_template));
-        let edge_docs = self.edges().map(|edge| edge.generate_doc(&edge_template));
+        let nodes = self.vertices().iter().map(|vertex| {
+            let documents = template.node(&vertex).collect_vec();
+            DocumentGroup::new(vertex.into(), documents)
+        });
+        let edges = self.edges().map(|edge| {
+            let documents = template.edge(&edge).collect_vec();
+            DocumentGroup::new(edge.into(), documents)
+        });
 
-        let node_embeddings = generate_embeddings(node_docs, &embedding, cache_dir).await;
-        let edge_embeddings = generate_embeddings(edge_docs, &embedding, cache_dir).await;
+        let cache = EmbeddingCache::load_from_disk(cache_dir);
+        let node_refs = attach_embeddings(nodes, &embedding, &cache).await;
+        let edge_refs = attach_embeddings(edges, &embedding, &cache).await;
+        cache.dump_to_disk();
 
-        VectorizedGraph::new(
-            self.clone(),
-            embedding,
-            node_embeddings,
-            edge_embeddings,
-            Box::new(node_template),
-            Box::new(edge_template),
-        )
+        VectorizedGraph::new(self.clone(), template, embedding, node_refs, edge_refs)
     }
 }
 
-fn default_node_template<G: GraphViewOps>(vertex: &VertexView<G>) -> String {
-    let name = vertex.name();
-    let property_list = vertex.generate_property_list(&identity, vec![], vec![]);
-    format!("The entity {name} has the following details:\n{property_list}")
-}
-
-fn default_edge_template<G: GraphViewOps>(edge: &EdgeView<G>) -> String {
-    let src = edge.src().name();
-    let dst = edge.dst().name();
-    // TODO: property list
-
-    let layer_lines = edge.layer_names().map(|layer| {
-        let times = edge
-            .layer(layer.clone())
-            .unwrap()
-            .history()
-            .iter()
-            .join(", ");
-        match layer.as_ref() {
-            "_default" => format!("{src} interacted with {dst} at times: {times}"),
-            layer => format!("{src} {layer} {dst} at times: {times}"),
-        }
-    });
-    itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect()
-}
-
-async fn generate_embeddings<I>(
-    docs: I,
+async fn attach_embeddings<I>(
+    doc_groups: I,
     embedding: &Box<dyn EmbeddingFunction>,
-    cache_dir: &Path,
-) -> HashMap<EntityId, Embedding>
+    cache: &EmbeddingCache,
+) -> HashMap<EntityId, Vec<DocumentRef>>
 where
-    I: Iterator<Item = EntityDocument>,
+    I: Iterator<Item = DocumentGroup>,
 {
-    let mut embeddings = HashMap::new();
+    let hashed_doc_groups = doc_groups.map(|entity_documents| (entity_documents.hash()));
+    let mut document_groups = HashMap::new();
     let mut misses = vec![];
 
-    for doc in docs {
-        match retrieve_embedding_from_cache(&doc, cache_dir) {
-            Some(embedding) => {
-                embeddings.insert(doc.id, embedding);
+    for group in hashed_doc_groups {
+        match retrieve_embeddings_from_cache(&group, cache) {
+            Some(document_refs) => {
+                document_groups.insert(group.id, document_refs);
             }
-            None => misses.push(doc),
+            None => misses.push(group),
         }
     }
 
     let embedding_tasks = misses
         .chunks(CHUNK_SIZE)
-        .map(|chunk| compute_embeddings_with_cache(chunk.to_vec(), embedding, cache_dir));
-    let computed_embeddings = join_all(embedding_tasks).await.into_iter().flatten();
-    for (id, embedding) in computed_embeddings {
-        embeddings.insert(id, embedding);
+        .map(|chunk| compute_embeddings_updating_cache(chunk.to_vec(), embedding, cache));
+    let new_computed_groups = join_all(embedding_tasks).await.into_iter().flatten();
+    for group in new_computed_groups {
+        document_groups.insert(group.id, group.documents);
     }
 
-    embeddings
+    document_groups
 }
 
-async fn compute_embeddings_with_cache(
-    docs: Vec<EntityDocument>,
+async fn compute_embeddings_updating_cache(
+    docs: Vec<HashedDocumentGroup>,
     embedding: &Box<dyn EmbeddingFunction>,
-    cache_dir: &Path,
-) -> Vec<(EntityId, Embedding)> {
-    let texts = docs.iter().map(|doc| doc.content.clone()).collect_vec();
-    let embeddings = embedding.call(texts).await;
-    docs.into_iter()
-        .zip(embeddings)
-        .map(|(doc, embedding)| {
-            let doc_hash = hash_doc(&doc); // FIXME: I'm hashing twice
-            let embedding_cache = EmbeddingCache {
-                doc_hash,
-                embedding,
-            };
-            let doc_path = cache_dir.join(doc.id.to_string());
-            let doc_file =
-                File::create(doc_path).expect("Couldn't create file to store embedding cache");
-            let mut doc_writer = BufWriter::new(doc_file);
-            bincode::serialize_into(&mut doc_writer, &embedding_cache)
-                .expect("Couldn't serialize embedding cache");
-            (doc.id, embedding_cache.embedding)
-        })
-        .collect_vec()
-}
-
-fn retrieve_embedding_from_cache(doc: &EntityDocument, cache_dir: &Path) -> Option<Embedding> {
-    let doc_path = cache_dir.join(doc.id.to_string());
-    let doc_file = File::open(doc_path).ok()?;
-    let mut doc_reader = BufReader::new(doc_file);
-    let embedding_cache: EmbeddingCache = bincode::deserialize_from(&mut doc_reader).ok()?;
-    let doc_hash = hash_doc(doc);
-    if doc_hash == embedding_cache.doc_hash {
-        Some(embedding_cache.embedding)
-    } else {
-        None
+    cache: &EmbeddingCache,
+) -> Vec<EmbeddedDocumentGroup> {
+    let embedded_document_groups = compute_embeddings(docs, embedding).await;
+    for group in &embedded_document_groups {
+        let embeddings = group
+            .documents
+            .iter()
+            .map(|doc| doc.embedding.clone())
+            .collect_vec();
+        cache.upsert_embeddings(group.id, group.hash, embeddings);
     }
+    embedded_document_groups
 }
 
-fn hash_doc(doc: &EntityDocument) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    doc.content.hash(&mut hasher);
-    hasher.finish()
+async fn compute_embeddings(
+    doc_groups: Vec<HashedDocumentGroup>,
+    embedding: &Box<dyn EmbeddingFunction>,
+) -> Vec<EmbeddedDocumentGroup> {
+    let texts = doc_groups
+        .iter()
+        .flat_map(|group| group.documents.iter().map(|doc| doc.content.clone()))
+        .collect_vec();
+
+    let embeddings = embedding.call(texts).await;
+
+    // let embeddings = embedding.call_async(texts).await;
+    let mut embeddings_queue = VecDeque::from(embeddings);
+    // VecDeque for efficient drain from the front of it
+    let mut embedded_groups = vec![];
+
+    for group in doc_groups {
+        let size = group.documents.len();
+        let entity_embeddings = embeddings_queue.drain(..size);
+        let document_refs = group
+            .documents
+            .into_iter()
+            .enumerate()
+            .zip(entity_embeddings)
+            .map(|((index, doc), embedding)| DocumentRef::new(group.id, index, embedding, doc.life))
+            .collect_vec();
+        let embedded_group = EmbeddedDocumentGroup {
+            id: group.id,
+            hash: group.hash,
+            documents: document_refs,
+        };
+        embedded_groups.push(embedded_group);
+    }
+    embedded_groups
+}
+
+fn retrieve_embeddings_from_cache(
+    doc_group: &HashedDocumentGroup,
+    cache: &EmbeddingCache,
+) -> Option<Vec<DocumentRef>> {
+    cache
+        .get_embeddings(doc_group.id, doc_group.hash)
+        .map(|embeddings| {
+            doc_group
+                .documents
+                .iter()
+                .zip(embeddings)
+                .enumerate()
+                .map(|(index, (doc, embedding))| {
+                    DocumentRef::new(doc_group.id, index, embedding, doc.life.clone())
+                })
+                .collect_vec()
+        })
 }

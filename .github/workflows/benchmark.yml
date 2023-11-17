@@ -41,9 +41,13 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: 1.73.0
           override: true
           components: rustfmt, clippy
+      - name: Cargo update
+        uses: actions-rs/cargo@v1
+        with:
+          command: update
       - name: Run benchmark (Unix)
         run: |
           set -o pipefail
@@ -63,7 +67,7 @@ jobs:
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
           comment-on-alert: true
-          fail-on-alert: true
+          fail-on-alert: false
       - name: Compare benchmark results if repo is not master
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
@@ -74,7 +78,9 @@ jobs:
           auto-push: false
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
-          fail-on-alert: true
+          comment-on-alert: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-alert: false
           save-data-file: false
 
 

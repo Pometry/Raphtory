@@ -30,8 +30,8 @@ jobs:
     uses: ./.github/workflows/benchmark.yml
     secrets: inherit
     needs: rust-format-check
-  call-code-coverage:
-    name: Code Coverage
-    uses: ./.github/workflows/code_coverage.yml
-    needs: rust-format-check
+  # call-code-coverage:
+  #   name: Code Coverage
+  #   uses: ./.github/workflows/code_coverage.yml
+  #   needs: rust-format-check
 

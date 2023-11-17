@@ -39,14 +39,17 @@ mod graphql_test {
     use crate::{data::Data, model::App};
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
-    use raphtory::{db::api::view::internal::IntoDynamic, prelude::*};
+    use raphtory::{
+        db::{api::view::internal::IntoDynamic, graph::views::deletion_graph::GraphWithDeletions},
+        prelude::*,
+    };
     use serde_json::json;
     use std::collections::HashMap;
     use tempfile::tempdir;
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
-        let graph = Graph::new();
+        let graph = GraphWithDeletions::new();
         graph
             .add_vertex(0, "Gandalf", [("kind".to_string(), Prop::str("wizard"))])
             .expect("Could not add vertex!");
@@ -87,7 +90,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn basic_query() {
-        let graph = Graph::new();
+        let graph = GraphWithDeletions::new();
         graph
             .add_vertex(0, 11, NO_PROPS)
             .expect("Could not add vertex!");
@@ -116,7 +119,7 @@ mod graphql_test {
                 "graph": {
                     "nodes": [
                         {
-                            "id": 11
+                            "id": "11"
                         }
                     ]
                 }
@@ -126,7 +129,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter() {
-        let graph = Graph::new();
+        let graph = GraphWithDeletions::new();
         if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
@@ -198,7 +201,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_properties() {
-        let graph = Graph::new();
+        let graph = GraphWithDeletions::new();
         if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
             panic!("Could not add vertex! {:?}", err);
         }
@@ -273,16 +276,16 @@ mod graphql_test {
     #[tokio::test]
     async fn test_mutation() {
         let test_dir = tempdir().unwrap();
-        let g0 = Graph::new();
+        let g0 = GraphWithDeletions::new();
         let test_dir_path = test_dir.path().to_str().unwrap().replace(r#"\"#, r#"\\"#);
         let f0 = &test_dir.path().join("g0");
         let f1 = &test_dir.path().join("g1");
         g0.save_to_file(f0).unwrap();
 
-        let g1 = Graph::new();
+        let g1 = GraphWithDeletions::new();
         g1.add_vertex(0, 1, NO_PROPS).unwrap();
 
-        let g2 = Graph::new();
+        let g2 = GraphWithDeletions::new();
         g2.add_vertex(0, 2, NO_PROPS).unwrap();
 
         let data = Data::default();
@@ -356,7 +359,7 @@ mod graphql_test {
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
 
         // reload all graphs from folder
         let req = Request::new(load_all);
@@ -366,18 +369,18 @@ mod graphql_test {
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 2}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "2"}]}}));
 
         // g1 still has node 1
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
     }
 
     #[tokio::test]
     async fn test_graph_injection() {
-        let g = Graph::new();
+        let g = GraphWithDeletions::new();
         g.add_vertex(0, 1, NO_PROPS).unwrap();
         let tmp_file = tempfile::NamedTempFile::new().unwrap();
         let path = tmp_file.path();
@@ -422,12 +425,12 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
     }
 
     #[tokio::test]
     async fn test_graph_send_receive_base64() {
-        let g = Graph::new();
+        let g = GraphWithDeletions::new();
         g.add_vertex(0, 1, NO_PROPS).unwrap();
 
         let graph_str = url_encode_graph(g.clone()).unwrap();
@@ -462,7 +465,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": 1}]}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
 
         let receive_graph = r#"
         query {

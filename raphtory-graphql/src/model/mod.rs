@@ -16,7 +16,7 @@ use itertools::Itertools;
 use raphtory::{
     core::{ArcStr, Prop},
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
-    prelude::{Graph, GraphViewOps, PropertyAdditionOps, VertexViewOps},
+    prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
 use std::{
@@ -26,12 +26,14 @@ use std::{
     io::BufReader,
     ops::Deref,
 };
+use utils::path_prefix;
 use uuid::Uuid;
 
 pub(crate) mod algorithm;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
+pub(crate) mod utils;
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -190,10 +192,7 @@ impl Mut {
 
             new_subgraph.save_to_file(path)?;
 
-            let gi: IndexedGraph<Graph> = new_subgraph
-                .into_events()
-                .ok_or("Graph with deletions not supported")?
-                .into();
+            let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
 
             data.insert(new_graph_name, gi);
             data.remove(&graph_name);
@@ -221,23 +220,6 @@ impl Mut {
             .to_string();
 
         if new_graph_name.ne(&graph_name) {
-            fn path_prefix(path: String) -> Result<String> {
-                let elements: Vec<&str> = path.split('/').collect();
-                let size = elements.len();
-                return if size > 2 {
-                    let delimiter = "/";
-                    let joined_string = elements
-                        .iter()
-                        .take(size - 1)
-                        .copied()
-                        .collect::<Vec<_>>()
-                        .join(delimiter);
-                    Ok(joined_string)
-                } else {
-                    Err("Invalid graph path".into())
-                };
-            }
-
             path = path_prefix(path)? + "/" + &Uuid::new_v4().hyphenated().to_string();
         }
 
@@ -277,13 +259,11 @@ impl Mut {
 
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
+        new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
 
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<Graph> = new_subgraph
-            .into_events()
-            .ok_or("Graph with deletions not supported")?
-            .into();
+        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
 
         data.insert(new_graph_name, gi);
 
@@ -312,10 +292,7 @@ impl Mut {
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
         let g: MaterializedGraph =
             bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
-        let gi: IndexedGraph<Graph> = g
-            .into_events()
-            .ok_or("Graph with deletions not supported")?
-            .into();
+        let gi: IndexedGraph<MaterializedGraph> = g.into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi);
         Ok(name)
@@ -328,12 +305,7 @@ impl Mut {
     async fn send_graph<'a>(ctx: &Context<'a>, name: String, graph: String) -> Result<String> {
         let g: MaterializedGraph = bincode::deserialize(&URL_SAFE_NO_PAD.decode(graph)?)?;
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        data.insert(
-            name.clone(),
-            g.into_events()
-                .ok_or("Graph with deletions not supported")?
-                .into(),
-        );
+        data.insert(name.clone(), g.into());
         Ok(name)
     }
 
@@ -368,10 +340,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<Graph> = new_subgraph
-            .into_events()
-            .ok_or("Graph with deletions not supported")?
-            .into();
+        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
 
         data.insert(graph_name, gi);
 

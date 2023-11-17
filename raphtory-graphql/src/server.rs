@@ -9,11 +9,14 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
-    db::graph::{edge::EdgeView, vertex::VertexView},
-    prelude::Graph,
-    vectors::{vectorizable::Vectorizable, Embedding},
+    db::api::view::internal::MaterializedGraph,
+    vectors::{
+        document_template::{DefaultTemplate, DocumentTemplate},
+        vectorizable::Vectorizable,
+        Embedding,
+    },
 };
-use std::{collections::HashMap, future::Future, ops::Deref, path::Path};
+use std::{collections::HashMap, future::Future, ops::Deref, path::Path, sync::Arc};
 use tokio::{io::Result as IoResult, signal};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -22,7 +25,7 @@ pub struct RaphtoryServer {
 }
 
 impl RaphtoryServer {
-    pub fn from_map(graphs: HashMap<String, Graph>) -> Self {
+    pub fn from_map(graphs: HashMap<String, MaterializedGraph>) -> Self {
         let data = Data::from_map(graphs);
         Self { data }
     }
@@ -32,46 +35,41 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub fn from_map_and_directory(graphs: HashMap<String, Graph>, graph_directory: &str) -> Self {
+    pub fn from_map_and_directory(
+        graphs: HashMap<String, MaterializedGraph>,
+        graph_directory: &str,
+    ) -> Self {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }
 
-    pub async fn with_vectorized<F, U, N, E>(
+    pub async fn with_vectorized<F, U, T>(
         self,
         graph_names: Vec<String>,
         embedding: F,
         cache_dir: &Path,
-        templates: Option<(N, E)>,
+        template: Option<T>,
     ) -> Self
     where
         F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
         U: Future<Output = Vec<Embedding>> + Send + 'static,
-        N: Fn(&VertexView<Graph>) -> String + Sync + Send + Copy + 'static,
-        E: Fn(&EdgeView<Graph>) -> String + Sync + Send + Copy + 'static,
+        T: DocumentTemplate<MaterializedGraph> + 'static,
     {
         {
             let graphs_map = self.data.graphs.read();
             let mut stores_map = self.data.vector_stores.write();
 
+            let template = template
+                .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<MaterializedGraph>>)
+                .unwrap_or(Arc::new(DefaultTemplate));
+
             for graph_name in graph_names {
                 let graph_cache = cache_dir.join(&graph_name);
                 let graph = graphs_map.get(&graph_name).unwrap().deref().clone();
-
                 println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-                let vectorized = match templates {
-                    Some((node_template, edge_template)) => {
-                        graph
-                            .vectorize_with_templates(
-                                Box::new(embedding),
-                                &graph_cache,
-                                node_template,
-                                edge_template,
-                            )
-                            .await
-                    }
-                    None => graph.vectorize(Box::new(embedding), &graph_cache).await,
-                };
+                let vectorized = graph
+                    .vectorize_with_template(Box::new(embedding), &graph_cache, template.clone())
+                    .await;
                 stores_map.insert(graph_name, vectorized);
             }
         }

@@ -12,7 +12,7 @@ use raphtory_core::python::{
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         vertex::{PyVertex, PyVertices},
     },
-    packages::{algorithms::*, graph_gen::*, graph_loader::*},
+    packages::{algorithms::*, graph_gen::*, graph_loader::*, vectors::PyVectorizedGraph},
 };
 
 macro_rules! add_functions {
@@ -88,6 +88,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         temporally_reachable_nodes,
         local_clustering_coefficient,
         weakly_connected_components,
+        strongly_connected_components,
         in_components,
         out_components,
         global_temporal_three_node_motif,
@@ -123,11 +124,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     );
     m.add_submodule(graph_gen_module)?;
 
-    // TODO: re-enable
-    //VECTORS
-    // let vectors_module = PyModule::new(py, "vectors")?;
-    // vectors_module.add_class::<PyVectorizedGraph>()?;
-    // m.add_submodule(vectors_module)?;
+    // VECTORS
+    let vectors_module = PyModule::new(py, "vectors")?;
+    vectors_module.add_class::<PyVectorizedGraph>()?;
+    m.add_submodule(vectors_module)?;
 
     Ok(())
 }
