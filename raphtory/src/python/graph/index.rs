@@ -42,19 +42,13 @@ impl GraphIndex {
     fn fuzzy_search_nodes(
         &self,
         query: &str,
-        limit: Option<usize>,
-        offset: Option<usize>,
-        prefix: Option<bool>,
-        levenshtein_distance: Option<u8>,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
     ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
         self.graph
-            .fuzzy_search_nodes(
-                query,
-                limit.unwrap_or(25),
-                offset.unwrap_or(0),
-                prefix.unwrap_or(false),
-                levenshtein_distance.unwrap_or(0),
-            )
+            .fuzzy_search_nodes(query, limit, offset, prefix, levenshtein_distance)
             .map_err(|e| adapt_err_value(&e))
     }
 
@@ -73,19 +67,13 @@ impl GraphIndex {
     fn fuzzy_search_edges(
         &self,
         query: &str,
-        limit: Option<usize>,
-        offset: Option<usize>,
-        prefix: Option<bool>,
-        levenshtein_distance: Option<u8>,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, PyErr> {
         self.graph
-            .fuzzy_search_edges(
-                query,
-                limit.unwrap_or(25),
-                offset.unwrap_or(0),
-                prefix.unwrap_or(true),
-                levenshtein_distance.unwrap_or(0),
-            )
+            .fuzzy_search_edges(query, limit, offset, prefix, levenshtein_distance)
             .map_err(|e| adapt_err_value(&e))
     }
 
@@ -102,11 +90,11 @@ impl GraphIndex {
     fn search_nodes(
         &self,
         query: &str,
-        limit: Option<usize>,
-        offset: Option<usize>,
+        limit: usize,
+        offset: usize,
     ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
         self.graph
-            .search_nodes(query, limit.unwrap_or(25), offset.unwrap_or(0))
+            .search_nodes(query, limit, offset)
             .map_err(|e| adapt_err_value(&e))
     }
 
@@ -123,11 +111,11 @@ impl GraphIndex {
     fn search_edges(
         &self,
         query: &str,
-        limit: Option<usize>,
-        offset: Option<usize>,
+        limit: usize,
+        offset: usize,
     ) -> Result<Vec<EdgeView<DynamicGraph>>, PyErr> {
         self.graph
-            .search_edges(query, limit.unwrap_or(25), offset.unwrap_or(0))
+            .search_edges(query, limit, offset)
             .map_err(|e| adapt_err_value(&e))
     }
 }
