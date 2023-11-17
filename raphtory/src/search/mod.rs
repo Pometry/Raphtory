@@ -827,7 +827,7 @@ impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph
 
 #[cfg(test)]
 mod test {
-
+    use std::time::SystemTime;
     use tantivy::{doc, DocAddress};
 
     use super::*;
