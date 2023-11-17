@@ -35,36 +35,6 @@ impl EntityId {
     }
 }
 
-// impl<G: GraphViewOps> From<&VertexView<G>> for EntityId {
-//     fn from(value: &VertexView<G>) -> Self {
-//         EntityId::Node { id: value.id() }
-//     }
-// }
-//
-// impl<G: GraphViewOps> From<VertexView<G>> for EntityId {
-//     fn from(value: VertexView<G>) -> Self {
-//         EntityId::Node { id: value.id() }
-//     }
-// }
-//
-// impl<G: GraphViewOps> From<&EdgeView<G>> for EntityId {
-//     fn from(value: &EdgeView<G>) -> Self {
-//         EntityId::Edge {
-//             src: value.src().id(),
-//             dst: value.dst().id(),
-//         }
-//     }
-// }
-//
-// impl<G: GraphViewOps> From<EdgeView<G>> for EntityId {
-//     fn from(value: EdgeView<G>) -> Self {
-//         EntityId::Edge {
-//             src: value.src().id(),
-//             dst: value.dst().id(),
-//         }
-//     }
-// }
-
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
