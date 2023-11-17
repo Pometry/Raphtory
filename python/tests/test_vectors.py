@@ -11,14 +11,13 @@ embedding_map = {
     "edge3": [0.0, 1.0, 1.0]
 }
 
-def single_embedding(text: str) -> list[float]:
-    embedding = embedding_map.get(text)
-    if embedding is not None:
-        return embedding
-    else:
+def single_embedding(text: str):
+    try:
+        return embedding_map[text]
+    except:
         raise Exception(f"unexpected document content: {text}")
 
-def embedding(texts: list[str]) -> list[list[float]]:
+def embedding(texts: list[str]):
     return [single_embedding(text) for text in texts]
 
 def floats_are_equals(float1: float, float2: float) -> bool:
@@ -27,12 +26,12 @@ def floats_are_equals(float1: float, float2: float) -> bool:
 def create_graph() -> VectorisedGraph:
     g = Graph()
 
-    g.add_vertex(1, "node1", {"doc": "node1"}) 
-    g.add_vertex(2, "node2", {"doc": "node2"}) 
+    g.add_vertex(1, "node1", {"doc": "node1"})
+    g.add_vertex(2, "node2", {"doc": "node2"})
     g.add_vertex(3, "node3", {"doc": "node3"})
-    g.add_vertex(4, "node4", {"doc": "node4"}) 
+    g.add_vertex(4, "node4", {"doc": "node4"})
 
-    g.add_edge(2, "node1", "node2", {"doc": "edge1"}) 
+    g.add_edge(2, "node1", "node2", {"doc": "edge1"})
     g.add_edge(3, "node1", "node3", {"doc": "edge2"})
     g.add_edge(4, "node3", "node4", {"doc": "edge3"})
 
