@@ -8,7 +8,7 @@ use arrow2::{
 use itertools::Itertools;
 use std::{
     ops::Range,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, num::TryFromIntError,
 };
 
 pub(crate) mod chunked_array;
@@ -54,6 +54,8 @@ pub enum Error {
     DatabaseNotFound(PathBuf),
     #[error("Empty parquet chunk")]
     EmptyChunk,
+    #[error("Conversion error: {0}")]
+    ArgumentError(#[from] TryFromIntError),
 }
 
 unsafe impl Send for Error {} // heed::Error can't be made Send
@@ -279,10 +281,10 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // if it exists make sure it's empty
     std::fs::create_dir_all(&graph_dir)?;
 
-    let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-    if dir_iter.next().is_some() {
-        return Err(Error::GraphDirNotEmpty);
-    }
+    // let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+    // if dir_iter.next().is_some() {
+    //     return Err(Error::GraphDirNotEmpty);
+    // }
 
     return Ok(());
 }

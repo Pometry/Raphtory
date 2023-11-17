@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, num::NonZeroUsize};
 
 use arrow2::{
     array::{self, PrimitiveArray, StructArray},
@@ -88,13 +88,13 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
 
     pub(crate) fn load_t_edges_from_par_structs(
         &self,
+        num_threads: NonZeroUsize,
         iter: impl IndexedParallelIterator<Item = Vec<ParquetOffset<impl TrySlice>>>,
     ) -> Result<ChunkedArray<StructArray>, Error> {
         // TODO: make this dependent on number of cores, number of columns and available memory
 
-        let num_threads = std::thread::available_parallelism()?;
         let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads.get() / 2)
+            .num_threads(num_threads.get())
             .build()
             .unwrap();
 

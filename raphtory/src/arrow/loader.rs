@@ -352,6 +352,12 @@ pub(crate) fn make_global_ordering<'a, GO: GlobalOrder, P: AsRef<Path> + Sync + 
         sorted_vertices
     };
 
+    println!(
+        "DONE sorting time: {:?}, len: {}",
+        now.elapsed(),
+        sorted_vertices.len()
+    );
+
     for (i, gid) in array_as_id_iter(&sorted_vertices)?.enumerate() {
         go.insert(gid, i);
     }

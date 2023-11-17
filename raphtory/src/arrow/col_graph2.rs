@@ -1,6 +1,7 @@
 use std::{
     borrow::Borrow,
     io,
+    num::NonZeroUsize,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -134,8 +135,9 @@ impl TempColGraphFragment {
         self.edges.property_id(name)
     }
 
-    pub fn load_from_edge_list<G:GlobalOrder, I: IntoIterator<Item = StructArray>>(
+    pub fn load_from_edge_list<G: GlobalOrder, I: IntoIterator<Item = StructArray>>(
         test_dir: &Path,
+        num_threads: NonZeroUsize,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
@@ -157,8 +159,8 @@ impl TempColGraphFragment {
         load_chunks(&mut vf_builder, &mut edge_builder, edges.iter().cloned())?;
 
         let edge_chunks = ParquetOffsetIter::new(props.iter(), t_props_chunk_size).collect_vec();
-        let edge_props_values =
-            edge_props_builder.load_t_edges_from_par_structs(edge_chunks.into_par_iter())?;
+        let edge_props_values = edge_props_builder
+            .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
         let graph_chunks_iter = edges.into_par_iter().map(Ok);
         let offsets = edge_props_builder.load_t_edge_offsets_from_par_chunks(graph_chunks_iter)?;
 
@@ -182,6 +184,7 @@ impl TempColGraphFragment {
         graph_dir: &Path,
         global_order: Arc<GO>,
         exclude_cols: &[&str],
+        num_threads: NonZeroUsize,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
@@ -196,6 +199,7 @@ impl TempColGraphFragment {
             el.dst_hash_col,
             el.time_col,
             exclude_cols,
+            num_threads,
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
@@ -212,6 +216,7 @@ impl TempColGraphFragment {
         dst_hash_col: &str,
         time_col: &str,
         exclude_cols: &[&str],
+        num_threads: NonZeroUsize,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
@@ -238,7 +243,7 @@ impl TempColGraphFragment {
             &excluded_cols,
         )?;
 
-        let t_props = reader.load_edges(t_props_chunk_size)?;
+        let t_props = reader.load_edges(num_threads, t_props_chunk_size)?;
         let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, t_props);
 
         Ok(TempColGraphFragment {
@@ -259,6 +264,7 @@ impl TempColGraphFragment {
         dst_hash_col: &str,
         time_col: &str,
         exclude_cols: &[&str],
+        num_threads: NonZeroUsize,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
@@ -320,6 +326,7 @@ impl TempColGraphFragment {
             dst_hash_col,
             time_col,
             exclude_cols,
+            num_threads,
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
@@ -794,6 +801,7 @@ mod test {
 
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.as_ref(),
+            4.try_into().unwrap(),
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
@@ -1009,6 +1017,7 @@ mod test {
             "dst_hash",
             "epoch_time",
             &[],
+            4.try_into().unwrap(),
             5,
             5,
             5,
@@ -1063,6 +1072,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             100,
             100,
             100,
@@ -1103,6 +1113,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             100,
             100,
             100,
@@ -1156,6 +1167,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             4,
             2,
             100,
@@ -1218,6 +1230,7 @@ mod test {
 
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             100,
             100,
             100,
@@ -1280,6 +1293,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             100,
             100,
             100,
@@ -1330,6 +1344,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             1,
             1,
             100,
@@ -1392,6 +1407,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             2,
             2,
             100,
@@ -1462,6 +1478,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             2,
             2,
             100,
@@ -1491,6 +1508,7 @@ mod test {
         );
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             2,
             2,
             5,
@@ -1526,6 +1544,7 @@ mod test {
         );
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            4.try_into().unwrap(),
             2,
             2,
             1,

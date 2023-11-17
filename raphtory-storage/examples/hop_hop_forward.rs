@@ -673,7 +673,7 @@ fn main() {
         ];
         let chunk_size = 8_388_608;
         let t_props_chunk_size = 20_970_100;
-        let graph = TemporalGraph::from_edge_lists(
+        let graph = TemporalGraph::from_edge_lists(8,
             chunk_size,
             chunk_size,
             t_props_chunk_size,

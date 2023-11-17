@@ -21,7 +21,7 @@ use std::{
     borrow::Borrow,
     cmp::min,
     ops::Range,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, num::NonZeroUsize,
 };
 
 pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
@@ -99,18 +99,19 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
 
     pub(crate) fn load_edges(
         &self,
+        num_threads: NonZeroUsize,
         t_prop_chunk_size: usize,
     ) -> Result<ChunkedListArray<ChunkedArray<StructArray>>, Error> {
-        let edge_values = self.load_t_edge_values(t_prop_chunk_size)?;
+        let edge_values = self.load_t_edge_values(num_threads, t_prop_chunk_size)?;
         let edge_offsets = self.load_t_edge_offsets()?;
         Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
     }
 
-    fn load_t_edge_values(&self, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
+    fn load_t_edge_values(&self, num_threads: NonZeroUsize, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
         let offset_iter = self.parquet_offset_iter(chunk_size).collect_vec();
         let iter = offset_iter.into_par_iter();
 
-        self.edge_props_builder.load_t_edges_from_par_structs(iter)
+        self.edge_props_builder.load_t_edges_from_par_structs(num_threads, iter)
     }
 
     fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
@@ -422,7 +423,7 @@ mod test {
         )
         .unwrap();
 
-        let list_arr = reader.load_edges(17).unwrap();
+        let list_arr = reader.load_edges(4.try_into().unwrap(), 17).unwrap();
         let list_arr_vs = list_arr.values();
         assert_eq!(list_arr.len(), 97);
         assert_eq!(list_arr_vs.len(), 100);
