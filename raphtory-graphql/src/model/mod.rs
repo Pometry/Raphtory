@@ -319,4 +319,4 @@ impl Mut {
 }
 
 #[derive(App)]
-pub(crate) struct App(QueryRoot, MutRoot, Mut);
+pub struct App(QueryRoot, MutRoot, Mut);

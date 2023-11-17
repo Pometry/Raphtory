@@ -25,7 +25,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, vertex::PyVertices},
+        graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
         types::repr::Repr,
         utils::{PyInterval, PyTime},
     },
@@ -281,14 +281,22 @@ impl PyGraphView {
         self.graph.subgraph(vertices)
     }
 
-    /// Returns a graph clone
-    ///
-    /// Arguments:
+    /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
     ///
     /// Returns:
     ///    GraphView - Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
+    }
+
+    /// Indexes all vertex and edge properties.
+    /// Returns a GraphIndex which allows the user to search the edges and vertices of the graph via tantivity fuzzy matching queries.
+    /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
+    ///
+    /// Returns:
+    ///    GraphIndex - Returns a GraphIndex
+    fn index(&self) -> GraphIndex {
+        GraphIndex::new(self.graph.clone())
     }
 
     /// Get bincode encoded graph

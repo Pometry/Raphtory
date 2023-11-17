@@ -9,6 +9,7 @@ use raphtory_core::python::{
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
+        index::GraphIndex,
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
         vertex::{PyVertex, PyVertices},
     },
@@ -53,7 +54,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyTemporalProperties,
         PyTemporalProp,
         PyDirection,
-        AlgorithmResult
+        AlgorithmResult,
+        GraphIndex
     );
 
     //GRAPHQL
