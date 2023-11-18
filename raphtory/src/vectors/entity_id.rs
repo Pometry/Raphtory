@@ -3,7 +3,10 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
-use std::fmt::{Display, Formatter};
+use std::{
+    borrow::Borrow,
+    fmt::{Display, Formatter},
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
@@ -11,32 +14,23 @@ pub(crate) enum EntityId {
     Edge { src: u64, dst: u64 },
 }
 
-impl<G: GraphViewOps> From<&VertexView<G>> for EntityId {
-    fn from(value: &VertexView<G>) -> Self {
-        EntityId::Node { id: value.id() }
+impl EntityId {
+    pub(crate) fn from_node_id(id: u64) -> Self {
+        Self::Node { id }
     }
-}
 
-impl<G: GraphViewOps> From<VertexView<G>> for EntityId {
-    fn from(value: VertexView<G>) -> Self {
-        EntityId::Node { id: value.id() }
+    pub(crate) fn from_edge_id(src: u64, dst: u64) -> Self {
+        Self::Edge { src, dst }
     }
-}
 
-impl<G: GraphViewOps> From<&EdgeView<G>> for EntityId {
-    fn from(value: &EdgeView<G>) -> Self {
-        EntityId::Edge {
-            src: value.src().id(),
-            dst: value.dst().id(),
-        }
+    pub(crate) fn from_node<G: GraphViewOps>(node: &VertexView<G>) -> Self {
+        Self::Node { id: node.id() }
     }
-}
 
-impl<G: GraphViewOps> From<EdgeView<G>> for EntityId {
-    fn from(value: EdgeView<G>) -> Self {
-        EntityId::Edge {
-            src: value.src().id(),
-            dst: value.dst().id(),
+    pub(crate) fn from_edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self {
+        Self::Edge {
+            src: edge.src().id(),
+            dst: edge.dst().id(),
         }
     }
 }

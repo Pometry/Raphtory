@@ -25,16 +25,21 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, vertex::PyVertices},
+        graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
+        packages::vectors::{spawn_async_task, DynamicVectorisedGraph, PyDocumentTemplate},
         types::repr::Repr,
         utils::{PyInterval, PyTime},
     },
+    vectors::vectorisable::Vectorisable,
     *,
 };
 use chrono::prelude::*;
 use itertools::Itertools;
-use pyo3::{prelude::*, types::PyBytes};
-use std::ops::Deref;
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyFunction},
+};
+use std::{ops::Deref, path::PathBuf};
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -281,14 +286,41 @@ impl PyGraphView {
         self.graph.subgraph(vertices)
     }
 
-    /// Returns a graph clone
-    ///
-    /// Arguments:
+    /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
     ///
     /// Returns:
     ///    GraphView - Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
+    }
+
+    /// Indexes all vertex and edge properties.
+    /// Returns a GraphIndex which allows the user to search the edges and vertices of the graph via tantivity fuzzy matching queries.
+    /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
+    ///
+    /// Returns:
+    ///    GraphIndex - Returns a GraphIndex
+    fn index(&self) -> GraphIndex {
+        GraphIndex::new(self.graph.clone())
+    }
+
+    fn vectorise(
+        &self,
+        embedding: &PyFunction,
+        cache: Option<String>,
+        node_document: Option<String>,
+        edge_document: Option<String>,
+    ) -> DynamicVectorisedGraph {
+        let embedding: Py<PyFunction> = embedding.into();
+        let graph = self.graph.clone();
+        let cache = cache.map(|cache| PathBuf::from(cache));
+        let template = PyDocumentTemplate::new(node_document, edge_document);
+        spawn_async_task(move || async move {
+            let vectorised_graph = graph
+                .vectorise_with_template(Box::new(embedding.clone()), cache, template)
+                .await;
+            vectorised_graph
+        })
     }
 
     /// Get bincode encoded graph
