@@ -13,6 +13,7 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
+use raphtory::core::utils::errors::GraphError;
 use raphtory::{
     core::{ArcStr, Prop},
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
@@ -158,6 +159,14 @@ impl Mut {
         graph_name: String,
         new_graph_name: String,
     ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        if data.graphs.read().contains_key(&new_graph_name) {
+            return Err((GraphError::GraphNameAlreadyExists {
+                name: new_graph_name,
+            })
+            .into());
+        }
+
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
             let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
