@@ -22,52 +22,27 @@ jobs:
               aws-region: ${{ secrets.AWS_REGION }}
           - name: Start self-hosted runner
             run: aws ec2 start-instances --instance-ids i-03296912049a2e29f 
-    python-test:
+    lanl-bench:
         runs-on: self-hosted
         needs: start_runner
         timeout-minutes: 30
-        name: Python Tests
+        name: LANL Query Benchmark
         steps:
           - uses: actions/checkout@v3
             name: Checkout
-          - name: Set up cargo cache
-            uses: actions/cache@v3
-            continue-on-error: false
+          - name: Run Cargo build
+            uses: actions-rs/cargo@v1
+            env:
+              RUSTFLAGS: -Awarnings
             with:
-                path: |
-                  ~/.cargo/bin/
-                  ~/.cargo/registry/index/
-                  ~/.cargo/registry/cache/
-                  ~/.cargo/git/db/
-                  target/debug
-                  target/release
-                key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-                restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          - name: Setup Python 3.11
-            uses: actions/setup-python@v4
-            with:
-                python-version: 3.11
-          - name: Run Maturin develop
-            uses: PyO3/maturin-action@v1
-            with:
-                working-directory: ./python
-                command: build
-                args: --release
-          - name: Install Python dependencies (Unix)
-            run: |
-                python3 -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
-                python3 -m pip install target/wheels/raphtory-*.whl
-                python3 -m pip install -e examples/custom_python_extension
-          - name: Run Python tests
-            run: |
-                cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
-          - name: Run Python extension tests
-            run: |
-                cd examples/custom_python_extension/test && pytest .
+              command: build
+              args: --release --example lanl
+          - name: Run Benchmark for lanl
+            run:  /usr/bin/time -v cargo run --release --example lanl /mnt/work/pometry/trovares/day85/raphtory_graph
     shutdown_runner:
         runs-on: ubuntu-latest
         if: always()
-        needs: [start_runner, python-test]
+        needs: [start_runner, lanl-bench]
         steps:
           - name: Setup AWS CLI
             uses: aws-actions/configure-aws-credentials@v4
