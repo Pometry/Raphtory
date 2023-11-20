@@ -28,23 +28,21 @@ jobs:
         timeout-minutes: 30
         name: LANL Query Benchmark
         steps:
-          - name: Delete the _work folder
-            run: rm -rf /home/ubuntu/actions-runner/_work
           - uses: actions/checkout@v3
             name: Checkout
           - name: Run Build and Benchmark for lanl
             run:  |
               cargo build --release --example lanl
               /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
-    cleanup:
-        runs-on: self-hosted
-        needs: [start_runner, lanl-bench]
-        if: always()
-        timeout-minutes: 5
-        name: Cleanup _work folder but dont delete the dir
-        steps:
-          - name: rm -r /home/ubuntu/actions-runner/_work/*
-            run: rm -r /home/ubuntu/actions-runner/_work/*
+    # cleanup:
+    #     runs-on: self-hosted
+    #     needs: [start_runner, lanl-bench]
+    #     if: always()
+    #     timeout-minutes: 5
+    #     name: Cleanup _work folder but dont delete the dir
+    #     steps:
+    #       - name: rm -r /home/ubuntu/actions-runner/_work/*
+    #         run: rm -r /home/ubuntu/actions-runner/_work/*
     # disabled runner shutdown 
     # shutdown_runner:
     #     runs-on: ubuntu-latest
