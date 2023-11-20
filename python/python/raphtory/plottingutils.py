@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 motif_im_dir = Path(__file__).parents[1].absolute().as_posix()+"/motif-images/"
-print(motif_im_dir)
 
 def get_motif(xory:str,y:int):
     path = motif_im_dir+xory+str(y)+".png"
