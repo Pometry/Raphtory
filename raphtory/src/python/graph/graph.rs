@@ -2,7 +2,6 @@
 //!
 //! This is the base class used to create a temporal graph, add vertices and edges,
 //! create windows, and query the graph with a variety of algorithms.
-//! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
     core::utils::errors::GraphError,

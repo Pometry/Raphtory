@@ -1,8 +1,8 @@
-pub use crate::{model::algorithm::Algorithm, server::RaphtoryServer};
+pub use crate::server::RaphtoryServer;
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, DecodeError, Engine};
 use raphtory::{core::utils::errors::GraphError, db::api::view::internal::MaterializedGraph};
 
-mod model;
+pub mod model;
 mod observability;
 mod routes;
 pub mod server;
@@ -64,7 +64,7 @@ mod graphql_test {
         let query = r#"
         {
           graph(name: "lotr") {
-            search(query: "kind:wizard", limit: 10, offset: 0) {
+            searchNodes(query: "kind:wizard", limit: 10, offset: 0) {
               name
             }
           }
@@ -78,7 +78,7 @@ mod graphql_test {
             data,
             json!({
                 "graph": {
-                    "search": [
+                    "searchNodes": [
                         {
                             "name": "Gandalf"
                         }

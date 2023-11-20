@@ -1,8 +1,8 @@
 use crate::{
     data::Data,
     model::graph::{
-        document::GqlDocument,
         graph::{GqlGraph, GraphMeta},
+        vectorised_graph::GqlVectorisedGraph,
     },
 };
 use async_graphql::Context;
@@ -14,10 +14,11 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{ArcStr, Prop},
+    core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
     prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
+    vectors::embeddings::openai_embedding,
 };
 use std::{
     collections::HashMap,
@@ -29,7 +30,7 @@ use std::{
 use utils::path_prefix;
 use uuid::Uuid;
 
-pub(crate) mod algorithm;
+pub mod algorithms;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
@@ -63,6 +64,12 @@ impl QueryRoot {
         Some(GqlGraph::new(g.into_dynamic_indexed()))
     }
 
+    async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let g = data.vector_stores.read().get(name).cloned()?;
+        Some(g.into())
+    }
+
     async fn subgraph<'a>(ctx: &Context<'a>, name: &str) -> Option<GraphMeta> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.read().get(name).cloned()?;
@@ -93,43 +100,6 @@ impl QueryRoot {
         let bincode = bincode::serialize(&g)?;
         Ok(URL_SAFE_NO_PAD.encode(bincode))
     }
-
-    async fn similarity_search<'a>(
-        ctx: &Context<'a>,
-        graph: &str,
-        query: &str,
-        init: Option<usize>,
-        min_nodes: Option<usize>,
-        min_edges: Option<usize>,
-        limit: Option<usize>,
-        window_start: Option<i64>,
-        window_end: Option<i64>,
-    ) -> Option<Vec<GqlDocument>> {
-        let init = init.unwrap_or(1);
-        let min_nodes = min_nodes.unwrap_or(0);
-        let min_edges = min_edges.unwrap_or(0);
-        let limit = limit.unwrap_or(1);
-        let data = ctx.data_unchecked::<Data>();
-        let binding = data.vector_stores.read();
-        let vec_store = binding.get(graph)?;
-        println!("running similarity search for {query}");
-        Some(
-            vec_store
-                .similarity_search(
-                    query,
-                    init,
-                    min_nodes,
-                    min_edges,
-                    limit,
-                    window_start,
-                    window_end,
-                )
-                .await
-                .into_iter()
-                .map(|doc| doc.into())
-                .collect_vec(),
-        )
-    }
 }
 
 #[derive(MutationRoot)]
@@ -158,6 +128,14 @@ impl Mut {
         graph_name: String,
         new_graph_name: String,
     ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        if data.graphs.read().contains_key(&new_graph_name) {
+            return Err((GraphError::GraphNameAlreadyExists {
+                name: new_graph_name,
+            })
+            .into());
+        }
+
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
             let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
@@ -207,6 +185,7 @@ impl Mut {
         graph_name: String,
         new_graph_name: String,
         props: String,
+        is_archive: u8,
         graph_nodes: Vec<String>,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
@@ -260,6 +239,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
+        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         new_subgraph.save_to_file(path)?;
 
@@ -349,4 +329,4 @@ impl Mut {
 }
 
 #[derive(App)]
-pub(crate) struct App(QueryRoot, MutRoot, Mut);
+pub struct App(QueryRoot, MutRoot, Mut);
