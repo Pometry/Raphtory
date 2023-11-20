@@ -14,7 +14,7 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{ArcStr, Prop},
+    core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
     prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
@@ -128,6 +128,14 @@ impl Mut {
         graph_name: String,
         new_graph_name: String,
     ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        if data.graphs.read().contains_key(&new_graph_name) {
+            return Err((GraphError::GraphNameAlreadyExists {
+                name: new_graph_name,
+            })
+            .into());
+        }
+
         if new_graph_name.ne(&graph_name) && parent_graph_name.ne(&graph_name) {
             let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
@@ -177,6 +185,7 @@ impl Mut {
         graph_name: String,
         new_graph_name: String,
         props: String,
+        is_archive: u8,
         graph_nodes: Vec<String>,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
@@ -230,6 +239,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
+        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         new_subgraph.save_to_file(path)?;
 

@@ -8,6 +8,8 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error("Graph already exists by name = {name}")]
+    GraphNameAlreadyExists { name: String },
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
     IllegalGraphAccess,
     #[error("Incorrect property given.")]
