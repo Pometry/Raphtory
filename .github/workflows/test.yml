@@ -4,7 +4,7 @@
 #     branches:
 #       - master
 
-# concurrency:
+# concurrency:/home/ubuntu/.cargo/bin/sccache
 #   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 #   cancel-in-progress: true
 

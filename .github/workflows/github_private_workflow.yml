@@ -28,24 +28,35 @@ jobs:
         timeout-minutes: 30
         name: LANL Query Benchmark
         steps:
+          - name: Delete the _work folder
+            run: rm -rf /home/ubuntu/actions-runner/_work
           - uses: actions/checkout@v3
             name: Checkout
           - name: Run Build and Benchmark for lanl
             run:  |
-              export RUSTC_WRAPPER=/home/ubuntu/.cargo/bin/sccache
               cargo build --release --example lanl
               /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
-    shutdown_runner:
-        runs-on: ubuntu-latest
-        if: always()
+    cleanup:
+        runs-on: self-hosted
         needs: [start_runner, lanl-bench]
+        if: always()
+        timeout-minutes: 5
+        name: Cleanup _work folder but dont delete the dir
         steps:
-          - name: Setup AWS CLI
-            uses: aws-actions/configure-aws-credentials@v4
-            with:
-              aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-              aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-              aws-region: ${{ secrets.AWS_REGION }}
-          - name: Stop self-hosted runner
-            run: aws ec2 stop-instances --instance-ids i-03296912049a2e29f 
+          - name: rm -r /home/ubuntu/actions-runner/_work/*
+            run: rm -r /home/ubuntu/actions-runner/_work/*
+    # disabled runner shutdown 
+    # shutdown_runner:
+    #     runs-on: ubuntu-latest
+    #     if: always()
+    #     needs: [start_runner, lanl-bench]
+    #     steps:
+    #       - name: Setup AWS CLI
+    #         uses: aws-actions/configure-aws-credentials@v4
+    #         with:
+    #           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #           aws-region: ${{ secrets.AWS_REGION }}
+    #       - name: Stop self-hosted runner
+    #         run: aws ec2 stop-instances --instance-ids i-03296912049a2e29f 
               
