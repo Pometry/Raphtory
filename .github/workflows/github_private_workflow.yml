@@ -33,7 +33,7 @@ jobs:
           - name: Run Build and Benchmark for lanl
             run:  |
               sccache --stop-server 2> /dev/null && sccache --start-server 2> /dev/null
-              export RUSTC_WRAPPER=sccache; cargo build --release --example lanl; unset RUSTC_WRAPPER
+              export RUSTC_WRAPPER=sccache && cargo build --release --example lanl && unset RUSTC_WRAPPER
               /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
     # cleanup:
     #     runs-on: self-hosted
