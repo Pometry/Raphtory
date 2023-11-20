@@ -274,7 +274,7 @@ impl<'a, G: GraphViewOps, GH: GraphViewOps, CS: ComputeState, S> EvalVertexView<
 }
 
 pub struct EvalPathFromVertex<'a, G: GraphViewOps, GH: GraphViewOps, CS: ComputeState, S> {
-    path: PathFromVertex<G, GH>,
+    path: PathFromVertex<'a, G, GH>,
     ss: usize,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     local_state_prev: &'a Local2<'a, S>,
@@ -330,7 +330,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph, CS: ComputeSta
     type Edge = EvalEdgeView<'graph, G, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
-    fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + Send + Sync>(
+    fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -342,8 +342,8 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph, CS: ComputeSta
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -366,17 +366,20 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph, CS: ComputeSta
     }
 }
 
-impl<'a, G: GraphViewOps, GH: GraphViewOps, CS: ComputeState, S: 'static> OneHopFilter<'a>
-    for EvalPathFromVertex<'a, G, GH, CS, S>
+impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph, CS: ComputeState, S: 'static>
+    OneHopFilter<'graph> for EvalPathFromVertex<'graph, G, GH, CS, S>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps> = EvalPathFromVertex<'a, G, GHH, CS, S>;
+    type Filtered<GHH: GraphViewOps + 'graph> = EvalPathFromVertex<'graph, G, GHH, CS, S>;
 
     fn current_filter(&self) -> &Self::Graph {
         self.path.current_filter()
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps>(&self, filtered_graph: GHH) -> Self::Filtered<GHH> {
+    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
         let path = self.path.one_hop_filtered(filtered_graph);
         let local_state_prev = self.local_state_prev;
         let vertex_state = self.vertex_state.clone();
@@ -391,17 +394,20 @@ impl<'a, G: GraphViewOps, GH: GraphViewOps, CS: ComputeState, S: 'static> OneHop
     }
 }
 
-impl<'a, G: GraphViewOps, GH: GraphViewOps, CS: ComputeState, S> OneHopFilter<'a>
-    for EvalVertexView<'a, G, S, GH, CS>
+impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph, CS: ComputeState, S>
+    OneHopFilter<'graph> for EvalVertexView<'graph, G, S, GH, CS>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps> = EvalVertexView<'a, G, S, GHH, CS>;
+    type Filtered<GHH: GraphViewOps + 'graph> = EvalVertexView<'graph, G, S, GHH, CS>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.vertex.graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps>(&self, filtered_graph: GHH) -> Self::Filtered<GHH> {
+    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
         let vertex = self.vertex.one_hop_filtered(filtered_graph);
         self.update_vertex(vertex)
     }

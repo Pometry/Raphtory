@@ -98,7 +98,7 @@ macro_rules! impl_timeops {
                 &self,
                 start: Option<PyTime>,
                 end: Option<PyTime>,
-            ) -> <$base_type as TimeOps>::WindowedViewType {
+            ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field
                     .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
             }
@@ -110,7 +110,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
-            pub fn at(&self, time: PyTime) -> <$base_type as TimeOps>::WindowedViewType {
+            pub fn at(&self, time: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.at(time)
             }
 
@@ -121,7 +121,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
-            pub fn before(&self, end: PyTime) -> <$base_type as TimeOps>::WindowedViewType {
+            pub fn before(&self, end: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.before(end)
             }
 
@@ -132,7 +132,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
-            pub fn after(&self, start: PyTime) -> <$base_type as TimeOps>::WindowedViewType {
+            pub fn after(&self, start: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
             }
         }

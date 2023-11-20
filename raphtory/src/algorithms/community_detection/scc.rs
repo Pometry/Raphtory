@@ -97,7 +97,7 @@ where
 
 pub fn strongly_connected_components<G>(graph: &G, threads: Option<usize>) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps + 'static,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {

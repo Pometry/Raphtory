@@ -166,7 +166,7 @@ impl<G, GH: CoreGraphOps> Hash for VertexView<G, GH> {
     }
 }
 
-impl<G, GH: CoreGraphOps> TemporalPropertiesOps for VertexView<G, GH> {
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for VertexView<G, GH> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .vertex_meta()
@@ -248,7 +248,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     type Graph = GH;
     type ValueType<T> = T where T: 'graph;
     type PropType = Self;
-    type PathType = PathFromVertex<G, G>;
+    type PathType = PathFromVertex<'graph, G, G>;
     type Edge = EdgeView<G>;
     type EList = BoxedLIter<'graph, EdgeView<G>>;
 
@@ -278,7 +278,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
 
     fn hop<
         I: Iterator<Item = VID> + Send,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -329,7 +329,7 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
     }
 }
 
-impl<'graph, V: VertexViewOps<'graph> + TimeOps + 'graph> VertexListOps<'graph>
+impl<'graph, V: VertexViewOps<'graph> + TimeOps<'graph> + 'graph> VertexListOps<'graph>
     for BoxedLIter<'graph, V>
 {
     type Vertex = V;
@@ -348,11 +348,11 @@ impl<'graph, V: VertexViewOps<'graph> + TimeOps + 'graph> VertexListOps<'graph>
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
         todo!()
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
         todo!()
     }
 

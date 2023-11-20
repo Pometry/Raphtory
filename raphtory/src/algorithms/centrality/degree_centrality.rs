@@ -14,7 +14,7 @@ use ordered_float::OrderedFloat;
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
-pub fn degree_centrality<G: GraphViewOps>(
+pub fn degree_centrality<G: GraphViewOps + 'static>(
     g: &G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {

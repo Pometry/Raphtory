@@ -32,7 +32,7 @@ pub trait EdgeViewOps<'graph>:
     + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
-    + TimeOps
+    + TimeOps<'graph>
     + Sized
     + Clone
 {
@@ -221,13 +221,16 @@ pub trait EdgeListOps<'graph>:
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
 
-    fn at<T: IntoTime>(self, t: T) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
+    fn at<T: IntoTime>(
+        self,
+        t: T,
+    ) -> Self::IterType<<Self::Edge as TimeOps<'graph>>::WindowedViewType>;
 
     fn window<T: IntoTime>(
         self,
         start: T,
         end: T,
-    ) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
+    ) -> Self::IterType<<Self::Edge as TimeOps<'graph>>::WindowedViewType>;
 }
 
 #[cfg(test)]

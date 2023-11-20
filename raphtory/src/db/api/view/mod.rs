@@ -20,7 +20,7 @@ pub trait IntoDynBoxed<T> {
     fn into_dyn_boxed(self) -> BoxedIter<T>;
 }
 
-impl<T, I: Iterator<Item = T> + Send> IntoDynBoxed<T> for I {
+impl<T, I: Iterator<Item = T> + Send + 'static> IntoDynBoxed<T> for I {
     fn into_dyn_boxed(self) -> BoxedIter<T> {
         Box::new(self)
     }

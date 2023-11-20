@@ -63,7 +63,7 @@ impl Zero for TaintMessage {
 /// * An AlgorithmResult object containing the mapping from vertex ID to a vector of tuples containing the time at which
 /// the vertex was tainted and the ID of the vertex that tainted it
 ///
-pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
+pub fn temporally_reachable_nodes<G: GraphViewOps + 'static, T: InputVertex>(
     g: &G,
     threads: Option<usize>,
     max_hops: usize,

@@ -191,7 +191,7 @@ pub trait WindowSetOps {
 
 impl<T> WindowSetOps for WindowSet<T>
 where
-    T: TimeOps + Clone + Sync + 'static + Send,
+    T: TimeOps<'static> + Clone + Sync + 'static + Send,
     T::WindowedViewType: IntoPy<PyObject> + Send,
 {
     fn build_iter(&self) -> PyGenericIterator {
@@ -230,7 +230,7 @@ pub struct PyWindowSet {
 
 impl<T> From<WindowSet<T>> for PyWindowSet
 where
-    T: TimeOps + Clone + Sync + Send + 'static,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
     T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     fn from(value: WindowSet<T>) -> Self {
@@ -242,7 +242,7 @@ where
 
 impl<T> IntoPy<PyObject> for WindowSet<T>
 where
-    T: TimeOps + Clone + Sync + Send + 'static,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
     T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {

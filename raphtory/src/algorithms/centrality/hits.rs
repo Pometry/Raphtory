@@ -47,7 +47,7 @@ impl Default for Hits {
 ///
 /// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[allow(unused_variables)]
-pub fn hits<G: GraphViewOps>(
+pub fn hits<G: GraphViewOps + 'static>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,

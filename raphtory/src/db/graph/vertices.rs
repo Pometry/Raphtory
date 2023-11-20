@@ -78,11 +78,11 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     type Graph = GH;
     type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
     type PropType = VertexView<GH, GH>;
-    type PathType = PathFromGraph<G, G>;
+    type PathType = PathFromGraph<'graph, G, G>;
     type Edge = EdgeView<G>;
     type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G>>>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync>(
+    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -113,8 +113,8 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 
     fn hop<
-        I: Iterator<Item = VID> + Send,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+        I: Iterator<Item = VID> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,

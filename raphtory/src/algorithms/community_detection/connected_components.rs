@@ -39,7 +39,7 @@ pub fn weakly_connected_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, u64, u64>
 where
-    G: GraphViewOps,
+    G: GraphViewOps + 'static,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv| {

@@ -7,8 +7,8 @@ use crate::{
 };
 
 /// Trait defining time query operations
-pub trait TimeOps {
-    type WindowedViewType: TimeOps;
+pub trait TimeOps<'graph> {
+    type WindowedViewType: TimeOps<'graph> + 'graph;
 
     /// Return the timestamp of the default start for perspectives of the view (if any).
     fn start(&self) -> Option<i64>;
@@ -99,7 +99,7 @@ pub trait TimeOps {
     }
 }
 
-impl<'graph, V: OneHopFilter<'graph>> TimeOps for V {
+impl<'graph, V: OneHopFilter<'graph> + 'graph> TimeOps<'graph> for V {
     type WindowedViewType = V::Filtered<WindowedGraph<V::Graph>>;
 
     fn start(&self) -> Option<i64> {
@@ -120,7 +120,7 @@ impl<'graph, V: OneHopFilter<'graph>> TimeOps for V {
 }
 
 #[derive(Clone)]
-pub struct WindowSet<T: TimeOps + Clone> {
+pub struct WindowSet<T> {
     view: T,
     cursor: i64,
     end: i64,
@@ -128,7 +128,7 @@ pub struct WindowSet<T: TimeOps + Clone> {
     window: Option<Interval>,
 }
 
-impl<T: TimeOps + Clone + 'static> WindowSet<T> {
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<T> {
     fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
         // let cursor_start = if step.epoch_alignment {
         //     let step = step.to_millis().unwrap() as i64;
@@ -171,17 +171,18 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
     }
 }
 
-pub struct TimeIndex<T: TimeOps + Clone> {
+pub struct TimeIndex<T> {
     windowset: WindowSet<T>,
     center: bool,
 }
 
-impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for TimeIndex<T> {
     type Item = i64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.windowset.next().map(|view| {
-            if self.center {
+        let center = self.center;
+        self.windowset.next().map(move |view| {
+            if center {
                 view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
             } else {
                 view.end().unwrap() - 1
@@ -190,7 +191,7 @@ impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
     }
 }
 
-impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
+impl<T: TimeOps<'static> + Clone> Iterator for WindowSet<T> {
     type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.end + self.step {

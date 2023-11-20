@@ -34,7 +34,7 @@ pub(crate) trait BaseVertexViewOps<'graph>: Clone {
     type Edge: EdgeViewOps<'graph, Graph = Self::BaseGraph> + 'graph;
     type EList: EdgeListOps<'graph, Graph = Self::BaseGraph, Edge = Self::Edge> + 'graph;
 
-    fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + 'graph>(
+    fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O>;
@@ -43,7 +43,7 @@ pub(crate) trait BaseVertexViewOps<'graph>: Clone {
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -51,7 +51,7 @@ pub(crate) trait BaseVertexViewOps<'graph>: Clone {
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -235,7 +235,7 @@ impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V 
 pub trait VertexListOps<'graph>:
     IntoIterator<Item = Self::ValueType<Self::Vertex>> + Sized
 {
-    type Vertex: VertexViewOps<'graph> + TimeOps + 'graph;
+    type Vertex: VertexViewOps<'graph> + TimeOps<'graph> + 'graph;
     type Edge: EdgeViewOps<'graph, Graph = <Self::Vertex as VertexViewOps<'graph>>::BaseGraph>
         + 'graph;
 
@@ -261,10 +261,10 @@ pub trait VertexListOps<'graph>:
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
+    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType>;
 
     /// Create views for the vertices including all events until `end` (inclusive)
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType>;
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType>;
 
     /// Returns the ids of vertices in the list.
     ///
@@ -340,7 +340,7 @@ pub trait VertexListOps<'graph>:
     fn out_neighbours(self) -> Self::IterType<Self::Vertex>;
 }
 
-impl<'graph, V: VertexViewOps<'graph> + TimeOps + 'graph> VertexListOps<'graph>
+impl<'graph, V: VertexViewOps<'graph> + TimeOps<'graph> + 'graph> VertexListOps<'graph>
     for BoxedLIter<'graph, BoxedLIter<'graph, V>>
 {
     type Vertex = V;
@@ -360,11 +360,11 @@ impl<'graph, V: VertexViewOps<'graph> + TimeOps + 'graph> VertexListOps<'graph>
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
         todo!()
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
         todo!()
     }
 

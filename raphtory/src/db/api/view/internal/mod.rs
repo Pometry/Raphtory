@@ -76,7 +76,7 @@ impl<G: InheritViewOps> InheritPropertiesOps for G {}
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
 pub trait Static {}
 
-impl<G: BoxableGraphView + Static> From<G> for DynamicGraph {
+impl<G: BoxableGraphView + Static + 'static> From<G> for DynamicGraph {
     fn from(value: G) -> Self {
         DynamicGraph(Arc::new(value))
     }

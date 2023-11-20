@@ -155,16 +155,19 @@ impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> TemporalPropertiesOps
     }
 }
 
-impl<'a, G: GraphViewOps, CS: ComputeState, S: 'static> OneHopFilter<'a>
-    for EvalEdgeView<'a, G, CS, S>
+impl<'graph, G: GraphViewOps + 'graph, CS: ComputeState, S: 'static> OneHopFilter<'graph>
+    for EvalEdgeView<'graph, G, CS, S>
 {
     type Graph = G;
-    type Filtered<GH: GraphViewOps> = EvalEdgeView<'a, GH, CS, S>;
+    type Filtered<GH: GraphViewOps + 'graph> = EvalEdgeView<'graph, GH, CS, S>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.edge.graph
     }
-    fn one_hop_filtered<GH: GraphViewOps>(&self, filtered_graph: GH) -> Self::Filtered<GH> {
+    fn one_hop_filtered<GH: GraphViewOps + 'graph>(
+        &self,
+        filtered_graph: GH,
+    ) -> Self::Filtered<GH> {
         let edge = self.edge.one_hop_filtered(filtered_graph);
         EvalEdgeView::new(
             self.ss,
@@ -319,11 +322,11 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph, CS: ComputeSta
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
         todo!()
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
         todo!()
     }
 

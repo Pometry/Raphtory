@@ -86,13 +86,13 @@ impl Zero for MotifCounter {
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G, GH>(
-    evv: &EvalVertexView<G, MotifCounter, GH>,
+pub fn star_motif_count<'graph, G, GH>(
+    evv: &EvalVertexView<'graph, G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
-    G: GraphViewOps,
-    GH: GraphViewOps,
+    G: GraphViewOps + 'graph,
+    GH: GraphViewOps + 'graph,
 {
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
@@ -125,14 +125,15 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G, GH>(
-    graph: G,
-    evv: &EvalVertexView<G, MotifCounter, GH>,
+pub fn twonode_motif_count<'a, 'b, G, GH>(
+    graph: &'a G,
+    evv: &'a EvalVertexView<'b, &'b G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
-    G: GraphViewOps,
-    GH: GraphViewOps,
+    G: GraphViewOps + 'b,
+    GH: GraphViewOps + 'b,
+    'b: 'a,
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
@@ -178,7 +179,7 @@ pub fn triangle_motifs<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps + 'static,
 {
     let delta_len = deltas.len();
 
@@ -342,7 +343,7 @@ pub fn temporal_three_node_motif<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<Vec<usize>>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps + 'static,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);
@@ -353,6 +354,7 @@ where
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
     let step1 = ATask::new(move |evv: &mut EvalVertexView<&G, MotifCounter>| {
+        let g = evv.graph();
         let two_nodes = twonode_motif_count(g, evv, deltas.clone());
         let star_nodes = star_motif_count(evv, deltas.clone());
 
@@ -417,7 +419,7 @@ pub fn global_temporal_three_node_motif_from_local(
     tmp_counts
 }
 
-pub fn global_temporal_three_node_motif<G: GraphViewOps>(
+pub fn global_temporal_three_node_motif<G: GraphViewOps + 'static>(
     graph: &G,
     delta: i64,
     threads: Option<usize>,
@@ -426,7 +428,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps>(
     counts[0].clone()
 }
 
-pub fn global_temporal_three_node_motif_general<G: GraphViewOps>(
+pub fn global_temporal_three_node_motif_general<G: GraphViewOps + 'static>(
     graph: &G,
     deltas: Vec<i64>,
     threads: Option<usize>,

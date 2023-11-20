@@ -8,8 +8,8 @@ use crate::{
 use std::sync::Arc;
 
 /// Trait defining layer operations
-pub trait LayerOps {
-    type LayeredViewType;
+pub trait LayerOps<'graph> {
+    type LayeredViewType: 'graph;
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
@@ -20,7 +20,7 @@ pub trait LayerOps {
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
 }
 
-impl<'graph, V: OneHopFilter<'graph>> LayerOps for V {
+impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {

@@ -37,7 +37,7 @@ pub fn out_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps + 'static,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, OutState>| {

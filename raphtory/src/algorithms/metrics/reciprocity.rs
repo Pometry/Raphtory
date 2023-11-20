@@ -64,8 +64,13 @@ use std::collections::HashSet;
 
 /// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
-fn get_reciprocal_edge_count<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
-    v: &EvalVertexView<G, (), GH, CS>,
+fn get_reciprocal_edge_count<
+    'graph,
+    G: GraphViewOps + 'graph,
+    GH: GraphViewOps + 'graph,
+    CS: ComputeState,
+>(
+    v: &'graph EvalVertexView<'graph, G, (), GH, CS>,
 ) -> (usize, usize, usize) {
     let id = v.id();
     let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();
@@ -79,7 +84,7 @@ fn get_reciprocal_edge_count<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState
 }
 
 /// returns the global reciprocity of the entire graph
-pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64 {
+pub fn global_reciprocity<G: GraphViewOps + 'static>(g: &G, threads: Option<usize>) -> f64 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let total_out_neighbours = sum::<usize>(0);
@@ -113,7 +118,7 @@ pub fn global_reciprocity<G: GraphViewOps>(g: &G, threads: Option<usize>) -> f64
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
 /// vector id and the reciprocity
-pub fn all_local_reciprocity<G: GraphViewOps>(
+pub fn all_local_reciprocity<G: GraphViewOps + 'static>(
     g: &G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {

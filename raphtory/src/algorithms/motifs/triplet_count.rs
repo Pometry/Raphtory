@@ -80,7 +80,7 @@ use crate::{
 ///  println!("triplet count: {}", results);
 /// ```
 ///
-pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
+pub fn triplet_count<G: GraphViewOps + 'static>(g: &G, threads: Option<usize>) -> usize {
     /// Source: https://stackoverflow.com/questions/65561566/number-of-combinations-permutations
     fn count_two_combinations(n: usize) -> usize {
         ((0.5 * n as f64) * (n - 1) as f64) as usize

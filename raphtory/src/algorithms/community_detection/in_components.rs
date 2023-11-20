@@ -34,7 +34,7 @@ struct InState {
 ///
 pub fn in_components<G>(graph: &G, threads: Option<usize>) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps + 'static,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalVertexView<&G, InState>| {

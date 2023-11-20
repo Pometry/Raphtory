@@ -52,7 +52,7 @@ impl PageRankState {
 /// * An AlgorithmResult object containing the mapping from vertex ID to the PageRank score of the vertex
 ///
 #[allow(unused_variables)]
-pub fn unweighted_page_rank<G: GraphViewOps>(
+pub fn unweighted_page_rank<G: GraphViewOps + 'static>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
