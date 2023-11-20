@@ -13,6 +13,12 @@ use std::{
     sync::Arc,
 };
 
+enum ExpansionPath {
+    Nodes,
+    Edges,
+    Both,
+}
+
 pub struct VectorisedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) source_graph: G,
     template: Arc<T>,
@@ -181,21 +187,63 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Self {
+        self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Both)
+    }
+
+    pub fn expand_nodes_by_similarity(
+        &self,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+    ) -> Self {
+        self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Nodes)
+    }
+
+    pub fn expand_edges_by_similarity(
+        &self,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+    ) -> Self {
+        self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Edges)
+    }
+
+    fn expand_by_similarity_with_path(
+        &self,
+        query: &Embedding,
+        limit: usize,
+        window: Option<(i64, i64)>,
+        path: ExpansionPath,
+    ) -> Self {
         match window {
-            None => self.expand_with_search_and_window(query, limit, window, &self.source_graph),
+            None => self.expand_by_similarity_with_path_and_window(
+                query,
+                limit,
+                window,
+                &self.source_graph,
+                path,
+            ),
             Some((start, end)) => {
                 let windowed_graph = self.source_graph.window(start, end);
-                self.expand_with_search_and_window(query, limit, window, &windowed_graph)
+                self.expand_by_similarity_with_path_and_window(
+                    query,
+                    limit,
+                    window,
+                    &windowed_graph,
+                    path,
+                )
             }
         }
     }
 
-    fn expand_with_search_and_window<W: GraphViewOps>(
+    /// this function only exists so that we can make the type of graph generic
+    fn expand_by_similarity_with_path_and_window<W: GraphViewOps>(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
         windowed_graph: &W,
+        path: ExpansionPath,
     ) -> Self {
         let mut selected_docs = self.selected_docs.clone();
         let total_limit = selected_docs.len() + limit;
@@ -204,7 +252,12 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             let remaining = total_limit - selected_docs.len();
             let candidates = selected_docs
                 .iter()
-                .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window));
+                .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
+                .filter(|doc| match path {
+                    ExpansionPath::Both => true,
+                    ExpansionPath::Nodes => doc.entity_id.is_node(),
+                    ExpansionPath::Edges => doc.entity_id.is_edge(),
+                });
 
             let scored_candidates = score_documents(query, candidates.cloned());
             let top_sorted_candidates = find_top_k(scored_candidates, usize::MAX);
