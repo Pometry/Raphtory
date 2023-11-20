@@ -111,9 +111,9 @@ Finally, Raphtory is built with a focus on ease of use and can be installed usin
 
  Example code             |  Visualisation
 :-------------------------:|:-------------------------:
-![](https://hackmd.io/_uploads/ryHcEp6vn.png)|![](https://hackmd.io/_uploads/BJhzditwn.png)
-![](https://hackmd.io/_uploads/B19CM6pvn.png)|![](https://hackmd.io/_uploads/ryNb_RTPh.png)
-![](https://hackmd.io/_uploads/r1u8LTpvn.png)|![](https://hackmd.io/_uploads/HJb3uAgv2.png)
+![](https://hackmd.io/_uploads/rJB-cMKNT.png)|![](https://hackmd.io/_uploads/BJhzditwn.png)
+![](https://hackmd.io/_uploads/S1pTufY4T.png)|![](https://hackmd.io/_uploads/ryNb_RTPh.png)
+![](https://hackmd.io/_uploads/BynHFfFE6.png)|![](https://hackmd.io/_uploads/HJb3uAgv2.png)
 **Caption.** First line (Example 1): In a temporal network, edges are dynamical entities connecting pairs of nodes. Second line (Example 2): Generation of a sequence of graph views at a given time resolution and on selected layers, to run standard network algorithms, here Pagerank. Third line (Example 3): Raphtory  offers rapid implementations of algorithms specifically designed for temporal networks, here finding significant temporal motifs [@paranjape2017motifs].
 
 # Projects using Raphtory
