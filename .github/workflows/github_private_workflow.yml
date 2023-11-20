@@ -22,17 +22,59 @@ jobs:
               aws-region: ${{ secrets.AWS_REGION }}
           - name: Start self-hosted runner
             run: aws ec2 start-instances --instance-ids i-03296912049a2e29f 
-    jobs_to_run:
+    python-test:
         runs-on: self-hosted
         needs: start_runner
-        timeout-minutes: 20
+        timeout-minutes: 30
+        name: Python Tests
         steps:
-          - name: An Example test command here
-            run: echo "HELLO WORLD"
+          - uses: actions/checkout@v3
+            name: Checkout
+          - name: Set up cargo cache
+            uses: actions/cache@v3
+            continue-on-error: false
+            with:
+                path: |
+                  ~/.cargo/bin/
+                  ~/.cargo/registry/index/
+                  ~/.cargo/registry/cache/
+                  ~/.cargo/git/db/
+                  target/debug
+                  target/release
+                key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+                restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          - uses: actions-rs/toolchain@v1
+            name: Setup Rust
+            with:
+                profile: minimal
+                toolchain: stable
+                override: true
+                components: rustfmt, clippy
+          - name: Setup Python 3.10
+            uses: actions/setup-python@v4
+            with:
+                python-version: 3.10
+          - name: Run Maturin develop
+            uses: PyO3/maturin-action@v1
+            with:
+                working-directory: ./python
+                command: build
+                args: --release
+          - name: Install Python dependencies (Unix)
+            run: |
+                python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+                python -m pip install target/wheels/raphtory-*.whl
+                python -m pip install -e examples/custom_python_extension
+          - name: Run Python tests
+            run: |
+                cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
+          - name: Run Python extension tests
+            run: |
+                cd examples/custom_python_extension/test && pytest .
     shutdown_runner:
         runs-on: ubuntu-latest
         if: always()
-        needs: [start_runner, jobs_to_run]
+        needs: [start_runner, python-test]
         steps:
           - name: Setup AWS CLI
             uses: aws-actions/configure-aws-credentials@v4
