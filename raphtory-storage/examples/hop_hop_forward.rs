@@ -123,35 +123,35 @@ fn query1_v5(
                                     .for_each(|(b2b, _)| {
                                         let prog1 = g.edge(b2b, events_1v);
 
-                                        // let ts = prog1.timestamps()
-                                        for (prog1_event_id, prog1_t) in prog1
-                                            .prop_items::<i64>(event_id_prop_id_1v)
+                                        prog1
+                                            .par_prop_items::<i64>(event_id_prop_id_1v)
                                             .unwrap()
                                             .filter_map(|(t, v)| v.map(|v| (v, t)))
-                                        {
-                                            if prog1_event_id == 4688
-                                                && prog1_t < nf1_t
-                                                && nf1_t - prog1_t <= 30
-                                            {
-                                                let e_small: u32 = Into::<usize>::into(e) as u32;
-                                                probe_map
-                                                    .entry(b)
-                                                    .and_modify(|v| {
-                                                        v.push((
-                                                            prog1_t as i32,
-                                                            nf1_t as i32,
-                                                            e_small,
-                                                        ))
-                                                    })
-                                                    .or_insert_with(|| {
-                                                        vec![(
-                                                            prog1_t as i32,
-                                                            nf1_t as i32,
-                                                            e_small,
-                                                        )]
-                                                    });
-                                            }
-                                        }
+                                            .for_each(|(prog1_event_id, prog1_t)| {
+                                                if prog1_event_id == 4688
+                                                    && prog1_t < nf1_t
+                                                    && nf1_t - prog1_t <= 30
+                                                {
+                                                    let e_small: u32 =
+                                                        Into::<usize>::into(e) as u32;
+                                                    probe_map
+                                                        .entry(b)
+                                                        .and_modify(|v| {
+                                                            v.push((
+                                                                prog1_t as i32,
+                                                                nf1_t as i32,
+                                                                e_small,
+                                                            ))
+                                                        })
+                                                        .or_insert_with(|| {
+                                                            vec![(
+                                                                prog1_t as i32,
+                                                                nf1_t as i32,
+                                                                e_small,
+                                                            )]
+                                                        });
+                                                }
+                                            });
                                     });
                             });
                     }
@@ -539,7 +539,6 @@ fn binary_search_join_par_small_2<'a>(
     a: &VID,
     count: &'a AtomicUsize,
 ) {
-
     let c = iter
         .into_iter()
         .filter(|(login1_event_id, _)| login1_event_id == &4624)
