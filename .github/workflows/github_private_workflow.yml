@@ -43,14 +43,7 @@ jobs:
                   target/release
                 key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
                 restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          - uses: actions-rs/toolchain@v1
-            name: Setup Rust
-            with:
-                profile: minimal
-                toolchain: stable
-                override: true
-                components: rustfmt, clippy
-          - name: Setup Python 3.10
+          - name: Setup Python 3.11
             uses: actions/setup-python@v4
             with:
                 python-version: 3.11
@@ -62,9 +55,9 @@ jobs:
                 args: --release
           - name: Install Python dependencies (Unix)
             run: |
-                python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
-                python -m pip install target/wheels/raphtory-*.whl
-                python -m pip install -e examples/custom_python_extension
+                python3 -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis
+                python3 -m pip install target/wheels/raphtory-*.whl
+                python3 -m pip install -e examples/custom_python_extension
           - name: Run Python tests
             run: |
                 cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
