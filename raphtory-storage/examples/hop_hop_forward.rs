@@ -103,11 +103,6 @@ fn query1_v5(
         let count = AtomicUsize::new(0);
         let vs = b_login1_filter.iter().copied().collect_vec();
 
-        let pool: rayon::ThreadPool = ThreadPoolBuilder::new()
-            .num_threads(24)
-            .build()
-            .expect("failed to build pool");
-
         let now = Instant::now();
         pool.install(|| {
             vs.into_par_iter().for_each(|b| {
@@ -197,6 +192,7 @@ fn query1_v5(
                                 let max_prog1 = probe_value.last().unwrap().0 as i64;
 
                                 let login1_ts = login1.timestamps();
+
                                 let min_login1 = login1_ts.iter().flatten().next().unwrap();
                                 if min_login1 > max_prog1 {
                                     skip = true;
@@ -209,7 +205,7 @@ fn query1_v5(
                                     .unwrap()
                                     .filter_map(|(t, v)| v.map(|v| (v, t)));
 
-                                binary_search_join_par_small(iter, &edges, &a, &count);
+                                binary_search_join_par_small_2(iter, &edges, &a, &count);
                             }
                         }
                     });
@@ -535,6 +531,52 @@ fn binary_search_join_par<'a>(
         }
     }
     out
+}
+
+fn binary_search_join_par_small_2<'a>(
+    iter: impl IntoIterator<Item = (Time, Time)>,
+    edges: &'a Vec<(i32, i32, u32)>,
+    a: &VID,
+    count: &'a AtomicUsize,
+) {
+
+    let c = iter
+        .into_iter()
+        .filter(|(login1_event_id, _)| login1_event_id == &4624)
+        .map(|(_, login1_t)| {
+            let login1_t_small: i32 = login1_t as i32;
+
+            let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
+
+            let from = match pos {
+                Ok(i) => {
+                    Some(i + 1) // this one is smaller than all the prog_t
+                }
+                Err(i) => {
+                    if i >= edges.len() {
+                        None
+                    } else {
+                        Some(i)
+                    }
+                }
+            };
+            from.map(|from| (from, login1_t_small))
+        })
+        .take_while(|s| s.is_some())
+        .filter_map(|s| s)
+        .map(|(from, login1_t_small)| {
+            let c = (&edges[from..])
+                .iter()
+                .filter(|(prog1_t, nft_t, e)| {
+                    let e_vid = VID(*e as usize);
+                    nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid
+                })
+                .count();
+            c
+        })
+        .sum::<usize>();
+
+    count.fetch_add(c, Ordering::Relaxed);
 }
 
 fn binary_search_join<'a>(
