@@ -194,3 +194,21 @@ def lorenz(observations):
     x= np.arange(listlike.size)/(listlike.size -1)
     y = tmp_arr.cumsum() / tmp_arr.sum()
     return x,y
+
+def ordinal_number(number):
+    """
+    Returns ordinal number of integer input.
+
+    Args:
+        number(int): input number
+
+    Returns:
+        str: ordinal for that number as string
+    """
+    if 10 <= number % 100 <= 20:
+        suffix = 'th'
+    else:
+        suffixes = {1: 'st', 2: 'nd', 3: 'rd'}
+        suffix = suffixes.get(number % 10, 'th')
+    
+    return str(number) + suffix
