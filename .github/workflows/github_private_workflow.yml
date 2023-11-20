@@ -38,8 +38,7 @@ jobs:
               /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
           - name: (WARM) Run Build and Benchmark for lanl
             run:  |
-            cargo build --release --example lanl
-            /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
+              /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
 
     # cleanup:
     #     runs-on: self-hosted
