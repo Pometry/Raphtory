@@ -30,15 +30,10 @@ jobs:
         steps:
           - uses: actions/checkout@v3
             name: Checkout
-          - name: Run Cargo build
-            uses: actions-rs/cargo@v1
-            env:
-              RUSTFLAGS: -Awarnings
-            with:
-              command: build
-              args: --release --example lanl
-          - name: Run Benchmark for lanl
-            run:  /usr/bin/time -v cargo run --release --example lanl /mnt/work/pometry/trovares/day85/raphtory_graph
+          - name: Run Build and Benchmark for lanl
+            run:  |
+              cargo build --release --example lanl
+              /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
     shutdown_runner:
         runs-on: ubuntu-latest
         if: always()
