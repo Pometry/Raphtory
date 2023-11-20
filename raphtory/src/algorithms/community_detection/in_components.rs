@@ -37,7 +37,7 @@ where
     G: GraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
+    let step1 = ATask::new(move |vv: &mut EvalVertexView<&G, InState>| {
         let mut in_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().id().for_each(|id| {
@@ -45,7 +45,7 @@ where
             to_check_stack.push(id);
         });
         while let Some(neighbour_id) = to_check_stack.pop() {
-            if let Some(neighbour) = vv.graph.vertex(neighbour_id) {
+            if let Some(neighbour) = vv.graph().vertex(neighbour_id) {
                 neighbour.in_neighbours().id().for_each(|id| {
                     if !in_components.contains(&id) {
                         in_components.insert(id);

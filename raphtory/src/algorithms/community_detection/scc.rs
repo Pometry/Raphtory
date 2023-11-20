@@ -8,7 +8,7 @@ use crate::{
         context::Context,
         task::{ATask, Job, Step},
         task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+        vertex::eval_vertex::{EvalVertexRef, EvalVertexView},
     },
     prelude::{GraphViewOps, VertexViewOps},
 };
@@ -105,7 +105,7 @@ where
     }
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, &G, _, _>| {
+    let step1 = ATask::new(move |vv: EvalVertexRef<G, SCCNode>| {
         let id = vv.id();
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
@@ -115,7 +115,7 @@ where
         });
 
         while let Some(neighbour_id) = to_check_stack.pop() {
-            if let Some(neighbour) = vv.graph.vertex(neighbour_id) {
+            if let Some(neighbour) = vv.graph().vertex(neighbour_id) {
                 neighbour.out_neighbours().id().for_each(|id| {
                     if !out_components.contains(&id) {
                         out_components.insert(id);

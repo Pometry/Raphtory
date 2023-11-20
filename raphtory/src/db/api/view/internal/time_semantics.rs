@@ -305,7 +305,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ) -> Vec<(i64, Prop)>;
 }
 
-pub trait InheritTimeSemantics: Base + GraphOps + CoreGraphOps {}
+pub trait InheritTimeSemantics: Base {}
 
 impl<G: InheritTimeSemantics> DelegateTimeSemantics for G
 where
@@ -318,13 +318,13 @@ where
     }
 }
 
-pub trait DelegateTimeSemantics: GraphOps + CoreGraphOps {
+pub trait DelegateTimeSemantics {
     type Internal: TimeSemantics + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
+impl<G: DelegateTimeSemantics + GraphOps + CoreGraphOps + ?Sized> TimeSemantics for G {
     #[inline]
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph().vertex_earliest_time(v)

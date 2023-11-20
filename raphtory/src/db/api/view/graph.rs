@@ -70,9 +70,6 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// Get an edge `(src, dst)`.
     fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
-    /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
-
     /// Get all property values of this graph.
     ///
     /// Returns:
@@ -120,13 +117,13 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
         self.vertices_len(self.layer_ids(), self.edge_filter())
     }
 
-    fn count_temporal_edges(&self) -> usize {
-        self.edges().explode().count()
-    }
-
     #[inline]
     fn count_edges(&self) -> usize {
         self.edges_len(self.layer_ids(), self.edge_filter())
+    }
+
+    fn count_temporal_edges(&self) -> usize {
+        self.edges().explode().count()
     }
 
     fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
@@ -167,10 +164,6 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
             }
         }
         None
-    }
-
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
-        Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 
     fn properties(&self) -> Properties<Self> {
@@ -234,36 +227,30 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
     }
 }
 
-impl<G: GraphViewOps> TimeOps for G {
-    type WindowedViewType = WindowedGraph<Self>;
+pub trait GraphEdges<'graph>: GraphViewOps {
+    /// Return an iterator over all edges in the graph.
+    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send + 'graph>;
+}
 
-    fn start(&self) -> Option<i64> {
-        self.view_start()
-    }
-
-    fn end(&self) -> Option<i64> {
-        self.view_end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> WindowedGraph<Self> {
-        WindowedGraph::new(self.clone(), start, end)
+impl<'graph, G: GraphViewOps + 'graph> GraphEdges<'graph> for G {
+    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send + 'graph> {
+        Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
     }
 }
 
-impl<G: GraphViewOps> LayerOps for G {
-    type LayeredViewType = LayeredGraph<G>;
+impl<'graph, G: GraphViewOps + 'graph> OneHopFilter<'graph> for G {
+    type Graph = G;
+    type Filtered<GH: GraphViewOps + 'graph> = GH;
 
-    fn default_layer(&self) -> Self::LayeredViewType {
-        LayeredGraph::new(self.clone(), 0.into())
+    fn current_filter(&self) -> &Self::Graph {
+        &self
     }
 
-    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
-        let layers = layers.into();
-        let ids = self.layer_ids_from_names(layers);
-        match ids {
-            LayerIds::None => None,
-            _ => Some(LayeredGraph::new(self.clone(), ids)),
-        }
+    fn one_hop_filtered<GH: GraphViewOps + 'graph>(
+        &self,
+        filtered_graph: GH,
+    ) -> Self::Filtered<GH> {
+        filtered_graph
     }
 }
 

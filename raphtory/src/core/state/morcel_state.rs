@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub const GLOBAL_STATE_KEY: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct MorcelComputeState<CS: ComputeState + Send> {
+pub struct MorcelComputeState<CS> {
     morcel_size: usize,
     pub(crate) states: FxHashMap<u32, CS>,
 }

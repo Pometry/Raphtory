@@ -17,7 +17,7 @@ use crate::{
 };
 
 fn get_one_hop_counts<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
-    evv: &EvalVertexView<G, GH, CS, ()>,
+    evv: &EvalVertexView<G, (), GH, CS>,
     no_time: bool,
 ) -> usize {
     evv.layer("Netflow")
@@ -29,7 +29,7 @@ fn get_one_hop_counts<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
 }
 
 fn one_path_algorithm<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
-    evv: &EvalVertexView<G, GH, CS, ()>,
+    evv: &EvalVertexView<G, (), GH, CS>,
     nf_e_edge_expl: EdgeView<LayeredGraph<G>>,
     no_time: bool,
 ) -> usize {

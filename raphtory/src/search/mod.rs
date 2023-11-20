@@ -47,7 +47,7 @@ impl<G> Deref for IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> IntoDynamic for IndexedGraph<G> {
+impl<G: GraphViewOps + 'static> IntoDynamic for IndexedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }

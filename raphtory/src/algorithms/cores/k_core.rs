@@ -53,28 +53,26 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(
-        move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, KCoreState>| {
-            let prev: bool = vv.prev().alive;
-            if prev == true {
-                let current = vv
-                    .neighbours()
-                    .into_iter()
-                    .filter(|n| n.prev().alive)
-                    .count()
-                    >= k;
-                let state: &mut KCoreState = vv.get_mut();
-                if current != prev {
-                    state.alive = current;
-                    Step::Continue
-                } else {
-                    Step::Done
-                }
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, KCoreState>| {
+        let prev: bool = vv.prev().alive;
+        if prev == true {
+            let current = vv
+                .neighbours()
+                .into_iter()
+                .filter(|n| n.prev().alive)
+                .count()
+                >= k;
+            let state: &mut KCoreState = vv.get_mut();
+            if current != prev {
+                state.alive = current;
+                Step::Continue
             } else {
                 Step::Done
             }
-        },
-    );
+        } else {
+            Step::Done
+        }
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 

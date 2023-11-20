@@ -95,38 +95,36 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     let tainted_vertices = hash_set::<u64>(4);
     ctx.global_agg(tainted_vertices);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
-            if infected_nodes.contains(&evv.id()) {
-                evv.global_update(&tainted_vertices, evv.id());
-                evv.update(&taint_status, true);
-                evv.update(&earliest_taint_time, start_time);
-                evv.update(
-                    &taint_history,
-                    TaintMessage {
-                        event_time: start_time,
-                        src_vertex: "start".to_string(),
-                    },
-                );
-                evv.window(start_time, i64::MAX)
-                    .out_edges()
-                    .for_each(|eev| {
-                        let dst = eev.dst();
-                        eev.history().into_iter().for_each(|t| {
-                            dst.update(&earliest_taint_time, t);
-                            dst.update(
-                                &recv_tainted_msgs,
-                                TaintMessage {
-                                    event_time: t,
-                                    src_vertex: evv.name(),
-                                },
-                            )
-                        });
+    let step1 = ATask::new(move |evv: &mut EvalVertexView<'_, &G, ()>| {
+        if infected_nodes.contains(&evv.id()) {
+            evv.global_update(&tainted_vertices, evv.id());
+            evv.update(&taint_status, true);
+            evv.update(&earliest_taint_time, start_time);
+            evv.update(
+                &taint_history,
+                TaintMessage {
+                    event_time: start_time,
+                    src_vertex: "start".to_string(),
+                },
+            );
+            evv.window(start_time, i64::MAX)
+                .out_edges()
+                .for_each(|eev| {
+                    let dst = eev.dst();
+                    eev.history().into_iter().for_each(|t| {
+                        dst.update(&earliest_taint_time, t);
+                        dst.update(
+                            &recv_tainted_msgs,
+                            TaintMessage {
+                                event_time: t,
+                                src_vertex: evv.name(),
+                            },
+                        )
                     });
-            }
-            Step::Continue
-        },
-    );
+                });
+        }
+        Step::Continue
+    });
 
     let step2 = ATask::new(move |evv| {
         let msgs = evv.read(&recv_tainted_msgs);

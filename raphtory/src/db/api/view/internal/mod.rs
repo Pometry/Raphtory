@@ -9,6 +9,8 @@ mod materialize;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
+mod one_hop_filter;
+
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
     prelude::GraphViewOps,
@@ -21,6 +23,7 @@ pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use materialize::*;
+pub use one_hop_filter::*;
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
@@ -103,11 +106,11 @@ impl Debug for DynamicGraph {
 }
 
 impl DynamicGraph {
-    pub fn new<G: GraphViewOps>(graph: G) -> Self {
+    pub fn new<G: GraphViewOps + 'static>(graph: G) -> Self {
         Self(Arc::new(graph))
     }
 
-    pub fn new_from_arc<G: GraphViewOps>(graph_arc: Arc<G>) -> Self {
+    pub fn new_from_arc<G: GraphViewOps + 'static>(graph_arc: Arc<G>) -> Self {
         Self(graph_arc)
     }
 }
@@ -125,7 +128,7 @@ impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 
-impl<T: GraphViewOps + ?Sized> InheritViewOps for &T {}
+impl<'graph, G: GraphViewOps + ?Sized + 'graph> InheritViewOps for &'graph G {}
 
 #[cfg(test)]
 mod test {

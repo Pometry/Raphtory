@@ -16,7 +16,8 @@ use crate::{
     },
 };
 
-pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
+pub trait EdgeViewInternalOps<'graph, G: GraphViewOps + 'graph, V: VertexViewOps<'graph, Graph = G>>
+{
     fn graph(&self) -> G;
 
     fn eref(&self) -> EdgeRef;
@@ -26,8 +27,8 @@ pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
     fn new_edge(&self, e: EdgeRef) -> Self;
 }
 
-pub trait EdgeViewOps:
-    EdgeViewInternalOps<Self::Graph, Self::Vertex>
+pub trait EdgeViewOps<'graph>:
+    EdgeViewInternalOps<'graph, Self::Graph, Self::Vertex>
     + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
@@ -35,9 +36,9 @@ pub trait EdgeViewOps:
     + Sized
     + Clone
 {
-    type Graph: GraphViewOps;
-    type Vertex: VertexViewOps<Graph = Self::Graph>;
-    type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type Graph: GraphViewOps + 'graph;
+    type Vertex: VertexViewOps<'graph, Graph = Self::Graph>;
+    type EList: EdgeListOps<'graph, Graph = Self::Graph, Vertex = Self::Vertex>;
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
@@ -82,8 +83,8 @@ pub trait EdgeViewOps:
     fn id(
         &self,
     ) -> (
-        <Self::Vertex as VertexViewOps>::ValueType<u64>,
-        <Self::Vertex as VertexViewOps>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
     ) {
         (self.src().id(), self.dst().id())
     }
@@ -164,16 +165,16 @@ pub trait EdgeViewOps:
 
 /// This trait defines the operations that can be
 /// performed on a list of edges in a temporal graph view.
-pub trait EdgeListOps:
+pub trait EdgeListOps<'graph>:
     IntoIterator<Item = Self::ValueType<Self::Edge>, IntoIter = Self::IterType<Self::Edge>> + Sized
 {
-    type Graph: GraphViewOps;
-    type Vertex: VertexViewOps<Graph = Self::Graph>;
-    type Edge: EdgeViewOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type Graph: GraphViewOps + 'graph;
+    type Vertex: VertexViewOps<'graph, Graph = Self::Graph>;
+    type Edge: EdgeViewOps<'graph, Graph = Self::Graph, Vertex = Self::Vertex>;
     type ValueType<T>;
 
     /// the type of list of vertices
-    type VList: VertexListOps<Vertex = Self::Vertex>;
+    type VList: VertexListOps<'graph, Vertex = Self::Vertex>;
 
     /// the type of iterator
     type IterType<T>: Iterator<Item = Self::ValueType<T>>;

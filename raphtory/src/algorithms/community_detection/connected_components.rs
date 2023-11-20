@@ -50,24 +50,22 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(
-        move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, WccState>| {
-            let prev: u64 = vv.prev().component;
-            let current = vv
-                .neighbours()
-                .into_iter()
-                .map(|n| n.prev().component)
-                .min()
-                .unwrap_or(prev);
-            let state: &mut WccState = vv.get_mut();
-            if current < prev {
-                state.component = current;
-                Step::Continue
-            } else {
-                Step::Done
-            }
-        },
-    );
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, WccState>| {
+        let prev: u64 = vv.prev().component;
+        let current = vv
+            .neighbours()
+            .into_iter()
+            .map(|n| n.prev().component)
+            .min()
+            .unwrap_or(prev);
+        let state: &mut WccState = vv.get_mut();
+        if current < prev {
+            state.component = current;
+            Step::Continue
+        } else {
+            Step::Done
+        }
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     let results_type = std::any::type_name::<u64>();

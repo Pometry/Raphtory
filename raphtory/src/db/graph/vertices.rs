@@ -1,7 +1,10 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
-        api::view::{internal::GraphOps, BaseVertexViewOps, IntoDynBoxed},
+        api::view::{
+            internal::{GraphOps, OneHopFilter},
+            BaseVertexViewOps, BoxedLIter, IntoDynBoxed,
+        },
         graph::path::PathFromGraph,
     },
 };
@@ -24,7 +27,7 @@ use crate::{
 use std::{iter, sync::Arc};
 
 #[derive(Clone)]
-pub struct Vertices<G: GraphViewOps, GH: GraphViewOps> {
+pub struct Vertices<G, GH> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
 }
@@ -68,16 +71,18 @@ impl<G: GraphViewOps, GH: GraphViewOps> Vertices<G, GH> {
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> BaseVertexViewOps for Vertices<G, GH> {
+impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexViewOps<'graph>
+    for Vertices<G, GH>
+{
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T> = BoxedIter<T>;
-    type PathType = PathFromGraph<G, G>;
+    type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
     type PropType = VertexView<GH, GH>;
+    type PathType = PathFromGraph<G, G>;
     type Edge = EdgeView<G>;
-    type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
+    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G>>>;
 
-    fn map<O, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync>(
+    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -121,51 +126,25 @@ impl<G: GraphViewOps, GH: GraphViewOps> BaseVertexViewOps for Vertices<G, GH> {
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> TimeOps for Vertices<G, GH> {
-    type WindowedViewType = Vertices<G, WindowedGraph<GH>>;
+impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> OneHopFilter<'graph>
+    for Vertices<G, GH>
+{
+    type Graph = GH;
+    type Filtered<GHH: GraphViewOps + 'graph> = Vertices<G, GHH>;
 
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
+    fn current_filter(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
         let base_graph = self.base_graph.clone();
-        let graph = self.graph.window(start, end);
-        Vertices { base_graph, graph }
-    }
-}
-
-impl<G: GraphViewOps, GH: GraphViewOps> LayerOps for Vertices<G, GH> {
-    type LayeredViewType = Vertices<G, LayeredGraph<GH>>;
-
-    /// Create a view including all the vertices in the default layer
-    ///
-    /// Returns:
-    ///
-    /// A view including all the vertices in the default layer
-    fn default_layer(&self) -> Self::LayeredViewType {
-        let base_graph = self.base_graph.clone();
-        let graph = self.graph.default_layer();
-        Vertices { base_graph, graph }
-    }
-
-    /// Create a view including all the vertices in the given layer
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the layer
-    ///
-    /// Returns:
-    ///
-    /// A view including all the vertices in the given layer
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        let base_graph = self.base_graph.clone();
-        let graph = self.graph.layer(name)?;
-        Some(Vertices { base_graph, graph })
+        Vertices {
+            base_graph,
+            graph: filtered_graph,
+        }
     }
 }
 

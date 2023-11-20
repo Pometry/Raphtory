@@ -70,16 +70,14 @@ pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usi
     ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(
-        move |s: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
-            for t in s.neighbours() {
-                if s.id() > t.id() {
-                    t.update(&neighbours_set, s.id());
-                }
+    let step1 = ATask::new(move |s: &mut EvalVertexView<'_, &VertexSubgraph<G>, ()>| {
+        for t in s.neighbours() {
+            if s.id() > t.id() {
+                t.update(&neighbours_set, s.id());
             }
-            Step::Continue
-        },
-    );
+        }
+        Step::Continue
+    });
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {

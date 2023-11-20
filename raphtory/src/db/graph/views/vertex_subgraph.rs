@@ -21,7 +21,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct VertexSubgraph<G: GraphViewOps> {
+pub struct VertexSubgraph<G> {
     graph: G,
     vertices: Arc<FxHashSet<VID>>,
     edge_filter: EdgeFilter,
@@ -29,7 +29,7 @@ pub struct VertexSubgraph<G: GraphViewOps> {
 
 impl<G: GraphViewOps> Static for VertexSubgraph<G> {}
 
-impl<G: GraphViewOps + Debug> Debug for VertexSubgraph<G> {
+impl<G: Debug> Debug for VertexSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VertexSubgraph")
             .field("graph", &self.graph)
@@ -38,7 +38,7 @@ impl<G: GraphViewOps + Debug> Debug for VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Base for VertexSubgraph<G> {
+impl<G> Base for VertexSubgraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -48,11 +48,11 @@ impl<G: GraphViewOps> Base for VertexSubgraph<G> {
 
 impl<G: GraphViewOps> Immutable for VertexSubgraph<G> {}
 
-impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritPropertiesOps for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritMaterialize for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritLayerOps for VertexSubgraph<G> {}
+impl<G> InheritCoreOps for VertexSubgraph<G> {}
+impl<G> InheritTimeSemantics for VertexSubgraph<G> {}
+impl<G> InheritPropertiesOps for VertexSubgraph<G> {}
+impl<G> InheritMaterialize for VertexSubgraph<G> {}
+impl<G> InheritLayerOps for VertexSubgraph<G> {}
 
 impl<G: GraphViewOps> VertexSubgraph<G> {
     pub fn new(graph: G, vertices: FxHashSet<VID>) -> Self {

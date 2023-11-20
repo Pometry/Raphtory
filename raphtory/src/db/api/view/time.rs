@@ -1,4 +1,10 @@
-use crate::core::utils::time::{error::ParseTimeError, Interval, IntoTime};
+use crate::{
+    core::utils::time::{error::ParseTimeError, Interval, IntoTime},
+    db::{
+        api::view::internal::{OneHopFilter, TimeSemantics},
+        graph::views::window_graph::WindowedGraph,
+    },
+};
 
 /// Trait defining time query operations
 pub trait TimeOps {
@@ -90,6 +96,26 @@ pub trait TimeOps {
             }
             _ => Ok(WindowSet::empty(parent)),
         }
+    }
+}
+
+impl<'graph, V: OneHopFilter<'graph>> TimeOps for V {
+    type WindowedViewType = V::Filtered<WindowedGraph<V::Graph>>;
+
+    fn start(&self) -> Option<i64> {
+        self.current_filter().view_start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.current_filter().view_end()
+    }
+
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        self.one_hop_filtered(WindowedGraph::new(
+            self.current_filter().clone(),
+            start,
+            end,
+        ))
     }
 }
 

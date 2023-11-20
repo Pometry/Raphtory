@@ -14,6 +14,7 @@ pub use time::*;
 pub use vertex::*;
 
 pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;
+pub type BoxedLIter<'a, T> = Box<dyn Iterator<Item = T> + Send + 'a>;
 
 pub trait IntoDynBoxed<T> {
     fn into_dyn_boxed(self) -> BoxedIter<T>;

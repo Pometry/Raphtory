@@ -44,7 +44,7 @@ use ordered_float::OrderedFloat;
 /// Returns:
 /// Returns a `f64` which is the net sum of weights for the vertex considering the specified direction.
 fn balance_per_vertex<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
-    v: &EvalVertexView<G, GH, CS, ()>,
+    v: &EvalVertexView<G, (), GH, CS>,
     name: &str,
     direction: Direction,
 ) -> f64 {

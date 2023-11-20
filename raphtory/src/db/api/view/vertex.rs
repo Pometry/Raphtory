@@ -12,7 +12,7 @@ use crate::{
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, TimeSemantics,
                 },
-                BoxedIter, GraphViewOps, TimeOps,
+                BoxedIter, BoxedLIter, GraphViewOps, TimeOps,
             },
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
@@ -21,17 +21,20 @@ use crate::{
 };
 use pyo3::ffi::PyBaseObject_Type;
 
-pub(crate) trait BaseVertexViewOps: Clone {
-    type BaseGraph: GraphViewOps;
-    type Graph: GraphViewOps;
-    type ValueType<T>;
+pub(crate) trait BaseVertexViewOps<'graph>: Clone {
+    type BaseGraph: GraphViewOps + 'graph;
+    type Graph: GraphViewOps + 'graph;
+    type ValueType<T>: 'graph
+    where
+        T: 'graph;
 
-    type PropType: PropertiesOps + Clone;
-    type PathType: VertexViewOps<BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
-    type Edge: EdgeViewOps<Graph = Self::BaseGraph>;
-    type EList: EdgeListOps<Graph = Self::BaseGraph, Edge = Self::Edge>;
+    type PropType: PropertiesOps + Clone + 'graph;
+    type PathType: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
+        + 'graph;
+    type Edge: EdgeViewOps<'graph, Graph = Self::BaseGraph> + 'graph;
+    type EList: EdgeListOps<'graph, Graph = Self::BaseGraph, Edge = Self::Edge> + 'graph;
 
-    fn map<O, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync>(
+    fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O>;
@@ -39,28 +42,34 @@ pub(crate) trait BaseVertexViewOps: Clone {
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::EList;
 
-    fn hop<I: Iterator<Item = VID> + Send, F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync>(
+    fn hop<
+        I: Iterator<Item = VID> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::PathType;
 }
 
 /// Operations defined for a vertex
-pub trait VertexViewOps: Clone {
-    type BaseGraph: GraphViewOps;
-    type Graph: GraphViewOps;
-    type ValueType<T>;
-    type PathType: VertexViewOps<BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
-    type PropType: PropertiesOps + Clone;
-    type Edge: EdgeViewOps<Graph = Self::BaseGraph>;
-    type EList: EdgeListOps<Graph = Self::BaseGraph, Edge = Self::Edge>;
+pub trait VertexViewOps<'graph>: Clone {
+    type BaseGraph: GraphViewOps + 'graph;
+    type Graph: GraphViewOps + 'graph;
+    type ValueType<T>: 'graph
+    where
+        T: 'graph;
+    type PathType: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
+        + 'graph;
+    type PropType: PropertiesOps + Clone + 'graph;
+    type Edge: EdgeViewOps<'graph, Graph = Self::BaseGraph> + 'graph;
+    type EList: EdgeListOps<'graph, Graph = Self::BaseGraph, Edge = Self::Edge> + 'graph;
 
     /// Get the numeric id of the vertex
     fn id(&self) -> Self::ValueType<u64>;
@@ -152,10 +161,10 @@ pub trait VertexViewOps: Clone {
     fn out_neighbours(&self) -> Self::PathType;
 }
 
-impl<V: BaseVertexViewOps> VertexViewOps for V {
+impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V {
     type BaseGraph = V::BaseGraph;
     type Graph = V::Graph;
-    type ValueType<T> = V::ValueType<T>;
+    type ValueType<T: 'graph> = V::ValueType<T>;
     type PathType = V::PathType;
     type PropType = V::PropType;
     type Edge = V::Edge;
@@ -223,16 +232,23 @@ impl<V: BaseVertexViewOps> VertexViewOps for V {
 }
 
 /// A trait for operations on a list of vertices.
-pub trait VertexListOps: IntoIterator<Item = Self::ValueType<Self::Vertex>> + Sized {
-    type Vertex: VertexViewOps + TimeOps;
-    type Edge: EdgeViewOps<Graph = <Self::Vertex as VertexViewOps>::BaseGraph>;
+pub trait VertexListOps<'graph>:
+    IntoIterator<Item = Self::ValueType<Self::Vertex>> + Sized
+{
+    type Vertex: VertexViewOps<'graph> + TimeOps + 'graph;
+    type Edge: EdgeViewOps<'graph, Graph = <Self::Vertex as VertexViewOps<'graph>>::BaseGraph>
+        + 'graph;
 
     /// The type of the iterator for the list of vertices
     type IterType<T>: Iterator<
-        Item = Self::ValueType<<Self::Vertex as VertexViewOps>::ValueType<T>>,
-    >;
+        Item = Self::ValueType<<Self::Vertex as VertexViewOps<'graph>>::ValueType<T>>,
+    >
+    where
+        T: 'graph;
     /// The type of the iterator for the list of edges
-    type ValueType<T>;
+    type ValueType<T>: 'graph
+    where
+        T: 'graph;
 
     /// Return the timestamp of the earliest activity.
     fn earliest_time(self) -> Self::IterType<Option<i64>>;
@@ -258,7 +274,9 @@ pub trait VertexListOps: IntoIterator<Item = Self::ValueType<Self::Vertex>> + Si
     fn name(self) -> Self::IterType<String>;
 
     /// Returns an iterator over properties of the vertices
-    fn properties(self) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps>::PropType>>;
+    fn properties(
+        self,
+    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>>;
 
     fn history(self) -> Self::IterType<Vec<i64>>;
 
@@ -322,11 +340,13 @@ pub trait VertexListOps: IntoIterator<Item = Self::ValueType<Self::Vertex>> + Si
     fn out_neighbours(self) -> Self::IterType<Self::Vertex>;
 }
 
-impl<V: VertexViewOps + TimeOps> VertexListOps for BoxedIter<BoxedIter<V>> {
+impl<'graph, V: VertexViewOps<'graph> + TimeOps + 'graph> VertexListOps<'graph>
+    for BoxedLIter<'graph, BoxedLIter<'graph, V>>
+{
     type Vertex = V;
     type Edge = V::Edge;
-    type IterType<T> = BoxedIter<BoxedIter<V::ValueType<T>>>;
-    type ValueType<T> = BoxedIter<T>;
+    type IterType<T> = BoxedLIter<'graph, BoxedLIter<'graph, V::ValueType<T>>> where T: 'graph;
+    type ValueType<T> = BoxedLIter<'graph, T> where T: 'graph;
 
     fn earliest_time(self) -> Self::IterType<Option<i64>> {
         todo!()
@@ -356,7 +376,9 @@ impl<V: VertexViewOps + TimeOps> VertexListOps for BoxedIter<BoxedIter<V>> {
         todo!()
     }
 
-    fn properties(self) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps>::PropType>> {
+    fn properties(
+        self,
+    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>> {
         todo!()
     }
 

@@ -87,7 +87,7 @@ impl Zero for MotifCounter {
 ///////////////////////////////////////////////////////
 
 pub fn star_motif_count<G, GH>(
-    evv: &EvalVertexView<G, GH, ComputeStateVec, MotifCounter>,
+    evv: &EvalVertexView<G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
@@ -126,8 +126,8 @@ where
 ///////////////////////////////////////////////////////
 
 pub fn twonode_motif_count<G, GH>(
-    graph: &G,
-    evv: &EvalVertexView<G, GH, ComputeStateVec, MotifCounter>,
+    graph: G,
+    evv: &EvalVertexView<G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
@@ -198,12 +198,7 @@ where
     ctx.agg(neighbours_set);
 
     let step1 = ATask::new(
-        move |u: &mut EvalVertexView<
-            &VertexSubgraph<G>,
-            &VertexSubgraph<G>,
-            ComputeStateVec,
-            MotifCounter,
-        >| {
+        move |u: &mut EvalVertexView<&VertexSubgraph<G>, MotifCounter>| {
             for v in u.neighbours() {
                 if u.id() > v.id() {
                     v.update(&neighbours_set, u.id());
@@ -214,12 +209,7 @@ where
     );
 
     let step2 = ATask::new(
-        move |u: &mut EvalVertexView<
-            &VertexSubgraph<G>,
-            &VertexSubgraph<G>,
-            ComputeStateVec,
-            MotifCounter,
-        >| {
+        move |u: &mut EvalVertexView<&VertexSubgraph<G>, MotifCounter>| {
             let uu = u.get_mut();
             if uu.triangle.len() == 0 {
                 uu.triangle = vec![[0 as usize; 8]; delta_len];
@@ -362,21 +352,19 @@ where
 
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<&G, &G, ComputeStateVec, MotifCounter>| {
-            let two_nodes = twonode_motif_count(g, evv, deltas.clone());
-            let star_nodes = star_motif_count(evv, deltas.clone());
+    let step1 = ATask::new(move |evv: &mut EvalVertexView<&G, MotifCounter>| {
+        let two_nodes = twonode_motif_count(g, evv, deltas.clone());
+        let star_nodes = star_motif_count(evv, deltas.clone());
 
-            *evv.get_mut() = MotifCounter::new(
-                deltas.len(),
-                two_nodes,
-                star_nodes,
-                evv.get().triangle.clone(),
-            );
+        *evv.get_mut() = MotifCounter::new(
+            deltas.len(),
+            two_nodes,
+            star_nodes,
+            evv.get().triangle.clone(),
+        );
 
-            Step::Continue
-        },
-    );
+        Step::Continue
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 

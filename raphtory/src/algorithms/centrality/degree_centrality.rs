@@ -5,7 +5,7 @@ use crate::{
         context::Context,
         task::{ATask, Job, Step},
         task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+        vertex::eval_vertex::{EvalVertexRef, EvalVertexView},
     },
     prelude::*,
 };
@@ -26,19 +26,17 @@ pub fn degree_centrality<G: GraphViewOps>(
 
     ctx.agg(min);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<'_, &G, &G, ComputeStateVec, ()>| {
-            // The division below is fine as floating point division of 0.0
-            // causes the result to be an NaN
-            let res = evv.degree() as f64 / max_degree as f64;
-            if res.is_nan() || res.is_infinite() {
-                evv.global_update(&min, 0.0);
-            } else {
-                evv.update(&min, res);
-            }
-            Step::Done
-        },
-    );
+    let step1 = ATask::new(move |evv: EvalVertexRef<G, ()>| {
+        // The division below is fine as floating point division of 0.0
+        // causes the result to be an NaN
+        let res = evv.degree() as f64 / max_degree as f64;
+        if res.is_nan() || res.is_infinite() {
+            evv.global_update(&min, 0.0);
+        } else {
+            evv.update(&min, res);
+        }
+        Step::Done
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     let runner_result = runner.run(

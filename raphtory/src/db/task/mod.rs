@@ -77,12 +77,10 @@ mod task_tests {
 
         ctx.global_agg(count.clone());
 
-        let step1 = ATask::new(
-            move |vv: &mut EvalVertexView<'_, Graph, ComputeStateVec, ()>| {
-                vv.global_update(&count, 1);
-                Step::Done
-            },
-        );
+        let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, &Graph, ()>| {
+            vv.global_update(&count, 1);
+            Step::Done
+        });
 
         let mut runner = TaskRunner::new(ctx);
 

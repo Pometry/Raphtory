@@ -25,7 +25,10 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
+            view::{
+                internal::{OneHopFilter, Static},
+                BoxedIter, BoxedLIter, EdgeViewInternalOps, LayerOps,
+            },
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
@@ -38,7 +41,7 @@ use std::{
 
 /// A view of an edge in the graph.
 #[derive(Clone)]
-pub struct EdgeView<G: GraphViewOps> {
+pub struct EdgeView<G> {
     /// A view of an edge in the graph.
     pub graph: G,
     /// A reference to the edge.
@@ -74,7 +77,9 @@ impl<G: GraphViewOps> PartialEq for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G, G>> for EdgeView<G> {
+impl<'graph, G: GraphViewOps + 'graph> EdgeViewInternalOps<'graph, G, VertexView<G, G>>
+    for EdgeView<G>
+{
     fn graph(&self) -> G {
         self.graph.clone()
     }
@@ -257,10 +262,10 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps + 'graph> EdgeViewOps<'graph> for EdgeView<G> {
     type Graph = G;
     type Vertex = VertexView<G, G>;
-    type EList = BoxedIter<Self>;
+    type EList = BoxedLIter<'graph, Self>;
 
     fn explode(&self) -> Self::EList {
         let ev = self.clone();
@@ -300,57 +305,25 @@ impl<G: GraphViewOps> Debug for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> From<EdgeView<G>> for EdgeRef {
+impl<G> From<EdgeView<G>> for EdgeRef {
     fn from(value: EdgeView<G>) -> Self {
         value.edge
     }
 }
 
-impl<G: GraphViewOps> TimeOps for EdgeView<G> {
-    type WindowedViewType = EdgeView<WindowedGraph<G>>;
+impl<'graph, G: GraphViewOps + 'graph> OneHopFilter<'graph> for EdgeView<G> {
+    type Graph = G;
+    type Filtered<GH: GraphViewOps + 'graph> = EdgeView<GH>;
 
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
+    fn current_filter(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        EdgeView {
-            graph: self.graph.window(start, end),
-            edge: self.edge,
-        }
-    }
-}
-
-impl<G: GraphViewOps> LayerOps for EdgeView<G> {
-    type LayeredViewType = EdgeView<LayeredGraph<G>>;
-
-    fn default_layer(&self) -> Self::LayeredViewType {
-        EdgeView {
-            graph: self.graph.default_layer(),
-            edge: self.edge,
-        }
-    }
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        let layer_ids = self
-            .graph
-            .layer_ids_from_names(name.into())
-            .constrain_from_edge(self.edge);
-        self.graph
-            .has_edge_ref(
-                self.edge.src(),
-                self.edge.dst(),
-                &layer_ids,
-                self.graph.edge_filter(),
-            )
-            .then(|| EdgeView {
-                graph: LayeredGraph::new(self.graph.clone(), layer_ids),
-                edge: self.edge,
-            })
+    fn one_hop_filtered<GH: GraphViewOps + 'graph>(
+        &self,
+        filtered_graph: GH,
+    ) -> Self::Filtered<GH> {
+        EdgeView::new(filtered_graph, self.edge)
     }
 }
 
@@ -358,17 +331,17 @@ impl<G: GraphViewOps> LayerOps for EdgeView<G> {
 ///
 /// This implementation enables the use of the `src` and `dst` methods to retrieve the vertices
 /// connected to the edges inside the iterator.
-impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
+impl<'graph, G: GraphViewOps + 'graph> EdgeListOps<'graph> for BoxedLIter<'graph, EdgeView<G>> {
     type Graph = G;
     type Vertex = VertexView<G, G>;
     type Edge = EdgeView<G>;
     type ValueType<T> = T;
 
     /// Specifies the associated type for an iterator over vertices.
-    type VList = Box<dyn Iterator<Item = VertexView<G, G>> + Send>;
+    type VList = BoxedLIter<'graph, VertexView<G, G>>;
 
     /// Specifies the associated type for the iterator over edges.
-    type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
+    type IterType<T> = BoxedLIter<'graph, T>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
@@ -459,13 +432,15 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
     }
 }
 
-impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
+impl<'graph, G: GraphViewOps + 'graph> EdgeListOps<'graph>
+    for BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G>>>
+{
     type Graph = G;
     type Vertex = VertexView<G, G>;
     type Edge = EdgeView<G>;
-    type ValueType<T> = Box<dyn Iterator<Item = T> + Send>;
-    type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G, G>> + Send>> + Send>;
-    type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
+    type ValueType<T> = BoxedLIter<'graph, T>;
+    type VList = BoxedLIter<'graph, BoxedLIter<'graph, VertexView<G, G>>>;
+    type IterType<T> = BoxedLIter<'graph, BoxedLIter<'graph, T>>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |it| it.properties()))

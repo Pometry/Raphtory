@@ -1,4 +1,10 @@
-use crate::core::ArcStr;
+use crate::{
+    core::{entities::LayerIds, ArcStr},
+    db::{
+        api::view::internal::{InternalLayerOps, OneHopFilter},
+        graph::views::layer_graph::LayeredGraph,
+    },
+};
 use std::sync::Arc;
 
 /// Trait defining layer operations
@@ -12,6 +18,23 @@ pub trait LayerOps {
 
     /// Return a graph containing the layer `name`
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
+}
+
+impl<'graph, V: OneHopFilter<'graph>> LayerOps for V {
+    type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
+
+    fn default_layer(&self) -> Self::LayeredViewType {
+        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
+    }
+
+    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
+        let layers = layers.into();
+        let ids = self.current_filter().layer_ids_from_names(layers);
+        match ids {
+            LayerIds::None => None,
+            _ => Some(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

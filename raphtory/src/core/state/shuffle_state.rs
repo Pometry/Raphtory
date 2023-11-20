@@ -14,7 +14,7 @@ use crate::{
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
-pub struct ShuffleComputeState<CS: ComputeState + Send> {
+pub struct ShuffleComputeState<CS> {
     morcel_size: usize,
     pub global: MorcelComputeState<CS>,
     pub parts: Vec<MorcelComputeState<CS>>,
