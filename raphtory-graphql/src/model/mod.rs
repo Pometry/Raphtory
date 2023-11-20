@@ -13,9 +13,8 @@ use dynamic_graphql::{
     Upload,
 };
 use itertools::Itertools;
-use raphtory::core::utils::errors::GraphError;
 use raphtory::{
-    core::{ArcStr, Prop},
+    core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
     prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
