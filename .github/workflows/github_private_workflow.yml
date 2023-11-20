@@ -32,6 +32,7 @@ jobs:
             name: Checkout
           - name: Run Build and Benchmark for lanl
             run:  |
+              export RUSTC_WRAPPER=/home/ubuntu/.cargo/bin/sccache
               cargo build --release --example lanl
               /usr/bin/time -v cargo run --release --example lanl /home/ubuntu/netflowsorted/trovares_day85/raphtory_graph_v2
     shutdown_runner:
