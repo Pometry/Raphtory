@@ -30,6 +30,8 @@ jobs:
         steps:
           - uses: actions/checkout@v3
             name: Checkout
+          - name: Drop all caches
+            run: sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
           - name: Run Build and Benchmark for lanl
             run:  |
               cargo build --release --example lanl
