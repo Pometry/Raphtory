@@ -1,5 +1,4 @@
 use ahash::{HashMap, HashSet};
-use clap::Arg;
 use dashmap::DashMap;
 use itertools::Itertools;
 use raphtory::{
@@ -13,7 +12,6 @@ use rayon::{
     ThreadPoolBuilder,
 };
 use std::{
-    path::Path,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -98,10 +96,10 @@ fn query1_v5(
         );
 
         // let mut count = 0;
-        let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
 
         let count = AtomicUsize::new(0);
         let vs = b_login1_filter.iter().copied().collect_vec();
+        let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
 
         let now = Instant::now();
         pool.install(|| {
@@ -117,7 +115,7 @@ fn query1_v5(
                                 g.edges_par(b, Direction::OUT, events_1v)
                                     .filter(|(_, v)| {
                                         v == &b
-                                            && b_login1_filter.contains(v)
+                                            // && b_login1_filter.contains(v)
                                             && b_prog1_filter.contains(v)
                                     })
                                     .for_each(|(b2b, _)| {
@@ -201,7 +199,7 @@ fn query1_v5(
 
                             if !skip {
                                 let iter = login1
-                                    .prop_items::<i64>(event_id_prop_id_2v)
+                                    .par_prop_items::<i64>(event_id_prop_id_2v)
                                     .unwrap()
                                     .filter_map(|(t, v)| v.map(|v| (v, t)));
 
@@ -534,15 +532,14 @@ fn binary_search_join_par<'a>(
 }
 
 fn binary_search_join_par_small_2<'a>(
-    iter: impl IntoIterator<Item = (Time, Time)>,
+    iter: impl ParallelIterator<Item = (Time, Time)>,
     edges: &'a Vec<(i32, i32, u32)>,
     a: &VID,
     count: &'a AtomicUsize,
 ) {
     let c = iter
-        .into_iter()
         .filter(|(login1_event_id, _)| login1_event_id == &4624)
-        .map(|(_, login1_t)| {
+        .filter_map(|(_, login1_t)| {
             let login1_t_small: i32 = login1_t as i32;
 
             let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
@@ -561,8 +558,6 @@ fn binary_search_join_par_small_2<'a>(
             };
             from.map(|from| (from, login1_t_small))
         })
-        .take_while(|s| s.is_some())
-        .filter_map(|s| s)
         .map(|(from, login1_t_small)| {
             let c = (&edges[from..])
                 .iter()
