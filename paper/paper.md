@@ -70,8 +70,6 @@ bibliography: joss-raphtory.bib
 # aas-doi: 10.3847/xxxxx <- update this with the DOI from AAS once you know it.
 # aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
-# Raphtory: The temporal graph engine for Rust and Python
-
 # Summary
 
 Raphtory is a platform for building and analysing temporal networks. The library includes methods for creating networks from a variety of data sources; algorithms to explore their structure and evolution; and an extensible GraphQL server for deployment of applications built on top. Raphtory's core engine is built in Rust, for efficiency, with Python interfaces, for ease of use. Raphtory is developed by network scientists, with a background in Physics, Applied Mathematics, Engineering and Computer Science, for use across academia and industry. 
@@ -108,12 +106,7 @@ Raphtory includes fast and scalable implementations of algorithms for temporal n
 
 Finally, Raphtory is built with a focus on ease of use and can be installed using standard Python and Rust package managers. Once installed it can be integrated within an analysis pipeline or run standalone as a GraphQL service.
 
-
- Example code             |  Visualisation
-:-------------------------:|:-------------------------:
-![](https://hackmd.io/_uploads/rJB-cMKNT.png)|![](https://hackmd.io/_uploads/BJhzditwn.png)
-![](https://hackmd.io/_uploads/S1pTufY4T.png)|![](https://hackmd.io/_uploads/ryNb_RTPh.png)
-![](https://hackmd.io/_uploads/BynHFfFE6.png)|![](https://hackmd.io/_uploads/HJb3uAgv2.png)
+ ![](table/Slide1.pdf){width=380pt}                  
 **Caption.** First line (Example 1): In a temporal network, edges are dynamical entities connecting pairs of nodes. Second line (Example 2): Generation of a sequence of graph views at a given time resolution and on selected layers, to run standard network algorithms, here Pagerank. Third line (Example 3): Raphtory  offers rapid implementations of algorithms specifically designed for temporal networks, here finding significant temporal motifs [@paranjape2017motifs].
 
 # Projects using Raphtory
