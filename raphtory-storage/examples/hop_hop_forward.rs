@@ -6,7 +6,7 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{
-    iter::IntoParallelIterator,
+    iter::{IntoParallelIterator, IndexedParallelIterator},
     prelude::{IntoParallelRefIterator, ParallelIterator},
     slice::ParallelSlice,
     ThreadPoolBuilder,
@@ -53,7 +53,7 @@ fn query1_v5(
     event_id_prop_id_2v: usize,
 ) -> usize {
     let pool = ThreadPoolBuilder::new()
-        .num_threads(47)
+        // .num_threads(47)
         .build()
         .expect("failed to build pool");
 
@@ -103,7 +103,7 @@ fn query1_v5(
 
         let now = Instant::now();
         pool.install(|| {
-            vs.into_par_iter().for_each(|b| {
+            vs.into_par_iter().with_min_len(64).for_each(|b| {
                 g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
