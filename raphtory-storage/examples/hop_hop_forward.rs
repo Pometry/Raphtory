@@ -102,7 +102,7 @@ fn query1_v5(
 
         let now = Instant::now();
         pool.install(|| {
-            vs.into_par_iter().with_min_len(64).for_each(|b| {
+            vs.into_par_iter().for_each(|b| {
                 g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
