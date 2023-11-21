@@ -171,7 +171,3 @@ def test_filtering():
     selection = vg.append_edges([("node1", "node2")]).expand_edges_by_similarity("edge3", 10)
     contents = [doc.content for doc in selection.get_documents()]
     assert(contents == ["edge1", "edge2", "edge3"])
-
-    # selection = vg.append_nodes(["node1"]).expand_nodes_by_similarity("node2", 10)
-    # contents = [doc.content for doc in selection.get_documents()]
-    # assert(contents == ["node1", "node2", "node3", "node4"])
