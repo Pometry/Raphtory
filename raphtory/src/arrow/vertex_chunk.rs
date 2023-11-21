@@ -49,7 +49,6 @@ impl VertexChunk {
     pub(crate) fn len(&self) -> usize {
         self.columns[0].len()
     }
-
 }
 
 #[derive(Debug)]

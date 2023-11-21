@@ -6,7 +6,7 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{
-    iter::{IntoParallelIterator, IndexedParallelIterator},
+    iter::{IndexedParallelIterator, IntoParallelIterator},
     prelude::{IntoParallelRefIterator, ParallelIterator},
     slice::ParallelSlice,
     ThreadPoolBuilder,

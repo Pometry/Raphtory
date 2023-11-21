@@ -7,8 +7,9 @@ use arrow2::{
 };
 use itertools::Itertools;
 use std::{
+    num::TryFromIntError,
     ops::Range,
-    path::{Path, PathBuf}, num::TryFromIntError,
+    path::{Path, PathBuf},
 };
 
 pub(crate) mod chunked_array;

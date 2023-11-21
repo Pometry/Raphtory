@@ -12,7 +12,10 @@ pub fn read_batch<P: AsRef<Path>>(path: P) -> Result<Chunk<Box<dyn Array>>, Erro
     Ok(chunk)
 }
 
-pub fn read_batch_with_projection<P: AsRef<Path>>(path: P, projection: Vec<usize>) -> Result<Chunk<Box<dyn Array>>, Error> {
+pub fn read_batch_with_projection<P: AsRef<Path>>(
+    path: P,
+    projection: Vec<usize>,
+) -> Result<Chunk<Box<dyn Array>>, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
     let mut reader = read::FileReader::new(file, meta, Some(projection), None);

@@ -389,11 +389,7 @@ impl TempColGraphFragment {
             edge_slice
                 .par_iter()
                 .map(|e| EID(*e as usize))
-                .zip(
-                    v_slice
-                        .par_iter()
-                        .map(|v| VID(*v as usize)),
-                ),
+                .zip(v_slice.par_iter().map(|v| VID(*v as usize))),
         )
     }
 

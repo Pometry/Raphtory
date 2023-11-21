@@ -20,8 +20,9 @@ use rayon::prelude::*;
 use std::{
     borrow::Borrow,
     cmp::min,
+    num::NonZeroUsize,
     ops::Range,
-    path::{Path, PathBuf}, num::NonZeroUsize,
+    path::{Path, PathBuf},
 };
 
 pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
@@ -107,11 +108,16 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
     }
 
-    fn load_t_edge_values(&self, num_threads: NonZeroUsize, chunk_size: usize) -> Result<ChunkedArray<StructArray>, Error> {
+    fn load_t_edge_values(
+        &self,
+        num_threads: NonZeroUsize,
+        chunk_size: usize,
+    ) -> Result<ChunkedArray<StructArray>, Error> {
         let offset_iter = self.parquet_offset_iter(chunk_size).collect_vec();
         let iter = offset_iter.into_par_iter();
 
-        self.edge_props_builder.load_t_edges_from_par_structs(num_threads, iter)
+        self.edge_props_builder
+            .load_t_edges_from_par_structs(num_threads, iter)
     }
 
     fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
@@ -408,7 +414,8 @@ mod test {
     #[test]
     fn load_edges_from_parquet() {
         let root = env!("CARGO_MANIFEST_DIR");
-        let nft: PathBuf = PathBuf::from_iter([root, "resources", "test", "chunked", "chunked.parquet"]);
+        let nft: PathBuf =
+            PathBuf::from_iter([root, "resources", "test", "chunked", "chunked.parquet"]);
         let graph_dir = tempfile::tempdir().unwrap();
 
         let excluded_cols = vec!["src", "dst", "dst_hash", "src_hash"];

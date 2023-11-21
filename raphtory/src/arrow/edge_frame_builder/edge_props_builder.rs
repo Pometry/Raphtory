@@ -1,4 +1,4 @@
-use std::{path::Path, num::NonZeroUsize};
+use std::{num::NonZeroUsize, path::Path};
 
 use arrow2::{
     array::{self, PrimitiveArray, StructArray},
