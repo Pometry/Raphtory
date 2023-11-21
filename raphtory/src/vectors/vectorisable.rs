@@ -73,7 +73,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
                 .edge(&edge)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_edge(&edge), // FIXME: this syntax is very confusing...
+                    entity_id: EntityId::from_edge(&edge),
                     content: doc.content,
                     index,
                     life: doc.life,

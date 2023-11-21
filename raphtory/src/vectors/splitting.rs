@@ -1,3 +1,5 @@
+use itertools::chain;
+
 /// Splits the input text in chunks of no more than max_size trying to use line breaks
 /// as much as possible
 pub fn split_text_by_line_breaks(text: String, max_size: usize) -> Vec<String> {
@@ -28,24 +30,40 @@ pub fn split_text_by_line_breaks(text: String, max_size: usize) -> Vec<String> {
 }
 
 // TODO: test this function
-pub fn split_text_with_constant_size(input: &str, chunk_size: usize) -> Vec<&str> {
-    let mut substrings = Vec::new();
-    let mut start = 0;
+// pub fn split_text_with_constant_size(input: &str, chunk_size: usize) -> Vec<&str> {
+//     let mut substrings = Vec::new();
+//     let mut start = 0;
+//
+//     while start < input.len() {
+//         // Use char_indices to ensure we split the string at valid UTF-8 boundaries
+//         let end = input[start..]
+//             .char_indices()
+//             .nth(chunk_size)
+//             .map(|(index, _)| start + index);
+//         let substring = match end {
+//             Some(end) => &input[start..end],
+//             None => &input[start..],
+//         };
+//
+//         substrings.push(substring);
+//
+//         start = end;
+//     }
+//
+//     substrings
+// }
 
-    while start < input.len() {
-        // Use char_indices to ensure we split the string at valid UTF-8 boundaries
-        let end = input[start..]
-            .char_indices()
-            .take(chunk_size)
-            .map(|(i, _)| i)
-            .last()
-            .map_or(start + chunk_size, |idx| start + idx);
-
-        let substring = &input[start..end];
-        substrings.push(substring);
-
-        start = end;
+// TODO: test this function
+pub fn split_text_with_constant_size(
+    input: &str,
+    chunk_size: usize,
+) -> Box<dyn Iterator<Item = &str>> {
+    let end = input.char_indices().nth(chunk_size).map(|(index, _)| index);
+    match end {
+        Some(end) => Box::new(chain!(
+            std::iter::once(&input[..end]),
+            split_text_with_constant_size(&input[end..], chunk_size)
+        )),
+        None => Box::new(std::iter::once(input)),
     }
-
-    substrings
 }
