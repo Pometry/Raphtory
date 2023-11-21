@@ -558,14 +558,13 @@ fn binary_search_join_par_small_2<'a>(
             from.map(|from| (from, login1_t_small))
         })
         .flat_map_iter(|(from, login1_t_small)| {
-            (&edges[from..])
-                .iter()
-                .filter(move |(prog1_t, nft_t, e)| {
-                    let e_vid = VID(*e as usize);
-                    nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid
-                })
-        }).count();
-        // .sum::<usize>();
+            (&edges[from..]).iter().filter(move |(prog1_t, nft_t, e)| {
+                let e_vid = VID(*e as usize);
+                nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid
+            })
+        })
+        .count();
+    // .sum::<usize>();
 
     count.fetch_add(c, Ordering::Relaxed);
 }
