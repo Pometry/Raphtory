@@ -4,7 +4,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
-        Document, Embedding, EmbeddingFunction, ScoredDocument,
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};

@@ -27,18 +27,6 @@ pub enum Document {
     },
 }
 
-#[derive(Clone)]
-pub(crate) struct ScoredDocument {
-    doc: DocumentRef,
-    score: f32,
-}
-
-impl ScoredDocument {
-    fn new(doc: DocumentRef, score: f32) -> Self {
-        Self { doc, score }
-    }
-}
-
 // TODO: remove this interface, only used by Document (?)
 pub trait DocumentOps {
     fn content(&self) -> &str;
