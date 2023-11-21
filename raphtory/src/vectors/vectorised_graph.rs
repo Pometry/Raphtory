@@ -13,6 +13,7 @@ use std::{
     sync::Arc,
 };
 
+#[derive(Clone, Copy)]
 enum ExpansionPath {
     Nodes,
     Edges,
@@ -253,6 +254,13 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             let candidates = selected_docs
                 .iter()
                 .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
+                .flat_map(|doc| match (path, doc.entity_id) {
+                    (ExpansionPath::Nodes, EntityId::Edge { .. })
+                    | (ExpansionPath::Edges, EntityId::Node { .. }) => {
+                        self.get_context(doc, windowed_graph, window)
+                    }
+                    _ => Box::new(std::iter::once(doc)),
+                })
                 .filter(|doc| match path {
                     ExpansionPath::Both => true,
                     ExpansionPath::Nodes => doc.entity_id.is_node(),
