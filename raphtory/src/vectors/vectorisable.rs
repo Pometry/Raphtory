@@ -81,7 +81,9 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
         });
 
         let cache = cache_file.map(EmbeddingCache::from_path);
+        println!("compute embeddings for nodes");
         let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
+        println!("compute embeddings for edges");
         let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
         cache.iter().for_each(|cache| cache.dump_to_disk());
 
@@ -106,6 +108,7 @@ where
 {
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
     for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
+        println!("computing embeddings for new chunk");
         let doc_refs = compute_chunk(chunk, embedding, cache).await;
         for doc in doc_refs {
             match embedding_groups.get_mut(&doc.entity_id) {
