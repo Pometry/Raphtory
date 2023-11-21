@@ -108,7 +108,6 @@ where
 {
     let mut embedding_groups: HashMap<EntityId, Vec<DocumentRef>> = HashMap::new();
     for chunk in documents.chunks(CHUNK_SIZE).into_iter() {
-        println!("computing embeddings for new chunk");
         let doc_refs = compute_chunk(chunk, embedding, cache).await;
         for doc in doc_refs {
             match embedding_groups.get_mut(&doc.entity_id) {
