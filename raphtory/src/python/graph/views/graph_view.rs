@@ -304,22 +304,23 @@ impl PyGraphView {
         GraphIndex::new(self.graph.clone())
     }
 
+    #[pyo3(signature = (embedding, cache = None, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
         cache: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
+        verbose: bool,
     ) -> DynamicVectorisedGraph {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
-        let cache = cache.map(|cache| PathBuf::from(cache));
+        let cache = cache.map(PathBuf::from);
         let template = PyDocumentTemplate::new(node_document, edge_document);
         spawn_async_task(move || async move {
-            let vectorised_graph = graph
-                .vectorise_with_template(Box::new(embedding.clone()), cache, template)
-                .await;
-            vectorised_graph
+            graph
+                .vectorise_with_template(Box::new(embedding.clone()), cache, template, verbose)
+                .await
         })
     }
 
