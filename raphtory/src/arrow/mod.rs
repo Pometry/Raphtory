@@ -26,10 +26,6 @@ pub(crate) mod parquet_reader;
 pub(crate) mod vertex_chunk;
 pub(crate) mod vertex_frame_builder;
 
-pub const ALL_EDGES_MIN_PAR:usize = 16;
-pub const CKD_PRIM_COL_MIN_PAR:usize = 16;
-pub const V_EDGES_MIN_PAR:usize = 1;
-
 pub type Time = i64;
 
 pub mod prelude {

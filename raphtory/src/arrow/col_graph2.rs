@@ -45,7 +45,7 @@ use super::{
     global_order::{GlobalMap, GlobalOrder},
     ipc, split_struct_chunk,
     vertex_chunk::{RowOwned, VertexChunk},
-    GraphChunk, V_EDGES_MIN_PAR,
+    GraphChunk,
 };
 
 #[derive(Debug)]
@@ -388,12 +388,10 @@ impl TempColGraphFragment {
         Some(
             edge_slice
                 .par_iter()
-                .with_min_len(V_EDGES_MIN_PAR)
                 .map(|e| EID(*e as usize))
                 .zip(
                     v_slice
                         .par_iter()
-                        .with_min_len(V_EDGES_MIN_PAR)
                         .map(|v| VID(*v as usize)),
                 ),
         )

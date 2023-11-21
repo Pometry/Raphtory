@@ -53,7 +53,6 @@ fn query1_v5(
     event_id_prop_id_2v: usize,
 ) -> usize {
     let pool = ThreadPoolBuilder::new()
-        // .num_threads(47)
         .build()
         .expect("failed to build pool");
 
