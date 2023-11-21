@@ -57,7 +57,7 @@ pub fn split_text_by_line_breaks(text: String, max_size: usize) -> Vec<String> {
 pub fn split_text_with_constant_size(
     input: &str,
     chunk_size: usize,
-) -> Box<dyn Iterator<Item = &str>> {
+) -> Box<dyn Iterator<Item = &str> + '_> {
     let end = input.char_indices().nth(chunk_size).map(|(index, _)| index);
     match end {
         Some(end) => Box::new(chain!(
