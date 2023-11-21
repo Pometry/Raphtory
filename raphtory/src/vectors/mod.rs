@@ -27,18 +27,6 @@ pub enum Document {
     },
 }
 
-#[derive(Clone)]
-pub(crate) struct ScoredDocument {
-    doc: DocumentRef,
-    score: f32,
-}
-
-impl ScoredDocument {
-    fn new(doc: DocumentRef, score: f32) -> Self {
-        Self { doc, score }
-    }
-}
-
 // TODO: remove this interface, only used by Document (?)
 pub trait DocumentOps {
     fn content(&self) -> &str;
@@ -166,21 +154,23 @@ mod vector_tests {
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         // the following succeeds with no cache set up
-        g.vectorise(Box::new(fake_embedding), None).await;
+        g.vectorise(Box::new(fake_embedding), None, false).await;
 
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
         let _ = remove_file(path);
 
         // the following creates the embeddings, and store them on the cache
-        g.vectorise(Box::new(fake_embedding), Some(PathBuf::from(path)))
+        g.vectorise(Box::new(fake_embedding), Some(PathBuf::from(path)), false)
             .await;
-
-        println!("now the embeddings should be already in the cache");
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
-        g.vectorise(Box::new(panicking_embedding), Some(PathBuf::from(path)))
-            .await;
+        g.vectorise(
+            Box::new(panicking_embedding),
+            Some(PathBuf::from(path)),
+            false,
+        )
+        .await;
     }
 
     // TODO: test default templates
@@ -189,7 +179,9 @@ mod vector_tests {
     async fn test_empty_graph() {
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
-        let vectors = g.vectorise(Box::new(fake_embedding), Some(cache)).await;
+        let vectors = g
+            .vectorise(Box::new(fake_embedding), Some(cache), false)
+            .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
             .append_by_similarity(&embedding, 10, None)
@@ -270,6 +262,7 @@ age: 30"###;
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-multi-test")),
                 FakeMultiDocumentTemplate,
+                false,
             )
             .await;
 
@@ -322,6 +315,7 @@ age: 30"###;
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
                 FakeTemplateWithIntervals,
+                false,
             )
             .await;
 
@@ -398,6 +392,7 @@ age: 30"###;
                 Box::new(openai_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
                 CustomTemplate,
+                false,
             )
             .await;
 
