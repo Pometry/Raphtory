@@ -30,6 +30,7 @@ pub trait Vectorisable<G: GraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate>;
 
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
@@ -37,6 +38,7 @@ pub trait Vectorisable<G: GraphViewOps> {
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         template: T,
+        verbose: bool,
     ) -> VectorisedGraph<G, T>;
 }
 
@@ -45,9 +47,10 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>, // TODO: make this optional maybe
+        cache_file: Option<PathBuf>,
+        verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate> {
-        self.vectorise_with_template(embedding, cache_file, DefaultTemplate)
+        self.vectorise_with_template(embedding, cache_file, DefaultTemplate, verbose)
             .await
     }
 
@@ -56,6 +59,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         template: T,
+        verbose: bool,
     ) -> VectorisedGraph<G, T> {
         let nodes = self.vertices().iter().flat_map(|vertex| {
             template
@@ -81,10 +85,17 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
         });
 
         let cache = cache_file.map(EmbeddingCache::from_path);
-        println!("compute embeddings for nodes");
+
+        if verbose {
+            println!("compute embeddings for nodes");
+        }
         let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
-        println!("compute embeddings for edges");
+
+        if verbose {
+            println!("compute embeddings for edges");
+        }
         let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
+
         cache.iter().for_each(|cache| cache.dump_to_disk());
 
         VectorisedGraph::new(
