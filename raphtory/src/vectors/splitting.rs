@@ -7,18 +7,18 @@ pub fn split_text_by_line_breaks(text: String, max_size: usize) -> Vec<String> {
         vec![text]
     } else {
         // TODO: maybe use async_stream crate instead
-        let mut substrings = text.split("\n");
+        let mut substrings = text.split('\n');
         let first_substring = substrings.next().unwrap().to_owned();
         let mut chunks = vec![first_substring];
 
         for substring in substrings {
             let last_chunk = chunks.last_mut().unwrap(); // at least one element
             if substring.len() > max_size {
-                for subsubstring in split_text_with_constant_size(substring, max_size).into_iter() {
+                for subsubstring in split_text_with_constant_size(substring, max_size) {
                     chunks.push(subsubstring.to_owned());
                 }
             } else if last_chunk.len() + substring.len() <= max_size {
-                last_chunk.push_str("\n"); // add back line break removed by split
+                last_chunk.push('\n'); // add back line break removed by split
                 last_chunk.push_str(substring);
             } else {
                 chunks.push(substring.to_owned());
