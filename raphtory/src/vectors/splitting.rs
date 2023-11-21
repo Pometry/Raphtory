@@ -30,30 +30,6 @@ pub fn split_text_by_line_breaks(text: String, max_size: usize) -> Vec<String> {
 }
 
 // TODO: test this function
-// pub fn split_text_with_constant_size(input: &str, chunk_size: usize) -> Vec<&str> {
-//     let mut substrings = Vec::new();
-//     let mut start = 0;
-//
-//     while start < input.len() {
-//         // Use char_indices to ensure we split the string at valid UTF-8 boundaries
-//         let end = input[start..]
-//             .char_indices()
-//             .nth(chunk_size)
-//             .map(|(index, _)| start + index);
-//         let substring = match end {
-//             Some(end) => &input[start..end],
-//             None => &input[start..],
-//         };
-//
-//         substrings.push(substring);
-//
-//         start = end;
-//     }
-//
-//     substrings
-// }
-
-// TODO: test this function
 pub fn split_text_with_constant_size(
     input: &str,
     chunk_size: usize,
