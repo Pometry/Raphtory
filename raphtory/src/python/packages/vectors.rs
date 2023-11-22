@@ -226,6 +226,30 @@ impl PyVectorisedGraph {
             .expand_by_similarity(&embedding, limit, translate(window))
     }
 
+    #[pyo3(signature = (query, limit, window=None))]
+    fn expand_nodes_by_similarity(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: Window,
+    ) -> DynamicVectorisedGraph {
+        let embedding = compute_embedding(&self.0, query);
+        self.0
+            .expand_nodes_by_similarity(&embedding, limit, translate(window))
+    }
+
+    #[pyo3(signature = (query, limit, window=None))]
+    fn expand_edges_by_similarity(
+        &self,
+        query: PyQuery,
+        limit: usize,
+        window: Window,
+    ) -> DynamicVectorisedGraph {
+        let embedding = compute_embedding(&self.0, query);
+        self.0
+            .expand_edges_by_similarity(&embedding, limit, translate(window))
+    }
+
     fn append(
         &self,
         nodes: Vec<VertexRef>,

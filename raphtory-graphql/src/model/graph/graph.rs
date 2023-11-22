@@ -19,7 +19,7 @@ use raphtory::{
         },
         graph::edge::EdgeView,
     },
-    prelude::EdgeViewOps,
+    prelude::{EdgeListOps, EdgeViewOps},
     search::IndexedGraph,
 };
 
@@ -201,6 +201,31 @@ impl GqlGraph {
         }
     }
 
+    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+        let include_negative = include_negative.unwrap_or(true);
+        let all_edges = self
+            .graph
+            .edges()
+            .earliest_time()
+            .into_iter()
+            .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
+            .min();
+        return all_edges;
+    }
+
+    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+        let include_negative = include_negative.unwrap_or(true);
+        let all_edges = self
+            .graph
+            .edges()
+            .latest_time()
+            .into_iter()
+            .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
+            .max();
+
+        return all_edges;
+    }
+
     async fn edges<'a>(
         &self,
         filter: Option<EdgeFilter>,
@@ -356,5 +381,13 @@ impl GqlGraph {
 
     async fn algorithms(&self) -> GraphAlgorithms {
         self.graph.deref().clone().into()
+    }
+
+    async fn earliest_time(&self) -> Option<i64> {
+        self.graph.earliest_time()
+    }
+
+    async fn latest_time(&self) -> Option<i64> {
+        self.graph.latest_time()
     }
 }
