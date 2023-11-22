@@ -261,7 +261,7 @@ pub fn run_analysis_benchmarks<F, G>(
     parameter: Option<usize>,
 ) where
     F: Fn() -> G,
-    G: GraphViewOps,
+    G: GraphViewBase,
 {
     let graph = make_graph();
     let edges: HashSet<(u64, u64)> = graph

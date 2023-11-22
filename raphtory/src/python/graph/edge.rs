@@ -68,7 +68,7 @@ pub struct PyMutableEdge {
     edge: EdgeView<MaterializedGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
+impl<G: GraphViewBase + IntoDynamic> From<EdgeView<G>> for PyEdge {
     fn from(value: EdgeView<G>) -> Self {
         Self {
             edge: EdgeView {
@@ -79,7 +79,7 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewOps + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<DynamicGraph> {
+impl<G: GraphViewBase + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<DynamicGraph> {
     fn from(value: EdgeView<G>) -> Self {
         EdgeView {
             graph: value.graph.into_dynamic(),
@@ -88,7 +88,7 @@ impl<G: GraphViewOps + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<Dyna
     }
 }
 
-impl<G: Into<MaterializedGraph> + GraphViewOps> From<EdgeView<G>> for PyMutableEdge {
+impl<G: Into<MaterializedGraph> + GraphViewBase> From<EdgeView<G>> for PyMutableEdge {
     fn from(value: EdgeView<G>) -> Self {
         let edge = EdgeView {
             edge: value.edge,
@@ -99,7 +99,7 @@ impl<G: Into<MaterializedGraph> + GraphViewOps> From<EdgeView<G>> for PyMutableE
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
+impl<G: GraphViewBase + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
         py_version.into_py(py)
@@ -359,7 +359,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl<G: GraphViewOps> Repr for EdgeView<G> {
+impl<G: GraphViewOps<'static>> Repr for EdgeView<G> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()

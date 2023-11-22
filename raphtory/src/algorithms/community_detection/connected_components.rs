@@ -5,7 +5,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::VertexViewOps,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -13,6 +13,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
+    prelude::GraphViewOps,
 };
 use std::{cmp, collections::HashMap};
 
@@ -39,7 +40,7 @@ pub fn weakly_connected_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, u64, u64>
 where
-    G: GraphViewOps + 'static,
+    G: GraphViewOps<'static>,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv| {

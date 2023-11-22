@@ -24,7 +24,7 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::*, BoxedIter},
+            view::{internal::*, BoxedIter, BoxedLIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
@@ -38,8 +38,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
-#[enum_dispatch(GraphOps)]
-#[enum_dispatch(EdgeFilterOps)]
+#[enum_dispatch(GraphOpsBase)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(IntoDynamic)]
 #[enum_dispatch(TimeSemantics)]
@@ -53,6 +52,122 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
+}
+
+impl<'graph> EdgeFilterOps<'graph> for MaterializedGraph {
+    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_filter(),
+            MaterializedGraph::PersistentGraph(g) => g.edge_filter(),
+        }
+    }
+
+    fn edge_filter_window(&self) -> Option<&EdgeFilter<'graph>> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_filter_window(),
+            MaterializedGraph::PersistentGraph(g) => g.edge_filter_window(),
+        }
+    }
+}
+
+impl<'graph> GraphOps<'graph> for MaterializedGraph {
+    fn internal_vertex_ref(
+        &self,
+        v: VertexRef,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<VID> {
+        todo!()
+    }
+
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<EdgeRef> {
+        todo!()
+    }
+
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+        todo!()
+    }
+
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+        todo!()
+    }
+
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+        todo!()
+    }
+
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> usize {
+        todo!()
+    }
+
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<EdgeRef> {
+        todo!()
+    }
+
+    fn vertex_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.vertex_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.vertex_refs(layers, filter),
+        }
+    }
+
+    fn edge_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edge_refs(layers, filter),
+        }
+    }
+
+    fn vertex_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.vertex_edges(v, d, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.vertex_edges(v, d, layer, filter),
+        }
+    }
+
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.neighbours(v, d, layers, filter),
+        }
+    }
 }
 
 impl MaterializedGraph {
@@ -119,8 +234,8 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, InternalMaterialize,
-            MaterializedGraph, TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, GraphOps, GraphOpsBase, InternalLayerOps,
+            InternalMaterialize, MaterializedGraph, TimeSemantics,
         },
         prelude::*,
     };

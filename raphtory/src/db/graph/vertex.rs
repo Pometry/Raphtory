@@ -5,7 +5,7 @@ use crate::{
     db::{
         api::view::{
             internal::{CoreGraphOps, GraphOps, OneHopFilter, TimeSemantics},
-            BaseVertexViewOps, BoxedLIter, IntoDynBoxed,
+            BaseVertexViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
         },
         graph::path::{PathFromGraph, PathFromVertex},
     },
@@ -71,7 +71,7 @@ impl<G, GH> From<&VertexView<G, GH>> for VertexRef {
     }
 }
 
-impl<G, GH: GraphViewOps> fmt::Debug for VertexView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for VertexView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -83,7 +83,7 @@ impl<G, GH: GraphViewOps> fmt::Debug for VertexView<G, GH> {
     }
 }
 
-impl<G, GH: GraphViewOps> fmt::Display for VertexView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Display for VertexView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -95,23 +95,28 @@ impl<G, GH: GraphViewOps> fmt::Display for VertexView<G, GH> {
     }
 }
 
-impl<G1: GraphViewOps, G1H: GraphViewOps, G2: GraphViewOps, G2H: GraphViewOps>
-    PartialOrd<VertexView<G2, G2H>> for VertexView<G1, G1H>
+impl<
+        'graph,
+        G1: GraphViewOps<'graph>,
+        G1H: GraphViewOps<'graph>,
+        G2: GraphViewOps<'graph>,
+        G2H: GraphViewOps<'graph>,
+    > PartialOrd<VertexView<G2, G2H>> for VertexView<G1, G1H>
 {
     fn partial_cmp(&self, other: &VertexView<G2, G2H>) -> Option<std::cmp::Ordering> {
         self.vertex.0.partial_cmp(&other.vertex.0)
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> Ord for VertexView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for VertexView<G, GH> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.vertex.0.cmp(&other.vertex.0)
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> Eq for VertexView<G, GH> {}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for VertexView<G, GH> {}
 
-impl<G: GraphViewOps> VertexView<G> {
+impl<'graph, G: GraphViewOps<'graph>> VertexView<G> {
     /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
     pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
         VertexView {
@@ -122,7 +127,7 @@ impl<G: GraphViewOps> VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> VertexView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexView<G, GH> {
     pub fn new_one_hop_filtered(base_graph: G, graph: GH, vertex: VID) -> Self {
         VertexView {
             base_graph,
@@ -132,17 +137,17 @@ impl<G: GraphViewOps, GH: GraphViewOps> VertexView<G, GH> {
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> OneHopFilter<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for VertexView<G, GH>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps + 'graph> = VertexView<G, GHH>;
+    type Filtered<GHH: GraphViewOps<'graph>> = VertexView<G, GHH>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
@@ -239,9 +244,9 @@ impl<G, GH: CoreGraphOps> ConstPropertiesOps for VertexView<G, GH> {
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> Static for VertexView<G, GH> {}
+impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Static for VertexView<G, GH> {}
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexViewOps<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOps<'graph>
     for VertexView<G, GH>
 {
     type BaseGraph = G;
@@ -264,8 +269,8 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -277,7 +282,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 
     fn hop<
-        I: Iterator<Item = VID> + Send,
+        I: Iterator<Item = VID> + Send + 'graph,
         F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -290,7 +295,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 }
 
-impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G, G> {
+impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         props: C,

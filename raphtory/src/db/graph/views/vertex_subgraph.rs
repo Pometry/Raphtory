@@ -5,9 +5,12 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::internal::{
-            Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritMaterialize, InheritTimeSemantics, Static,
+        view::{
+            internal::{
+                Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
+                InheritLayerOps, InheritMaterialize, InheritTimeSemantics, Static, TimeSemantics,
+            },
+            BoxedLIter,
         },
     },
     prelude::GraphViewOps,
@@ -21,15 +24,15 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct VertexSubgraph<G> {
+pub struct VertexSubgraph<'graph, G> {
     graph: G,
     vertices: Arc<FxHashSet<VID>>,
-    edge_filter: EdgeFilter,
+    edge_filter: EdgeFilter<'graph>,
 }
 
-impl<G: GraphViewOps> Static for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Static for VertexSubgraph<'graph, G> {}
 
-impl<G: Debug> Debug for VertexSubgraph<G> {
+impl<'graph, G: Debug + 'graph> Debug for VertexSubgraph<'graph, G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VertexSubgraph")
             .field("graph", &self.graph)
@@ -38,7 +41,7 @@ impl<G: Debug> Debug for VertexSubgraph<G> {
     }
 }
 
-impl<G> Base for VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for VertexSubgraph<'graph, G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -46,15 +49,15 @@ impl<G> Base for VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Immutable for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for VertexSubgraph<'graph, G> {}
 
-impl<G> InheritCoreOps for VertexSubgraph<G> {}
-impl<G> InheritTimeSemantics for VertexSubgraph<G> {}
-impl<G> InheritPropertiesOps for VertexSubgraph<G> {}
-impl<G> InheritMaterialize for VertexSubgraph<G> {}
-impl<G> InheritLayerOps for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for VertexSubgraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for VertexSubgraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for VertexSubgraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for VertexSubgraph<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for VertexSubgraph<'graph, G> {}
 
-impl<G: GraphViewOps> VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> VertexSubgraph<'graph, G> {
     pub fn new(graph: G, vertices: FxHashSet<VID>) -> Self {
         let vertices = Arc::new(vertices);
         let vertices_cloned = vertices.clone();
@@ -74,75 +77,14 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeFilterOps for VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps<'graph> for VertexSubgraph<'graph, G> {
     #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
+    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>> {
         Some(&self.edge_filter)
     }
 }
 
-impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
-    fn internal_vertex_ref(
-        &self,
-        v: VertexRef,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
-        self.graph
-            .internal_vertex_ref(v, layer_ids, filter)
-            .filter(|v| self.vertices.contains(v))
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.graph
-            .find_edge_id(e_id, layer_ids, filter)
-            .filter(|e| self.vertices.contains(&e.src()) && self.vertices.contains(&e.dst()))
-    }
-
-    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
-        self.vertices.len()
-    }
-
-    fn edges_len(&self, layer: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.vertices
-            .par_iter()
-            .map(|v| self.degree(*v, Direction::OUT, &layer, filter))
-            .sum()
-    }
-
-    fn has_edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> bool {
-        self.graph.has_edge_ref(src, dst, layer, filter)
-    }
-
-    fn has_vertex_ref(
-        &self,
-        v: VertexRef,
-        layer_ids: &LayerIds,
-        edge_filter: Option<&EdgeFilter>,
-    ) -> bool {
-        self.internal_vertex_ref(v, layer_ids, edge_filter)
-            .is_some()
-    }
-
-    fn degree(&self, v: VID, d: Direction, layer: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.graph.degree(v, d, layer, filter)
-    }
-
-    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_vertex_ref(v.into(), layers, filter)
-    }
-
+impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for VertexSubgraph<'graph, G> {
     fn vertex_refs(
         &self,
         _layers: LayerIds,
@@ -153,22 +95,12 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         Box::new(verts.into_iter())
     }
 
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.graph.edge_ref(src, dst, layer, filter)
-    }
-
     fn edge_refs(
         &self,
         layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let g1 = self.clone();
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        let g1 = self.graph.clone();
         let vertices = self.vertices.clone().iter().copied().collect_vec();
         let filter = filter.cloned();
         Box::new(
@@ -183,8 +115,8 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
         self.graph.vertex_edges(v, d, layer, filter)
     }
 
@@ -193,9 +125,102 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> BoxedLIter<'graph, VID> {
         self.graph.neighbours(v, d, layers, filter)
+    }
+    fn internal_vertex_ref(
+        &self,
+        v: VertexRef,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<VID> {
+        self.graph
+            .internal_vertex_ref(v, layer_ids, filter)
+            .filter(|v| self.vertices.contains(v))
+    }
+
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<EdgeRef> {
+        self.graph
+            .find_edge_id(e_id, layer_ids, filter)
+            .filter(|e| self.vertices.contains(&e.src()) && self.vertices.contains(&e.dst()))
+    }
+
+    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter<'graph>>) -> usize {
+        self.vertices.len()
+    }
+
+    fn edges_len(&self, layer: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+        self.vertices
+            .par_iter()
+            .map(|v| self.degree(*v, Direction::OUT, &layer, filter))
+            .sum()
+    }
+
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+        self.vertices
+            .par_iter()
+            .flat_map_iter(move |&v| {
+                let layers = layers.clone();
+                self.graph
+                    .vertex_edges(v, Direction::OUT, layers.clone(), filter)
+                    .flat_map(move |eref| self.edge_exploded(eref, layers.clone()))
+            })
+            .count()
+    }
+
+    fn has_edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> bool {
+        self.graph.has_edge_ref(src, dst, layer, filter)
+    }
+
+    fn has_vertex_ref(
+        &self,
+        v: VertexRef,
+        layer_ids: &LayerIds,
+        edge_filter: Option<&EdgeFilter<'graph>>,
+    ) -> bool {
+        self.internal_vertex_ref(v, layer_ids, edge_filter)
+            .is_some()
+    }
+
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> usize {
+        self.graph.degree(v, d, layer, filter)
+    }
+
+    fn vertex_ref(
+        &self,
+        v: u64,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<VID> {
+        self.internal_vertex_ref(v.into(), layers, filter)
+    }
+
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter<'graph>>,
+    ) -> Option<EdgeRef> {
+        self.graph.edge_ref(src, dst, layer, filter)
     }
 }
 

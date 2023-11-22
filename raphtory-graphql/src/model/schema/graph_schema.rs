@@ -3,7 +3,7 @@ use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
 use raphtory::{
     db::api::view::internal::DynamicGraph,
-    prelude::{GraphViewOps, LayerOps, VertexViewOps},
+    prelude::{GraphViewBase, LayerOps, VertexViewOps},
 };
 
 #[derive(SimpleObject)]

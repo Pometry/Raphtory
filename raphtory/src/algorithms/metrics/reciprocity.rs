@@ -50,7 +50,7 @@ use crate::{
         compute_state::{ComputeState, ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::VertexViewOps,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -58,6 +58,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
+    prelude::GraphViewOps,
 };
 use ordered_float::OrderedFloat;
 use std::collections::HashSet;
@@ -66,8 +67,8 @@ use std::collections::HashSet;
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
 fn get_reciprocal_edge_count<
     'graph,
-    G: GraphViewOps + 'graph,
-    GH: GraphViewOps + 'graph,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
     CS: ComputeState,
 >(
     v: &'graph EvalVertexView<'graph, G, (), GH, CS>,
@@ -84,7 +85,7 @@ fn get_reciprocal_edge_count<
 }
 
 /// returns the global reciprocity of the entire graph
-pub fn global_reciprocity<G: GraphViewOps + 'static>(g: &G, threads: Option<usize>) -> f64 {
+pub fn global_reciprocity<G: GraphViewOps<'static>>(g: &G, threads: Option<usize>) -> f64 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let total_out_neighbours = sum::<usize>(0);
@@ -118,7 +119,7 @@ pub fn global_reciprocity<G: GraphViewOps + 'static>(g: &G, threads: Option<usiz
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
 /// vector id and the reciprocity
-pub fn all_local_reciprocity<G: GraphViewOps + 'static>(
+pub fn all_local_reciprocity<G: GraphViewOps<'static>>(
     g: &G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {

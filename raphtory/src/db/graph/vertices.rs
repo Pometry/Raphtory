@@ -24,31 +24,44 @@ use crate::{
     },
     prelude::*,
 };
-use std::{iter, sync::Arc};
+use std::{iter, marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
-pub struct Vertices<G, GH> {
+pub struct Vertices<'graph, G, GH> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
+    _marker: PhantomData<&'graph G>,
 }
 
-impl<G: GraphViewOps> Vertices<G, G> {
-    pub fn new(graph: G) -> Vertices<G, G> {
+impl<'graph, G: GraphViewOps<'graph>> Vertices<'graph, G, G> {
+    pub fn new(graph: G) -> Vertices<'graph, G, G> {
         let base_graph = graph.clone();
-        Self { base_graph, graph }
+        Self {
+            base_graph,
+            graph,
+            _marker: PhantomData,
+        }
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> Vertices<G, GH> {
-    fn iter_refs(&self) -> impl Iterator<Item = VID> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Vertices<'graph, G, GH> {
+    pub fn new_filtered(base_graph: G, graph: GH) -> Self {
+        Self {
+            base_graph,
+            graph,
+            _marker: PhantomData,
+        }
+    }
+    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         self.graph
             .vertex_refs(self.graph.layer_ids(), self.graph.edge_filter())
     }
-    pub fn iter(&self) -> impl Iterator<Item = VertexView<G, GH>> {
+    pub fn iter(&self) -> BoxedLIter<'graph, VertexView<G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
         self.iter_refs()
             .map(move |v| VertexView::new_one_hop_filtered(base_graph.clone(), g.clone(), v))
+            .into_dyn_boxed()
     }
 
     /// Returns the number of vertices in the graph.
@@ -71,8 +84,8 @@ impl<G: GraphViewOps, GH: GraphViewOps> Vertices<G, GH> {
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexViewOps<'graph>
-    for Vertices<G, GH>
+impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph>
+    BaseVertexViewOps<'graph> for Vertices<'graph, G, GH>
 {
     type BaseGraph = G;
     type Graph = GH;
@@ -95,8 +108,8 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -105,8 +118,9 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
         let base_graph = self.base_graph.clone();
         self.iter_refs()
             .map(move |v| {
+                let base_graph = base_graph.clone();
                 op(&graph, v)
-                    .map(|edge| EdgeView::new(base_graph.clone(), edge))
+                    .map(move |edge| EdgeView::new(base_graph.clone(), edge))
                     .into_dyn_boxed()
             })
             .into_dyn_boxed()
@@ -126,17 +140,17 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> OneHopFilter<'graph>
-    for Vertices<G, GH>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
+    for Vertices<'graph, G, GH>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps + 'graph> = Vertices<G, GHH>;
+    type Filtered<GHH: GraphViewOps<'graph>> = Vertices<'graph, G, GHH>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
@@ -144,13 +158,16 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> OneHopFilter<'
         Vertices {
             base_graph,
             graph: filtered_graph,
+            _marker: PhantomData,
         }
     }
 }
 
-impl<G: GraphViewOps, GH: GraphViewOps> IntoIterator for Vertices<G, GH> {
+impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph> IntoIterator
+    for Vertices<'graph, G, GH>
+{
     type Item = VertexView<G, GH>;
-    type IntoIter = BoxedIter<Self::Item>;
+    type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter().into_dyn_boxed()

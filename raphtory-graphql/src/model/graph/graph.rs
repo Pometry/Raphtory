@@ -15,7 +15,7 @@ use raphtory::{
     db::{
         api::view::{
             internal::{DynamicGraph, IntoDynamic},
-            GraphViewOps, TimeOps, VertexViewOps,
+            GraphViewBase, TimeOps, VertexViewOps,
         },
         graph::edge::EdgeView,
     },
@@ -64,7 +64,7 @@ pub(crate) struct GqlGraph {
     graph: IndexedGraph<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
+impl<G: GraphViewBase + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
     fn from(value: IndexedGraph<G>) -> Self {
         Self {
             graph: value.into_dynamic_indexed(),

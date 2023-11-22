@@ -7,7 +7,7 @@ use crate::{
                 Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
                 InheritMaterialize, InheritTimeSemantics, InternalLayerOps, Static,
             },
-            Layer,
+            Layer, StaticGraphViewOps,
         },
     },
     prelude::GraphViewOps,
@@ -19,20 +19,20 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct LayeredGraph<G: GraphViewOps> {
+pub struct LayeredGraph<'graph, G> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
     pub layers: LayerIds,
 
-    edge_filter: EdgeFilter,
+    edge_filter: EdgeFilter<'graph>,
 }
 
-impl<G: GraphViewOps> Immutable for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for LayeredGraph<'graph, G> {}
 
-impl<G: GraphViewOps> Static for LayeredGraph<G> {}
+impl<G: StaticGraphViewOps> Static for LayeredGraph<'static, G> {}
 
-impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<'graph, G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LayeredGraph")
             .field("graph", &self.graph)
@@ -41,7 +41,7 @@ impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Base for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for LayeredGraph<'graph, G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -49,24 +49,24 @@ impl<G: GraphViewOps> Base for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<'graph, G> {}
 
-impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<'graph, G> {}
 
-impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<'graph, G> {}
 
-impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<'graph, G> {}
 
-impl<G: GraphViewOps> InheritGraphOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritGraphOps for LayeredGraph<'graph, G> {}
 
-impl<G: GraphViewOps> EdgeFilterOps for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps<'graph> for LayeredGraph<'graph, G> {
     #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
+    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>> {
         Some(&self.edge_filter)
     }
 }
 
-impl<G: GraphViewOps> LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<'graph, G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
         let edge_filter: EdgeFilter = match graph.edge_filter().cloned() {
             None => Arc::new(|e, l| e.has_layer(l)),
@@ -106,7 +106,7 @@ impl<G: GraphViewOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InternalLayerOps for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<'graph, G> {
     fn layer_ids(&self) -> LayerIds {
         self.layers.clone()
     }

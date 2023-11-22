@@ -41,7 +41,10 @@ pub struct Graph(pub Arc<InternalGraph>);
 
 impl Static for Graph {}
 
-pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
+pub fn graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    g1: &'graph G1,
+    g2: &'graph G2,
+) -> bool {
     if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
@@ -68,7 +71,7 @@ impl From<InternalGraph> for Graph {
     }
 }
 
-impl<G: GraphViewOps> PartialEq<G> for Graph {
+impl<G: for<'graph> GraphViewOps<'graph>> PartialEq<G> for Graph {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
     }
@@ -155,7 +158,8 @@ mod db_tests {
         },
         db::{
             api::view::{
-                EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps,
+                EdgeListOps, EdgeViewOps, GraphViewBase, Layer, LayerOps, StaticGraphViewOps,
+                TimeOps, VertexViewOps,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },
@@ -680,7 +684,7 @@ mod db_tests {
         assert_eq!(vertex1.in_degree(), 0);
         assert_eq!(vertex2.in_degree(), 0);
 
-        fn to_tuples<G: GraphViewOps, I: Iterator<Item = EdgeView<G>>>(
+        fn to_tuples<G: StaticGraphViewOps, I: Iterator<Item = EdgeView<G>>>(
             edges: I,
         ) -> Vec<(u64, u64)> {
             edges
@@ -713,7 +717,9 @@ mod db_tests {
         assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(vertex2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G, G>) -> Vec<u64> {
+        fn to_ids<'graph, G: GraphViewOps<'graph>>(
+            neighbours: PathFromVertex<'graph, G, G>,
+        ) -> Vec<u64> {
             neighbours.iter().map(|n| n.id()).sorted().collect_vec()
         }
 

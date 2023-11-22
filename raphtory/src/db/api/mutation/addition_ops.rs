@@ -6,13 +6,15 @@ use crate::{
         Prop,
     },
     db::{
-        api::mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+        api::{
+            mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+            view::StaticGraphViewOps,
+        },
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::GraphViewOps,
 };
 
-pub trait AdditionOps: GraphViewOps {
+pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
     /// Add a vertex to the graph
     ///
@@ -95,7 +97,7 @@ pub trait AdditionOps: GraphViewOps {
     }
 }
 
-impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
+impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
     fn add_vertex<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,

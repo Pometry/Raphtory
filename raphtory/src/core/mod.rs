@@ -24,7 +24,7 @@
 //!    * `macOS`
 //!
 
-use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
+use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::{

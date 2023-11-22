@@ -4,12 +4,13 @@ use crate::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
+    prelude::GraphViewOps,
 };
 use std::sync::Arc;
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {
-    type LayeredViewType: 'graph;
+    type LayeredViewType: LayerOps<'graph> + 'graph;
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
@@ -21,7 +22,7 @@ pub trait LayerOps<'graph> {
 }
 
 impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
-    type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
+    type LayeredViewType = V::Filtered<LayeredGraph<'graph, V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))

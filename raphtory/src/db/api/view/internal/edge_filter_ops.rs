@@ -15,25 +15,25 @@ pub fn extend_filter(
     }
 }
 
-pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
+pub type EdgeFilter<'graph> = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync + 'graph>;
 
 #[enum_dispatch]
-pub trait EdgeFilterOps {
+pub trait EdgeFilterOps<'graph> {
     /// Return the optional edge filter for the graph
-    fn edge_filter(&self) -> Option<&EdgeFilter>;
+    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>>;
 
     /// Called by the windowed graph to get the edge filter (override if it should include more/different edges than a non-windowed graph)
     #[inline]
-    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
+    fn edge_filter_window(&self) -> Option<&EdgeFilter<'graph>> {
         self.edge_filter()
     }
 }
 
 pub trait InheritEdgeFilterOps: Base {}
 
-impl<G: InheritEdgeFilterOps> DelegateEdgeFilterOps for G
+impl<'graph, G: InheritEdgeFilterOps> DelegateEdgeFilterOps<'graph> for G
 where
-    G::Base: EdgeFilterOps,
+    G::Base: EdgeFilterOps<'graph>,
 {
     type Internal = G::Base;
 
@@ -43,15 +43,15 @@ where
     }
 }
 
-pub trait DelegateEdgeFilterOps {
-    type Internal: EdgeFilterOps + ?Sized;
+pub trait DelegateEdgeFilterOps<'graph> {
+    type Internal: EdgeFilterOps<'graph> + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
+impl<'graph, G: DelegateEdgeFilterOps<'graph>> EdgeFilterOps<'graph> for G {
     #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
+    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>> {
         self.graph().edge_filter()
     }
 }

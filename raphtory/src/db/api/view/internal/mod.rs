@@ -30,11 +30,8 @@ use std::{
 };
 pub use time_semantics::*;
 
-/// Marker trait to indicate that an object is a valid graph view
-pub trait BoxableGraphView:
+pub trait BoxableGraphBase:
     CoreGraphOps
-    + GraphOps
-    + EdgeFilterOps
     + InternalLayerOps
     + TimeSemantics
     + InternalMaterialize
@@ -45,29 +42,37 @@ pub trait BoxableGraphView:
 {
 }
 
+/// Marker trait to indicate that an object is a valid graph view
+pub trait BoxableGraphView<'graph>:
+    BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps<'graph>
+{
+}
+
 impl<
         G: CoreGraphOps
-            + GraphOps
-            + EdgeFilterOps
             + InternalLayerOps
             + TimeSemantics
             + InternalMaterialize
             + PropertiesOps
             + ConstPropertiesOps
             + Send
-            + Sync
-            + ?Sized,
-    > BoxableGraphView for G
+            + Sync,
+    > BoxableGraphBase for G
 {
 }
 
-pub trait InheritViewOps: Base {}
+impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps<'graph>>
+    BoxableGraphView<'graph> for G
+{
+}
+
+pub trait InheritViewOps: Base + Send + Sync {}
 
 impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
 impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
-impl<G: InheritViewOps + CoreGraphOps + GraphOps> InheritTimeSemantics for G {}
+impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritCoreOps for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
 impl<G: InheritViewOps> InheritPropertiesOps for G {}
@@ -76,14 +81,14 @@ impl<G: InheritViewOps> InheritPropertiesOps for G {}
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
 pub trait Static {}
 
-impl<G: BoxableGraphView + Static + 'static> From<G> for DynamicGraph {
+impl<G: BoxableGraphView<'static> + Static + 'static> From<G> for DynamicGraph {
     fn from(value: G) -> Self {
         DynamicGraph(Arc::new(value))
     }
 }
 
-impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
-    fn from(value: Arc<dyn BoxableGraphView>) -> Self {
+impl From<Arc<dyn BoxableGraphView<'static>>> for DynamicGraph {
+    fn from(value: Arc<dyn BoxableGraphView<'static>>) -> Self {
         DynamicGraph(value)
     }
 }
@@ -92,7 +97,7 @@ impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
 pub trait Immutable {}
 
 #[derive(Clone)]
-pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
+pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView<'static>>);
 
 impl Debug for DynamicGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -106,17 +111,17 @@ impl Debug for DynamicGraph {
 }
 
 impl DynamicGraph {
-    pub fn new<G: GraphViewOps + 'static>(graph: G) -> Self {
+    pub fn new<G: GraphViewOps<'static>>(graph: G) -> Self {
         Self(Arc::new(graph))
     }
 
-    pub fn new_from_arc<G: GraphViewOps + 'static>(graph_arc: Arc<G>) -> Self {
+    pub fn new_from_arc<G: GraphViewOps<'static>>(graph_arc: Arc<G>) -> Self {
         Self(graph_arc)
     }
 }
 
 impl Base for DynamicGraph {
-    type Base = dyn BoxableGraphView;
+    type Base = dyn BoxableGraphView<'static>;
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -128,7 +133,7 @@ impl Immutable for DynamicGraph {}
 
 impl InheritViewOps for DynamicGraph {}
 
-impl<'graph, G: GraphViewOps + ?Sized + 'graph> InheritViewOps for &'graph G {}
+impl<'graph, G: BoxableGraphBase + ?Sized> InheritViewOps for &'graph G {}
 
 #[cfg(test)]
 mod test {

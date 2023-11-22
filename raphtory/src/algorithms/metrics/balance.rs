@@ -11,16 +11,13 @@ use crate::{
         },
         Direction,
     },
-    db::{
-        api::view::GraphViewOps,
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
-        },
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
+        vertex::eval_vertex::EvalVertexView,
     },
-    prelude::{EdgeListOps, PropUnwrap, VertexViewOps},
+    prelude::{EdgeListOps, GraphViewOps, PropUnwrap, VertexViewOps},
 };
 use ordered_float::OrderedFloat;
 
@@ -45,8 +42,8 @@ use ordered_float::OrderedFloat;
 /// Returns a `f64` which is the net sum of weights for the vertex considering the specified direction.
 fn balance_per_vertex<
     'graph,
-    G: GraphViewOps + 'graph,
-    GH: GraphViewOps + 'graph,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
     CS: ComputeState,
 >(
     v: &'graph EvalVertexView<'graph, G, (), GH, CS>,
@@ -102,7 +99,7 @@ fn balance_per_vertex<
 ///
 /// Returns:
 /// Returns an `AlgorithmResult` which maps each vertex to its corresponding net weight sum.
-pub fn balance<G: GraphViewOps + 'static>(
+pub fn balance<G: GraphViewOps<'static>>(
     graph: &G,
     name: String,
     direction: Direction,
@@ -138,7 +135,7 @@ mod sum_weight_test {
         algorithms::metrics::balance::balance,
         core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::GraphViewOps,
+        prelude::GraphViewBase,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;

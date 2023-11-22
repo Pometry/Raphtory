@@ -17,7 +17,7 @@ use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
 #[enum_dispatch]
-pub trait TimeSemantics: GraphOps + CoreGraphOps {
+pub trait TimeSemantics: CoreGraphOps {
     /// Return the earliest time for a vertex
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.vertex_additions(v).first_t()
@@ -324,7 +324,7 @@ pub trait DelegateTimeSemantics {
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateTimeSemantics + GraphOps + CoreGraphOps + ?Sized> TimeSemantics for G {
+impl<G: DelegateTimeSemantics + CoreGraphOps + ?Sized> TimeSemantics for G {
     #[inline]
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph().vertex_earliest_time(v)

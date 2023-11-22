@@ -1,3 +1,4 @@
+use super::locked_view::LockedView;
 use crate::{
     core::{entities::LayerIds, utils::time::error::ParseTimeError},
     db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
@@ -13,9 +14,6 @@ use std::{
     ops::{Deref, Range},
     sync::Arc,
 };
-use tantivy::time::Time;
-
-use super::locked_view::LockedView;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct TimeIndexEntry(pub i64, pub usize);

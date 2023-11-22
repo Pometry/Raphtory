@@ -50,7 +50,7 @@ impl Neo4JConnection {
 mod neo_loader_test {
     use crate::{
         db::{
-            api::{mutation::AdditionOps, view::GraphViewOps},
+            api::{mutation::AdditionOps, view::GraphViewBase},
             graph::graph as rap,
         },
         graph_loader::source::neo4j_loader::Neo4JConnection,

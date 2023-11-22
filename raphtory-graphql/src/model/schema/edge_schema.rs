@@ -5,18 +5,18 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::graph::edge::EdgeView,
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::{EdgeViewOps, GraphViewBase},
 };
 use std::collections::{HashMap, HashSet};
 
 #[derive(ResolvedObject)]
-pub(crate) struct EdgeSchema<G: GraphViewOps> {
+pub(crate) struct EdgeSchema<G: GraphViewBase> {
     graph: G,
     src_type: String,
     dst_type: String,
 }
 
-impl<G: GraphViewOps> EdgeSchema<G> {
+impl<G: GraphViewBase> EdgeSchema<G> {
     pub fn new(graph: G, src_type: String, dst_type: String) -> Self {
         Self {
             graph,
@@ -27,7 +27,7 @@ impl<G: GraphViewOps> EdgeSchema<G> {
 }
 
 #[ResolvedObjectFields]
-impl<G: GraphViewOps> EdgeSchema<G> {
+impl<G: GraphViewBase> EdgeSchema<G> {
     /// Returns the type of source for these edges
     async fn src_type(&self) -> String {
         self.src_type.clone()
@@ -57,7 +57,7 @@ impl<G: GraphViewOps> EdgeSchema<G> {
     }
 }
 
-fn collect_edge_schema<G: GraphViewOps>(edge: EdgeView<G>) -> SchemaAggregate {
+fn collect_edge_schema<G: GraphViewBase>(edge: EdgeView<G>) -> SchemaAggregate {
     edge.properties()
         .iter()
         .map(|(key, value)| (key.to_string(), HashSet::from([value.to_string()])))

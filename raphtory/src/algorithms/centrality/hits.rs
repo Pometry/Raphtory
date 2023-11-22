@@ -8,7 +8,7 @@ use crate::{
         },
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::VertexViewOps,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -16,6 +16,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
+    prelude::GraphViewOps,
 };
 use num_traits::abs;
 use ordered_float::OrderedFloat;
@@ -47,7 +48,7 @@ impl Default for Hits {
 ///
 /// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
 #[allow(unused_variables)]
-pub fn hits<G: GraphViewOps + 'static>(
+pub fn hits<G: GraphViewOps<'static>>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,

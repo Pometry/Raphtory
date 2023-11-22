@@ -1,6 +1,6 @@
 use crate::{
     algorithms::motifs::{triangle_count::triangle_count, triplet_count::triplet_count},
-    db::api::view::GraphViewOps,
+    db::api::view::StaticGraphViewOps,
 };
 
 /// Computes the global clustering coefficient of a graph. The global clustering coefficient is
@@ -35,7 +35,7 @@ use crate::{
 ///  println!("global_clustering_coefficient: {}", results);
 /// ```
 ///
-pub fn clustering_coefficient<G: GraphViewOps + 'static>(g: &G) -> f64 {
+pub fn clustering_coefficient<G: StaticGraphViewOps>(g: &G) -> f64 {
     let tc_val = triangle_count(g, None);
     let output = triplet_count(g, None);
 

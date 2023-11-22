@@ -100,8 +100,11 @@ mod vector_tests {
     use super::*;
     use crate::{
         core::Prop,
-        db::graph::{edge::EdgeView, vertex::VertexView},
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
+        db::{
+            api::view::StaticGraphViewOps,
+            graph::{edge::EdgeView, vertex::VertexView},
+        },
+        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewBase, VertexViewOps},
         vectors::{
             document_template::DocumentTemplate, embeddings::openai_embedding,
             graph_entity::GraphEntity, vectorisable::Vectorisable,
@@ -128,7 +131,7 @@ mod vector_tests {
 
     struct CustomTemplate;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for CustomTemplate {
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
         fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let name = vertex.name();
             let node_type = vertex.properties().get("type").unwrap().to_string();
@@ -239,7 +242,7 @@ age: 30"###;
     const FAKE_DOCUMENTS: [&str; 3] = ["doc1", "doc2", "doc3"];
     struct FakeMultiDocumentTemplate;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
+    impl<G: GraphViewBase> DocumentTemplate<G> for FakeMultiDocumentTemplate {
         fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
@@ -286,7 +289,7 @@ age: 30"###;
 
     struct FakeTemplateWithIntervals;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
+    impl<G: GraphViewBase> DocumentTemplate<G> for FakeTemplateWithIntervals {
         fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),

@@ -11,7 +11,7 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-                LayerOps, WindowSet,
+                LayerOps, StaticGraphViewOps, WindowSet,
             },
         },
         graph::{
@@ -78,7 +78,7 @@ pub struct PyGraphView {
 }
 
 /// Graph view is a read-only version of a graph at a certain point in time.
-impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
+impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
     fn from(value: G) -> Self {
         PyGraphView {
             graph: value.into_dynamic(),
@@ -86,19 +86,19 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }

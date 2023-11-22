@@ -18,7 +18,6 @@ use crate::{
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut, Range};
-use tantivy::HasLen;
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {

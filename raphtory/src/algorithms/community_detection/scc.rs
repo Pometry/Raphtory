@@ -10,22 +10,22 @@ use crate::{
         task_runner::TaskRunner,
         vertex::eval_vertex::{EvalVertexRef, EvalVertexView},
     },
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::*,
 };
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
-fn tarjan<G>(
+fn tarjan<'graph, G>(
     node: u64,
-    graph: &G,
-    index: &mut u64,
-    stack: &mut Vec<u64>,
-    indices: &mut HashMap<u64, u64>,
-    lowlink: &mut HashMap<u64, u64>,
-    on_stack: &mut HashSet<u64>,
-    result: &mut Vec<Vec<u64>>,
+    graph: &'graph G,
+    index: &'graph mut u64,
+    stack: &'graph mut Vec<u64>,
+    indices: &'graph mut HashMap<u64, u64>,
+    lowlink: &'graph mut HashMap<u64, u64>,
+    on_stack: &'graph mut HashSet<u64>,
+    result: &'graph mut Vec<Vec<u64>>,
 ) where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     *index += 1;
     indices.insert(node, *index);
@@ -64,9 +64,9 @@ fn tarjan<G>(
     }
 }
 
-fn tarjan_scc<G>(graph: &G) -> Vec<Vec<u64>>
+fn tarjan_scc<'graph, G>(graph: &'graph G) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     let mut index = 0;
     let mut stack = Vec::new();
@@ -97,7 +97,7 @@ where
 
 pub fn strongly_connected_components<G>(graph: &G, threads: Option<usize>) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps + 'static,
+    G: GraphViewOps<'static>,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {

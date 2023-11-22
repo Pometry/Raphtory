@@ -4,7 +4,7 @@ use raphtory::{
         community_detection::connected_components::weakly_connected_components,
     },
     db::{
-        api::{mutation::AdditionOps, view::GraphViewOps},
+        api::{mutation::AdditionOps, view::GraphViewBase},
         graph::graph::Graph,
     },
     graph_loader::source::csv_loader::CsvLoader,

@@ -1,16 +1,16 @@
 use super::context::GlobalState;
 use crate::{
     core::state::compute_state::ComputeState,
-    db::{api::view::GraphViewOps, task::vertex::eval_vertex::EvalVertexView},
+    db::{api::view::StaticGraphViewOps, task::vertex::eval_vertex::EvalVertexView},
 };
 use std::marker::PhantomData;
 
 pub trait Task<G, CS, S>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    fn run<'a>(&'a self, vv: &'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step;
+    fn run(&self, vv: &mut EvalVertexView<&G, S, &G, CS>) -> Step;
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,14 +19,14 @@ pub enum Step {
     Continue,
 }
 
-pub struct ATask<G, CS, S, F>
+pub struct ATask<'a, G, CS, S: 'static, F>
 where
-    G: GraphViewOps,
-    CS: ComputeState,
-    F: for<'a> Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    G: StaticGraphViewOps,
+    CS: ComputeState + 'a,
+    F: Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
     f: F,
-    _g: PhantomData<G>,
+    _g: PhantomData<&'a G>,
     _cs: PhantomData<CS>,
     _s: PhantomData<S>,
 }
@@ -38,7 +38,7 @@ pub enum Job<G, CS: ComputeState, S> {
     Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
 }
 
-impl<G: GraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
+impl<G: StaticGraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
     pub fn new<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
         Self::Write(Box::new(t))
     }
@@ -48,11 +48,11 @@ impl<G: GraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
     }
 }
 
-impl<G, CS, S, F> ATask<G, CS, S, F>
+impl<'a, G, CS, S, F> ATask<'a, G, CS, S, F>
 where
-    G: GraphViewOps + 'static,
+    G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'a> Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    F: Fn(&mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
@@ -64,13 +64,13 @@ where
     }
 }
 
-impl<G, CS, S, F> Task<G, CS, S> for ATask<G, CS, S, F>
+impl<'a, G, CS, S, F> Task<G, CS, S> for ATask<'a, G, CS, S, F>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'a> Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    F: Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
-    fn run<'a>(&'a self, vv: &'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step {
+    fn run(&self, vv: &mut EvalVertexView<&G, S, &G, CS>) -> Step {
         (self.f)(vv)
     }
 }

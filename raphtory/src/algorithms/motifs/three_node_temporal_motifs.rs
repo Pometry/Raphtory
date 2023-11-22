@@ -10,7 +10,7 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps, *},
+        api::view::{VertexViewOps, *},
         graph::{edge::EdgeView, views::vertex_subgraph::VertexSubgraph},
         task::{
             context::Context,
@@ -91,8 +91,8 @@ pub fn star_motif_count<'graph, G, GH>(
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
-    G: GraphViewOps + 'graph,
-    GH: GraphViewOps + 'graph,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
 {
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
@@ -131,8 +131,8 @@ pub fn twonode_motif_count<'a, 'b, G, GH>(
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
-    G: GraphViewOps + 'b,
-    GH: GraphViewOps + 'b,
+    G: GraphViewOps<'b>,
+    GH: GraphViewOps<'b>,
     'b: 'a,
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
@@ -179,7 +179,7 @@ pub fn triangle_motifs<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
-    G: GraphViewOps + 'static,
+    G: StaticGraphViewOps,
 {
     let delta_len = deltas.len();
 
@@ -343,7 +343,7 @@ pub fn temporal_three_node_motif<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<Vec<usize>>>
 where
-    G: GraphViewOps + 'static,
+    G: StaticGraphViewOps,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);
@@ -419,7 +419,7 @@ pub fn global_temporal_three_node_motif_from_local(
     tmp_counts
 }
 
-pub fn global_temporal_three_node_motif<G: GraphViewOps + 'static>(
+pub fn global_temporal_three_node_motif<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,
     threads: Option<usize>,
@@ -428,7 +428,7 @@ pub fn global_temporal_three_node_motif<G: GraphViewOps + 'static>(
     counts[0].clone()
 }
 
-pub fn global_temporal_three_node_motif_general<G: GraphViewOps + 'static>(
+pub fn global_temporal_three_node_motif_general<G: StaticGraphViewOps>(
     graph: &G,
     deltas: Vec<i64>,
     threads: Option<usize>,

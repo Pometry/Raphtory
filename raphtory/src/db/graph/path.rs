@@ -20,7 +20,6 @@ use crate::{
     },
     prelude::*,
 };
-use neo4rs::Path;
 use std::{iter, sync::Arc};
 
 pub(crate) type Operation<'a> = Arc<dyn Fn(VID) -> BoxedLIter<'a, VID> + Send + Sync + 'a>;
@@ -31,7 +30,7 @@ pub struct PathFromGraph<'graph, G, GH> {
     pub(crate) op: Operation<'graph>,
 }
 
-impl<'graph, G: GraphViewOps + 'graph> PathFromGraph<'graph, G, G> {
+impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G, G> {
     pub fn new<OP: Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>(
         graph: G,
         op: OP,
@@ -46,7 +45,7 @@ impl<'graph, G: GraphViewOps + 'graph> PathFromGraph<'graph, G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> PathFromGraph<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'graph, G, GH> {
     fn base_iter(&self) -> BoxedLIter<'graph, VID> {
         self.graph
             .vertex_refs(self.graph.layer_ids(), self.graph.edge_filter())
@@ -72,7 +71,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> PathFromGraph<
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexViewOps<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOps<'graph>
     for PathFromGraph<'graph, G, GH>
 {
     type BaseGraph = G;
@@ -83,7 +82,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     type Edge = EdgeView<G>;
     type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G>>>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Clone>(
+    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -102,8 +101,8 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -141,11 +140,11 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> IntoIterator
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for PathFromGraph<'graph, G, GH>
 {
     type Item = PathFromVertex<'graph, G, GH>;
-    type IntoIter = BoxedIter<Self::Item>;
+    type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         let graph = self.graph;
@@ -165,17 +164,17 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> IntoIterator
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> OneHopFilter<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for PathFromGraph<'graph, G, GH>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps + 'graph> = PathFromGraph<'graph, G, GHH>;
+    type Filtered<GHH: GraphViewOps<'graph>> = PathFromGraph<'graph, G, GHH>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
@@ -197,7 +196,7 @@ pub struct PathFromVertex<'graph, G, GH> {
     pub(crate) op: Operation<'graph>,
 }
 
-impl<'graph, G: GraphViewOps + 'graph> PathFromVertex<'graph, G, G> {
+impl<'graph, G: GraphViewOps<'graph>> PathFromVertex<'graph, G, G> {
     pub(crate) fn new<OP: Fn(VID) -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>(
         graph: G,
         vertex: VID,
@@ -214,7 +213,7 @@ impl<'graph, G: GraphViewOps + 'graph> PathFromVertex<'graph, G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> PathFromVertex<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromVertex<'graph, G, GH> {
     pub fn iter_refs(&self) -> BoxedLIter<'graph, VID> {
         let op = &self.op;
         op(self.vertex)
@@ -244,7 +243,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> PathFromVertex
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexViewOps<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOps<'graph>
     for PathFromVertex<'graph, G, GH>
 {
     type BaseGraph = G;
@@ -300,7 +299,7 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> BaseVertexView
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> IntoIterator
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for PathFromVertex<'graph, G, GH>
 {
     type Item = VertexView<G, GH>;
@@ -311,17 +310,17 @@ impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> IntoIterator
     }
 }
 
-impl<'graph, G: GraphViewOps + 'graph, GH: GraphViewOps + 'graph> OneHopFilter<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for PathFromVertex<'graph, G, GH>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps + 'graph> = PathFromVertex<'graph, G, GHH>;
+    type Filtered<GHH: GraphViewOps<'graph>> = PathFromVertex<'graph, G, GHH>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps + 'graph>(
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {

@@ -3,7 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::{GraphViewBase, VertexViewOps},
 };
 use std::collections::{HashMap, HashSet};
 

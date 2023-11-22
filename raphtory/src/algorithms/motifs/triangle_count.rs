@@ -58,7 +58,7 @@ use rustc_hash::FxHashSet;
 /// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_count<G: GraphViewOps + 'static>(graph: &G, threads: Option<usize>) -> usize {
+pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);
     let g = graph.subgraph(vertex_set);
     let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);

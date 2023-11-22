@@ -1,7 +1,4 @@
-use crate::{
-    core::entities::vertices::vertex_ref::VertexRef,
-    prelude::{GraphViewOps, VertexViewOps},
-};
+use crate::{core::entities::vertices::vertex_ref::VertexRef, prelude::VertexViewOps};
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 use std::{
@@ -65,9 +62,9 @@ pub struct AlgorithmResult<G, V, O = V> {
 
 // use pyo3::{prelude::*, types::IntoPyDict};
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<'graph, G, V, O> AlgorithmResult<G, V, O>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
     V: Clone,
 {
     /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
@@ -318,9 +315,9 @@ where
     }
 }
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<'graph, G, V, O> AlgorithmResult<G, V, O>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
     V: Clone,
     O: Ord,
     V: AsOrd<O>,
@@ -397,10 +394,10 @@ where
     }
 }
 
-use crate::db::graph::vertex::VertexView;
+use crate::{db::graph::vertex::VertexView, prelude::GraphViewOps};
 use std::fmt;
 
-impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
+impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {}", self.algo_repr.algo_name)?;
@@ -418,7 +415,7 @@ impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O
     }
 }
 
-impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> {
+impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {:?}", self.algo_repr.algo_name)?;
@@ -443,7 +440,7 @@ mod algorithm_result_test {
     use crate::{
         algorithms::community_detection::connected_components::weakly_connected_components,
         db::{
-            api::{mutation::AdditionOps, view::GraphViewOps},
+            api::{mutation::AdditionOps, view::GraphViewBase},
             graph::graph::Graph,
         },
         prelude::{NO_PROPS, *},

@@ -1,9 +1,10 @@
+use crate::db::api::view::StaticGraphViewOps;
 /// Dijkstra's algorithm
 use crate::{
     core::entities::vertices::input_vertex::InputVertex,
     core::PropType,
     prelude::Prop,
-    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, VertexViewOps},
 };
 use std::{
     cmp::Ordering,
@@ -45,7 +46,7 @@ impl PartialOrd for State {
 /// Returns a `HashMap` where the key is the target vertex and the value is a tuple containing
 /// the total cost and a vector of vertices representing the shortest path.
 ///
-pub fn dijkstra_single_source_shortest_paths<G: GraphViewOps, T: InputVertex>(
+pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputVertex>(
     graph: &G,
     source: T,
     targets: Vec<T>,

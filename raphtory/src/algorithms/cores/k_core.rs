@@ -4,7 +4,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
@@ -42,7 +42,7 @@ impl Default for KCoreState {
 ///
 pub fn k_core_set<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
 where
-    G: GraphViewOps + 'static,
+    G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
 
@@ -111,7 +111,7 @@ pub fn k_core<G>(
     threads: Option<usize>,
 ) -> VertexSubgraph<G>
 where
-    G: GraphViewOps + 'static,
+    G: StaticGraphViewOps,
 {
     let v_set = k_core_set(graph, k, iter_count, threads);
     graph.subgraph(v_set)

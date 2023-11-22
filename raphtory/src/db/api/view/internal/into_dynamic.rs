@@ -1,8 +1,11 @@
-use crate::db::{
-    api::view::{internal::DynamicGraph, GraphViewOps},
-    graph::views::{
-        layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph, window_graph::WindowedGraph,
+use crate::{
+    db::{
+        api::view::{internal::DynamicGraph, StaticGraphViewOps},
+        graph::views::{
+            layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph, window_graph::WindowedGraph,
+        },
     },
+    prelude::GraphViewOps,
 };
 use enum_dispatch::enum_dispatch;
 
@@ -11,13 +14,13 @@ pub trait IntoDynamic: 'static {
     fn into_dynamic(self) -> DynamicGraph;
 }
 
-impl<G: GraphViewOps + 'static> IntoDynamic for WindowedGraph<G> {
+impl<G: StaticGraphViewOps> IntoDynamic for WindowedGraph<'static, G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
 }
 
-impl<G: GraphViewOps + 'static> IntoDynamic for LayeredGraph<G> {
+impl<G: StaticGraphViewOps> IntoDynamic for LayeredGraph<'static, G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
@@ -29,7 +32,7 @@ impl IntoDynamic for DynamicGraph {
     }
 }
 
-impl<G: GraphViewOps + 'static> IntoDynamic for VertexSubgraph<G> {
+impl<G: StaticGraphViewOps> IntoDynamic for VertexSubgraph<'static, G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }

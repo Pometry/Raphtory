@@ -34,7 +34,7 @@
 use crate::db::api::view::*;
 
 /// Measures how dense or sparse a graph is
-pub fn directed_graph_density<G: GraphViewOps>(graph: &G) -> f32 {
+pub fn directed_graph_density<'graph, G: GraphViewOps<'graph>>(graph: &G) -> f32 {
     graph.count_edges() as f32
         / (graph.count_vertices() as f32 * (graph.count_vertices() as f32 - 1.0))
 }

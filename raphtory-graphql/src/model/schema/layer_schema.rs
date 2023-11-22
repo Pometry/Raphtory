@@ -3,22 +3,22 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::graph::views::layer_graph::LayeredGraph,
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::{EdgeViewOps, GraphViewBase},
 };
 
 #[derive(ResolvedObject)]
-pub(crate) struct LayerSchema<G: GraphViewOps> {
+pub(crate) struct LayerSchema<G: GraphViewBase> {
     graph: LayeredGraph<G>,
 }
 
-impl<G: GraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
+impl<G: GraphViewBase> From<LayeredGraph<G>> for LayerSchema<G> {
     fn from(value: LayeredGraph<G>) -> Self {
         Self { graph: value }
     }
 }
 
 #[ResolvedObjectFields]
-impl<G: GraphViewOps> LayerSchema<G> {
+impl<G: GraphViewBase> LayerSchema<G> {
     /// Returns the name of the layer with this schema
     async fn name(&self) -> String {
         let mut layers = self.graph.unique_layers();

@@ -46,69 +46,38 @@
 use crate::db::api::view::*;
 
 /// The maximum degree of any vertex in the graph
-pub fn max_degree<G: GraphViewOps>(graph: &G) -> usize {
-    graph.vertices().into_iter().degree().max().unwrap_or(0)
+pub fn max_degree<'graph, G: GraphViewOps<'graph>>(graph: &G) -> usize {
+    graph.vertices().degree().max().unwrap_or(0)
 }
 
 /// The minimum degree of any vertex in the graph
-pub fn min_degree<G: GraphViewOps>(graph: &G) -> usize {
-    graph.vertices().into_iter().degree().min().unwrap_or(0)
+pub fn min_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
+    graph.vertices().degree().min().unwrap_or(0)
 }
 
 /// The maximum out degree of any vertex in the graph.
-pub fn max_out_degree<G: GraphViewOps>(graph: &G) -> usize {
-    let r: Vec<usize> = graph
-        .vertices()
-        .into_iter()
-        .map(|v| v.out_degree())
-        .collect();
-
-    r.into_iter().max().unwrap_or(0)
+pub fn max_out_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
+    graph.vertices().out_degree().max().unwrap_or(0)
 }
 
 /// The maximum in degree of any vertex in the graph.
-pub fn max_in_degree<G: GraphViewOps>(graph: &G) -> usize {
-    let r: Vec<usize> = graph
-        .vertices()
-        .into_iter()
-        .map(|v| v.in_degree())
-        .collect();
-
-    r.into_iter().max().unwrap_or(0)
+pub fn max_in_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
+    graph.vertices().in_degree().max().unwrap_or(0)
 }
 
 /// The minimum out degree of any vertex in the graph.
-pub fn min_out_degree<G: GraphViewOps>(graph: &G) -> usize {
-    let r: Vec<usize> = graph
-        .vertices()
-        .into_iter()
-        .map(|v| v.out_degree())
-        .collect();
-
-    r.into_iter().min().unwrap_or(0)
+pub fn min_out_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
+    graph.vertices().out_degree().min().unwrap_or(0)
 }
 
 /// The minimum in degree of any vertex in the graph.
-pub fn min_in_degree<G: GraphViewOps>(graph: &G) -> usize {
-    let r: Vec<usize> = graph
-        .vertices()
-        .into_iter()
-        .map(|v| v.in_degree())
-        .collect();
-
-    r.into_iter().min().unwrap_or(0)
+pub fn min_in_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
+    graph.vertices().in_degree().min().unwrap_or(0)
 }
 
 /// The average degree of all vertices in the graph.
-pub fn average_degree<G: GraphViewOps>(graph: &G) -> f64 {
-    let r: Vec<usize> = graph.vertices().into_iter().map(|v| v.degree()).collect();
-
-    let degree_totals = r
-        .into_iter()
-        .map(|i| (i as f64, 1.0))
-        .fold((0.0, 0.0), |acc, elem| (acc.0 + elem.0, acc.1 + elem.1));
-
-    degree_totals.0 / degree_totals.1
+pub fn average_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> f64 {
+    graph.count_edges() as f64 / graph.count_vertices() as f64
 }
 
 #[cfg(test)]

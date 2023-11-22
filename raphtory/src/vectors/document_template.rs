@@ -1,17 +1,20 @@
 use crate::{
-    db::graph::{edge::EdgeView, vertex::VertexView},
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, VertexViewOps},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::{EdgeViewOps, GraphViewBase, LayerOps, VertexViewOps},
     vectors::{graph_entity::GraphEntity, splitting::split_text_by_line_breaks, DocumentInput},
 };
 use itertools::Itertools;
 use std::{convert::identity, sync::Arc};
 
-pub trait DocumentTemplate<G: GraphViewOps>: Send + Sync {
+pub trait DocumentTemplate<G: GraphViewBase>: Send + Sync {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
     fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
 }
 
-impl<G: GraphViewOps> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
+impl<G: GraphViewBase> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         self.as_ref().node(vertex)
     }
@@ -24,7 +27,7 @@ pub struct DefaultTemplate;
 
 const DEFAULT_MAX_SIZE: usize = 1000;
 
-impl<G: GraphViewOps> DocumentTemplate<G> for DefaultTemplate {
+impl<G: StaticGraphViewOps> DocumentTemplate<G> for DefaultTemplate {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let name = vertex.name();
         let property_list = vertex.generate_property_list(&identity, vec![], vec![]);

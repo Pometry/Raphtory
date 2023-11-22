@@ -1,5 +1,7 @@
 // search goes here
 
+mod into_indexed;
+
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
@@ -21,7 +23,7 @@ use crate::{
             mutation::internal::InternalAdditionOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic},
-                EdgeViewInternalOps,
+                EdgeViewInternalOps, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, vertex::VertexView},
@@ -47,13 +49,13 @@ impl<G> Deref for IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps + 'static> IntoDynamic for IndexedGraph<G> {
+impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
 }
 
-impl<G: GraphViewOps> InheritViewOps for IndexedGraph<G> {}
+impl<G: GraphViewBase> InheritViewOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -69,13 +71,13 @@ pub(in crate::search) mod fields {
     pub const EDGE_ID: &str = "edge_id";
 }
 
-impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
         Self::from_graph(&graph).expect("failed to generate index from graph")
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
+impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
     pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
             graph: self.graph.into_dynamic(),
@@ -87,7 +89,7 @@ impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> IndexedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn new_vertex_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
 
@@ -722,7 +724,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+impl<G: GraphViewBase + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()

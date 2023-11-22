@@ -12,18 +12,17 @@ use crate::{
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, TimeSemantics,
                 },
-                BoxedIter, BoxedLIter, GraphViewOps, TimeOps,
+                BoxedIter, BoxedLIter, TimeOps,
             },
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
     },
-    prelude::{EdgeViewOps, LayerOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
-use pyo3::ffi::PyBaseObject_Type;
 
-pub(crate) trait BaseVertexViewOps<'graph>: Clone {
-    type BaseGraph: GraphViewOps + 'graph;
-    type Graph: GraphViewOps + 'graph;
+pub trait BaseVertexViewOps<'graph>: Clone {
+    type BaseGraph: GraphViewOps<'graph>;
+    type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
     where
         T: 'graph;
@@ -60,8 +59,8 @@ pub(crate) trait BaseVertexViewOps<'graph>: Clone {
 
 /// Operations defined for a vertex
 pub trait VertexViewOps<'graph>: Clone {
-    type BaseGraph: GraphViewOps + 'graph;
-    type Graph: GraphViewOps + 'graph;
+    type BaseGraph: GraphViewOps<'graph>;
+    type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
     where
         T: 'graph;

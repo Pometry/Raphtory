@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-pub trait EdgeViewInternalOps<'graph, G: GraphViewOps + 'graph, V: VertexViewOps<'graph, Graph = G>>
+pub trait EdgeViewInternalOps<'graph, G: GraphViewOps<'graph>, V: VertexViewOps<'graph, Graph = G>>
 {
     fn graph(&self) -> G;
 
@@ -36,7 +36,7 @@ pub trait EdgeViewOps<'graph>:
     + Sized
     + Clone
 {
-    type Graph: GraphViewOps + 'graph;
+    type Graph: GraphViewOps<'graph>;
     type Vertex: VertexViewOps<'graph, Graph = Self::Graph>;
     type EList: EdgeListOps<'graph, Graph = Self::Graph, Vertex = Self::Vertex>;
 
@@ -168,7 +168,7 @@ pub trait EdgeViewOps<'graph>:
 pub trait EdgeListOps<'graph>:
     IntoIterator<Item = Self::ValueType<Self::Edge>, IntoIter = Self::IterType<Self::Edge>> + Sized
 {
-    type Graph: GraphViewOps + 'graph;
+    type Graph: GraphViewOps<'graph>;
     type Vertex: VertexViewOps<'graph, Graph = Self::Graph>;
     type Edge: EdgeViewOps<'graph, Graph = Self::Graph, Vertex = Self::Vertex>;
     type ValueType<T>;

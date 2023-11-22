@@ -5,13 +5,14 @@ use crate::{
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::VertexViewOps,
         task::{
             context::Context,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
         },
     },
+    prelude::GraphViewOps,
 };
 use num_traits::abs;
 use ordered_float::OrderedFloat;
@@ -52,7 +53,7 @@ impl PageRankState {
 /// * An AlgorithmResult object containing the mapping from vertex ID to the PageRank score of the vertex
 ///
 #[allow(unused_variables)]
-pub fn unweighted_page_rank<G: GraphViewOps + 'static>(
+pub fn unweighted_page_rank<G: GraphViewOps<'static>>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
