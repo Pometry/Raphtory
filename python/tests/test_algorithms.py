@@ -441,6 +441,8 @@ def test_label_propagation_algorithm():
         (1, "R1", "R2"),
         (1, "R2", "R3"),
         (1, "R3", "G"),
+        (1, "G", "B1"),
+        (1, "G", "B3"),
         (1, "B1", "B2"),
         (1, "B2", "B3"),
         (1, "B2", "B4"),
@@ -450,12 +452,12 @@ def test_label_propagation_algorithm():
     ]
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
-    seed = [1] * 32
+    seed = [5] * 32
     result_vertex = algorithms.label_propagation(g, seed)
     result = []
     for group in result_vertex:
         result.append({n.name for n in group})
-    expected = [{"R2", "R3", "R1", "G"}, {"B4", "B3", "B2", "B1", "B5"}]
+    expected = [{"R2", "R3", "R1"}, {"G", "B4", "B3", "B2", "B1", "B5"}]
     assert len(result) == len(expected)
     for group in expected:
         assert group in result

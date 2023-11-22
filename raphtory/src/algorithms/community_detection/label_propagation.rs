@@ -1,5 +1,5 @@
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{db::graph::vertex::VertexView, prelude::*};
 
@@ -21,36 +21,34 @@ pub fn label_propagation<G>(
 where
     G: GraphViewOps,
 {
-    // Initialize labels for each node
     let mut labels: HashMap<VertexView<G>, u64> = HashMap::new();
     for vertex in graph.vertices() {
         labels.insert(vertex.clone(), vertex.id());
     }
 
+    let vertices = graph.vertices();
+    let mut shuffled_nodes: Vec<VertexView<G>> = vertices.iter().collect();
+    if let Some(seed_value) = seed {
+        let mut rng = StdRng::from_seed(seed_value);
+        shuffled_nodes.shuffle(&mut rng);
+    } else {
+        let mut rng = thread_rng();
+        shuffled_nodes.shuffle(&mut rng);
+    }
     let mut changed = true;
     while changed {
         changed = false;
-        let vertices = graph.vertices();
-        let mut shuffled_nodes: Vec<VertexView<G>> = vertices.iter().collect();
-        if let Some(seed_value) = seed {
-            let mut rng = StdRng::from_seed(seed_value);
-            shuffled_nodes.shuffle(&mut rng);
-        } else {
-            let mut rng = thread_rng();
-            shuffled_nodes.shuffle(&mut rng);
-        }
-        for vertex in shuffled_nodes {
+        for vertex in &shuffled_nodes {
             let neighbors = vertex.neighbours();
-            let mut label_count: HashMap<u64, f64> = HashMap::new();
+            let mut label_count: BTreeMap<u64, f64> = BTreeMap::new();
 
             for neighbour in neighbors {
                 *label_count.entry(labels[&neighbour.clone()]).or_insert(0.0) += 1.0;
-                // Increment count, consider edge weights if needed
             }
 
             if let Some(max_label) = find_max_label(&label_count) {
                 if max_label != labels[&vertex] {
-                    labels.insert(vertex, max_label);
+                    labels.insert(vertex.clone(), max_label);
                     changed = true;
                 }
             }
@@ -63,13 +61,13 @@ where
         communities
             .entry(label)
             .or_insert_with(HashSet::new)
-            .insert(vertex);
+            .insert(vertex.clone());
     }
 
     Ok(communities.values().cloned().collect())
 }
 
-fn find_max_label(label_count: &HashMap<u64, f64>) -> Option<u64> {
+fn find_max_label(label_count: &BTreeMap<u64, f64>) -> Option<u64> {
     label_count
         .iter()
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
@@ -87,6 +85,8 @@ mod lpa_tests {
             (1, "R1", "R2"),
             (1, "R2", "R3"),
             (1, "R3", "G"),
+            (1, "G", "B1"),
+            (1, "G", "B3"),
             (1, "B1", "B2"),
             (1, "B2", "B3"),
             (1, "B2", "B4"),
@@ -97,28 +97,22 @@ mod lpa_tests {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let seed = Some([1; 32]);
+        let seed = Some([5; 32]);
         let result = label_propagation(&graph, seed).unwrap();
-        let expected: Vec<HashSet<VertexView<Graph>>> = vec![
-            vec![
+        let expected = vec![
+            HashSet::from([
                 graph.vertex("R1").unwrap(),
                 graph.vertex("R2").unwrap(),
                 graph.vertex("R3").unwrap(),
+            ]),
+            HashSet::from([
                 graph.vertex("G").unwrap(),
-            ]
-            .iter()
-            .cloned()
-            .collect(),
-            vec![
                 graph.vertex("B1").unwrap(),
                 graph.vertex("B2").unwrap(),
                 graph.vertex("B3").unwrap(),
                 graph.vertex("B4").unwrap(),
                 graph.vertex("B5").unwrap(),
-            ]
-            .iter()
-            .cloned()
-            .collect(),
+            ]),
         ];
         for hashset in expected {
             assert!(result.contains(&hashset));
