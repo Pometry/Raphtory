@@ -33,6 +33,20 @@ impl EntityId {
             dst: edge.dst().id(),
         }
     }
+
+    pub(crate) fn is_node(&self) -> bool {
+        match self {
+            EntityId::Node { .. } => true,
+            EntityId::Edge { .. } => false,
+        }
+    }
+
+    pub(crate) fn is_edge(&self) -> bool {
+        match self {
+            EntityId::Node { .. } => false,
+            EntityId::Edge { .. } => true,
+        }
+    }
 }
 
 impl Display for EntityId {
