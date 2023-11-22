@@ -1,4 +1,4 @@
-use rand::{seq::SliceRandom, thread_rng, rngs::StdRng, SeedableRng, Rng};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
 use crate::{db::graph::vertex::VertexView, prelude::*};
@@ -14,7 +14,10 @@ use crate::{db::graph::vertex::VertexView, prelude::*};
 ///
 /// A vector of hashsets each containing vertices
 ///
-pub fn label_propagation<G>(graph: &G, seed: Option<[u8; 32]>) -> Result<Vec<HashSet<VertexView<G>>>, &'static str>
+pub fn label_propagation<G>(
+    graph: &G,
+    seed: Option<[u8; 32]>,
+) -> Result<Vec<HashSet<VertexView<G>>>, &'static str>
 where
     G: GraphViewOps,
 {
@@ -41,7 +44,8 @@ where
             let mut label_count: HashMap<u64, f64> = HashMap::new();
 
             for neighbour in neighbors {
-                *label_count.entry(labels[&neighbour.clone()]).or_insert(0.0) += 1.0; // Increment count, consider edge weights if needed
+                *label_count.entry(labels[&neighbour.clone()]).or_insert(0.0) += 1.0;
+                // Increment count, consider edge weights if needed
             }
 
             if let Some(max_label) = find_max_label(&label_count) {
@@ -82,9 +86,9 @@ mod lpa_tests {
         let edges = vec![
             (1, "R1", "R2"),
             (1, "R2", "R3"),
-            (1, "R3",  "G"),
-            (1, "G",  "B1"),
-            (1, "G",  "B3"),
+            (1, "R3", "G"),
+            (1, "G", "B1"),
+            (1, "G", "B3"),
             (1, "B1", "B2"),
             (1, "B2", "B3"),
             (1, "B2", "B4"),
@@ -96,13 +100,16 @@ mod lpa_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let seed = Some([1; 32]);
-        let result  = label_propagation(&graph, seed).unwrap();
+        let result = label_propagation(&graph, seed).unwrap();
         let expected: Vec<HashSet<VertexView<Graph>>> = vec![
             vec![
-            graph.vertex("R1").unwrap(),
-            graph.vertex("R2").unwrap(),
-            graph.vertex("R3").unwrap(),
-        ].iter().cloned().collect(),
+                graph.vertex("R1").unwrap(),
+                graph.vertex("R2").unwrap(),
+                graph.vertex("R3").unwrap(),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
             vec![
                 graph.vertex("G").unwrap(),
                 graph.vertex("B1").unwrap(),
@@ -110,7 +117,10 @@ mod lpa_tests {
                 graph.vertex("B3").unwrap(),
                 graph.vertex("B4").unwrap(),
                 graph.vertex("B5").unwrap(),
-            ].iter().cloned().collect(),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
         ];
         assert_eq!(result.len(), expected.len());
         for hashset in expected {
