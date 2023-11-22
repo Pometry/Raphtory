@@ -5,6 +5,7 @@ from raphtory import Graph, GraphWithDeletions, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 
+
 def gen_graph():
     g = Graph()
     g.add_edge(10, 1, 3, {})
@@ -29,20 +30,24 @@ def test_connected_components():
     assert actual.get_all_with_names() == expected
     assert actual.get("1") == 1
 
+
 def test_in_components():
     g = gen_graph()
     actual = algorithms.in_components(g).get_all_with_names()
     for key in actual:
         actual[key].sort()
-    expected = {"1": [], "2": [1], "3": [1], "4": [1,2,5], "5": [1,2,5], "6": [1,2,4,5], "7": [1,2,4,5], "8": [1,2,5]}
+    expected = {"1": [], "2": [1], "3": [1], "4": [1, 2, 5], "5": [1, 2, 5], "6": [1, 2, 4, 5], "7": [1, 2, 4, 5],
+                "8": [1, 2, 5]}
     assert actual == expected
+
 
 def test_out_components():
     g = gen_graph()
     actual = algorithms.out_components(g).get_all_with_names()
     for key in actual:
         actual[key].sort()
-    expected = {"1": [2,3,4,5,6,7,8], "2": [4,5,6,7,8], "3": [], "4": [6,7], "5": [4,5,6,7,8], "6": [], "7": [], "8": []}
+    expected = {"1": [2, 3, 4, 5, 6, 7, 8], "2": [4, 5, 6, 7, 8], "3": [], "4": [6, 7], "5": [4, 5, 6, 7, 8], "6": [],
+                "7": [], "8": []}
     assert actual == expected
 
 
@@ -61,14 +66,15 @@ def test_algo_result_windowed_graph():
     g.add_edge(10, 10, 11, {})
 
     res_full_graph = algorithms.weakly_connected_components(g, 20)
-    assert sorted(res_full_graph.get_all_with_names().items()) == [('1', 1), ('10', 10), ('11', 10), ('2', 1), ('3', 3), ('4', 3), ('5', 5), ('6', 5)]
+    assert sorted(res_full_graph.get_all_with_names().items()) == [('1', 1), ('10', 10), ('11', 10), ('2', 1), ('3', 3),
+                                                                   ('4', 3), ('5', 5), ('6', 5)]
 
     g_window = g.window(0, 2)
-    res_window = algorithms.weakly_connected_components(g_window, 20) 
+    res_window = algorithms.weakly_connected_components(g_window, 20)
     assert sorted(res_window.get_all_with_names().items()) == [('1', 1), ('2', 1)]
 
     g_window = g.window(2, 3)
-    res_window = algorithms.weakly_connected_components(g_window, 20) 
+    res_window = algorithms.weakly_connected_components(g_window, 20)
     assert sorted(res_window.get_all_with_names().items()) == [('3', 3), ('4', 3)]
 
 
@@ -83,11 +89,13 @@ def test_algo_result_layered_graph():
     g_layer_zero_two = g.layer("ZERO-TWO")
     g_layer_three_five = g.layer("THREE-FIVE")
 
-    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20) 
-    assert sorted(res_zero_two.get_all_with_names().items()) == [('1', 1), ('2', 1), ('3', 1), ('4', 4), ('5', 4), ('6', 6), ('7', 7), ('8', 8), ('9', 9)]
+    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
+    assert sorted(res_zero_two.get_all_with_names().items()) == [('1', 1), ('2', 1), ('3', 1), ('4', 4), ('5', 4),
+                                                                 ('6', 6), ('7', 7), ('8', 8), ('9', 9)]
 
-    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20) 
-    assert sorted(res_three_five.get_all_with_names().items()) == [('1', 1), ('2', 2), ('3', 3), ('4', 4), ('5', 5), ('6', 6), ('7', 6), ('8', 8), ('9', 8)]
+    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
+    assert sorted(res_three_five.get_all_with_names().items()) == [('1', 1), ('2', 2), ('3', 3), ('4', 4), ('5', 5),
+                                                                   ('6', 6), ('7', 6), ('8', 8), ('9', 8)]
 
 
 def test_algo_result_window_and_layered_graph():
@@ -97,14 +105,14 @@ def test_algo_result_window_and_layered_graph():
     g.add_edge(2, 4, 5, {}, layer="ZERO-TWO")
     g.add_edge(3, 6, 7, {}, layer="THREE-FIVE")
     g.add_edge(4, 8, 9, {}, layer="THREE-FIVE")
- 
+
     g_layer_zero_two = g.window(0, 1).layer("ZERO-TWO")
     g_layer_three_five = g.window(4, 5).layer("THREE-FIVE")
 
-    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20) 
+    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
     assert sorted(res_zero_two.get_all_with_names().items()) == [('1', 1), ('2', 1)]
 
-    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20) 
+    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
     assert sorted(res_three_five.get_all_with_names().items()) == [('8', 8), ('9', 8)]
 
 
@@ -251,14 +259,14 @@ def test_single_source_shortest_path():
     res_two = single_source_shortest_path(g, 1, 2)
     assert res_one.get_all_with_names() == {"1": ["1"], "2": ["1", "2"], "3": None, "4": ["1", "4"]}
     assert (
-        res_two.get_all_with_names()
-        == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
-    ) or (
-        res_two.get_all_with_names()
-        == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
-    )
+                   res_two.get_all_with_names()
+                   == {"1": ["1"], "2": ["1", "2"], "3": ["1", "2", "3"], "4": ["1", "4"]}
+           ) or (
+                   res_two.get_all_with_names()
+                   == {"1": ["1"], "3": ["1", "4", "3"], "2": ["1", "2"], "4": ["1", "4"]}
+           )
 
-    
+
 def test_dijsktra_shortest_paths():
     from raphtory import Graph
     from raphtory.algorithms import dijkstra_single_source_shortest_paths
@@ -288,7 +296,7 @@ def test_dijsktra_shortest_paths():
         dijkstra_single_source_shortest_paths(g, "A", ["F"], weight="NO")
     assert "Weight property not found on edges" in str(excinfo.value)
 
-    
+
 def test_betweenness_centrality():
     from raphtory import Graph
     from raphtory.algorithms import betweenness_centrality
@@ -311,10 +319,10 @@ def test_betweenness_centrality():
         g.add_edge(0, e[0], e[1], {})
 
     res = betweenness_centrality(g, normalized=False)
-    assert res.get_all_with_names() == { "0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0 }
+    assert res.get_all_with_names() == {"0": 0.0, '1': 1.0, "2": 4.0, "3": 1.0, "4": 0.0, "5": 0.0}
 
     res = betweenness_centrality(g, normalized=True)
-    assert res.get_all_with_names() == { "0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}
+    assert res.get_all_with_names() == {"0": 0.0, '1': 0.05, "2": 0.2, "3": 0.05, "4": 0.0, "5": 0.0}
 
 
 def test_hits_algorithm():
@@ -347,3 +355,35 @@ def test_balance_algorithm():
 
     result = algorithms.balance(g, "value_dec", PyDirection("OUT"), None).get_all_with_names()
     assert result == {"1": -32.0, "2": -5.0, "3": -3.0, "4": -15.0, "5": 0.0}
+
+
+def test_label_propagation_algorithm():
+    g = Graph()
+    edges_str = [
+        (1, "R1", "R2"),
+        (1, "R2", "R3"),
+        (1, "R3", "G"),
+        (1, "G", "B1"),
+        (1, "G", "B3"),
+        (1, "B1", "B2"),
+        (1, "B2", "B3"),
+        (1, "B2", "B4"),
+        (1, "B3", "B4"),
+        (1, "B3", "B5"),
+        (1, "B4", "B5"),
+    ]
+    for time, src, dst in edges_str:
+        g.add_edge(time, src, dst)
+    result = algorithms.label_propagation(g, None)
+    expected = [{g.vertex("R2"),
+                 g.vertex("R3"),
+                 g.vertex("R1")},
+                {g.vertex("G"),
+                 g.vertex("B4"),
+                 g.vertex("B3"),
+                 g.vertex("B2"),
+                 g.vertex("B1"),
+                 g.vertex("B5")}]
+    assert len(result) == len(expected)
+    for group in expected:
+        assert group in result

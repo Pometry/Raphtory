@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -16,6 +16,7 @@ use crate::{
         community_detection::in_components as in_comp,
         community_detection::out_components as out_comp,
         community_detection::scc,
+        community_detection::label_propagation::label_propagation as label_propagation_rs,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -48,6 +49,7 @@ use crate::{
 use crate::{core::Prop, db::api::view::internal::DynamicGraph, python::graph::edge::PyDirection};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+use crate::db::graph::vertex::VertexView;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
 ///
@@ -569,9 +571,8 @@ pub fn dijkstra_single_source_shortest_paths(
 ///     k (int, optional): Specifies the number of nodes to consider for the centrality computation. Defaults to all nodes if `None`.
 ///     normalized (boolean, optional): Indicates whether to normalize the centrality values.
 ///
-/// # Returns
-///
-/// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+/// Returns:
+///     Returns an `AlgorithmResult` containing the betweenness centrality of each node.
 #[pyfunction]
 #[pyo3[signature = (g, k=None, normalized=true)]]
 pub fn betweenness_centrality(
@@ -580,4 +581,26 @@ pub fn betweenness_centrality(
     normalized: Option<bool>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     betweenness_rs(&g.graph, k, normalized)
+}
+
+
+/// Computes components using a label propagation algorithm
+///
+/// Arguments:
+///     g (Raphtory Graph): A reference to the graph
+///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
+///
+/// Returns:
+///     A list of sets each containing vertices that have been grouped
+///
+#[pyfunction]
+#[pyo3[signature = (g, seed=None)]]
+pub fn label_propagation(
+    g: &PyGraphView,
+    seed: Option<[u8; 32]>,
+) -> PyResult<Vec<HashSet<VertexView<DynamicGraph>>>> {
+    match label_propagation_rs(&g.graph, seed) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
 }
