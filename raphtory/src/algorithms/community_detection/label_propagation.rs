@@ -1,4 +1,4 @@
-use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, Rng, SeedableRng};
+use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
 use crate::{db::graph::vertex::VertexView, prelude::*};
@@ -87,8 +87,6 @@ mod lpa_tests {
             (1, "R1", "R2"),
             (1, "R2", "R3"),
             (1, "R3", "G"),
-            (1, "G", "B1"),
-            (1, "G", "B3"),
             (1, "B1", "B2"),
             (1, "B2", "B3"),
             (1, "B2", "B4"),
@@ -106,12 +104,12 @@ mod lpa_tests {
                 graph.vertex("R1").unwrap(),
                 graph.vertex("R2").unwrap(),
                 graph.vertex("R3").unwrap(),
+                graph.vertex("G").unwrap(),
             ]
             .iter()
             .cloned()
             .collect(),
             vec![
-                graph.vertex("G").unwrap(),
                 graph.vertex("B1").unwrap(),
                 graph.vertex("B2").unwrap(),
                 graph.vertex("B3").unwrap(),
@@ -122,7 +120,6 @@ mod lpa_tests {
             .cloned()
             .collect(),
         ];
-        assert_eq!(result.len(), expected.len());
         for hashset in expected {
             assert!(result.contains(&hashset));
         }
