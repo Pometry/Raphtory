@@ -6,7 +6,7 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator},
+    iter::{IndexedParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator},
     prelude::{IntoParallelRefIterator, ParallelIterator},
     slice::ParallelSlice,
     ThreadPoolBuilder,
@@ -94,88 +94,77 @@ fn query1_v5(
             b_login1_filter.len()
         );
 
-        // let mut count = 0;
-
         let count = AtomicUsize::new(0);
-        let vs = b_login1_filter.iter().copied().collect_vec();
-        let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
+        let mut vs: Vec<(VID, Vec<(i32, i32, u32)>)> =
+            b_login1_filter.iter().map(|b| (*b, Vec::with_capacity(0))).collect_vec();
+        // let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
 
+        let login1_filter = &b_login1_filter;
         let now = Instant::now();
         pool.install(|| {
-            vs.into_par_iter().for_each(|b| {
-                g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
-                    if e != b {
+            vs.par_iter_mut().with_min_len(16).for_each(|(b, b_probe_items)| {
+                let b = *b;
+                let iter = g
+                    .edges_par(b, Direction::OUT, nft)
+                    .filter(|(_, e)| *e != b)
+                    .flat_map(move |(b2e, e)| {
                         let nf1 = g.edge(b2e, nft);
 
-                        nf1.par_prop_items::<i64>(bytes_prop_id)
+                        nf1.into_par_prop_items::<i64>(bytes_prop_id)
                             .unwrap()
                             .filter(|(_, v)| v > &Some(100_000_000))
-                            .for_each(|(nf1_t, _)| {
+                            .flat_map(move |(nf1_t, _)| {
                                 g.edges_par(b, Direction::OUT, events_1v)
-                                    .filter(|(_, v)| {
+                                    .filter(move |(_, v)| {
                                         v == &b
                                             // && b_login1_filter.contains(v)
-                                            && b_prog1_filter.contains(v)
+                                            && login1_filter.contains(v)
                                     })
-                                    .for_each(|(b2b, _)| {
+                                    .flat_map(move |(b2b, _)| {
                                         let prog1 = g.edge(b2b, events_1v);
 
                                         prog1
-                                            .par_prop_items::<i64>(event_id_prop_id_1v)
+                                            .into_par_prop_items::<i64>(event_id_prop_id_1v)
                                             .unwrap()
                                             .filter_map(|(t, v)| v.map(|v| (v, t)))
-                                            .for_each(|(prog1_event_id, prog1_t)| {
-                                                if prog1_event_id == 4688
-                                                    && prog1_t < nf1_t
+                                            .filter(move |(prog1_event_id, prog1_t)| {
+                                                *prog1_event_id == 4688
+                                                    && *prog1_t < nf1_t
                                                     && nf1_t - prog1_t <= 30
-                                                {
-                                                    let e_small: u32 =
-                                                        Into::<usize>::into(e) as u32;
-                                                    probe_map
-                                                        .entry(b)
-                                                        .and_modify(|v| {
-                                                            v.push((
-                                                                prog1_t as i32,
-                                                                nf1_t as i32,
-                                                                e_small,
-                                                            ))
-                                                        })
-                                                        .or_insert_with(|| {
-                                                            vec![(
-                                                                prog1_t as i32,
-                                                                nf1_t as i32,
-                                                                e_small,
-                                                            )]
-                                                        });
-                                                }
-                                            });
-                                    });
-                            });
-                    }
-                });
+                                            })
+                                            .map(move |(_, prog1_t)| {
+                                                let e_small: u32 = Into::<usize>::into(e) as u32;
+                                                (prog1_t as i32, nf1_t as i32, e_small)
+                                            })
+                                    })
+                            })
+                    });
+                *b_probe_items = iter.collect::<Vec<_>>();
+                b_probe_items.sort();
             });
         });
 
         println!("Done probe map build: {:?}", now.elapsed());
 
-        let now = Instant::now();
+        // let now = Instant::now();
 
-        probe_map.iter_mut().for_each(|mut entry| {
-            entry.value_mut().sort();
-        });
+        // probe_map.iter_mut().for_each(|mut entry| {
+        //     entry.value_mut().sort();
+        // });
 
-        println!(
-            "Done sorting map len: {:?}, duration: {:?}",
-            probe_map.len(),
-            now.elapsed()
-        );
+        // println!(
+        //     "Done sorting map len: {:?}, duration: {:?}",
+        //     vs.len(),
+        //     now.elapsed()
+        // );
 
         let now: Instant = Instant::now();
 
         pool.install(|| {
-            probe_map.par_iter().for_each(|entry| {
-                let b: VID = *entry.key();
-                let edges = entry.value();
+            vs.par_iter().for_each(|(b, edges)| {
+                // let b: VID = *entry.key();
+                // let edges = entry.value();
+                let b = *b;
 
                 g.edges_par(b, Direction::IN, events_2v)
                     .for_each(|(a2b, a)| {
