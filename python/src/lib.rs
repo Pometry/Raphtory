@@ -11,7 +11,7 @@ use raphtory_core::python::{
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
-        vertex::{PyVertex, PyVertices, PyMutableVertex},
+        vertex::{PyMutableVertex, PyVertex, PyVertices},
     },
     packages::{
         algorithms::*,

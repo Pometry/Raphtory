@@ -391,7 +391,6 @@ impl IntoPy<PyObject> for VertexView<MaterializedGraph> {
 
 #[pymethods]
 impl PyMutableVertex {
-
     /// Add updates to a vertex in the graph at a specified time.
     /// This function allows for the addition of property updates to a vertex within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
@@ -411,7 +410,6 @@ impl PyMutableVertex {
         self.vertex.add_updates(t, properties.unwrap_or_default())
     }
 
-
     /// Add constant properties to a vertex in the graph.
     /// This function is used to add properties to a vertex that remain constant and do not
     /// change over time. These properties are fundamental attributes of the vertex.
@@ -423,7 +421,10 @@ impl PyMutableVertex {
     ///
     /// Returns:
     ///     Result: A result object indicating success or failure. On failure, it contains a GraphError..
-    pub fn add_constant_properties(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
         self.vertex.add_constant_properties(properties)
     }
 
