@@ -46,7 +46,7 @@ fn balance_per_vertex<
     GH: GraphViewOps<'graph>,
     CS: ComputeState,
 >(
-    v: &'graph EvalVertexView<'graph, G, (), GH, CS>,
+    v: &EvalVertexView<'graph, '_, G, (), GH, CS>,
     name: &str,
     direction: Direction,
 ) -> f64 {
@@ -135,7 +135,7 @@ mod sum_weight_test {
         algorithms::metrics::balance::balance,
         core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::GraphViewBase,
+        prelude::*,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;

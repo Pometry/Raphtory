@@ -40,7 +40,7 @@ pub fn weakly_connected_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, u64, u64>
 where
-    G: GraphViewOps<'static>,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv| {
@@ -51,7 +51,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, WccState>| {
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<G, WccState>| {
         let prev: u64 = vv.prev().component;
         let current = vv
             .neighbours()

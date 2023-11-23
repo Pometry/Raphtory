@@ -38,7 +38,7 @@ where
     G: GraphViewOps<'static>,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<&G, InState>| {
+    let step1 = ATask::new(move |vv: &mut EvalVertexView<G, InState>| {
         let mut in_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().id().for_each(|id| {

@@ -95,7 +95,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps<'static>, T: InputVertex>(
     let tainted_vertices = hash_set::<u64>(4);
     ctx.global_agg(tainted_vertices);
 
-    let step1 = ATask::new(move |evv: &mut EvalVertexView<'_, &G, ()>| {
+    let step1 = ATask::new(move |evv: &mut EvalVertexView<G, ()>| {
         if infected_nodes.contains(&evv.id()) {
             evv.global_update(&tainted_vertices, evv.id());
             evv.update(&taint_status, true);

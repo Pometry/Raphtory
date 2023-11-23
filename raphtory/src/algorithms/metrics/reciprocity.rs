@@ -71,7 +71,7 @@ fn get_reciprocal_edge_count<
     GH: GraphViewOps<'graph>,
     CS: ComputeState,
 >(
-    v: &'graph EvalVertexView<'graph, G, (), GH, CS>,
+    v: &EvalVertexView<'graph, '_, G, (), GH, CS>,
 ) -> (usize, usize, usize) {
     let id = v.id();
     let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();

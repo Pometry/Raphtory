@@ -70,7 +70,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
     ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |s: &mut EvalVertexView<'_, &VertexSubgraph<G>, ()>| {
+    let step1 = ATask::new(move |s: &mut EvalVertexView<VertexSubgraph<G>, ()>| {
         for t in s.neighbours() {
             if s.id() > t.id() {
                 t.update(&neighbours_set, s.id());

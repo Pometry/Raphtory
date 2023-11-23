@@ -4,11 +4,20 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::compute_state::ComputeStateVec,
     },
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::{EvalVertexRef, EvalVertexView},
+    db::{
+        api::{
+            mutation::AdditionOps,
+            view::{
+                internal::{Base, BoxableGraphView, InheritViewOps},
+                StaticGraphViewOps,
+            },
+        },
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
     prelude::*,
 };
@@ -105,7 +114,7 @@ where
     }
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: EvalVertexRef<G, SCCNode>| {
+    let step1 = ATask::new(move |vv: &mut EvalVertexView<G, SCCNode>| {
         let id = vv.id();
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();

@@ -53,7 +53,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalVertexView<'_, &G, KCoreState>| {
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<G, KCoreState>| {
         let prev: bool = vv.prev().alive;
         if prev == true {
             let current = vv
