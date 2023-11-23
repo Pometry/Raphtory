@@ -308,13 +308,13 @@ impl PyGraphView {
     ///
     /// Args:
     ///   embedding (Callable[[list], list]): an embedding function that takes a list of texts and returns a list of embeddings
-    ///   cache: the file to be used as a cache to avoid calling the embedding function (optional)
-    ///   node_document: the property name to be used as document for nodes (optional)
-    ///   edge_document (): the property name to be used as document for edges (optional)
+    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
+    ///   node_document (str): the property name to be used as document for nodes (optional)
+    ///   edge_document (str): the property name to be used as document for edges (optional)
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///   
-    ///   Returns:
-    ///     A VectorisedGraph with all the documents/embeddings computes and with an initial empty selection
+    /// Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computes and with an initial empty selection
     #[pyo3(signature = (embedding, cache = None, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,

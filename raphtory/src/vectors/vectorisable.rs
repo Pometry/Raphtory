@@ -44,6 +44,17 @@ pub trait Vectorisable<G: GraphViewOps> {
 
 #[async_trait(?Send)]
 impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// # Arguments:
+    ///   * embedding - an embedding function that takes a list of texts and returns a list of embeddings
+    ///   * cache - the file to be used as a cache to avoid calling the embedding function (optional)
+    ///   * node_document - the property name to be used as document for nodes (optional)
+    ///   * edge_document - the property name to be used as document for edges (optional)
+    ///   * verbose - whether or not to print logs reporting the progress
+    ///   
+    /// # Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computes and with an initial empty selection
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
