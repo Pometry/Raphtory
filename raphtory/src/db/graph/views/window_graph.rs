@@ -439,7 +439,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
+impl<'base: 'graph, 'graph, G: GraphViewOps<'base>> GraphOps<'graph> for WindowedGraph<G> {
     /// Get an iterator over the references of all vertices as references
     ///
     /// Returns:

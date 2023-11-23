@@ -99,7 +99,7 @@ fn balance_per_vertex<
 ///
 /// Returns:
 /// Returns an `AlgorithmResult` which maps each vertex to its corresponding net weight sum.
-pub fn balance<G: GraphViewOps<'static>>(
+pub fn balance<G: for<'graph> GraphViewOps<'graph>>(
     graph: &G,
     name: String,
     direction: Direction,

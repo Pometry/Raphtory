@@ -13,6 +13,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
+    prelude::GraphViewOps,
 };
 use std::collections::HashSet;
 
@@ -42,7 +43,7 @@ impl Default for KCoreState {
 ///
 pub fn k_core_set<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
 where
-    G: StaticGraphViewOps,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
 
@@ -111,7 +112,7 @@ pub fn k_core<G>(
     threads: Option<usize>,
 ) -> VertexSubgraph<G>
 where
-    G: StaticGraphViewOps,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     let v_set = k_core_set(graph, k, iter_count, threads);
     graph.subgraph(v_set)

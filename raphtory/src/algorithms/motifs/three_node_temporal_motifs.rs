@@ -179,7 +179,7 @@ pub fn triangle_motifs<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
-    G: StaticGraphViewOps,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     let delta_len = deltas.len();
 
@@ -343,7 +343,7 @@ pub fn temporal_three_node_motif<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<Vec<usize>>>
 where
-    G: StaticGraphViewOps,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);
@@ -419,7 +419,7 @@ pub fn global_temporal_three_node_motif_from_local(
     tmp_counts
 }
 
-pub fn global_temporal_three_node_motif<G: StaticGraphViewOps>(
+pub fn global_temporal_three_node_motif<G: for<'graph> GraphViewOps<'graph>>(
     graph: &G,
     delta: i64,
     threads: Option<usize>,
@@ -428,7 +428,7 @@ pub fn global_temporal_three_node_motif<G: StaticGraphViewOps>(
     counts[0].clone()
 }
 
-pub fn global_temporal_three_node_motif_general<G: StaticGraphViewOps>(
+pub fn global_temporal_three_node_motif_general<G: for<'graph> GraphViewOps<'graph>>(
     graph: &G,
     deltas: Vec<i64>,
     threads: Option<usize>,

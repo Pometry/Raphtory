@@ -85,7 +85,10 @@ fn get_reciprocal_edge_count<
 }
 
 /// returns the global reciprocity of the entire graph
-pub fn global_reciprocity<G: GraphViewOps<'static>>(g: &G, threads: Option<usize>) -> f64 {
+pub fn global_reciprocity<G: for<'graph> GraphViewOps<'graph>>(
+    g: &G,
+    threads: Option<usize>,
+) -> f64 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let total_out_neighbours = sum::<usize>(0);
@@ -119,7 +122,7 @@ pub fn global_reciprocity<G: GraphViewOps<'static>>(g: &G, threads: Option<usize
 
 /// returns the reciprocity of every vertex in the graph as a tuple of
 /// vector id and the reciprocity
-pub fn all_local_reciprocity<G: GraphViewOps<'static>>(
+pub fn all_local_reciprocity<G: for<'graph> GraphViewOps<'graph>>(
     g: &G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {

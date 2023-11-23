@@ -154,9 +154,10 @@ pub trait GraphOps<'graph>: Send + Sync {
 
 pub trait InheritGraphOps<'graph>: Base + Send + Sync {}
 
-impl<'graph, G: InheritGraphOps<'graph> + Send + Sync + ?Sized + 'graph> GraphOps<'graph> for G
+impl<'base: 'graph, 'graph, G: InheritGraphOps<'base> + Send + Sync + ?Sized + 'graph>
+    GraphOps<'graph> for G
 where
-    G::Base: GraphOps<'graph>,
+    G::Base: GraphOps<'base>,
 {
     #[inline]
     fn internal_vertex_ref(

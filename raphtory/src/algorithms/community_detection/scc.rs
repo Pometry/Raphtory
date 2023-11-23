@@ -34,7 +34,7 @@ fn tarjan<'graph, G>(
     on_stack: &'graph mut HashSet<u64>,
     result: &'graph mut Vec<Vec<u64>>,
 ) where
-    G: GraphViewOps<'graph>,
+    G: for<'a> GraphViewOps<'a>,
 {
     *index += 1;
     indices.insert(node, *index);
@@ -73,9 +73,9 @@ fn tarjan<'graph, G>(
     }
 }
 
-fn tarjan_scc<'graph, G>(graph: &'graph G) -> Vec<Vec<u64>>
+fn tarjan_scc<G>(graph: &G) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps<'graph>,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     let mut index = 0;
     let mut stack = Vec::new();
@@ -106,7 +106,7 @@ where
 
 pub fn strongly_connected_components<G>(graph: &G, threads: Option<usize>) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps<'static>,
+    G: for<'graph> GraphViewOps<'graph>,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {
