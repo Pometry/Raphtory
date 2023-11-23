@@ -55,7 +55,7 @@ impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
     }
 }
 
-impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
+impl<G: StaticGraphViewOps> InheritViewOps<'static> for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";

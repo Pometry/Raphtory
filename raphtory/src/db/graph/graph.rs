@@ -91,7 +91,7 @@ impl Base for Graph {
 
 impl InheritAdditionOps for Graph {}
 impl InheritPropertyAdditionOps for Graph {}
-impl InheritViewOps for Graph {}
+impl<'graph> InheritViewOps<'graph> for Graph {}
 
 impl Graph {
     /// Create a new graph with the specified number of shards

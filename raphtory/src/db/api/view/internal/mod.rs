@@ -12,7 +12,10 @@ mod wrapped_graph;
 mod one_hop_filter;
 
 use crate::{
-    db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
+    db::api::{
+        properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
+        view::StaticGraphViewOps,
+    },
     prelude::GraphViewOps,
 };
 pub use core_deletion_ops::*;
@@ -66,16 +69,16 @@ impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps<'graph>>
 {
 }
 
-pub trait InheritViewOps: Base + Send + Sync {}
+pub trait InheritViewOps<'graph>: Base + Send + Sync + 'graph {}
 
-impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
-impl<G: InheritViewOps> InheritGraphOps for G {}
-impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
-impl<G: InheritViewOps> InheritLayerOps for G {}
-impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
-impl<G: InheritViewOps> InheritCoreOps for G {}
-impl<G: InheritViewOps> InheritMaterialize for G {}
-impl<G: InheritViewOps> InheritPropertiesOps for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritCoreDeletionOps for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritGraphOps<'graph> for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritEdgeFilterOps for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritLayerOps for G {}
+impl<'graph, G: InheritViewOps<'graph> + CoreGraphOps> InheritTimeSemantics for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritCoreOps for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritMaterialize for G {}
+impl<'graph, G: InheritViewOps<'graph>> InheritPropertiesOps for G {}
 
 /// Trait for marking a struct as not dynamically dispatched.
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
@@ -131,9 +134,9 @@ impl Base for DynamicGraph {
 
 impl Immutable for DynamicGraph {}
 
-impl InheritViewOps for DynamicGraph {}
+impl InheritViewOps<'static> for DynamicGraph {}
 
-impl<'graph, G: BoxableGraphBase + ?Sized> InheritViewOps for &'graph G {}
+impl<'graph, G: StaticGraphViewOps> InheritViewOps<'graph> for &'graph G {}
 
 #[cfg(test)]
 mod test {

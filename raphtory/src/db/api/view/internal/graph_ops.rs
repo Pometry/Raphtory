@@ -170,9 +170,9 @@ pub trait GraphOps<'graph>: Send + Sync {
     ) -> BoxedLIter<'graph, VID>;
 }
 
-pub trait InheritGraphOps: Base + Send + Sync {}
+pub trait InheritGraphOps<'graph>: Base + Send + Sync {}
 
-impl<'graph, G: InheritGraphOps + Send + Sync + ?Sized + 'graph> GraphOps<'graph> for G
+impl<'graph, G: InheritGraphOps<'graph> + Send + Sync + ?Sized + 'graph> GraphOps<'graph> for G
 where
     G::Base: GraphOps<'graph>,
 {

@@ -227,7 +227,7 @@ impl InheritCoreOps for GraphWithDeletions {}
 
 impl InheritCoreDeletionOps for GraphWithDeletions {}
 
-impl InheritGraphOps for GraphWithDeletions {}
+impl<'graph> InheritGraphOps<'graph> for GraphWithDeletions {}
 
 impl InheritPropertiesOps for GraphWithDeletions {}
 
