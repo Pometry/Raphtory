@@ -15,3 +15,11 @@ Vertex
    :show-inheritance:
    :private-members:
    :inherited-members:
+
+.. autoclass:: raphtory.MutableVertex
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:
