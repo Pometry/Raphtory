@@ -87,12 +87,12 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
         let cache = cache_file.map(EmbeddingCache::from_path);
 
         if verbose {
-            println!("compute embeddings for nodes");
+            println!("computing embeddings for nodes");
         }
         let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
 
         if verbose {
-            println!("compute embeddings for edges");
+            println!("computing embeddings for edges");
         }
         let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
 

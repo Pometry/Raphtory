@@ -3,13 +3,15 @@ use crate::{
     db::graph::{edge::EdgeView, vertex::VertexView},
     prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
     vectors::{
-        document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
-        Document, Embedding, EmbeddingFunction,
+        document_ref::DocumentRef, document_template::DocumentTemplate,
+        embedding_cache::EmbeddingCache, entity_id::EntityId, Document, DocumentOps, Embedding,
+        EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -63,6 +65,17 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             selected_docs,
             empty_vec: vec![],
         }
+    }
+
+    pub fn save_embeddings(&self, file: PathBuf) {
+        let cache = EmbeddingCache::new(file);
+        chain!(self.node_documents.iter(), self.edge_documents.iter()).for_each(|(_, group)| {
+            group.iter().for_each(|doc| {
+                let original = doc.regenerate(&self.source_graph, self.template.as_ref());
+                cache.upsert_embedding(original.content(), doc.embedding.clone());
+            })
+        });
+        cache.dump_to_disk();
     }
 
     /// This assumes forced documents to have a score of 0
