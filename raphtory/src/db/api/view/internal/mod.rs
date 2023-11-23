@@ -66,7 +66,7 @@ impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps<'graph>>
 {
 }
 
-pub trait InheritViewOps<'graph>: Base + Send + Sync + 'graph {}
+pub trait InheritViewOps<'graph>: Base + Send + Sync {}
 
 impl<'graph, G: InheritViewOps<'graph>> InheritCoreDeletionOps for G {}
 impl<'graph, G: InheritViewOps<'graph>> InheritGraphOps<'graph> for G {}
@@ -133,7 +133,7 @@ impl Immutable for DynamicGraph {}
 
 impl InheritViewOps<'static> for DynamicGraph {}
 
-impl<'graph, G: StaticGraphViewOps> InheritViewOps<'graph> for &'graph G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps<'graph2> for &'graph1 G {}
 
 #[cfg(test)]
 mod test {

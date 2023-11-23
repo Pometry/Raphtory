@@ -10,7 +10,10 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    fn run<'a>(&self, vv: &mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step;
+    fn run<'graph, 'a, 'b>(
+        &'b self,
+        vv: &'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>,
+    ) -> Step;
 }
 
 #[derive(Debug, PartialEq)]
@@ -23,7 +26,6 @@ pub struct ATask<G, CS, S: 'static, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'a> Fn(&mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
     f: F,
     _g: PhantomData<G>,
@@ -31,13 +33,7 @@ where
     _s: PhantomData<S>,
 }
 
-impl<
-        G: StaticGraphViewOps,
-        CS: ComputeState,
-        S: 'static,
-        F: for<'a> Fn(&mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step + Clone,
-    > Clone for ATask<G, CS, S, F>
-{
+impl<G: StaticGraphViewOps, CS: ComputeState, S: 'static, F: Clone> Clone for ATask<G, CS, S, F> {
     fn clone(&self) -> Self {
         Self {
             f: self.f.clone(),
@@ -69,7 +65,7 @@ impl<G, CS, S, F> ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'a> Fn(&mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    F: for<'graph, 'a, 'b> Fn(&'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
@@ -85,9 +81,12 @@ impl<G, CS, S, F> Task<G, CS, S> for ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'a> Fn(&mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step + Clone,
+    F: for<'graph, 'a, 'b> Fn(&'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
 {
-    fn run<'a>(&self, vv: &mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step {
+    fn run<'graph, 'a, 'b>(
+        &'b self,
+        vv: &'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>,
+    ) -> Step {
         (self.f)(vv)
     }
 }

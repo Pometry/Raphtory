@@ -45,23 +45,23 @@ use std::{
     rc::Rc,
 };
 
-pub type EvalVertexRef<'a, G, S> = &'a mut EvalVertexView<'a, &'a G, S>;
-
-pub struct EvalVertexView<'a, G, S, GH = G, CS: Clone = ComputeStateVec> {
+pub struct EvalVertexView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
     ss: usize,
-    vertex: VertexView<G, GH>,
-    local_state: Option<&'a mut S>,
-    local_state_prev: &'a Local2<'a, S>,
+    vertex: VertexView<&'graph G, GH>,
+    local_state: Option<&'graph mut S>,
+    local_state_prev: &'graph Local2<'a, S>,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
 }
 
-impl<'a, G: StaticGraphViewOps, CS: ComputeState, S> EvalVertexView<'a, &'a G, S, &'a G, CS> {
-    pub(crate) fn new_from_ref(
+impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
+    EvalVertexView<'graph, 'a, G, S, &'graph G, CS>
+{
+    pub(crate) fn new_local(
         ss: usize,
         v_ref: VID,
-        g: &'a G,
-        local_state: Option<&'a mut S>,
-        local_state_prev: &'a Local2<'a, S>,
+        g: &'graph G,
+        local_state: Option<&'graph mut S>,
+        local_state_prev: &'graph Local2<'a, S>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         let vertex = VertexView {
@@ -79,32 +79,14 @@ impl<'a, G: StaticGraphViewOps, CS: ComputeState, S> EvalVertexView<'a, &'a G, S
     }
 }
 
-impl<'a, G: GraphViewOps<'a>, CS: ComputeState, S> EvalVertexView<'a, G, S, G, CS> {
-    pub(crate) fn new_local(
-        ss: usize,
-        v_ref: VID,
-        g: G,
-        local_state: Option<&'a mut S>,
-        local_state_prev: &'a Local2<'a, S>,
-        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
-    ) -> Self {
-        let vertex = VertexView {
-            base_graph: g.clone(),
-            graph: g,
-            vertex: v_ref,
-        };
-        Self {
-            ss,
-            vertex,
-            local_state,
-            local_state_prev,
-            vertex_state,
-        }
-    }
-}
-
-impl<'a, G: GraphViewOps<'a>, S, CS: ComputeState, GH: GraphViewOps<'a>> Clone
-    for EvalVertexView<'a, G, S, GH, CS>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState,
+        GH: GraphViewOps<'graph>,
+    > Clone for EvalVertexView<'graph, 'a, G, S, GH, CS>
 {
     fn clone(&self) -> Self {
         EvalVertexView::new_from_vertex(
@@ -117,8 +99,14 @@ impl<'a, G: GraphViewOps<'a>, S, CS: ComputeState, GH: GraphViewOps<'a>> Clone
     }
 }
 
-impl<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S>
-    EvalVertexView<'a, G, S, GH, CS>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > EvalVertexView<'graph, 'a, G, S, GH, CS>
 {
     pub fn graph(&self) -> GH {
         self.vertex.graph.clone()
@@ -144,9 +132,9 @@ impl<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S>
 
     pub(crate) fn new_from_vertex(
         ss: usize,
-        vertex: VertexView<G, GH>,
-        local_state: Option<&'a mut S>,
-        local_state_prev: &'a Local2<'a, S>,
+        vertex: VertexView<&'graph G, GH>,
+        local_state: Option<&'graph mut S>,
+        local_state_prev: &'graph Local2<'a, S>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
@@ -158,10 +146,10 @@ impl<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S>
         }
     }
 
-    pub(crate) fn update_vertex<GHH: GraphViewOps<'a>>(
+    pub(crate) fn update_vertex<GHH: GraphViewOps<'graph>>(
         &self,
-        vertex: VertexView<G, GHH>,
-    ) -> EvalVertexView<'a, G, S, GHH, CS> {
+        vertex: VertexView<&'graph G, GHH>,
+    ) -> EvalVertexView<'graph, 'a, G, S, GHH, CS> {
         EvalVertexView::new_from_vertex(
             self.ss,
             vertex,
@@ -297,18 +285,30 @@ impl<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S>
     }
 }
 
-pub struct EvalPathFromVertex<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S> {
-    path: PathFromVertex<'a, G, GH>,
+pub struct EvalPathFromVertex<
+    'graph,
+    'a: 'graph,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+    CS: ComputeState,
+    S,
+> {
+    path: PathFromVertex<'graph, &'graph G, GH>,
     ss: usize,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
-    local_state_prev: &'a Local2<'a, S>,
-    _s: PhantomData<S>,
+    local_state_prev: &'graph Local2<'a, S>,
 }
 
-impl<'a, G: GraphViewOps<'a> + 'a, GH: GraphViewOps<'a> + 'a, CS: ComputeState, S: 'static>
-    EvalPathFromVertex<'a, G, GH, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
 {
-    pub fn iter(&self) -> impl Iterator<Item = EvalVertexView<'a, G, S, GH, CS>> + 'a {
+    pub fn iter(&self) -> impl Iterator<Item = EvalVertexView<'graph, 'a, G, S, GH, CS>> + 'graph {
         let local = self.local_state_prev;
         let vertex_state = self.vertex_state.clone();
         let ss = self.ss;
@@ -318,19 +318,31 @@ impl<'a, G: GraphViewOps<'a> + 'a, GH: GraphViewOps<'a> + 'a, CS: ComputeState, 
     }
 }
 
-impl<'a, G: GraphViewOps<'a> + 'a, GH: GraphViewOps<'a> + 'a, CS: ComputeState, S: 'static>
-    IntoIterator for EvalPathFromVertex<'a, G, GH, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > IntoIterator for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
 {
-    type Item = EvalVertexView<'a, G, S, GH, CS>;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+    type Item = EvalVertexView<'graph, 'a, G, S, GH, CS>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
         Box::new(self.iter())
     }
 }
 
-impl<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S: 'static> Clone
-    for EvalPathFromVertex<'a, G, GH, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > Clone for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
 {
     fn clone(&self) -> Self {
         EvalPathFromVertex {
@@ -338,20 +350,25 @@ impl<'a, G: GraphViewOps<'a>, GH: GraphViewOps<'a>, CS: ComputeState, S: 'static
             ss: self.ss,
             vertex_state: self.vertex_state.clone(),
             local_state_prev: self.local_state_prev,
-            _s: Default::default(),
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState, S: 'static>
-    BaseVertexViewOps<'graph> for EvalPathFromVertex<'graph, G, GH, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > BaseVertexViewOps<'graph> for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
 {
-    type BaseGraph = G;
+    type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
     type PropType = VertexView<GH, GH>;
-    type PathType = EvalPathFromVertex<'graph, G, G, CS, S>;
-    type Edge = EvalEdgeView<'graph, G, CS, S>;
+    type PathType = EvalPathFromVertex<'graph, 'a, G, &'graph G, CS, S>;
+    type Edge = EvalEdgeView<'graph, 'a, G, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
     fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
@@ -390,11 +407,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState, S: 'static>
-    OneHopFilter<'graph> for EvalPathFromVertex<'graph, G, GH, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > OneHopFilter<'graph> for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = EvalPathFromVertex<'graph, G, GHH, CS, S>;
+    type Filtered<GHH: GraphViewOps<'graph>> = EvalPathFromVertex<'graph, 'a, G, GHH, CS, S>;
 
     fn current_filter(&self) -> &Self::Graph {
         self.path.current_filter()
@@ -413,16 +436,21 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState
             ss,
             vertex_state,
             local_state_prev,
-            _s: Default::default(),
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState, S>
-    OneHopFilter<'graph> for EvalVertexView<'graph, G, S, GH, CS>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > OneHopFilter<'graph> for EvalVertexView<'graph, 'a, G, S, GH, CS>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = EvalVertexView<'graph, G, S, GHH, CS>;
+    type Filtered<GHH: GraphViewOps<'graph>> = EvalVertexView<'graph, 'a, G, S, GHH, CS>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.vertex.graph
@@ -437,15 +465,21 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: ComputeState, S: 'static>
-    BaseVertexViewOps<'graph> for EvalVertexView<'graph, G, S, GH, CS>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > BaseVertexViewOps<'graph> for EvalVertexView<'graph, 'a, G, S, GH, CS>
 {
-    type BaseGraph = G;
+    type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T: 'graph> = T;
     type PropType = VertexView<G, GH>;
-    type PathType = EvalPathFromVertex<'graph, G, G, CS, S>;
-    type Edge = EvalEdgeView<'graph, G, CS, S>;
+    type PathType = EvalPathFromVertex<'graph, 'a, G, &'graph G, CS, S>;
+    type Edge = EvalEdgeView<'graph, 'a, G, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
     fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + 'graph>(

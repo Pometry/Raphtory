@@ -16,7 +16,11 @@ use crate::{
     },
 };
 
-pub trait EdgeViewInternalOps<'graph, G: GraphViewOps<'graph>, V: VertexViewOps<'graph, Graph = G>>
+pub trait EdgeViewInternalOps<
+    'graph,
+    G: GraphViewOps<'graph>,
+    V: VertexViewOps<'graph, BaseGraph = G, Graph = G>,
+>
 {
     fn graph(&self) -> G;
 
@@ -37,7 +41,7 @@ pub trait EdgeViewOps<'graph>:
     + Clone
 {
     type Graph: GraphViewOps<'graph>;
-    type Vertex: VertexViewOps<'graph, Graph = Self::Graph>;
+    type Vertex: VertexViewOps<'graph, BaseGraph = Self::Graph, Graph = Self::Graph>;
     type EList: EdgeListOps<'graph, Graph = Self::Graph, Vertex = Self::Vertex>;
 
     /// list the activation timestamps for the edge
