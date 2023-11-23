@@ -10,7 +10,7 @@ use crate::{
     search::IndexedGraph,
 };
 
-impl<G: StaticGraphViewOps + IntoDynamic> WindowedGraph<'static, IndexedGraph<G>> {
+impl<G: StaticGraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
     pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
             graph: self.graph.graph.window(self.start, self.end).into_dynamic(),

@@ -18,23 +18,23 @@ pub trait GraphOps<'graph>: Send + Sync {
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<VID>;
 
     fn find_edge_id(
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef>;
 
     /// Returns the total number of vertices in the graph.
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize;
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
     /// Returns the total number of edges in the graph.
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize;
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize;
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
     /// Returns true if the graph contains an edge between the source vertex
     /// (src) and the destination vertex (dst).
@@ -47,7 +47,7 @@ pub trait GraphOps<'graph>: Send + Sync {
         src: VID,
         dst: VID,
         layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> bool {
         self.edge_ref(src, dst, layers, filter).is_some()
     }
@@ -56,12 +56,7 @@ pub trait GraphOps<'graph>: Send + Sync {
     /// # Arguments
     ///
     /// * `v` - VertexRef of the vertex to check.
-    fn has_vertex_ref(
-        &self,
-        v: VertexRef,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
-    ) -> bool {
+    fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
         self.internal_vertex_ref(v, layers, filter).is_some()
     }
 
@@ -71,25 +66,15 @@ pub trait GraphOps<'graph>: Send + Sync {
     ///
     /// * `v` - VID of the vertex to check.
     /// * `d` - Direction of the edges to count.
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
-    ) -> usize;
+    fn degree(&self, v: VID, d: Direction, layers: &LayerIds, filter: Option<&EdgeFilter>)
+        -> usize;
 
     /// Returns the VID that corresponds to the specified vertex ID (v).
     /// Returns None if the vertex ID is not present in the graph.
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
-    fn vertex_ref(
-        &self,
-        v: u64,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
-    ) -> Option<VID> {
+    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
         self.internal_vertex_ref(v.into(), layers, filter)
     }
 
@@ -107,18 +92,15 @@ pub trait GraphOps<'graph>: Send + Sync {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef>;
 
     /// Returns all the vertex references in the graph.
     /// Returns:
     /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertex
     /// references in the graph.
-    fn vertex_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
-    ) -> BoxedLIter<'graph, VID>;
+    fn vertex_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>)
+        -> BoxedLIter<'graph, VID>;
 
     /// Returns all the edge references in the graph.
     ///
@@ -128,7 +110,7 @@ pub trait GraphOps<'graph>: Send + Sync {
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef>;
 
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
@@ -148,7 +130,7 @@ pub trait GraphOps<'graph>: Send + Sync {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef>;
 
     /// Returns an iterator over the neighbors of a given vertex in a given direction.
@@ -166,7 +148,7 @@ pub trait GraphOps<'graph>: Send + Sync {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID>;
 }
 
@@ -181,7 +163,7 @@ where
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         self.base().internal_vertex_ref(v, layer_ids, filter)
     }
@@ -191,23 +173,23 @@ where
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.base().find_edge_id(e_id, layer_ids, filter)
     }
 
     #[inline]
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.base().vertices_len(layer_ids, filter)
     }
 
     #[inline]
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.base().edges_len(layers, filter)
     }
 
     #[inline]
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.base().temporal_edges_len(layers, filter)
     }
 
@@ -217,18 +199,13 @@ where
         src: VID,
         dst: VID,
         layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> bool {
         self.base().has_edge_ref(src, dst, layers, filter)
     }
 
     #[inline]
-    fn has_vertex_ref(
-        &self,
-        v: VertexRef,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
-    ) -> bool {
+    fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
         self.base().has_vertex_ref(v, layers, filter)
     }
 
@@ -238,18 +215,13 @@ where
         v: VID,
         d: Direction,
         layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> usize {
         self.base().degree(v, d, layers, filter)
     }
 
     #[inline]
-    fn vertex_ref(
-        &self,
-        v: u64,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
-    ) -> Option<VID> {
+    fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
         self.base().vertex_ref(v, layers, filter)
     }
 
@@ -259,7 +231,7 @@ where
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.base().edge_ref(src, dst, layer, filter)
     }
@@ -268,7 +240,7 @@ where
     fn vertex_refs(
         &self,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID> {
         self.base().vertex_refs(layers, filter)
     }
@@ -277,7 +249,7 @@ where
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         self.base().edge_refs(layers, filter)
     }
@@ -288,7 +260,7 @@ where
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         self.base().vertex_edges(v, d, layer, filter)
     }
@@ -299,7 +271,7 @@ where
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID> {
         self.base().neighbours(v, d, layers, filter)
     }

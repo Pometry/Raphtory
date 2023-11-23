@@ -22,7 +22,7 @@ pub trait LayerOps<'graph> {
 }
 
 impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
-    type LayeredViewType = V::Filtered<LayeredGraph<'graph, V::Graph>>;
+    type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))

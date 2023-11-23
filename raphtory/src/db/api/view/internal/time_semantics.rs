@@ -8,7 +8,10 @@ use crate::{
         Prop,
     },
     db::api::view::{
-        internal::{materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, GraphOps},
+        internal::{
+            materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter,
+            GraphOps,
+        },
         BoxedIter,
     },
 };
@@ -69,7 +72,7 @@ pub trait TimeSemantics: CoreGraphOps {
     ) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool;
+    fn include_edge_window(&self) -> &EdgeWindowFilter;
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -380,8 +383,8 @@ impl<G: DelegateTimeSemantics + CoreGraphOps + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        self.graph().include_edge_window(e, w, layer_ids)
+    fn include_edge_window(&self) -> &EdgeWindowFilter {
+        self.graph().include_edge_window()
     }
 
     #[inline]

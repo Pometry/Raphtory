@@ -64,7 +64,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     EdgeViewInternalOps<'graph, &'graph G, EvalVertexView<'graph, 'a, G, S, &'graph G, CS>>
     for EvalEdgeView<'graph, 'a, G, CS, S>
 {
-    fn graph(&self) -> &'graph G {
+    fn graph(&self) -> &&'graph G {
         self.edge.graph()
     }
 
@@ -84,7 +84,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
-        let ev = EdgeView::new(self.graph(), e);
+        let ev = EdgeView::new(self.edge.graph, e);
         EvalEdgeView::new(
             self.ss,
             ev,

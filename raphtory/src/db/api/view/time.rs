@@ -105,7 +105,7 @@ pub trait TimeOps<'graph> {
 }
 
 impl<'graph, V: OneHopFilter<'graph> + 'graph> TimeOps<'graph> for V {
-    type WindowedViewType = V::Filtered<WindowedGraph<'graph, V::Graph>>;
+    type WindowedViewType = V::Filtered<WindowedGraph<V::Graph>>;
 
     fn start(&self) -> Option<i64> {
         self.current_filter().view_start()

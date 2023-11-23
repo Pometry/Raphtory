@@ -3,9 +3,9 @@ use crate::db::{
     graph::graph::InternalGraph,
 };
 
-impl<'graph> EdgeFilterOps<'graph> for InternalGraph {
+impl EdgeFilterOps for InternalGraph {
     #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>> {
+    fn edge_filter(&self) -> Option<&EdgeFilter> {
         None
     }
 }

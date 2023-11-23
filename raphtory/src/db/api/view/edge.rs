@@ -22,7 +22,7 @@ pub trait EdgeViewInternalOps<
     V: VertexViewOps<'graph, BaseGraph = G, Graph = G>,
 >
 {
-    fn graph(&self) -> G;
+    fn graph(&self) -> &G;
 
     fn eref(&self) -> EdgeRef;
 
@@ -75,11 +75,14 @@ pub trait EdgeViewOps<'graph>:
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
             Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
-            None => self.graph().include_edge_window(
-                &self.graph().core_edge(self.eref().pid()),
-                t..t.saturating_add(1),
-                &layer_ids,
-            ),
+            None => {
+                let window_filter = self.graph().include_edge_window();
+                window_filter(
+                    &self.graph().core_edge(self.eref().pid()),
+                    &layer_ids,
+                    t..t.saturating_add(1),
+                )
+            }
         }
     }
 

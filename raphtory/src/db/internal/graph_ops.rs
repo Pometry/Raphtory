@@ -28,7 +28,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         let filter = filter.cloned();
         match layers {
@@ -66,7 +66,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         let entry = self.inner().storage.nodes.entry_arc(v.into());
         match d {
@@ -172,7 +172,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID> {
         let iter = self.vertex_edges(v, d, layers, filter).map(|e| e.remote());
         if matches!(d, Direction::BOTH) {
@@ -200,7 +200,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         let e_id_usize: usize = e_id.into();
         if e_id_usize >= self.inner().storage.edges.len() {
@@ -213,15 +213,15 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
             .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
     }
 
-    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
         self.inner().internal_num_vertices()
     }
 
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.inner().num_edges(&layers, filter)
     }
 
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         todo!()
     }
 
@@ -231,7 +231,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         v: VID,
         d: Direction,
         layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> usize {
         self.inner().degree(v, d, layers, filter)
     }
@@ -241,7 +241,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.inner()
             .find_edge(src, dst, layer)

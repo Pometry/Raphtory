@@ -54,18 +54,11 @@ pub enum MaterializedGraph {
     PersistentGraph(GraphWithDeletions),
 }
 
-impl<'graph> EdgeFilterOps<'graph> for MaterializedGraph {
-    fn edge_filter(&self) -> Option<&EdgeFilter<'graph>> {
+impl EdgeFilterOps for MaterializedGraph {
+    fn edge_filter(&self) -> Option<&EdgeFilter> {
         match self {
             MaterializedGraph::EventGraph(g) => g.edge_filter(),
             MaterializedGraph::PersistentGraph(g) => g.edge_filter(),
-        }
-    }
-
-    fn edge_filter_window(&self) -> Option<&EdgeFilter<'graph>> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_filter_window(),
-            MaterializedGraph::PersistentGraph(g) => g.edge_filter_window(),
         }
     }
 }
@@ -75,7 +68,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         &self,
         v: VertexRef,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         todo!()
     }
@@ -84,20 +77,20 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         &self,
         e_id: EID,
         layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         todo!()
     }
 
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         todo!()
     }
 
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         todo!()
     }
 
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter<'graph>>) -> usize {
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         todo!()
     }
 
@@ -106,7 +99,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         v: VID,
         d: Direction,
         layers: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> usize {
         todo!()
     }
@@ -116,7 +109,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         src: VID,
         dst: VID,
         layer: &LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         todo!()
     }
@@ -124,7 +117,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
     fn vertex_refs(
         &self,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID> {
         match self {
             MaterializedGraph::EventGraph(g) => g.vertex_refs(layers, filter),
@@ -135,7 +128,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
     fn edge_refs(
         &self,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         match self {
             MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
@@ -148,7 +141,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         v: VID,
         d: Direction,
         layer: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         match self {
             MaterializedGraph::EventGraph(g) => g.vertex_edges(v, d, layer, filter),
@@ -161,7 +154,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         v: VID,
         d: Direction,
         layers: LayerIds,
-        filter: Option<&EdgeFilter<'graph>>,
+        filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID> {
         match self {
             MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),

@@ -84,8 +84,8 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq for EdgeView<G> {
 impl<'graph, G: GraphViewOps<'graph>> EdgeViewInternalOps<'graph, G, VertexView<G, G>>
     for EdgeView<G>
 {
-    fn graph(&self) -> G {
-        self.graph.clone()
+    fn graph(&self) -> &G {
+        &self.graph
     }
 
     fn eref(&self) -> EdgeRef {
@@ -93,12 +93,12 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeViewInternalOps<'graph, G, VertexView<
     }
 
     fn new_vertex(&self, v: VID) -> VertexView<G, G> {
-        VertexView::new_internal(self.graph(), v)
+        VertexView::new_internal(self.graph().clone(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
         Self {
-            graph: self.graph(),
+            graph: self.graph().clone(),
             edge: e,
         }
     }
@@ -424,16 +424,12 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeListOps<'graph> for BoxedLIter<'graph,
         Box::new(self.map(|e| e.end_date_time()))
     }
 
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<'graph, G>>> {
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
         let new_time = time.into_time();
         Box::new(self.map(move |e| e.at(new_time)))
     }
 
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<EdgeView<WindowedGraph<'graph, G>>> {
+    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
@@ -524,16 +520,12 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeListOps<'graph>
         Box::new(self.map(|it| it.date_time()))
     }
 
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<'graph, G>>> {
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
         let new_time = time.into_time();
         Box::new(self.map(move |e| e.at(new_time)))
     }
 
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<EdgeView<WindowedGraph<'graph, G>>> {
+    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))

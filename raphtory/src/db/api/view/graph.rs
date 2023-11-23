@@ -48,7 +48,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
-    ) -> VertexSubgraph<'graph, Self>;
+    ) -> VertexSubgraph<Self>;
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
@@ -161,7 +161,7 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
     fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
         &self,
         vertices: I,
-    ) -> VertexSubgraph<'graph, G> {
+    ) -> VertexSubgraph<G> {
         let filter = self.edge_filter();
         let layer_ids = self.layer_ids();
         let vertices: FxHashSet<VID> = vertices

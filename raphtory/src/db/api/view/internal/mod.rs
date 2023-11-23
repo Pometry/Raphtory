@@ -61,8 +61,8 @@ impl<
 {
 }
 
-impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps<'graph>>
-    BoxableGraphView<'graph> for G
+impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps> BoxableGraphView<'graph>
+    for G
 {
 }
 
