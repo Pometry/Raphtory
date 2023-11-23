@@ -3,18 +3,18 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{EdgeViewOps, GraphViewBase, LayerOps, VertexViewOps},
+    prelude::{EdgeViewOps, LayerOps, VertexViewOps},
     vectors::{graph_entity::GraphEntity, splitting::split_text_by_line_breaks, DocumentInput},
 };
 use itertools::Itertools;
 use std::{convert::identity, sync::Arc};
 
-pub trait DocumentTemplate<G: GraphViewBase>: Send + Sync {
+pub trait DocumentTemplate<G: StaticGraphViewOps>: Send + Sync {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
     fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
 }
 
-impl<G: GraphViewBase> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
+impl<G: StaticGraphViewOps> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         self.as_ref().node(vertex)
     }

@@ -10,7 +10,7 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    fn run(&self, vv: &mut EvalVertexView<&G, S, &G, CS>) -> Step;
+    fn run<'a>(&'a self, vv: &'a mut EvalVertexView<&'a G, S, &'a G, CS>) -> Step;
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,40 +19,40 @@ pub enum Step {
     Continue,
 }
 
-pub struct ATask<'a, G, CS, S: 'static, F>
+pub struct ATask<G, CS, S: 'static, F>
 where
     G: StaticGraphViewOps,
-    CS: ComputeState + 'a,
-    F: Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    CS: ComputeState,
+    F: for<'a> Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
     f: F,
-    _g: PhantomData<&'a G>,
+    _g: PhantomData<G>,
     _cs: PhantomData<CS>,
     _s: PhantomData<S>,
 }
 
 // determines if the task is executed for all vertices or only for updated vertices (vertices that had a state change since last sync)
-pub enum Job<G, CS: ComputeState, S> {
-    Read(Box<dyn Task<G, CS, S> + Sync + Send>),
-    Write(Box<dyn Task<G, CS, S> + Sync + Send>),
-    Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'static>),
+pub enum Job<'a, G, CS: ComputeState, S> {
+    Read(Box<dyn Task<G, CS, S> + Sync + Send + 'a>),
+    Write(Box<dyn Task<G, CS, S> + Sync + Send + 'a>),
+    Check(Box<dyn Fn(&GlobalState<CS>) -> Step + Send + Sync + 'a>),
 }
 
-impl<G: StaticGraphViewOps, CS: ComputeState, S> Job<G, CS, S> {
-    pub fn new<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
+impl<'a, G: StaticGraphViewOps, CS: ComputeState, S> Job<'a, G, CS, S> {
+    pub fn new<T: Task<G, CS, S> + Send + Sync + 'a>(t: T) -> Self {
         Self::Write(Box::new(t))
     }
 
-    pub fn read_only<T: Task<G, CS, S> + Send + Sync + 'static>(t: T) -> Self {
+    pub fn read_only<T: Task<G, CS, S> + Send + Sync + 'a>(t: T) -> Self {
         Self::Read(Box::new(t))
     }
 }
 
-impl<'a, G, CS, S, F> ATask<'a, G, CS, S, F>
+impl<G, CS, S, F> ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: Fn(&mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    F: for<'a> Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
@@ -64,13 +64,13 @@ where
     }
 }
 
-impl<'a, G, CS, S, F> Task<G, CS, S> for ATask<'a, G, CS, S, F>
+impl<G, CS, S, F> Task<G, CS, S> for ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
+    F: for<'a> Fn(&'a mut EvalVertexView<'a, &'a G, S, &'a G, CS>) -> Step,
 {
-    fn run(&self, vv: &mut EvalVertexView<&G, S, &G, CS>) -> Step {
+    fn run<'a>(&self, vv: &mut EvalVertexView<&'a G, S, &'a G, CS>) -> Step {
         (self.f)(vv)
     }
 }

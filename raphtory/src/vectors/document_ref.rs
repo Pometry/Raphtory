@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    prelude::{GraphViewBase, Layer, VertexViewOps},
+    prelude::{Layer, VertexViewOps},
     vectors::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },
@@ -54,7 +54,7 @@ impl DocumentRef {
     // TODO: review -> does window really need to be an Option
     pub fn exists_on_window<G>(&self, graph: &G, window: Option<(i64, i64)>) -> bool
     where
-        G: GraphViewBase,
+        G: StaticGraphViewOps,
     {
         match self.life {
             Lifespan::Event { time } => {
@@ -76,7 +76,7 @@ impl DocumentRef {
         }
     }
 
-    fn entity_exists_in_graph<G: GraphViewBase>(&self, graph: &G) -> bool {
+    fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: &G) -> bool {
         match self.entity_id {
             EntityId::Node { id } => graph.has_vertex(id),
             EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),

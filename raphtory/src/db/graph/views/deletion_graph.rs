@@ -195,7 +195,7 @@ impl GraphWithDeletions {
     }
 }
 
-impl<G: for<'graph> GraphViewOps<'graph>> PartialEq<G> for GraphWithDeletions {
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for GraphWithDeletions {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
     }

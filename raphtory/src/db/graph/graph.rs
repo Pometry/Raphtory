@@ -41,9 +41,9 @@ pub struct Graph(pub Arc<InternalGraph>);
 
 impl Static for Graph {}
 
-pub fn graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
-    g1: &'graph G1,
-    g2: &'graph G2,
+pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
+    g1: &G1,
+    g2: &G2,
 ) -> bool {
     if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
@@ -71,7 +71,10 @@ impl From<InternalGraph> for Graph {
     }
 }
 
-impl<G: for<'graph> GraphViewOps<'graph>> PartialEq<G> for Graph {
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
+where
+    Self: 'graph,
+{
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
     }
@@ -158,8 +161,8 @@ mod db_tests {
         },
         db::{
             api::view::{
-                EdgeListOps, EdgeViewOps, GraphViewBase, Layer, LayerOps, StaticGraphViewOps,
-                TimeOps, VertexViewOps,
+                EdgeListOps, EdgeViewOps, Layer, LayerOps, StaticGraphViewOps, TimeOps,
+                VertexViewOps,
             },
             graph::{edge::EdgeView, path::PathFromVertex},
         },

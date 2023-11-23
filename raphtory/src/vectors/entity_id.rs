@@ -3,7 +3,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{EdgeViewOps, GraphViewBase, VertexViewOps},
+    prelude::{EdgeViewOps, VertexViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::{

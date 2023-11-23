@@ -234,8 +234,8 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphOps, GraphOpsBase, InternalLayerOps,
-            InternalMaterialize, MaterializedGraph, TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, InternalMaterialize,
+            MaterializedGraph, TimeSemantics,
         },
         prelude::*,
     };

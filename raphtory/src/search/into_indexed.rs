@@ -1,12 +1,16 @@
 use crate::{
     db::{
-        api::view::{internal::IntoDynamic, StaticGraphViewOps},
+        api::view::{
+            internal::{DynamicGraph, IntoDynamic},
+            StaticGraphViewOps,
+        },
         graph::views::window_graph::WindowedGraph,
     },
+    prelude::TimeOps,
     search::IndexedGraph,
 };
 
-impl<G: StaticGraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
+impl<G: StaticGraphViewOps + IntoDynamic> WindowedGraph<'static, IndexedGraph<G>> {
     pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
             graph: self.graph.graph.window(self.start, self.end).into_dynamic(),

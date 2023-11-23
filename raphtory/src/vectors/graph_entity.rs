@@ -3,7 +3,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::{GraphViewBase, VertexViewOps},
+    prelude::VertexViewOps,
 };
 use itertools::{chain, Itertools};
 use std::{collections::HashSet, fmt::Display};
@@ -89,7 +89,7 @@ impl<G: StaticGraphViewOps> GraphEntity for VertexView<G> {
     }
 }
 
-impl<G: GraphViewBase> GraphEntity for EdgeView<G> {
+impl<G: StaticGraphViewOps> GraphEntity for EdgeView<G> {
     // FIXME: implement this and remove underscore prefix from the parameter names
     fn generate_property_list<F, D>(
         &self,

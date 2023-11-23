@@ -55,7 +55,7 @@ impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewBase> InheritViewOps for IndexedGraph<G> {}
+impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -724,7 +724,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewBase + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()

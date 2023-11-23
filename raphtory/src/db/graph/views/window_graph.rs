@@ -47,17 +47,21 @@ use crate::{
         utils::time::IntoTime,
         ArcStr, Direction, Prop,
     },
-    db::api::{
-        properties::internal::{
-            InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-        },
-        view::{
-            internal::{
-                Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritLayerOps, InheritMaterialize, IntoDynamic, Static, TimeSemantics,
+    db::{
+        api::{
+            properties::internal::{
+                InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            BoxedIter, BoxedLIter, StaticGraphViewOps,
+            view::{
+                internal::{
+                    Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable,
+                    InheritCoreOps, InheritLayerOps, InheritMaterialize, IntoDynamic, Static,
+                    TimeSemantics,
+                },
+                BoxedIter, BoxedLIter, StaticGraphViewOps,
+            },
         },
+        graph::graph::graph_equal,
     },
     prelude::{GraphViewOps, TimeOps},
 };
@@ -89,6 +93,14 @@ impl<'graph, G: Debug + 'graph> Debug for WindowedGraph<'graph, G> {
             "WindowedGraph({:?}, {}..{})",
             self.graph, self.start, self.end
         )
+    }
+}
+
+impl<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>> PartialEq<G2>
+    for WindowedGraph<'graph1, G1>
+{
+    fn eq(&self, other: &G2) -> bool {
+        graph_equal(self, other)
     }
 }
 
@@ -1117,5 +1129,16 @@ mod views_test {
         let expected = wg.vertices().id().collect::<Vec<_>>();
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_reference() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut w = WindowedGraph::new(&g, 0, 1);
+        assert_eq!(w, g);
+        w = WindowedGraph::new(&g, 1, 2);
+        assert_eq!(w, Graph::new());
     }
 }

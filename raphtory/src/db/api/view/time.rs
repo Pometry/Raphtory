@@ -223,7 +223,7 @@ mod time_tests {
         db::{
             api::{
                 mutation::AdditionOps,
-                view::{time::WindowSet, GraphViewBase, TimeOps},
+                view::{time::WindowSet, TimeOps},
             },
             graph::graph::Graph,
         },
