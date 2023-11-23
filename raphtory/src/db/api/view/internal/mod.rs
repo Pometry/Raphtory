@@ -46,10 +46,7 @@ pub trait BoxableGraphBase:
 }
 
 /// Marker trait to indicate that an object is a valid graph view
-pub trait BoxableGraphView<'graph>:
-    BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps<'graph>
-{
-}
+pub trait BoxableGraphView<'graph>: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps {}
 
 impl<
         G: CoreGraphOps

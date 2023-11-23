@@ -25,7 +25,7 @@ pub struct LayeredGraph<'graph, G> {
     /// The layer this graphs points to.
     pub layers: LayerIds,
 
-    edge_filter: EdgeFilter<'graph>,
+    edge_filter: EdgeFilter,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for LayeredGraph<'graph, G> {}
