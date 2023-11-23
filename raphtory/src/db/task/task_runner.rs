@@ -21,6 +21,7 @@ use crate::{
 use rayon::{prelude::*, ThreadPool};
 use std::{
     borrow::Cow,
+    ops::Deref,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
 };
@@ -44,7 +45,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         (shard, global)
     }
 
-    fn run_task_v2<S: 'static>(
+    fn run_task_v2<'a, S: 'static>(
         &self,
         shard_state: &Shard<CS>,
         global_state: &Global<CS>,
@@ -53,7 +54,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         atomic_done: &AtomicBool,
         morcel_size: usize,
         morcel_id: usize,
-        task: &Box<dyn Task<G, CS, S> + Send + Sync>,
+        task: &'a Box<dyn Task<G, CS, S> + Send + Sync>,
     ) -> (Shard<CS>, Global<CS>) {
         // the view for this task of the global state
         let shard_state_view = shard_state.as_cow();
