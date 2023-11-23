@@ -520,24 +520,24 @@ fn binary_search_join_par<'a>(
 }
 
 fn binary_search_join_par_small_2<'a>(
-    iter: impl ParallelIterator<Item = (Time, Time)>,
-    edges: &'a Vec<(i32, i32, u32)>,
+    login_events: impl ParallelIterator<Item = (Time, Time)>,
+    prog1_nft_events: &'a Vec<(i32, i32, u32)>,
     a: &VID,
     count: &'a AtomicUsize,
 ) {
-    let c = iter
+    let c = login_events
         .filter(|(login1_event_id, _)| login1_event_id == &4624)
         .filter_map(|(_, login1_t)| {
             let login1_t_small: i32 = login1_t as i32;
 
-            let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
+            let pos = prog1_nft_events.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
 
             let from = match pos {
                 Ok(i) => {
                     Some(i + 1) // this one is smaller than all the prog_t
                 }
                 Err(i) => {
-                    if i >= edges.len() {
+                    if i >= prog1_nft_events.len() {
                         None
                     } else {
                         Some(i)
@@ -547,7 +547,7 @@ fn binary_search_join_par_small_2<'a>(
             from.map(|from| (from, login1_t_small))
         })
         .flat_map_iter(|(from, login1_t_small)| {
-            (&edges[from..]).iter().filter(move |(prog1_t, nft_t, e)| {
+            (&prog1_nft_events[from..]).iter().filter(move |(prog1_t, nft_t, e)| {
                 let e_vid = VID(*e as usize);
                 nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid
             })

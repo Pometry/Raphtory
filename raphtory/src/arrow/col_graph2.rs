@@ -371,7 +371,7 @@ impl TempColGraphFragment {
         &self,
         vertex_id: VID,
         dir: Direction,
-    ) -> Option<impl ParallelIterator<Item = (EID, VID)> + '_> {
+    ) -> Option<impl IndexedParallelIterator<Item = (EID, VID)> + '_> {
         let (v_slice, edge_slice) = match dir {
             Direction::OUT => {
                 let out_slice = self.out_slice(vertex_id)?;
