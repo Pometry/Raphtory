@@ -41,7 +41,7 @@ use std::{
 extern crate core;
 
 pub mod entities;
-// pub mod state;
+pub mod state;
 pub(crate) mod storage;
 pub mod utils;
 
