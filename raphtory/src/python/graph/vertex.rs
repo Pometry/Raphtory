@@ -56,8 +56,8 @@ pub struct PyVertex {
     vertex: VertexView<DynamicGraph, DynamicGraph>,
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic> From<VertexView<G, GH>>
-    for PyVertex
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<VertexView<G, GH>> for PyVertex
 {
     fn from(value: VertexView<G, GH>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
@@ -365,8 +365,8 @@ impl From<VertexView<MaterializedGraph, MaterializedGraph>> for PyMutableVertex 
     }
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic + Immutable> IntoPy<PyObject>
-    for VertexView<G, GH>
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Immutable>
+    IntoPy<PyObject> for VertexView<G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyVertex::from(self).into_py(py)
@@ -468,8 +468,8 @@ pub struct PyVertices {
     pub(crate) vertices: Vertices<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic> From<Vertices<'static, G, GH>>
-    for PyVertices
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<Vertices<'static, G, GH>> for PyVertices
 {
     fn from(value: Vertices<'static, G, GH>) -> Self {
         let graph = value.graph.into_dynamic();
@@ -480,7 +480,7 @@ impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic> From<Verti
     }
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic> IntoPy<PyObject>
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for Vertices<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -641,7 +641,10 @@ impl PyVertices {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<Vertices<DynamicGraph, LayeredGraph<DynamicGraph>>> {
+    pub fn layer(
+        &self,
+        name: &str,
+    ) -> Option<Vertices<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.vertices.layer(name)
     }
 
@@ -812,7 +815,7 @@ impl Repr for PyPathFromGraph {
     }
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic>
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<PathFromGraph<'static, G, GH>> for PyPathFromGraph
 {
     fn from(value: PathFromGraph<'static, G, GH>) -> Self {
@@ -826,7 +829,7 @@ impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic>
     }
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic> IntoPy<PyObject>
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for PathFromGraph<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -839,7 +842,7 @@ pub struct PyPathFromVertex {
     path: PathFromVertex<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic>
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<PathFromVertex<'static, G, GH>> for PyPathFromVertex
 {
     fn from(value: PathFromVertex<'static, G, GH>) -> Self {
@@ -854,7 +857,7 @@ impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic>
     }
 }
 
-impl<G: GraphViewBase + IntoDynamic, GH: GraphViewBase + IntoDynamic> IntoPy<PyObject>
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for PathFromVertex<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {

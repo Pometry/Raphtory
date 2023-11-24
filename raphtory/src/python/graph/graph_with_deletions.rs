@@ -14,7 +14,7 @@ use crate::{
         },
         graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
     },
-    prelude::{DeletionOps, GraphViewBase},
+    prelude::{DeletionOps, GraphViewOps},
     python::{
         graph::views::graph_view::PyGraphView,
         utils::{PyInputVertex, PyTime},

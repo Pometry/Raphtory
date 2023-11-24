@@ -170,7 +170,7 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
     }
 
     /// Returns the time index of this window set
-    pub fn time_index(&self, center: bool) -> TimeIndex<T> {
+    pub fn time_index(&self, center: bool) -> TimeIndex<'graph, T> {
         TimeIndex {
             windowset: self.clone(),
             center,

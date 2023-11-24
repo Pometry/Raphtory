@@ -17,7 +17,7 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
-                BoxedIter, WindowSet,
+                BoxedIter, StaticGraphViewOps, WindowSet,
             },
         },
         graph::{
@@ -68,7 +68,7 @@ pub struct PyMutableEdge {
     edge: EdgeView<MaterializedGraph>,
 }
 
-impl<G: GraphViewBase + IntoDynamic> From<EdgeView<G>> for PyEdge {
+impl<G: StaticGraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     fn from(value: EdgeView<G>) -> Self {
         Self {
             edge: EdgeView {
@@ -79,7 +79,7 @@ impl<G: GraphViewBase + IntoDynamic> From<EdgeView<G>> for PyEdge {
     }
 }
 
-impl<G: GraphViewBase + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<DynamicGraph> {
+impl<G: StaticGraphViewOps + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<DynamicGraph> {
     fn from(value: EdgeView<G>) -> Self {
         EdgeView {
             graph: value.graph.into_dynamic(),
@@ -88,7 +88,7 @@ impl<G: GraphViewBase + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<Dyn
     }
 }
 
-impl<G: Into<MaterializedGraph> + GraphViewBase> From<EdgeView<G>> for PyMutableEdge {
+impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G>> for PyMutableEdge {
     fn from(value: EdgeView<G>) -> Self {
         let edge = EdgeView {
             edge: value.edge,
@@ -99,7 +99,7 @@ impl<G: Into<MaterializedGraph> + GraphViewBase> From<EdgeView<G>> for PyMutable
     }
 }
 
-impl<G: GraphViewBase + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
+impl<G: StaticGraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
         py_version.into_py(py)
