@@ -2,6 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
+        storage::timeindex::TimeIndexEntry,
         utils::time::IntoTime,
         ArcStr, Prop,
     },
@@ -20,21 +21,28 @@ use crate::{
         },
     },
 };
+use chrono::NaiveDateTime;
 use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
 
-pub struct EvalEdgeView<'graph, 'a, G, CS: Clone, S> {
+pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
     ss: usize,
-    edge: EdgeView<&'graph G>,
+    edge: EdgeView<&'graph G, GH>,
     vertex_state: Rc<RefCell<EVState<'a, CS>>>,
     local_state_prev: &'graph Local2<'a, S>,
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
-    EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
     pub(crate) fn new(
         ss: usize,
-        edge: EdgeView<&'graph G>,
+        edge: EdgeView<&'graph G, GH>,
         vertex_state: Rc<RefCell<EVState<'a, CS>>>,
         local_state_prev: &'graph Local2<'a, S>,
     ) -> Self {
@@ -46,7 +54,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
         }
     }
 
-    pub(crate) fn new_edge(&self, edge: EdgeView<&'graph G>) -> Self {
+    pub(crate) fn new_edge(&self, edge: EdgeView<&'graph G, GH>) -> Self {
         Self::new(
             self.ss,
             edge,
@@ -60,11 +68,21 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
-    EdgeViewInternalOps<'graph, &'graph G, EvalVertexView<'graph, 'a, G, S, &'graph G, CS>>
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > EdgeViewInternalOps<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
-    fn graph(&self) -> &&'graph G {
+    type BaseGraph = &'graph G;
+    type Graph = GH;
+    type EList = Box<dyn Iterator<Item = Self> + 'graph>;
+    type Neighbour = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>;
+
+    fn graph(&self) -> &GH {
         self.edge.graph()
     }
 
@@ -73,10 +91,10 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     }
 
     fn new_vertex(&self, v: VID) -> EvalVertexView<'graph, 'a, G, S, &'graph G, CS> {
-        EvalVertexView::new_local(
+        let vertex = self.edge.new_vertex(v);
+        EvalVertexView::new_from_vertex(
             self.ss,
-            v,
-            self.graph(),
+            vertex,
             None,
             self.local_state_prev,
             self.vertex_state.clone(),
@@ -84,7 +102,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
-        let ev = EdgeView::new(self.edge.graph, e);
+        let ev = self.edge.new_edge(e);
         EvalEdgeView::new(
             self.ss,
             ev,
@@ -92,10 +110,30 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
             self.local_state_prev,
         )
     }
+
+    fn internal_explode(&self) -> Self::EList {
+        let base_edge = self.clone();
+        Box::new(self.edge.explode().map(move |e| base_edge.new_edge(e)))
+    }
+
+    fn internal_explode_layers(&self) -> Self::EList {
+        let base_edge = self.clone();
+        Box::new(
+            self.edge
+                .explode_layers()
+                .map(move |e| base_edge.new_edge(e)),
+        )
+    }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> ConstPropertiesOps
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > ConstPropertiesOps for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.edge.get_const_prop_id(name)
@@ -114,8 +152,14 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Cons
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Clone
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > Clone for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
     fn clone(&self) -> Self {
         Self {
@@ -127,8 +171,14 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Clon
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> TemporalPropertyViewOps
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > TemporalPropertyViewOps for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.edge.temporal_history(id)
@@ -139,8 +189,14 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Temp
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> TemporalPropertiesOps
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > TemporalPropertiesOps for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.edge.get_temporal_prop_id(name)
@@ -155,19 +211,26 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Temp
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> OneHopFilter<'graph>
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > OneHopFilter<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
-    type Graph = &'graph G;
-    type Filtered<GH: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, G, CS, S>;
+    type Graph = GH;
+    type Filtered<GHH: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, G, GHH, CS, S>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.edge.graph
     }
-    fn one_hop_filtered<GH: GraphViewOps<'graph>>(&self, filtered_graph: GH) -> Self::Filtered<GH> {
-        // FIXME: needs the hops implemented
-        // let edge = self.edge.one_hop_filtered(filtered_graph);
-        let edge = self.edge.clone();
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        let edge = self.edge.one_hop_filtered(filtered_graph);
         EvalEdgeView::new(
             self.ss,
             edge,
@@ -177,36 +240,19 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> OneH
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> EdgeViewOps<'graph>
-    for EvalEdgeView<'graph, 'a, G, CS, S>
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > EdgeListOps<'graph>
+    for Box<dyn Iterator<Item = EvalEdgeView<'graph, 'a, G, GH, CS, S>> + 'graph>
 {
-    type Graph = &'graph G;
-    type Vertex = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>;
-    type EList = Box<dyn Iterator<Item = Self> + 'graph>;
-
-    fn explode(&self) -> Self::EList {
-        let base_edge = self.clone();
-        Box::new(self.edge.explode().map(move |e| base_edge.new_edge(e)))
-    }
-
-    fn explode_layers(&self) -> Self::EList {
-        let base_edge = self.clone();
-        Box::new(
-            self.edge
-                .explode_layers()
-                .map(move |e| base_edge.new_edge(e)),
-        )
-    }
-}
-
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> EdgeListOps<'graph>
-    for Box<dyn Iterator<Item = EvalEdgeView<'graph, 'a, G, CS, S>> + 'graph>
-{
-    type Graph = &'graph G;
-    type Vertex = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>;
-    type Edge = EvalEdgeView<'graph, 'a, G, CS, S>;
+    type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type ValueType<T> = T;
-    type VList = Box<dyn Iterator<Item = Self::Vertex> + 'graph>;
+    type VList = Box<dyn Iterator<Item = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>> + 'graph>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'graph>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
@@ -281,7 +327,10 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Edge
         Box::new(self.map(|e| e.end_date_time()))
     }
 
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EvalEdgeView<'graph, 'a, G, CS, S>> {
+    fn at<T: IntoTime>(
+        self,
+        time: T,
+    ) -> Self::IterType<EvalEdgeView<'graph, 'a, G, WindowedGraph<GH>, CS, S>> {
         let new_time = time.into_time();
         Box::new(self.map(move |e| e.at(new_time)))
     }
@@ -290,7 +339,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Edge
         self,
         start: T,
         end: T,
-    ) -> Self::IterType<EvalEdgeView<'graph, 'a, G, CS, S>> {
+    ) -> Self::IterType<EvalEdgeView<'graph, 'a, G, WindowedGraph<GH>, CS, S>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
@@ -308,16 +357,17 @@ impl<
     for Box<(dyn Iterator<Item = EvalVertexView<'graph, 'a, G, S, GH, CS>> + 'graph)>
 {
     type Vertex = EvalVertexView<'graph, 'a, G, S, GH, CS>;
-    type Edge = EvalEdgeView<'graph, 'a, G, CS, S>;
+    type Neighbour = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>;
+    type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type IterType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
     type ValueType<T: 'graph> = T;
 
     fn earliest_time(self) -> Self::IterType<Option<i64>> {
-        todo!()
+        Box::new(self.map(|v| v.earliest_time()))
     }
 
     fn latest_time(self) -> Self::IterType<Option<i64>> {
-        todo!()
+        Box::new(self.map(|v| v.latest_time()))
     }
 
     fn window(
@@ -325,64 +375,64 @@ impl<
         start: i64,
         end: i64,
     ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
-        todo!()
+        Box::new(self.map(move |v| v.window(start, end)))
     }
 
     fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
-        todo!()
+        Box::new(self.map(move |v| v.at(end)))
     }
 
     fn id(self) -> Self::IterType<u64> {
-        todo!()
+        Box::new(self.map(|v| v.id()))
     }
 
     fn name(self) -> Self::IterType<String> {
-        todo!()
+        Box::new(self.map(|v| v.name()))
     }
 
     fn properties(
         self,
     ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>> {
-        todo!()
+        Box::new(self.map(|v| v.properties()))
     }
 
     fn history(self) -> Self::IterType<Vec<i64>> {
-        todo!()
+        Box::new(self.map(|v| v.history()))
     }
 
     fn degree(self) -> Self::IterType<usize> {
-        todo!()
+        Box::new(self.map(|v| v.degree()))
     }
 
     fn in_degree(self) -> Self::IterType<usize> {
-        todo!()
+        Box::new(self.map(|v| v.in_degree()))
     }
 
     fn out_degree(self) -> Self::IterType<usize> {
-        todo!()
+        Box::new(self.map(|v| v.out_degree()))
     }
 
     fn edges(self) -> Self::IterType<Self::Edge> {
-        todo!()
+        Box::new(self.flat_map(|v| v.edges()))
     }
 
     fn in_edges(self) -> Self::IterType<Self::Edge> {
-        todo!()
+        Box::new(self.flat_map(|v| v.in_edges()))
     }
 
     fn out_edges(self) -> Self::IterType<Self::Edge> {
-        todo!()
+        Box::new(self.flat_map(|v| v.out_edges()))
     }
 
-    fn neighbours(self) -> Self::IterType<Self::Vertex> {
-        todo!()
+    fn neighbours(self) -> Self::IterType<Self::Neighbour> {
+        Box::new(self.flat_map(|v| v.neighbours()))
     }
 
-    fn in_neighbours(self) -> Self::IterType<Self::Vertex> {
-        todo!()
+    fn in_neighbours(self) -> Self::IterType<Self::Neighbour> {
+        Box::new(self.flat_map(|v| v.in_neighbours()))
     }
 
-    fn out_neighbours(self) -> Self::IterType<Self::Vertex> {
-        todo!()
+    fn out_neighbours(self) -> Self::IterType<Self::Neighbour> {
+        Box::new(self.flat_map(|v| v.out_neighbours()))
     }
 }

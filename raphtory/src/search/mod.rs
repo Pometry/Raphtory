@@ -409,7 +409,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     }
 
     fn index_edge_view<W: Deref<Target = IndexWriter>>(
-        e_ref: EdgeView<G>,
+        e_ref: EdgeView<G, G>,
         schema: &Schema,
         writer: &W,
         time_field: Field,
@@ -567,7 +567,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         &self,
         edge_id: Field,
         doc: Document,
-    ) -> Option<EdgeView<G>> {
+    ) -> Option<EdgeView<G, G>> {
         let edge_id: usize = doc
             .get_first(edge_id)
             .and_then(|value| value.as_u64())?
@@ -634,7 +634,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         q: &str,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
         let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
 

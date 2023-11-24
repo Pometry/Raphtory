@@ -687,7 +687,12 @@ mod db_tests {
         assert_eq!(vertex1.in_degree(), 0);
         assert_eq!(vertex2.in_degree(), 0);
 
-        fn to_tuples<G: StaticGraphViewOps, I: Iterator<Item = EdgeView<G>>>(
+        fn to_tuples<
+            'graph,
+            G: GraphViewOps<'graph>,
+            GH: GraphViewOps<'graph>,
+            I: Iterator<Item = EdgeView<G, GH>>,
+        >(
             edges: I,
         ) -> Vec<(u64, u64)> {
             edges
@@ -720,8 +725,8 @@ mod db_tests {
         assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(vertex2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<'graph, G: GraphViewOps<'graph>>(
-            neighbours: PathFromVertex<'graph, G, G>,
+        fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+            neighbours: PathFromVertex<'graph, G, GH>,
         ) -> Vec<u64> {
             neighbours.iter().map(|n| n.id()).sorted().collect_vec()
         }

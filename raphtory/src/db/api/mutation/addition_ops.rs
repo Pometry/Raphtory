@@ -81,7 +81,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self>, GraphError>;
+    ) -> Result<EdgeView<Self, Self>, GraphError>;
 
     fn add_edge_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
@@ -91,7 +91,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self>, GraphError> {
+    ) -> Result<EdgeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
@@ -121,7 +121,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<G>, GraphError> {
+    ) -> Result<EdgeView<G, G>, GraphError> {
         let ti = TimeIndexEntry::from_input(self, t)?;
         let src_id = self.resolve_vertex(src.id(), src.id_str());
         let dst_id = self.resolve_vertex(dst.id(), dst.id_str());

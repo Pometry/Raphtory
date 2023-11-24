@@ -14,6 +14,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::iter;
 
 impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
@@ -222,7 +223,12 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
     }
 
     fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        todo!()
+        let edges = self.inner().storage.edges.read_lock();
+        edges
+            .par_iter()
+            .filter(|e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
+            .map(|e| e.additions_iter(&layers).map(|ts| ts.len()).sum::<usize>())
+            .sum()
     }
 
     #[inline]

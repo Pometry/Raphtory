@@ -33,7 +33,7 @@ use rustc_hash::FxHashSet;
 ///
 pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send + 'graph>;
+    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph>;
 
     /// Return a View of the vertices in the Graph
     fn vertices(&self) -> Vertices<'graph, Self, Self>;
@@ -79,7 +79,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self, Self>>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
 
     /// Get all property values of this graph.
     ///
@@ -90,7 +90,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
 }
 
 impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send + 'graph> {
+    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph> {
         let layer_ids = self.layer_ids();
         let edge_filter = self.edge_filter();
         let g = self.clone();
@@ -219,7 +219,7 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
             .map(|v| VertexView::new_internal(self.clone(), v))
     }
 
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
+    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
         let layer_ids = self.layer_ids();
         let edge_filter = self.edge_filter();
         if let Some(src) = self.internal_vertex_ref(src.into(), &layer_ids, edge_filter) {

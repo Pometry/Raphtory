@@ -89,7 +89,7 @@ impl<G: StaticGraphViewOps> GraphEntity for VertexView<G> {
     }
 }
 
-impl<G: StaticGraphViewOps> GraphEntity for EdgeView<G> {
+impl<G: StaticGraphViewOps> GraphEntity for EdgeView<G, G> {
     // FIXME: implement this and remove underscore prefix from the parameter names
     fn generate_property_list<F, D>(
         &self,

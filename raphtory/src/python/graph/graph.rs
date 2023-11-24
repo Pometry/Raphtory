@@ -214,7 +214,7 @@ impl PyGraph {
         dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Graph>, GraphError> {
+    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
@@ -241,7 +241,7 @@ impl PyGraph {
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<Graph>> {
+    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<Graph, Graph>> {
         self.graph.edge(src, dst)
     }
 

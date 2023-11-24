@@ -79,8 +79,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
     type ValueType<T: 'graph> = BoxedLIter<'graph, BoxedLIter<'graph, T>>;
     type PropType = VertexView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
-    type Edge = EdgeView<G>;
-    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G>>>;
+    type Edge = EdgeView<G, GH>;
+    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G, GH>>>;
 
     fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Clone + 'graph>(
         &self,
@@ -116,7 +116,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
                 let op = op.clone();
                 it.flat_map(move |vertex| {
                     let base_graph = base_graph.clone();
-                    op(&graph, vertex).map(move |edge| EdgeView::new(base_graph.clone(), edge))
+                    let graph = graph.clone();
+                    op(&graph, vertex).map(move |edge| {
+                        EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge)
+                    })
                 })
                 .into_dyn_boxed()
             })
@@ -251,8 +254,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
     type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
     type PropType = VertexView<GH, GH>;
     type PathType = PathFromVertex<'graph, G, G>;
-    type Edge = EdgeView<G>;
-    type EList = BoxedLIter<'graph, EdgeView<G>>;
+    type Edge = EdgeView<G, GH>;
+    type EList = BoxedLIter<'graph, EdgeView<G, GH>>;
 
     fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + 'graph>(
         &self,
@@ -277,7 +280,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
         let base_graph = self.base_graph.clone();
         Box::new(self.iter_refs().flat_map(move |vertex| {
             let base_graph = base_graph.clone();
-            op(&graph, vertex).map(move |edge| EdgeView::new(base_graph.clone(), edge))
+            let graph = graph.clone();
+            op(&graph, vertex)
+                .map(move |edge| EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge))
         }))
     }
 

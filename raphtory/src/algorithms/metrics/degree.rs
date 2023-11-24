@@ -77,7 +77,14 @@ pub fn min_in_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize
 
 /// The average degree of all vertices in the graph.
 pub fn average_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> f64 {
-    graph.count_edges() as f64 / graph.count_vertices() as f64
+    let (deg_sum, count) = graph
+        .vertices()
+        .degree()
+        .fold((0usize, 0usize), |(deg_sum, count), deg| {
+            (deg_sum + deg, count + 1)
+        });
+
+    deg_sum as f64 / count as f64
 }
 
 #[cfg(test)]

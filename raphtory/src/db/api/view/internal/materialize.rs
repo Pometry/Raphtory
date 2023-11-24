@@ -35,7 +35,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{ops::Deref, path::Path};
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(GraphOpsBase)]
@@ -70,7 +70,10 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.internal_vertex_ref(v, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.internal_vertex_ref(v, layer_ids, filter),
+        }
     }
 
     fn find_edge_id(
@@ -79,19 +82,31 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
+        }
     }
 
     fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.vertices_len(layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.vertices_len(layer_ids, filter),
+        }
     }
 
     fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edges_len(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edges_len(layers, filter),
+        }
     }
 
     fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.temporal_edges_len(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.temporal_edges_len(layers, filter),
+        }
     }
 
     fn degree(
@@ -101,7 +116,10 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> usize {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.degree(v, d, layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.degree(v, d, layers, filter),
+        }
     }
 
     fn edge_ref(
@@ -111,7 +129,10 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         layer: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
-        todo!()
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_ref(src, dst, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edge_ref(src, dst, layer, filter),
+        }
     }
 
     fn vertex_refs(

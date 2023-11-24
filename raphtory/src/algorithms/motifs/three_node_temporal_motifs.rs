@@ -138,7 +138,7 @@ where
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
     // Define a closure for sorting by time_and_index()
-    let _sort_by_time_and_index = |e1: &EdgeView<G>, e2: &EdgeView<G>| -> Ordering {
+    let _sort_by_time_and_index = |e1: &EdgeView<G, GH>, e2: &EdgeView<G, GH>| -> Ordering {
         Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
     };
 
@@ -185,9 +185,9 @@ where
 
     // Define a closure for sorting by time_and_index()
     let _sort_by_time_and_index =
-        |e1: &EdgeView<VertexSubgraph<G>>, e2: &EdgeView<VertexSubgraph<G>>| -> Ordering {
-            Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
-        };
+        |e1: &EdgeView<VertexSubgraph<G>, VertexSubgraph<G>>,
+         e2: &EdgeView<VertexSubgraph<G>, VertexSubgraph<G>>|
+         -> Ordering { Ord::cmp(&e1.time_and_index(), &e2.time_and_index()) };
 
     // Define a closure for sorting by time()
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);

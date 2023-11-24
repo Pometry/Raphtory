@@ -11,14 +11,14 @@ use std::{convert::identity, sync::Arc};
 
 pub trait DocumentTemplate<G: StaticGraphViewOps>: Send + Sync {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
-    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
+    fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>>;
 }
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         self.as_ref().node(vertex)
     }
-    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         self.as_ref().edge(edge)
     }
 }
@@ -36,7 +36,7 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for DefaultTemplate {
         Box::new(text_chunks.into_iter().map(|text| text.into()))
     }
 
-    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let src = edge.src().name();
         let dst = edge.dst().name();
         // TODO: property list

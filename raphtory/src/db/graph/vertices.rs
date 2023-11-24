@@ -92,8 +92,8 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
     type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
     type PropType = VertexView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
-    type Edge = EdgeView<G>;
-    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G>>>;
+    type Edge = EdgeView<G, GH>;
+    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G, GH>>>;
 
     fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,
@@ -119,8 +119,11 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
         self.iter_refs()
             .map(move |v| {
                 let base_graph = base_graph.clone();
+                let graph = graph.clone();
                 op(&graph, v)
-                    .map(move |edge| EdgeView::new(base_graph.clone(), edge))
+                    .map(move |edge| {
+                        EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge)
+                    })
                     .into_dyn_boxed()
             })
             .into_dyn_boxed()

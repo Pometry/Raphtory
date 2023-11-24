@@ -142,7 +142,7 @@ mod vector_tests {
             Box::new(std::iter::once(content.into()))
         }
 
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
@@ -250,7 +250,7 @@ age: 30"###;
                     .map(|text| text.into()),
             )
         }
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }
@@ -302,7 +302,7 @@ age: 30"###;
             };
             Box::new(vec![doc_event_20, doc_interval_30_40].into_iter())
         }
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }

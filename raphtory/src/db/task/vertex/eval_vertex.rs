@@ -28,7 +28,7 @@ use crate::{
     db::{
         api::view::{
             internal::{EdgeFilter, OneHopFilter, TimeSemantics},
-            BaseVertexViewOps, StaticGraphViewOps,
+            BaseVertexViewOps, BoxedLIter, StaticGraphViewOps,
         },
         graph::{
             path::{Operation, PathFromVertex},
@@ -368,7 +368,7 @@ impl<
     type ValueType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
     type PropType = VertexView<GH, GH>;
     type PathType = EvalPathFromVertex<'graph, 'a, G, &'graph G, CS, S>;
-    type Edge = EvalEdgeView<'graph, 'a, G, CS, S>;
+    type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
     fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
@@ -399,11 +399,23 @@ impl<
         )
     }
 
-    fn hop<I: Iterator<Item = VID> + Send, F: for<'b> Fn(&'b Self::Graph, VID) -> I>(
+    fn hop<
+        I: Iterator<Item = VID> + Send + 'graph,
+        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::PathType {
-        todo!()
+        let path = self.path.hop(op);
+        let ss = self.ss;
+        let vertex_state = self.vertex_state.clone();
+        let local_state_prev = self.local_state_prev;
+        EvalPathFromVertex {
+            path,
+            ss,
+            vertex_state,
+            local_state_prev,
+        }
     }
 }
 
@@ -476,41 +488,57 @@ impl<
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
-    type ValueType<T: 'graph> = T;
-    type PropType = VertexView<G, GH>;
+    type ValueType<T>  = T where T: 'graph;
     type PathType = EvalPathFromVertex<'graph, 'a, G, &'graph G, CS, S>;
-    type Edge = EvalEdgeView<'graph, 'a, G, CS, S>;
+    type PropType = VertexView<&'graph G, GH>;
+    type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
-    fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + 'graph>(
+    fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        todo!()
+        self.vertex.map(op)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        todo!()
+        self.vertex.as_props()
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + 'graph,
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::EList {
-        todo!()
+        let ss = self.ss;
+        let local_state_prev = self.local_state_prev;
+        let vertex_state = self.vertex_state.clone();
+        Box::new(
+            self.vertex
+                .map_edges(op)
+                .map(move |e| EvalEdgeView::new(ss, e, vertex_state.clone(), local_state_prev)),
+        )
     }
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + 'graph,
+        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::PathType {
-        todo!()
+        let path = self.vertex.hop(op);
+        let ss = self.ss;
+        let local_state_prev = self.local_state_prev;
+        let vertex_state = self.vertex_state.clone();
+        EvalPathFromVertex {
+            path,
+            local_state_prev,
+            vertex_state,
+            ss,
+        }
     }
 }
 

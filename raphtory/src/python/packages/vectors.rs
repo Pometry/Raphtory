@@ -109,7 +109,7 @@ impl<G: GraphViewOps<'static>> DocumentTemplate<G> for PyDocumentTemplate {
         }
     }
 
-    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
             Some(edge_document) => get_documents_from_prop(edge.properties(), edge_document),
             None => self.default_template.edge(edge),
