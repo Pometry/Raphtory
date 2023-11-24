@@ -314,7 +314,7 @@ impl PyGraphView {
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///   
     /// Returns:
-    ///   A VectorisedGraph with all the documents/embeddings computes and with an initial empty selection
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     #[pyo3(signature = (embedding, cache = None, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,

@@ -54,7 +54,7 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
     ///   * verbose - whether or not to print logs reporting the progress
     ///   
     /// # Returns:
-    ///   A VectorisedGraph with all the documents/embeddings computes and with an initial empty selection
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
