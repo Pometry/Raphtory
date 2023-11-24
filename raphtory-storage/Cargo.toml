@@ -22,6 +22,7 @@ rayon = "1.6"
 thiserror = "1.0.48"
 memmap2 = "0.8.0"
 arrow2 = { path = "../../arrow2", optional = true, features=["io_ipc", "io_parquet", "io_parquet_compression","compute_concatenate", "compute_sort", "compute_merge_sort"] }
+core_affinity = { version = "0.8.1"}
 ahash = "0.8.3"
 tempfile = "3.8.0"
 clap = {version="4.4.6", features = ["derive"]}

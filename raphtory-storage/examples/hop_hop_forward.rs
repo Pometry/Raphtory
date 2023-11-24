@@ -1,4 +1,5 @@
-use ahash::{HashMap, HashSet};
+use ahash::HashSet;
+use core_affinity::CoreId;
 use dashmap::DashMap;
 use itertools::Itertools;
 use raphtory::{
@@ -6,9 +7,8 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, IntoParallelRefMutIterator},
+    iter::IntoParallelIterator,
     prelude::{IntoParallelRefIterator, ParallelIterator},
-    slice::ParallelSlice,
     ThreadPoolBuilder,
 };
 use std::{
@@ -52,7 +52,20 @@ fn query1_v7(
     event_id_prop_id_1v: usize,
     event_id_prop_id_2v: usize,
 ) -> usize {
+    let num_threads = std::thread::available_parallelism().unwrap().get() - 1;
+    println!("num_threads: {:?}", num_threads);
     let pool = ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        // .spawn_handler(move |thread| {
+        //     std::thread::spawn(move || {
+        //         let core_id = CoreId {
+        //             id: thread.index() % num_threads,
+        //         };
+        //         let res = core_affinity::set_for_current(core_id);
+        //         thread.run()
+        //     });
+        //     Ok(())
+        // })
         .build()
         .expect("failed to build pool");
 
@@ -98,8 +111,7 @@ fn query1_v7(
 
         let count = AtomicUsize::new(0);
         let vs = b_login1_filter.iter().copied().collect_vec();
-        let probe_map: Arc<DashMap<VID, Vec<(i64, i64, VID)>>> =
-            Arc::new(DashMap::default());
+        let probe_map: Arc<DashMap<VID, Vec<(i64, i64, VID)>>> = Arc::new(DashMap::default());
 
         let now = Instant::now();
         pool.install(|| {
@@ -126,10 +138,12 @@ fn query1_v7(
                                                 {
                                                     probe_map
                                                         .entry(b)
-                                                        .and_modify(| v| {
+                                                        .and_modify(|v| {
                                                             v.push((*prog1_t, *nf1_t - 30, e));
                                                         })
-                                                        .or_insert_with(|| { vec![(*prog1_t, *nf1_t - 30, e)] });
+                                                        .or_insert_with(|| {
+                                                            vec![(*prog1_t, *nf1_t - 30, e)]
+                                                        });
                                                 }
                                             });
                                     });
@@ -178,7 +192,6 @@ fn query1_v7(
                             }
 
                             if !skip {
-
                                 let iter = login1
                                     .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
                                     .unwrap();

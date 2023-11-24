@@ -100,7 +100,7 @@ search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
-arrow = ["dep:arrow2", "dep:heed", "dep:memmap2", "dep:ahash", "dep:tempfile", 
+arrow = ["dep:arrow2", "dep:heed", "dep:memmap2", "dep:ahash", "dep:tempfile",
     "arrow2?/parallel_iter",
     "arrow2?/io_ipc",
     "arrow2?/io_parquet",
