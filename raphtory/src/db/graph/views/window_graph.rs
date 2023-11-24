@@ -439,7 +439,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
 }
 
-impl<'base: 'graph, 'graph, G: GraphViewOps<'base>> GraphOps<'graph> for WindowedGraph<G> {
+impl<'graph, 'base: 'graph, G: GraphViewOps<'base>> GraphOps<'graph> for WindowedGraph<G> {
     /// Get an iterator over the references of all vertices as references
     ///
     /// Returns:
@@ -730,7 +730,10 @@ impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
 mod views_test {
 
     use super::*;
-    use crate::{db::api::view::Layer, prelude::*};
+    use crate::{
+        algorithms::centrality::degree_centrality::degree_centrality, db::api::view::Layer,
+        prelude::*,
+    };
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
@@ -1122,10 +1125,20 @@ mod views_test {
     fn test_reference() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-
         let mut w = WindowedGraph::new(&g, 0, 1);
         assert_eq!(w, g);
         w = WindowedGraph::new(&g, 1, 2);
+
         assert_eq!(w, Graph::new());
+    }
+
+    #[test]
+    fn test_algorithm_on_windowed_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let w = WindowedGraph::new(g, 0, 1);
+
+        let res = degree_centrality(&w, None);
+        println!("{:?}", res)
     }
 }
