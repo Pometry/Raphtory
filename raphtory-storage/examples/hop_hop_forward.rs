@@ -30,7 +30,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let event_id_prop_id_1v = g.edge_property_id("event_id", events_1v)?;
 
-    let res = query1_v5(
+    let res = query1_v7(
         g,
         nft,
         events_2v,
@@ -43,7 +43,178 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     Some(res)
 }
 
-fn query1_v5(
+fn query1_v7(
+    g: &TemporalGraph,
+    nft: usize,
+    events_2v: usize,
+    events_1v: usize,
+    bytes_prop_id: usize,
+    event_id_prop_id_1v: usize,
+    event_id_prop_id_2v: usize,
+) -> usize {
+    let pool = ThreadPoolBuilder::new()
+        .build()
+        .expect("failed to build pool");
+
+    let count = pool.install(|| {
+        let now = Instant::now();
+
+        let b_prog1_filter: HashSet<VID> = {
+            g.all_edges_par(events_1v)
+                .filter(|edge| {
+                    edge.par_prop_items::<i64>(event_id_prop_id_1v)
+                        .unwrap()
+                        .any(|(_, event_id)| event_id == Some(4688))
+                })
+                .map(|e| e.dst())
+                .collect()
+        };
+
+        println!(
+            "b_prog1_filter: {:?}, count: {}",
+            now.elapsed(),
+            b_prog1_filter.len()
+        );
+
+        let now = Instant::now();
+        let b_login1_filter: HashSet<VID> = {
+            g.all_edges_par(events_2v)
+                .filter(|edge| b_prog1_filter.contains(&edge.dst()))
+                .filter(|edge| {
+                    edge.par_prop_items::<i64>(event_id_prop_id_2v)
+                        .unwrap()
+                        .any(|(_, event_id)| event_id == Some(4624))
+                })
+                .map(|e| e.dst())
+                .collect()
+        };
+        println!(
+            "b_login1_filter: {:?}, count: {}",
+            now.elapsed(),
+            b_login1_filter.len()
+        );
+
+        // let mut count = 0;
+
+        let count = AtomicUsize::new(0);
+        let vs = b_login1_filter.iter().copied().collect_vec();
+        let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
+
+        let now = Instant::now();
+        pool.install(|| {
+            vs.into_par_iter().for_each(|b| {
+                g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
+                    if e != b {
+                        let nf1 = g.edge(b2e, nft);
+                        nf1.par_prop_items_unchecked::<i64>(bytes_prop_id)
+                            .unwrap()
+                            .filter(|(_, &v)| v > 100_000_000)
+                            .for_each(|(nf1_t, _)| {
+                                g.edges_par(b, Direction::OUT, events_1v)
+                                    .filter(|(_, v)| {
+                                        v == &b
+                                            && b_prog1_filter.contains(v)
+                                    })
+                                    .for_each(|(b2b, _)| {
+                                        let prog1 = g.edge(b2b, events_1v);
+
+                                        prog1
+                                            .par_prop_items_unchecked::<i64>(event_id_prop_id_1v)
+                                            .unwrap()
+                                            .for_each(|(prog1_t, prog1_event_id)| {
+                                                if *prog1_event_id == 4688
+                                                    && prog1_t < nf1_t
+                                                    && nf1_t - prog1_t <= 30
+                                                {
+                                                    let e_small: u32 =
+                                                        Into::<usize>::into(e) as u32;
+                                                    probe_map
+                                                        .entry(b)
+                                                        .and_modify(|v| {
+                                                            v.push((
+                                                                *prog1_t as i32,
+                                                                *nf1_t as i32,
+                                                                e_small,
+                                                            ))
+                                                        })
+                                                        .or_insert_with(|| {
+                                                            vec![(
+                                                                *prog1_t as i32,
+                                                                *nf1_t as i32,
+                                                                e_small,
+                                                            )]
+                                                        });
+                                                }
+                                            });
+                                    });
+                            });
+                    }
+                });
+            });
+        });
+
+        println!("Done probe map build: {:?}", now.elapsed());
+
+        let now = Instant::now();
+
+        probe_map.iter_mut().for_each(|mut entry| {
+            entry.value_mut().sort();
+        });
+
+        println!(
+            "Done sorting map len: {:?}, duration: {:?}",
+            probe_map.len(),
+            now.elapsed()
+        );
+
+        let now: Instant = Instant::now();
+
+        pool.install(|| {
+            probe_map.par_iter().for_each(|entry| {
+                let b: VID = *entry.key();
+                let edges = entry.value();
+
+                g.edges_par(b, Direction::IN, events_2v)
+                    .for_each(|(a2b, a)| {
+                        if a != b {
+                            let login1 = g.edge(a2b, events_2v);
+
+                            let probe_value = &edges;
+
+                            let mut skip = false;
+                            if !probe_value.is_empty() {
+                                let max_prog1 = probe_value.last().unwrap().0 as i64;
+
+                                let login1_ts = login1.timestamps();
+
+                                let min_login1 = login1_ts.iter().flatten().next().unwrap();
+                                if min_login1 > max_prog1 {
+                                    skip = true;
+                                }
+                            }
+
+                            if !skip {
+                                let iter = login1
+                                    .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
+                                    .unwrap()
+                                    .map(|(t, v)| (*v, *t));
+
+                                binary_search_join_par_small_2(iter, &edges, &a, &count);
+                            }
+                        }
+                    });
+            })
+        });
+
+        println!("Done 3rd join duration: {:?}", now.elapsed());
+
+        count.load(Ordering::Relaxed)
+    });
+
+    count
+}
+
+fn query1_v6(
     g: &TemporalGraph,
     nft: usize,
     events_2v: usize,
