@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {
-    type LayeredViewType: LayerOps<'graph> + 'graph;
+    type LayeredViewType;
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
@@ -21,7 +21,7 @@ pub trait LayerOps<'graph> {
     fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
 }
 
-impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
+impl<'graph, V: OneHopFilter<'graph> + InternalLayerOps + 'graph> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
@@ -30,7 +30,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
 
     fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
         let layers = layers.into();
-        let ids = self.current_filter().layer_ids_from_names(layers);
+        let ids = self.layer_ids_from_names(layers);
         match ids {
             LayerIds::None => None,
             _ => Some(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))),

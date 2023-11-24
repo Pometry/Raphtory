@@ -6,7 +6,13 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::PropertiesOps, Properties},
+            properties::{
+                internal::{
+                    ConstPropertiesOps, PropertiesOps, TemporalPropertiesOps,
+                    TemporalPropertyViewOps,
+                },
+                Properties,
+            },
             view::{
                 edge::EdgeListOps,
                 internal::{
@@ -20,7 +26,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 
-pub trait BaseVertexViewOps<'graph>: Clone {
+pub trait BaseVertexViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
@@ -58,7 +64,7 @@ pub trait BaseVertexViewOps<'graph>: Clone {
 }
 
 /// Operations defined for a vertex
-pub trait VertexViewOps<'graph>: Clone {
+pub trait VertexViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph

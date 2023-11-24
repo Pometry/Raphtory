@@ -26,7 +26,7 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{OneHopFilter, Static},
+                internal::{InternalLayerOps, OneHopFilter, Static},
                 BoxedIter, BoxedLIter, EdgeViewInternalOps, LayerOps, StaticGraphViewOps,
             },
         },
@@ -69,10 +69,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
             graph,
             edge,
         }
-    }
-
-    pub(crate) fn layer_ids(&self) -> LayerIds {
-        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
 }
 

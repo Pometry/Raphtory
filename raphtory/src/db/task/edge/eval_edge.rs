@@ -12,7 +12,10 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::OneHopFilter, *},
+            view::{
+                internal::{InternalLayerOps, OneHopFilter},
+                *,
+            },
         },
         graph::{edge::EdgeView, views::window_graph::WindowedGraph},
         task::{
@@ -208,6 +211,24 @@ impl<
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
         self.edge.temporal_prop_ids()
+    }
+}
+
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+    > InternalLayerOps for EvalEdgeView<'graph, 'a, G, GH, CS, S>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.edge.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.edge.layer_ids_from_names(key)
     }
 }
 

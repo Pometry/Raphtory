@@ -12,8 +12,4 @@ impl InternalLayerOps for InternalGraph {
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.inner().layer_id(key)
     }
-
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
-        e.layer_ids()
-    }
 }

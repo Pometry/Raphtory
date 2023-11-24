@@ -2,21 +2,30 @@ use chrono::NaiveDateTime;
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::time::IntoTime,
         ArcStr,
     },
-    db::api::{
-        properties::{
-            internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-            Properties,
+    db::{
+        api::{
+            properties::{
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                Properties,
+            },
+            view::{internal::*, *},
         },
-        view::{internal::*, *},
+        graph::edge::EdgeView,
     },
 };
 
-pub trait EdgeViewInternalOps<'graph> {
+pub trait EdgeViewInternalOps<'graph>:
+    ConstPropertiesOps
+    + TemporalPropertiesOps
+    + TemporalPropertyViewOps
+    + TimeOps<'graph>
+    + LayerOps<'graph>
+{
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
 
@@ -42,6 +51,7 @@ pub trait EdgeViewOps<'graph>:
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
     + TimeOps<'graph>
+    + LayerOps<'graph>
     + Sized
     + Clone
 {
@@ -108,6 +118,7 @@ impl<
             + ConstPropertiesOps
             + TemporalPropertiesOps
             + TemporalPropertyViewOps
+            + InternalLayerOps
             + TimeOps<'graph>
             + Sized
             + Clone,
@@ -240,11 +251,25 @@ impl<
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> BoxedIter<ArcStr> {
-        let layer_ids = self
-            .graph()
-            .edge_layer_ids(&self.graph().core_edge(self.eref().pid()))
-            .constrain_from_edge(self.eref());
-        self.graph().get_layer_names_from_ids(layer_ids)
+        self.graph().get_layer_names_from_ids(self.layer_ids())
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for EdgeView<G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph
+            .core_edge(self.edge.pid())
+            .layer_ids()
+            .intersect(&self.graph.layer_ids())
+            .constrain_from_edge(self.edge)
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph
+            .layer_ids_from_names(key)
+            .intersect(&self.layer_ids())
     }
 }
 

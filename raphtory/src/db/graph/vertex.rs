@@ -1,13 +1,16 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex::Vertex},
+    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex::Vertex, LayerIds},
     db::{
         api::view::{
-            internal::{CoreGraphOps, GraphOps, OneHopFilter, TimeSemantics},
+            internal::{CoreGraphOps, GraphOps, InternalLayerOps, OneHopFilter, TimeSemantics},
             BaseVertexViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
         },
-        graph::path::{PathFromGraph, PathFromVertex},
+        graph::{
+            graph::InternalGraph,
+            path::{PathFromGraph, PathFromVertex},
+        },
     },
 };
 use crate::{
@@ -49,6 +52,18 @@ pub struct VertexView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
     pub vertex: VID,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for VertexView<G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
+    }
 }
 
 impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<VertexView<G2, G2H>>

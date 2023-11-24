@@ -1,8 +1,8 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, VID},
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     db::{
         api::view::{
-            internal::{GraphOps, OneHopFilter},
+            internal::{GraphOps, InternalLayerOps, OneHopFilter},
             BaseVertexViewOps, BoxedLIter, IntoDynBoxed,
         },
         graph::path::PathFromGraph,
@@ -81,6 +81,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Vertices<'graph,
             self.graph.clone(),
             vid,
         ))
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for Vertices<'graph, G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 }
 

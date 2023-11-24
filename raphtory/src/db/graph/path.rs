@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
         utils::time::IntoTime,
         Direction,
     },
@@ -8,7 +8,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{extend_filter, Base, OneHopFilter},
+                internal::{extend_filter, Base, InternalLayerOps, OneHopFilter},
                 BaseVertexViewOps, BoxedIter, BoxedLIter, IntoDynBoxed, Layer, LayerOps,
             },
         },
@@ -68,6 +68,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
     pub fn iter_refs(&self) -> impl Iterator<Item = BoxedLIter<'graph, VID>> + Send + 'graph {
         let op = self.op.clone();
         self.base_iter().map(move |vid| op(vid))
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for PathFromGraph<'graph, G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 }
 
@@ -243,6 +255,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromVertex<'
             vertex,
             op,
         }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for PathFromVertex<'graph, G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 }
 

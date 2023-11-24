@@ -114,11 +114,6 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.constrain(self.graph.layer_ids_from_names(key))
     }
-
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
-        let layer_ids = self.graph.edge_layer_ids(e);
-        self.constrain(layer_ids)
-    }
 }
 
 #[cfg(test)]

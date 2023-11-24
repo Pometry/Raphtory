@@ -12,9 +12,6 @@ pub trait InternalLayerOps {
 
     /// Get the layer id for the given layer name
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds;
-
-    /// get the layer ids for the given edge id
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds;
 }
 
 pub trait InheritLayerOps: Base {}
@@ -46,10 +43,5 @@ impl<G: DelegateLayerOps> InternalLayerOps for G {
     #[inline]
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.graph().layer_ids_from_names(key)
-    }
-
-    #[inline]
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
-        self.graph().edge_layer_ids(e)
     }
 }

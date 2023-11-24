@@ -27,7 +27,7 @@ use crate::{
     },
     db::{
         api::view::{
-            internal::{EdgeFilter, OneHopFilter, TimeSemantics},
+            internal::{EdgeFilter, InternalLayerOps, OneHopFilter, TimeSemantics},
             BaseVertexViewOps, BoxedLIter, StaticGraphViewOps,
         },
         graph::{
@@ -361,6 +361,24 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
+    > InternalLayerOps for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.path.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.path.layer_ids_from_names(key)
+    }
+}
+
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
     > BaseVertexViewOps<'graph> for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
 {
     type BaseGraph = &'graph G;
@@ -474,6 +492,24 @@ impl<
     ) -> Self::Filtered<GHH> {
         let vertex = self.vertex.one_hop_filtered(filtered_graph);
         self.update_vertex(vertex)
+    }
+}
+
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > InternalLayerOps for EvalVertexView<'graph, 'a, G, S, GH, CS>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.vertex.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.vertex.layer_ids_from_names(key)
     }
 }
 
