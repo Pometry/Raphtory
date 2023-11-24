@@ -98,7 +98,8 @@ fn query1_v7(
 
         let count = AtomicUsize::new(0);
         let vs = b_login1_filter.iter().copied().collect_vec();
-        let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
+        let probe_map: Arc<DashMap<VID, Vec<(i64, i64, VID)>>> =
+            Arc::new(DashMap::default());
 
         let now = Instant::now();
         pool.install(|| {
@@ -123,24 +124,12 @@ fn query1_v7(
                                                     && prog1_t < nf1_t
                                                     && nf1_t - prog1_t <= 30
                                                 {
-                                                    let e_small: u32 =
-                                                        Into::<usize>::into(e) as u32;
                                                     probe_map
                                                         .entry(b)
-                                                        .and_modify(|v| {
-                                                            v.push((
-                                                                *prog1_t as i32,
-                                                                *nf1_t as i32,
-                                                                e_small,
-                                                            ))
+                                                        .and_modify(| v| {
+                                                            v.push((*prog1_t, *nf1_t - 30, e));
                                                         })
-                                                        .or_insert_with(|| {
-                                                            vec![(
-                                                                *prog1_t as i32,
-                                                                *nf1_t as i32,
-                                                                e_small,
-                                                            )]
-                                                        });
+                                                        .or_insert_with(|| { vec![(*prog1_t, *nf1_t - 30, e)] });
                                                 }
                                             });
                                     });
@@ -169,18 +158,16 @@ fn query1_v7(
         pool.install(|| {
             probe_map.par_iter().for_each(|entry| {
                 let b: VID = *entry.key();
-                let edges = entry.value();
+                let prog1_nft_events = entry.value();
 
                 g.edges_par(b, Direction::IN, events_2v)
                     .for_each(|(a2b, a)| {
                         if a != b {
                             let login1 = g.edge(a2b, events_2v);
 
-                            let probe_value = &edges;
-
                             let mut skip = false;
-                            if !probe_value.is_empty() {
-                                let max_prog1 = probe_value.last().unwrap().0 as i64;
+                            if !prog1_nft_events.is_empty() {
+                                let max_prog1 = prog1_nft_events.last().unwrap().0 as i64;
 
                                 let login1_ts = login1.timestamps();
 
@@ -191,12 +178,12 @@ fn query1_v7(
                             }
 
                             if !skip {
+
                                 let iter = login1
                                     .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
-                                    .unwrap()
-                                    .map(|(t, v)| (*v, *t));
+                                    .unwrap();
 
-                                binary_search_join_par_small_2(iter, &edges, &a, &count);
+                                binary_search_join_par_3(iter, prog1_nft_events, &a, &count);
                             }
                         }
                     });
@@ -211,499 +198,16 @@ fn query1_v7(
     count
 }
 
-fn query1_v6(
-    g: &TemporalGraph,
-    nft: usize,
-    events_2v: usize,
-    events_1v: usize,
-    bytes_prop_id: usize,
-    event_id_prop_id_1v: usize,
-    event_id_prop_id_2v: usize,
-) -> usize {
-    let pool = ThreadPoolBuilder::new()
-        .build()
-        .expect("failed to build pool");
-
-    let count = pool.install(|| {
-        let now = Instant::now();
-
-        let b_prog1_filter: HashSet<VID> = {
-            g.all_edges_par(events_1v)
-                .filter(|edge| {
-                    edge.par_prop_items::<i64>(event_id_prop_id_1v)
-                        .unwrap()
-                        .any(|(_, event_id)| event_id == Some(4688))
-                })
-                .map(|e| e.dst())
-                .collect()
-        };
-
-        println!(
-            "b_prog1_filter: {:?}, count: {}",
-            now.elapsed(),
-            b_prog1_filter.len()
-        );
-
-        let now = Instant::now();
-        let b_login1_filter: HashSet<VID> = {
-            g.all_edges_par(events_2v)
-                .filter(|edge| b_prog1_filter.contains(&edge.dst()))
-                .filter(|edge| {
-                    edge.par_prop_items::<i64>(event_id_prop_id_2v)
-                        .unwrap()
-                        .any(|(_, event_id)| event_id == Some(4624))
-                })
-                .map(|e| e.dst())
-                .collect()
-        };
-        println!(
-            "b_login1_filter: {:?}, count: {}",
-            now.elapsed(),
-            b_login1_filter.len()
-        );
-
-        let count = AtomicUsize::new(0);
-        let mut vs: Vec<(VID, Vec<(i32, i32, u32)>)> = b_login1_filter
-            .iter()
-            .map(|b| (*b, Vec::with_capacity(0)))
-            .collect_vec();
-        // let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
-
-        let login1_filter = &b_login1_filter;
-        let now = Instant::now();
-        pool.install(|| {
-            vs.par_iter_mut()
-                .with_min_len(16)
-                .for_each(|(b, b_probe_items)| {
-                    let b = *b;
-                    let iter = g
-                        .edges_par(b, Direction::OUT, nft)
-                        .filter(|(_, e)| *e != b)
-                        .flat_map(move |(b2e, e)| {
-                            let nf1 = g.edge(b2e, nft);
-
-                            nf1.into_par_prop_items::<i64>(bytes_prop_id)
-                                .unwrap()
-                                .filter(|(_, v)| v > &Some(100_000_000))
-                                .flat_map(move |(nf1_t, _)| {
-                                    g.edges_par(b, Direction::OUT, events_1v)
-                                        .filter(move |(_, v)| {
-                                            v == &b
-                                            // && b_login1_filter.contains(v)
-                                            && login1_filter.contains(v)
-                                        })
-                                        .flat_map(move |(b2b, _)| {
-                                            let prog1 = g.edge(b2b, events_1v);
-
-                                            prog1
-                                                .into_par_prop_items::<i64>(event_id_prop_id_1v)
-                                                .unwrap()
-                                                .filter_map(|(t, v)| v.map(|v| (v, t)))
-                                                .filter(move |(prog1_event_id, prog1_t)| {
-                                                    *prog1_event_id == 4688
-                                                        && *prog1_t < nf1_t
-                                                        && nf1_t - prog1_t <= 30
-                                                })
-                                                .map(move |(_, prog1_t)| {
-                                                    let e_small: u32 =
-                                                        Into::<usize>::into(e) as u32;
-                                                    (prog1_t as i32, nf1_t as i32, e_small)
-                                                })
-                                        })
-                                })
-                        });
-                    *b_probe_items = iter.collect::<Vec<_>>();
-                    b_probe_items.sort();
-                });
-        });
-
-        println!("Done probe map build: {:?}", now.elapsed());
-
-        // let now = Instant::now();
-
-        // probe_map.iter_mut().for_each(|mut entry| {
-        //     entry.value_mut().sort();
-        // });
-
-        // println!(
-        //     "Done sorting map len: {:?}, duration: {:?}",
-        //     vs.len(),
-        //     now.elapsed()
-        // );
-
-        let now: Instant = Instant::now();
-
-        pool.install(|| {
-            vs.par_iter().for_each(|(b, edges)| {
-                // let b: VID = *entry.key();
-                // let edges = entry.value();
-                let b = *b;
-
-                g.edges_par(b, Direction::IN, events_2v)
-                    .for_each(|(a2b, a)| {
-                        if a != b {
-                            let login1 = g.edge(a2b, events_2v);
-
-                            let probe_value = &edges;
-
-                            let mut skip = false;
-                            if !probe_value.is_empty() {
-                                let max_prog1 = probe_value.last().unwrap().0 as i64;
-
-                                let login1_ts = login1.timestamps();
-
-                                let min_login1 = login1_ts.iter().flatten().next().unwrap();
-                                if min_login1 > max_prog1 {
-                                    skip = true;
-                                }
-                            }
-
-                            if !skip {
-                                let iter = login1
-                                    .par_prop_items::<i64>(event_id_prop_id_2v)
-                                    .unwrap()
-                                    .filter_map(|(t, v)| v.map(|v| (v, t)));
-
-                                binary_search_join_par_small_2(iter, &edges, &a, &count);
-                            }
-                        }
-                    });
-            })
-        });
-
-        println!("Done 3rd join duration: {:?}", now.elapsed());
-
-        count.load(Ordering::Relaxed)
-    });
-
-    count
-}
-
-fn query1_v4(
-    g: &TemporalGraph,
-    nft: usize,
-    events_2v: usize,
-    events_1v: usize,
-    bytes_prop_id: usize,
-    event_id_prop_id_1v: usize,
-    event_id_prop_id_2v: usize,
-) -> usize {
-    let c1 = 0usize;
-    let mut count = 0;
-    let mut dream_map: HashMap<VID, Vec<(i64, i64, VID)>> = HashMap::default();
-
-    for b in g.all_vertices() {
-        for (b2e, e) in g.edges(b, Direction::OUT, nft) {
-            if e != b {
-                let nf1 = g.edge(b2e, nft);
-
-                for (nf1_t, _) in nf1
-                    .prop_items::<i64>(bytes_prop_id)
-                    .unwrap()
-                    .filter(|(_, v)| v.as_ref().filter(|&&v| v > 100_000_000).is_some())
-                {
-                    for (b2b, _) in g
-                        .edges(b, Direction::OUT, events_1v)
-                        .filter(|(_, v)| v == &b)
-                    {
-                        let prog1 = g.edge(b2b, events_1v);
-
-                        for (prog1_event_id, prog1_t) in prog1
-                            .prop_items::<i64>(event_id_prop_id_1v)
-                            .unwrap()
-                            .filter_map(|(t, v)| v.map(|v| (v, t)))
-                        {
-                            if prog1_event_id == 4688 && prog1_t < nf1_t && nf1_t - prog1_t <= 30 {
-                                dream_map
-                                    .entry(b)
-                                    .and_modify(|v| v.push((prog1_t, nf1_t, e)))
-                                    .or_insert_with(|| vec![(prog1_t, nf1_t, e)]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    dream_map.values_mut().for_each(|v| {
-        v.sort();
-    });
-
-    for (b, edges) in dream_map {
-        for (a2b, a) in g.edges(b, Direction::IN, events_2v) {
-            if a != b {
-                let login1 = g.edge(a2b, events_2v);
-
-                let probe_value = &edges;
-
-                if !probe_value.is_empty() {
-                    let max_prog1 = probe_value.last().unwrap().0;
-
-                    let login1_ts = login1.timestamps();
-                    let min_login1 = login1_ts.iter().flatten().next().unwrap();
-                    if min_login1 > max_prog1 {
-                        continue;
-                    }
-                }
-
-                let iter = login1
-                    .prop_items::<i64>(event_id_prop_id_2v)
-                    .unwrap()
-                    .filter_map(|(t, v)| v.map(|v| (v, t)));
-
-                binary_search_join(iter, &edges, &a, &mut count);
-            }
-        }
-    }
-    println!("c1: {:?}", c1);
-    count
-}
-
-fn query1_v4_par(
-    g: &TemporalGraph,
-    nft: usize,
-    events_2v: usize,
-    events_1v: usize,
-    bytes_prop_id: usize,
-    event_id_prop_id_1v: usize,
-    event_id_prop_id_2v: usize,
-) -> usize {
-    // let mut count = 0;
-    let probe_map: Arc<DashMap<VID, Vec<(i32, i32, u32)>>> = Arc::new(DashMap::default());
-
-    let count = AtomicUsize::new(0);
-    let vs = (0..g.num_vertices()).into_iter().collect_vec();
-
-    let pool: rayon::ThreadPool = ThreadPoolBuilder::new()
-        .num_threads(24)
-        .build()
-        .expect("failed to build pool");
-
-    let now = Instant::now();
-    pool.install(|| {
-        vs.par_chunks(1024).for_each(|b_ids| {
-            for b_id in b_ids {
-                let b = VID(*b_id);
-                g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
-                    if e != b {
-                        let nf1 = g.edge(b2e, nft);
-
-                        for (nf1_t, _) in nf1
-                            .prop_items::<i64>(bytes_prop_id)
-                            .unwrap()
-                            .filter(|(_, v)| v.as_ref().filter(|&&v| v > 100_000_000).is_some())
-                        {
-                            g.edges_par(b, Direction::OUT, events_1v)
-                                .filter(|(_, v)| v == &b)
-                                .for_each(|(b2b, _)| {
-                                    let prog1 = g.edge(b2b, events_1v);
-
-                                    // let ts = prog1.timestamps()
-                                    for (prog1_event_id, prog1_t) in prog1
-                                        .prop_items::<i64>(event_id_prop_id_1v)
-                                        .unwrap()
-                                        .filter_map(|(t, v)| v.map(|v| (v, t)))
-                                    {
-                                        if prog1_event_id == 4688
-                                            && prog1_t < nf1_t
-                                            && nf1_t - prog1_t <= 30
-                                        {
-                                            let e_small: u32 = Into::<usize>::into(e) as u32;
-                                            probe_map
-                                                .entry(b)
-                                                .and_modify(|v| {
-                                                    v.push((prog1_t as i32, nf1_t as i32, e_small))
-                                                })
-                                                .or_insert_with(|| {
-                                                    vec![(prog1_t as i32, nf1_t as i32, e_small)]
-                                                });
-                                        }
-                                    }
-                                });
-                        }
-                    }
-                });
-            }
-        });
-    });
-
-    println!("Done probe map build: {:?}", now.elapsed());
-
-    let now = Instant::now();
-
-    probe_map.iter_mut().for_each(|mut entry| {
-        entry.value_mut().sort();
-    });
-
-    println!(
-        "Done sorting map len: {:?}, duration: {:?}",
-        probe_map.len(),
-        now.elapsed()
-    );
-
-    let min_edge_len = probe_map
-        .iter()
-        .map(|entry| entry.value().len())
-        .min()
-        .unwrap();
-    let max_edge_len = probe_map
-        .iter()
-        .map(|entry| entry.value().len())
-        .max()
-        .unwrap();
-    let avg_edge_len = probe_map
-        .iter()
-        .map(|entry| entry.value().len())
-        .sum::<usize>() as f64
-        / probe_map.len() as f64;
-    let one_len = probe_map
-        .iter()
-        .filter(|entry| entry.value().len() == 1)
-        .count();
-
-    let median = probe_map
-        .iter()
-        .map(|entry| entry.value().len())
-        .sorted()
-        .nth(probe_map.len() / 2)
-        .unwrap();
-
-    println!(
-        "min_edge_len: {:?}, max_edge_len: {:?}, avg_edge_len: {:?}, one_len: {:?}, median: {:?}",
-        min_edge_len, max_edge_len, avg_edge_len, one_len, median
-    );
-
-    let now: Instant = Instant::now();
-
-    pool.install(|| {
-        probe_map.par_iter().for_each(|entry| {
-            let b = *entry.key();
-            let edges = entry.value();
-            g.edges_par(b, Direction::IN, events_2v)
-                .for_each(|(a2b, a)| {
-                    if a != b {
-                        let login1 = g.edge(a2b, events_2v);
-
-                        let probe_value = &edges;
-
-                        let mut skip = false;
-                        if !probe_value.is_empty() {
-                            let max_prog1 = probe_value.last().unwrap().0 as i64;
-                            // let min_prog1 = probe_value.first().unwrap().0;
-
-                            let login1_ts = login1.timestamps();
-                            let min_login1 = login1_ts.iter().flatten().next().unwrap();
-                            if min_login1 > max_prog1 {
-                                skip = true;
-                            }
-                        }
-
-                        if !skip {
-                            let iter = login1
-                                .prop_items::<i64>(event_id_prop_id_2v)
-                                .unwrap()
-                                .filter_map(|(t, v)| v.map(|v| (v, t)));
-
-                            binary_search_join_par_small(iter, &edges, &a, &count);
-                        }
-                    }
-                });
-        })
-    });
-
-    println!("Done 3rd join duration: {:?}", now.elapsed());
-
-    count.load(Ordering::Relaxed)
-}
-
-fn binary_search_join_par_small<'a>(
-    iter: impl IntoIterator<Item = (Time, Time)>,
-    edges: &'a Vec<(i32, i32, u32)>,
-    a: &VID,
-    count: &'a AtomicUsize,
-) -> Vec<(&'a Time, &'a Time, &'a Time)> {
-    let out = vec![]; // use this if we have to output the data
-
-    'outer: for (login1_event_id, login1_t) in iter {
-        if login1_event_id == 4624 {
-            let login1_t_small: i32 = login1_t as i32;
-
-            let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
-
-            let from = match pos {
-                Ok(i) => {
-                    i + 1 // this one is smaller than all the prog_t
-                }
-                Err(i) => {
-                    if i >= edges.len() {
-                        break 'outer;
-                    } else {
-                        i
-                    }
-                }
-            };
-
-            for (prog1_t, nft_t, e) in &edges[from..] {
-                let e_vid = VID(*e as usize);
-                if nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid {
-                    count.fetch_add(1, Ordering::Relaxed);
-                    // out.push((login1_t, prog1_t, nft1_1));
-                }
-            }
-        }
-    }
-    out
-}
-
-fn binary_search_join_par<'a>(
-    iter: impl IntoIterator<Item = (&'a Time, &'a Time)>,
-    edges: &'a Vec<(Time, Time, VID)>,
-    a: &VID,
-    count: &'a AtomicUsize,
-) -> Vec<(&'a Time, &'a Time, &'a Time)> {
-    let out = vec![]; // use this if we have to output the data
-
-    'outer: for (login1_event_id, login1_t) in iter {
-        if *login1_event_id == 4624 {
-            let pos = edges.binary_search_by(|probe| probe.0.cmp(login1_t));
-
-            let from = match pos {
-                Ok(i) => {
-                    i + 1 // this one is smaller than all the prog_t
-                }
-                Err(i) => {
-                    if i >= edges.len() {
-                        break 'outer;
-                    } else {
-                        i
-                    }
-                }
-            };
-
-            for (prog1_t, nft_t, e) in &edges[from..] {
-                if nft_t - login1_t <= 30 && login1_t < prog1_t && a != e {
-                    count.fetch_add(1, Ordering::Relaxed);
-                    // out.push((login1_t, prog1_t, nft1_1));
-                }
-            }
-        }
-    }
-    out
-}
-
-fn binary_search_join_par_small_2<'a>(
-    login_events: impl ParallelIterator<Item = (Time, Time)>,
-    prog1_nft_events: &'a Vec<(i32, i32, u32)>,
+fn binary_search_join_par_3<'a>(
+    login_events: impl ParallelIterator<Item = (&'a Time, &'a i64)>,
+    prog1_nft_events: &'a Vec<(i64, i64, VID)>,
     a: &VID,
     count: &'a AtomicUsize,
 ) {
     let c = login_events
-        .filter(|(login1_event_id, _)| login1_event_id == &4624)
-        .filter_map(|(_, login1_t)| {
-            let login1_t_small: i32 = login1_t as i32;
-
-            let pos = prog1_nft_events.binary_search_by(|probe| probe.0.cmp(&login1_t_small));
+        .filter(|(_, &login1_event_id)| login1_event_id == 4624)
+        .filter_map(|(login1_t, _)| {
+            let pos = prog1_nft_events.binary_search_by(|(prog1_t, _, _)| prog1_t.cmp(&login1_t));
 
             let from = match pos {
                 Ok(i) => {
@@ -717,26 +221,25 @@ fn binary_search_join_par_small_2<'a>(
                     }
                 }
             };
-            from.map(|from| (from, login1_t_small))
+            from.map(|from| (from, login1_t))
         })
-        .map(|(from, login1_t_small)| optimise_to_bits(&prog1_nft_events, from, login1_t_small, a))
-        // .count();
+        .map(|(from, login1_t)| optimise_to_bits_2(&prog1_nft_events, from, login1_t, a))
         .sum::<usize>();
 
     count.fetch_add(c, Ordering::Relaxed);
 }
 
-fn optimise_to_bits(
-    prog1_nft_events: &Vec<(i32, i32, u32)>,
+#[inline]
+fn optimise_to_bits_2(
+    prog1_nft_events: &Vec<(Time, Time, VID)>,
     from: usize,
-    login1_t_small: i32,
+    login1_t: &Time,
     a: &VID,
 ) -> usize {
     (&prog1_nft_events[from..])
         .iter()
-        .filter(move |(prog1_t, nft_t, e)| {
-            let e_vid = VID(*e as usize);
-            nft_t - login1_t_small <= 30 && &login1_t_small < prog1_t && a != &e_vid
+        .filter(move |(prog1_t, nft_t_less30, e)| {
+            login1_t >= nft_t_less30 && login1_t < prog1_t && a != e
         })
         .count()
 }
