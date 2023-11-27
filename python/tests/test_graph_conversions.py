@@ -931,13 +931,24 @@ def build_to_df():
     save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_prop_hist.json")
 
 
+def jsonify_df(df):
+    """
+    normalises data frame using json with sorted keys to enable order-invariant comparison of rows between data frames
+    """
+    lines = []
+    for _, row in df.iterrows():
+        values = sorted(zip(df.columns, (json.dumps(v, ensure_ascii=True, sort_keys=True) for v in row)))
+        lines.append(values)
+    lines.sort()
+    return lines
+
+
 def compare_df(df1, df2):
     # Have to do this way due to the number of maps inside the dataframes
-    s1 = df1.to_json()
-    s2 = df2.to_json()
-    data1 = json.loads(s1)
-    data2 = json.loads(s2)
-    assert data1 == data2
+    # Comparison is invariant to the order of rows and columns
+    s1 = jsonify_df(df1)
+    s2 = jsonify_df(df2)
+    assert s1 == s2
 
 
 def test_to_df():
