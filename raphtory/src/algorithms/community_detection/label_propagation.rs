@@ -19,7 +19,7 @@ pub fn label_propagation<G>(
     seed: Option<[u8; 32]>,
 ) -> Result<Vec<HashSet<VertexView<G>>>, &'static str>
 where
-    G: GraphViewOps,
+    G: for<'a> GraphViewOps<'a>,
 {
     let mut labels: HashMap<VertexView<G>, u64> = HashMap::new();
     for vertex in graph.vertices() {

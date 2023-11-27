@@ -6,7 +6,7 @@ use raphtory::{
         api::{properties::internal::ConstPropertiesOps, view::internal::MaterializedGraph},
         graph::views::deletion_graph::GraphWithDeletions,
     },
-    prelude::{Graph, GraphViewBase, PropertyAdditionOps},
+    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
 };

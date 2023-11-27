@@ -2,23 +2,23 @@ use crate::model::schema::{edge_schema::EdgeSchema, get_vertex_type};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::graph::views::layer_graph::LayeredGraph,
-    prelude::{EdgeViewOps, GraphViewBase},
+    db::{api::view::StaticGraphViewOps, graph::views::layer_graph::LayeredGraph},
+    prelude::*,
 };
 
 #[derive(ResolvedObject)]
-pub(crate) struct LayerSchema<G: GraphViewBase> {
+pub(crate) struct LayerSchema<G: StaticGraphViewOps> {
     graph: LayeredGraph<G>,
 }
 
-impl<G: GraphViewBase> From<LayeredGraph<G>> for LayerSchema<G> {
+impl<G: StaticGraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
     fn from(value: LayeredGraph<G>) -> Self {
         Self { graph: value }
     }
 }
 
 #[ResolvedObjectFields]
-impl<G: GraphViewBase> LayerSchema<G> {
+impl<G: StaticGraphViewOps> LayerSchema<G> {
     /// Returns the name of the layer with this schema
     async fn name(&self) -> String {
         let mut layers = self.graph.unique_layers();

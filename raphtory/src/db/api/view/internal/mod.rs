@@ -66,16 +66,16 @@ impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps> BoxableGrap
 {
 }
 
-pub trait InheritViewOps<'graph>: Base + Send + Sync {}
+pub trait InheritViewOps: Base + Send + Sync {}
 
-impl<'graph, G: InheritViewOps<'graph>> InheritCoreDeletionOps for G {}
-impl<'graph, G: InheritViewOps<'graph>> InheritGraphOps<'graph> for G {}
-impl<'graph, G: InheritViewOps<'graph>> InheritEdgeFilterOps for G {}
-impl<'graph, G: InheritViewOps<'graph>> InheritLayerOps for G {}
-impl<'graph, G: InheritViewOps<'graph> + CoreGraphOps> InheritTimeSemantics for G {}
-impl<'graph, G: InheritViewOps<'graph>> InheritCoreOps for G {}
-impl<'graph, G: InheritViewOps<'graph>> InheritMaterialize for G {}
-impl<'graph, G: InheritViewOps<'graph>> InheritPropertiesOps for G {}
+impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
+impl<G: InheritViewOps> InheritGraphOps for G {}
+impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
+impl<G: InheritViewOps> InheritLayerOps for G {}
+impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
+impl<G: InheritViewOps> InheritCoreOps for G {}
+impl<G: InheritViewOps> InheritMaterialize for G {}
+impl<G: InheritViewOps> InheritPropertiesOps for G {}
 
 /// Trait for marking a struct as not dynamically dispatched.
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
@@ -131,9 +131,9 @@ impl Base for DynamicGraph {
 
 impl Immutable for DynamicGraph {}
 
-impl InheritViewOps<'static> for DynamicGraph {}
+impl InheritViewOps for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps<'graph2> for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
 
 #[cfg(test)]
 mod test {

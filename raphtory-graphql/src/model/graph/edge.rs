@@ -5,7 +5,7 @@ use raphtory::{
     db::{
         api::view::{
             internal::{DynamicGraph, IntoDynamic},
-            EdgeViewOps, GraphViewBase,
+            EdgeViewOps, StaticGraphViewOps,
         },
         graph::edge::EdgeView,
     },
@@ -17,11 +17,14 @@ pub(crate) struct Edge {
     pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
-impl<G: GraphViewBase + IntoDynamic> From<EdgeView<G>> for Edge {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<EdgeView<G, GH>> for Edge
+{
+    fn from(value: EdgeView<G, GH>) -> Self {
         Self {
             ee: EdgeView {
-                graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
                 edge: value.edge,
             },
         }

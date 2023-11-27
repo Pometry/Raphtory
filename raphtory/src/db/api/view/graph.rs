@@ -237,9 +237,9 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
     }
 }
 
-pub trait StaticGraphViewOps: GraphViewOps<'static> + 'static {}
+pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
 
-impl<G: GraphViewOps<'static> + 'static> StaticGraphViewOps for G {}
+impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
     type Graph = G;

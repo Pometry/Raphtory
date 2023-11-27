@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            view::internal::DynamicGraph,
+            view::{internal::DynamicGraph, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, vertex::VertexView},
     },
@@ -101,7 +101,7 @@ impl PyDocumentTemplate {
     }
 }
 
-impl<G: GraphViewOps<'static>> DocumentTemplate<G> for PyDocumentTemplate {
+impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
     fn node(&self, vertex: &VertexView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
             Some(node_document) => get_documents_from_prop(vertex.properties(), node_document),

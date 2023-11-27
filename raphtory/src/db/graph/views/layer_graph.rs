@@ -57,7 +57,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritGraphOps<'graph> for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritGraphOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     #[inline]

@@ -29,7 +29,6 @@ use crate::{
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::*,
-    search::fields::{EDGE_ID, VERTEX_ID},
 };
 
 #[derive(Clone)]
@@ -55,7 +54,7 @@ impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
     }
 }
 
-impl<G: StaticGraphViewOps> InheritViewOps<'static> for IndexedGraph<G> {}
+impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -644,7 +643,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
         let top_docs = searcher.search(&query, &ranking)?;
 
-        let edge_id = self.edge_index.schema().get_field(EDGE_ID)?;
+        let edge_id = self.edge_index.schema().get_field(fields::EDGE_ID)?;
 
         let results = top_docs
             .into_iter()
@@ -678,7 +677,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
         let top_docs = searcher.search(&query, &ranking)?;
 
-        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+        let vertex_id = self.vertex_index.schema().get_field(fields::VERTEX_ID)?;
 
         let results = top_docs
             .into_iter()

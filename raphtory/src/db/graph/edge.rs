@@ -41,7 +41,7 @@ use std::{
 
 /// A view of an edge in the graph.
 #[derive(Clone)]
-pub struct EdgeView<G, GH> {
+pub struct EdgeView<G, GH = G> {
     pub base_graph: G,
     /// A view of an edge in the graph.
     pub graph: GH,

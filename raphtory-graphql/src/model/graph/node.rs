@@ -20,11 +20,14 @@ pub(crate) struct Node {
     pub(crate) vv: VertexView<DynamicGraph>,
 }
 
-impl<G: GraphViewBase + IntoDynamic> From<VertexView<G>> for Node {
-    fn from(value: VertexView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<VertexView<G, GH>> for Node
+{
+    fn from(value: VertexView<G, GH>) -> Self {
         Self {
             vv: VertexView {
-                graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
                 vertex: value.vertex,
             },
         }
