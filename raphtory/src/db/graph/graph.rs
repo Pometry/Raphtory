@@ -1630,6 +1630,53 @@ mod db_tests {
         correct
     }
 
+    #[test]
+    fn test_one_hop_filter_reset() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
+
+        let v = g.vertex(1).unwrap();
+
+        // filtering resets on neighbours
+        let out_out: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect();
+        assert_eq!(out_out, [3]);
+
+        // filter applies to edges
+        let layers: Vec<_> = v
+            .layer("1")
+            .unwrap()
+            .edges()
+            .layer_names()
+            .flatten()
+            .dedup()
+            .collect();
+        assert_eq!(layers, ["1"]);
+
+        // dst and src on edge reset the filter
+        let degrees: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .edges()
+            .dst()
+            .out_degree()
+            .collect();
+        assert_eq!(degrees, [1]);
+    }
+
     // non overlaping time intervals
     #[derive(Clone, Debug)]
     struct Intervals(Vec<(i64, i64)>);
