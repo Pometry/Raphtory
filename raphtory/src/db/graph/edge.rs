@@ -26,7 +26,7 @@ use crate::{
             },
             view::{
                 internal::{InternalLayerOps, OneHopFilter, Static},
-                BoxedIter, BoxedLIter, EdgeViewInternalOps, LayerOps, StaticGraphViewOps,
+                BoxedIter, BoxedLIter, EdgeViewInternalOps, StaticGraphViewOps,
             },
         },
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},

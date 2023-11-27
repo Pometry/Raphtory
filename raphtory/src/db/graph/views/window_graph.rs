@@ -58,7 +58,7 @@ use crate::{
         },
         graph::graph::graph_equal,
     },
-    prelude::{GraphViewOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use std::{
     cmp::{max, min},
@@ -224,7 +224,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
 
     #[inline]
     fn include_edge_window(&self) -> &EdgeWindowFilter {
-        self.graph.include_edge_window()
+        &self.window_filter
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {

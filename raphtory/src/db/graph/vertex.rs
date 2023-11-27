@@ -18,9 +18,7 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{
-                    CoreGraphOps, GraphOps, InternalLayerOps, OneHopFilter, Static, TimeSemantics,
-                },
+                internal::{CoreGraphOps, InternalLayerOps, OneHopFilter, Static, TimeSemantics},
                 BaseVertexViewOps, BoxedLIter, IntoDynBoxed, Layer, StaticGraphViewOps,
             },
         },

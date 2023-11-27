@@ -64,10 +64,6 @@ impl<
             self.local_state_prev,
         )
     }
-
-    fn layer_ids(&self) -> LayerIds {
-        self.edge.layer_ids()
-    }
 }
 
 impl<

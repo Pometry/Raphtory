@@ -22,10 +22,7 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            views::{
-                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
-                window_graph::WindowedGraph,
-            },
+            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
         },
     },
     prelude::*,

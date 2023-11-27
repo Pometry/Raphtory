@@ -10,7 +10,7 @@ use crate::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
             properties::Properties,
-            view::{internal::*, layer::LayerOps, *},
+            view::{internal::*, *},
         },
         graph::{
             edge::EdgeView, vertex::VertexView, vertices::Vertices,

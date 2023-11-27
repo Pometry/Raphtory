@@ -14,7 +14,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     db::{
         api::view::{
-            internal::{GraphOps, InternalLayerOps, OneHopFilter},
+            internal::{InternalLayerOps, OneHopFilter},
             BaseVertexViewOps, BoxedLIter, IntoDynBoxed,
         },
         graph::path::PathFromGraph,

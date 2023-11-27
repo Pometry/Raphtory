@@ -18,7 +18,6 @@ use raphtory::{
     db::api::view::internal::{IntoDynamic, MaterializedGraph},
     prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
-    vectors::embeddings::openai_embedding,
 };
 use std::{
     collections::HashMap,

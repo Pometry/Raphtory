@@ -1,12 +1,8 @@
-use itertools::Itertools;
 use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
-    db::{
-        api::{properties::internal::ConstPropertiesOps, view::internal::MaterializedGraph},
-        graph::views::deletion_graph::GraphWithDeletions,
-    },
-    prelude::{Graph, GraphViewOps, PropertyAdditionOps},
+    db::api::view::internal::MaterializedGraph,
+    prelude::{GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
 };

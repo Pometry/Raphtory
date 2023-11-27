@@ -20,10 +20,7 @@ use crate::{
             // path::{PathFromGraph, PathFromVertex},
             vertex::VertexView,
             vertices::Vertices,
-            views::{
-                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
-                window_graph::WindowedGraph,
-            },
+            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
         },
     },
     prelude::Graph,
