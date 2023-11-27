@@ -4,33 +4,38 @@ use crate::{
         compute_state::{ComputeState, ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{GraphViewOps, StaticGraphViewOps, VertexViewOps},
         graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
         task::{
             context::Context,
+            edge::eval_edge::EvalEdgeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::{EdgeListOps, EdgeViewOps, LayerOps, Prop, TimeOps},
+    prelude::{EdgeListOps, EdgeViewOps, LayerOps, Prop, PropUnwrap, TimeOps},
 };
 
-fn get_one_hop_counts<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
-    evv: &EvalVertexView<G, (), GH, CS>,
+fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
+    evv: &EvalVertexView<'graph, '_, G, ()>,
     no_time: bool,
 ) -> usize {
     evv.layer("Netflow")
         .unwrap()
         .in_edges()
         .explode()
-        .map(|nf_e_edge_expl| one_path_algorithm(evv, nf_e_edge_expl, no_time))
+        .map(|nf_e_edge_expl| one_path_algorithm(nf_e_edge_expl, no_time))
         .sum::<usize>()
 }
 
-fn one_path_algorithm<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
-    evv: &EvalVertexView<G, (), GH, CS>,
-    nf_e_edge_expl: EdgeView<LayeredGraph<G>>,
+fn one_path_algorithm<
+    'graph,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+    CS: ComputeState,
+>(
+    nf_e_edge_expl: EvalEdgeView<'graph, '_, G, GH, CS, ()>,
     no_time: bool,
 ) -> usize {
     //     MATCH
@@ -45,18 +50,21 @@ fn one_path_algorithm<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
     //   AND nf1.epochtime - login1.epochtime <= 30
     // RETURN count(*)
 
+    let a_id = nf_e_edge_expl.src().id();
+    let b_id = nf_e_edge_expl.dst().id();
     // First we remove any A->A edges, no cyclces allowed
-    if nf_e_edge_expl.src() == nf_e_edge_expl.dst() {
+    if a_id == b_id {
         return 0usize;
     }
     // for the netflow B we now look for all E edges that have the dstBytes Prop
     let dst_bytes_val = nf_e_edge_expl
         .properties()
         .get("dstBytes")
-        .unwrap_or(Prop::I64(0));
+        .into_i64()
+        .unwrap_or(0);
     // For the nf1 we filter any edges from B that do not have the byte size (<=1e8)
     // we only watch B->E edges that are >1e8
-    if dst_bytes_val <= Prop::I64(100000000) {
+    if dst_bytes_val <= 100000000 {
         return 0usize;
     }
 
@@ -67,39 +75,32 @@ fn one_path_algorithm<G: GraphViewOps, GH: GraphViewOps, CS: ComputeState>(
         time_bound = 0;
     }
 
-    let b_edges = match evv.graph().layer("Events1v4688").and_then(|layer| {
-        layer
-            .window(time_bound, nf1_time)
-            .edge(nf_e_edge_expl.src(), nf_e_edge_expl.src())
-    }) {
-        Some(edges) => edges,
-        None => return 0,
-    };
-
-    b_edges
-        .explode()
-        .map(|prog1_b_edge| {
-            let prog1_time = prog1_b_edge.time().unwrap_or_default();
-            let b_layer = match evv
-                .graph()
-                .vertex(prog1_b_edge.src())
-                .and_then(|vertex| vertex.layer("Events2v4624"))
-            {
-                Some(layer) => layer,
-                None => return 0,
-            };
-
-            b_layer
-                .window(time_bound, prog1_time)
-                .in_edges()
-                .explode()
-                .filter(|edge| edge.src() != nf_e_edge_expl.src())
-                .count()
+    let event_count = nf_e_edge_expl
+        .src()
+        .window(time_bound, nf1_time)
+        .layer("Events2v4624")
+        .into_iter()
+        .flat_map(|v| {
+            v.in_edges()
+                .filter(|e| e.src().id() != a_id && e.src().id() != b_id)
+                .flat_map(|e| e.explode())
         })
-        .sum()
+        .flat_map(|login_exp| {
+            login_exp
+                .dst()
+                .window(login_exp.time().unwrap().saturating_add(1), nf1_time)
+                .layer("Events1v4688")
+        })
+        .flat_map(|v| {
+            v.out_edges()
+                .filter(|e| e.src().id() == e.dst().id())
+                .flat_map(|e| e.explode())
+        })
+        .count();
+    event_count
 }
 
-pub fn netflow_one_path_vertex<G: GraphViewOps>(
+pub fn netflow_one_path_vertex<G: StaticGraphViewOps>(
     g: &G,
     no_time: bool,
     threads: Option<usize>,
