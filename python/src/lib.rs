@@ -11,7 +11,7 @@ use raphtory_core::python::{
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
-        vertex::{PyVertex, PyVertices},
+        vertex::{PyMutableVertex, PyVertex, PyVertices},
     },
     packages::{
         algorithms::*,
@@ -47,6 +47,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyGraphWithDeletions,
         PyVertex,
         PyVertices,
+        PyMutableVertex,
         PyEdge,
         PyEdges,
         PyProperties,
@@ -103,6 +104,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         local_temporal_three_node_motifs,
         hits,
         balance,
+        label_propagation,
     );
     m.add_submodule(algorithm_module)?;
 

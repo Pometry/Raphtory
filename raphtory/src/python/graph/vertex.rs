@@ -391,7 +391,18 @@ impl IntoPy<PyObject> for VertexView<MaterializedGraph> {
 
 #[pymethods]
 impl PyMutableVertex {
-    fn add_updates(
+    /// Add updates to a vertex in the graph at a specified time.
+    /// This function allows for the addition of property updates to a vertex within the graph. The updates are time-stamped, meaning they are applied at the specified time.
+    ///
+    /// Parameters:
+    ///     t (PyTime): The timestamp at which the updates should be applied.
+    ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
+    ///         Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///         If None, no properties are updated.
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    pub fn add_updates(
         &self,
         t: PyTime,
         properties: Option<HashMap<String, Prop>>,
@@ -399,10 +410,30 @@ impl PyMutableVertex {
         self.vertex.add_updates(t, properties.unwrap_or_default())
     }
 
-    fn add_constant_properties(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+    /// Add constant properties to a vertex in the graph.
+    /// This function is used to add properties to a vertex that remain constant and do not
+    /// change over time. These properties are fundamental attributes of the vertex.
+    ///
+    /// Parameters:
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the vertex.
+    ///     Each key is a string representing the property name, and each value is of type Prop
+    ///     representing the property value.
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError..
+    pub fn add_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
         self.vertex.add_constant_properties(properties)
     }
 
+    /// Return a string representation of the vertex.
+    /// This method provides a human-readable representation of the vertex, which is useful for
+    /// debugging and logging purposes.
+    ///
+    /// Returns:
+    ///     str: A string representation of the vertex.
     fn __repr__(&self) -> String {
         self.repr()
     }

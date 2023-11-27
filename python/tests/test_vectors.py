@@ -11,17 +11,21 @@ embedding_map = {
     "edge3": [0.0, 1.0, 1.0]
 }
 
+
 def single_embedding(text: str):
     try:
         return embedding_map[text]
     except:
         raise Exception(f"unexpected document content: {text}")
 
+
 def embedding(texts):
     return [single_embedding(text) for text in texts]
 
+
 def floats_are_equals(float1: float, float2: float) -> bool:
     return float1 + 0.001 > float2 and float1 - 0.001 < float2
+
 
 def create_graph() -> VectorisedGraph:
     g = Graph()
@@ -96,6 +100,7 @@ def test_search():
     contents = [doc.content for doc in docs]
     assert(contents == ["node2", "edge3", "node1", "edge1"])
 
+
 def test_expansion():
     vg = create_graph()
 
@@ -120,6 +125,7 @@ def test_expansion():
     assert(len(selection.get_documents()) == 7)
     assert(len(selection.nodes()) == 4)
     assert(len(selection.edges()) == 3)
+
 
 def test_windows():
     vg = create_graph()
@@ -153,3 +159,15 @@ def test_windows():
     docs = selection5.get_documents()
     contents = [doc.content for doc in docs]
     assert(contents == ["node4", "node1", "edge1", "node2", "edge2", "node3", "edge3"])
+
+
+def test_filtering():
+    vg = create_graph()
+
+    selection = vg.append_nodes(["node1"]).expand_nodes_by_similarity("node2", 10)
+    contents = [doc.content for doc in selection.get_documents()]
+    assert(contents == ["node1", "node2", "node3", "node4"])
+
+    selection = vg.append_edges([("node1", "node2")]).expand_edges_by_similarity("edge3", 10)
+    contents = [doc.content for doc in selection.get_documents()]
+    assert(contents == ["edge1", "edge2", "edge3"])

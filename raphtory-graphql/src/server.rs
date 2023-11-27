@@ -70,7 +70,12 @@ impl RaphtoryServer {
             let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
-                .vectorise_with_template(Box::new(embedding), Some(graph_cache), template.clone())
+                .vectorise_with_template(
+                    Box::new(embedding),
+                    Some(graph_cache),
+                    template.clone(),
+                    true,
+                )
                 .await;
             stores.write().insert(graph_name, vectorised);
         }
