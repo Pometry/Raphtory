@@ -75,6 +75,7 @@ fn one_path_algorithm<
         time_bound = 0;
     }
 
+    // Find all the login events satisfying the time constraint and count the program starts that fall in the window
     let event_count = nf_e_edge_expl
         .src()
         .window(time_bound, nf1_time)
