@@ -155,6 +155,7 @@ impl IntoDynamic for Graph {
 mod db_tests {
     use super::*;
     use crate::{
+        algorithms::community_detection::connected_components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, Prop,
@@ -1690,6 +1691,22 @@ mod db_tests {
             .id()
             .collect();
         assert!(out_out_2.is_empty());
+    }
+
+    #[test]
+    fn can_apply_algorithm_on_filtered_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
+
+        let wl = g.window(0, 3).layer(vec!["1", "2"]).unwrap();
+        assert_eq!(
+            weakly_connected_components(&wl, 10, None).get_all_values(),
+            [1, 1, 1, 1]
+        );
     }
 
     // non overlaping time intervals
