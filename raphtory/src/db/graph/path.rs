@@ -1,26 +1,18 @@
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
-        utils::time::IntoTime,
-        Direction,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     db::{
         api::{
             properties::Properties,
             view::{
-                internal::{extend_filter, Base, InternalLayerOps, OneHopFilter},
-                BaseVertexViewOps, BoxedIter, BoxedLIter, IntoDynBoxed, Layer, LayerOps,
+                internal::{InternalLayerOps, OneHopFilter},
+                BaseVertexViewOps, BoxedLIter, IntoDynBoxed, Layer,
             },
         },
-        graph::{
-            edge::EdgeView,
-            vertex::VertexView,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-        },
+        graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::*,
 };
-use std::{iter, sync::Arc};
+use std::sync::Arc;
 
 pub(crate) type Operation<'a> = Arc<dyn Fn(VID) -> BoxedLIter<'a, VID> + Send + Sync + 'a>;
 #[derive(Clone)]

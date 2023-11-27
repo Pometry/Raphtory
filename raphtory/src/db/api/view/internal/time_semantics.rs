@@ -1,16 +1,12 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::TimeIndexOps,
         Prop,
     },
     db::api::view::{
         internal::{
             materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter,
-            GraphOps,
         },
         BoxedIter,
     },

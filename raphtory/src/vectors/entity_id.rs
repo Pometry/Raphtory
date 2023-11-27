@@ -6,10 +6,7 @@ use crate::{
     prelude::{EdgeViewOps, VertexViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
-use std::{
-    borrow::Borrow,
-    fmt::{Display, Formatter},
-};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {

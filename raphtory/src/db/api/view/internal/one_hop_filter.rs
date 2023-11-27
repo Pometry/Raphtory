@@ -1,11 +1,4 @@
-use crate::{
-    core::utils::time::IntoTime,
-    db::{
-        api::view::internal::TimeSemantics,
-        graph::views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-    },
-    prelude::{GraphViewOps, Layer, LayerOps, TimeOps},
-};
+use crate::prelude::GraphViewOps;
 
 pub trait OneHopFilter<'graph> {
     type Graph: GraphViewOps<'graph> + 'graph;

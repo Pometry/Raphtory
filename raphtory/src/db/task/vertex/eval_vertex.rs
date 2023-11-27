@@ -1,47 +1,31 @@
 use crate::{
     core::{
-        entities::VID,
-        state::{accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState, StateType},
-        utils::time::IntoTime,
-        Direction,
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        state::{
+            accumulator_id::AccId,
+            agg::Accumulator,
+            compute_state::{ComputeState, ComputeStateVec},
+            StateType,
+        },
     },
     db::{
         api::{
             properties::Properties,
-            view::{BoxedIter, EdgeListOps, EdgeViewOps, TimeOps, VertexListOps, VertexViewOps},
+            view::{
+                internal::{InternalLayerOps, OneHopFilter},
+                BaseVertexViewOps,
+            },
         },
-        graph::{
-            edge::EdgeView,
-            // path::{Operations, PathFromVertex},
-            vertex::VertexView,
-        },
+        graph::{path::PathFromVertex, vertex::VertexView},
         task::{
             edge::eval_edge::EvalEdgeView, task_state::Local2, vertex::eval_vertex_state::EVState,
         },
     },
+    prelude::{GraphViewOps, Layer},
 };
-use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds},
-        state::compute_state::ComputeStateVec,
-    },
-    db::{
-        api::view::{
-            internal::{EdgeFilter, InternalLayerOps, OneHopFilter, TimeSemantics},
-            BaseVertexViewOps, BoxedLIter, StaticGraphViewOps,
-        },
-        graph::{
-            path::{Operation, PathFromVertex},
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-        },
-    },
-    prelude::{GraphViewOps, Layer, LayerOps},
-};
-use itertools::Itertools;
+
 use std::{
     cell::{Ref, RefCell},
-    marker::PhantomData,
-    ops::Range,
     rc::Rc,
 };
 

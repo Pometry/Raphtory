@@ -3,7 +3,7 @@ use crate::{
         entities::{
             graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
         },
-        utils::{errors::GraphError, time::IntoTime},
+        utils::errors::GraphError,
         ArcStr,
     },
     db::{
@@ -13,13 +13,8 @@ use crate::{
             view::{internal::*, layer::LayerOps, *},
         },
         graph::{
-            edge::EdgeView,
-            vertex::VertexView,
-            vertices::Vertices,
-            views::{
-                layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph,
-                window_graph::WindowedGraph,
-            },
+            edge::EdgeView, vertex::VertexView, vertices::Vertices,
+            views::vertex_subgraph::VertexSubgraph,
         },
     },
     prelude::{DeletionOps, NO_PROPS},

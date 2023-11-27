@@ -1,4 +1,3 @@
-use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -125,7 +124,7 @@ mod vector_tests {
         texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
     }
 
-    async fn panicking_embedding(texts: Vec<String>) -> Vec<Embedding> {
+    async fn panicking_embedding(_texts: Vec<String>) -> Vec<Embedding> {
         panic!("embedding function was called")
     }
 
@@ -243,14 +242,14 @@ age: 30"###;
     struct FakeMultiDocumentTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn node(&self, _vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
                     .into_iter()
                     .map(|text| text.into()),
             )
         }
-        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }
@@ -290,7 +289,7 @@ age: 30"###;
     struct FakeTemplateWithIntervals;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn node(&self, _vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
                 life: Lifespan::Event { time: 20 },
@@ -302,7 +301,7 @@ age: 30"###;
             };
             Box::new(vec![doc_event_20, doc_interval_30_40].into_iter())
         }
-        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }

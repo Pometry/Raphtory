@@ -1,27 +1,20 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        utils::time::IntoTime,
         Direction,
     },
     db::{
         api::{
-            properties::{
-                internal::{
-                    ConstPropertiesOps, PropertiesOps, TemporalPropertiesOps,
-                    TemporalPropertyViewOps,
-                },
-                Properties,
-            },
+            properties::{internal::PropertiesOps, Properties},
             view::{
                 edge::EdgeListOps,
                 internal::{
                     CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, TimeSemantics,
                 },
-                BoxedIter, BoxedLIter, IntoDynBoxed, TimeOps,
+                BoxedLIter, IntoDynBoxed, TimeOps,
             },
         },
-        graph::{edge::EdgeView, vertex::VertexView, views::window_graph::WindowedGraph},
+        graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };

@@ -1,4 +1,16 @@
 use crate::{
+    core::entities::vertices::vertex_ref::VertexRef,
+    db::{
+        api::{properties::Properties, view::Layer},
+        graph::{
+            edge::EdgeView,
+            // path::{Operations, PathFromGraph},
+            vertex::VertexView,
+        },
+    },
+    prelude::*,
+};
+use crate::{
     core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
     db::{
         api::view::{
@@ -8,23 +20,7 @@ use crate::{
         graph::path::PathFromGraph,
     },
 };
-use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
-    db::{
-        api::{
-            properties::Properties,
-            view::{BoxedIter, Layer, LayerOps},
-        },
-        graph::{
-            edge::EdgeView,
-            // path::{Operations, PathFromGraph},
-            vertex::VertexView,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-        },
-    },
-    prelude::*,
-};
-use std::{iter, marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct Vertices<'graph, G, GH> {

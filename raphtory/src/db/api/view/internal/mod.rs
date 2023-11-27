@@ -12,10 +12,7 @@ mod wrapped_graph;
 mod one_hop_filter;
 
 use crate::{
-    db::api::{
-        properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
-        view::StaticGraphViewOps,
-    },
+    db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
     prelude::GraphViewOps,
 };
 pub use core_deletion_ops::*;

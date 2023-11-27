@@ -35,7 +35,7 @@
 use crate::{
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::VertexViewOps,
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -117,10 +117,7 @@ pub fn triplet_count<G: for<'graph> GraphViewOps<'graph>>(g: &G, threads: Option
 mod triplet_test {
     use super::*;
     use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::*},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;

@@ -7,10 +7,9 @@
 
 use chrono::NaiveDateTime;
 
-use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,

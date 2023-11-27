@@ -1,10 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            graph::tgraph::InnerTemporalGraph,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{

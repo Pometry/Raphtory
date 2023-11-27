@@ -8,7 +8,6 @@ use crate::{
         BoxedLIter,
     },
 };
-use enum_dispatch::enum_dispatch;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.

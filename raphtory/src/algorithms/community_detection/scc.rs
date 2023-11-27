@@ -4,20 +4,11 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::compute_state::ComputeStateVec,
     },
-    db::{
-        api::{
-            mutation::AdditionOps,
-            view::{
-                internal::{Base, BoxableGraphView, InheritViewOps},
-                StaticGraphViewOps,
-            },
-        },
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
-        },
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
+        vertex::eval_vertex::EvalVertexView,
     },
     prelude::*,
 };

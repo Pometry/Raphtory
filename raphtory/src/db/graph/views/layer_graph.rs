@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{

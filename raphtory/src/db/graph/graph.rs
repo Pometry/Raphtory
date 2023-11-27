@@ -160,10 +160,7 @@ mod db_tests {
             ArcStr, Prop,
         },
         db::{
-            api::view::{
-                EdgeListOps, EdgeViewOps, Layer, LayerOps, StaticGraphViewOps, TimeOps,
-                VertexViewOps,
-            },
+            api::view::{EdgeListOps, EdgeViewOps, Layer, LayerOps, TimeOps, VertexViewOps},
             graph::{edge::EdgeView, path::PathFromVertex},
         },
         graphgen::random_attachment::random_attachment,

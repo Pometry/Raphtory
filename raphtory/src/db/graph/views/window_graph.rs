@@ -39,11 +39,7 @@
 
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, EID, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         utils::time::IntoTime,
         ArcStr, Direction, Prop,
     },
@@ -54,11 +50,10 @@ use crate::{
             },
             view::{
                 internal::{
-                    Base, DynamicGraph, EdgeFilter, EdgeFilterOps, EdgeWindowFilter, GraphOps,
-                    Immutable, InheritCoreOps, InheritLayerOps, InheritMaterialize, IntoDynamic,
-                    Static, TimeSemantics,
+                    Base, EdgeFilter, EdgeFilterOps, EdgeWindowFilter, GraphOps, Immutable,
+                    InheritCoreOps, InheritLayerOps, InheritMaterialize, Static, TimeSemantics,
                 },
-                BoxedIter, BoxedLIter, StaticGraphViewOps,
+                BoxedIter, BoxedLIter,
             },
         },
         graph::graph::graph_equal,

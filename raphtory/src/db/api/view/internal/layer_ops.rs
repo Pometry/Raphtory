@@ -1,8 +1,4 @@
-use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::api::view::internal::Base,
-    prelude::Layer,
-};
+use crate::{core::entities::LayerIds, db::api::view::internal::Base, prelude::Layer};
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]

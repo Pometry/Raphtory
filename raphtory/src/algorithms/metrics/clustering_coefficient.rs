@@ -1,6 +1,5 @@
 use crate::{
     algorithms::motifs::{triangle_count::triangle_count, triplet_count::triplet_count},
-    db::api::view::StaticGraphViewOps,
     prelude::GraphViewOps,
 };
 
@@ -51,10 +50,7 @@ pub fn clustering_coefficient<G: for<'graph> GraphViewOps<'graph>>(g: &G) -> f64
 mod cc_test {
     use super::*;
     use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::*},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;

@@ -1,14 +1,11 @@
 use crate::{
     algorithms::{algorithm_result::AlgorithmResult, metrics::degree::max_degree},
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
-    db::{
-        api::view::StaticGraphViewOps,
-        task::{
-            context::Context,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
-        },
+    db::task::{
+        context::Context,
+        task::{ATask, Job, Step},
+        task_runner::TaskRunner,
+        vertex::eval_vertex::EvalVertexView,
     },
     prelude::*,
 };

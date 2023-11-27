@@ -1,24 +1,11 @@
 //! Defines the `Vertex` struct, which represents a vertex in the graph.
 
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, vertices::vertex::Vertex, LayerIds},
-    db::{
-        api::view::{
-            internal::{CoreGraphOps, GraphOps, InternalLayerOps, OneHopFilter, TimeSemantics},
-            BaseVertexViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
-        },
-        graph::{
-            graph::InternalGraph,
-            path::{PathFromGraph, PathFromVertex},
-        },
-    },
-};
-use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::{errors::GraphError, time::IntoTime},
-        ArcStr, Direction,
+        utils::errors::GraphError,
+        ArcStr,
     },
     db::{
         api::{
@@ -30,17 +17,18 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::Static, BoxedIter, Layer, LayerOps},
+            view::{
+                internal::{
+                    CoreGraphOps, GraphOps, InternalLayerOps, OneHopFilter, Static, TimeSemantics,
+                },
+                BaseVertexViewOps, BoxedLIter, IntoDynBoxed, Layer, StaticGraphViewOps,
+            },
         },
-        graph::{
-            edge::EdgeView,
-            // path::{Operations, PathFromVertex},
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-        },
+        graph::{edge::EdgeView, path::PathFromVertex},
     },
     prelude::*,
 };
-use chrono::format::format_item;
+
 use std::{
     fmt,
     hash::{Hash, Hasher},

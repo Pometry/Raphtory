@@ -1,11 +1,8 @@
-use crate::{
-    db::{
-        api::view::{internal::DynamicGraph, StaticGraphViewOps},
-        graph::views::{
-            layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph, window_graph::WindowedGraph,
-        },
+use crate::db::{
+    api::view::{internal::DynamicGraph, StaticGraphViewOps},
+    graph::views::{
+        layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph, window_graph::WindowedGraph,
     },
-    prelude::GraphViewOps,
 };
 use enum_dispatch::enum_dispatch;
 

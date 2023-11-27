@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         state::compute_state::ComputeState,
-        storage::timeindex::TimeIndexEntry,
         utils::time::IntoTime,
         ArcStr, Prop,
     },
@@ -24,8 +23,8 @@ use crate::{
         },
     },
 };
-use chrono::NaiveDateTime;
-use std::{cell::RefCell, iter, marker::PhantomData, rc::Rc};
+
+use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
     ss: usize,

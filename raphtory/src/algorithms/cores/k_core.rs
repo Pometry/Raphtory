@@ -4,7 +4,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::VertexViewOps,
         graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,

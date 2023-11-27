@@ -4,7 +4,6 @@ use crate::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
-    prelude::GraphViewOps,
 };
 use std::sync::Arc;
 

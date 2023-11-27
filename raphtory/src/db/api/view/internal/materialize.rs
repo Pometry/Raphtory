@@ -35,7 +35,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, path::Path};
+use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(GraphOpsBase)]

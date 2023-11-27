@@ -22,7 +22,6 @@ use crate::{
 use rayon::{prelude::*, ThreadPool};
 use std::{
     borrow::Cow,
-    ops::Deref,
     rc::Rc,
     sync::atomic::{AtomicBool, Ordering},
 };

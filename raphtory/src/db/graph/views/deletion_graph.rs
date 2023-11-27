@@ -5,7 +5,7 @@ use crate::{
             vertices::vertex_store::VertexStore,
             LayerIds, VID,
         },
-        storage::timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
     },
