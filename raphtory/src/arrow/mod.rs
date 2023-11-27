@@ -161,7 +161,13 @@ pub(crate) fn split_struct_chunk(
     time_col_idx: usize,
 ) -> (GraphChunk, PropsChunk) {
     let (fields, cols, _) = chunk.into_data();
-    split_chunk(cols.to_vec(), src_col_idx, dst_col_idx, time_col_idx, fields.into())
+    split_chunk(
+        cols.to_vec(),
+        src_col_idx,
+        dst_col_idx,
+        time_col_idx,
+        fields.into(),
+    )
 }
 
 pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(

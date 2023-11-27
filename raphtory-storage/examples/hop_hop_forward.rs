@@ -128,22 +128,14 @@ fn query1_v7(
                                                     probe_map
                                                         .entry(b)
                                                         .and_modify(|(nft_min, v)| {
-                                                            v.push((
-                                                                *prog1_t,
-                                                                *nf1_t - 30,
-                                                                e,
-                                                            ));
+                                                            v.push((*prog1_t, *nf1_t - 30, e));
                                                             *nft_min = (*nf1_t - 30).min(*nft_min);
                                                         })
                                                         .or_insert_with(|| {
                                                             let nf1_t_less30 = *nf1_t - 30;
                                                             (
                                                                 nf1_t_less30,
-                                                                vec![(
-                                                                    *prog1_t,
-                                                                    nf1_t_less30,
-                                                                    e,
-                                                                )],
+                                                                vec![(*prog1_t, nf1_t_less30, e)],
                                                             )
                                                         });
                                                 }
@@ -228,6 +220,7 @@ fn query1_v7(
     count
 }
 
+#[inline]
 fn binary_search_join_par_4<'a>(
     login_events: impl ParallelIterator<Item = (&'a Time, &'a i64)>,
     prog1: &[Time],
@@ -256,13 +249,7 @@ fn binary_search_join_par_4<'a>(
             from.map(|from| (from, login1_t))
         })
         .map(|(from, login1_t)| {
-            optimise_to_bits_small(
-                &prog1[from..],
-                &nft[from..],
-                &e[from..],
-                login1_t,
-                a
-            )
+            optimise_to_bits_small(&prog1[from..], &nft[from..], &e[from..], login1_t, a)
         })
         .sum::<usize>();
 
