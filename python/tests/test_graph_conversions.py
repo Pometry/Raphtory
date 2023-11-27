@@ -40,7 +40,7 @@ def test_py_vis():
     g = build_graph()
     pyvis_g = export.to_pyvis(g, directed=True)
 
-    assert pyvis_g.nodes == [
+    compare_list_of_dicts(pyvis_g.nodes, [
         {
             "color": "#97c2fc",
             "id": 7678824742430955432,
@@ -76,8 +76,10 @@ def test_py_vis():
             "label": "ServerE",
             "shape": "dot",
         },
-    ]
-    assert pyvis_g.edges == [
+    ])
+
+
+    compare_list_of_dicts(pyvis_g.edges, [
         {
             "arrowStrikethrough": False,
             "arrows": "to",
@@ -141,7 +143,7 @@ def test_py_vis():
             "to": 7718004695861170879,
             "value": 1,
         },
-    ]
+    ])
 
 
 def test_networkx_full_history():
@@ -250,7 +252,7 @@ def test_networkx_full_history():
             },
         ),
     ]
-    assert nodeList == server_list
+    compare_list_of_dicts(nodeList, server_list)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -336,7 +338,7 @@ def test_networkx_full_history():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def test_networkx_exploded():
@@ -448,7 +450,7 @@ def test_networkx_exploded():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def test_networkx_no_props():
@@ -510,7 +512,7 @@ def test_networkx_no_props():
         ),
         ("ServerE", {"update_history": [1693556100000, 1693556400000, 1693556700000]}),
     ]
-    assert nodeList == resultList
+    compare_list_of_dicts(nodeList, resultList)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -553,7 +555,7 @@ def test_networkx_no_props():
             {"layer": "File Transfer", "update_history": [1693556700000]},
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
     networkxGraph = export.to_networkx(
         g,
@@ -570,7 +572,7 @@ def test_networkx_no_props():
         ("ServerD", {}),
         ("ServerE", {}),
     ]
-    assert nodeList == resultList
+    compare_list_of_dicts(nodeList, resultList)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -582,7 +584,7 @@ def test_networkx_no_props():
         ("ServerD", "ServerE", {"layer": "Administrative Command"}),
         ("ServerE", "ServerB", {"layer": "File Transfer"}),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
     networkxGraph = export.to_networkx(
         g, include_edge_properties=False, explode_edges=True
@@ -635,7 +637,7 @@ def test_networkx_no_props():
             {"layer": "File Transfer", "update_history": 1693556700000},
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def test_networkx_no_history():
@@ -703,7 +705,7 @@ def test_networkx_no_history():
             },
         ),
     ]
-    assert nodeList == resultList
+    compare_list_of_dicts(nodeList, resultList)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -778,7 +780,7 @@ def test_networkx_no_history():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
     networkxGraph = export.to_networkx(
         g, include_property_histories=False, explode_edges=True
@@ -885,7 +887,7 @@ def test_networkx_no_history():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def save_df_to_json(df, filename):
@@ -937,7 +939,7 @@ def jsonify_df(df):
     """
     lines = []
     for _, row in df.iterrows():
-        values = sorted(zip(df.columns, (json.dumps(v, ensure_ascii=True, sort_keys=True) for v in row)))
+        values = sorted(zip(df.columns, (normalise_dict(v) for v in row)))
         lines.append(values)
     lines.sort()
     return lines
@@ -949,6 +951,16 @@ def compare_df(df1, df2):
     s1 = jsonify_df(df1)
     s2 = jsonify_df(df2)
     assert s1 == s2
+
+
+def normalise_dict(d):
+    s = json.dumps(d, ensure_ascii=True, sort_keys=True)
+    return s
+
+
+def compare_list_of_dicts(list1, list2):
+    assert sorted(normalise_dict(v) for v in list1) == sorted(normalise_dict(v) for v in list2)
+
 
 
 def test_to_df():
