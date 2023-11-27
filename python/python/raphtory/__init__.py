@@ -8,6 +8,7 @@ sys.modules["raphtory.vectors"] = vectors
 # sys.modules["raphtory.graphql"] = graphql
 
 from .nullmodels import *
+from .plottingutils import *
 
 __doc__ = raphtory.__doc__
 if hasattr(raphtory, "__all__"):
