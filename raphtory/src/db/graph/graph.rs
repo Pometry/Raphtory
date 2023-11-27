@@ -1675,6 +1675,21 @@ mod db_tests {
             .out_degree()
             .collect();
         assert_eq!(degrees, [1]);
+
+        // graph level filter is preserved
+        let out_out_2: Vec<_> = g
+            .at(0)
+            .vertex(1)
+            .unwrap()
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect();
+        assert!(out_out_2.is_empty());
     }
 
     // non overlaping time intervals
