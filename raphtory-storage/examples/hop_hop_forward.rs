@@ -111,7 +111,8 @@ fn query1_v7(
 
         let count = AtomicUsize::new(0);
         let vs = b_login1_filter.iter().copied().collect_vec();
-        let probe_map: Arc<DashMap<VID, Vec<(i64, i64, VID)>>> = Arc::new(DashMap::default());
+        let probe_map: Arc<DashMap<VID, (Time, Vec<(i64, i64, VID)>)>> =
+            Arc::new(DashMap::default());
 
         let now = Instant::now();
         pool.install(|| {
@@ -138,11 +139,16 @@ fn query1_v7(
                                                 {
                                                     probe_map
                                                         .entry(b)
-                                                        .and_modify(|v| {
+                                                        .and_modify(|(nft_min, v)| {
                                                             v.push((*prog1_t, *nf1_t - 30, e));
+                                                            *nft_min = (*nf1_t - 30).min(*nft_min);
                                                         })
                                                         .or_insert_with(|| {
-                                                            vec![(*prog1_t, *nf1_t - 30, e)]
+                                                            let nf1_t_less30 = *nf1_t - 30;
+                                                            (
+                                                                nf1_t_less30,
+                                                                vec![(*prog1_t, nf1_t_less30, e)],
+                                                            )
                                                         });
                                                 }
                                             });
@@ -158,7 +164,7 @@ fn query1_v7(
         let now = Instant::now();
 
         probe_map.iter_mut().for_each(|mut entry| {
-            entry.value_mut().sort();
+            entry.value_mut().1.sort();
         });
 
         println!(
@@ -172,7 +178,7 @@ fn query1_v7(
         pool.install(|| {
             probe_map.par_iter().for_each(|entry| {
                 let b: VID = *entry.key();
-                let prog1_nft_events = entry.value();
+                let (min_nft_less30, prog1_nft_events) = entry.value();
 
                 g.edges_par(b, Direction::IN, events_2v)
                     .for_each(|(a2b, a)| {
@@ -194,7 +200,8 @@ fn query1_v7(
                             if !skip {
                                 let iter = login1
                                     .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
-                                    .unwrap();
+                                    .unwrap()
+                                    .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
 
                                 binary_search_join_par_3(iter, prog1_nft_events, &a, &count);
                             }
@@ -249,7 +256,7 @@ fn optimise_to_bits_2(
     login1_t: &Time,
     a: &VID,
 ) -> usize {
-    (&prog1_nft_events[from..])
+    prog1_nft_events[from..]
         .iter()
         .filter(move |(prog1_t, nft_t_less30, e)| {
             login1_t >= nft_t_less30 && login1_t < prog1_t && a != e
