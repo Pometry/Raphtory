@@ -1,5 +1,4 @@
 use ahash::HashSet;
-use core_affinity::CoreId;
 use dashmap::DashMap;
 use itertools::Itertools;
 use raphtory::{
@@ -12,6 +11,7 @@ use rayon::{
     ThreadPoolBuilder,
 };
 use std::{
+    collections::HashMap,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -56,16 +56,6 @@ fn query1_v7(
     println!("num_threads: {:?}", num_threads);
     let pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
-        // .spawn_handler(move |thread| {
-        //     std::thread::spawn(move || {
-        //         let core_id = CoreId {
-        //             id: thread.index() % num_threads,
-        //         };
-        //         let res = core_affinity::set_for_current(core_id);
-        //         thread.run()
-        //     });
-        //     Ok(())
-        // })
         .build()
         .expect("failed to build pool");
 
@@ -107,8 +97,6 @@ fn query1_v7(
             b_login1_filter.len()
         );
 
-        // let mut count = 0;
-
         let count = AtomicUsize::new(0);
         let vs = b_login1_filter.iter().copied().collect_vec();
         let probe_map: Arc<DashMap<VID, (Time, Vec<(i64, i64, VID)>)>> =
@@ -140,14 +128,22 @@ fn query1_v7(
                                                     probe_map
                                                         .entry(b)
                                                         .and_modify(|(nft_min, v)| {
-                                                            v.push((*prog1_t, *nf1_t - 30, e));
+                                                            v.push((
+                                                                *prog1_t,
+                                                                *nf1_t - 30,
+                                                                e,
+                                                            ));
                                                             *nft_min = (*nf1_t - 30).min(*nft_min);
                                                         })
                                                         .or_insert_with(|| {
                                                             let nf1_t_less30 = *nf1_t - 30;
                                                             (
                                                                 nf1_t_less30,
-                                                                vec![(*prog1_t, nf1_t_less30, e)],
+                                                                vec![(
+                                                                    *prog1_t,
+                                                                    nf1_t_less30,
+                                                                    e,
+                                                                )],
                                                             )
                                                         });
                                                 }
@@ -163,9 +159,21 @@ fn query1_v7(
 
         let now = Instant::now();
 
-        probe_map.iter_mut().for_each(|mut entry| {
-            entry.value_mut().1.sort();
-        });
+        let probe_map: HashMap<VID, (Time, (Vec<Time>, Vec<Time>, Vec<VID>))> = probe_map
+            .iter_mut()
+            .map(|mut entry| {
+                let key = *entry.key();
+                let (min_nft_less30, rows) = entry.value_mut();
+                rows.sort_unstable();
+
+                // split the rows into columns
+                let cols: (Vec<_>, (Vec<_>, Vec<_>)) =
+                    rows.into_iter().map(|(a, b, c)| (*a, (*b, *c))).unzip();
+
+                let (c1, (c2, c3)) = cols;
+                (key, (*min_nft_less30, (c1, c2, c3)))
+            })
+            .collect();
 
         println!(
             "Done sorting map len: {:?}, duration: {:?}",
@@ -177,8 +185,10 @@ fn query1_v7(
 
         pool.install(|| {
             probe_map.par_iter().for_each(|entry| {
-                let b: VID = *entry.key();
-                let (min_nft_less30, prog1_nft_events) = entry.value();
+                // let b: VID = *entry.key();
+                // let (min_nft_less30, prog1_nft_events) = entry.value();
+                let (b, (min_nft_less30, (prog1, nft_less30, e))) = entry;
+                let b = *b;
 
                 g.edges_par(b, Direction::IN, events_2v)
                     .for_each(|(a2b, a)| {
@@ -186,8 +196,8 @@ fn query1_v7(
                             let login1 = g.edge(a2b, events_2v);
 
                             let mut skip = false;
-                            if !prog1_nft_events.is_empty() {
-                                let max_prog1 = prog1_nft_events.last().unwrap().0 as i64;
+                            if !prog1.is_empty() {
+                                let max_prog1 = *prog1.last().unwrap() as i64;
 
                                 let login1_ts = login1.timestamps();
 
@@ -203,7 +213,7 @@ fn query1_v7(
                                     .unwrap()
                                     .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
 
-                                binary_search_join_par_3(iter, prog1_nft_events, &a, &count);
+                                binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
                             }
                         }
                     });
@@ -218,23 +228,25 @@ fn query1_v7(
     count
 }
 
-fn binary_search_join_par_3<'a>(
+fn binary_search_join_par_4<'a>(
     login_events: impl ParallelIterator<Item = (&'a Time, &'a i64)>,
-    prog1_nft_events: &'a Vec<(i64, i64, VID)>,
+    prog1: &[Time],
+    nft: &[Time],
+    e: &[VID],
     a: &VID,
     count: &'a AtomicUsize,
 ) {
     let c = login_events
         .filter(|(_, &login1_event_id)| login1_event_id == 4624)
         .filter_map(|(login1_t, _)| {
-            let pos = prog1_nft_events.binary_search_by(|(prog1_t, _, _)| prog1_t.cmp(&login1_t));
+            let pos = prog1.binary_search_by(|prog1_t| prog1_t.cmp(&login1_t));
 
             let from = match pos {
                 Ok(i) => {
                     Some(i + 1) // this one is smaller than all the prog_t
                 }
                 Err(i) => {
-                    if i >= prog1_nft_events.len() {
+                    if i >= prog1.len() {
                         None
                     } else {
                         Some(i)
@@ -243,61 +255,36 @@ fn binary_search_join_par_3<'a>(
             };
             from.map(|from| (from, login1_t))
         })
-        .map(|(from, login1_t)| optimise_to_bits_2(&prog1_nft_events, from, login1_t, a))
+        .map(|(from, login1_t)| {
+            optimise_to_bits_small(
+                &prog1[from..],
+                &nft[from..],
+                &e[from..],
+                login1_t,
+                a
+            )
+        })
         .sum::<usize>();
 
     count.fetch_add(c, Ordering::Relaxed);
 }
 
 #[inline]
-fn optimise_to_bits_2(
-    prog1_nft_events: &Vec<(Time, Time, VID)>,
-    from: usize,
+fn optimise_to_bits_small<'a>(
+    prog1: impl IntoIterator<Item = &'a Time>,
+    nft_less30: impl IntoIterator<Item = &'a Time>,
+    e: impl IntoIterator<Item = &'a VID>,
     login1_t: &Time,
     a: &VID,
 ) -> usize {
-    prog1_nft_events[from..]
-        .iter()
-        .filter(move |(prog1_t, nft_t_less30, e)| {
-            login1_t >= nft_t_less30 && login1_t < prog1_t && a != e
+    prog1
+        .into_iter()
+        .zip(nft_less30)
+        .zip(e)
+        .filter(move |((prog1_t, nft_t_less30), e)| {
+            login1_t >= nft_t_less30 && login1_t < prog1_t && a != *e
         })
         .count()
-}
-
-fn binary_search_join<'a>(
-    iter: impl IntoIterator<Item = (Time, Time)>,
-    edges: &'a Vec<(Time, Time, VID)>,
-    a: &VID,
-    count: &'a mut usize,
-) -> Vec<(&'a Time, &'a Time, &'a Time)> {
-    let out = vec![];
-
-    'outer: for (login1_t, login1_event_id) in iter {
-        if login1_event_id == 4624 {
-            let pos = edges.binary_search_by(|probe| probe.0.cmp(&login1_t));
-
-            let from = match pos {
-                Ok(i) => {
-                    i + 1 // this one is smaller than all the prog_t
-                }
-                Err(i) => {
-                    if i >= edges.len() {
-                        break 'outer;
-                    } else {
-                        i
-                    }
-                }
-            };
-
-            for (prog1_t, nft_t, e) in &edges[from..] {
-                if nft_t - login1_t <= 30 && &login1_t < prog1_t && a != e {
-                    *count += 1;
-                    // out.push((login1_t, prog1_t, nft1_1));
-                }
-            }
-        }
-    }
-    out
 }
 
 fn main() {
