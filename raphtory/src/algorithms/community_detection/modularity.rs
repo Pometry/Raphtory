@@ -5,13 +5,13 @@ pub fn modularity<G>(
     graph: &G,
     communities: Vec<Vec<VertexView<G>>>,
     weight: &str,
-    resolution: u64,
+    resolution: f64,
     is_directed: bool,
 ) -> f64
 where
     G: GraphViewOps,
 {
-    if is_partition(graph, &communities) {
+    if !is_partition(graph, &communities) {
         println!("Not a partition");
         return 0.0f64;
     }
@@ -79,7 +79,7 @@ where
             .map(|e| {
                 e.properties()
                     .get(weight_key)
-                    .unwrap_or(Prop::F64(0.0f64))
+                    .unwrap_or(Prop::F64(1.0f64))
                     .unwrap_f64()
             })
             .sum::<f64>(),
@@ -88,7 +88,7 @@ where
             .map(|e| {
                 e.properties()
                     .get(weight_key)
-                    .unwrap_or(Prop::F64(0.0f64))
+                    .unwrap_or(Prop::F64(1.0f64))
                     .unwrap_f64()
             })
             .sum::<f64>(),
@@ -97,7 +97,7 @@ where
             .map(|e| {
                 e.properties()
                     .get(weight_key)
-                    .unwrap_or(Prop::F64(0.0f64))
+                    .unwrap_or(Prop::F64(1.0f64))
                     .unwrap_f64()
             })
             .sum::<f64>(),
@@ -111,71 +111,91 @@ pub fn community_contribution<G>(
     weight: &str,
     m: f64,
     norm: f64,
-    resolution: u64,
+    resolution: f64,
 ) -> f64
 where
     G: GraphViewOps,
 {
     let comm: HashSet<VertexView<G>> = community.clone().into_iter().collect();
-    let l_c: f64 = graph
-        .edges()
-        .filter_map(|e| match comm.contains(&e.dst()) {
-            true => Some(
-                e.properties()
-                    .get(weight)
-                    .unwrap_or(Prop::F64(1.0f64))
-                    .unwrap_f64(),
-            ),
-            false => Some(Prop::F64(1.0f64).unwrap_f64()),
-        })
-        .sum();
-    let out_degree_sum: f64 = comm
+    let l_c: f64 = community
         .iter()
-        .map(|v| degree_sum(v, weight, Direction::Out))
-        .sum();
-    let in_degree_sum: f64 = if directed {
-        comm.iter()
+        .flat_map(|v| v.out_edges())
+        .filter_map(|e| match comm.contains(&e.dst()) {
+            true => {
+                Some(
+                    e.properties()
+                        .get(weight)
+                        .unwrap_or(Prop::F64(1.0f64))
+                        .unwrap_f64(),
+                )
+            },
+            false => Some(Prop::F64(0.0f64).unwrap_f64()),
+        })
+        .sum::<f64>();
+    let mut out_degree_sum: f64 = 0.0f64;
+    let mut in_degree_sum: f64 = 0.0f64;
+    if directed {
+        out_degree_sum = comm
+            .iter()
+            .map(|v| degree_sum(v, weight, Direction::Out))
+            .sum();
+        in_degree_sum = comm.iter()
             .map(|v| degree_sum(v, weight, Direction::In))
-            .sum()
-    } else {
-        out_degree_sum
-    };
-    l_c / m - (resolution as f64) * out_degree_sum * in_degree_sum * norm
+            .sum();
+    }
+    else {
+        in_degree_sum = comm.iter()
+            .map(|v| degree_sum(v, weight, Direction::Both))
+            .sum();
+        out_degree_sum = in_degree_sum.clone();
+    }
+    l_c / m - resolution * out_degree_sum * in_degree_sum * norm
 }
 
 #[cfg(test)]
-mod louvain_test {
+mod modularity_test {
     use super::*;
-    use crate::prelude::*;
+
 
     #[test]
-    fn test_community_contribution() {
+    fn test_modularity() {
         let graph = Graph::new();
         let edges = vec![
-            (1, 2, 1, 2.0),
-            (1, 3, 2, 3.0),
-            (1, 4, 3, 1.0),
-            (1, 5, 4, 2.0),
-            (1, 5, 5, 1.0),
-            (1, 8, 6, 2.0),
-            (1, 7, 7, 3.0),
+            (1, "1", "2", 2.0f64),
+            (1, "1", "3", 3.0f64),
+            (1, "2", "3", 8.5f64),
+            (1, "3", "4", 1.0f64),
+            (1, "4", "5", 1.5f64),
         ];
-        for (src, dst, ts, wt) in edges {
+        for (ts, src, dst, wt) in edges {
             graph
                 .add_edge(ts, src, dst, [("weight", wt)], None)
                 .unwrap();
         }
 
-        let results = community_contribution(
-            &vec![graph.vertex(2).unwrap(), graph.vertex(4).unwrap()],
-            &graph,
-            true,
-            "weight",
-            1.0,
-            1.0,
-            1,
-        );
+        let results = modularity(&graph, vec![
+            vec![graph.vertex("1").unwrap(), graph.vertex("2").unwrap(),graph.vertex("3").unwrap()],
+            vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+        ], "", 1.0f64, false);
+        assert_eq!(results, 0.22f64);
 
-        print!("{:?}", results)
+        let results = modularity(&graph, vec![
+            vec![graph.vertex("1").unwrap(), graph.vertex("2").unwrap(),graph.vertex("3").unwrap()],
+            vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+        ], "", 1.0f64, true);
+        assert_eq!(results, 0.24f64);
+
+        let results = modularity(&graph, vec![
+            vec![graph.vertex("1").unwrap(), graph.vertex("2").unwrap(),graph.vertex("3").unwrap()],
+            vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+        ], "weight", 1.0f64, false);
+        assert_eq!(results, 0.15625f64);
+
+        let results = modularity(&graph, vec![
+            vec![graph.vertex("1").unwrap(), graph.vertex("2").unwrap(),graph.vertex("3").unwrap()],
+            vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+        ], "weight", 1.0f64, true);
+        assert_eq!(results, 0.158203125f64)
+
     }
 }
