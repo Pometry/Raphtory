@@ -48,7 +48,7 @@ pub struct EdgeView<G, GH = G> {
     pub edge: EdgeRef,
 }
 
-impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Static for EdgeView<G, GH> {}
+impl<G, GH> Static for EdgeView<G, GH> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {

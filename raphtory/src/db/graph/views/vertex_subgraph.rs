@@ -30,7 +30,7 @@ pub struct VertexSubgraph<G> {
     edge_filter: EdgeFilter,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Static for VertexSubgraph<G> {}
+impl<G> Static for VertexSubgraph<G> {}
 
 impl<'graph, G: Debug + 'graph> Debug for VertexSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

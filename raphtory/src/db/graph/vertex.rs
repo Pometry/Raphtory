@@ -245,7 +245,7 @@ impl<G, GH: CoreGraphOps> ConstPropertiesOps for VertexView<G, GH> {
     }
 }
 
-impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Static for VertexView<G, GH> {}
+impl<G, GH> Static for VertexView<G, GH> {}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOps<'graph>
     for VertexView<G, GH>

@@ -80,7 +80,7 @@ pub struct WindowedGraph<G> {
     window_filter: EdgeWindowFilter,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Static for WindowedGraph<G> {}
+impl<G> Static for WindowedGraph<G> {}
 
 impl<'graph, G: Debug + 'graph> Debug for WindowedGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

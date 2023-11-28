@@ -15,6 +15,11 @@ use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
     prelude::GraphViewOps,
 };
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
+
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
@@ -24,14 +29,13 @@ pub use into_dynamic::IntoDynamic;
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use materialize::*;
 pub use one_hop_filter::*;
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
 pub use time_semantics::*;
 
-pub trait BoxableGraphBase:
+/// Marker trait to indicate that an object is a valid graph view
+pub trait BoxableGraphView<'graph>:
     CoreGraphOps
+    + GraphOps<'graph>
+    + EdgeFilterOps
     + InternalLayerOps
     + TimeSemantics
     + InternalMaterialize
@@ -42,11 +46,11 @@ pub trait BoxableGraphBase:
 {
 }
 
-/// Marker trait to indicate that an object is a valid graph view
-pub trait BoxableGraphView<'graph>: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps {}
-
 impl<
+        'graph,
         G: CoreGraphOps
+            + GraphOps<'graph>
+            + EdgeFilterOps
             + InternalLayerOps
             + TimeSemantics
             + InternalMaterialize
@@ -54,12 +58,7 @@ impl<
             + ConstPropertiesOps
             + Send
             + Sync,
-    > BoxableGraphBase for G
-{
-}
-
-impl<'graph, G: BoxableGraphBase + GraphOps<'graph> + EdgeFilterOps> BoxableGraphView<'graph>
-    for G
+    > BoxableGraphView<'graph> for G
 {
 }
 

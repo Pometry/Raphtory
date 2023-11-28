@@ -30,7 +30,7 @@ pub struct LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for LayeredGraph<G> {}
 
-impl<G: StaticGraphViewOps> Static for LayeredGraph<G> {}
+impl<G> Static for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

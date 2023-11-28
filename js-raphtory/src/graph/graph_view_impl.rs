@@ -1,5 +1,5 @@
 use super::{Graph, UnderGraph};
-use raphtory::db::api::view::internal::{Base, BoxableGraphView, InheritViewOps};
+use raphtory::db::api::view::{Base, BoxableGraphView, InheritViewOps};
 
 impl Base for Graph {
     type Base = dyn BoxableGraphView<'static> + Send + Sync + 'static;

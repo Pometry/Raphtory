@@ -1,6 +1,6 @@
 pub use crate::server::RaphtoryServer;
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, DecodeError, Engine};
-use raphtory::{core::utils::errors::GraphError, db::api::view::internal::MaterializedGraph};
+use raphtory::{core::utils::errors::GraphError, db::api::view::MaterializedGraph};
 
 pub mod model;
 mod observability;
@@ -40,7 +40,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
-        db::{api::view::internal::IntoDynamic, graph::views::deletion_graph::GraphWithDeletions},
+        db::{api::view::IntoDynamic, graph::views::deletion_graph::GraphWithDeletions},
         prelude::*,
     };
     use serde_json::json;

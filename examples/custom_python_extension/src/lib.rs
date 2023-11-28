@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use raphtory::db::api::view::{internal::DynamicGraph, StaticGraphViewOps};
+use raphtory::db::api::view::{DynamicGraph, StaticGraphViewOps};
 
 fn custom_algorithm<G: StaticGraphViewOps>(graph: &G) -> usize {
     graph.count_vertices()

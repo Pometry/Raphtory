@@ -13,10 +13,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            StaticGraphViewOps, TimeOps, VertexViewOps,
-        },
+        api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps, TimeOps, VertexViewOps},
         graph::edge::EdgeView,
     },
     prelude::*,

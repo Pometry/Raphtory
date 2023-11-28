@@ -2,7 +2,7 @@ use crate::model::schema::{merge_schemas, property_schema::PropertySchema, Schem
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
+    db::{api::view::DynamicGraph, graph::vertex::VertexView},
     prelude::{GraphViewOps, VertexViewOps},
 };
 use std::collections::{HashMap, HashSet};

@@ -1,7 +1,7 @@
 use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
-    db::api::view::internal::MaterializedGraph,
+    db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},

@@ -4,13 +4,7 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::{
-    api::view::{
-        internal::{DynamicGraph, IntoDynamic},
-        *,
-    },
-    graph::vertex::VertexView,
-};
+use raphtory::db::{api::view::*, graph::vertex::VertexView};
 use std::collections::HashSet;
 
 use super::property_update::PropertyUpdateGroup;

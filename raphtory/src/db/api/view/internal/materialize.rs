@@ -41,6 +41,7 @@ use std::path::Path;
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(IntoDynamic)]
 #[enum_dispatch(TimeSemantics)]
+#[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
@@ -51,15 +52,6 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
-}
-
-impl EdgeFilterOps for MaterializedGraph {
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_filter(),
-            MaterializedGraph::PersistentGraph(g) => g.edge_filter(),
-        }
-    }
 }
 
 impl<'graph> GraphOps<'graph> for MaterializedGraph {
