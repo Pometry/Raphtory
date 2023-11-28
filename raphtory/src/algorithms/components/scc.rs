@@ -28,7 +28,7 @@ fn tarjan<'graph, G>(
     on_stack: &'graph mut HashSet<u64>,
     result: &'graph mut Vec<Vec<u64>>,
 ) where
-    G: for<'a> GraphViewOps<'a>,
+    G: StaticGraphViewOps,
 {
     *index += 1;
     indices.insert(node, *index);
@@ -177,7 +177,7 @@ where
 #[cfg(test)]
 mod strongly_connected_components_tests {
     use crate::{
-        algorithms::community_detection::scc::strongly_connected_components,
+        algorithms::components::scc::strongly_connected_components,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
 

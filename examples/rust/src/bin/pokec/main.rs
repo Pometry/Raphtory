@@ -1,7 +1,6 @@
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        community_detection::connected_components::weakly_connected_components,
+        centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
     db::{api::mutation::AdditionOps, graph::graph::Graph},
     graph_loader::source::csv_loader::CsvLoader,

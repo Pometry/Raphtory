@@ -36,7 +36,7 @@ use crate::algorithms::algorithm_result::AlgorithmResult;
 use crate::{algorithms::motifs::three_node_motifs::*, db::api::view::*};
 use std::collections::HashMap;
 
-fn star_motif_count<G: GraphViewOps<'static>>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
+fn star_motif_count<'graph, G: GraphViewOps<'graph>>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
     if let Some(vertex) = graph.vertex(v) {
         let neigh_map: HashMap<u64, usize> = vertex
             .neighbours()
@@ -65,7 +65,11 @@ fn star_motif_count<G: GraphViewOps<'static>>(graph: &G, v: u64, delta: i64) -> 
     }
 }
 
-fn twonode_motif_count<G: GraphViewOps<'static>>(graph: &G, v: u64, delta: i64) -> [usize; 8] {
+fn twonode_motif_count<'graph, G: GraphViewOps<'graph>>(
+    graph: &G,
+    v: u64,
+    delta: i64,
+) -> [usize; 8] {
     let mut counts = [0; 8];
     if let Some(vertex) = graph.vertex(v) {
         for nb in vertex.neighbours().iter() {
@@ -102,7 +106,7 @@ fn twonode_motif_count<G: GraphViewOps<'static>>(graph: &G, v: u64, delta: i64) 
     counts
 }
 
-fn triangle_motif_count<G: GraphViewOps<'static>>(
+fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
     graph: &G,
     delta: i64,
 ) -> AlgorithmResult<G, Vec<usize>, Vec<usize>> {
@@ -271,7 +275,7 @@ fn triangle_motif_count<G: GraphViewOps<'static>>(
 ///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 ///
 ///
-pub fn local_temporal_three_node_motifs<G: GraphViewOps<'static>>(
+pub fn local_temporal_three_node_motifs<'graph, G: GraphViewOps<'graph>>(
     graph: &G,
     delta: i64,
 ) -> AlgorithmResult<G, Vec<usize>, Vec<usize>> {
@@ -320,7 +324,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps<'static>>(
 /// This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
 ///
-pub fn global_temporal_three_node_motifs<G: GraphViewOps<'static>>(
+pub fn global_temporal_three_node_motifs<'graph, G: GraphViewOps<'graph>>(
     graph: &G,
     delta: i64,
 ) -> Vec<usize> {

@@ -17,8 +17,8 @@ use ordered_float::OrderedFloat;
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
-pub fn degree_centrality<'a, G: StaticGraphViewOps>(
-    g: &'a G,
+pub fn degree_centrality<G: StaticGraphViewOps>(
+    g: &G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let max_degree = max_degree(g);

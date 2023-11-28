@@ -438,7 +438,7 @@ impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Debug for Algorithm
 mod algorithm_result_test {
     use super::*;
     use crate::{
-        algorithms::community_detection::connected_components::weakly_connected_components,
+        algorithms::components::weakly_connected_components,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::{NO_PROPS, *},
     };

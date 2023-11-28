@@ -12,11 +12,8 @@ use crate::{
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
-        community_detection::connected_components,
-        community_detection::in_components as in_comp,
         community_detection::label_propagation::label_propagation as label_propagation_rs,
-        community_detection::out_components as out_comp,
-        community_detection::scc,
+        components,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -87,7 +84,7 @@ pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
 ) -> AlgorithmResult<DynamicGraph, u64, u64> {
-    connected_components::weakly_connected_components(&g.graph, iter_count, None)
+    components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
 /// Strongly connected components
@@ -102,7 +99,7 @@ pub fn weakly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
-    scc::strongly_connected_components(&g.graph, None)
+    components::strongly_connected_components(&g.graph, None)
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -115,7 +112,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
-    in_comp::in_components(&g.graph, None)
+    components::in_components(&g.graph, None)
 }
 
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
@@ -128,7 +125,7 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>,
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
-    out_comp::out_components(&g.graph, None)
+    components::out_components(&g.graph, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph

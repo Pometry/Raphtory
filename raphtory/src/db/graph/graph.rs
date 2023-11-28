@@ -155,7 +155,7 @@ impl IntoDynamic for Graph {
 mod db_tests {
     use super::*;
     use crate::{
-        algorithms::community_detection::connected_components::weakly_connected_components,
+        algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, Prop,

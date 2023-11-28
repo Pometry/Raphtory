@@ -1,7 +1,10 @@
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::{db::graph::vertex::VertexView, prelude::*};
+use crate::{
+    db::{api::view::StaticGraphViewOps, graph::vertex::VertexView},
+    prelude::*,
+};
 
 /// Computes components using a label propagation algorithm
 ///
@@ -19,7 +22,7 @@ pub fn label_propagation<G>(
     seed: Option<[u8; 32]>,
 ) -> Result<Vec<HashSet<VertexView<G>>>, &'static str>
 where
-    G: for<'a> GraphViewOps<'a>,
+    G: StaticGraphViewOps,
 {
     let mut labels: HashMap<VertexView<G>, u64> = HashMap::new();
     for vertex in graph.vertices() {
