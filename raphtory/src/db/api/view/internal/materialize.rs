@@ -38,7 +38,6 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
-#[enum_dispatch(GraphOpsBase)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(IntoDynamic)]
 #[enum_dispatch(TimeSemantics)]
