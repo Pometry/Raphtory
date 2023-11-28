@@ -14,7 +14,6 @@ use std::{
     ops::{Deref, Range},
     sync::Arc,
 };
-use tantivy::HasLen;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct TimeIndexEntry(pub i64, pub usize);

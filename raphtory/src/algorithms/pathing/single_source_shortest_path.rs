@@ -22,7 +22,7 @@ use std::collections::HashMap;
 ///
 /// Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
 ///
-pub fn single_source_shortest_path<G: GraphViewOps<'static>, T: InputVertex>(
+pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputVertex>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
