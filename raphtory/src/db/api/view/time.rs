@@ -136,14 +136,6 @@ pub struct WindowSet<'graph, T> {
 
 impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
     fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
-        // let cursor_start = if step.epoch_alignment {
-        //     let step = step.to_millis().unwrap() as i64;
-        //     let prev_perspective_exclusive_end = (timeline_start / step) * step; // timeline.start 5 step 3 -> 3, timeline.start 6 step 3 -> 6, timeline.start 7 step 3 -> 6
-        //     let prev_perspective_inclusive_end = prev_perspective_exclusive_end - 1;
-        //     prev_perspective_inclusive_end + step
-        // } else {
-        //     timeline_start + step - 1
-        // };
         let cursor_start = start + step;
         Self {
             view,

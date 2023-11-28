@@ -1655,6 +1655,38 @@ mod db_tests {
             .collect();
         assert_eq!(out_out, [3]);
 
+        let out_out: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_edges()
+            .properties()
+            .flat_map(|p| p.get("layer").into_i32())
+            .collect();
+        assert_eq!(out_out, [2]);
+
+        let out_out: Vec<_> = v
+            .at(0)
+            .out_neighbours()
+            .after(1)
+            .out_neighbours()
+            .id()
+            .collect();
+        assert_eq!(out_out, [4]);
+
+        let earliest_time = v
+            .at(0)
+            .out_neighbours()
+            .after(1)
+            .out_edges()
+            .earliest_time()
+            .flatten()
+            .min();
+        assert_eq!(earliest_time, Some(2));
+
         // filter applies to edges
         let layers: Vec<_> = v
             .layer("1")
