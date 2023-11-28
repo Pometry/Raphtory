@@ -13,18 +13,24 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::*, *},
+            view::{
+                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+                BoxedIter,
+            },
         },
         graph::edge::EdgeView,
     },
+    prelude::{GraphViewOps, Layer, LayerOps, TimeOps, VertexListOps, VertexViewOps},
 };
 
 pub trait EdgeViewInternalOps<'graph>:
-    ConstPropertiesOps
+    InternalLayerOps
+    + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
     + TimeOps<'graph>
     + LayerOps<'graph>
+    + Clone
 {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
@@ -112,18 +118,7 @@ pub trait EdgeViewOps<'graph>:
     fn layer_names(&self) -> BoxedIter<ArcStr>;
 }
 
-impl<
-        'graph,
-        E: EdgeViewInternalOps<'graph>
-            + ConstPropertiesOps
-            + TemporalPropertiesOps
-            + TemporalPropertyViewOps
-            + InternalLayerOps
-            + TimeOps<'graph>
-            + Sized
-            + Clone,
-    > EdgeViewOps<'graph> for E
-{
+impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
     type Graph = E::Graph;
     type BaseGraph = E::BaseGraph;
     type Vertex = E::Neighbour;
