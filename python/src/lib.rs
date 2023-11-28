@@ -94,6 +94,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         single_source_shortest_path,
         global_clustering_coefficient,
         temporally_reachable_nodes,
+        temporal_bipartite_graph_projection,
         local_clustering_coefficient,
         weakly_connected_components,
         strongly_connected_components,
