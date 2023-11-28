@@ -41,11 +41,14 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
         temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
+        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
-    python::{graph::{views::graph_view::PyGraphView, graph::PyGraph}, utils::PyInputVertex},
+    python::{
+        graph::{graph::PyGraph, views::graph_view::PyGraphView},
+        utils::PyInputVertex,
+    },
 };
 use crate::{
     core::Prop,
@@ -392,7 +395,11 @@ pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 
 
 #[pyfunction]
 #[pyo3(signature = (g, delta, pivot_type))]
-pub fn temporal_bipartite_graph_projection(g: &PyGraphView, delta: i64, pivot_type: String) -> PyGraphView{
+pub fn temporal_bipartite_graph_projection(
+    g: &PyGraphView,
+    delta: i64,
+    pivot_type: String,
+) -> PyGraphView {
     temporal_bipartite_rs(&g.graph, delta, pivot_type).into()
 }
 
