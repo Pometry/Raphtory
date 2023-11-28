@@ -7,11 +7,14 @@ use crate::{
             compute_state::ComputeStateVec,
         },
     },
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
     prelude::*,
 };
@@ -63,7 +66,7 @@ impl Zero for TaintMessage {
 /// * An AlgorithmResult object containing the mapping from vertex ID to a vector of tuples containing the time at which
 /// the vertex was tainted and the ID of the vertex that tainted it
 ///
-pub fn temporally_reachable_nodes<G: for<'graph> GraphViewOps<'graph>, T: InputVertex>(
+pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
     g: &G,
     threads: Option<usize>,
     max_hops: usize,

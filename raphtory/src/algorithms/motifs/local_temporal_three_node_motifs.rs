@@ -179,7 +179,7 @@ pub fn triangle_motifs<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
-    G: for<'graph> GraphViewOps<'graph>,
+    G: StaticGraphViewOps,
 {
     let delta_len = deltas.len();
 
@@ -215,7 +215,7 @@ where
             if uu.triangle.len() == 0 {
                 uu.triangle = vec![[0 as usize; 8]; delta_len];
             }
-            for mut v in u.neighbours() {
+            for v in u.neighbours() {
                 // Find triangles on the UV edge
                 let intersection_nbs: Vec<u64> = match v.entry(&neighbours_set).read_ref() {
                     Some(v_set) => {
@@ -333,7 +333,7 @@ pub fn temporal_three_node_motif<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<Vec<usize>>>
 where
-    G: for<'graph> GraphViewOps<'graph>,
+    G: StaticGraphViewOps,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);

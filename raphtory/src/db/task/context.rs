@@ -8,7 +8,6 @@ use crate::{
         },
     },
     db::{api::view::StaticGraphViewOps, graph::vertex::VertexView},
-    prelude::GraphViewOps,
 };
 use std::{fmt::Debug, sync::Arc};
 
@@ -28,7 +27,7 @@ where
 
 impl<G, CS> Context<G, CS>
 where
-    G: for<'graph> GraphViewOps<'graph>,
+    G: StaticGraphViewOps,
     CS: ComputeState,
 {
     pub fn new_local_state<O: Debug + Default, F: Fn(VertexView<G, G>) -> O>(

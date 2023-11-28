@@ -5,7 +5,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::VertexViewOps,
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -13,7 +13,6 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::GraphViewOps,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -38,7 +37,7 @@ pub fn out_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
 where
-    G: for<'graph> GraphViewOps<'graph>,
+    G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv: &mut EvalVertexView<G, OutState>| {

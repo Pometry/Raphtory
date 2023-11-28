@@ -2,37 +2,24 @@
 use crate::{
     algorithms::{cores::k_core::k_core_set, motifs::three_node_motifs::*},
     core::state::{
-        accumulator_id::{
-            accumulators::{self, val},
-            AccId,
-        },
-        agg::{ArrConst, SumDef, ValDef},
+        accumulator_id::accumulators::{self},
+        agg::{ArrConst, SumDef},
         compute_state::ComputeStateVec,
     },
     db::{
         api::view::{GraphViewOps, VertexViewOps, *},
-        graph::{edge::EdgeView, views::vertex_subgraph::VertexSubgraph},
+        graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
-            edge::eval_edge::EvalEdgeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
             vertex::eval_vertex::EvalVertexView,
         },
     },
 };
-
-use std::{
-    rc::Rc,
-    sync::{Arc, RwLock},
-};
-
-use crate::core::entities::vertices::vertex_ref::VertexRef;
-use itertools::{enumerate, Itertools};
-use num_traits::Zero;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use itertools::Itertools;
 use rustc_hash::FxHashSet;
-use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
+use std::collections::HashMap;
 
 ///////////////////////////////////////////////////////
 
@@ -201,7 +188,7 @@ where
                         .sorted_by_key(|e| e.time_and_index())
                         .map(|e| {
                             let (src_id, dst_id) = (e.src().id(), e.dst().id());
-                            let (uid, vid) = (u.id(), v.id());
+                            let uid = u.id();
                             if src_id == w.clone() {
                                 new_triangle_edge(
                                     false,

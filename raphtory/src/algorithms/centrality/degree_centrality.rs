@@ -1,11 +1,14 @@
 use crate::{
     algorithms::{algorithm_result::AlgorithmResult, metrics::degree::max_degree},
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
     prelude::*,
 };
@@ -14,7 +17,7 @@ use ordered_float::OrderedFloat;
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
-pub fn degree_centrality<'a, G: for<'graph> GraphViewOps<'graph>>(
+pub fn degree_centrality<'a, G: StaticGraphViewOps>(
     g: &'a G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {

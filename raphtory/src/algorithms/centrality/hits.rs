@@ -8,7 +8,7 @@ use crate::{
         },
     },
     db::{
-        api::view::VertexViewOps,
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -16,7 +16,6 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::GraphViewOps,
 };
 use num_traits::abs;
 use ordered_float::OrderedFloat;
@@ -47,8 +46,7 @@ impl Default for Hits {
 /// Returns
 ///
 /// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
-#[allow(unused_variables)]
-pub fn hits<G: for<'graph> GraphViewOps<'graph>>(
+pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
@@ -140,7 +138,7 @@ pub fn hits<G: for<'graph> GraphViewOps<'graph>>(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
-        |_, _, els, local| {
+        |_, _, _, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
             let layers = g.layer_ids();

@@ -5,7 +5,6 @@ use crate::{
     },
     db::{
         api::view::{GraphViewOps, StaticGraphViewOps, VertexViewOps},
-        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
         task::{
             context::Context,
             edge::eval_edge::EvalEdgeView,
@@ -14,7 +13,7 @@ use crate::{
             vertex::eval_vertex::EvalVertexView,
         },
     },
-    prelude::{EdgeListOps, EdgeViewOps, LayerOps, Prop, PropUnwrap, TimeOps},
+    prelude::{EdgeListOps, EdgeViewOps, LayerOps, PropUnwrap, TimeOps},
 };
 
 fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(

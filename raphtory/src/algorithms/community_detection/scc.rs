@@ -4,11 +4,14 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::compute_state::ComputeStateVec,
     },
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
     prelude::*,
 };
@@ -66,7 +69,7 @@ fn tarjan<'graph, G>(
 
 fn tarjan_scc<G>(graph: &G) -> Vec<Vec<u64>>
 where
-    G: for<'graph> GraphViewOps<'graph>,
+    G: StaticGraphViewOps,
 {
     let mut index = 0;
     let mut stack = Vec::new();
@@ -97,7 +100,7 @@ where
 
 pub fn strongly_connected_components<G>(graph: &G, threads: Option<usize>) -> Vec<Vec<u64>>
 where
-    G: for<'graph> GraphViewOps<'graph>,
+    G: StaticGraphViewOps,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {

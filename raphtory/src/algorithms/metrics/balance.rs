@@ -11,11 +11,14 @@ use crate::{
         },
         Direction,
     },
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
     prelude::{EdgeListOps, GraphViewOps, PropUnwrap, VertexViewOps},
 };
@@ -99,7 +102,7 @@ fn balance_per_vertex<
 ///
 /// Returns:
 /// Returns an `AlgorithmResult` which maps each vertex to its corresponding net weight sum.
-pub fn balance<G: for<'graph> GraphViewOps<'graph>>(
+pub fn balance<G: StaticGraphViewOps>(
     graph: &G,
     name: String,
     direction: Direction,

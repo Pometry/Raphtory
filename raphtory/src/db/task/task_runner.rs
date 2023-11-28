@@ -17,7 +17,6 @@ use crate::{
         api::view::StaticGraphViewOps,
         task::vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
     },
-    prelude::GraphViewOps,
 };
 use rayon::{prelude::*, ThreadPool};
 use std::{
@@ -30,7 +29,7 @@ pub struct TaskRunner<G: StaticGraphViewOps, CS: ComputeState> {
     pub(crate) ctx: Context<G, CS>,
 }
 
-impl<G: for<'graph> GraphViewOps<'graph>, CS: ComputeState> TaskRunner<G, CS> {
+impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     pub fn new(ctx: Context<G, CS>) -> Self {
         Self { ctx }
     }
