@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1701182346431,
+  "lastUpdate": 1701264226032,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -29209,6 +29209,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 123669,
             "range": "± 319",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "575204ade8ff4b70c80a6d042868a15db470adb3",
+          "message": "Feature/one hop filters (#1393)\n\n* rebuild the apis\r\n\r\n* basic lifetimes but still errors\r\n\r\n* traits with lifetime\r\n\r\n* weird lifetime error in algorithms\r\n\r\n* this compiles and works\r\n\r\n* put state and eval back\r\n\r\n* add lifetime to InheritGraphOps\r\n\r\n* this compiles\r\n\r\n* start reworking EdgeFilter\r\n\r\n* redoes the lifetimes but still broken\r\n\r\n* compiles again\r\n\r\n* rework the apis to eliminate some lifetimes\r\n\r\n* put algorithms back\r\n\r\n* fix up the algorithms\r\n\r\n* algorithms compile\r\n\r\n* fix the rest of the compilation issues\r\n\r\n* check running algorithms on WindowedGraph compiles\r\n\r\n* add implementation for filtering on edges\r\n\r\n* fix layer on edge\r\n\r\n* fix remaining issues\r\n\r\n* fix warnings\r\n\r\n* fix more warnings\r\n\r\n* make the conversion tests order-invariant\r\n\r\n* more order-invariant comparisons\r\n\r\n* fix netflow example\r\n\r\n* a little explanation\r\n\r\n* add test for filter resetting\r\n\r\n* check that the graph-level filters are not reset when hopping\r\n\r\n* check algorithm can be applied to filtered graphs\r\n\r\n* use the StaticGraphViewOps trait where it makes sense and clean warnings\r\n\r\n* remove non-existent dispatch\r\n\r\n* a little bit more cleanup\r\n\r\n* clean up trait bounds for EdgeViewOps\r\n\r\n* more clean up\r\n\r\n* seal as much of the internal api as possible\r\n\r\n* a bit more testing\r\n\r\n* fix path\r\n\r\n* inline\r\n\r\n* add missing comparisons for iterables\r\n\r\n* test filter resetting in python\r\n\r\n* replace custom python extension with the netflow usecase\r\n\r\n* fix version for netflow\r\n\r\n* fix netflow test",
+          "timestamp": "2023-11-29T13:16:33Z",
+          "tree_id": "7a7368a95cc552fc4d103127bc843f635c8432d5",
+          "url": "https://github.com/Pometry/Raphtory/commit/575204ade8ff4b70c80a6d042868a15db470adb3"
+        },
+        "date": 1701264225140,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 269072,
+            "range": "± 2586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 327566,
+            "range": "± 3952",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 347175,
+            "range": "± 2249",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 542860,
+            "range": "± 80278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 774488,
+            "range": "± 85774",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 36,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 35,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_vertices",
+            "value": 1,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_existing",
+            "value": 9,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_vertex_nonexisting",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 2817,
+            "range": "± 165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 27989,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 22327,
+            "range": "± 348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 44,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 34,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_vertices",
+            "value": 3593,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_existing",
+            "value": 33,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_vertex_nonexisting",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 4972,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 164464,
+            "range": "± 764",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 22296,
+            "range": "± 916",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 57,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 36,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_vertices",
+            "value": 3466,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_existing",
+            "value": 38,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_vertex_nonexisting",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 4189,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 105010,
+            "range": "± 247",
             "unit": "ns/iter"
           }
         ]
