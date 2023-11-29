@@ -12,11 +12,8 @@ use crate::{
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
-        community_detection::connected_components,
-        community_detection::in_components as in_comp,
         community_detection::label_propagation::label_propagation as label_propagation_rs,
-        community_detection::out_components as out_comp,
-        community_detection::scc,
+        components,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -41,7 +38,6 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -87,7 +83,7 @@ pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
 ) -> AlgorithmResult<DynamicGraph, u64, u64> {
-    connected_components::weakly_connected_components(&g.graph, iter_count, None)
+    components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
 /// Strongly connected components
@@ -102,7 +98,7 @@ pub fn weakly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
-    scc::strongly_connected_components(&g.graph, None)
+    components::strongly_connected_components(&g.graph, None)
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -115,7 +111,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
-    in_comp::in_components(&g.graph, None)
+    components::in_components(&g.graph, None)
 }
 
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
@@ -128,7 +124,7 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>,
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
-    out_comp::out_components(&g.graph, None)
+    components::out_components(&g.graph, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
@@ -477,12 +473,6 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
-}
-
-#[pyfunction]
-#[pyo3[signature = (g, no_time=false, threads=None)]]
-pub fn one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
-    netflow_one_path_vertex_rs(&g.graph, no_time, threads)
 }
 
 /// Computes the degree centrality of all vertices in the graph. The values are normalized

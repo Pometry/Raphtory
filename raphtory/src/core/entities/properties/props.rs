@@ -21,7 +21,6 @@ use std::{
         Arc,
     },
 };
-use tantivy::HasLen;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 

@@ -1,5 +1,4 @@
 use crate::server::RaphtoryServer;
-use dotenv::dotenv;
 use std::env;
 
 mod data;

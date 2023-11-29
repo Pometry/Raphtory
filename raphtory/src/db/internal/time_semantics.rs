@@ -1,21 +1,21 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            graph::tgraph::InnerTemporalGraph,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, TimeSemantics},
+        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
+
+static WINDOW_FILTER: Lazy<EdgeWindowFilter> =
+    Lazy::new(|| Arc::new(move |e, layer_ids, w| e.active(layer_ids, w)));
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
@@ -92,8 +92,8 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        e.active(layer_ids, w)
+    fn include_edge_window(&self) -> &EdgeWindowFilter {
+        &WINDOW_FILTER
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {

@@ -2,7 +2,7 @@ use super::{
     container::{merge_2_vecs, DynArray, VecArray},
     StateType,
 };
-use crate::{core::state::agg::Accumulator, db::api::view::GraphViewOps};
+use crate::{core::state::agg::Accumulator, db::api::view::StaticGraphViewOps};
 use std::collections::HashMap;
 
 pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
@@ -40,7 +40,7 @@ pub trait ComputeState: std::fmt::Debug + Clone + Send + Sync {
     where
         A: StateType;
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
         &self,
         ss: usize,
         g: &G,
@@ -189,7 +189,7 @@ impl ComputeState for ComputeStateVec {
         merge_2_vecs(v, v_other, |a, b| ACC::combine(a, b));
     }
 
-    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
+    fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
         &self,
         ss: usize,
         _g: &G,

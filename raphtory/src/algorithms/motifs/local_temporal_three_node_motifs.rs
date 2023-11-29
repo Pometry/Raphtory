@@ -10,7 +10,7 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps, *},
+        api::view::{VertexViewOps, *},
         graph::{edge::EdgeView, views::vertex_subgraph::VertexSubgraph},
         task::{
             context::Context,
@@ -86,12 +86,13 @@ impl Zero for MotifCounter {
 
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G>(
-    evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
+pub fn star_motif_count<'graph, G, GH>(
+    evv: &EvalVertexView<'graph, '_, G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
 {
     let neigh_map: HashMap<u64, usize> = evv
         .neighbours()
@@ -124,18 +125,20 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G>(
-    graph: &G,
-    evv: &EvalVertexView<G, ComputeStateVec, MotifCounter>,
+pub fn twonode_motif_count<'a, 'b, G, GH>(
+    graph: &'a G,
+    evv: &'a EvalVertexView<'b, '_, G, MotifCounter, GH>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'b>,
+    GH: GraphViewOps<'b>,
+    'b: 'a,
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
     // Define a closure for sorting by time_and_index()
-    let _sort_by_time_and_index = |e1: &EdgeView<G>, e2: &EdgeView<G>| -> Ordering {
+    let _sort_by_time_and_index = |e1: &EdgeView<G, GH>, e2: &EdgeView<G, GH>| -> Ordering {
         Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
     };
 
@@ -176,15 +179,15 @@ pub fn triangle_motifs<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<[usize; 8]>>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let delta_len = deltas.len();
 
     // Define a closure for sorting by time_and_index()
     let _sort_by_time_and_index =
-        |e1: &EdgeView<VertexSubgraph<G>>, e2: &EdgeView<VertexSubgraph<G>>| -> Ordering {
-            Ord::cmp(&e1.time_and_index(), &e2.time_and_index())
-        };
+        |e1: &EdgeView<VertexSubgraph<G>, VertexSubgraph<G>>,
+         e2: &EdgeView<VertexSubgraph<G>, VertexSubgraph<G>>|
+         -> Ordering { Ord::cmp(&e1.time_and_index(), &e2.time_and_index()) };
 
     // Define a closure for sorting by time()
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);
@@ -196,7 +199,7 @@ where
     ctx.agg(neighbours_set);
 
     let step1 = ATask::new(
-        move |u: &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
+        move |u: &mut EvalVertexView<VertexSubgraph<G>, MotifCounter>| {
             for v in u.neighbours() {
                 if u.id() > v.id() {
                     v.update(&neighbours_set, u.id());
@@ -207,12 +210,12 @@ where
     );
 
     let step2 = ATask::new(
-        move |u: &mut EvalVertexView<VertexSubgraph<G>, ComputeStateVec, MotifCounter>| {
+        move |u: &mut EvalVertexView<VertexSubgraph<G>, MotifCounter>| {
             let uu = u.get_mut();
             if uu.triangle.len() == 0 {
                 uu.triangle = vec![[0 as usize; 8]; delta_len];
             }
-            for mut v in u.neighbours() {
+            for v in u.neighbours() {
                 // Find triangles on the UV edge
                 let intersection_nbs: Vec<u64> = match v.entry(&neighbours_set).read_ref() {
                     Some(v_set) => {
@@ -330,7 +333,7 @@ pub fn temporal_three_node_motif<G>(
     threads: Option<usize>,
 ) -> HashMap<String, Vec<Vec<usize>>>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let motifs_counter = val::<MotifCounter>(0);
@@ -340,23 +343,20 @@ where
 
     let out1 = triangle_motifs(g, deltas.clone(), motifs_counter, threads);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<G, ComputeStateVec, MotifCounter>| {
-            let g = evv.graph;
+    let step1 = ATask::new(move |evv: &mut EvalVertexView<G, MotifCounter>| {
+        let g = evv.graph();
+        let two_nodes = twonode_motif_count(g, evv, deltas.clone());
+        let star_nodes = star_motif_count(evv, deltas.clone());
 
-            let two_nodes = twonode_motif_count(g, evv, deltas.clone());
-            let star_nodes = star_motif_count(evv, deltas.clone());
+        *evv.get_mut() = MotifCounter::new(
+            deltas.len(),
+            two_nodes,
+            star_nodes,
+            evv.get().triangle.clone(),
+        );
 
-            *evv.get_mut() = MotifCounter::new(
-                deltas.len(),
-                two_nodes,
-                star_nodes,
-                evv.get().triangle.clone(),
-            );
-
-            Step::Continue
-        },
-    );
+        Step::Continue
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 

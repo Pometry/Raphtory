@@ -793,15 +793,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "custom_python_extension"
-version = "0.2.1"
-dependencies = [
- "pyo3",
- "pyo3-build-config",
- "raphtory",
-]
-
-[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2082,6 +2073,15 @@ checksum = "2cf52bfa6042343585f458f38f18094a53e8d8c417221867918e9f0a6885f42a"
 dependencies = [
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "netflow_algorithm"
+version = "0.6.1"
+dependencies = [
+ "pyo3",
+ "pyo3-build-config",
+ "raphtory",
 ]
 
 [[package]]

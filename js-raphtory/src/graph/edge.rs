@@ -15,10 +15,7 @@ impl From<EdgeView<TGraph>> for Edge {
         let graph = value.graph;
         let eref = value.edge;
         let js_graph = Graph(UnderGraph::TGraph(Arc::new(graph)));
-        Edge(EdgeView {
-            graph: js_graph,
-            edge: eref,
-        })
+        Edge(EdgeView::new(js_graph, eref))
     }
 }
 

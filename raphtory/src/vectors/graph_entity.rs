@@ -1,6 +1,9 @@
 use crate::{
-    db::graph::{edge::EdgeView, vertex::VertexView},
-    prelude::{GraphViewOps, VertexViewOps},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::VertexViewOps,
 };
 use itertools::{chain, Itertools};
 use std::{collections::HashSet, fmt::Display};
@@ -17,7 +20,7 @@ pub trait GraphEntity: Sized {
         D: Display;
 }
 
-impl<G: GraphViewOps> GraphEntity for VertexView<G> {
+impl<G: StaticGraphViewOps> GraphEntity for VertexView<G> {
     fn generate_property_list<F, D>(
         &self,
         time_fmt: &F,
@@ -86,7 +89,7 @@ impl<G: GraphViewOps> GraphEntity for VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps> GraphEntity for EdgeView<G> {
+impl<G: StaticGraphViewOps> GraphEntity for EdgeView<G, G> {
     // FIXME: implement this and remove underscore prefix from the parameter names
     fn generate_property_list<F, D>(
         &self,

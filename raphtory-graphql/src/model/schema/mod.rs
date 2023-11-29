@@ -1,6 +1,6 @@
 use raphtory::{
-    db::graph::vertex::VertexView,
-    prelude::{GraphViewOps, VertexViewOps},
+    db::{api::view::StaticGraphViewOps, graph::vertex::VertexView},
+    prelude::VertexViewOps,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -12,7 +12,7 @@ pub(crate) mod property_schema;
 
 const ENUM_BOUNDARY: usize = 20;
 
-fn get_vertex_type<G: GraphViewOps>(vertex: VertexView<G>) -> String {
+fn get_vertex_type<G: StaticGraphViewOps>(vertex: VertexView<G>) -> String {
     let prop = vertex.properties().get("type");
     prop.map(|prop| prop.to_string())
         .unwrap_or_else(|| "NONE".to_string())

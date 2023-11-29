@@ -2,10 +2,10 @@
 
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
         storage::timeindex::TimeIndexEntry,
-        utils::{errors::GraphError, time::IntoTime},
-        ArcStr, Direction,
+        utils::errors::GraphError,
+        ArcStr,
     },
     db::{
         api::{
@@ -17,46 +17,62 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::Static, BoxedIter, Layer, LayerOps},
+            view::{
+                internal::{CoreGraphOps, InternalLayerOps, OneHopFilter, Static, TimeSemantics},
+                BaseVertexViewOps, BoxedLIter, IntoDynBoxed, Layer, StaticGraphViewOps,
+            },
         },
-        graph::{
-            edge::{EdgeList, EdgeView},
-            path::{Operations, PathFromVertex},
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
-        },
+        graph::{edge::EdgeView, path::PathFromVertex},
     },
     prelude::*,
 };
+
 use std::{
     fmt,
     hash::{Hash, Hasher},
 };
 
+/// View of a Vertex in a Graph
 #[derive(Clone)]
-pub struct VertexView<G: GraphViewOps> {
-    pub graph: G,
+pub struct VertexView<G, GH = G> {
+    pub base_graph: G,
+    pub graph: GH,
     pub vertex: VID,
 }
 
-impl<G1: GraphViewOps, G2: GraphViewOps> PartialEq<VertexView<G2>> for VertexView<G1> {
-    fn eq(&self, other: &VertexView<G2>) -> bool {
-        self.id() == other.id()
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for VertexView<G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 }
 
-impl<G: GraphViewOps> From<VertexView<G>> for VertexRef {
-    fn from(value: VertexView<G>) -> Self {
+impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<VertexView<G2, G2H>>
+    for VertexView<G1, G1H>
+{
+    fn eq(&self, other: &VertexView<G2, G2H>) -> bool {
+        self.base_graph.vertex_id(self.vertex) == other.base_graph.vertex_id(other.vertex)
+    }
+}
+
+impl<G, GH> From<VertexView<G, GH>> for VertexRef {
+    fn from(value: VertexView<G, GH>) -> Self {
         VertexRef::Internal(value.vertex)
     }
 }
 
-impl<G: GraphViewOps> From<&VertexView<G>> for VertexRef {
-    fn from(value: &VertexView<G>) -> Self {
+impl<G, GH> From<&VertexView<G, GH>> for VertexRef {
+    fn from(value: &VertexView<G, GH>) -> Self {
         VertexRef::Internal(value.vertex)
     }
 }
 
-impl<G: GraphViewOps> fmt::Debug for VertexView<G> {
+impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for VertexView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -68,7 +84,7 @@ impl<G: GraphViewOps> fmt::Debug for VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps> fmt::Display for VertexView<G> {
+impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Display for VertexView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -80,48 +96,83 @@ impl<G: GraphViewOps> fmt::Display for VertexView<G> {
     }
 }
 
-impl<G1: GraphViewOps, G2: GraphViewOps> PartialOrd<VertexView<G2>> for VertexView<G1> {
-    fn partial_cmp(&self, other: &VertexView<G2>) -> Option<std::cmp::Ordering> {
+impl<
+        'graph,
+        G1: GraphViewOps<'graph>,
+        G1H: GraphViewOps<'graph>,
+        G2: GraphViewOps<'graph>,
+        G2H: GraphViewOps<'graph>,
+    > PartialOrd<VertexView<G2, G2H>> for VertexView<G1, G1H>
+{
+    fn partial_cmp(&self, other: &VertexView<G2, G2H>) -> Option<std::cmp::Ordering> {
         self.vertex.0.partial_cmp(&other.vertex.0)
     }
 }
 
-impl<G: GraphViewOps> Ord for VertexView<G> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for VertexView<G, GH> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.vertex.0.cmp(&other.vertex.0)
     }
 }
 
-impl<G: GraphViewOps> Eq for VertexView<G> {}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for VertexView<G, GH> {}
 
-impl<G: GraphViewOps> VertexView<G> {
-    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph, internalising any global vertex ids.
-    pub fn new(graph: G, vertex: VertexRef) -> VertexView<G> {
-        match vertex {
-            VertexRef::Internal(local) => Self::new_internal(graph, local),
-            _ => {
-                let v = graph.internalise_vertex_unchecked(vertex);
-                VertexView { graph, vertex: v }
-            }
-        }
-    }
-
+impl<'graph, G: GraphViewOps<'graph>> VertexView<G> {
     /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
     pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
-        VertexView { graph, vertex }
+        VertexView {
+            base_graph: graph.clone(),
+            graph,
+            vertex,
+        }
     }
 }
 
-impl<G: GraphViewOps> Hash for VertexView<G> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexView<G, GH> {
+    pub fn new_one_hop_filtered(base_graph: G, graph: GH, vertex: VID) -> Self {
+        VertexView {
+            base_graph,
+            graph,
+            vertex,
+        }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
+    for VertexView<G, GH>
+{
+    type Graph = GH;
+    type Filtered<GHH: GraphViewOps<'graph>> = VertexView<G, GHH>;
+
+    fn current_filter(&self) -> &Self::Graph {
+        &self.graph
+    }
+
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        let base_graph = self.base_graph.clone();
+        let vertex = self.vertex;
+        VertexView {
+            base_graph,
+            graph: filtered_graph,
+            vertex,
+        }
+    }
+}
+
+impl<G, GH: CoreGraphOps> Hash for VertexView<G, GH> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the graph
         "1".to_string().hash(state);
+        let id = self.graph.vertex_id(self.vertex);
         // Hash the vertex ID
-        self.id().hash(state);
+        id.hash(state);
     }
 }
 
-impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for VertexView<G, GH> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .vertex_meta()
@@ -143,7 +194,7 @@ impl<G: GraphViewOps> TemporalPropertiesOps for VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
+impl<G, GH: TimeSemantics> TemporalPropertyViewOps for VertexView<G, GH> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
             .temporal_vertex_prop_vec(self.vertex, id)
@@ -176,7 +227,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
+impl<G, GH: CoreGraphOps> ConstPropertiesOps for VertexView<G, GH> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.vertex_meta().const_prop_meta().get_id(name)
     }
@@ -194,168 +245,59 @@ impl<G: GraphViewOps> ConstPropertiesOps for VertexView<G> {
     }
 }
 
-impl<G: GraphViewOps> Static for VertexView<G> {}
+impl<G, GH> Static for VertexView<G, GH> {}
 
-/// View of a Vertex in a Graph
-impl<G: GraphViewOps> VertexViewOps for VertexView<G> {
-    type Graph = G;
-    type ValueType<T> = T;
-    type PathType<'a> = PathFromVertex<G> where Self: 'a;
-    type EList = BoxedIter<EdgeView<G>>;
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOps<'graph>
+    for VertexView<G, GH>
+{
+    type BaseGraph = G;
+    type Graph = GH;
+    type ValueType<T> = T where T: 'graph;
+    type PropType = Self;
+    type PathType = PathFromVertex<'graph, G, G>;
+    type Edge = EdgeView<G, GH>;
+    type EList = BoxedLIter<'graph, EdgeView<G, GH>>;
 
-    fn id(&self) -> u64 {
-        self.graph.vertex_id(self.vertex)
+    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O>(
+        &self,
+        op: F,
+    ) -> Self::ValueType<O> {
+        op(&self.graph, self.vertex)
     }
 
-    fn name(&self) -> String {
-        self.graph.vertex_name(self.vertex)
-    }
-
-    fn earliest_time(&self) -> Option<i64> {
-        self.graph.vertex_earliest_time(self.vertex)
-    }
-
-    fn latest_time(&self) -> Option<i64> {
-        self.graph.vertex_latest_time(self.vertex)
-    }
-
-    fn history(&self) -> Vec<i64> {
-        self.graph.vertex_history(self.vertex)
-    }
-
-    fn properties(&self) -> Properties<Self> {
+    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
         Properties::new(self.clone())
     }
 
-    fn degree(&self) -> usize {
-        let dir = Direction::BOTH;
-        self.graph.degree(
-            self.vertex,
-            dir,
-            &self.graph.layer_ids(),
-            self.graph.edge_filter(),
-        )
+    fn map_edges<
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+    >(
+        &self,
+        op: F,
+    ) -> Self::EList {
+        let base_graph = self.base_graph.clone();
+        let graph = self.graph.clone();
+        op(&self.graph, self.vertex)
+            .map(move |edge| EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge))
+            .into_dyn_boxed()
     }
 
-    fn in_degree(&self) -> usize {
-        let dir = Direction::IN;
-        self.graph.degree(
-            self.vertex,
-            dir,
-            &self.graph.layer_ids(),
-            self.graph.edge_filter(),
-        )
-    }
-
-    fn out_degree(&self) -> usize {
-        let dir = Direction::OUT;
-        self.graph.degree(
-            self.vertex,
-            dir,
-            &self.graph.layer_ids(),
-            self.graph.edge_filter(),
-        )
-    }
-
-    fn edges(&self) -> EdgeList<G> {
-        let g = self.graph.clone();
-        let dir = Direction::BOTH;
-        Box::new(
-            g.vertex_edges(
-                self.vertex,
-                dir,
-                self.graph.layer_ids(),
-                self.graph.edge_filter(),
-            )
-            .map(move |e| EdgeView::new(g.clone(), e)),
-        )
-    }
-
-    fn in_edges(&self) -> EdgeList<G> {
-        let g = self.graph.clone();
-        let dir = Direction::IN;
-        Box::new(
-            g.vertex_edges(
-                self.vertex,
-                dir,
-                self.graph.layer_ids(),
-                self.graph.edge_filter(),
-            )
-            .map(move |e| EdgeView::new(g.clone(), e)),
-        )
-    }
-
-    fn out_edges(&self) -> EdgeList<G> {
-        let g = self.graph.clone();
-        let dir = Direction::OUT;
-        Box::new(
-            g.vertex_edges(
-                self.vertex,
-                dir,
-                self.graph.layer_ids(),
-                self.graph.edge_filter(),
-            )
-            .map(move |e| EdgeView::new(g.clone(), e)),
-        )
-    }
-
-    fn neighbours(&self) -> PathFromVertex<G> {
-        let g = self.graph.clone();
-        let dir = Direction::BOTH;
-        PathFromVertex::new(g, self, Operations::Neighbours { dir })
-    }
-
-    fn in_neighbours(&self) -> PathFromVertex<G> {
-        let g = self.graph.clone();
-        let dir = Direction::IN;
-        PathFromVertex::new(g, self, Operations::Neighbours { dir })
-    }
-
-    fn out_neighbours(&self) -> PathFromVertex<G> {
-        let g = self.graph.clone();
-        let dir = Direction::OUT;
-        PathFromVertex::new(g, self, Operations::Neighbours { dir })
-    }
-}
-
-impl<G: GraphViewOps> TimeOps for VertexView<G> {
-    type WindowedViewType = VertexView<WindowedGraph<G>>;
-
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
-    }
-
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        VertexView {
-            graph: self.graph.window(start, end),
-            vertex: self.vertex,
-        }
-    }
-}
-
-impl<G: GraphViewOps> LayerOps for VertexView<G> {
-    type LayeredViewType = VertexView<LayeredGraph<G>>;
-
-    fn default_layer(&self) -> Self::LayeredViewType {
-        VertexView {
-            graph: self.graph.default_layer(),
-            vertex: self.vertex,
-        }
-    }
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        Some(VertexView {
-            graph: self.graph.layer(name)?,
-            vertex: self.vertex,
+    fn hop<
+        I: Iterator<Item = VID> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+    >(
+        &self,
+        op: F,
+    ) -> Self::PathType {
+        let graph = self.graph.clone();
+        PathFromVertex::new(self.base_graph.clone(), self.vertex, move |vid| {
+            op(&graph, vid).into_dyn_boxed()
         })
     }
 }
 
-impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G> {
+impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         props: C,
@@ -394,161 +336,87 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> Vertex
     }
 }
 
-/// Implementation of the VertexListOps trait for an iterator of VertexView objects.
-///
-impl<G: GraphViewOps> VertexListOps for Box<dyn Iterator<Item = VertexView<G>> + Send> {
-    type Graph = G;
-    type Vertex = VertexView<G>;
-    type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
-    type EList = Box<dyn Iterator<Item = EdgeView<Self::Graph>> + Send>;
-    type ValueType<T> = T;
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'graph>
+    for BoxedLIter<'graph, VertexView<G, GH>>
+{
+    type Vertex = VertexView<G, GH>;
 
-    fn earliest_time(self) -> BoxedIter<Option<i64>> {
-        Box::new(self.map(|v| v.start()))
+    type Neighbour = VertexView<G, G>;
+    type Edge = EdgeView<G, GH>;
+    type IterType<T> = BoxedLIter<'graph, T> where T: 'graph;
+    type ValueType<T> = T where T: 'graph;
+    fn earliest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|v| v.earliest_time()))
     }
 
-    fn latest_time(self) -> BoxedIter<Option<i64>> {
-        Box::new(self.map(|v| v.end().map(|t| t - 1)))
-    }
-
-    fn window(self, start: i64, end: i64) -> BoxedIter<VertexView<WindowedGraph<G>>> {
-        Box::new(self.map(move |v| v.window(start, end)))
-    }
-
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
-        Box::new(self.map(move |v| v.at(end)))
-    }
-
-    fn id(self) -> BoxedIter<u64> {
-        Box::new(self.map(|v| v.id()))
-    }
-
-    fn name(self) -> BoxedIter<String> {
-        Box::new(self.map(|v| v.name()))
-    }
-
-    fn properties(self) -> BoxedIter<Properties<VertexView<G>>> {
-        Box::new(self.map(move |v| v.properties()))
-    }
-
-    fn history(self) -> BoxedIter<Vec<i64>> {
-        Box::new(self.map(|v| v.history()))
-    }
-
-    fn degree(self) -> BoxedIter<usize> {
-        Box::new(self.map(|v| v.degree()))
-    }
-
-    fn in_degree(self) -> BoxedIter<usize> {
-        Box::new(self.map(|v| v.in_degree()))
-    }
-
-    fn out_degree(self) -> BoxedIter<usize> {
-        Box::new(self.map(|v| v.out_degree()))
-    }
-
-    fn edges(self) -> Self::EList {
-        Box::new(self.flat_map(|v| v.edges()))
-    }
-
-    fn in_edges(self) -> Self::EList {
-        Box::new(self.flat_map(|v| v.in_edges()))
-    }
-
-    fn out_edges(self) -> Self::EList {
-        Box::new(self.flat_map(|v| v.out_edges()))
-    }
-
-    fn neighbours(self) -> Self {
-        Box::new(self.flat_map(|v| v.neighbours()))
-    }
-
-    fn in_neighbours(self) -> Self {
-        Box::new(self.flat_map(|v| v.in_neighbours()))
-    }
-
-    fn out_neighbours(self) -> Self {
-        Box::new(self.flat_map(|v| v.out_neighbours()))
-    }
-}
-
-impl<G: GraphViewOps> VertexListOps for BoxedIter<BoxedIter<VertexView<G>>> {
-    type Graph = G;
-    type Vertex = VertexView<G>;
-    type IterType<T> = BoxedIter<BoxedIter<T>>;
-    type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
-    type ValueType<T> = BoxedIter<T>;
-
-    fn earliest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
-        Box::new(self.map(|it| it.earliest_time()))
-    }
-
-    fn latest_time(self) -> BoxedIter<Self::ValueType<Option<i64>>> {
-        Box::new(self.map(|it| it.latest_time()))
+    fn latest_time(self) -> Self::IterType<Option<i64>> {
+        self.map(|v| v.latest_time()).into_dyn_boxed()
     }
 
     fn window(
         self,
         start: i64,
         end: i64,
-    ) -> BoxedIter<Self::ValueType<VertexView<WindowedGraph<Self::Graph>>>> {
-        Box::new(self.map(move |it| it.window(start, end)))
+    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+        self.map(move |v| v.window(start, end)).into_dyn_boxed()
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps>::WindowedViewType> {
-        Box::new(self.map(move |v| v.at(end)))
+    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+        self.map(move |v| v.at(end)).into_dyn_boxed()
     }
 
-    fn id(self) -> BoxedIter<Self::ValueType<u64>> {
-        Box::new(self.map(|it| it.id()))
+    fn id(self) -> Self::IterType<u64> {
+        self.map(|v| v.id()).into_dyn_boxed()
     }
 
-    fn name(self) -> BoxedIter<Self::ValueType<String>> {
-        Box::new(self.map(|it| it.name()))
+    fn name(self) -> Self::IterType<String> {
+        self.map(|v| v.name()).into_dyn_boxed()
     }
 
-    fn properties(self) -> BoxedIter<Self::ValueType<Properties<VertexView<G>>>> {
-        Box::new(self.map(move |it| it.properties()))
+    fn properties(
+        self,
+    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>> {
+        self.map(|v| v.properties()).into_dyn_boxed()
     }
 
-    fn history(self) -> BoxedIter<Self::ValueType<Vec<i64>>> {
-        Box::new(self.map(move |it| it.history()))
+    fn history(self) -> Self::IterType<Vec<i64>> {
+        self.map(|v| v.history()).into_dyn_boxed()
     }
 
-    fn degree(self) -> BoxedIter<Self::ValueType<usize>> {
-        Box::new(self.map(|it| it.degree()))
+    fn degree(self) -> Self::IterType<usize> {
+        self.map(|v| v.degree()).into_dyn_boxed()
     }
 
-    fn in_degree(self) -> BoxedIter<Self::ValueType<usize>> {
-        Box::new(self.map(|it| it.in_degree()))
+    fn in_degree(self) -> Self::IterType<usize> {
+        self.map(|v| v.in_degree()).into_dyn_boxed()
     }
 
-    fn out_degree(self) -> BoxedIter<Self::ValueType<usize>> {
-        Box::new(self.map(|it| it.out_degree()))
+    fn out_degree(self) -> Self::IterType<usize> {
+        self.map(|v| v.out_degree()).into_dyn_boxed()
     }
 
-    fn edges(self) -> Self::EList {
-        Box::new(self.map(|it| it.edges()))
+    fn edges(self) -> Self::IterType<Self::Edge> {
+        self.flat_map(|v| v.edges()).into_dyn_boxed()
     }
 
-    fn in_edges(self) -> Self::EList {
-        Box::new(self.map(|it| it.in_edges()))
+    fn in_edges(self) -> Self::IterType<Self::Edge> {
+        self.flat_map(|v| v.in_edges()).into_dyn_boxed()
     }
 
-    fn out_edges(self) -> Self::EList {
-        Box::new(self.map(|it| it.out_edges()))
+    fn out_edges(self) -> Self::IterType<Self::Edge> {
+        self.flat_map(|v| v.out_edges()).into_dyn_boxed()
     }
 
-    fn neighbours(self) -> Self {
-        Box::new(self.map(|it| it.neighbours()))
+    fn neighbours(self) -> Self::IterType<Self::Neighbour> {
+        self.flat_map(|v| v.neighbours()).into_dyn_boxed()
     }
 
-    fn in_neighbours(self) -> Self {
-        Box::new(self.map(|it| it.in_neighbours()))
+    fn in_neighbours(self) -> Self::IterType<Self::Neighbour> {
+        self.flat_map(|v| v.in_neighbours()).into_dyn_boxed()
     }
 
-    fn out_neighbours(self) -> Self {
-        Box::new(self.map(|it| it.out_neighbours()))
+    fn out_neighbours(self) -> Self::IterType<Self::Neighbour> {
+        self.flat_map(|v| v.out_neighbours()).into_dyn_boxed()
     }
 }
 

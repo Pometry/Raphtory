@@ -189,10 +189,10 @@ pub trait WindowSetOps {
     fn time_index(&self, center: bool) -> PyGenericIterable;
 }
 
-impl<T> WindowSetOps for WindowSet<T>
+impl<T> WindowSetOps for WindowSet<'static, T>
 where
-    T: TimeOps + Clone + Sync + 'static + Send,
-    T::WindowedViewType: IntoPy<PyObject> + Send,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
+    T::WindowedViewType: IntoPy<PyObject> + Send + 'static,
 {
     fn build_iter(&self) -> PyGenericIterator {
         self.clone().into()
@@ -228,21 +228,21 @@ pub struct PyWindowSet {
     window_set: Box<dyn WindowSetOps + Send>,
 }
 
-impl<T> From<WindowSet<T>> for PyWindowSet
+impl<T> From<WindowSet<'static, T>> for PyWindowSet
 where
-    T: TimeOps + Clone + Sync + Send + 'static,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
     T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
-    fn from(value: WindowSet<T>) -> Self {
+    fn from(value: WindowSet<'static, T>) -> Self {
         Self {
             window_set: Box::new(value),
         }
     }
 }
 
-impl<T> IntoPy<PyObject> for WindowSet<T>
+impl<T> IntoPy<PyObject> for WindowSet<'static, T>
 where
-    T: TimeOps + Clone + Sync + Send + 'static,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
     T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -312,6 +312,16 @@ where
     fn from(value: I) -> Self {
         let py_iter = Box::new(value.map(|item| Python::with_gil(|py| item.into_py(py))));
         Self { iter: py_iter }
+    }
+}
+
+impl IntoIterator for PyGenericIterator {
+    type Item = PyObject;
+
+    type IntoIter = BoxedIter<PyObject>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter
     }
 }
 

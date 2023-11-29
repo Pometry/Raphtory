@@ -6,13 +6,15 @@ use crate::{
         Prop,
     },
     db::{
-        api::mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+        api::{
+            mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+            view::StaticGraphViewOps,
+        },
         graph::{edge::EdgeView, vertex::VertexView},
     },
-    prelude::GraphViewOps,
 };
 
-pub trait AdditionOps: GraphViewOps {
+pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
     /// Add a vertex to the graph
     ///
@@ -39,7 +41,7 @@ pub trait AdditionOps: GraphViewOps {
         t: T,
         v: V,
         props: PI,
-    ) -> Result<VertexView<Self>, GraphError>;
+    ) -> Result<VertexView<Self, Self>, GraphError>;
 
     fn add_vertex_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
@@ -47,7 +49,7 @@ pub trait AdditionOps: GraphViewOps {
         fmt: &str,
         v: V,
         props: PI,
-    ) -> Result<VertexView<Self>, GraphError> {
+    ) -> Result<VertexView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_vertex(time, v, props)
     }
@@ -79,7 +81,7 @@ pub trait AdditionOps: GraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self>, GraphError>;
+    ) -> Result<EdgeView<Self, Self>, GraphError>;
 
     fn add_edge_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
         &self,
@@ -89,19 +91,19 @@ pub trait AdditionOps: GraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self>, GraphError> {
+    ) -> Result<EdgeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
 }
 
-impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
+impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
     fn add_vertex<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
         props: PI,
-    ) -> Result<VertexView<G>, GraphError> {
+    ) -> Result<VertexView<G, G>, GraphError> {
         let properties = props.collect_properties(
             |name, dtype| self.resolve_vertex_property(name, dtype, false),
             |prop| self.process_prop_value(prop),
@@ -119,7 +121,7 @@ impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<G>, GraphError> {
+    ) -> Result<EdgeView<G, G>, GraphError> {
         let ti = TimeIndexEntry::from_input(self, t)?;
         let src_id = self.resolve_vertex(src.id(), src.id_str());
         let dst_id = self.resolve_vertex(dst.id(), dst.id_str());

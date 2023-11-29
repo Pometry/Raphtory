@@ -1,7 +1,6 @@
 use crate::model::algorithms::RegisterFunction;
 use async_graphql::dynamic::Object;
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
-use itertools::Itertools;
 use std::{collections::HashMap, sync::MutexGuard};
 
 pub trait AlgorithmEntryPoint<'a>:
