@@ -1,4 +1,4 @@
-use crate::{
+use raphtory::{
     core::state::{
         accumulator_id::accumulators::sum,
         compute_state::{ComputeState, ComputeStateVec},
@@ -132,12 +132,11 @@ pub fn netflow_one_path_vertex<G: StaticGraphViewOps>(
 #[cfg(test)]
 mod one_path_test {
     use super::*;
-    use crate::{
+    use raphtory::{
         core::Prop,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_one_path() {

@@ -7,7 +7,7 @@ use crate::{
                 Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
                 InheritMaterialize, InheritTimeSemantics, InternalLayerOps, Static,
             },
-            Layer, StaticGraphViewOps,
+            Layer,
         },
     },
     prelude::GraphViewOps,

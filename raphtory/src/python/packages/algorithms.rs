@@ -38,7 +38,6 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -474,12 +473,6 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
-}
-
-#[pyfunction]
-#[pyo3[signature = (g, no_time=false, threads=None)]]
-pub fn one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
-    netflow_one_path_vertex_rs(&g.graph, no_time, threads)
 }
 
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
