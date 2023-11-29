@@ -13,12 +13,15 @@ use crate::{
         utils::errors::{GraphError, MutateGraphError},
         Prop,
     },
+    db::api::view::{BoxedLIter, IntoDynBoxed},
     prelude::TimeOps,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut, Range};
-use tantivy::HasLen;
+use std::{
+    iter,
+    ops::{Deref, DerefMut, Range},
+};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
@@ -145,6 +148,21 @@ impl EdgeStore {
 
     pub fn layer_iter(&self) -> impl Iterator<Item = &EdgeLayer> + '_ {
         self.layers.iter()
+    }
+
+    pub fn additions_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
+        match layers {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => self.additions.iter().into_dyn_boxed(),
+            LayerIds::One(id) => self.additions.get(*id).into_iter().into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.additions.get(*id))
+                .into_dyn_boxed(),
+        }
     }
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
         let layer_ids = self

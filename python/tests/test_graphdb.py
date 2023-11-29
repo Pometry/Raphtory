@@ -1777,6 +1777,40 @@ def test_at_edges():
         old_at_way.append(e.at(2))
     assert old_at_way == list(g.edges.at(2))
 
+def test_one_hop_filter_reset():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"layer": 1}, "1")
+    g.add_edge(1, 1, 3, {"layer": 1}, "1")
+    g.add_edge(1, 2, 3, {"layer": 2}, "2")
+    g.add_edge(2, 3, 4, {"layer": 2}, "2")
+    g.add_edge(0, 1, 3, {"layer": 2}, "2")
+
+    v = g.vertex(1)
+
+    # filtering resets on neighbours
+    out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
+    assert out_out == [3]
+
+    out_out = v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
+    assert out_out == [2]
+
+    out_out = v.at(0).out_neighbours.after(1).out_neighbours.id
+    assert out_out == [4]
+
+    earliest_time = v.at(0).out_neighbours.after(1).out_edges.earliest_time.min()
+    assert earliest_time == 2
+
+    # filter applies to edges
+    layers = set(v.layer("1").edges.explode_layers().layer_name)
+    assert layers == {"1"}
+
+    # dst and src on edge reset the filter
+    degrees = v.at(0).layer("1").edges.dst.out_degree()
+    assert degrees == [1]
+
+    # graph level filter is preserved
+    out_out_2 = g.at(0).vertex(1).layer("1").out_neighbours.layer("2").out_neighbours.id
+    assert len(out_out_2) == 0
 
 def test_time_exploded_edges():
     g = Graph()

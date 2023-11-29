@@ -1,6 +1,7 @@
 //! Defines the `Vertex`, which represents a vertex in the graph.
 //! A vertex is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
+use crate::db::graph::path::{PathFromGraph, PathFromVertex};
 use crate::{
     core::{
         entities::vertices::vertex_ref::VertexRef,
@@ -16,13 +17,10 @@ use crate::{
             },
         },
         graph::{
-            path::{PathFromGraph, PathFromVertex},
+            // path::{PathFromGraph, PathFromVertex},
             vertex::VertexView,
             vertices::Vertices,
-            views::{
-                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
-                window_graph::WindowedGraph,
-            },
+            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
         },
     },
     prelude::Graph,
@@ -52,17 +50,21 @@ use std::{collections::HashMap, ops::Deref};
 #[pyclass(name = "Vertex", subclass)]
 #[derive(Clone)]
 pub struct PyVertex {
-    vertex: VertexView<DynamicGraph>,
+    vertex: VertexView<DynamicGraph, DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for PyVertex {
-    fn from(value: VertexView<G>) -> Self {
-        Self {
-            vertex: VertexView {
-                graph: value.graph.clone().into_dynamic(),
-                vertex: value.vertex,
-            },
-        }
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<VertexView<G, GH>> for PyVertex
+{
+    fn from(value: VertexView<G, GH>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        let vertex = VertexView {
+            base_graph,
+            graph,
+            vertex: value.vertex,
+        };
+        Self { vertex }
     }
 }
 
@@ -176,7 +178,7 @@ impl PyVertex {
     /// Returns:
     ///     A list of properties.
     #[getter]
-    pub fn properties(&self) -> Properties<VertexView<DynamicGraph>> {
+    pub fn properties(&self) -> Properties<VertexView<DynamicGraph, DynamicGraph>> {
         self.vertex.properties()
     }
 
@@ -269,13 +271,19 @@ impl PyVertex {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (names))]
-    pub fn layers(&self, names: Vec<String>) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
+    pub fn layers(
+        &self,
+        names: Vec<String>,
+    ) -> Option<VertexView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.vertex.layer(names)
     }
 
     #[doc = layers_name_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: String) -> Option<VertexView<LayeredGraph<DynamicGraph>>> {
+    pub fn layer(
+        &self,
+        name: String,
+    ) -> Option<VertexView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.vertex.layer(name)
     }
 
@@ -301,7 +309,7 @@ impl PyVertex {
     }
 }
 
-impl_timeops!(PyVertex, vertex, VertexView<DynamicGraph>, "vertex");
+impl_timeops!(PyVertex, vertex, VertexView<DynamicGraph, DynamicGraph>, "vertex");
 
 impl Repr for PyVertex {
     fn repr(&self) -> String {
@@ -309,7 +317,7 @@ impl Repr for PyVertex {
     }
 }
 
-impl<G: GraphViewOps> Repr for VertexView<G> {
+impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for VertexView<G, GH> {
     fn repr(&self) -> String {
         let earliest_time = self.earliest_time().repr();
         let latest_time = self.latest_time().repr();
@@ -339,7 +347,7 @@ impl<G: GraphViewOps> Repr for VertexView<G> {
 
 #[pyclass(name = "MutableVertex", extends=PyVertex)]
 pub struct PyMutableVertex {
-    vertex: VertexView<MaterializedGraph>,
+    vertex: VertexView<MaterializedGraph, MaterializedGraph>,
 }
 
 impl Repr for PyMutableVertex {
@@ -348,37 +356,49 @@ impl Repr for PyMutableVertex {
     }
 }
 
-impl From<VertexView<MaterializedGraph>> for PyMutableVertex {
-    fn from(vertex: VertexView<MaterializedGraph>) -> Self {
+impl From<VertexView<MaterializedGraph, MaterializedGraph>> for PyMutableVertex {
+    fn from(vertex: VertexView<MaterializedGraph, MaterializedGraph>) -> Self {
         Self { vertex }
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for VertexView<G> {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Immutable>
+    IntoPy<PyObject> for VertexView<G, GH>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyVertex::from(self).into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for VertexView<Graph> {
+impl IntoPy<PyObject> for VertexView<Graph, Graph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
+        let base_graph = graph.clone();
         let vertex = self.vertex;
-        let vertex = VertexView { graph, vertex };
+        let vertex = VertexView {
+            base_graph,
+            graph,
+            vertex,
+        };
         vertex.into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for VertexView<GraphWithDeletions> {
+impl IntoPy<PyObject> for VertexView<GraphWithDeletions, GraphWithDeletions> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
+        let base_graph = graph.clone();
         let vertex = self.vertex;
-        let vertex = VertexView { graph, vertex };
+        let vertex = VertexView {
+            base_graph,
+            graph,
+            vertex,
+        };
         vertex.into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for VertexView<MaterializedGraph> {
+impl IntoPy<PyObject> for VertexView<MaterializedGraph, MaterializedGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(
             py,
@@ -442,18 +462,24 @@ impl PyMutableVertex {
 /// A list of vertices that can be iterated over.
 #[pyclass(name = "Vertices")]
 pub struct PyVertices {
-    pub(crate) vertices: Vertices<DynamicGraph>,
+    pub(crate) vertices: Vertices<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<Vertices<G>> for PyVertices {
-    fn from(value: Vertices<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<Vertices<'static, G, GH>> for PyVertices
+{
+    fn from(value: Vertices<'static, G, GH>) -> Self {
+        let graph = value.graph.into_dynamic();
+        let base_graph = value.base_graph.into_dynamic();
         Self {
-            vertices: Vertices::new(value.graph.into_dynamic()),
+            vertices: Vertices::new_filtered(base_graph, graph),
         }
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for Vertices<G> {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+    for Vertices<'static, G, GH>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyVertices::from(self).into_py(py)
     }
@@ -612,7 +638,10 @@ impl PyVertices {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<Vertices<LayeredGraph<DynamicGraph>>> {
+    pub fn layer(
+        &self,
+        name: &str,
+    ) -> Option<Vertices<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.vertices.layer(name)
     }
 
@@ -629,7 +658,10 @@ impl PyVertices {
         self.vertices.is_empty()
     }
 
-    pub fn __getitem__(&self, vertex: VertexRef) -> PyResult<VertexView<DynamicGraph>> {
+    pub fn __getitem__(
+        &self,
+        vertex: VertexRef,
+    ) -> PyResult<VertexView<DynamicGraph, DynamicGraph>> {
         self.vertices
             .get(vertex)
             .ok_or_else(|| PyIndexError::new_err("Vertex does not exist"))
@@ -640,7 +672,12 @@ impl PyVertices {
     }
 }
 
-impl_timeops!(PyVertices, vertices, Vertices<DynamicGraph>, "vertices");
+impl_timeops!(
+    PyVertices,
+    vertices,
+    Vertices<'static, DynamicGraph, DynamicGraph>,
+    "vertices"
+);
 
 impl Repr for PyVertices {
     fn repr(&self) -> String {
@@ -650,7 +687,7 @@ impl Repr for PyVertices {
 
 #[pyclass(name = "PathFromGraph")]
 pub struct PyPathFromGraph {
-    path: PathFromGraph<DynamicGraph>,
+    path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
 
 #[pymethods]
@@ -747,7 +784,10 @@ impl PyPathFromGraph {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PathFromGraph<LayeredGraph<DynamicGraph>>> {
+    pub fn layer(
+        &self,
+        name: &str,
+    ) -> Option<PathFromGraph<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.path.layer(name)
     }
 
@@ -756,7 +796,12 @@ impl PyPathFromGraph {
     }
 }
 
-impl_timeops!(PyPathFromGraph, path, PathFromGraph<DynamicGraph>, "path");
+impl_timeops!(
+    PyPathFromGraph,
+    path,
+    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    "path"
+);
 
 impl Repr for PyPathFromGraph {
     fn repr(&self) -> String {
@@ -767,18 +812,23 @@ impl Repr for PyPathFromGraph {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<PathFromGraph<G>> for PyPathFromGraph {
-    fn from(value: PathFromGraph<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<PathFromGraph<'static, G, GH>> for PyPathFromGraph
+{
+    fn from(value: PathFromGraph<'static, G, GH>) -> Self {
         Self {
             path: PathFromGraph {
+                base_graph: value.base_graph.clone().into_dynamic(),
                 graph: value.graph.clone().into_dynamic(),
-                operations: value.operations,
+                op: value.op.clone(),
             },
         }
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromGraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+    for PathFromGraph<'static, G, GH>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyPathFromGraph::from(self).into_py(py)
     }
@@ -786,22 +836,27 @@ impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromGraph<G> {
 
 #[pyclass(name = "PathFromVertex")]
 pub struct PyPathFromVertex {
-    path: PathFromVertex<DynamicGraph>,
+    path: PathFromVertex<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<PathFromVertex<G>> for PyPathFromVertex {
-    fn from(value: PathFromVertex<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<PathFromVertex<'static, G, GH>> for PyPathFromVertex
+{
+    fn from(value: PathFromVertex<'static, G, GH>) -> Self {
         Self {
             path: PathFromVertex {
                 graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.clone().into_dynamic(),
                 vertex: value.vertex,
-                operations: value.operations,
+                op: value.op.clone(),
             },
         }
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for PathFromVertex<G> {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+    for PathFromVertex<'static, G, GH>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyPathFromVertex::from(self).into_py(py)
     }
@@ -901,7 +956,10 @@ impl PyPathFromVertex {
 
     #[doc = layers_doc_string!()]
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: &str) -> Option<PathFromVertex<LayeredGraph<DynamicGraph>>> {
+    pub fn layer(
+        &self,
+        name: &str,
+    ) -> Option<PathFromVertex<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.path.layer(name)
     }
 
@@ -910,7 +968,12 @@ impl PyPathFromVertex {
     }
 }
 
-impl_timeops!(PyPathFromVertex, path, PathFromVertex<DynamicGraph>, "path");
+impl_timeops!(
+    PyPathFromVertex,
+    path,
+    PathFromVertex<'static, DynamicGraph, DynamicGraph>,
+    "path"
+);
 
 impl Repr for PyPathFromVertex {
     fn repr(&self) -> String {
@@ -926,8 +989,10 @@ pub struct PyVertexIterator {
     iter: Box<dyn Iterator<Item = PyVertex> + Send>,
 }
 
-impl From<Box<dyn Iterator<Item = VertexView<DynamicGraph>> + Send>> for PyVertexIterator {
-    fn from(value: Box<dyn Iterator<Item = VertexView<DynamicGraph>> + Send>) -> Self {
+impl<I: Iterator<Item = VertexView<DynamicGraph, DynamicGraph>> + Send + 'static> From<I>
+    for PyVertexIterator
+{
+    fn from(value: I) -> Self {
         Self {
             iter: Box::new(value.map(|v| v.into())),
         }
@@ -953,12 +1018,6 @@ impl PyVertexIterator {
     }
 }
 
-impl From<Box<dyn Iterator<Item = PyVertex> + Send>> for PyVertexIterator {
-    fn from(value: Box<dyn Iterator<Item = PyVertex> + Send>) -> Self {
-        Self { iter: value }
-    }
-}
-
 #[pyclass]
 pub struct PathIterator {
     pub(crate) iter: Box<dyn Iterator<Item = PyPathFromVertex> + Send>,
@@ -973,8 +1032,8 @@ impl IntoIterator for PathIterator {
     }
 }
 
-impl From<Box<dyn Iterator<Item = PathFromVertex<DynamicGraph>> + Send>> for PathIterator {
-    fn from(value: Box<dyn Iterator<Item = PathFromVertex<DynamicGraph>> + Send>) -> Self {
+impl<I: Iterator<Item = P> + Send + 'static, P: Into<PyPathFromVertex>> From<I> for PathIterator {
+    fn from(value: I) -> Self {
         Self {
             iter: Box::new(value.map(|path| path.into())),
         }
@@ -991,7 +1050,7 @@ impl PathIterator {
     }
 }
 
-py_iterable!(PyVertexIterable, VertexView<DynamicGraph>, PyVertex);
+py_iterable!(PyVertexIterable, VertexView<DynamicGraph, DynamicGraph>, PyVertex);
 
 #[pymethods]
 impl PyVertexIterable {
@@ -1077,7 +1136,7 @@ impl PyVertexIterable {
     }
 }
 
-py_nested_iterable!(PyNestedVertexIterable, VertexView<DynamicGraph>);
+py_nested_iterable!(PyNestedVertexIterable, VertexView<DynamicGraph, DynamicGraph>);
 
 #[pymethods]
 impl PyNestedVertexIterable {

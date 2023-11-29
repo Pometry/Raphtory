@@ -4,28 +4,31 @@ use crate::{
         entities::{vertices::vertex_ref::VertexRef, VID},
         state::compute_state::ComputeStateVec,
     },
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
-    prelude::{GraphViewOps, VertexViewOps},
+    prelude::*,
 };
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
-fn tarjan<G>(
+fn tarjan<'graph, G>(
     node: u64,
-    graph: &G,
-    index: &mut u64,
-    stack: &mut Vec<u64>,
-    indices: &mut HashMap<u64, u64>,
-    lowlink: &mut HashMap<u64, u64>,
-    on_stack: &mut HashSet<u64>,
-    result: &mut Vec<Vec<u64>>,
+    graph: &'graph G,
+    index: &'graph mut u64,
+    stack: &'graph mut Vec<u64>,
+    indices: &'graph mut HashMap<u64, u64>,
+    lowlink: &'graph mut HashMap<u64, u64>,
+    on_stack: &'graph mut HashSet<u64>,
+    result: &'graph mut Vec<Vec<u64>>,
 ) where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     *index += 1;
     indices.insert(node, *index);
@@ -66,7 +69,7 @@ fn tarjan<G>(
 
 fn tarjan_scc<G>(graph: &G) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let mut index = 0;
     let mut stack = Vec::new();
@@ -97,7 +100,7 @@ where
 
 pub fn strongly_connected_components<G>(graph: &G, threads: Option<usize>) -> Vec<Vec<u64>>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {
@@ -105,7 +108,7 @@ where
     }
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
+    let step1 = ATask::new(move |vv: &mut EvalVertexView<G, SCCNode>| {
         let id = vv.id();
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
@@ -115,7 +118,7 @@ where
         });
 
         while let Some(neighbour_id) = to_check_stack.pop() {
-            if let Some(neighbour) = vv.graph.vertex(neighbour_id) {
+            if let Some(neighbour) = vv.graph().vertex(neighbour_id) {
                 neighbour.out_neighbours().id().for_each(|id| {
                     if !out_components.contains(&id) {
                         out_components.insert(id);
@@ -174,7 +177,7 @@ where
 #[cfg(test)]
 mod strongly_connected_components_tests {
     use crate::{
-        algorithms::community_detection::scc::strongly_connected_components,
+        algorithms::components::scc::strongly_connected_components,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
 

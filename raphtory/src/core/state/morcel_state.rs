@@ -1,12 +1,12 @@
 use super::{accumulator_id::AccId, compute_state::ComputeState, StateType};
-use crate::{core::state::agg::Accumulator, db::api::view::GraphViewOps};
+use crate::{core::state::agg::Accumulator, db::api::view::StaticGraphViewOps};
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
 
 pub const GLOBAL_STATE_KEY: usize = 0;
 
 #[derive(Debug, Clone)]
-pub struct MorcelComputeState<CS: ComputeState + Send> {
+pub struct MorcelComputeState<CS> {
     morcel_size: usize,
     pub(crate) states: FxHashMap<u32, CS>,
 }
@@ -26,7 +26,7 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
         }
     }
 
-    pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
+    pub fn read_vec<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,
@@ -151,7 +151,7 @@ impl<CS: ComputeState + Send + Clone> MorcelComputeState<CS> {
 }
 
 impl<CS: ComputeState + Send> MorcelComputeState<CS> {
-    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
+    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
         &self,
         ss: usize,
         agg_ref: &AccId<A, IN, OUT, ACC>,

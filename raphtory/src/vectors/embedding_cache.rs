@@ -1,11 +1,11 @@
-use crate::vectors::{entity_id::EntityId, Embedding};
+use crate::vectors::Embedding;
 use parking_lot::RwLock;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     fs::{create_dir_all, File},
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 type CacheStore = HashMap<u64, Embedding>;

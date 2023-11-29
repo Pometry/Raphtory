@@ -54,7 +54,7 @@ use crate::{
 };
 
 /// measures the degree to which nodes in a graph tend to cluster together
-pub fn local_clustering_coefficient<G: GraphViewOps, V: Into<VertexRef>>(
+pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: Into<VertexRef>>(
     graph: &G,
     v: V,
 ) -> Option<f32> {

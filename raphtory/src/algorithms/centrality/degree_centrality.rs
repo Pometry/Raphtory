@@ -1,11 +1,14 @@
 use crate::{
     algorithms::{algorithm_result::AlgorithmResult, metrics::degree::max_degree},
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+            vertex::eval_vertex::EvalVertexView,
+        },
     },
     prelude::*,
 };
@@ -14,7 +17,7 @@ use ordered_float::OrderedFloat;
 /// Computes the degree centrality of all vertices in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
-pub fn degree_centrality<G: GraphViewOps>(
+pub fn degree_centrality<G: StaticGraphViewOps>(
     g: &G,
     threads: Option<usize>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
@@ -26,19 +29,17 @@ pub fn degree_centrality<G: GraphViewOps>(
 
     ctx.agg(min);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
-            // The division below is fine as floating point division of 0.0
-            // causes the result to be an NaN
-            let res = evv.degree() as f64 / max_degree as f64;
-            if res.is_nan() || res.is_infinite() {
-                evv.global_update(&min, 0.0);
-            } else {
-                evv.update(&min, res);
-            }
-            Step::Done
-        },
-    );
+    let step1 = ATask::new(move |evv: &mut EvalVertexView<_, ()>| {
+        // The division below is fine as floating point division of 0.0
+        // causes the result to be an NaN
+        let res = evv.degree() as f64 / max_degree as f64;
+        if res.is_nan() || res.is_infinite() {
+            evv.global_update(&min, 0.0);
+        } else {
+            evv.update(&min, res);
+        }
+        Step::Done
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     let runner_result = runner.run(

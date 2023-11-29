@@ -3,7 +3,7 @@ use crate::{
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 pub fn extend_filter(
     old: Option<EdgeFilter>,
@@ -16,6 +16,7 @@ pub fn extend_filter(
 }
 
 pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
+pub type EdgeWindowFilter = Arc<dyn Fn(&EdgeStore, &LayerIds, Range<i64>) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {

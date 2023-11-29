@@ -128,6 +128,34 @@ impl LayerIds {
         }
     }
 
+    pub fn intersect(&self, other: &LayerIds) -> LayerIds {
+        match (self, other) {
+            (LayerIds::None, _) => LayerIds::None,
+            (_, LayerIds::None) => LayerIds::None,
+            (LayerIds::All, other) => other.clone(),
+            (this, LayerIds::All) => this.clone(),
+            (LayerIds::One(id), other) => {
+                if other.contains(id) {
+                    LayerIds::One(*id)
+                } else {
+                    LayerIds::None
+                }
+            }
+            (LayerIds::Multiple(ids), other) => {
+                let ids: Vec<usize> = ids
+                    .iter()
+                    .filter(|id| other.contains(id))
+                    .copied()
+                    .collect();
+                match ids.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(ids[0]),
+                    _ => LayerIds::Multiple(ids.into()),
+                }
+            }
+        }
+    }
+
     pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
         match e.layer() {
             None => self,

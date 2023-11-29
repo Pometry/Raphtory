@@ -4,7 +4,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         graph::views::vertex_subgraph::VertexSubgraph,
         task::{
             context::Context,
@@ -42,7 +42,7 @@ impl Default for KCoreState {
 ///
 pub fn k_core_set<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
 
@@ -53,28 +53,26 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(
-        move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, KCoreState>| {
-            let prev: bool = vv.prev().alive;
-            if prev == true {
-                let current = vv
-                    .neighbours()
-                    .into_iter()
-                    .filter(|n| n.prev().alive)
-                    .count()
-                    >= k;
-                let state: &mut KCoreState = vv.get_mut();
-                if current != prev {
-                    state.alive = current;
-                    Step::Continue
-                } else {
-                    Step::Done
-                }
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<G, KCoreState>| {
+        let prev: bool = vv.prev().alive;
+        if prev == true {
+            let current = vv
+                .neighbours()
+                .into_iter()
+                .filter(|n| n.prev().alive)
+                .count()
+                >= k;
+            let state: &mut KCoreState = vv.get_mut();
+            if current != prev {
+                state.alive = current;
+                Step::Continue
             } else {
                 Step::Done
             }
-        },
-    );
+        } else {
+            Step::Done
+        }
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
@@ -113,7 +111,7 @@ pub fn k_core<G>(
     threads: Option<usize>,
 ) -> VertexSubgraph<G>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let v_set = k_core_set(graph, k, iter_count, threads);
     graph.subgraph(v_set)

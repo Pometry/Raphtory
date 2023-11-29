@@ -2,7 +2,7 @@ use crate::core::state::{compute_state::ComputeState, shuffle_state::ShuffleComp
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
-pub(crate) struct EVState<'a, CS: ComputeState> {
+pub(crate) struct EVState<'a, CS: Clone> {
     pub(crate) shard_state: Cow<'a, ShuffleComputeState<CS>>,
     pub(crate) global_state: Cow<'a, ShuffleComputeState<CS>>,
 }

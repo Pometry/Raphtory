@@ -17,15 +17,12 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
-                BoxedIter, WindowSet,
+                BoxedIter, StaticGraphViewOps, WindowSet,
             },
         },
         graph::{
             edge::EdgeView,
-            views::{
-                deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph,
-                window_graph::WindowedGraph,
-            },
+            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
         },
     },
     prelude::*,
@@ -60,71 +57,95 @@ use std::{
 /// An edge is a directed connection between two vertices.
 #[pyclass(name = "Edge", subclass)]
 pub struct PyEdge {
-    pub(crate) edge: EdgeView<DynamicGraph>,
+    pub(crate) edge: EdgeView<DynamicGraph, DynamicGraph>,
 }
 
 #[pyclass(name="MutableEdge", extends=PyEdge)]
 pub struct PyMutableEdge {
-    edge: EdgeView<MaterializedGraph>,
+    edge: EdgeView<MaterializedGraph, MaterializedGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<EdgeView<G, GH>> for PyEdge
+{
+    fn from(value: EdgeView<G, GH>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        let edge = value.edge;
         Self {
             edge: EdgeView {
-                graph: value.graph.clone().into_dynamic(),
-                edge: value.edge,
+                base_graph,
+                graph,
+                edge,
             },
         }
     }
 }
 
-impl<G: GraphViewOps + Static + IntoDynamic> From<EdgeView<G>> for EdgeView<DynamicGraph> {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Static>
+    From<EdgeView<G, GH>> for EdgeView<DynamicGraph, DynamicGraph>
+{
+    fn from(value: EdgeView<G, GH>) -> Self {
         EdgeView {
+            base_graph: value.base_graph.into_dynamic(),
             graph: value.graph.into_dynamic(),
             edge: value.edge,
         }
     }
 }
 
-impl<G: Into<MaterializedGraph> + GraphViewOps> From<EdgeView<G>> for PyMutableEdge {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G, G>> for PyMutableEdge {
+    fn from(value: EdgeView<G, G>) -> Self {
         let edge = EdgeView {
             edge: value.edge,
             graph: value.graph.into(),
+            base_graph: value.base_graph.into(),
         };
 
         Self { edge }
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic + Immutable> IntoPy<PyObject> for EdgeView<G> {
+impl<
+        G: StaticGraphViewOps + IntoDynamic + Immutable,
+        GH: StaticGraphViewOps + IntoDynamic + Immutable,
+    > IntoPy<PyObject> for EdgeView<G, GH>
+{
     fn into_py(self, py: Python<'_>) -> PyObject {
         let py_version: PyEdge = self.into();
         py_version.into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<Graph> {
+impl IntoPy<PyObject> for EdgeView<Graph, Graph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
+        let base_graph: MaterializedGraph = self.base_graph.into();
         let edge = self.edge;
-        let vertex = EdgeView { graph, edge };
-        vertex.into_py(py)
+        EdgeView {
+            graph,
+            base_graph,
+            edge,
+        }
+        .into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<GraphWithDeletions> {
+impl IntoPy<PyObject> for EdgeView<GraphWithDeletions, GraphWithDeletions> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
+        let base_graph: MaterializedGraph = self.base_graph.into();
         let edge = self.edge;
-        let vertex = EdgeView { graph, edge };
-        vertex.into_py(py)
+        EdgeView {
+            graph,
+            base_graph,
+            edge,
+        }
+        .into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<MaterializedGraph> {
+impl IntoPy<PyObject> for EdgeView<MaterializedGraph, MaterializedGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(py, (PyMutableEdge::from(self.clone()), PyEdge::from(self)))
             .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
@@ -192,7 +213,7 @@ impl PyEdge {
     /// Returns:
     ///   Properties on the Edge.
     #[getter]
-    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph>> {
+    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph, DynamicGraph>> {
         self.edge.properties()
     }
 
@@ -215,7 +236,10 @@ impl PyEdge {
     }
 
     #[pyo3(signature = (name))]
-    pub fn layer(&self, name: String) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
+    pub fn layer(
+        &self,
+        name: String,
+    ) -> PyResult<EdgeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
         if let Some(edge) = self.edge.layer(name.clone()) {
             Ok(edge)
         } else {
@@ -239,7 +263,7 @@ impl PyEdge {
     pub fn layers(
         &self,
         layer_names: Vec<String>,
-    ) -> PyResult<EdgeView<LayeredGraph<DynamicGraph>>> {
+    ) -> PyResult<EdgeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
         if let Some(edge) = self.edge.layer(layer_names.clone()) {
             Ok(edge)
         } else {
@@ -351,7 +375,7 @@ impl PyEdge {
     }
 }
 
-impl_timeops!(PyEdge, edge, EdgeView<DynamicGraph>, "edge");
+impl_timeops!(PyEdge, edge, EdgeView<DynamicGraph, DynamicGraph>, "edge");
 
 impl Repr for PyEdge {
     fn repr(&self) -> String {
@@ -359,7 +383,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl<G: GraphViewOps> Repr for EdgeView<G> {
+impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for EdgeView<G, GH> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()
@@ -425,12 +449,13 @@ impl PyMutableEdge {
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
 pub struct PyEdges {
-    builder: Arc<dyn Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static>,
+    builder:
+        Arc<dyn Fn() -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> + Send + Sync + 'static>,
 }
 
 impl PyEdges {
     /// an iterable that can be used in rust
-    fn iter(&self) -> BoxedIter<EdgeView<DynamicGraph>> {
+    fn iter(&self) -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> {
         (self.builder)()
     }
 
@@ -479,7 +504,7 @@ impl PyEdges {
     fn explode(&self) -> PyEdges {
         let builder = self.builder.clone();
         (move || {
-            let iter: BoxedIter<EdgeView<DynamicGraph>> =
+            let iter: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
                 Box::new(builder().flat_map(|e| e.explode()));
             iter
         })
@@ -491,7 +516,7 @@ impl PyEdges {
     fn explode_layers(&self) -> PyEdges {
         let builder = self.builder.clone();
         (move || {
-            let iter: BoxedIter<EdgeView<DynamicGraph>> =
+            let iter: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
                 Box::new(builder().flat_map(|e| e.explode_layers()));
             iter
         })
@@ -504,9 +529,7 @@ impl PyEdges {
     /// Earliest time of the edges.
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
+        let edges = self.builder.clone();
         (move || edges().earliest_time()).into()
     }
 
@@ -526,9 +549,7 @@ impl PyEdges {
     ///  Latest time of the edges.
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
+        let edges = self.builder.clone();
         (move || edges().latest_time()).into()
     }
 
@@ -558,9 +579,7 @@ impl PyEdges {
     ///   Time of edge
     #[getter]
     fn time(&self) -> OptionI64Iterable {
-        let edges: Arc<
-            dyn Fn() -> Box<dyn Iterator<Item = EdgeView<DynamicGraph>> + Send> + Send + Sync,
-        > = self.builder.clone();
+        let edges = self.builder.clone();
         (move || edges().time()).into()
     }
 
@@ -662,11 +681,12 @@ impl PyEdges {
         let layers: Layer = name.into();
         (move || {
             let layers = layers.clone();
-            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
-                Box::new(builder().flat_map(move |e| {
-                    e.layer(layers.clone())
-                        .map(|e| <EdgeView<DynamicGraph>>::from(e))
-                }));
+            let box_builder: Box<
+                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
+            > = Box::new(builder().flat_map(move |e| {
+                e.layer(layers.clone())
+                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e))
+            }));
             box_builder
         })
         .into()
@@ -686,11 +706,12 @@ impl PyEdges {
 
         (move || {
             let layers = layers.clone();
-            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
-                Box::new(builder().flat_map(move |e| {
-                    e.layer(layers.clone())
-                        .map(|e| <EdgeView<DynamicGraph>>::from(e))
-                }));
+            let box_builder: Box<
+                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
+            > = Box::new(builder().flat_map(move |e| {
+                e.layer(layers.clone())
+                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e))
+            }));
             box_builder
         })
         .into()
@@ -711,12 +732,13 @@ impl PyEdges {
         (move || {
             let start = start.clone().unwrap_or(PyTime::MIN);
             let end = end.clone().unwrap_or(PyTime::MAX);
-            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
-                Box::new(
-                    builder()
-                        .map(move |e| e.window(start.clone(), end.clone()))
-                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
-                );
+            let box_builder: Box<
+                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
+            > = Box::new(
+                builder()
+                    .map(move |e| e.window(start.clone(), end.clone()))
+                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
+            );
             box_builder
         })
         .into()
@@ -735,12 +757,13 @@ impl PyEdges {
 
         (move || {
             let end = end.clone();
-            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
-                Box::new(
-                    builder()
-                        .map(move |e| e.at(end.clone()))
-                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
-                );
+            let box_builder: Box<
+                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
+            > = Box::new(
+                builder()
+                    .map(move |e| e.at(end.clone()))
+                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
+            );
             box_builder
         })
         .into()
@@ -758,12 +781,13 @@ impl PyEdges {
         let end = end.into_time();
 
         (move || {
-            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
-                Box::new(
-                    builder()
-                        .map(move |e| e.before(end))
-                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
-                );
+            let box_builder: Box<
+                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
+            > = Box::new(
+                builder()
+                    .map(move |e| e.before(end))
+                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
+            );
             box_builder
         })
         .into()
@@ -781,12 +805,13 @@ impl PyEdges {
         let start = start.into_time();
 
         (move || {
-            let box_builder: Box<(dyn Iterator<Item = EdgeView<DynamicGraph>> + Send + 'static)> =
-                Box::new(
-                    builder()
-                        .map(move |e| e.after(start))
-                        .map(|e| <EdgeView<DynamicGraph>>::from(e)),
-                );
+            let box_builder: Box<
+                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
+            > = Box::new(
+                builder()
+                    .map(move |e| e.after(start))
+                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
+            );
             box_builder
         })
         .into()
@@ -803,7 +828,9 @@ impl Repr for PyEdges {
     }
 }
 
-impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static> From<F> for PyEdges {
+impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> + Send + Sync + 'static> From<F>
+    for PyEdges
+{
     fn from(value: F) -> Self {
         Self {
             builder: Arc::new(value),
@@ -811,7 +838,7 @@ impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph>> + Send + Sync + 'static> From<
     }
 }
 
-py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph>);
+py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph, DynamicGraph>);
 
 #[pymethods]
 impl PyNestedEdges {
@@ -907,11 +934,12 @@ impl PyNestedEdges {
     fn explode(&self) -> PyNestedEdges {
         let builder = self.builder.clone();
         (move || {
-            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> = Box::new(builder().map(|e| {
-                let inner_box: BoxedIter<EdgeView<DynamicGraph>> =
-                    Box::new(e.flat_map(|e| e.explode()));
-                inner_box
-            }));
+            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph, DynamicGraph>>> =
+                Box::new(builder().map(|e| {
+                    let inner_box: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
+                        Box::new(e.flat_map(|e| e.explode()));
+                    inner_box
+                }));
             iter
         })
         .into()
@@ -921,11 +949,12 @@ impl PyNestedEdges {
     fn explode_layers(&self) -> PyNestedEdges {
         let builder = self.builder.clone();
         (move || {
-            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph>>> = Box::new(builder().map(|e| {
-                let inner_box: BoxedIter<EdgeView<DynamicGraph>> =
-                    Box::new(e.flat_map(|e| e.explode_layers()));
-                inner_box
-            }));
+            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph, DynamicGraph>>> =
+                Box::new(builder().map(|e| {
+                    let inner_box: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
+                        Box::new(e.flat_map(|e| e.explode_layers()));
+                    inner_box
+                }));
             iter
         })
         .into()

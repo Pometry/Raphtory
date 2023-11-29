@@ -3,7 +3,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank,
-        community_detection::connected_components::weakly_connected_components,
+        components::weakly_connected_components,
         metrics::{
             clustering_coefficient::clustering_coefficient,
             local_clustering_coefficient::local_clustering_coefficient,

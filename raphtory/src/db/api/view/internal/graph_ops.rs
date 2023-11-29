@@ -3,14 +3,15 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         Direction,
     },
-    db::api::view::internal::{Base, EdgeFilter},
+    db::api::view::{
+        internal::{Base, EdgeFilter},
+        BoxedLIter,
+    },
 };
-use enum_dispatch::enum_dispatch;
 
 /// The GraphViewInternalOps trait provides a set of methods to query a directed graph
 /// represented by the raphtory_core::tgraph::TGraph struct.
-#[enum_dispatch]
-pub trait GraphOps: Send + Sync {
+pub trait GraphOps<'graph>: Send + Sync {
     /// Check if a vertex exists and returns internal reference.
     fn internal_vertex_ref(
         &self,
@@ -32,6 +33,8 @@ pub trait GraphOps: Send + Sync {
     /// Returns the total number of edges in the graph.
     fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
+
     /// Returns true if the graph contains an edge between the source vertex
     /// (src) and the destination vertex (dst).
     /// # Arguments
@@ -52,6 +55,7 @@ pub trait GraphOps: Send + Sync {
     /// # Arguments
     ///
     /// * `v` - VertexRef of the vertex to check.
+    #[inline]
     fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
         self.internal_vertex_ref(v, layers, filter).is_some()
     }
@@ -70,19 +74,10 @@ pub trait GraphOps: Send + Sync {
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
+    #[inline]
     fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
         self.internal_vertex_ref(v.into(), layers, filter)
     }
-
-    /// Returns all the vertex references in the graph.
-    /// Returns:
-    /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertex
-    /// references in the graph.
-    fn vertex_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send>;
 
     /// Returns the edge reference that corresponds to the specified src and dst vertex
     /// # Arguments
@@ -101,6 +96,13 @@ pub trait GraphOps: Send + Sync {
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef>;
 
+    /// Returns all the vertex references in the graph.
+    /// Returns:
+    /// * `Box<dyn Iterator<Item = VID> + Send>` - An iterator over all the vertex
+    /// references in the graph.
+    fn vertex_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>)
+        -> BoxedLIter<'graph, VID>;
+
     /// Returns all the edge references in the graph.
     ///
     /// Returns:
@@ -110,7 +112,7 @@ pub trait GraphOps: Send + Sync {
         &self,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+    ) -> BoxedLIter<'graph, EdgeRef>;
 
     /// Returns an iterator over the edges connected to a given vertex in a given direction.
     ///
@@ -130,7 +132,7 @@ pub trait GraphOps: Send + Sync {
         d: Direction,
         layer: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send>;
+    ) -> BoxedLIter<'graph, EdgeRef>;
 
     /// Returns an iterator over the neighbors of a given vertex in a given direction.
     ///
@@ -148,29 +150,16 @@ pub trait GraphOps: Send + Sync {
         d: Direction,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send>;
+    ) -> BoxedLIter<'graph, VID>;
 }
 
-pub trait InheritGraphOps: Base {}
+pub trait InheritGraphOps: Base + Send + Sync {}
 
-impl<G: InheritGraphOps> DelegateGraphOps for G
+impl<'base: 'graph, 'graph, G: InheritGraphOps + Send + Sync + ?Sized + 'graph> GraphOps<'graph>
+    for G
 where
-    G::Base: GraphOps,
+    G::Base: GraphOps<'base>,
 {
-    type Internal = G::Base;
-
-    fn graph(&self) -> &Self::Internal {
-        self.base()
-    }
-}
-
-pub trait DelegateGraphOps {
-    type Internal: GraphOps + ?Sized;
-
-    fn graph(&self) -> &Self::Internal;
-}
-
-impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
     #[inline]
     fn internal_vertex_ref(
         &self,
@@ -178,7 +167,7 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
-        self.graph().internal_vertex_ref(v, layer_ids, filter)
+        self.base().internal_vertex_ref(v, layer_ids, filter)
     }
 
     #[inline]
@@ -188,17 +177,22 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
-        self.graph().find_edge_id(e_id, layer_ids, filter)
+        self.base().find_edge_id(e_id, layer_ids, filter)
     }
 
     #[inline]
     fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.graph().vertices_len(layer_ids, filter)
+        self.base().vertices_len(layer_ids, filter)
     }
 
     #[inline]
     fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.graph().edges_len(layers, filter)
+        self.base().edges_len(layers, filter)
+    }
+
+    #[inline]
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        self.base().temporal_edges_len(layers, filter)
     }
 
     #[inline]
@@ -209,12 +203,12 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> bool {
-        self.graph().has_edge_ref(src, dst, layers, filter)
+        self.base().has_edge_ref(src, dst, layers, filter)
     }
 
     #[inline]
     fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
-        self.graph().has_vertex_ref(v, layers, filter)
+        self.base().has_vertex_ref(v, layers, filter)
     }
 
     #[inline]
@@ -225,21 +219,12 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> usize {
-        self.graph().degree(v, d, layers, filter)
+        self.base().degree(v, d, layers, filter)
     }
 
     #[inline]
     fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.graph().vertex_ref(v, layers, filter)
-    }
-
-    #[inline]
-    fn vertex_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        self.graph().vertex_refs(layers, filter)
+        self.base().vertex_ref(v, layers, filter)
     }
 
     #[inline]
@@ -250,7 +235,16 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         layer: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
-        self.graph().edge_ref(src, dst, layer, filter)
+        self.base().edge_ref(src, dst, layer, filter)
+    }
+
+    #[inline]
+    fn vertex_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        self.base().vertex_refs(layers, filter)
     }
 
     #[inline]
@@ -258,8 +252,8 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         &self,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph().edge_refs(layers, filter)
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.base().edge_refs(layers, filter)
     }
 
     #[inline]
@@ -269,8 +263,8 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         d: Direction,
         layer: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph().vertex_edges(v, d, layer, filter)
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.base().vertex_edges(v, d, layer, filter)
     }
 
     #[inline]
@@ -280,7 +274,7 @@ impl<G: DelegateGraphOps + Send + Sync + ?Sized> GraphOps for G {
         d: Direction,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        self.graph().neighbours(v, d, layers, filter)
+    ) -> BoxedLIter<'graph, VID> {
+        self.base().neighbours(v, d, layers, filter)
     }
 }

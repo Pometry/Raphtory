@@ -1,12 +1,12 @@
 use crate::{
-    db::graph::{edge::EdgeView, vertex::VertexView},
-    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::{EdgeViewOps, VertexViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
-use std::{
-    borrow::Borrow,
-    fmt::{Display, Formatter},
-};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
@@ -23,11 +23,11 @@ impl EntityId {
         Self::Edge { src, dst }
     }
 
-    pub(crate) fn from_node<G: GraphViewOps>(node: &VertexView<G>) -> Self {
+    pub(crate) fn from_node<G: StaticGraphViewOps>(node: &VertexView<G>) -> Self {
         Self::Node { id: node.id() }
     }
 
-    pub(crate) fn from_edge<G: GraphViewOps>(edge: &EdgeView<G>) -> Self {
+    pub(crate) fn from_edge<G: StaticGraphViewOps>(edge: &EdgeView<G>) -> Self {
         Self::Edge {
             src: edge.src().id(),
             dst: edge.dst().id(),

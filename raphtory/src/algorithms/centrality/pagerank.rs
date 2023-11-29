@@ -5,7 +5,7 @@ use crate::{
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -51,8 +51,7 @@ impl PageRankState {
 ///
 /// * An AlgorithmResult object containing the mapping from vertex ID to the PageRank score of the vertex
 ///
-#[allow(unused_variables)]
-pub fn unweighted_page_rank<G: GraphViewOps>(
+pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
@@ -60,7 +59,6 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
     use_l2_norm: bool,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let n = g.count_vertices();
-    let total_edges = g.count_edges();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 

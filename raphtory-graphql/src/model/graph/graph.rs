@@ -13,13 +13,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            GraphViewOps, TimeOps, VertexViewOps,
-        },
+        api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps, TimeOps, VertexViewOps},
         graph::edge::EdgeView,
     },
-    prelude::{EdgeListOps, EdgeViewOps},
+    prelude::*,
     search::IndexedGraph,
 };
 
@@ -64,7 +61,7 @@ pub(crate) struct GqlGraph {
     graph: IndexedGraph<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
+impl<G: StaticGraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
     fn from(value: IndexedGraph<G>) -> Self {
         Self {
             graph: value.into_dynamic_indexed(),

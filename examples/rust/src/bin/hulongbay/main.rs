@@ -2,10 +2,7 @@
 #![allow(dead_code)]
 use itertools::Itertools;
 use raphtory::{
-    algorithms::{
-        community_detection::connected_components::weakly_connected_components,
-        motifs::triangle_count::triangle_count,
-    },
+    algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
 };

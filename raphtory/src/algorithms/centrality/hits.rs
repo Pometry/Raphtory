@@ -8,7 +8,7 @@ use crate::{
         },
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -46,8 +46,7 @@ impl Default for Hits {
 /// Returns
 ///
 /// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
-#[allow(unused_variables)]
-pub fn hits<G: GraphViewOps>(
+pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
@@ -76,7 +75,7 @@ pub fn hits<G: GraphViewOps>(
     ctx.global_agg_reset(max_diff_hub_score);
     ctx.global_agg_reset(max_diff_auth_score);
 
-    let step2 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+    let step2 = ATask::new(move |evv: &mut EvalVertexView<G, Hits>| {
         let hub_score = evv.get().hub_score;
         let auth_score = evv.get().auth_score;
         for t in evv.out_neighbours() {
@@ -88,7 +87,7 @@ pub fn hits<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step3 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+    let step3 = ATask::new(move |evv: &mut EvalVertexView<G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -97,7 +96,7 @@ pub fn hits<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step4 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+    let step4 = ATask::new(move |evv: &mut EvalVertexView<G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -139,7 +138,7 @@ pub fn hits<G: GraphViewOps>(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
-        |_, _, els, local| {
+        |_, _, _, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
             let layers = g.layer_ids();

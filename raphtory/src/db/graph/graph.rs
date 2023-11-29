@@ -41,7 +41,10 @@ pub struct Graph(pub Arc<InternalGraph>);
 
 impl Static for Graph {}
 
-pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
+pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
+    g1: &G1,
+    g2: &G2,
+) -> bool {
     if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
         g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
@@ -68,7 +71,10 @@ impl From<InternalGraph> for Graph {
     }
 }
 
-impl<G: GraphViewOps> PartialEq<G> for Graph {
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
+where
+    Self: 'graph,
+{
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
     }
@@ -149,14 +155,13 @@ impl IntoDynamic for Graph {
 mod db_tests {
     use super::*;
     use crate::{
+        algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, Prop,
         },
         db::{
-            api::view::{
-                EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps,
-            },
+            api::view::{EdgeListOps, EdgeViewOps, Layer, LayerOps, TimeOps, VertexViewOps},
             graph::{edge::EdgeView, path::PathFromVertex},
         },
         graphgen::random_attachment::random_attachment,
@@ -680,7 +685,12 @@ mod db_tests {
         assert_eq!(vertex1.in_degree(), 0);
         assert_eq!(vertex2.in_degree(), 0);
 
-        fn to_tuples<G: GraphViewOps, I: Iterator<Item = EdgeView<G>>>(
+        fn to_tuples<
+            'graph,
+            G: GraphViewOps<'graph>,
+            GH: GraphViewOps<'graph>,
+            I: Iterator<Item = EdgeView<G, GH>>,
+        >(
             edges: I,
         ) -> Vec<(u64, u64)> {
             edges
@@ -713,7 +723,9 @@ mod db_tests {
         assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(vertex2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G>) -> Vec<u64> {
+        fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+            neighbours: PathFromVertex<'graph, G, GH>,
+        ) -> Vec<u64> {
             neighbours.iter().map(|n| n.id()).sorted().collect_vec()
         }
 
@@ -1617,6 +1629,116 @@ mod db_tests {
             ),
         );
         correct
+    }
+
+    #[test]
+    fn test_one_hop_filter_reset() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
+
+        let v = g.vertex(1).unwrap();
+
+        // filtering resets on neighbours
+        let out_out: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect();
+        assert_eq!(out_out, [3]);
+
+        let out_out: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_edges()
+            .properties()
+            .flat_map(|p| p.get("layer").into_i32())
+            .collect();
+        assert_eq!(out_out, [2]);
+
+        let out_out: Vec<_> = v
+            .at(0)
+            .out_neighbours()
+            .after(1)
+            .out_neighbours()
+            .id()
+            .collect();
+        assert_eq!(out_out, [4]);
+
+        let earliest_time = v
+            .at(0)
+            .out_neighbours()
+            .after(1)
+            .out_edges()
+            .earliest_time()
+            .flatten()
+            .min();
+        assert_eq!(earliest_time, Some(2));
+
+        // filter applies to edges
+        let layers: Vec<_> = v
+            .layer("1")
+            .unwrap()
+            .edges()
+            .layer_names()
+            .flatten()
+            .dedup()
+            .collect();
+        assert_eq!(layers, ["1"]);
+
+        // dst and src on edge reset the filter
+        let degrees: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .edges()
+            .dst()
+            .out_degree()
+            .collect();
+        assert_eq!(degrees, [1]);
+
+        // graph level filter is preserved
+        let out_out_2: Vec<_> = g
+            .at(0)
+            .vertex(1)
+            .unwrap()
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect();
+        assert!(out_out_2.is_empty());
+    }
+
+    #[test]
+    fn can_apply_algorithm_on_filtered_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
+
+        let wl = g.window(0, 3).layer(vec!["1", "2"]).unwrap();
+        assert_eq!(
+            weakly_connected_components(&wl, 10, None).get_all_values(),
+            [1, 1, 1, 1]
+        );
     }
 
     // non overlaping time intervals

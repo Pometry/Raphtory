@@ -5,9 +5,12 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::internal::{
-            Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps, InheritLayerOps,
-            InheritMaterialize, InheritTimeSemantics, Static,
+        view::{
+            internal::{
+                Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
+                InheritLayerOps, InheritMaterialize, InheritTimeSemantics, Static, TimeSemantics,
+            },
+            BoxedLIter,
         },
     },
     prelude::GraphViewOps,
@@ -21,15 +24,15 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct VertexSubgraph<G: GraphViewOps> {
+pub struct VertexSubgraph<G> {
     graph: G,
     vertices: Arc<FxHashSet<VID>>,
     edge_filter: EdgeFilter,
 }
 
-impl<G: GraphViewOps> Static for VertexSubgraph<G> {}
+impl<G> Static for VertexSubgraph<G> {}
 
-impl<G: GraphViewOps + Debug> Debug for VertexSubgraph<G> {
+impl<'graph, G: Debug + 'graph> Debug for VertexSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VertexSubgraph")
             .field("graph", &self.graph)
@@ -38,7 +41,7 @@ impl<G: GraphViewOps + Debug> Debug for VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Base for VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for VertexSubgraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -46,15 +49,15 @@ impl<G: GraphViewOps> Base for VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Immutable for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for VertexSubgraph<G> {}
 
-impl<G: GraphViewOps> InheritCoreOps for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritTimeSemantics for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritPropertiesOps for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritMaterialize for VertexSubgraph<G> {}
-impl<G: GraphViewOps> InheritLayerOps for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for VertexSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for VertexSubgraph<G> {}
 
-impl<G: GraphViewOps> VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> VertexSubgraph<G> {
     pub fn new(graph: G, vertices: FxHashSet<VID>) -> Self {
         let vertices = Arc::new(vertices);
         let vertices_cloned = vertices.clone();
@@ -74,14 +77,58 @@ impl<G: GraphViewOps> VertexSubgraph<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeFilterOps for VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for VertexSubgraph<G> {
     #[inline]
     fn edge_filter(&self) -> Option<&EdgeFilter> {
         Some(&self.edge_filter)
     }
 }
 
-impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
+impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for VertexSubgraph<G> {
+    fn vertex_refs(
+        &self,
+        _layers: LayerIds,
+        _filter: Option<&EdgeFilter>,
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
+        // this sucks but seems to be the only way currently (see also http://smallcultfollowing.com/babysteps/blog/2018/09/02/rust-pattern-iterating-an-over-a-rc-vec-t/)
+        let verts = Vec::from_iter(self.vertices.iter().copied());
+        Box::new(verts.into_iter())
+    }
+
+    fn edge_refs(
+        &self,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        let g1 = self.graph.clone();
+        let vertices = self.vertices.clone().iter().copied().collect_vec();
+        let filter = filter.cloned();
+        Box::new(
+            vertices.into_iter().flat_map(move |v| {
+                g1.vertex_edges(v, Direction::OUT, layer.clone(), filter.as_ref())
+            }),
+        )
+    }
+
+    fn vertex_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.graph.vertex_edges(v, d, layer, filter)
+    }
+
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        self.graph.neighbours(v, d, layers, filter)
+    }
     fn internal_vertex_ref(
         &self,
         v: VertexRef,
@@ -115,6 +162,18 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
             .sum()
     }
 
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        self.vertices
+            .par_iter()
+            .flat_map_iter(move |&v| {
+                let layers = layers.clone();
+                self.graph
+                    .vertex_edges(v, Direction::OUT, layers.clone(), filter)
+                    .flat_map(move |eref| self.edge_exploded(eref, layers.clone()))
+            })
+            .count()
+    }
+
     fn has_edge_ref(
         &self,
         src: VID,
@@ -143,16 +202,6 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         self.internal_vertex_ref(v.into(), layers, filter)
     }
 
-    fn vertex_refs(
-        &self,
-        _layers: LayerIds,
-        _filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        // this sucks but seems to be the only way currently (see also http://smallcultfollowing.com/babysteps/blog/2018/09/02/rust-pattern-iterating-an-over-a-rc-vec-t/)
-        let verts = Vec::from_iter(self.vertices.iter().copied());
-        Box::new(verts.into_iter())
-    }
-
     fn edge_ref(
         &self,
         src: VID,
@@ -161,41 +210,6 @@ impl<G: GraphViewOps> GraphOps for VertexSubgraph<G> {
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.graph.edge_ref(src, dst, layer, filter)
-    }
-
-    fn edge_refs(
-        &self,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        let g1 = self.clone();
-        let vertices = self.vertices.clone().iter().copied().collect_vec();
-        let filter = filter.cloned();
-        Box::new(
-            vertices.into_iter().flat_map(move |v| {
-                g1.vertex_edges(v, Direction::OUT, layer.clone(), filter.as_ref())
-            }),
-        )
-    }
-
-    fn vertex_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.vertex_edges(v, d, layer, filter)
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        self.graph.neighbours(v, d, layers, filter)
     }
 }
 

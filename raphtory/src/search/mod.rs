@@ -1,5 +1,7 @@
 // search goes here
 
+mod into_indexed;
+
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
@@ -21,13 +23,12 @@ use crate::{
             mutation::internal::InternalAdditionOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic},
-                EdgeViewInternalOps,
+                EdgeViewInternalOps, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::*,
-    search::fields::{EDGE_ID, VERTEX_ID},
 };
 
 #[derive(Clone)]
@@ -47,13 +48,13 @@ impl<G> Deref for IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> IntoDynamic for IndexedGraph<G> {
+impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
 }
 
-impl<G: GraphViewOps> InheritViewOps for IndexedGraph<G> {}
+impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -69,13 +70,13 @@ pub(in crate::search) mod fields {
     pub const EDGE_ID: &str = "edge_id";
 }
 
-impl<G: GraphViewOps> From<G> for IndexedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> From<G> for IndexedGraph<G> {
     fn from(graph: G) -> Self {
         Self::from_graph(&graph).expect("failed to generate index from graph")
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
+impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
     pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
             graph: self.graph.into_dynamic(),
@@ -87,7 +88,7 @@ impl<G: GraphViewOps + IntoDynamic> IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> IndexedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn new_vertex_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
 
@@ -407,7 +408,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     }
 
     fn index_edge_view<W: Deref<Target = IndexWriter>>(
-        e_ref: EdgeView<G>,
+        e_ref: EdgeView<G, G>,
         schema: &Schema,
         writer: &W,
         time_field: Field,
@@ -565,7 +566,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         &self,
         edge_id: Field,
         doc: Document,
-    ) -> Option<EdgeView<G>> {
+    ) -> Option<EdgeView<G, G>> {
         let edge_id: usize = doc
             .get_first(edge_id)
             .and_then(|value| value.as_u64())?
@@ -632,7 +633,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
         q: &str,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
         let searcher = self.edge_reader.searcher();
         let query_parser = tantivy::query::QueryParser::for_index(&self.edge_index, vec![]);
 
@@ -642,7 +643,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let top_docs = searcher.search(&query, &ranking)?;
 
-        let edge_id = self.edge_index.schema().get_field(EDGE_ID)?;
+        let edge_id = self.edge_index.schema().get_field(fields::EDGE_ID)?;
 
         let results = top_docs
             .into_iter()
@@ -676,7 +677,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
 
         let top_docs = searcher.search(&query, &ranking)?;
 
-        let vertex_id = self.vertex_index.schema().get_field(VERTEX_ID)?;
+        let vertex_id = self.vertex_index.schema().get_field(fields::VERTEX_ID)?;
 
         let results = top_docs
             .into_iter()
@@ -722,7 +723,7 @@ impl<G: GraphViewOps> IndexedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
+impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for IndexedGraph<G> {
     #[inline]
     fn next_event_id(&self) -> usize {
         self.graph.next_event_id()

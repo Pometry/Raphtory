@@ -2,7 +2,7 @@ use itertools::Itertools;
 use raphtory::{
     core::ArcStr,
     db::{
-        api::view::internal::DynamicGraph,
+        api::view::DynamicGraph,
         graph::{edge::EdgeView, vertex::VertexView},
     },
     prelude::{EdgeViewOps, VertexViewOps},

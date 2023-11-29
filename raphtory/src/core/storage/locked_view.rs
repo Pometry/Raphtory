@@ -8,7 +8,6 @@ use std::{
     hash::{BuildHasherDefault, Hash, Hasher},
     ops::Deref,
 };
-use tantivy::directory::Lock;
 
 pub enum LockedView<'a, T> {
     LockMapped(parking_lot::MappedRwLockReadGuard<'a, T>),

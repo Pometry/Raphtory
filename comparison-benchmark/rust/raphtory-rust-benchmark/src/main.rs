@@ -4,8 +4,7 @@ use csv::StringRecord;
 use flate2::read::GzDecoder;
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        community_detection::connected_components::weakly_connected_components,
+        centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
     prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},

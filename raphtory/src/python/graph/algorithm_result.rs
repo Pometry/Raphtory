@@ -64,7 +64,7 @@ macro_rules! py_algorithm_result_base {
             fn get_all(
                 &self,
             ) -> std::collections::HashMap<
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             > {
                 self.0.get_all()
@@ -108,7 +108,7 @@ macro_rules! py_algorithm_result_base {
                 &self,
                 reverse: bool,
             ) -> std::vec::Vec<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.sort_by_vertex(reverse)
@@ -156,7 +156,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
                 reverse: bool,
             ) -> std::vec::Vec<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.sort_by_value(reverse)
@@ -177,7 +177,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
                 reverse: bool,
             ) -> std::vec::Vec<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.sort_by_vertex_name(reverse)
@@ -202,7 +202,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 percentage: bool,
                 reverse: bool,
             ) -> std::vec::Vec<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.top_k(k, percentage, reverse)
@@ -212,7 +212,7 @@ macro_rules! py_algorithm_result_partial_ord {
             fn min(
                 &self,
             ) -> Option<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.min().map(|(k, v)| (k, v.map(|val| val)))
@@ -222,7 +222,7 @@ macro_rules! py_algorithm_result_partial_ord {
             fn max(
                 &self,
             ) -> Option<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.max().map(|(k, v)| (k, v.map(|val| val)))
@@ -232,7 +232,7 @@ macro_rules! py_algorithm_result_partial_ord {
             fn median(
                 &self,
             ) -> Option<(
-                $crate::db::graph::vertex::VertexView<$rustGraph>,
+                $crate::db::graph::vertex::VertexView<$rustGraph, $rustGraph>,
                 Option<$rustValue>,
             )> {
                 self.0.median().map(|(k, v)| (k, v.map(|val| val)))
