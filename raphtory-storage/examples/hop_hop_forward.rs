@@ -6,7 +6,7 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator, ParallelBridge},
+    iter::{IndexedParallelIterator, IntoParallelIterator},
     prelude::{IntoParallelRefIterator, ParallelIterator},
     ThreadPoolBuilder,
 };
@@ -41,32 +41,6 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
     );
     println!("vertex count: {:?}", g.num_vertices());
     Some(res)
-}
-
-#[inline]
-fn binary_search_join_par_5<'a>(
-    login_events: impl ParallelIterator<Item = &'a Time>,
-    prog1: &[Time],
-    nft: &[Time],
-    e: &[VID],
-    a: &VID,
-    count: &'a AtomicUsize,
-) {
-    let c = login_events
-        .filter_map(|login1_t| {
-            let pos = prog1.partition_point(|prog1_t| prog1_t < login1_t);
-            if pos >= prog1.len() {
-                None
-            } else {
-                Some((pos, login1_t))
-            }
-        })
-        .map(|(from, login1_t)| {
-            optimise_to_bits_small(&prog1[from..], &nft[from..], &e[from..], login1_t, a)
-        })
-        .sum::<usize>();
-
-    count.fetch_add(c, Ordering::Relaxed);
 }
 
 fn query1_v7(
@@ -106,24 +80,6 @@ fn query1_v7(
         );
 
         let now = Instant::now();
-
-        let all_v2_edges = g
-            .all_edges_par(events_2v)
-            .map(|edge| {
-                edge.par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
-                    .unwrap()
-                    .filter(|(_, &event_id)| event_id == 4624)
-                    .count()
-            })
-            .sum::<usize>();
-
-        println!(
-            "all_v2_edges: {:?}, count: {}",
-            now.elapsed(),
-            all_v2_edges
-        );
-
-        let now = Instant::now();
         let b_login1_filter: HashSet<VID> = {
             g.all_edges_par(events_2v)
                 .filter(|edge| b_prog1_filter.contains(&edge.dst()))
@@ -152,8 +108,9 @@ fn query1_v7(
                 g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
-                        nf1.prop_history::<i64>(bytes_prop_id)
-                            .filter(|(_, v)| v > &100_000_000)
+                        nf1.par_prop_items_unchecked::<i64>(bytes_prop_id)
+                            .unwrap()
+                            .filter(|(_, &v)| v > 100_000_000)
                             .for_each(|(nf1_t, _)| {
                                 g.edges_par(b, Direction::OUT, events_1v)
                                     .filter(|(_, v)| v == &b && b_prog1_filter.contains(v))
@@ -161,23 +118,24 @@ fn query1_v7(
                                         let prog1 = g.edge(b2b, events_1v);
 
                                         prog1
-                                            .prop_history::<i64>(event_id_prop_id_1v)
+                                            .par_prop_items_unchecked::<i64>(event_id_prop_id_1v)
+                                            .unwrap()
                                             .for_each(|(prog1_t, prog1_event_id)| {
-                                                if prog1_event_id == 4688
+                                                if *prog1_event_id == 4688
                                                     && prog1_t < nf1_t
                                                     && nf1_t - prog1_t <= 30
                                                 {
                                                     probe_map
                                                         .entry(b)
                                                         .and_modify(|(nft_min, v)| {
-                                                            v.push((prog1_t, nf1_t - 30, e));
-                                                            *nft_min = (nf1_t - 30).min(*nft_min);
+                                                            v.push((*prog1_t, *nf1_t - 30, e));
+                                                            *nft_min = (*nf1_t - 30).min(*nft_min);
                                                         })
                                                         .or_insert_with(|| {
-                                                            let nf1_t_less30 = nf1_t - 30;
+                                                            let nf1_t_less30 = *nf1_t - 30;
                                                             (
                                                                 nf1_t_less30,
-                                                                vec![(prog1_t, nf1_t_less30, e)],
+                                                                vec![(*prog1_t, nf1_t_less30, e)],
                                                             )
                                                         });
                                                 }
@@ -243,10 +201,11 @@ fn query1_v7(
 
                             if !skip {
                                 let iter = login1
-                                    .prop_history::<i64>(event_id_prop_id_2v)
-                                    .filter(|(login1_t, _)| login1_t >= min_nft_less30);
+                                    .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
+                                    .unwrap()
+                                    .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
 
-                                binary_search_join_par_6(iter.par_bridge(), prog1, nft_less30, e, &a, &count);
+                                binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
                             }
                         }
                     });
@@ -262,42 +221,6 @@ fn query1_v7(
 }
 
 #[inline]
-fn binary_search_join_par_6<'a>(
-    login_events: impl ParallelIterator<Item = (Time, i64)>,
-    prog1: &[Time],
-    nft: &[Time],
-    e: &[VID],
-    a: &VID,
-    count: &'a AtomicUsize,
-) {
-    let c = login_events
-        .filter(|(_, login1_event_id)| login1_event_id == &4624)
-        .filter_map(|(login1_t, _)| {
-            let pos = prog1.binary_search_by(|prog1_t| prog1_t.cmp(&login1_t));
-
-            let from = match pos {
-                Ok(i) => {
-                    Some(i + 1) // this one is smaller than all the prog_t
-                }
-                Err(i) => {
-                    if i >= prog1.len() {
-                        None
-                    } else {
-                        Some(i)
-                    }
-                }
-            };
-            from.map(|from| (from, login1_t))
-        })
-        .map(|(from, login1_t)| {
-            optimise_to_bits_small(&prog1[from..], &nft[from..], &e[from..], &login1_t, a)
-        })
-        .sum::<usize>();
-
-    count.fetch_add(c, Ordering::Relaxed);
-}
-
-#[inline]
 fn binary_search_join_par_4<'a>(
     login_events: impl ParallelIterator<Item = (&'a Time, &'a i64)>,
     prog1: &[Time],
@@ -309,21 +232,12 @@ fn binary_search_join_par_4<'a>(
     let c = login_events
         .filter(|(_, &login1_event_id)| login1_event_id == 4624)
         .filter_map(|(login1_t, _)| {
-            let pos = prog1.binary_search_by(|prog1_t| prog1_t.cmp(&login1_t));
-
-            let from = match pos {
-                Ok(i) => {
-                    Some(i + 1) // this one is smaller than all the prog_t
-                }
-                Err(i) => {
-                    if i >= prog1.len() {
-                        None
-                    } else {
-                        Some(i)
-                    }
-                }
-            };
-            from.map(|from| (from, login1_t))
+            let pos = prog1.partition_point(|prog1_t| prog1_t < login1_t);
+            if pos == prog1.len() {
+                None
+            } else {
+                Some((pos, login1_t))
+            }
         })
         .map(|(from, login1_t)| {
             optimise_to_bits_small(&prog1[from..], &nft[from..], &e[from..], login1_t, a)

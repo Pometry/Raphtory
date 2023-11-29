@@ -167,7 +167,9 @@ dependencies = [
 
 [[package]]
 name = "arrow2"
-version = "0.17.4"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "963fef509b757bcbbf9e5ffa23bcb345614d99f4f6f531f97417b27b8604d389"
 dependencies = [
  "ahash",
  "arrow-format",
@@ -179,13 +181,13 @@ dependencies = [
  "ethnum",
  "fallible-streaming-iterator",
  "foreign_vec",
+ "futures",
  "getrandom 0.2.10",
  "hash_hasher",
  "hashbrown 0.14.1",
  "itertools 0.10.5",
  "num-traits",
  "parquet2",
- "rayon",
  "rustc_version",
  "simdutf8",
  "streaming-iterator",
@@ -742,17 +744,6 @@ name = "core-foundation-sys"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
-
-[[package]]
-name = "core_affinity"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "622892f5635ce1fc38c8f16dfc938553ed64af482edb5e150bf4caedbfcb2304"
-dependencies = [
- "libc",
- "num_cpus",
- "winapi",
-]
 
 [[package]]
 name = "cpufeatures"
@@ -2585,6 +2576,10 @@ name = "parquet-format-safe"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1131c54b167dd4e4799ce762e1ab01549ebb94d5bdd13e6ec1b467491c378e1f"
+dependencies = [
+ "async-trait",
+ "futures",
+]
 
 [[package]]
 name = "parquet2"
@@ -2592,8 +2587,10 @@ version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "579fe5745f02cef3d5f236bfed216fd4693e49e4e920a13475c6132233283bce"
 dependencies = [
+ "async-stream",
  "brotli",
  "flate2",
+ "futures",
  "lz4",
  "parquet-format-safe",
  "seq-macro",
@@ -3261,7 +3258,6 @@ dependencies = [
  "ahash",
  "arrow2",
  "clap 4.4.6",
- "core_affinity",
  "dashmap",
  "heed",
  "itertools 0.11.0",
