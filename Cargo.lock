@@ -2077,7 +2077,7 @@ dependencies = [
 
 [[package]]
 name = "netflow_algorithm"
-version = "0.2.1"
+version = "0.6.1"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
