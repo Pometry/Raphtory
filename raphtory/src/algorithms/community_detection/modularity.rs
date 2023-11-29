@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 pub fn modularity<G>(
     graph: &G,
-    communities: &Vec<HashSet<VertexView<G>>>,
+    communities: &Vec<HashSet<u64>>,
     weight: Option<&str>,
     resolution: f64,
     is_directed: bool,
@@ -47,13 +47,13 @@ where
         .sum::<f64>()
 }
 
-fn is_partition<G>(graph: &G, communities: &Vec<HashSet<VertexView<G>>>) -> bool
+fn is_partition<G>(graph: &G, communities: &Vec<HashSet<u64>>) -> bool
 where
     G: GraphViewOps,
 {
-    let nodes: HashSet<VertexView<G>> = communities
+    let nodes: HashSet<u64> = communities
         .iter()
-        .flat_map(|community| community.iter().filter(|&node| graph.has_vertex(node)))
+        .flat_map(|community| community.iter().filter(|&node| graph.has_vertex(*node)))
         .cloned()
         .collect();
 
@@ -106,7 +106,7 @@ where
 }
 
 pub fn community_contribution<G>(
-    community: &HashSet<VertexView<G>>,
+    community: &HashSet<u64>,
     graph: &G,
     directed: bool,
     weight: Option<&str>,
@@ -118,8 +118,11 @@ where
     G: GraphViewOps,
 {
     let weight_key = weight.unwrap_or("");
-    let comm: HashSet<VertexView<G>> = community.clone().into_iter().collect();
-    let l_c: f64 = community
+    let comm: HashSet<VertexView<G>> = community
+        .iter()
+        .map(|vid| graph.vertex(*vid).unwrap())
+        .collect();
+    let l_c: f64 = comm
         .iter()
         .flat_map(|v| v.out_edges())
         .filter_map(|e| match comm.contains(&e.dst()) {
@@ -177,11 +180,14 @@ mod modularity_test {
             &graph,
             &vec![
                 HashSet::from([
-                    graph.vertex("1").unwrap(),
-                    graph.vertex("2").unwrap(),
-                    graph.vertex("3").unwrap(),
+                    graph.vertex("1").unwrap().id(),
+                    graph.vertex("2").unwrap().id(),
+                    graph.vertex("3").unwrap().id(),
                 ]),
-                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
+                HashSet::from([
+                    graph.vertex("4").unwrap().id(),
+                    graph.vertex("5").unwrap().id(),
+                ]),
             ],
             None,
             1.0f64,
@@ -193,11 +199,14 @@ mod modularity_test {
             &graph,
             &vec![
                 HashSet::from([
-                    graph.vertex("1").unwrap(),
-                    graph.vertex("2").unwrap(),
-                    graph.vertex("3").unwrap(),
+                    graph.vertex("1").unwrap().id(),
+                    graph.vertex("2").unwrap().id(),
+                    graph.vertex("3").unwrap().id(),
                 ]),
-                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
+                HashSet::from([
+                    graph.vertex("4").unwrap().id(),
+                    graph.vertex("5").unwrap().id(),
+                ]),
             ],
             None,
             1.0f64,
@@ -209,11 +218,14 @@ mod modularity_test {
             &graph,
             &vec![
                 HashSet::from([
-                    graph.vertex("1").unwrap(),
-                    graph.vertex("2").unwrap(),
-                    graph.vertex("3").unwrap(),
+                    graph.vertex("1").unwrap().id(),
+                    graph.vertex("2").unwrap().id(),
+                    graph.vertex("3").unwrap().id(),
                 ]),
-                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
+                HashSet::from([
+                    graph.vertex("4").unwrap().id(),
+                    graph.vertex("5").unwrap().id(),
+                ]),
             ],
             Some("weight"),
             1.0f64,
@@ -225,11 +237,14 @@ mod modularity_test {
             &graph,
             &vec![
                 HashSet::from([
-                    graph.vertex("1").unwrap(),
-                    graph.vertex("2").unwrap(),
-                    graph.vertex("3").unwrap(),
+                    graph.vertex("1").unwrap().id(),
+                    graph.vertex("2").unwrap().id(),
+                    graph.vertex("3").unwrap().id(),
                 ]),
-                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
+                HashSet::from([
+                    graph.vertex("4").unwrap().id(),
+                    graph.vertex("5").unwrap().id(),
+                ]),
             ],
             Some("weight"),
             1.0f64,
