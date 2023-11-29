@@ -1,8 +1,10 @@
 use crate::{
-    algorithms::community_detection::modularity::modularity, db::graph::vertex::VertexView,
+    algorithms::community_detection::modularity::modularity,
+    db::{api::view::internal::CoreGraphOps, graph::vertex::VertexView},
     prelude::*,
+    vectors::graph_entity::GraphEntity,
 };
-use itertools::Itertools;
+use itertools::{partition, Itertools};
 use num_traits::Pow;
 use std::{
     collections::{HashMap, HashSet},
@@ -39,21 +41,59 @@ where
     G: GraphViewOps,
 {
     let mut graph = og_graph.clone();
-    let mut partition: Vec<Vec<VertexView<G>>> = graph.vertices().iter().map((|v| vec![v])).collect();
-    let modularity_result = modularity(&graph, partition.clone(), weight, resolution, is_directed);
+    let mut nodes_data: HashMap<VertexView<G>, HashSet<VertexView<G>>> = HashMap::new();
+    // TODO NODES_DATA Usage in one_level
+    let mut partition: Vec<HashSet<VertexView<G>>> =
+        graph.vertices().iter().map((|v| HashSet::from([v]))).collect();
+    let modularity_result = modularity(&graph, &partition, weight, resolution, is_directed);
     let m = weight_sum(&graph, weight);
-    let (mut partition, mut inner_partition, mut improvement) = one_level(graph, m, partition, resolution, is_directed, seed, weight);
+    let (mut partition, mut inner_partition, mut improvement) =
+        one_level(&graph, m, &partition, resolution, is_directed, seed, weight);
     let mut mod_val = 0.0f64;
     improvement = true;
     while improvement {
-        let new_mod = modularity(
-            &graph, inner_partition, weight, resolution, is_directed
-        );
+        // TODO THE YIELD IN PYTHON
+        let new_mod = modularity(&graph, &inner_partition, weight, resolution, is_directed);
         mod_val = new_mod;
-        graph = gen_graph(graph, inner_partition);
-        (partition, inner_partition, improvement) = one_level(graph, m, partition, resolution, is_directed, seed, weight);
+        let (graph, nodes_data) = gen_graph(&graph, &inner_partition, &nodes_data, weight);
+        let (partition, inner_partition, improvement) =
+            one_level(&graph, m, &partition, resolution, is_directed, seed, weight);
     }
     0.0f64
+}
+
+fn gen_graph<G>(
+    graph: &G,
+    partition: &Vec<HashSet<VertexView<G>>>,
+    nodes_data: &HashMap<VertexView<G>, HashSet<VertexView<G>>>,
+    weight: Option<&str>,
+) -> (Graph, HashMap<VertexView<G>, HashSet<VertexView<G>>>)
+where
+    G: GraphViewOps,
+{
+    let mut new_g = Graph::new();
+    let mut node2com: HashMap<VertexView<G>, usize> = HashMap::new();
+    let mut new_nodes_data: HashMap<VertexView<G>, HashSet<VertexView<G>>> = HashMap::new();
+    for (i, part) in partition.iter().enumerate() {
+        for node in part {
+            node2com.insert(node.clone(), i);
+            let data = nodes_data.get(node).unwrap_or(&HashSet::new()).clone();
+            new_nodes_data.insert(node.clone(), data);
+        }
+        new_g.add_vertex(0, i as u64, NO_PROPS);
+    }
+
+    for e in graph.edges().into_iter() {
+        let weight_name = weight.unwrap_or("weight");
+        let wt = e.properties().get(weight_name).unwrap_or(Prop::F64(0.0f64));
+        let com1: usize = node2com.get(&e.src()).unwrap().clone();
+        let com2: usize = node2com.get(&e.dst()).unwrap().clone();
+        new_g
+            .add_edge(0, com1 as u64, com2 as u64, vec![(weight_name, wt)], None)
+            .expect("Error adding node");
+    }
+
+    (new_g, new_nodes_data)
 }
 
 enum Direction {
@@ -101,12 +141,12 @@ where
 fn one_level<G>(
     graph: &G,
     m: f64,
-    mut partition: Vec<Vec<VertexView<G>>>,
+    mut partition: &Vec<HashSet<VertexView<G>>>,
     resolution: f64,
     is_directed: bool,
     seed: Option<bool>,
     weight_key: Option<&str>,
-) -> (Vec<Vec<VertexView<G>>>, Vec<HashSet<VertexView<G>>>, bool)
+) -> (Vec<HashSet<VertexView<G>>>, Vec<HashSet<VertexView<G>>>, bool)
 where
     G: GraphViewOps,
 {

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 pub fn modularity<G>(
     graph: &G,
-    communities: Vec<Vec<VertexView<G>>>,
+    communities: &Vec<HashSet<VertexView<G>>>,
     weight: Option<&str>,
     resolution: f64,
     is_directed: bool,
@@ -47,17 +47,17 @@ where
         .sum::<f64>()
 }
 
-fn is_partition<G>(graph: &G, communities: &Vec<Vec<VertexView<G>>>) -> bool
+fn is_partition<G>(graph: &G, communities: &Vec<HashSet<VertexView<G>>>) -> bool
 where
     G: GraphViewOps,
 {
-    let nodes: HashSet<_> = communities
+    let nodes: HashSet<VertexView<G>> = communities
         .iter()
         .flat_map(|community| community.iter().filter(|&node| graph.has_vertex(node)))
         .cloned()
         .collect();
 
-    let total_nodes = graph.count_vertices();
+    let total_nodes: usize = graph.count_vertices();
     let sum_communities: usize = communities.iter().map(|c| c.len()).sum();
 
     total_nodes == nodes.len() && nodes.len() == sum_communities
@@ -106,7 +106,7 @@ where
 }
 
 pub fn community_contribution<G>(
-    community: &Vec<VertexView<G>>,
+    community: &HashSet<VertexView<G>>,
     graph: &G,
     directed: bool,
     weight: Option<&str>,
@@ -175,13 +175,13 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            vec![
-                vec![
+            &vec![
+                HashSet::from([
                     graph.vertex("1").unwrap(),
                     graph.vertex("2").unwrap(),
                     graph.vertex("3").unwrap(),
-                ],
-                vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+                ]),
+                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
             ],
             None,
             1.0f64,
@@ -191,13 +191,13 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            vec![
-                vec![
+            &vec![
+                HashSet::from([
                     graph.vertex("1").unwrap(),
                     graph.vertex("2").unwrap(),
                     graph.vertex("3").unwrap(),
-                ],
-                vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+                ]),
+                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
             ],
             None,
             1.0f64,
@@ -207,13 +207,13 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            vec![
-                vec![
+            &vec![
+                HashSet::from([
                     graph.vertex("1").unwrap(),
                     graph.vertex("2").unwrap(),
                     graph.vertex("3").unwrap(),
-                ],
-                vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+                ]),
+                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
             ],
             Some("weight"),
             1.0f64,
@@ -223,13 +223,13 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            vec![
-                vec![
+            &vec![
+                HashSet::from([
                     graph.vertex("1").unwrap(),
                     graph.vertex("2").unwrap(),
                     graph.vertex("3").unwrap(),
-                ],
-                vec![graph.vertex("4").unwrap(), graph.vertex("5").unwrap()],
+                ]),
+                HashSet::from([graph.vertex("4").unwrap(), graph.vertex("5").unwrap()]),
             ],
             Some("weight"),
             1.0f64,
