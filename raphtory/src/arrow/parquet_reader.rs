@@ -1,3 +1,5 @@
+use crate::arrow::chunked_array::array_ops::BaseArrayOps;
+
 use super::{
     chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
     edge_frame_builder::edge_props_builder::EdgePropsBuilder,
@@ -105,6 +107,12 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
     ) -> Result<ChunkedListArray<ChunkedArray<StructArray>>, Error> {
         let edge_values = self.load_t_edge_values(num_threads, t_prop_chunk_size)?;
         let edge_offsets = self.load_t_edge_offsets()?;
+        assert_eq!(edge_offsets.get(0), Some(&0));
+        assert!(edge_offsets
+            .iter()
+            .tuple_windows()
+            .all(|(prev, next)| prev <= next));
+        assert_eq!(edge_offsets.last(), &(edge_values.len() as i64));
         Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
     }
 
