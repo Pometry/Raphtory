@@ -48,6 +48,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Vertices<'graph,
             _marker: PhantomData,
         }
     }
+    #[inline]
     fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         self.graph
             .vertex_refs(self.graph.layer_ids(), self.graph.edge_filter())

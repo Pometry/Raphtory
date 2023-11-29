@@ -168,62 +168,63 @@ impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V 
     type Edge = V::Edge;
     type EList = V::EList;
 
+    #[inline]
     fn id(&self) -> Self::ValueType<u64> {
         self.map(|g, v| g.vertex_id(v))
     }
-
+    #[inline]
     fn name(&self) -> Self::ValueType<String> {
         self.map(|g, v| g.vertex_name(v))
     }
-
+    #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
         self.map(|g, v| g.vertex_earliest_time(v))
     }
-
+    #[inline]
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
         self.map(|g, v| g.vertex_latest_time(v))
     }
-
+    #[inline]
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, v| g.vertex_history(v))
     }
-
+    #[inline]
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()
     }
-
+    #[inline]
     fn degree(&self) -> Self::ValueType<usize> {
         self.map(|g, v| g.degree(v, Direction::BOTH, &g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn in_degree(&self) -> Self::ValueType<usize> {
         self.map(|g, v| g.degree(v, Direction::IN, &g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn out_degree(&self) -> Self::ValueType<usize> {
         self.map(|g, v| g.degree(v, Direction::OUT, &g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn edges(&self) -> Self::EList {
         self.map_edges(|g, v| g.vertex_edges(v, Direction::BOTH, g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn in_edges(&self) -> Self::EList {
         self.map_edges(|g, v| g.vertex_edges(v, Direction::IN, g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn out_edges(&self) -> Self::EList {
         self.map_edges(|g, v| g.vertex_edges(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn neighbours(&self) -> Self::PathType {
         self.hop(|g, v| g.neighbours(v, Direction::BOTH, g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn in_neighbours(&self) -> Self::PathType {
         self.hop(|g, v| g.neighbours(v, Direction::IN, g.layer_ids(), g.edge_filter()))
     }
-
+    #[inline]
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|g, v| g.neighbours(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
     }

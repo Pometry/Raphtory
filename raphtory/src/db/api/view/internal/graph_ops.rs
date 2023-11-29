@@ -55,6 +55,7 @@ pub trait GraphOps<'graph>: Send + Sync {
     /// # Arguments
     ///
     /// * `v` - VertexRef of the vertex to check.
+    #[inline]
     fn has_vertex_ref(&self, v: VertexRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
         self.internal_vertex_ref(v, layers, filter).is_some()
     }
@@ -73,6 +74,7 @@ pub trait GraphOps<'graph>: Send + Sync {
     /// # Arguments
     ///
     /// * `v` - The vertex ID to lookup.
+    #[inline]
     fn vertex_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
         self.internal_vertex_ref(v.into(), layers, filter)
     }
