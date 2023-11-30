@@ -85,14 +85,15 @@ impl PyGraphDocument {
     }
 }
 
-pub(crate) struct PyDocumentTemplate {
+#[cfg(feature = "python")]
+pub struct PyDocumentTemplate {
     node_document: Option<String>,
     edge_document: Option<String>,
     default_template: DefaultTemplate,
 }
 
 impl PyDocumentTemplate {
-    pub(crate) fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
+    pub fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
         Self {
             node_document,
             edge_document,
@@ -131,10 +132,10 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
             });
             Box::new(iter)
         }
-        None => {
-            let content = properties.get(name).unwrap().to_string();
-            Box::new(std::iter::once(content.into()))
-        }
+        None => match properties.get(name) {
+            Some(prop) => Box::new(std::iter::once(prop.to_string().into())),
+            _ => Box::new(std::iter::empty()),
+        },
     }
 }
 
@@ -308,10 +309,12 @@ fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedd
     spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }
 
+// TODO: move this function somewhere else
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub(crate) fn spawn_async_task<T, F, O>(task: T) -> O
+#[cfg(feature = "python")]
+pub fn spawn_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
