@@ -66,6 +66,14 @@ impl Edge {
         self.ee.layer_names().map_into().collect()
     }
 
+    async fn exploded_edges(&self) -> Vec<Edge> {
+        self.ee
+            .explode()
+            .into_iter()
+            .map(|ee| ee.into())
+            .collect_vec()
+    }
+
     async fn layer_exploded_edges(&self) -> Vec<Edge> {
         self.ee
             .explode_layers()
