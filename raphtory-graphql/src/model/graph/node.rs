@@ -167,24 +167,36 @@ impl Node {
     }
 
     /// Returns the number edges with this node as the source
-    async fn out_degree(&self, layer: Option<String>) -> usize {
-        match layer.as_deref() {
+    async fn out_degree(&self, layers: Option<Vec<String>>) -> usize {
+        match layers {
             None => self.vv.out_degree(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => 0,
-                Some(vvv) => vvv.out_degree(),
-            },
+            Some(layers) => layers
+                .iter()
+                .map(|layer| {
+                    let degree = match self.vv.layer(layer) {
+                        None => 0,
+                        Some(vvv) => vvv.out_degree(),
+                    };
+                    degree
+                })
+                .sum(),
         }
     }
 
     /// Returns the number edges with this node as the destination
-    async fn in_degree(&self, layer: Option<String>) -> usize {
-        match layer.as_deref() {
+    async fn in_degree(&self, layers: Option<Vec<String>>) -> usize {
+        match layers {
             None => self.vv.in_degree(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => 0,
-                Some(vvv) => vvv.in_degree(),
-            },
+            Some(layers) => layers
+                .iter()
+                .map(|layer| {
+                    let degree = match self.vv.layer(layer) {
+                        None => 0,
+                        Some(vvv) => vvv.in_degree(),
+                    };
+                    degree
+                })
+                .sum(),
         }
     }
 
