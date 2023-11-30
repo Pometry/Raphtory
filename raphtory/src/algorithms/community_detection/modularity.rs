@@ -16,8 +16,8 @@ where
         return 0.0f64;
     }
 
-    let mut norm = 0.0;
-    let mut m = 0.0;
+    let norm: f64;
+    let m: f64;
 
     if is_directed {
         let out_degree_weight_sum: f64 = graph
@@ -25,11 +25,11 @@ where
             .iter()
             .map(|v| degree_sum(&v, weight, Direction::Out))
             .sum::<f64>();
-        let in_degree_weight_sum: f64 = graph
-            .vertices()
-            .iter()
-            .map(|v| degree_sum(&v, weight, Direction::In))
-            .sum::<f64>();
+        // let in_degree_weight_sum: f64 = graph
+        //     .vertices()
+        //     .iter()
+        //     .map(|v| degree_sum(&v, weight, Direction::In))
+        //     .sum::<f64>();
         m = out_degree_weight_sum;
         norm = 1.0 / out_degree_weight_sum.powf(2.0);
     } else {
@@ -135,8 +135,8 @@ where
             false => Some(Prop::F64(0.0f64).unwrap_f64()),
         })
         .sum::<f64>();
-    let mut out_degree_sum: f64 = 0.0f64;
-    let mut in_degree_sum: f64 = 0.0f64;
+    let out_degree_sum: f64;
+    let in_degree_sum: f64;
     if directed {
         out_degree_sum = comm
             .iter()
@@ -175,20 +175,20 @@ mod modularity_test {
                 .add_edge(ts, src, dst, [("weight", wt)], None)
                 .unwrap();
         }
-
+        let communities = vec![
+            HashSet::from([
+                graph.vertex("1").unwrap().id(),
+                graph.vertex("2").unwrap().id(),
+                graph.vertex("3").unwrap().id(),
+            ]),
+            HashSet::from([
+                graph.vertex("4").unwrap().id(),
+                graph.vertex("5").unwrap().id(),
+            ]),
+        ];
         let results = modularity(
             &graph,
-            &vec![
-                HashSet::from([
-                    graph.vertex("1").unwrap().id(),
-                    graph.vertex("2").unwrap().id(),
-                    graph.vertex("3").unwrap().id(),
-                ]),
-                HashSet::from([
-                    graph.vertex("4").unwrap().id(),
-                    graph.vertex("5").unwrap().id(),
-                ]),
-            ],
+            &communities,
             None,
             1.0f64,
             false,
@@ -197,17 +197,7 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            &vec![
-                HashSet::from([
-                    graph.vertex("1").unwrap().id(),
-                    graph.vertex("2").unwrap().id(),
-                    graph.vertex("3").unwrap().id(),
-                ]),
-                HashSet::from([
-                    graph.vertex("4").unwrap().id(),
-                    graph.vertex("5").unwrap().id(),
-                ]),
-            ],
+            &communities,
             None,
             1.0f64,
             true,
@@ -216,17 +206,7 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            &vec![
-                HashSet::from([
-                    graph.vertex("1").unwrap().id(),
-                    graph.vertex("2").unwrap().id(),
-                    graph.vertex("3").unwrap().id(),
-                ]),
-                HashSet::from([
-                    graph.vertex("4").unwrap().id(),
-                    graph.vertex("5").unwrap().id(),
-                ]),
-            ],
+            &communities,
             Some("weight"),
             1.0f64,
             false,
@@ -235,17 +215,7 @@ mod modularity_test {
 
         let results = modularity(
             &graph,
-            &vec![
-                HashSet::from([
-                    graph.vertex("1").unwrap().id(),
-                    graph.vertex("2").unwrap().id(),
-                    graph.vertex("3").unwrap().id(),
-                ]),
-                HashSet::from([
-                    graph.vertex("4").unwrap().id(),
-                    graph.vertex("5").unwrap().id(),
-                ]),
-            ],
+            &communities,
             Some("weight"),
             1.0f64,
             true,

@@ -30,77 +30,79 @@ where
 }
 
 // use type alias' because i keep getting confused
-type VID = u64;
+type GID = u64;
 type COMM_ID = u64;
 
 pub fn louvain<G>(
     og_graph: &G,
     weight: Option<&str>,
-    resolution: f64,
-    threshold: f64,
+    resolution: Option<f64>,
+    threshold: Option<f64>,
     seed: Option<bool>,
     is_directed: bool,
-) -> Option<HashSet<VID>>
+) -> Vec<HashSet<GID>>
 where
     G: GraphViewOps,
 {
     let mut graph = og_graph.clone();
-    let mut nodes_data: HashMap<VID, HashSet<VID>> = HashMap::new();
-    let nodes_data: HashMap<VID, HashSet<VID>> = HashMap::new();
-    let partition: Vec<HashSet<VID>> = graph
+    let mut nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
+    let resolution_val = resolution.unwrap_or(1.0f64);
+    let threshold_val = threshold.unwrap_or(0.0000001f64);
+    let mut partition: Vec<HashSet<GID>> = graph
         .vertices()
         .iter()
         .map((|v| HashSet::from([v.id()])))
         .collect_vec();
     // TODO MODULARITY RESULT IS UNUSED? WHY?
-    let mut mod_val = modularity(&graph, &partition, weight, resolution, is_directed);
+    let mut mod_val = modularity(&graph, &partition, weight, resolution_val, is_directed);
     let m = weight_sum(&graph, weight);
-    let (partition, inner_partition, mut improvement) = one_level(
+    let (mut partition, mut inner_partition, improvement) = one_level(
         &graph,
         m,
         partition,
-        resolution,
+        resolution_val,
         is_directed,
         seed,
         weight,
         &nodes_data,
     );
-    improvement = true;
+    let mut improvement = true;
     while improvement {
         // TODO THE YIELD IN PYTHON
-        let new_mod = modularity(&graph, &inner_partition, weight, resolution, is_directed);
-        if new_mod - mod_val <= threshold {
+        let new_mod = modularity(&graph, &inner_partition, weight, resolution_val, is_directed);
+        if new_mod - mod_val <= threshold_val {
             break;
         }
         mod_val = new_mod;
-        let (graph, nodes_data): (Graph, HashMap<VID, HashSet<VID>>) =
+        let (graph, nodes_data): (Graph, HashMap<GID, HashSet<GID>>) =
             gen_graph(&graph, &inner_partition, &nodes_data, weight);
-        let (partition, inner_partition, improvement) = one_level(
+        (partition, inner_partition, improvement) = one_level(
             &graph,
             m,
             partition.clone(),
-            resolution,
+            resolution_val,
             is_directed,
             seed,
             weight,
             &nodes_data,
         );
     }
-    partition.last().cloned()
+    // partition.last().cloned()
+    partition.iter().cloned().collect_vec()
 }
 
 fn gen_graph<G>(
     graph: &G,
     partition: &Vec<HashSet<u64>>,
-    nodes_data: &HashMap<VID, HashSet<VID>>,
+    nodes_data: &HashMap<GID, HashSet<GID>>,
     weight: Option<&str>,
-) -> (Graph, HashMap<VID, HashSet<VID>>)
+) -> (Graph, HashMap<GID, HashSet<GID>>)
 where
     G: GraphViewOps,
 {
     let mut new_g = Graph::new();
-    let mut node2com: HashMap<VID, COMM_ID> = HashMap::new(); // VID => COMMUNITY_ID
-    let mut new_nodes_data: HashMap<VID, HashSet<VID>> = HashMap::new();
+    let mut node2com: HashMap<GID, COMM_ID> = HashMap::new(); // VID => COMMUNITY_ID
+    let mut new_nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     for (i, part) in partition.iter().enumerate() {
         for node in part {
             node2com.insert(node.clone(), i as u64);
@@ -176,18 +178,18 @@ where
 fn one_level<G>(
     graph: &G,
     m: f64,
-    mut partition: Vec<HashSet<VID>>,
+    mut partition: Vec<HashSet<GID>>,
     resolution: f64,
     is_directed: bool,
     seed: Option<bool>,
     weight_key: Option<&str>,
-    nodes_data: &HashMap<VID, HashSet<VID>>,
-) -> (Vec<HashSet<VID>>, Vec<HashSet<VID>>, bool)
+    nodes_data: &HashMap<GID, HashSet<GID>>,
+) -> (Vec<HashSet<GID>>, Vec<HashSet<GID>>, bool)
 where
     G: GraphViewOps,
 {
-    let mut node2com: HashMap<VID, COMM_ID> = HashMap::new();
-    let mut inner_partition: Vec<HashSet<VID>> = vec![];
+    let mut node2com: HashMap<GID, COMM_ID> = HashMap::new();
+    let mut inner_partition: Vec<HashSet<GID>> = vec![];
 
     for (i, v) in graph.vertices().iter().enumerate() {
         node2com.insert(v.id().clone(), i as u64);
@@ -254,11 +256,11 @@ where
             .iter()
             .map(|u| {
                 let neighbour_vals = u
-                    .out_edges()
-                    .filter(|e| e.dst() != u)
+                    .edges()
+                    .filter(|e| e.src() != e.dst())
                     .map(|e| {
                         (
-                            e.dst(),
+                            if e.dst() != u { e.dst() } else {e.src()},
                             e.properties()
                                 .get(weight_key.unwrap_or(""))
                                 .unwrap_or(Prop::F64(0.0f64))
@@ -270,7 +272,8 @@ where
             })
             .collect();
     }
-    let mut rand_nodes = graph.vertices().iter().collect_vec();
+    let rand_nodes = graph.vertices().iter().collect_vec();
+    println!("{:?}", rand_nodes);
     let mut nb_moves = 1;
     let mut improvement = false;
 
@@ -335,15 +338,15 @@ where
                 }
             }
             if best_com != *node2com.get(&u.id()).unwrap() {
-                let temp_vid: VID = u.id();
-                let com: HashSet<VID> = nodes_data
-                    .get(&temp_vid)
-                    .unwrap_or(&HashSet::from([graph.vertex(u).unwrap().id()]))
+                let temp_gid: GID = u.id();
+                let com: HashSet<GID> = nodes_data
+                    .get(&temp_gid)
+                    .unwrap_or(&HashSet::from([temp_gid]))
                     .clone();
-                partition[*node2com.get(&temp_vid).unwrap() as usize].retain(|x| !com.contains(x));
-                inner_partition[node2com[&temp_vid].clone() as usize].remove(&temp_vid);
+                partition[*node2com.get(&temp_gid).unwrap() as usize].retain(|x| !com.contains(x));
+                inner_partition[node2com[&temp_gid].clone() as usize].remove(&temp_gid);
                 partition[best_com as usize].extend(com);
-                inner_partition[best_com as usize].extend(vec![temp_vid]);
+                inner_partition[best_com as usize].extend(vec![temp_gid]);
                 improvement = true;
                 nb_moves += 1;
                 node2com.insert(u.id().clone(), best_com);
@@ -364,17 +367,115 @@ where
 
 fn neighbor_weights<G>(
     nbrs: &HashMap<VertexView<G>, f64>,
-    node2com: &HashMap<VID, COMM_ID>,
+    node2com: &HashMap<GID, COMM_ID>,
 ) -> HashMap<COMM_ID, f64>
 where
     G: GraphViewOps,
 {
     let mut weights = HashMap::new();
     for (nbr, &wt) in nbrs.iter() {
-        let community: COMM_ID = *node2com.get(&nbr.id()).unwrap_or(&0u64);
+        let community: COMM_ID = *node2com.get(&nbr.id()).unwrap();
         // let mut res = *weights.entry(*community).or_insert(0.0f64);
         // res = res.add(wt.clone());
         *weights.entry(community).or_insert(0.0) += wt;
     }
     weights
+}
+
+#[cfg(test)]
+mod louvain_test {
+    use std::collections::HashMap;
+    use super::*;
+
+    #[test]
+    fn test_neighbor_weights() {
+        let g = Graph::new();
+        let edges = vec![
+            (1, "1", "2", 2.0f64),
+            (1, "1", "3", 3.0f64),
+            (1, "2", "3", 8.5f64),
+            (1, "3", "4", 1.0f64),
+            (1, "4", "5", 1.5f64),
+        ];
+        for (ts, src, dst, wt) in edges {
+            g
+                .add_edge(ts, src, dst, [("weight", wt)], None)
+                .unwrap();
+        }
+
+        let nbrs = {
+            let mut h = HashMap::new();
+            h.insert(g.vertex("1").unwrap(), 5.0);
+            h.insert(g.vertex("2").unwrap(), 10.0);
+            h
+        };
+
+        let node2com = {
+            let mut h = HashMap::new();
+            h.insert(1, 2);
+            h.insert(2, 2);
+            h
+        };
+
+        let result: HashMap<COMM_ID, f64> = neighbor_weights(&nbrs, &node2com);
+        let expected: HashMap<COMM_ID, f64> = {
+            let mut h = HashMap::new();
+            h.insert(2, 15.0);
+            h
+        };
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_weight_sum() {
+        let g = Graph::new();
+        let edges = vec![
+            (1, "1", "2", 2.0f64),
+            (1, "1", "3", 3.0f64),
+            (1, "2", "3", 8.5f64),
+            (1, "3", "4", 1.0f64),
+            (1, "4", "5", 1.5f64),
+        ];
+        for (ts, src, dst, wt) in edges {
+            g
+                .add_edge(ts, src, dst, [("weight", wt)], None)
+                .unwrap();
+        }
+
+        let results = weight_sum(&g, None);
+        assert_eq!(results, 5.0);
+
+        let results = weight_sum(&g, Some("wt"));
+        assert_eq!(results, 0.0);
+
+        let results = weight_sum(&g, Some("weight"));
+        assert_eq!(results, 16.0);
+
+    }
+
+    #[test]
+    fn test_louvain() {
+        let g = Graph::new();
+        let edges = vec![
+            (1, "1", "2", 2.0f64),
+            (1, "1", "3", 3.0f64),
+            (1, "2", "3", 8.5f64),
+            (1, "3", "4", 1.0f64),
+            (1, "4", "5", 1.5f64),
+            (1, "6", "8", 0.5f64),
+            (1, "7", "9", 3.5f64),
+            (1, "1", "6", 1.5f64),
+
+        ];
+        for (ts, src, dst, wt) in edges {
+            g
+                .add_edge(ts, src, dst, [("weight", wt)], None)
+                .unwrap();
+        }
+
+        let results = louvain(&g, Some("weight"), None, None, None, false);
+        println!("{:?}", results);
+
+    }
+
 }
