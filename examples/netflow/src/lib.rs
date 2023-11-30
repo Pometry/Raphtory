@@ -2,7 +2,7 @@ mod netflow_one_path_vertex;
 
 use crate::netflow_one_path_vertex::netflow_one_path_vertex;
 use pyo3::prelude::*;
-use raphtory::db::api::view::{DynamicGraph, StaticGraphViewOps};
+use raphtory::db::api::view::DynamicGraph;
 
 #[pyfunction(name = "netflow_one_path_vertex")]
 fn py_netflow_one_path_vertex(graph: DynamicGraph, no_time: bool, threads: Option<usize>) -> usize {

@@ -238,10 +238,6 @@ impl InheritLayerOps for GraphWithDeletions {}
 impl InheritEdgeFilterOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
-    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph.vertex_earliest_time(v)
-    }
-
     fn view_start(&self) -> Option<i64> {
         self.graph.view_start()
     }
@@ -273,8 +269,35 @@ impl TimeSemantics for GraphWithDeletions {
         layer_ids: &LayerIds,
         edge_filter: Option<&EdgeFilter>,
     ) -> bool {
+        // FIXME: Think about vertex deletions
         let v = self.graph.inner().storage.get_node(v);
-        v.active(w.clone()) || self.vertex_alive_at(&v, w.start, layer_ids, edge_filter)
+        v.timestamps().first_t().filter(|&t| t <= w.start).is_some()
+    }
+
+    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
+        self.graph.vertex_earliest_time(v)
+    }
+
+    fn vertex_latest_time(&self, v: VID) -> Option<i64> {
+        Some(i64::MAX)
+    }
+
+    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        let v = self.core_vertex(v);
+        if v.timestamps().first_t()? <= start {
+            Some(v.timestamps().range(start..end).first_t().unwrap_or(start))
+        } else {
+            None
+        }
+    }
+
+    fn vertex_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
+        let v = self.core_vertex(v);
+        if v.timestamps().first_t()? < end {
+            Some(end - 1)
+        } else {
+            None
+        }
     }
 
     fn include_edge_window(&self) -> &EdgeWindowFilter {
@@ -472,7 +495,8 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph.has_temporal_vertex_prop_window(v, prop_id, w)
+        self.graph
+            .has_temporal_vertex_prop_window(v, prop_id, i64::MIN..w.end)
     }
 
     fn temporal_vertex_prop_vec_window(
@@ -482,8 +506,16 @@ impl TimeSemantics for GraphWithDeletions {
         start: i64,
         end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_vertex_prop_vec_window(v, prop_id, start, end)
+        let prop = self.temporal_vertex_prop(v, prop_id);
+        match prop {
+            Some(p) => p
+                .last_before(start.saturating_add(1))
+                .into_iter()
+                .map(|(_, v)| (start, v))
+                .chain(p.iter_window_t(start.saturating_add(1)..end))
+                .collect(),
+            None => Default::default(),
+        }
     }
 
     fn has_temporal_edge_prop_window(
@@ -496,9 +528,15 @@ impl TimeSemantics for GraphWithDeletions {
         let entry = self.core_edge(e.pid());
 
         if entry.has_temporal_prop(&layer_ids, prop_id) {
-            let search_start = entry
-                .last_deletion_before(&layer_ids, w.start)
-                .unwrap_or(TimeIndexEntry::MIN); // if property was added at any point since the last deletion, it is still there
+            // if property was added at any point since the last deletion, it is still there,
+            // if deleted at the start of the window, we still need to check for any additions
+            // that happened at the same time
+            let search_start = min(
+                entry
+                    .last_deletion_before(&layer_ids, w.start.saturating_add(1))
+                    .unwrap_or(TimeIndexEntry::MIN),
+                TimeIndexEntry::start(w.start),
+            );
             let search_end = TimeIndexEntry::start(w.end);
             match layer_ids {
                 LayerIds::None => false,
@@ -586,7 +624,7 @@ mod test_deletions {
 
         assert_eq!(g.window(1, 2).count_edges(), 1);
 
-        assert!(g.window(11, 12).is_empty());
+        assert_eq!(g.window(11, 12).count_edges(), 0);
 
         assert_eq!(
             g.window(1, 2)
@@ -693,6 +731,7 @@ mod test_deletions {
         assert_eq!(e.properties().get("test").unwrap_str(), "test");
         e.delete(10, None).unwrap();
         assert_eq!(e.properties().get("test").unwrap_str(), "test");
+        assert_eq!(e.at(10).properties().get("test"), None);
         e.add_updates(11, [("test", "test11")], None).unwrap();
         assert_eq!(
             e.window(10, 12).properties().get("test").unwrap_str(),
@@ -716,11 +755,19 @@ mod test_deletions {
 
         //deletion before addition (edge exists from (-inf,1) and (1, inf)
         g.delete_edge(1, 1, 2, None).unwrap();
-        g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+        let e_1_2 = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
 
         //deletion after addition (edge exists only at 2)
-        g.add_edge(2, 3, 4, [("test", "test")], None).unwrap();
+        let e_3_4 = g.add_edge(2, 3, 4, [("test", "test")], None).unwrap();
         g.delete_edge(2, 3, 4, None).unwrap();
+
+        assert_eq!(e_1_2.at(0).properties().get("test"), None);
+        assert_eq!(e_1_2.at(1).properties().get("test").unwrap_str(), "test");
+        assert_eq!(e_1_2.at(2).properties().get("test").unwrap_str(), "test");
+
+        assert_eq!(e_3_4.at(0).properties().get("test"), None);
+        assert_eq!(e_3_4.at(2).properties().get("test").unwrap_str(), "test");
+        assert_eq!(e_3_4.at(3).properties().get("test"), None);
 
         assert!(g.window(0, 1).has_edge(1, 2, Layer::Default));
         assert!(!g.window(0, 2).has_edge(3, 4, Layer::Default));
@@ -759,5 +806,57 @@ mod test_deletions {
         e.add_updates(4, NO_PROPS, None).unwrap();
         assert_eq!(g.start(), Some(0));
         assert_eq!(g.end(), Some(5));
+    }
+
+    #[test]
+    fn test_vertex_property_semantics() {
+        let g = GraphWithDeletions::new();
+        let v = g.add_vertex(1, 1, [("test_prop", "test value")]).unwrap();
+        let v = g
+            .add_vertex(11, 1, [("test_prop", "test value 2")])
+            .unwrap();
+        let v_from_graph = g.at(10).vertex(1).unwrap();
+        assert_eq!(v.properties().get("test_prop").unwrap_str(), "test value 2");
+        assert_eq!(
+            v.at(10).properties().get("test_prop").unwrap_str(),
+            "test value"
+        );
+        assert_eq!(
+            v.at(11).properties().get("test_prop").unwrap_str(),
+            "test value 2"
+        );
+        assert_eq!(
+            v_from_graph.properties().get("test_prop").unwrap_str(),
+            "test value"
+        );
+
+        assert_eq!(
+            v.before(11).properties().get("test_prop").unwrap_str(),
+            "test value"
+        );
+
+        assert_eq!(
+            v.properties()
+                .temporal()
+                .get("test_prop")
+                .unwrap()
+                .history(),
+            [1, 11]
+        );
+        assert_eq!(
+            v_from_graph
+                .properties()
+                .temporal()
+                .get("test_prop")
+                .unwrap()
+                .history(),
+            [10]
+        );
+
+        assert_eq!(v_from_graph.earliest_time(), Some(10));
+        assert_eq!(v.earliest_time(), Some(1));
+        assert_eq!(v.at(10).earliest_time(), Some(10));
+        assert_eq!(v.at(10).latest_time(), Some(10));
+        assert_eq!(v.latest_time(), Some(i64::MAX));
     }
 }
