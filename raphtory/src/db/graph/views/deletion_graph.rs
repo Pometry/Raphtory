@@ -624,7 +624,7 @@ mod test_deletions {
 
         assert_eq!(g.window(1, 2).count_edges(), 1);
 
-        assert!(g.window(11, 12).is_empty());
+        assert_eq!(g.window(11, 12).count_edges(), 0);
 
         assert_eq!(
             g.window(1, 2)
