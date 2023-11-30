@@ -12,11 +12,8 @@ use crate::{
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
-        community_detection::connected_components,
-        community_detection::in_components as in_comp,
         community_detection::label_propagation::label_propagation as label_propagation_rs,
-        community_detection::out_components as out_comp,
-        community_detection::scc,
+        components,
         metrics::balance::balance as balance_rs,
         metrics::degree::{
             average_degree as average_degree_rs, max_degree as max_degree_rs,
@@ -30,18 +27,17 @@ use crate::{
             all_local_reciprocity as all_local_reciprocity_rs,
             global_reciprocity as global_reciprocity_rs,
         },
-        motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
-        motifs::three_node_temporal_motifs::{
+        motifs::global_temporal_three_node_motifs::{
             global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
-            global_temporal_three_node_motif_general as global_temporal_three_node_motif_general_rs,
-            temporal_three_node_motif as local_three_node_rs,
+            temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
         },
+        motifs::local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
+        motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        usecases::netflow_one_path_vertex::netflow_one_path_vertex as netflow_one_path_vertex_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -87,7 +83,7 @@ pub fn weakly_connected_components(
     g: &PyGraphView,
     iter_count: usize,
 ) -> AlgorithmResult<DynamicGraph, u64, u64> {
-    connected_components::weakly_connected_components(&g.graph, iter_count, None)
+    components::weakly_connected_components(&g.graph, iter_count, None)
 }
 
 /// Strongly connected components
@@ -102,7 +98,7 @@ pub fn weakly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
-    scc::strongly_connected_components(&g.graph, None)
+    components::strongly_connected_components(&g.graph, None)
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -115,7 +111,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
-    in_comp::in_components(&g.graph, None)
+    components::in_components(&g.graph, None)
 }
 
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
@@ -128,7 +124,7 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>,
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
-    out_comp::out_components(&g.graph, None)
+    components::out_components(&g.graph, None)
 }
 
 /// Pagerank -- pagerank centrality value of the vertices in a graph
@@ -385,15 +381,23 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///     This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
 #[pyfunction]
-pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> Vec<usize> {
+pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 40] {
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
 }
 
+/// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
+///
+/// Arguments:
+///     g (raphtory graph) : A directed raphtory graph
+///     deltas(list(int)): A list of delta values to use.
+///
+/// Returns:
+///     list(list(int)) : A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
 #[pyfunction]
 pub fn global_temporal_three_node_motif_multi(
     g: &PyGraphView,
     deltas: Vec<i64>,
-) -> Vec<Vec<usize>> {
+) -> Vec<[usize; 40]> {
     global_temporal_three_node_motif_general_rs(&g.graph, deltas, None)
 }
 
@@ -404,7 +408,7 @@ pub fn global_temporal_three_node_motif_multi(
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
 ///
 /// Returns:
-///     AlgorithmResult : An AlgorithmResult with node ids as keys and a 40d array of motif counts (in the same order as the global motif counts) with the number of each motif that node participates in.
+///     dict : A dictionary with node ids as keys and a 40d array of motif counts as values (in the same order as the global motif counts) with the number of each motif that node participates in.
 ///
 /// Notes:
 ///     For this local count, a node is counted as participating in a motif in the following way. For star motifs, only the centre node counts
@@ -450,12 +454,12 @@ pub fn hits(
 ///
 /// Arguments:
 ///     g (Raphtory Graph): The graph view on which the operation is to be performed.
-///     name (String, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
-///     direction (`PyDirection`, default = PyDirection::new("BOTH")): Specifies the direction of the edges to be considered for summation.
-///             * PyDirection::new("OUT"): Only consider outgoing edges.
-///             * PyDirection::new("IN"): Only consider incoming edges.
-///             * PyDirection::new("BOTH"): Consider both outgoing and incoming edges. This is the default.
-///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
+///     name (str, default = "weight"): The name of the edge property used as the weight. Defaults to "weight" if not provided.
+///     direction (`PyDirection`, default = PyDirection("BOTH")): Specifies the direction of the edges to be considered for summation.
+///             * PyDirection("OUT"): Only consider outgoing edges.
+///             * PyDirection("IN"): Only consider incoming edges.
+///             * PyDirection("BOTH"): Consider both outgoing and incoming edges. This is the default.
+///     threads (int, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
 ///
 /// Returns:
 ///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
@@ -469,12 +473,6 @@ pub fn balance(
     threads: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
-}
-
-#[pyfunction]
-#[pyo3[signature = (g, no_time=false, threads=None)]]
-pub fn one_path_vertex(g: &PyGraphView, no_time: bool, threads: Option<usize>) -> usize {
-    netflow_one_path_vertex_rs(&g.graph, no_time, threads)
 }
 
 /// Computes the degree centrality of all vertices in the graph. The values are normalized

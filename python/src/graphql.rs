@@ -1,7 +1,7 @@
 use pyo3::{exceptions, exceptions::PyException, prelude::*};
 use pyo3_asyncio::tokio;
 use raphtory_core::{
-    db::api::view::internal::MaterializedGraph,
+    db::api::view::MaterializedGraph,
     python::{
         packages::vectors::{spawn_async_task, PyDocumentTemplate},
         utils::errors::adapt_err_value,

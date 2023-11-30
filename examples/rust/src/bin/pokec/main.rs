@@ -1,14 +1,10 @@
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        community_detection::connected_components::weakly_connected_components,
+        centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
-    db::{
-        api::{mutation::AdditionOps, view::GraphViewOps},
-        graph::graph::Graph,
-    },
+    db::{api::mutation::AdditionOps, graph::graph::Graph},
     graph_loader::source::csv_loader::CsvLoader,
-    prelude::NO_PROPS,
+    prelude::*,
 };
 use serde::Deserialize;
 use std::{env, path::Path, time::Instant};

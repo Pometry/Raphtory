@@ -14,7 +14,7 @@ use crate::{
         },
     },
     db::{
-        api::view::GraphViewOps,
+        api::view::StaticGraphViewOps,
         task::vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
     },
 };
@@ -25,11 +25,11 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-pub struct TaskRunner<G: GraphViewOps, CS: ComputeState> {
+pub struct TaskRunner<G: StaticGraphViewOps, CS: ComputeState> {
     pub(crate) ctx: Context<G, CS>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
+impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
     pub fn new(ctx: Context<G, CS>) -> Self {
         Self { ctx }
     }

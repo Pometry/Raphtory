@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
@@ -19,7 +19,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct LayeredGraph<G: GraphViewOps> {
+pub struct LayeredGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The layer this graphs points to.
@@ -28,11 +28,11 @@ pub struct LayeredGraph<G: GraphViewOps> {
     edge_filter: EdgeFilter,
 }
 
-impl<G: GraphViewOps> Immutable for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for LayeredGraph<G> {}
 
-impl<G: GraphViewOps> Static for LayeredGraph<G> {}
+impl<G> Static for LayeredGraph<G> {}
 
-impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LayeredGraph")
             .field("graph", &self.graph)
@@ -41,7 +41,7 @@ impl<G: GraphViewOps + Debug> Debug for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Base for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for LayeredGraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -49,24 +49,24 @@ impl<G: GraphViewOps> Base for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InheritTimeSemantics for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {}
 
-impl<G: GraphViewOps> InheritCoreOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
 
-impl<G: GraphViewOps> InheritMaterialize for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
-impl<G: GraphViewOps> InheritPropertiesOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<G: GraphViewOps> InheritGraphOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritGraphOps for LayeredGraph<G> {}
 
-impl<G: GraphViewOps> EdgeFilterOps for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     #[inline]
     fn edge_filter(&self) -> Option<&EdgeFilter> {
         Some(&self.edge_filter)
     }
 }
 
-impl<G: GraphViewOps> LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
         let edge_filter: EdgeFilter = match graph.edge_filter().cloned() {
             None => Arc::new(|e, l| e.has_layer(l)),
@@ -106,18 +106,13 @@ impl<G: GraphViewOps> LayeredGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> InternalLayerOps for LayeredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> LayerIds {
         self.layers.clone()
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
         self.constrain(self.graph.layer_ids_from_names(key))
-    }
-
-    fn edge_layer_ids(&self, e: &EdgeStore) -> LayerIds {
-        let layer_ids = self.graph.edge_layer_ids(e);
-        self.constrain(layer_ids)
     }
 }
 

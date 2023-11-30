@@ -1,36 +1,64 @@
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime, Direction},
+    core::entities::vertices::vertex_ref::VertexRef,
     db::{
-        api::{
-            properties::Properties,
-            view::{BoxedIter, Layer, LayerOps},
-        },
+        api::{properties::Properties, view::Layer},
         graph::{
             edge::EdgeView,
-            path::{Operations, PathFromGraph},
+            // path::{Operations, PathFromGraph},
             vertex::VertexView,
-            views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
         },
     },
     prelude::*,
 };
+use crate::{
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+    db::{
+        api::view::{
+            internal::{InternalLayerOps, OneHopFilter},
+            BaseVertexViewOps, BoxedLIter, IntoDynBoxed,
+        },
+        graph::path::PathFromGraph,
+    },
+};
+use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct Vertices<G: GraphViewOps> {
-    pub graph: G,
+pub struct Vertices<'graph, G, GH> {
+    pub(crate) base_graph: G,
+    pub(crate) graph: GH,
+    _marker: PhantomData<&'graph G>,
 }
 
-impl<G: GraphViewOps> Vertices<G> {
-    pub fn new(graph: G) -> Vertices<G> {
-        Self { graph }
+impl<'graph, G: GraphViewOps<'graph>> Vertices<'graph, G, G> {
+    pub fn new(graph: G) -> Vertices<'graph, G, G> {
+        let base_graph = graph.clone();
+        Self {
+            base_graph,
+            graph,
+            _marker: PhantomData,
+        }
     }
+}
 
-    pub fn iter(&self) -> Box<dyn Iterator<Item = VertexView<G>> + Send> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Vertices<'graph, G, GH> {
+    pub fn new_filtered(base_graph: G, graph: GH) -> Self {
+        Self {
+            base_graph,
+            graph,
+            _marker: PhantomData,
+        }
+    }
+    #[inline]
+    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
+        self.graph
+            .vertex_refs(self.graph.layer_ids(), self.graph.edge_filter())
+    }
+    pub fn iter(&self) -> BoxedLIter<'graph, VertexView<G, GH>> {
+        let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
-        Box::new(
-            g.vertex_refs(g.layer_ids(), g.edge_filter())
-                .map(move |v| VertexView::new_internal(g.clone(), v)),
-        )
+        self.iter_refs()
+            .map(move |v| VertexView::new_one_hop_filtered(base_graph.clone(), g.clone(), v))
+            .into_dyn_boxed()
     }
 
     /// Returns the number of vertices in the graph.
@@ -43,185 +71,117 @@ impl<G: GraphViewOps> Vertices<G> {
         self.graph.is_empty()
     }
 
-    pub fn get<V: Into<VertexRef>>(&self, vertex: V) -> Option<VertexView<G>> {
-        self.graph.vertex(vertex)
+    pub fn get<V: Into<VertexRef>>(&self, vertex: V) -> Option<VertexView<G, GH>> {
+        let vid = self.graph.internalise_vertex(vertex.into())?;
+        Some(VertexView::new_one_hop_filtered(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            vid,
+        ))
     }
 }
 
-impl<G: GraphViewOps> VertexViewOps for Vertices<G> {
-    type Graph = G;
-    type ValueType<T> = BoxedIter<T>;
-    type PathType<'a> = PathFromGraph<G>;
-    type EList = BoxedIter<BoxedIter<EdgeView<G>>>;
-
-    /// Returns an iterator over the vertices' id
-    fn id(&self) -> Self::ValueType<u64> {
-        self.iter().id()
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for Vertices<'graph, G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids()
     }
 
-    /// Returns an iterator over the vertices' name
-    fn name(&self) -> Self::ValueType<String> {
-        self.iter().name()
-    }
-
-    /// Returns an iterator over the vertices' earliest time
-    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.iter().earliest_time()
-    }
-
-    /// Returns an iterator over the vertices' latest time
-    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.iter().latest_time()
-    }
-
-    /// Returns an iterator over the vertices' histories
-    fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.iter().history()
-    }
-
-    /// Returns an iterator over the vertices' properties
-    fn properties(&self) -> Self::ValueType<Properties<VertexView<G>>> {
-        self.iter().properties()
-    }
-
-    /// Returns the number of edges of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of the number of edges of the vertices
-    fn degree(&self) -> Self::ValueType<usize> {
-        self.iter().degree()
-    }
-
-    /// Returns the number of in edges of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of the number of in edges of the vertices
-    fn in_degree(&self) -> Self::ValueType<usize> {
-        self.iter().in_degree()
-    }
-
-    /// Returns the number of out edges of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of the number of out edges of the vertices
-    fn out_degree(&self) -> Self::ValueType<usize> {
-        self.iter().out_degree()
-    }
-
-    /// Returns the edges of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of edges of the vertices
-    fn edges(&self) -> Self::EList {
-        Box::new(self.iter().map(|v| v.edges()))
-    }
-
-    /// Returns the in edges of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of in edges of the vertices
-    fn in_edges(&self) -> Self::EList {
-        Box::new(self.iter().map(|v| v.in_edges()))
-    }
-
-    /// Returns the out edges of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of out edges of the vertices
-    fn out_edges(&self) -> Self::EList {
-        Box::new(self.iter().map(|v| v.out_edges()))
-    }
-
-    /// Get the neighbours of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of the neighbours of the vertices
-    fn neighbours(&self) -> PathFromGraph<G> {
-        let dir = Direction::BOTH;
-        PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir })
-    }
-
-    /// Get the in neighbours of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of the in neighbours of the vertices
-    fn in_neighbours(&self) -> PathFromGraph<G> {
-        let dir = Direction::IN;
-        PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir })
-    }
-
-    /// Get the out neighbours of the vertices
-    ///
-    /// Returns:
-    ///
-    /// An iterator of the out neighbours of the vertices
-    fn out_neighbours(&self) -> PathFromGraph<G> {
-        let dir = Direction::OUT;
-        PathFromGraph::new(self.graph.clone(), Operations::Neighbours { dir })
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph.layer_ids_from_names(key)
     }
 }
 
-impl<G: GraphViewOps> TimeOps for Vertices<G> {
-    type WindowedViewType = Vertices<WindowedGraph<G>>;
+impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph>
+    BaseVertexViewOps<'graph> for Vertices<'graph, G, GH>
+{
+    type BaseGraph = G;
+    type Graph = GH;
+    type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
+    type PropType = VertexView<GH, GH>;
+    type PathType = PathFromGraph<'graph, G, G>;
+    type Edge = EdgeView<G, GH>;
+    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G, GH>>>;
 
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
+    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync + 'graph>(
+        &self,
+        op: F,
+    ) -> Self::ValueType<O> {
+        let g = self.graph.clone();
+        Box::new(self.iter_refs().map(move |v| op(&g, v)))
     }
 
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
+    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
+        self.map(|g, v| Properties::new(VertexView::new_internal(g.clone(), v)))
     }
 
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        Vertices {
-            graph: self.graph.window(start, end),
-        }
+    fn map_edges<
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+    >(
+        &self,
+        op: F,
+    ) -> Self::EList {
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        self.iter_refs()
+            .map(move |v| {
+                let base_graph = base_graph.clone();
+                let graph = graph.clone();
+                op(&graph, v)
+                    .map(move |edge| {
+                        EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge)
+                    })
+                    .into_dyn_boxed()
+            })
+            .into_dyn_boxed()
     }
-}
 
-impl<G: GraphViewOps> LayerOps for Vertices<G> {
-    type LayeredViewType = Vertices<LayeredGraph<G>>;
-
-    /// Create a view including all the vertices in the default layer
-    ///
-    /// Returns:
-    ///
-    /// A view including all the vertices in the default layer
-    fn default_layer(&self) -> Self::LayeredViewType {
-        Vertices {
-            graph: self.graph.default_layer(),
-        }
-    }
-
-    /// Create a view including all the vertices in the given layer
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the layer
-    ///
-    /// Returns:
-    ///
-    /// A view including all the vertices in the given layer
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        Some(Vertices {
-            graph: self.graph.layer(name)?,
+    fn hop<
+        I: Iterator<Item = VID> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+    >(
+        &self,
+        op: F,
+    ) -> Self::PathType {
+        let graph = self.graph.clone();
+        PathFromGraph::new(self.base_graph.clone(), move |v| {
+            op(&graph, v).into_dyn_boxed()
         })
     }
 }
 
-impl<G: GraphViewOps> IntoIterator for Vertices<G> {
-    type Item = VertexView<G>;
-    type IntoIter = Box<dyn Iterator<Item = VertexView<G>> + Send>;
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
+    for Vertices<'graph, G, GH>
+{
+    type Graph = GH;
+    type Filtered<GHH: GraphViewOps<'graph>> = Vertices<'graph, G, GHH>;
+
+    fn current_filter(&self) -> &Self::Graph {
+        &self.graph
+    }
+
+    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        let base_graph = self.base_graph.clone();
+        Vertices {
+            base_graph,
+            graph: filtered_graph,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph> IntoIterator
+    for Vertices<'graph, G, GH>
+{
+    type Item = VertexView<G, GH>;
+    type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        self.iter().into_dyn_boxed()
     }
 }

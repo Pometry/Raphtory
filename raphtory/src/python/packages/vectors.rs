@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            view::internal::DynamicGraph,
+            view::{internal::DynamicGraph, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, vertex::VertexView},
     },
@@ -102,15 +102,15 @@ impl PyDocumentTemplate {
     }
 }
 
-impl<G: GraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
-    fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
+    fn node(&self, vertex: &VertexView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
             Some(node_document) => get_documents_from_prop(vertex.properties(), node_document),
             None => self.default_template.node(vertex),
         }
     }
 
-    fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
             Some(edge_document) => get_documents_from_prop(edge.properties(), edge_document),
             None => self.default_template.edge(edge),

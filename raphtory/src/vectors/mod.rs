@@ -1,4 +1,3 @@
-use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
@@ -100,7 +99,10 @@ mod vector_tests {
     use super::*;
     use crate::{
         core::Prop,
-        db::graph::{edge::EdgeView, vertex::VertexView},
+        db::{
+            api::view::StaticGraphViewOps,
+            graph::{edge::EdgeView, vertex::VertexView},
+        },
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
         vectors::{
             document_template::DocumentTemplate, embeddings::openai_embedding,
@@ -122,13 +124,13 @@ mod vector_tests {
         texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
     }
 
-    async fn panicking_embedding(texts: Vec<String>) -> Vec<Embedding> {
+    async fn panicking_embedding(_texts: Vec<String>) -> Vec<Embedding> {
         panic!("embedding function was called")
     }
 
     struct CustomTemplate;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for CustomTemplate {
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
         fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let name = vertex.name();
             let node_type = vertex.properties().get("type").unwrap().to_string();
@@ -139,7 +141,7 @@ mod vector_tests {
             Box::new(std::iter::once(content.into()))
         }
 
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
@@ -239,15 +241,15 @@ age: 30"###;
     const FAKE_DOCUMENTS: [&str; 3] = ["doc1", "doc2", "doc3"];
     struct FakeMultiDocumentTemplate;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
+        fn node(&self, _vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
                     .into_iter()
                     .map(|text| text.into()),
             )
         }
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }
@@ -286,8 +288,8 @@ age: 30"###;
 
     struct FakeTemplateWithIntervals;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
+        fn node(&self, _vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
                 life: Lifespan::Event { time: 20 },
@@ -299,7 +301,7 @@ age: 30"###;
             };
             Box::new(vec![doc_event_20, doc_interval_30_40].into_iter())
         }
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }

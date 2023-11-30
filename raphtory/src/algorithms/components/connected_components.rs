@@ -5,7 +5,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -39,7 +39,7 @@ pub fn weakly_connected_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, u64, u64>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
     let step1 = ATask::new(move |vv| {
@@ -50,24 +50,22 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(
-        move |vv: &mut EvalVertexView<'_, G, ComputeStateVec, WccState>| {
-            let prev: u64 = vv.prev().component;
-            let current = vv
-                .neighbours()
-                .into_iter()
-                .map(|n| n.prev().component)
-                .min()
-                .unwrap_or(prev);
-            let state: &mut WccState = vv.get_mut();
-            if current < prev {
-                state.component = current;
-                Step::Continue
-            } else {
-                Step::Done
-            }
-        },
-    );
+    let step2 = ATask::new(move |vv: &mut EvalVertexView<G, WccState>| {
+        let prev: u64 = vv.prev().component;
+        let current = vv
+            .neighbours()
+            .into_iter()
+            .map(|n| n.prev().component)
+            .min()
+            .unwrap_or(prev);
+        let state: &mut WccState = vv.get_mut();
+        if current < prev {
+            state.component = current;
+            Step::Continue
+        } else {
+            Step::Done
+        }
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     let results_type = std::any::type_name::<u64>();

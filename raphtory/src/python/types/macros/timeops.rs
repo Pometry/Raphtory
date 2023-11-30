@@ -3,7 +3,7 @@
 /// # Arguments
 /// * obj: The struct the methods should be implemented for
 /// * field: The name of the struct field holding the rust struct implementing `TimeOps`
-/// * base_type: The rust type of `field` (note that `<$base_type as TimeOps>::WindowedViewType`
+/// * base_type: The rust type of `field` (note that `<$base_type as TimeOps<'static>>::WindowedViewType`
 ///              and `WindowSet<$base_type>` should have an `IntoPy<PyObject>` implementation)
 /// * name: The name of the object that appears in the docstring
 macro_rules! impl_timeops {
@@ -63,7 +63,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     A `WindowSet` object.
-            fn expanding(&self, step: PyInterval) -> Result<WindowSet<$base_type>, ParseTimeError> {
+            fn expanding(&self, step: PyInterval) -> Result<WindowSet<'static, $base_type>, ParseTimeError> {
                 self.$field.expanding(step)
             }
 
@@ -81,7 +81,7 @@ macro_rules! impl_timeops {
                 &self,
                 window: PyInterval,
                 step: Option<PyInterval>,
-            ) -> Result<WindowSet<$base_type>, ParseTimeError> {
+            ) -> Result<WindowSet<'static, $base_type>, ParseTimeError> {
                 self.$field.rolling(window, step)
             }
 
@@ -98,7 +98,7 @@ macro_rules! impl_timeops {
                 &self,
                 start: Option<PyTime>,
                 end: Option<PyTime>,
-            ) -> <$base_type as TimeOps>::WindowedViewType {
+            ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field
                     .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
             }
@@ -110,7 +110,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
-            pub fn at(&self, time: PyTime) -> <$base_type as TimeOps>::WindowedViewType {
+            pub fn at(&self, time: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.at(time)
             }
 
@@ -121,7 +121,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
-            pub fn before(&self, end: PyTime) -> <$base_type as TimeOps>::WindowedViewType {
+            pub fn before(&self, end: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.before(end)
             }
 
@@ -132,7 +132,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
-            pub fn after(&self, start: PyTime) -> <$base_type as TimeOps>::WindowedViewType {
+            pub fn after(&self, start: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
             }
         }

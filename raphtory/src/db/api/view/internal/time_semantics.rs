@@ -1,14 +1,13 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::TimeIndexOps,
         Prop,
     },
     db::api::view::{
-        internal::{materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, GraphOps},
+        internal::{
+            materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter,
+        },
         BoxedIter,
     },
 };
@@ -17,7 +16,7 @@ use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
 #[enum_dispatch]
-pub trait TimeSemantics: GraphOps + CoreGraphOps {
+pub trait TimeSemantics: CoreGraphOps {
     /// Return the earliest time for a vertex
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.vertex_additions(v).first_t()
@@ -69,7 +68,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool;
+    fn include_edge_window(&self) -> &EdgeWindowFilter;
 
     /// Get the timestamps at which a vertex `v` is active (i.e has an edge addition)
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -305,7 +304,7 @@ pub trait TimeSemantics: GraphOps + CoreGraphOps {
     ) -> Vec<(i64, Prop)>;
 }
 
-pub trait InheritTimeSemantics: Base + GraphOps + CoreGraphOps {}
+pub trait InheritTimeSemantics: Base {}
 
 impl<G: InheritTimeSemantics> DelegateTimeSemantics for G
 where
@@ -318,13 +317,13 @@ where
     }
 }
 
-pub trait DelegateTimeSemantics: GraphOps + CoreGraphOps {
+pub trait DelegateTimeSemantics {
     type Internal: TimeSemantics + ?Sized;
 
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
+impl<G: DelegateTimeSemantics + CoreGraphOps + ?Sized> TimeSemantics for G {
     #[inline]
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph().vertex_earliest_time(v)
@@ -380,8 +379,8 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        self.graph().include_edge_window(e, w, layer_ids)
+    fn include_edge_window(&self) -> &EdgeWindowFilter {
+        self.graph().include_edge_window()
     }
 
     #[inline]

@@ -172,6 +172,7 @@ service-identity==21.1.0
     # via scrapy
 six==1.16.0
     # via
+    #   asttokens
     #   automat
     #   protego
     #   python-dateutil
@@ -187,7 +188,7 @@ traitlets==5.9.0
     # via
     #   ipython
     #   matplotlib-inline
-twisted==22.10.0
+twisted==23.10.0
     # via scrapy
 typing-extensions==4.5.0
     # via twisted
