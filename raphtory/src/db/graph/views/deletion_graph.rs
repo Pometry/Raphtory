@@ -496,9 +496,15 @@ impl TimeSemantics for GraphWithDeletions {
         let entry = self.core_edge(e.pid());
 
         if entry.has_temporal_prop(&layer_ids, prop_id) {
-            let search_start = entry
-                .last_deletion_before(&layer_ids, w.start)
-                .unwrap_or(TimeIndexEntry::MIN); // if property was added at any point since the last deletion, it is still there
+            // if property was added at any point since the last deletion, it is still there,
+            // if deleted at the start of the window, we still need to check for any additions
+            // that happened at the same time
+            let search_start = min(
+                entry
+                    .last_deletion_before(&layer_ids, w.start.saturating_add(1))
+                    .unwrap_or(TimeIndexEntry::MIN),
+                TimeIndexEntry::start(w.start),
+            );
             let search_end = TimeIndexEntry::start(w.end);
             match layer_ids {
                 LayerIds::None => false,
@@ -693,6 +699,7 @@ mod test_deletions {
         assert_eq!(e.properties().get("test").unwrap_str(), "test");
         e.delete(10, None).unwrap();
         assert_eq!(e.properties().get("test").unwrap_str(), "test");
+        assert_eq!(e.at(10).properties().get("test"), None);
         e.add_updates(11, [("test", "test11")], None).unwrap();
         assert_eq!(
             e.window(10, 12).properties().get("test").unwrap_str(),
@@ -716,11 +723,19 @@ mod test_deletions {
 
         //deletion before addition (edge exists from (-inf,1) and (1, inf)
         g.delete_edge(1, 1, 2, None).unwrap();
-        g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
+        let e_1_2 = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
 
         //deletion after addition (edge exists only at 2)
-        g.add_edge(2, 3, 4, [("test", "test")], None).unwrap();
+        let e_3_4 = g.add_edge(2, 3, 4, [("test", "test")], None).unwrap();
         g.delete_edge(2, 3, 4, None).unwrap();
+
+        assert_eq!(e_1_2.at(0).properties().get("test"), None);
+        assert_eq!(e_1_2.at(1).properties().get("test").unwrap_str(), "test");
+        assert_eq!(e_1_2.at(2).properties().get("test").unwrap_str(), "test");
+
+        assert_eq!(e_3_4.at(0).properties().get("test"), None);
+        assert_eq!(e_3_4.at(2).properties().get("test").unwrap_str(), "test");
+        assert_eq!(e_3_4.at(3).properties().get("test"), None);
 
         assert!(g.window(0, 1).has_edge(1, 2, Layer::Default));
         assert!(!g.window(0, 2).has_edge(3, 4, Layer::Default));
