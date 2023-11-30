@@ -893,6 +893,10 @@ impl PyEdges {
     fn __repr__(&self) -> String {
         self.repr()
     }
+
+    fn __len__(&self) -> usize {
+        self.count()
+    }
 }
 
 impl Repr for PyEdges {
