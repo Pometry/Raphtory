@@ -1,6 +1,5 @@
 use crate::{data::DynamicVectorisedGraph, model::algorithms::vector_algorithms::VectorAlgorithms};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::vectors::Embedding;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlVectorisedGraph {

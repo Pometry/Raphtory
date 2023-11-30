@@ -24,7 +24,7 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::*, BoxedIter},
+            view::{internal::*, BoxedIter, BoxedLIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
@@ -38,11 +38,10 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
-#[enum_dispatch(GraphOps)]
-#[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(IntoDynamic)]
 #[enum_dispatch(TimeSemantics)]
+#[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
@@ -53,6 +52,127 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
+}
+
+impl<'graph> GraphOps<'graph> for MaterializedGraph {
+    fn internal_vertex_ref(
+        &self,
+        v: VertexRef,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.internal_vertex_ref(v, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.internal_vertex_ref(v, layer_ids, filter),
+        }
+    }
+
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
+        }
+    }
+
+    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.vertices_len(layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.vertices_len(layer_ids, filter),
+        }
+    }
+
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edges_len(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edges_len(layers, filter),
+        }
+    }
+
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.temporal_edges_len(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.temporal_edges_len(layers, filter),
+        }
+    }
+
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.degree(v, d, layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.degree(v, d, layers, filter),
+        }
+    }
+
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_ref(src, dst, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edge_ref(src, dst, layer, filter),
+        }
+    }
+
+    fn vertex_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.vertex_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.vertex_refs(layers, filter),
+        }
+    }
+
+    fn edge_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edge_refs(layers, filter),
+        }
+    }
+
+    fn vertex_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.vertex_edges(v, d, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.vertex_edges(v, d, layer, filter),
+        }
+    }
+
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.neighbours(v, d, layers, filter),
+        }
+    }
 }
 
 impl MaterializedGraph {

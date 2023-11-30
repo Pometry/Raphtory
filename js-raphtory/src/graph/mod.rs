@@ -7,7 +7,7 @@ use js_sys::Object;
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
-        api::view::{internal::BoxableGraphView, GraphViewOps, TimeOps},
+        api::view::{BoxableGraphView, TimeOps},
         graph::{graph::Graph as TGraph, views::window_graph::WindowedGraph},
     },
     prelude::*,

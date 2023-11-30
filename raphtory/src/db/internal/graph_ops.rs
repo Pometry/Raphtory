@@ -8,63 +8,16 @@ use crate::{
         },
         Direction,
     },
-    db::api::view::internal::{EdgeFilter, GraphOps},
+    db::api::view::{
+        internal::{EdgeFilter, GraphOps},
+        BoxedLIter,
+    },
 };
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::iter;
 
-impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
-    fn internal_vertex_ref(
-        &self,
-        v: VertexRef,
-        _layer_ids: &LayerIds,
-        _filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
-        match v {
-            VertexRef::Internal(l) => Some(l),
-            VertexRef::External(_) => {
-                let vid = self.inner().resolve_vertex_ref(v)?;
-                Some(vid)
-            }
-        }
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        let e_id_usize: usize = e_id.into();
-        if e_id_usize >= self.inner().storage.edges.len() {
-            return None;
-        }
-        let e = self.inner().storage.edges.get(e_id_usize);
-        filter
-            .map(|f| f(&e, layer_ids))
-            .unwrap_or(true)
-            .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
-    }
-
-    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
-        self.inner().internal_num_vertices()
-    }
-
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.inner().num_edges(&layers, filter)
-    }
-
-    #[inline]
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> usize {
-        self.inner().degree(v, d, layers, filter)
-    }
-
+impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
     fn vertex_refs(
         &self,
         _layers: LayerIds,
@@ -73,28 +26,11 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         Box::new(self.inner().vertex_ids())
     }
 
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.inner()
-            .find_edge(src, dst, layer)
-            .filter(|eid| {
-                filter
-                    .map(|f| f(&self.inner().storage.edges.get((*eid).into()), layer))
-                    .unwrap_or(true)
-            })
-            .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
-    }
-
     fn edge_refs(
         &self,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    ) -> BoxedLIter<'graph, EdgeRef> {
         let filter = filter.cloned();
         match layers {
             LayerIds::None => Box::new(iter::empty()),
@@ -132,7 +68,7 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         d: Direction,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
+    ) -> BoxedLIter<'graph, EdgeRef> {
         let entry = self.inner().storage.nodes.entry_arc(v.into());
         match d {
             Direction::OUT => {
@@ -238,12 +174,88 @@ impl<const N: usize> GraphOps for InnerTemporalGraph<N> {
         d: Direction,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
+    ) -> BoxedLIter<'graph, VID> {
         let iter = self.vertex_edges(v, d, layers, filter).map(|e| e.remote());
         if matches!(d, Direction::BOTH) {
             Box::new(iter.dedup())
         } else {
             Box::new(iter)
         }
+    }
+    fn internal_vertex_ref(
+        &self,
+        v: VertexRef,
+        _layer_ids: &LayerIds,
+        _filter: Option<&EdgeFilter>,
+    ) -> Option<VID> {
+        match v {
+            VertexRef::Internal(l) => Some(l),
+            VertexRef::External(_) => {
+                let vid = self.inner().resolve_vertex_ref(v)?;
+                Some(vid)
+            }
+        }
+    }
+
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        let e_id_usize: usize = e_id.into();
+        if e_id_usize >= self.inner().storage.edges.len() {
+            return None;
+        }
+        let e = self.inner().storage.edges.get(e_id_usize);
+        filter
+            .map(|f| f(&e, layer_ids))
+            .unwrap_or(true)
+            .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
+    }
+
+    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
+        self.inner().internal_num_vertices()
+    }
+
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        self.inner().num_edges(&layers, filter)
+    }
+
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        let edges = self.inner().storage.edges.read_lock();
+        edges
+            .par_iter()
+            .filter(|e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
+            .map(|e| e.additions_iter(&layers).map(|ts| ts.len()).sum::<usize>())
+            .sum()
+    }
+
+    #[inline]
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> usize {
+        self.inner().degree(v, d, layers, filter)
+    }
+
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        self.inner()
+            .find_edge(src, dst, layer)
+            .filter(|eid| {
+                filter
+                    .map(|f| f(&self.inner().storage.edges.get((*eid).into()), layer))
+                    .unwrap_or(true)
+            })
+            .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
     }
 }

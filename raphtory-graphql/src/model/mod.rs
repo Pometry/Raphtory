@@ -15,10 +15,9 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
-    db::api::view::internal::{IntoDynamic, MaterializedGraph},
+    db::api::view::{IntoDynamic, MaterializedGraph},
     prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
-    vectors::embeddings::openai_embedding,
 };
 use std::{
     collections::HashMap,

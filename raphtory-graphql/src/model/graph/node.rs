@@ -4,13 +4,7 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::{
-    api::view::{
-        internal::{DynamicGraph, IntoDynamic},
-        *,
-    },
-    graph::vertex::VertexView,
-};
+use raphtory::db::{api::view::*, graph::vertex::VertexView};
 use std::collections::HashSet;
 
 use super::property_update::PropertyUpdateGroup;
@@ -20,11 +14,14 @@ pub(crate) struct Node {
     pub(crate) vv: VertexView<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for Node {
-    fn from(value: VertexView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<VertexView<G, GH>> for Node
+{
+    fn from(value: VertexView<G, GH>) -> Self {
         Self {
             vv: VertexView {
-                graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
                 vertex: value.vertex,
             },
         }

@@ -35,7 +35,7 @@
 use crate::{
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -80,7 +80,7 @@ use crate::{
 ///  println!("triplet count: {}", results);
 /// ```
 ///
-pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
+pub fn triplet_count<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     /// Source: https://stackoverflow.com/questions/65561566/number-of-combinations-permutations
     fn count_two_combinations(n: usize) -> usize {
         ((0.5 * n as f64) * (n - 1) as f64) as usize
@@ -91,14 +91,12 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
     let count = sum::<usize>(0);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
-            let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
-            let c2 = count_two_combinations(c1);
-            evv.global_update(&count, c2);
-            Step::Continue
-        },
-    );
+    let step1 = ATask::new(move |evv: &mut EvalVertexView<G, ()>| {
+        let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
+        let c2 = count_two_combinations(c1);
+        evv.global_update(&count, c2);
+        Step::Continue
+    });
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
@@ -118,10 +116,7 @@ pub fn triplet_count<G: GraphViewOps>(g: &G, threads: Option<usize>) -> usize {
 mod triplet_test {
     use super::*;
     use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::*},
-            graph::graph::Graph,
-        },
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
     use pretty_assertions::assert_eq;

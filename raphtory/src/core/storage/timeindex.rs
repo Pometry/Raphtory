@@ -1,3 +1,4 @@
+use super::locked_view::LockedView;
 use crate::{
     core::{entities::LayerIds, utils::time::error::ParseTimeError},
     db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
@@ -13,9 +14,6 @@ use std::{
     ops::{Deref, Range},
     sync::Arc,
 };
-use tantivy::time::Time;
-
-use super::locked_view::LockedView;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct TimeIndexEntry(pub i64, pub usize);
@@ -89,6 +87,14 @@ pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
 impl<T: AsTime> TimeIndex<T> {
     pub fn is_empty(&self) -> bool {
         matches!(self, TimeIndex::Empty)
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            TimeIndex::Empty => 0,
+            TimeIndex::One(_) => 1,
+            TimeIndex::Set(ts) => ts.len(),
+        }
     }
 
     pub fn one(ti: T) -> Self {

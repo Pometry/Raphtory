@@ -1,7 +1,4 @@
-use crate::{
-    core::entities::vertices::vertex_ref::VertexRef,
-    prelude::{GraphViewOps, VertexViewOps},
-};
+use crate::{core::entities::vertices::vertex_ref::VertexRef, prelude::VertexViewOps};
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 use std::{
@@ -65,9 +62,9 @@ pub struct AlgorithmResult<G, V, O = V> {
 
 // use pyo3::{prelude::*, types::IntoPyDict};
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<'graph, G, V, O> AlgorithmResult<G, V, O>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
     V: Clone,
 {
     /// Creates a new instance of `AlgorithmResult` with the provided hashmap.
@@ -141,7 +138,7 @@ where
     ///
     /// Returns:
     ///     a `HashMap` containing `VertexView<G>` keys and `Option<V>` values.
-    pub fn get_all(&self) -> HashMap<VertexView<G>, Option<V>> {
+    pub fn get_all(&self) -> HashMap<VertexView<G, G>, Option<V>> {
         self.graph
             .vertices()
             .iter()
@@ -158,8 +155,8 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing vertex names and values.
-    pub fn sort_by_vertex(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
-        let mut sorted: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
+    pub fn sort_by_vertex(&self, reverse: bool) -> Vec<(VertexView<G, G>, Option<V>)> {
+        let mut sorted: Vec<(VertexView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
     }
@@ -176,8 +173,8 @@ where
     ///
     /// The function `sort_by_vertex_name` returns a vector of tuples, where each tuple contains a
     /// `VertexView<G>` and an optional `V` value.
-    pub fn sort_by_vertex_name(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
-        let mut sorted: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
+    pub fn sort_by_vertex_name(&self, reverse: bool) -> Vec<(VertexView<G, G>, Option<V>)> {
+        let mut sorted: Vec<(VertexView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| {
             if reverse {
                 b.name().cmp(&a.name())
@@ -211,8 +208,9 @@ where
         &self,
         mut cmp: F,
         reverse: bool,
-    ) -> Vec<(VertexView<G>, Option<V>)> {
-        let mut all_as_vec: Vec<(VertexView<G>, Option<V>)> = self.get_all().into_iter().collect();
+    ) -> Vec<(VertexView<G, G>, Option<V>)> {
+        let mut all_as_vec: Vec<(VertexView<G, G>, Option<V>)> =
+            self.get_all().into_iter().collect();
         all_as_vec.sort_by(|a, b| {
             let order = match (&a.1, &b.1) {
                 (Some(a_value), Some(b_value)) => cmp(a_value, b_value),
@@ -251,7 +249,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(VertexView<G>, Option<V>)> {
+    ) -> Vec<(VertexView<G, G>, Option<V>)> {
         let k = if percentage {
             let total_count = self.result.len();
             (total_count as f64 * (k as f64 / 100.0)) as usize
@@ -267,7 +265,7 @@ where
     pub fn min_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(VertexView<G>, Option<V>)> {
+    ) -> Option<(VertexView<G, G>, Option<V>)> {
         let min_element = self
             .get_all()
             .into_iter()
@@ -281,7 +279,7 @@ where
     pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(VertexView<G>, Option<V>)> {
+    ) -> Option<(VertexView<G, G>, Option<V>)> {
         let max_element = self
             .get_all()
             .into_iter()
@@ -295,9 +293,9 @@ where
     pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(VertexView<G>, Option<V>)> {
+    ) -> Option<(VertexView<G, G>, Option<V>)> {
         // Assuming self.result is Vec<(String, Option<V>)>
-        let mut items: Vec<(VertexView<G>, V)> = self
+        let mut items: Vec<(VertexView<G, G>, V)> = self
             .get_all()
             .into_iter()
             .filter_map(|(k, v)| v.map(|v| (k, v)))
@@ -317,9 +315,9 @@ where
     }
 }
 
-impl<G, V, O> AlgorithmResult<G, V, O>
+impl<'graph, G, V, O> AlgorithmResult<G, V, O>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
     V: Clone,
     O: Ord,
     V: AsOrd<O>,
@@ -348,7 +346,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(VertexView<G>, Option<V>)> {
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(VertexView<G, G>, Option<V>)> {
         self.sort_by_values(|a, b| O::cmp(a.as_ord(), b.as_ord()), reverse)
     }
 
@@ -371,7 +369,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(VertexView<G>, Option<V>)> {
+    ) -> Vec<(VertexView<G, G>, Option<V>)> {
         self.top_k_by(
             |a, b| O::cmp(a.as_ord(), b.as_ord()),
             k,
@@ -381,25 +379,25 @@ where
     }
 
     /// Returns a tuple of the min result with its key
-    pub fn min(&self) -> Option<(VertexView<G>, Option<V>)> {
+    pub fn min(&self) -> Option<(VertexView<G, G>, Option<V>)> {
         self.min_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the max result with its key
-    pub fn max(&self) -> Option<(VertexView<G>, Option<V>)> {
+    pub fn max(&self) -> Option<(VertexView<G, G>, Option<V>)> {
         self.max_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the median result with its key
-    pub fn median(&self) -> Option<(VertexView<G>, Option<V>)> {
+    pub fn median(&self) -> Option<(VertexView<G, G>, Option<V>)> {
         self.median_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 }
 
-use crate::db::graph::vertex::VertexView;
+use crate::{db::graph::vertex::VertexView, prelude::GraphViewOps};
 use std::fmt;
 
-impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
+impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {}", self.algo_repr.algo_name)?;
@@ -417,7 +415,7 @@ impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O
     }
 }
 
-impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> {
+impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {:?}", self.algo_repr.algo_name)?;
@@ -440,11 +438,8 @@ impl<G: GraphViewOps, V: fmt::Debug, O> fmt::Debug for AlgorithmResult<G, V, O> 
 mod algorithm_result_test {
     use super::*;
     use crate::{
-        algorithms::community_detection::connected_components::weakly_connected_components,
-        db::{
-            api::{mutation::AdditionOps, view::GraphViewOps},
-            graph::graph::Graph,
-        },
+        algorithms::components::weakly_connected_components,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::{NO_PROPS, *},
     };
     use ordered_float::OrderedFloat;
@@ -660,7 +655,7 @@ mod algorithm_result_test {
         let v_a = algo_result.graph.vertex("A").unwrap();
         let v_b = algo_result.graph.vertex("B").unwrap();
         let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(VertexView<Graph>, Option<u64>)> = vec![
+        let my_array: Vec<(VertexView<Graph, Graph>, Option<u64>)> = vec![
             (v_d, None),
             (v_c, Some(30u64)),
             (v_b, Some(20u64)),
@@ -674,7 +669,7 @@ mod algorithm_result_test {
         let v_a = algo_result.graph.vertex("A").unwrap();
         let v_b = algo_result.graph.vertex("B").unwrap();
         let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(VertexView<Graph>, Option<f64>)> = vec![
+        let my_array: Vec<(VertexView<Graph, Graph>, Option<f64>)> = vec![
             (v_d, None),
             (v_c, Some(30.0)),
             (v_b, Some(20.0)),
@@ -689,7 +684,7 @@ mod algorithm_result_test {
         let v_b = algo_result.graph.vertex("B").unwrap();
 
         let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(VertexView<Graph>, Option<(f32, f32)>)> = vec![
+        let my_array: Vec<(VertexView<Graph, Graph>, Option<(f32, f32)>)> = vec![
             (v_d, None),
             (v_c, Some((30.0, 40.0))),
             (v_b, Some((20.0, 30.0))),
@@ -707,7 +702,7 @@ mod algorithm_result_test {
         let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
         let vec_b = vec![];
         let vec_a = vec![(11, "H".to_string())];
-        let my_array: Vec<(VertexView<Graph>, Option<Vec<(i32, String)>>)> = vec![
+        let my_array: Vec<(VertexView<Graph, Graph>, Option<Vec<(i32, String)>>)> = vec![
             (v_d, None),
             (v_c, Some(vec_c)),
             (v_b, Some(vec_b)),

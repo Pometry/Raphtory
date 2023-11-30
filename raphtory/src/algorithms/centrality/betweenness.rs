@@ -18,8 +18,8 @@ use std::collections::{HashMap, VecDeque};
 /// # Returns
 ///
 /// Returns an `AlgorithmResult` containing the betweenness centrality of each node.
-pub fn betweenness_centrality<G: GraphViewOps>(
-    g: &G,
+pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
+    g: &'graph G,
     k: Option<usize>,
     normalized: Option<bool>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {

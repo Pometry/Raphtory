@@ -6,7 +6,7 @@ use crate::model::algorithms::{
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use raphtory::db::api::view::internal::DynamicGraph;
+use raphtory::db::api::view::DynamicGraph;
 use std::{
     borrow::Cow,
     collections::HashMap,

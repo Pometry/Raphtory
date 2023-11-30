@@ -5,7 +5,7 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        prelude::{EdgeViewOps, Graph, GraphViewOps, Prop, VertexViewOps},
+        prelude::*,
         python::graph::pandas::{
             dataframe::PretendDF,
             loaders::{load_edges_from_df, load_vertices_from_df},
