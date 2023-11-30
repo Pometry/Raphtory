@@ -127,7 +127,7 @@ jobs:
           Get-ChildItem -Path $folder_path -Recurse -Include *.whl | ForEach-Object {
             python -m pip install "$($_.FullName)"
           }
-          python -m pip install -e examples/custom_python_extension
+          python -m pip install -e examples/netflow
       - name: Run Python tests
         run: |
           cd python/tests && pytest --nbmake --nbmake-timeout=1200 .
