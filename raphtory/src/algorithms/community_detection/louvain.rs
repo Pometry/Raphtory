@@ -31,7 +31,7 @@ where
 
 // use type alias' because i keep getting confused
 type GID = u64;
-type COMM_ID = u64;
+type COMM_ID = usize;
 
 pub fn louvain<G>(
     og_graph: &G,
@@ -105,8 +105,8 @@ where
     let mut new_nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     for (i, part) in partition.iter().enumerate() {
         for node in part {
-            node2com.insert(node.clone(), i as u64);
-            let data = nodes_data.get(node).unwrap_or(&HashSet::new()).clone();
+            node2com.insert(node.clone(), i);
+            let data = nodes_data.get(&node.clone()).unwrap_or(&HashSet::from([node.clone()])).clone();
             new_nodes_data.insert(node.clone(), data);
         }
         new_g
@@ -116,18 +116,29 @@ where
 
     for e in graph.edges().into_iter() {
         let weight_name = weight.unwrap_or("weight");
-        let wt = e.properties().get(weight_name).unwrap_or(Prop::F64(0.0f64));
         let com1: COMM_ID = node2com.get(&e.src().id()).unwrap().clone();
         let com2: COMM_ID = node2com.get(&e.dst().id()).unwrap().clone();
+        if (com1 == 1) || (com2 == 1) {
+            println!("hi");
+        }
+        let temp = {
+            if new_g.has_edge(com1 as u64, com2 as u64, Layer::All) {
+                new_g.edge(com1 as u64, com2 as u64).unwrap().properties().get(weight_name).unwrap_or(Prop::F64(0.0f64))
+            }
+            else {
+                Prop::F64(0.0f64)
+            }
+        };
+        let wt = e.properties().get(weight_name).unwrap_or(Prop::F64(0.0f64)).add(temp).unwrap();
         new_g
             .add_edge(
                 graph.latest_time().unwrap(),
-                com1,
-                com2,
+                com1 as u64,
+                com2 as u64,
                 vec![(weight_name, wt)],
                 None,
             )
-            .expect("Error adding node");
+            .expect("Error adding edge");
     }
 
     (new_g, new_nodes_data)
@@ -192,7 +203,7 @@ where
     let mut inner_partition: Vec<HashSet<GID>> = vec![];
 
     for (i, v) in graph.vertices().iter().enumerate() {
-        node2com.insert(v.id().clone(), i as u64);
+        node2com.insert(v.id().clone(), i);
         inner_partition.push(HashSet::from([v.id().clone()]));
     }
 
@@ -208,7 +219,7 @@ where
     let mut in_degree: f64 = 0.0f64;
     let mut out_degree: f64 = 0.0f64;
     let mut degree: f64 = 0.0f64;
-    let mut best_com: COMM_ID = 0u64;
+    let mut best_com: COMM_ID = 0usize;
     if is_directed {
         in_degrees = graph
             .vertices()
@@ -273,16 +284,18 @@ where
             .collect();
     }
     let rand_nodes = graph.vertices().iter().collect_vec();
-    println!("{:?}", rand_nodes);
     let mut nb_moves = 1;
     let mut improvement = false;
 
     while nb_moves > 0 {
         nb_moves = 0;
+        println!("START");
         for u in &rand_nodes {
+            println!("{:?} {:?}", u.name(), u.id());
             let mut best_mod = 0.0;
             best_com = *node2com.get(&u.id()).unwrap();
             let weights2com = neighbor_weights(&nbrs.get(u).unwrap(), &node2com);
+            println!("{:?}", weights2com);
             if is_directed {
                 in_degree = *in_degrees.get(u).unwrap_or(&0.0f64);
                 out_degree = *out_degrees.get(u).unwrap_or(&0.0f64);
@@ -339,14 +352,18 @@ where
             }
             if best_com != *node2com.get(&u.id()).unwrap() {
                 let temp_gid: GID = u.id();
+                if temp_gid == 1 {
+                    println!("{}", u.name());
+                    println!("HI")
+                }
                 let com: HashSet<GID> = nodes_data
                     .get(&temp_gid)
                     .unwrap_or(&HashSet::from([temp_gid]))
                     .clone();
-                partition[*node2com.get(&temp_gid).unwrap() as usize].retain(|x| !com.contains(x));
-                inner_partition[node2com[&temp_gid].clone() as usize].remove(&temp_gid);
-                partition[best_com as usize].extend(com);
-                inner_partition[best_com as usize].extend(vec![temp_gid]);
+                partition[*node2com.get(&temp_gid).unwrap()].retain(|x| !com.contains(x));
+                inner_partition[node2com[&temp_gid].clone()].remove(&temp_gid);
+                partition[best_com].extend(com);
+                inner_partition[best_com].extend(vec![temp_gid]);
                 improvement = true;
                 nb_moves += 1;
                 node2com.insert(u.id().clone(), best_com);
@@ -362,6 +379,7 @@ where
         .into_iter()
         .filter(|v| !v.is_empty())
         .collect();
+    println!("Done");
     (new_partition, inner_partition, improvement)
 }
 
@@ -377,7 +395,7 @@ where
         let community: COMM_ID = *node2com.get(&nbr.id()).unwrap();
         // let mut res = *weights.entry(*community).or_insert(0.0f64);
         // res = res.add(wt.clone());
-        *weights.entry(community).or_insert(0.0) += wt;
+        *weights.entry(community).or_insert(0.0f64) += wt;
     }
     weights
 }
@@ -457,15 +475,14 @@ mod louvain_test {
     fn test_louvain() {
         let g = Graph::new();
         let edges = vec![
-            (1, "1", "2", 2.0f64),
-            (1, "1", "3", 3.0f64),
-            (1, "2", "3", 8.5f64),
-            (1, "3", "4", 1.0f64),
-            (1, "4", "5", 1.5f64),
-            (1, "6", "8", 0.5f64),
-            (1, "7", "9", 3.5f64),
-            (1, "1", "6", 1.5f64),
-
+            (1, "10", "20", 2.0f64),
+            (1, "10", "30", 3.0f64),
+            (1, "20", "30", 8.5f64),
+            (1, "30", "40", 1.0f64),
+            (1, "40", "50", 1.5f64),
+            (1, "60", "80", 0.5f64),
+            (1, "70", "90", 3.5f64),
+            (1, "10", "60", 1.5f64),
         ];
         for (ts, src, dst, wt) in edges {
             g
@@ -475,7 +492,7 @@ mod louvain_test {
 
         let results = louvain(&g, Some("weight"), None, None, None, false);
         println!("{:?}", results);
-
+        // [{80, 60}, {10, 20, 30}, {40, 50}, {90, 70}]
     }
 
 }
