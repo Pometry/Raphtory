@@ -10,7 +10,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::{
         graph::{edge::PyEdge, vertex::PyVertex},
-        utils::PyTime,
+        utils::{spawn_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
@@ -26,7 +26,6 @@ use pyo3::{
     types::{PyFunction, PyList},
 };
 use std::{future::Future, thread};
-use crate::python::utils::spawn_async_task;
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -86,6 +85,7 @@ impl PyGraphDocument {
     }
 }
 
+#[cfg(feature = "python")]
 pub struct PyDocumentTemplate {
     node_document: Option<String>,
     edge_document: Option<String>,
@@ -132,10 +132,10 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
             });
             Box::new(iter)
         }
-        None => {
-            let content = properties.get(name).unwrap().to_string();
-            Box::new(std::iter::once(content.into()))
-        }
+        None => match properties.get(name) {
+            Some(prop) => Box::new(std::iter::once(prop.to_string().into())),
+            _ => Box::new(std::iter::empty()),
+        },
     }
 }
 

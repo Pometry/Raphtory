@@ -83,6 +83,18 @@ impl GqlGraph {
         w.into_dynamic_indexed().into()
     }
 
+    async fn at(&self, time: i64) -> GqlGraph {
+        self.graph.at(time).into_dynamic_indexed().into()
+    }
+
+    async fn before(&self, time: i64) -> GqlGraph {
+        self.graph.before(time).into_dynamic_indexed().into()
+    }
+
+    async fn after(&self, time: i64) -> GqlGraph {
+        self.graph.after(time).into_dynamic_indexed().into()
+    }
+
     async fn layer_names(&self) -> Vec<String> {
         self.graph.unique_layers().map_into().collect()
     }
