@@ -12,6 +12,7 @@ use rayon::{
 };
 use std::{
     collections::HashMap,
+    convert::identity,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -162,8 +163,8 @@ fn query1_v7(
                 let cols: (Vec<_>, (Vec<_>, Vec<_>)) =
                     rows.into_iter().map(|(a, b, c)| (*a, (*b, *c))).unzip();
 
-                let (c1, (c2, c3)) = cols;
-                (key, (*min_nft_less30, (c1, c2, c3)))
+                let (prog_t, (c2, c3)) = cols;
+                (key, (*min_nft_less30, (prog_t, c2, c3)))
             })
             .collect();
 
