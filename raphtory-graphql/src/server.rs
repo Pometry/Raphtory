@@ -10,17 +10,33 @@ use crate::{
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
+use core::pin::Pin;
+use futures_util::future::BoxFuture;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
     db::api::view::MaterializedGraph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        Embedding,
+        Embedding, EmbeddingFunction,
     },
 };
-use std::{collections::HashMap, future::Future, ops::Deref, path::Path, sync::Arc};
-use tokio::{io::Result as IoResult, signal};
+use std::{
+    collections::HashMap,
+    future::Future,
+    ops::{Deref, DerefMut},
+    path::Path,
+    sync::{Arc, Mutex},
+};
+use tokio::{
+    io::Result as IoResult,
+    signal,
+    sync::{
+        mpsc,
+        mpsc::{error::SendError, Receiver, Sender},
+        RwLock,
+    },
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 pub struct RaphtoryServer {
@@ -46,16 +62,15 @@ impl RaphtoryServer {
         Self { data }
     }
 
-    pub async fn with_vectorised<F, U, T>(
+    pub async fn with_vectorised<F, T>(
         self,
         graph_names: Vec<String>,
         embedding: F,
-        cache_dir: &Path,
+        cache: &Path,
         template: Option<T>,
     ) -> Self
     where
-        F: Fn(Vec<String>) -> U + Send + Sync + Copy + 'static,
-        U: Future<Output = Vec<Embedding>> + Send + 'static,
+        F: EmbeddingFunction + Clone + 'static,
         T: DocumentTemplate<MaterializedGraph> + 'static,
     {
         let graphs = &self.data.graphs;
@@ -66,12 +81,12 @@ impl RaphtoryServer {
             .unwrap_or(Arc::new(DefaultTemplate));
 
         for graph_name in graph_names {
-            let graph_cache = cache_dir.join(&graph_name);
+            let graph_cache = cache.join(&graph_name);
             let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .vectorise_with_template(
-                    Box::new(embedding),
+                    Box::new(embedding.clone()),
                     Some(graph_cache),
                     template.clone(),
                     true,
@@ -92,11 +107,11 @@ impl RaphtoryServer {
         self
     }
 
-    pub async fn run(self) -> IoResult<()> {
-        self.run_with_port(1736).await
+    pub fn start(self) -> RunningRaphtoryServer {
+        self.start_with_port(1736)
     }
 
-    pub async fn run_with_port(self, port: u16) -> IoResult<()> {
+    pub fn start_with_port(self, port: u16) -> RunningRaphtoryServer {
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
 
@@ -118,14 +133,49 @@ impl RaphtoryServer {
             .at("/health", get(health))
             .with(Cors::new());
 
+        let (signal_sender, signal_receiver) = mpsc::channel(1);
+
         println!("Playground: http://localhost:{port}");
-        Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-            .run_with_graceful_shutdown(app, shutdown_signal(), None)
-            .await
+        let result = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
+            .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
+
+        RunningRaphtoryServer {
+            signal_sender,
+            server_result: Mutex::new(Box::pin(result)),
+        }
+    }
+
+    pub async fn run(self) -> IoResult<()> {
+        self.start().wait().await
+    }
+
+    pub async fn run_with_port(self, port: u16) -> IoResult<()> {
+        self.start_with_port(port).wait().await
     }
 }
 
-async fn shutdown_signal() {
+pub struct RunningRaphtoryServer {
+    signal_sender: Sender<()>,
+    // server_result: BoxFuture<'static, IoResult<()>>,
+    server_result: Mutex<Pin<Box<dyn Future<Output = IoResult<()>> + Send>>>,
+}
+
+impl RunningRaphtoryServer {
+    pub async fn stop(&self) {
+        let _ignored = self.signal_sender.send(()).await;
+    }
+
+    pub async fn wait(self) -> IoResult<()> {
+        self.server_result.into_inner().unwrap().await
+    }
+
+    // TODO: make this optional with some python feature flag
+    pub fn _get_sender(&self) -> &Sender<()> {
+        &self.signal_sender
+    }
+}
+
+async fn server_termination(mut internal_signal: Receiver<()>) {
     let ctrl_c = async {
         signal::ctrl_c()
             .await
@@ -143,10 +193,32 @@ async fn shutdown_signal() {
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
 
+    let internal_terminate = async {
+        internal_signal.recv().await;
+    };
+
     tokio::select! {
         _ = ctrl_c => {},
         _ = terminate => {},
+        _ = internal_terminate => {},
     }
 
     opentelemetry::global::shutdown_tracer_provider();
+}
+
+#[cfg(test)]
+mod server_tests {
+    use crate::server::RaphtoryServer;
+    use raphtory::prelude::{Graph, GraphViewOps};
+    use std::collections::HashMap;
+
+    #[tokio::test]
+    async fn test_server_stop() {
+        let g = Graph::new().materialize().unwrap();
+        let graphs = HashMap::from([("test".to_owned(), g)]);
+        let server = RaphtoryServer::from_map(graphs);
+        let handler = server.start_with_port(27655);
+        handler.stop().await;
+        handler.wait().await.unwrap()
+    }
 }

@@ -26,9 +26,9 @@ use crate::{
     prelude::*,
     python::{
         graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
-        packages::vectors::{spawn_async_task, DynamicVectorisedGraph, PyDocumentTemplate},
+        packages::vectors::{DynamicVectorisedGraph, PyDocumentTemplate},
         types::repr::Repr,
-        utils::{PyInterval, PyTime},
+        utils::{spawn_async_task, PyInterval, PyTime},
     },
     vectors::vectorisable::Vectorisable,
     *,

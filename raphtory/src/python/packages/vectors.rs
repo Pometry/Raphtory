@@ -26,6 +26,7 @@ use pyo3::{
     types::{PyFunction, PyList},
 };
 use std::{future::Future, thread};
+use crate::python::utils::spawn_async_task;
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -85,14 +86,14 @@ impl PyGraphDocument {
     }
 }
 
-pub(crate) struct PyDocumentTemplate {
+pub struct PyDocumentTemplate {
     node_document: Option<String>,
     edge_document: Option<String>,
     default_template: DefaultTemplate,
 }
 
 impl PyDocumentTemplate {
-    pub(crate) fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
+    pub fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
         Self {
             node_document,
             edge_document,
@@ -306,30 +307,6 @@ impl PyVectorisedGraph {
 fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
     let embedding = vectors.embedding.clone();
     spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
-}
-
-// This function takes a function that returns a future instead of taking just a future because
-// a task might return an unsendable future but what we can do is making a function returning that
-// future which is sendable itself
-pub(crate) fn spawn_async_task<T, F, O>(task: T) -> O
-where
-    T: FnOnce() -> F + Send + 'static,
-    F: Future<Output = O> + 'static,
-    O: Send + 'static,
-{
-    Python::with_gil(|py| {
-        py.allow_threads(move || {
-            thread::spawn(move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-                    .block_on(task())
-            })
-            .join()
-            .expect("error when waiting for async task to complete")
-        })
-    })
 }
 
 impl EmbeddingFunction for Py<PyFunction> {
