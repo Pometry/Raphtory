@@ -25,8 +25,8 @@ use std::{
 
 #[derive(Clone)]
 pub struct VertexSubgraph<G> {
-    graph: G,
-    vertices: Arc<FxHashSet<VID>>,
+    pub(crate) graph: G,
+    pub(crate) vertices: Arc<FxHashSet<VID>>,
     edge_filter: EdgeFilter,
 }
 
