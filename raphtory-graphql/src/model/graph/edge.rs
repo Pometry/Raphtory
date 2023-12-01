@@ -38,6 +38,10 @@ impl Edge {
         self.ee.latest_time()
     }
 
+    async fn time(&self) -> Option<i64> {
+        self.ee.time()
+    }
+
     async fn start(&self) -> Option<i64> {
         self.ee.start()
     }
@@ -62,11 +66,14 @@ impl Edge {
         self.ee.layer(layer_name).map(|ee| ee.into())
     }
 
-    async fn layers(&self) -> Vec<String> {
+    async fn layer_names(&self) -> Vec<String> {
         self.ee.layer_names().map_into().collect()
     }
+    async fn layer_name(&self) -> String {
+        self.ee.layer_name().map_into().collect()
+    }
 
-    async fn exploded_edges(&self) -> Vec<Edge> {
+    async fn explode(&self) -> Vec<Edge> {
         self.ee
             .explode()
             .into_iter()
@@ -74,7 +81,7 @@ impl Edge {
             .collect_vec()
     }
 
-    async fn layer_exploded_edges(&self) -> Vec<Edge> {
+    async fn explode_layers(&self) -> Vec<Edge> {
         self.ee
             .explode_layers()
             .into_iter()

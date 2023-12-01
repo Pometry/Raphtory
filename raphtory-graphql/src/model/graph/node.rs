@@ -38,6 +38,19 @@ impl Node {
         self.vv.name()
     }
 
+
+    ////////////////////////
+    //// TIME QUERIES //////
+    ////////////////////////
+
+    async fn earliest_time(&self) -> Option<i64> {
+        self.vv.earliest_time()
+    }
+
+    async fn latest_time(&self) -> Option<i64> {
+        self.vv.latest_time()
+    }
+
     async fn start(&self) -> Option<i64> {
         self.vv.start()
     }
@@ -46,6 +59,10 @@ impl Node {
         self.vv.end()
     }
 
+    async fn history(&self) -> Vec<i64> { self.vv.history()}
+    ////////////////////////
+    /////// PROPERTIES /////
+    ////////////////////////
     pub async fn node_type(&self) -> String {
         self.vv
             .properties()
@@ -60,14 +77,12 @@ impl Node {
     }
 
     /// Returns all the properties of the node
-    async fn properties(&self) -> Option<Vec<Property>> {
-        Some(
+    async fn properties(&self) -> Vec<Property> {
             self.vv
                 .properties()
                 .iter()
                 .map(|(k, v)| Property::new(k.into(), v))
                 .collect(),
-        )
     }
 
     /// Returns the value for the property with name `name`
@@ -105,121 +120,24 @@ impl Node {
             .collect_vec()
     }
 
-    async fn in_neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
-        match layer.as_deref() {
-            None => self.vv.in_neighbours().iter().map(|vv| vv.into()).collect(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => {
-                    vec![]
-                }
-                Some(vvv) => vvv.in_neighbours().iter().map(|vv| vv.into()).collect(),
-            },
-        }
-    }
-
-    async fn out_neighbours(&self, layer: Option<String>) -> Vec<Node> {
-        match layer.as_deref() {
-            None => self
-                .vv
-                .out_neighbours()
-                .iter()
-                .map(|vv| vv.into())
-                .collect(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => {
-                    vec![]
-                }
-                Some(vvv) => vvv.out_neighbours().iter().map(|vv| vv.into()).collect(),
-            },
-        }
-    }
-
-    async fn neighbours<'a>(&self, layer: Option<String>) -> Vec<Node> {
-        match layer.as_deref() {
-            None => self.vv.neighbours().iter().map(|vv| vv.into()).collect(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => {
-                    vec![]
-                }
-                Some(vvv) => vvv.neighbours().iter().map(|vv| vv.into()).collect(),
-            },
-        }
-    }
-
+    ////////////////////////
+    //// EDGE GETTERS //////
+    ////////////////////////
     /// Returns the number of edges connected to this node
-    async fn degree(&self, layers: Option<Vec<String>>) -> usize {
-        match layers {
-            None => self.vv.degree(),
-            Some(layers) => layers
-                .iter()
-                .map(|layer| {
-                    let degree = match self.vv.layer(layer) {
-                        None => 0,
-                        Some(vvv) => vvv.degree(),
-                    };
-                    degree
-                })
-                .sum(),
-        }
+    async fn degree(&self) -> usize {
+        self.vv.degree()
     }
 
     /// Returns the number edges with this node as the source
-    async fn out_degree(&self, layers: Option<Vec<String>>) -> usize {
-        match layers {
-            None => self.vv.out_degree(),
-            Some(layers) => layers
-                .iter()
-                .map(|layer| {
-                    let degree = match self.vv.layer(layer) {
-                        None => 0,
-                        Some(vvv) => vvv.out_degree(),
-                    };
-                    degree
-                })
-                .sum(),
-        }
+    async fn out_degree(&self) -> usize {
+        self.vv.out_degree()
     }
 
     /// Returns the number edges with this node as the destination
-    async fn in_degree(&self, layers: Option<Vec<String>>) -> usize {
-        match layers {
-            None => self.vv.in_degree(),
-            Some(layers) => layers
-                .iter()
-                .map(|layer| {
-                    let degree = match self.vv.layer(layer) {
-                        None => 0,
-                        Some(vvv) => vvv.in_degree(),
-                    };
-                    degree
-                })
-                .sum(),
-        }
+    async fn in_degree(&self) -> usize {
+        self.vv.in_degree()
     }
 
-    async fn out_edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer.as_deref() {
-            None => self.vv.out_edges().map(|ee| ee.into()).collect(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => {
-                    vec![]
-                }
-                Some(vvv) => vvv.out_edges().map(|ee| ee.into()).collect(),
-            },
-        }
-    }
-
-    async fn in_edges(&self, layer: Option<String>) -> Vec<Edge> {
-        match layer.as_deref() {
-            None => self.vv.in_edges().map(|ee| ee.into()).collect(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => {
-                    vec![]
-                }
-                Some(vvv) => vvv.in_edges().map(|ee| ee.into()).collect(),
-            },
-        }
-    }
 
     async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
         match filter {
@@ -232,6 +150,45 @@ impl Node {
             None => self.vv.edges().map(|ee| ee.into()).collect(),
         }
     }
+    async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
+        match filter {
+            Some(filter) => self
+                .vv
+                .out_edges()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect(),
+            None => self.vv.edges().map(|ee| ee.into()).collect(),
+        }
+    }
+
+    async fn in_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
+        match filter {
+            Some(filter) => self
+                .vv
+                .edges()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .collect(),
+            None => self.vv.in_edges().map(|ee| ee.into()).collect(),
+        }
+    }
+
+    async fn neighbours<'a>(&self) -> Vec<Node> {
+        self.vv.neighbours().iter().map(|vv| vv.into()).collect()
+    }
+
+    async fn in_neighbours<'a>(&self) -> Vec<Node> {
+        self.vv.in_neighbours().iter().map(|vv| vv.into()).collect()
+    }
+
+    async fn out_neighbours(&self) -> Vec<Node> {
+        self.vv.out_neighbours().iter().map(|vv| vv.into()).collect()
+    }
+
+    ////////////////////////
+    // GRAPHQL SPECIFIC ////
+    ////////////////////////
 
     async fn expanded_edges(
         &self,
@@ -260,23 +217,5 @@ impl Node {
         }
     }
 
-    async fn exploded_in_edges(&self) -> Vec<Edge> {
-        self.vv.in_edges().explode().map(|ee| ee.into()).collect()
-    }
 
-    async fn exploded_out_edges(&self) -> Vec<Edge> {
-        self.vv.out_edges().explode().map(|ee| ee.into()).collect()
-    }
-
-    async fn exploded_edges(&self) -> Vec<Edge> {
-        self.vv.edges().explode().map(|ee| ee.into()).collect()
-    }
-
-    async fn start_date(&self) -> Option<i64> {
-        self.vv.earliest_time()
-    }
-
-    async fn end_date(&self) -> Option<i64> {
-        self.vv.latest_time()
-    }
 }
