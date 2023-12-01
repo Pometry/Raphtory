@@ -6,13 +6,12 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{
-    iter::{IndexedParallelIterator, IntoParallelIterator},
+    iter::IntoParallelIterator,
     prelude::{IntoParallelRefIterator, ParallelIterator},
     ThreadPoolBuilder,
 };
 use std::{
     collections::HashMap,
-    convert::identity,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -178,8 +177,6 @@ fn query1_v7(
 
         pool.install(|| {
             probe_map.par_iter().for_each(|entry| {
-                // let b: VID = *entry.key();
-                // let (min_nft_less30, prog1_nft_events) = entry.value();
                 let (b, (min_nft_less30, (prog1, nft_less30, e))) = entry;
                 let b = *b;
 
