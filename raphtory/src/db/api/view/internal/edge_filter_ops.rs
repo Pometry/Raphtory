@@ -1,22 +1,57 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::api::view::internal::Base,
+    core::{entities::{edges::edge_store::EdgeStore, LayerIds, VID}, storage::timeindex::TimeIndex},
+    db::api::view::internal::Base, prelude::TimeIndexEntry,
 };
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
 pub fn extend_filter(
     old: Option<EdgeFilter>,
-    filter: impl Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync + 'static,
+    filter: impl Fn(&dyn EdgeLike, &LayerIds) -> bool + Send + Sync + 'static,
 ) -> EdgeFilter {
     match old {
         Some(f) => Arc::new(move |e, l| f(e, l) && filter(e, l)),
         None => Arc::new(filter),
     }
 }
+pub trait EdgeLike{
+    fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+    fn has_layer(&self, layer_ids: &LayerIds) -> bool;
+    fn src(&self) -> VID;
+    fn dst(&self) -> VID;
 
-pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
-pub type EdgeWindowFilter = Arc<dyn Fn(&EdgeStore, &LayerIds, Range<i64>) -> bool + Send + Sync>;
+    fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>>;
+    fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>>;
+}
+
+impl EdgeLike for EdgeStore{
+    fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        self.active(layer_ids, w)
+    }
+
+    fn has_layer(&self, layer_ids: &LayerIds) -> bool {
+        self.has_layer(layer_ids)
+    }
+
+    fn src(&self) -> VID {
+        self.src()
+    }
+
+    fn dst(&self) -> VID {
+        self.dst()
+    }
+
+    fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
+        self.additions()
+    }
+
+    fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
+        self.deletions()
+    }
+}
+
+pub type EdgeFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds) -> bool + Send + Sync>;
+pub type EdgeWindowFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds, Range<i64>) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {
