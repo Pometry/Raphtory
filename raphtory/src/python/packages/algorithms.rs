@@ -38,6 +38,7 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        science::si::si as si_rs,
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
@@ -600,6 +601,38 @@ pub fn label_propagation(
     seed: Option<[u8; 32]>,
 ) -> PyResult<Vec<HashSet<VertexView<DynamicGraph>>>> {
     match label_propagation_rs(&g.graph, seed) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
+}
+
+/// Simulates the SI (Susceptible-Infected) infection model on a graph.
+///
+/// Arguments:
+///     graph (Raphtory Graph) : The graph on which to run the simulation.
+///     initial_infected_ratio (float) : The initial ratio of infected nodes.
+///     infection_probability (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
+///
+/// Returns:
+/// A `Result` which is either:
+///     A set of vertices that are infected at the end of the simulation.
+///     An error message in case of failure.
+///
+#[pyfunction]
+#[pyo3[signature = (g, initial_infected_ratio, infection_probability, seed=None)]]
+pub fn si(
+    g: &PyGraphView,
+    initial_infected_ratio: f64,
+    infection_probability: f64,
+    seed: Option<[u8; 32]>,
+) -> PyResult<HashSet<VertexView<DynamicGraph>>> {
+    match si_rs(
+        &g.graph,
+        initial_infected_ratio,
+        infection_probability,
+        seed,
+    ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }

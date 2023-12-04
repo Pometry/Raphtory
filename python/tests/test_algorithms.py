@@ -461,3 +461,26 @@ def test_label_propagation_algorithm():
     assert len(result) == len(expected)
     for group in expected:
         assert group in result
+
+
+def test_si_algorithm():
+    g = Graph()
+    edges_str = [
+        (1, "R1", "R2"),
+        (1, "R2", "R3"),
+        (1, "R3", "G"),
+        (1, "G", "B1"),
+        (1, "G", "B3"),
+        (1, "B1", "B2"),
+        (1, "B2", "B3"),
+        (1, "B2", "B4"),
+        (1, "B3", "B4"),
+        (1, "B3", "B5"),
+        (1, "B4", "B5"),
+    ]
+    for time, src, dst in edges_str:
+        g.add_edge(time, src, dst)
+    seed = [5] * 32
+    result = algorithms.si(g, 0.1, 0.2, seed)
+    expected = {g.vertex("G"), g.vertex("B1")}
+    assert result == expected
