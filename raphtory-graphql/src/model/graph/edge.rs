@@ -67,10 +67,10 @@ impl Edge {
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.ee.layer_names().map_into().collect()
+        self.ee.layer_names().map(|x|x.into()).collect()
     }
-    async fn layer_name(&self) -> String {
-        self.ee.layer_name().map_into().collect()
+    async fn layer_name(&self) -> Option<String> {
+        self.ee.layer_name().map(|x|x.into())
     }
 
     async fn explode(&self) -> Vec<Edge> {
