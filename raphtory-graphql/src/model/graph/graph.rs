@@ -1,7 +1,7 @@
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
-    graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
+    graph::{edge::Edge, get_expanded_edges, node::Node},
     schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -406,58 +406,6 @@ impl GqlGraph {
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
-    async fn property_names(&self) -> Vec<String> {
-        self.graph.properties().keys().map_into().collect()
-    }
-    async fn properties(&self) -> Vec<Property> {
-        self.graph
-            .properties()
-            .into_iter()
-            .map(|(k, v)| Property::new(k.into(), v))
-            .collect()
-    }
-
-    async fn property(&self, name: &str) -> Option<String> {
-        self.graph.properties().get(name).map(|v| v.to_string())
-    }
-
-    /// Returns the history as a vector of updates for the property with name `name`
-    async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
-        self.graph
-            .properties()
-            .temporal()
-            .get(&name)
-            .into_iter()
-            .flat_map(|p| {
-                p.iter()
-                    .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
-            })
-            .collect()
-    }
-
-    async fn properties_history(&self, names: Vec<String>) -> Vec<PropertyUpdate> {
-        names
-            .iter()
-            .filter_map(|name| match self.graph.properties().temporal().get(name) {
-                Some(prop) => Option::Some(PropertyUpdateGroup::new(
-                    name.to_string(),
-                    prop.iter()
-                        .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
-                        .collect_vec(),
-                )),
-                None => None,
-            })
-            .collect_vec()
-    }
-
-    async fn constant_properties(&self) -> Vec<Property> {
-        self.graph
-            .properties()
-            .constant()
-            .into_iter()
-            .map(|(k, v)| Property::new(k.into(), v))
-            .collect()
-    }
 
     ////////////////////////
     // GRAPHQL SPECIFIC ////

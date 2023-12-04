@@ -1,6 +1,6 @@
 use crate::model::{
     filters::edge_filter::EdgeFilter,
-    graph::{edge::Edge, get_expanded_edges, property::Property, property_update::PropertyUpdate},
+    graph::{edge::Edge, get_expanded_edges, property_update::PropertyUpdate},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -71,54 +71,6 @@ impl Node {
             .unwrap_or("NONE".to_string())
     }
 
-    /// Returns all the property names this node has a value for
-    async fn property_names(&self) -> Vec<String> {
-        self.vv.properties().keys().map_into().collect()
-    }
-
-    /// Returns all the properties of the node
-    async fn properties(&self) -> Vec<Property> {
-            self.vv
-                .properties()
-                .iter()
-                .map(|(k, v)| Property::new(k.into(), v))
-                .collect(),
-    }
-
-    /// Returns the value for the property with name `name`
-    async fn property(&self, name: &str) -> Option<String> {
-        self.vv.properties().get(name).map(|v| v.to_string())
-    }
-
-    /// Returns the history as a vector of updates for the property with name `name`
-    async fn property_history(&self, name: String) -> Vec<PropertyUpdate> {
-        self.vv
-            .properties()
-            .temporal()
-            .get(&name)
-            .into_iter()
-            .flat_map(|p| {
-                p.iter()
-                    .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
-            })
-            .collect()
-    }
-
-    /// Returns the history as a vectory of updates for any properties which are included in param names
-    async fn properties_history(&self, names: Vec<String>) -> Vec<PropertyUpdateGroup> {
-        names
-            .iter()
-            .filter_map(|name| match self.vv.properties().temporal().get(name) {
-                Some(prop) => Option::Some(PropertyUpdateGroup::new(
-                    name.to_string(),
-                    prop.iter()
-                        .map(|(time, prop)| PropertyUpdate::new(time, prop.to_string()))
-                        .collect_vec(),
-                )),
-                None => None,
-            })
-            .collect_vec()
-    }
 
     ////////////////////////
     //// EDGE GETTERS //////
