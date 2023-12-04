@@ -1,10 +1,9 @@
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::timeindex::TimeIndex,
+        storage::timeindex::{TimeIndex, TimeIndexEntry},
     },
     db::api::view::internal::Base,
-    prelude::TimeIndexEntry,
 };
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
