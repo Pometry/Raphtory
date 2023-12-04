@@ -47,7 +47,7 @@ where
     let mut graph = og_graph.clone();
     let mut nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     let resolution_val = resolution.unwrap_or(1.0f64);
-    let threshold_val = threshold.unwrap_or(0.0000001f64);
+    let threshold_val = threshold.unwrap_or(0.0000002f64);
     let mut partition: Vec<HashSet<GID>> = graph
         .vertices()
         .iter()
@@ -118,7 +118,7 @@ where
         let weight_name = weight.unwrap_or("weight");
         let com1: COMM_ID = node2com.get(&e.src().id()).unwrap().clone();
         let com2: COMM_ID = node2com.get(&e.dst().id()).unwrap().clone();
-        if (com1 == 1) || (com2 == 1) {
+        if (com1 <= 10) || (com2 <= 10) {
             println!("hi");
         }
         let temp = {
@@ -475,14 +475,14 @@ mod louvain_test {
     fn test_louvain() {
         let g = Graph::new();
         let edges = vec![
-            (1, "10", "20", 2.0f64),
-            (1, "10", "30", 3.0f64),
-            (1, "20", "30", 8.5f64),
-            (1, "30", "40", 1.0f64),
-            (1, "40", "50", 1.5f64),
-            (1, "60", "80", 0.5f64),
-            (1, "70", "90", 3.5f64),
-            (1, "10", "60", 1.5f64),
+            (1, "100", "200", 2.0f64),
+            (1, "100", "300", 3.0f64),
+            (1, "200", "300", 8.5f64),
+            (1, "300", "400", 1.0f64),
+            (1, "400", "500", 1.5f64),
+            (1, "600", "800", 0.5f64),
+            (1, "700", "900", 3.5f64),
+            (1, "100", "600", 1.5f64),
         ];
         for (ts, src, dst, wt) in edges {
             g
