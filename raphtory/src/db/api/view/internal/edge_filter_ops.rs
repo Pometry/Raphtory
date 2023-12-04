@@ -1,24 +1,48 @@
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::timeindex::{TimeIndex, TimeIndexEntry},
+        storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
     },
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
+pub enum TimeIndexLike<'a> {
+    TimeIndex(&'a TimeIndex<TimeIndexEntry>),
+    SliceTimeIndex(Box<dyn Iterator<Item = &'a [i64]> + 'a>),
+}
+
+impl<'a> TimeIndexLike<'a> {
+    pub fn first(&'a self) -> Option<TimeIndexEntry> {
+        match self {
+            TimeIndexLike::TimeIndex(ti) => ti.first().copied(),
+            TimeIndexLike::SliceTimeIndex(ti) => ti
+                .next()
+                .and_then(|x| x.first().map(|x| TimeIndexEntry::new(*x, 0))),
+        }
+    }
+
+    pub fn range(&'a self, w: Range<i64>) -> TimeIndexLike<'a> {
+        match self {
+            TimeIndexLike::TimeIndex(ti) => ti.range(w).copied(),
+            TimeIndexLike::SliceTimeIndex(ti) => ti
+                .next()
+                .and_then(|x| x.range(w).map(|x| TimeIndexEntry::new(*x, 0))),
+        }
+    }
+}
 pub trait EdgeLike {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
     fn has_layer(&self, layer_ids: &LayerIds) -> bool;
     fn src(&self) -> VID;
     fn dst(&self) -> VID;
 
-    fn additions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_>;
-    fn deletions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_>;
+    fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_>;
+    fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_>;
 
-    fn additions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>>;
-    fn deletions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>>;
+    fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
+    fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
 }
 
 impl EdgeLike for EdgeStore {
@@ -38,20 +62,20 @@ impl EdgeLike for EdgeStore {
         self.dst()
     }
 
-    fn additions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_> {
-        Box::new(self.additions().into_iter())
+    fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
+        Box::new(self.additions().into_iter().map(TimeIndexLike::TimeIndex))
     }
 
-    fn deletions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_> {
-        Box::new(self.deletions().into_iter())
+    fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
+        Box::new(self.deletions().into_iter().map(TimeIndexLike::TimeIndex))
     }
 
-    fn additions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
-        self.additions().get(layer_id)
+    fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
+        self.additions().get(layer_id).map(TimeIndexLike::TimeIndex)
     }
 
-    fn deletions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
-        self.deletions().get(layer_id)
+    fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
+        self.deletions().get(layer_id).map(TimeIndexLike::TimeIndex)
     }
 }
 
