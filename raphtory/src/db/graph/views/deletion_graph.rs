@@ -1,6 +1,10 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_store::VertexStore, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef},
+            vertices::vertex_store::VertexStore,
+            LayerIds, VID,
+        },
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
