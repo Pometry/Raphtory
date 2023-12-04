@@ -8,23 +8,17 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
-pub fn extend_filter(
-    old: Option<EdgeFilter>,
-    filter: impl Fn(&dyn EdgeLike, &LayerIds) -> bool + Send + Sync + 'static,
-) -> EdgeFilter {
-    match old {
-        Some(f) => Arc::new(move |e, l| f(e, l) && filter(e, l)),
-        None => Arc::new(filter),
-    }
-}
 pub trait EdgeLike {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
     fn has_layer(&self, layer_ids: &LayerIds) -> bool;
     fn src(&self) -> VID;
     fn dst(&self) -> VID;
 
-    fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>>;
-    fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>>;
+    fn additions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_>;
+    fn deletions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_>;
+
+    fn additions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>>;
+    fn deletions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>>;
 }
 
 impl EdgeLike for EdgeStore {
@@ -44,12 +38,20 @@ impl EdgeLike for EdgeStore {
         self.dst()
     }
 
-    fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
-        self.additions()
+    fn additions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_> {
+        Box::new(self.additions().into_iter())
     }
 
-    fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
-        self.deletions()
+    fn deletions_iter(&self) -> Box<dyn Iterator<Item = &TimeIndex<TimeIndexEntry>> + '_> {
+        Box::new(self.deletions().into_iter())
+    }
+
+    fn additions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
+        self.additions().get(layer_id)
+    }
+
+    fn deletions(&self, layer_id: usize) -> Option<&TimeIndex<TimeIndexEntry>> {
+        self.deletions().get(layer_id)
     }
 }
 

@@ -1,10 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            vertices::vertex_store::VertexStore,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_store::VertexStore, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
@@ -68,47 +64,41 @@ fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => return false,
             LayerIds::All => (
-                e.additions().iter().flat_map(|v| v.first()).min().copied(),
-                e.deletions().iter().flat_map(|v| v.first()).min().copied(),
-                e.additions()
-                    .iter()
+                e.additions_iter().flat_map(|v| v.first()).min().copied(),
+                e.deletions_iter().flat_map(|v| v.first()).min().copied(),
+                e.additions_iter()
                     .flat_map(|v| v.range(range.clone()).last().copied())
                     .max(),
-                e.deletions()
-                    .iter()
+                e.deletions_iter()
                     .flat_map(|v| v.range(range.clone()).last().copied())
                     .max(),
             ),
             LayerIds::One(l_id) => (
-                e.additions().get(*l_id).and_then(|v| v.first().copied()),
-                e.deletions().get(*l_id).and_then(|v| v.first().copied()),
-                e.additions()
-                    .get(*l_id)
+                e.additions(*l_id).and_then(|v| v.first().copied()),
+                e.deletions(*l_id).and_then(|v| v.first().copied()),
+                e.additions(*l_id)
                     .and_then(|v| v.range(range.clone()).last().copied()),
-                e.deletions()
-                    .get(*l_id)
+                e.deletions(*l_id)
                     .and_then(|v| v.range(range.clone()).last().copied()),
             ),
             LayerIds::Multiple(ids) => (
                 ids.iter()
-                    .flat_map(|l_id| e.additions().get(*l_id).and_then(|v| v.first()))
+                    .flat_map(|l_id| e.additions(*l_id).and_then(|v| v.first()))
                     .min()
                     .copied(),
                 ids.iter()
-                    .flat_map(|l_id| e.deletions().get(*l_id).and_then(|v| v.first()))
+                    .flat_map(|l_id| e.deletions(*l_id).and_then(|v| v.first()))
                     .min()
                     .copied(),
                 ids.iter()
                     .flat_map(|l_id| {
-                        e.additions()
-                            .get(*l_id)
+                        e.additions(*l_id)
                             .and_then(|v| v.range(range.clone()).last().copied())
                     })
                     .max(),
                 ids.iter()
                     .flat_map(|l_id| {
-                        e.deletions()
-                            .get(*l_id)
+                        e.deletions(*l_id)
                             .and_then(|v| v.range(range.clone()).last().copied())
                     })
                     .max(),
