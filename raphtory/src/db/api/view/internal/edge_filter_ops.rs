@@ -1,6 +1,10 @@
 use crate::{
-    core::{entities::{edges::edge_store::EdgeStore, LayerIds, VID}, storage::timeindex::TimeIndex},
-    db::api::view::internal::Base, prelude::TimeIndexEntry,
+    core::{
+        entities::{edges::edge_store::EdgeStore, LayerIds, VID},
+        storage::timeindex::TimeIndex,
+    },
+    db::api::view::internal::Base,
+    prelude::TimeIndexEntry,
 };
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
@@ -14,7 +18,7 @@ pub fn extend_filter(
         None => Arc::new(filter),
     }
 }
-pub trait EdgeLike{
+pub trait EdgeLike {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
     fn has_layer(&self, layer_ids: &LayerIds) -> bool;
     fn src(&self) -> VID;
@@ -24,7 +28,7 @@ pub trait EdgeLike{
     fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>>;
 }
 
-impl EdgeLike for EdgeStore{
+impl EdgeLike for EdgeStore {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.active(layer_ids, w)
     }

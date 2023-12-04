@@ -25,7 +25,7 @@ use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    ops::{Range, Deref},
+    ops::{Deref, Range},
     path::Path,
     sync::Arc,
 };
@@ -366,7 +366,11 @@ impl TimeSemantics for GraphWithDeletions {
                 .edge_layers(e, layer_ids.clone())
                 .filter(move |&e| {
                     let entry = g.core_edge(e.pid());
-                    window_filter(entry.deref(), &layer_ids.clone().constrain_from_edge(e), w.clone())
+                    window_filter(
+                        entry.deref(),
+                        &layer_ids.clone().constrain_from_edge(e),
+                        w.clone(),
+                    )
                 }),
         )
     }
