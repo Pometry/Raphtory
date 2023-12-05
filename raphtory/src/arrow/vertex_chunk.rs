@@ -12,7 +12,7 @@ use super::list_buffer::ListColumn;
 
 // this is a list_array<struct_array<(u64, u64)>>, where the struct_array is (vertex, edge)
 #[derive(Debug, Clone)]
-pub(crate) struct VertexChunk {
+pub struct VertexChunk {
     columns: Arc<[Box<dyn Array>]>,
 }
 
@@ -20,6 +20,13 @@ impl VertexChunk {
     pub(crate) fn new(chunk: Chunk<Box<dyn Array>>) -> Self {
         let columns = chunk.into_arrays().into();
         VertexChunk { columns }
+    }
+
+    pub fn adj(&self) -> &ListArray<i64> {
+        self.columns[0]
+            .as_any()
+            .downcast_ref::<ListArray<i64>>()
+            .unwrap()
     }
 
     pub(crate) fn neighbours_col(&self) -> Option<ListColumn<u64>> {
