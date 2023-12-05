@@ -274,7 +274,7 @@ fn count_logins(
         .sum()
 }
 
-fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
+fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
     //     MATCH
     //     (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
     //   WHERE A <> B AND B <> E AND A <> E
@@ -331,7 +331,7 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
                 .next()?;
 
             let now = Instant::now();
-            let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, 30)?;
+            let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, window)?;
             valid_netflow_events_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
 
             let now = Instant::now();
@@ -374,6 +374,7 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
 }
 
 fn main() {
+    let window = 3600; // change me to get bigger windows
     let graph_dir = std::env::args()
         .nth(1)
         .expect("please supply a graph directory");
@@ -449,7 +450,7 @@ fn main() {
 
     let now = Instant::now();
 
-    let count = query(&graph);
+    let count = query(&graph, window);
 
     println!("Time taken: {:?}, count: {:?}", now.elapsed(), count);
 }
