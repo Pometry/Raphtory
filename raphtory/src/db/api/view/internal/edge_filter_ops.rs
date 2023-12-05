@@ -10,28 +10,37 @@ use std::{ops::Range, sync::Arc};
 
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),
-    SliceTimeIndex(Box<dyn Iterator<Item = &'a [i64]> + 'a>),
+    // External(Box<dyn BoxTimeIndexOps>),
 }
 
-impl<'a> TimeIndexLike<'a> {
-    pub fn first(&'a self) -> Option<TimeIndexEntry> {
-        match self {
-            TimeIndexLike::TimeIndex(ti) => ti.first().copied(),
-            TimeIndexLike::SliceTimeIndex(ti) => ti
-                .next()
-                .and_then(|x| x.first().map(|x| TimeIndexEntry::new(*x, 0))),
-        }
+impl <'a> TimeIndexOps for TimeIndexLike<'a> {
+    type IterType<'b> = Box<dyn Iterator<Item = &'b i64> + Send + 'b> where Self: 'b;
+
+    type WindowType<'b> = TimeIndexLike<'b> where Self: 'b;
+
+    type IndexType = i64;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        todo!()
     }
 
-    pub fn range(&'a self, w: Range<i64>) -> TimeIndexLike<'a> {
-        match self {
-            TimeIndexLike::TimeIndex(ti) => ti.range(w).copied(),
-            TimeIndexLike::SliceTimeIndex(ti) => ti
-                .next()
-                .and_then(|x| x.range(w).map(|x| TimeIndexEntry::new(*x, 0))),
-        }
+    fn range(&self, w: Range<i64>) -> Self::WindowType<'_> {
+        todo!()
+    }
+
+    fn first(&self) -> Option<&Self::IndexType> {
+        todo!()
+    }
+
+    fn last(&self) -> Option<&Self::IndexType> {
+        todo!()
+    }
+
+    fn iter_t(&self) -> Self::IterType<'_> {
+        todo!()
     }
 }
+
 pub trait EdgeLike {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
     fn has_layer(&self, layer_ids: &LayerIds) -> bool;
