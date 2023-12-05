@@ -8,38 +8,7 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
-pub enum TimeIndexLike<'a> {
-    TimeIndex(&'a TimeIndex<TimeIndexEntry>),
-    // External(Box<dyn BoxTimeIndexOps>),
-}
-
-impl <'a> TimeIndexOps for TimeIndexLike<'a> {
-    type IterType<'b> = Box<dyn Iterator<Item = &'b i64> + Send + 'b> where Self: 'b;
-
-    type WindowType<'b> = TimeIndexLike<'b> where Self: 'b;
-
-    type IndexType = i64;
-
-    fn active(&self, w: Range<i64>) -> bool {
-        todo!()
-    }
-
-    fn range(&self, w: Range<i64>) -> Self::WindowType<'_> {
-        todo!()
-    }
-
-    fn first(&self) -> Option<&Self::IndexType> {
-        todo!()
-    }
-
-    fn last(&self) -> Option<&Self::IndexType> {
-        todo!()
-    }
-
-    fn iter_t(&self) -> Self::IterType<'_> {
-        todo!()
-    }
-}
+type TimeIndexLike<'a> = &'a TimeIndex<TimeIndexEntry>;
 
 pub trait EdgeLike {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
@@ -72,19 +41,19 @@ impl EdgeLike for EdgeStore {
     }
 
     fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(self.additions().into_iter().map(TimeIndexLike::TimeIndex))
+        Box::new(self.additions().into_iter())
     }
 
     fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(self.deletions().into_iter().map(TimeIndexLike::TimeIndex))
+        Box::new(self.deletions().into_iter())
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions().get(layer_id).map(TimeIndexLike::TimeIndex)
+        self.additions().get(layer_id)
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions().get(layer_id).map(TimeIndexLike::TimeIndex)
+        self.deletions().get(layer_id)
     }
 }
 

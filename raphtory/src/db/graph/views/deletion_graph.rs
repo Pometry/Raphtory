@@ -68,8 +68,8 @@ fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => return false,
             LayerIds::All => (
-                e.additions_iter().flat_map(|v| v.first()).min(),
-                e.deletions_iter().flat_map(|v| v.first()).min(),
+                e.additions_iter().flat_map(|v| v.first().copied()).min(),
+                e.deletions_iter().flat_map(|v| v.first().copied()).min(),
                 e.additions_iter()
                     .flat_map(|v| v.range(range.clone()).last().copied())
                     .max(),
@@ -78,8 +78,8 @@ fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
                     .max(),
             ),
             LayerIds::One(l_id) => (
-                e.additions(*l_id).and_then(|v| v.first()),
-                e.deletions(*l_id).and_then(|v| v.first()),
+                e.additions(*l_id).and_then(|v| v.first().copied()),
+                e.deletions(*l_id).and_then(|v| v.first().copied()),
                 e.additions(*l_id)
                     .and_then(|v| v.range(range.clone()).last().copied()),
                 e.deletions(*l_id)
@@ -87,10 +87,10 @@ fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
             ),
             LayerIds::Multiple(ids) => (
                 ids.iter()
-                    .flat_map(|l_id| e.additions(*l_id).and_then(|v| v.first()))
+                    .flat_map(|l_id| e.additions(*l_id).and_then(|v| v.first().copied()))
                     .min(),
                 ids.iter()
-                    .flat_map(|l_id| e.deletions(*l_id).and_then(|v| v.first()))
+                    .flat_map(|l_id| e.deletions(*l_id).and_then(|v| v.first().copied()))
                     .min(),
                 ids.iter()
                     .flat_map(|l_id| {
@@ -110,7 +110,7 @@ fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     // None is less than any value (see test below)
     (first_deletion < first_addition
         && first_deletion
-            .filter(|v| *v >= TimeIndexEntry::start(t))
+            .filter(|&v| v >= TimeIndexEntry::start(t))
             .is_some())
         || last_addition_before_start > last_deletion_before_start
 }
