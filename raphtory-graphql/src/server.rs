@@ -31,21 +31,25 @@ use tokio::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
+/// A struct for defining and running a Raphtory GraphQL server
 pub struct RaphtoryServer {
     data: Data,
 }
 
 impl RaphtoryServer {
+    /// Return a server object with graphs loaded from a map `graphs`
     pub fn from_map(graphs: HashMap<String, MaterializedGraph>) -> Self {
         let data = Data::from_map(graphs);
         Self { data }
     }
 
+    /// Return a server object with graphs loaded from a directory `graph_directory`
     pub fn from_directory(graph_directory: &str) -> Self {
         let data = Data::from_directory(graph_directory);
         Self { data }
     }
 
+    /// Return a server object with graphs loaded from a map `graphs` and a directory `graph_directory`
     pub fn from_map_and_directory(
         graphs: HashMap<String, MaterializedGraph>,
         graph_directory: &str,
@@ -54,6 +58,16 @@ impl RaphtoryServer {
         Self { data }
     }
 
+    /// Vectorise a subset of the graphs of the server.
+    ///
+    /// Arguments:
+    ///   * `graph_names` - the names of the graphs to vectorise.
+    ///   * `embedding` - the embedding function to translate documents to embeddings.
+    ///   * `cache` - the directory to use as cache for the embeddings.
+    ///   * `template` - the template to use for creating documents.
+    ///
+    /// Returns:
+    ///    A new server object containing the vectorised graphs.
     pub async fn with_vectorised<F, T>(
         self,
         graph_names: Vec<String>,
@@ -99,10 +113,12 @@ impl RaphtoryServer {
         self
     }
 
+    /// Start the server on the default port and return a handle to it.
     pub fn start(self) -> RunningRaphtoryServer {
         self.start_with_port(1736)
     }
 
+    /// Start the server on the port `port` and return a handle to it.
     pub fn start_with_port(self, port: u16) -> RunningRaphtoryServer {
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
@@ -138,25 +154,30 @@ impl RaphtoryServer {
         }
     }
 
+    /// Run the server on the default port until completion.
     pub async fn run(self) -> IoResult<()> {
         self.start().wait().await
     }
 
+    /// Run the server on the port `port` until completion.
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         self.start_with_port(port).wait().await
     }
 }
 
+/// A Raphtory server handler
 pub struct RunningRaphtoryServer {
     signal_sender: Sender<()>,
     server_result: JoinHandle<IoResult<()>>,
 }
 
 impl RunningRaphtoryServer {
+    /// Stop the server.
     pub async fn stop(&self) {
         let _ignored = self.signal_sender.send(()).await;
     }
 
+    /// Wait until server completion.
     pub async fn wait(self) -> IoResult<()> {
         self.server_result
             .await

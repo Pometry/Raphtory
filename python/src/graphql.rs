@@ -18,6 +18,7 @@ use serde_json::{json, Map, Number, Value};
 use std::{collections::HashMap, path::PathBuf, thread, thread::JoinHandle};
 use tokio::{self, io::Result as IoResult};
 
+/// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "RaphtoryServer")]
 pub(crate) struct PyRaphtoryServer(Option<RaphtoryServer>);
 
@@ -50,7 +51,7 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `graph_names`: the names of the graphs to vectorise.
-    ///   * `embedding`: the embedding function that takes a list of texts and return a list of list of numbers.
+    ///   * `embedding`: the embedding function to translate documents to embeddings.
     ///   * `cache`: the directory to use as cache for the embeddings.
     ///   * `node_document`: the property to use as document for nodes.
     ///   * `edge_document`: the property to use as document for edges.
@@ -87,21 +88,12 @@ impl PyRaphtoryServer {
     //     self.0.register_algorithm(???)
     // }
 
-    /// Start the server on the default port.
-    ///
-    /// Returns:
-    ///    A `RunningRaphtoryServer` object to allow handling the server.
+    /// Start the server on the default port and return a handle to it.
     pub fn start(slf: PyRefMut<Self>) -> PyResult<PyRunningRaphtoryServer> {
         PyRaphtoryServer::start_with_port(slf, 1736)
     }
 
-    /// Start the server on the port `port`.
-    ///
-    /// Arguments:
-    ///   * `port`: the port to use.
-    ///
-    /// Returns:
-    ///    A `RunningRaphtoryServer` object to allow handling the server.
+    /// Start the server on the port `port` and return a handle to it.
     pub fn start_with_port(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<()>(1);
         let server = take_sever_ownership(slf)?;
@@ -133,9 +125,6 @@ impl PyRaphtoryServer {
     }
 
     /// Run the server on the port `port` until completion.
-    ///
-    /// Arguments:
-    ///   * `port`: the port to use.
     pub fn run_with_port(slf: PyRefMut<Self>, port: u16) -> PyResult<()> {
         wait_server(&mut Self::start_with_port(slf, port)?.0)
     }
@@ -164,6 +153,7 @@ fn wait_server(running_server: &mut Option<ServerHandler>) -> PyResult<()> {
 const RUNNING_SERVER_CONSUMED_MSG: &str =
     "Running server object has already been used, please create another one from scratch";
 
+/// A Raphtory server handler that also enables querying the server
 #[pyclass(name = "RunningRaphtoryServer")]
 pub(crate) struct PyRunningRaphtoryServer(Option<ServerHandler>);
 
@@ -283,6 +273,7 @@ impl PyRunningRaphtoryServer {
     }
 }
 
+/// A client for handling GraphQL operations in the context of Raphtory.
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient")]
 pub(crate) struct PyRaphtoryClient {
