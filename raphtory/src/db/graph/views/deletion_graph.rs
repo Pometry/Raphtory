@@ -254,8 +254,8 @@ impl TimeSemantics for GraphWithDeletions {
         &self,
         v: VID,
         w: Range<i64>,
-        layer_ids: &LayerIds,
-        edge_filter: Option<&EdgeFilter>,
+        _layer_ids: &LayerIds,
+        _edge_filter: Option<&EdgeFilter>,
     ) -> bool {
         // FIXME: Think about vertex deletions
         let v = self.graph.inner().storage.get_node(v);
@@ -266,7 +266,7 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.vertex_earliest_time(v)
     }
 
-    fn vertex_latest_time(&self, v: VID) -> Option<i64> {
+    fn vertex_latest_time(&self, _v: VID) -> Option<i64> {
         Some(i64::MAX)
     }
 
@@ -845,7 +845,7 @@ mod test_deletions {
     #[test]
     fn test_vertex_property_semantics() {
         let g = GraphWithDeletions::new();
-        let v = g.add_vertex(1, 1, [("test_prop", "test value")]).unwrap();
+        let _v = g.add_vertex(1, 1, [("test_prop", "test value")]).unwrap();
         let v = g
             .add_vertex(11, 1, [("test_prop", "test value 2")])
             .unwrap();

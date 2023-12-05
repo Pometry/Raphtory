@@ -15,13 +15,6 @@ pub(crate) enum EntityId {
 }
 
 impl EntityId {
-    pub(crate) fn from_node_id(id: u64) -> Self {
-        Self::Node { id }
-    }
-
-    pub(crate) fn from_edge_id(src: u64, dst: u64) -> Self {
-        Self::Edge { src, dst }
-    }
 
     pub(crate) fn from_node<G: StaticGraphViewOps>(node: &VertexView<G>) -> Self {
         Self::Node { id: node.id() }
