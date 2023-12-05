@@ -387,18 +387,3 @@ where
         })
     })
 }
-
-// pub fn spawn_async_task<T, F, O>(task: T) -> JoinHandle<O>
-// where
-//     T: FnOnce() -> F + Send + 'static,
-//     F: Future<Output = O> + 'static,
-//     O: Send + 'static,
-// {
-//     thread::spawn(move || {
-//         tokio::runtime::Builder::new_multi_thread()
-//             .enable_all()
-//             .build()
-//             .unwrap()
-//             .block_on(task())
-//     })
-// }

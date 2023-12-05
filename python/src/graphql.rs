@@ -46,6 +46,17 @@ impl PyRaphtoryServer {
         Ok(PyRaphtoryServer::new(server))
     }
 
+    /// Vectorise a subset of the graphs of the server.
+    ///
+    /// Arguments:
+    ///   * `graph_names`: the names of the graphs to vectorise.
+    ///   * `embedding`: the embedding function that takes a list of texts and return a list of list of numbers.
+    ///   * `cache`: the directory to use as cache for the embeddings.
+    ///   * `node_document`: the property to use as document for nodes.
+    ///   * `edge_document`: the property to use as document for edges.
+    ///
+    /// Returns:
+    ///    A new server object containing the vectorised graphs.
     fn with_vectorised(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,
@@ -76,10 +87,21 @@ impl PyRaphtoryServer {
     //     self.0.register_algorithm(???)
     // }
 
+    /// Start the server on the default port.
+    ///
+    /// Returns:
+    ///    A `RunningRaphtoryServer` object to allow handling the server.
     pub fn start(slf: PyRefMut<Self>) -> PyResult<PyRunningRaphtoryServer> {
         PyRaphtoryServer::start_with_port(slf, 1736)
     }
 
+    /// Start the server on the port `port`.
+    ///
+    /// Arguments:
+    ///   * `port`: the port to use.
+    ///
+    /// Returns:
+    ///    A `RunningRaphtoryServer` object to allow handling the server.
     pub fn start_with_port(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<()>(1);
         let server = take_sever_ownership(slf)?;
@@ -105,10 +127,15 @@ impl PyRaphtoryServer {
         Ok(PyRunningRaphtoryServer::new(join_handle, sender, port))
     }
 
+    /// Run the server on the default port until completion.
     pub fn run(slf: PyRefMut<Self>) -> PyResult<()> {
         wait_server(&mut Self::start(slf)?.0)
     }
 
+    /// Run the server on the port `port` until completion.
+    ///
+    /// Arguments:
+    ///   * `port`: the port to use.
     pub fn run_with_port(slf: PyRefMut<Self>, port: u16) -> PyResult<()> {
         wait_server(&mut Self::start_with_port(slf, port)?.0)
     }
@@ -132,11 +159,6 @@ fn wait_server(running_server: &mut Option<ServerHandler>) -> PyResult<()> {
         .join()
         .expect("error when waiting for the server thread to complete")
         .map_err(|e| adapt_err_value(&e))
-
-    // execute_async_task(move || async move {
-    //     let result = owned_running_server.handler.wait().await;
-    //     result.map_err(|e| adapt_err_value(&e))
-    // })
 }
 
 const RUNNING_SERVER_CONSUMED_MSG: &str =
@@ -174,6 +196,7 @@ impl PyRunningRaphtoryServer {
 
 #[pymethods]
 impl PyRunningRaphtoryServer {
+    /// Stop the server.
     pub(crate) fn stop(&self) -> PyResult<()> {
         self.apply_if_alive(|handler| {
             handler
@@ -184,10 +207,19 @@ impl PyRunningRaphtoryServer {
         })
     }
 
+    /// Wait until server completion.
     pub(crate) fn wait(mut slf: PyRefMut<Self>) -> PyResult<()> {
         wait_server(&mut slf.0)
     }
 
+    /// Make a graphQL query against the server.
+    ///
+    /// Arguments:
+    ///   * `query`: the query to make.
+    ///   * `variables`: a dict of variables present on the query and their values.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response.
     fn query(
         &self,
         py: Python,
@@ -197,6 +229,14 @@ impl PyRunningRaphtoryServer {
         self.apply_if_alive(|handler| handler.client.query(py, query, variables))
     }
 
+    /// Send a graph to the server.
+    ///
+    /// Arguments:
+    ///   * `name`: the name of the graph sent.
+    ///   * `graph`: the graph to send.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
     fn send_graph(
         &self,
         py: Python,
@@ -206,6 +246,16 @@ impl PyRunningRaphtoryServer {
         self.apply_if_alive(|handler| handler.client.send_graph(py, name, graph))
     }
 
+    /// Set the server to load all the graphs from its path `path`.
+    ///
+    /// Note:
+    ///    Existing graphs with the same name are overwritten.
+    ///
+    /// Arguments:
+    ///   * `path`: the path to load the graphs from.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
     fn load_graphs_from_path(
         &self,
         py: Python,
@@ -214,6 +264,16 @@ impl PyRunningRaphtoryServer {
         self.apply_if_alive(|handler| handler.client.load_graphs_from_path(py, path))
     }
 
+    /// Set the server to load the new graphs from a directory of bincode files.
+    ///
+    /// Note:
+    ///    Existing graphs will not be overwritten.
+    ///
+    /// Arguments:
+    ///   * `path`: the path to load the graphs from.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
     fn load_new_graphs_from_path(
         &self,
         py: Python,
@@ -240,14 +300,6 @@ impl PyRaphtoryClient {
         let mut graphql_result = execute_async_task(move || async move {
             client.send_graphql_query(cloned_query, variables).await
         })?;
-
-        // if let Some(Value::Object(data)) = graphql_result.remove("data") {
-        //     if let Some(Value::Array(loads)) = data.get(load_function) {
-        //         let num_graphs = loads.len();
-        //         println!("Loaded {num_graphs} graph(s)");
-        //         return translate_map_to_python(py, data.into_iter().collect());
-        //     }
-        // }
 
         match graphql_result.remove("data") {
             Some(Value::Object(data)) => Ok(data.into_iter().collect()),
@@ -316,6 +368,14 @@ impl PyRaphtoryClient {
         Self { url }
     }
 
+    /// Make a graphQL query against the server.
+    ///
+    /// Arguments:
+    ///   * `query`: the query to make.
+    ///   * `variables`: a dict of variables present on the query and their values.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response.
     fn query(
         &self,
         py: Python,
@@ -333,6 +393,14 @@ impl PyRaphtoryClient {
         translate_map_to_python(py, data)
     }
 
+    /// Send a graph to the server.
+    ///
+    /// Arguments:
+    ///   * `name`: the name of the graph sent.
+    ///   * `graph`: the graph to send.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
     fn send_graph(
         &self,
         py: Python,
@@ -366,6 +434,16 @@ impl PyRaphtoryClient {
         }
     }
 
+    /// Set the server to load all the graphs from its path `path`.
+    ///
+    /// Note:
+    ///    Existing graphs with the same name are overwritten.
+    ///
+    /// Arguments:
+    ///   * `path`: the path to load the graphs from.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
     fn load_graphs_from_path(
         &self,
         py: Python,
@@ -374,6 +452,16 @@ impl PyRaphtoryClient {
         self.generic_load_graphs(py, "loadGraphsFromPath", path)
     }
 
+    /// Set the server to load the new graphs from a directory of bincode files.
+    ///
+    /// Note:
+    ///    Existing graphs will not be overwritten.
+    ///
+    /// Arguments:
+    ///   * `path`: the path to load the graphs from.
+    ///
+    /// Returns:
+    ///    The `data` field from the graphQL response after executing the mutation.
     fn load_new_graphs_from_path(
         &self,
         py: Python,

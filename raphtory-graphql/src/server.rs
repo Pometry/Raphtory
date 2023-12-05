@@ -19,12 +19,7 @@ use raphtory::{
         EmbeddingFunction,
     },
 };
-use std::{
-    collections::HashMap,
-    ops::Deref,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, ops::Deref, path::Path, sync::Arc};
 use tokio::{
     io::Result as IoResult,
     signal,
@@ -139,7 +134,7 @@ impl RaphtoryServer {
 
         RunningRaphtoryServer {
             signal_sender,
-            server_result, //: Mutex::new(Box::pin(result)),
+            server_result,
         }
     }
 
@@ -154,8 +149,6 @@ impl RaphtoryServer {
 
 pub struct RunningRaphtoryServer {
     signal_sender: Sender<()>,
-    // server_result: BoxFuture<'static, IoResult<()>>,
-    // server_result: Mutex<Pin<Box<dyn Future<Output = IoResult<()>> + Send>>>,
     server_result: JoinHandle<IoResult<()>>,
 }
 
