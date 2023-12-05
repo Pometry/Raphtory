@@ -1,13 +1,14 @@
 use crate::model::{
     filters::edge_filter::EdgeFilter,
-    graph::{edge::Edge, get_expanded_edges, property_update::PropertyUpdate},
+    graph::{edge::Edge, get_expanded_edges, property::GqlProperties},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::{api::view::*, graph::vertex::VertexView};
+use raphtory::db::{
+    api::{properties::dyn_props::DynProperties, view::*},
+    graph::vertex::VertexView,
+};
 use std::collections::HashSet;
-
-use super::property_update::PropertyUpdateGroup;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -38,6 +39,30 @@ impl Node {
         self.vv.name()
     }
 
+    ////////////////////////
+    // LAYERS AND WINDOWS //
+    ////////////////////////
+
+    async fn layers(&self, names: Vec<String>) -> Option<Node> {
+        self.vv.layer(names).map(move |v| v.into())
+    }
+    async fn layer(&self, name: String) -> Option<Node> {
+        self.vv.layer(name).map(|v| v.into())
+    }
+    async fn window(&self, start: i64, end: i64) -> Node {
+        self.vv.window(start, end).into()
+    }
+    async fn at(&self, time: i64) -> Node {
+        self.vv.at(time).into()
+    }
+
+    async fn before(&self, time: i64) -> Node {
+        self.vv.before(time).into()
+    }
+
+    async fn after(&self, time: i64) -> Node {
+        self.vv.after(time).into()
+    }
 
     ////////////////////////
     //// TIME QUERIES //////
@@ -59,7 +84,9 @@ impl Node {
         self.vv.end()
     }
 
-    async fn history(&self) -> Vec<i64> { self.vv.history()}
+    async fn history(&self) -> Vec<i64> {
+        self.vv.history()
+    }
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
@@ -71,7 +98,9 @@ impl Node {
             .unwrap_or("NONE".to_string())
     }
 
-
+    async fn properties(&self) -> GqlProperties {
+        Into::<DynProperties>::into(self.vv.properties()).into()
+    }
     ////////////////////////
     //// EDGE GETTERS //////
     ////////////////////////
@@ -89,7 +118,6 @@ impl Node {
     async fn in_degree(&self) -> usize {
         self.vv.in_degree()
     }
-
 
     async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
         match filter {
@@ -135,7 +163,11 @@ impl Node {
     }
 
     async fn out_neighbours(&self) -> Vec<Node> {
-        self.vv.out_neighbours().iter().map(|vv| vv.into()).collect()
+        self.vv
+            .out_neighbours()
+            .iter()
+            .map(|vv| vv.into())
+            .collect()
     }
 
     ////////////////////////
@@ -168,6 +200,4 @@ impl Node {
                 .collect_vec(),
         }
     }
-
-
 }

@@ -1,13 +1,12 @@
 use crate::{
     core::{ArcStr, Prop},
-    db::api::{
-        properties::{internal::PropertiesOps, ConstProperties},
-        view::internal::Static,
+    db::api::properties::{
+        dyn_props::DynConstProperties, internal::PropertiesOps, ConstProperties,
     },
     python::{
         graph::properties::{
-            props::PyPropsComp, DynProps, PyConstPropsListListCmp, PyPropValueList,
-            PyPropValueListList, PyPropsListCmp,
+            props::PyPropsComp, PyConstPropsListListCmp, PyPropValueList, PyPropValueListList,
+            PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
         utils::PyGenericIterator,
@@ -19,18 +18,6 @@ use pyo3::{
     prelude::*,
 };
 use std::{collections::HashMap, sync::Arc};
-
-pub type DynConstProperties = ConstProperties<DynProps>;
-
-impl<P: PropertiesOps + Send + Sync + Static + 'static> From<ConstProperties<P>>
-    for DynConstProperties
-{
-    fn from(value: ConstProperties<P>) -> Self {
-        ConstProperties {
-            props: Arc::new(value.props),
-        }
-    }
-}
 
 impl<P: PropertiesOps + Send + Sync + 'static> IntoPy<PyObject> for ConstProperties<P> {
     fn into_py(self, py: Python<'_>) -> PyObject {

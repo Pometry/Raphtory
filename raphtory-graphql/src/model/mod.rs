@@ -12,7 +12,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
-    db::api::view::{IntoDynamic, MaterializedGraph},
+    db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
     search::IndexedGraph,
 };
@@ -21,7 +21,6 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
     io::BufReader,
-    ops::Deref,
 };
 use utils::path_prefix;
 use uuid::Uuid;

@@ -1,7 +1,7 @@
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
-    graph::{edge::Edge, get_expanded_edges, node::Node},
+    graph::{edge::Edge, get_expanded_edges, node::Node, property::GqlProperties},
     schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -9,7 +9,10 @@ use itertools::Itertools;
 use raphtory::{
     core::entities::vertices::vertex_ref::VertexRef,
     db::{
-        api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps, TimeOps, VertexViewOps},
+        api::{
+            properties::dyn_props::DynProperties,
+            view::{DynamicGraph, TimeOps, VertexViewOps},
+        },
         graph::edge::EdgeView,
     },
     prelude::*,
@@ -20,7 +23,6 @@ use std::{
     convert::Into,
     ops::Deref,
 };
-use crate::model::graph::property_update::{PropertyUpdate, PropertyUpdateGroup};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
@@ -58,10 +60,10 @@ impl GqlGraph {
             .map(move |g| GqlGraph::new(name, g.into_dynamic_indexed()))
     }
     async fn layer(&self, name: String) -> Option<GqlGraph> {
-        let name = self.name().await;
+        let v_name = self.name().await;
         self.graph
-            .layer(name.clone())
-            .map(|g| GqlGraph::new(name, g.into_dynamic_indexed()))
+            .layer(name)
+            .map(|g| GqlGraph::new(v_name, g.into_dynamic_indexed()))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
@@ -406,7 +408,9 @@ impl GqlGraph {
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
-
+    async fn properties(&self) -> GqlProperties {
+        Into::<DynProperties>::into(self.graph.properties()).into()
+    }
     ////////////////////////
     // GRAPHQL SPECIFIC ////
     ////////////////////////

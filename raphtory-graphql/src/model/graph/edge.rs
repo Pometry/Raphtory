@@ -1,9 +1,12 @@
-use crate::model::graph::node::Node;
+use crate::model::graph::{node::Node, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
+        api::{
+            properties::dyn_props::DynProperties,
+            view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
+        },
         graph::edge::EdgeView,
     },
     prelude::{LayerOps, TimeOps},
@@ -30,6 +33,30 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 
 #[ResolvedObjectFields]
 impl Edge {
+    ////////////////////////
+    // LAYERS AND WINDOWS //
+    ////////////////////////
+
+    async fn layers(&self, names: Vec<String>) -> Option<Edge> {
+        self.ee.layer(names).map(move |v| v.into())
+    }
+    async fn layer(&self, name: String) -> Option<Edge> {
+        self.ee.layer(name).map(|v| v.into())
+    }
+    async fn window(&self, start: i64, end: i64) -> Edge {
+        self.ee.window(start, end).into()
+    }
+    async fn at(&self, time: i64) -> Edge {
+        self.ee.at(time).into()
+    }
+
+    async fn before(&self, time: i64) -> Edge {
+        self.ee.before(time).into()
+    }
+    async fn after(&self, time: i64) -> Edge {
+        self.ee.after(time).into()
+    }
+
     async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
     }
@@ -58,19 +85,15 @@ impl Edge {
         self.ee.dst().into()
     }
 
-    async fn property(&self, name: &str) -> Option<String> {
-        self.ee.properties().get(name).map(|prop| prop.to_string())
-    }
-
-    async fn layer(&self, layer_name: &str) -> Option<Edge> {
-        self.ee.layer(layer_name).map(|ee| ee.into())
+    async fn properties(&self) -> GqlProperties {
+        Into::<DynProperties>::into(self.ee.properties()).into()
     }
 
     async fn layer_names(&self) -> Vec<String> {
-        self.ee.layer_names().map(|x|x.into()).collect()
+        self.ee.layer_names().map(|x| x.into()).collect()
     }
     async fn layer_name(&self) -> Option<String> {
-        self.ee.layer_name().map(|x|x.into())
+        self.ee.layer_name().map(|x| x.into())
     }
 
     async fn explode(&self) -> Vec<Edge> {
