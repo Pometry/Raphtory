@@ -613,25 +613,27 @@ pub fn label_propagation(
 ///     initial_infected_ratio (float) : The initial ratio of infected nodes.
 ///     infection_probability (float) : The probability of infection spreading from an infected node to a susceptible one.
 ///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
-///
+///     steps (int): Number of times to iterate through the graph, default 1
 /// Returns:
 /// A `Result` which is either:
 ///     A set of vertices that are infected at the end of the simulation.
 ///     An error message in case of failure.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, initial_infected_ratio, infection_probability, seed=None)]]
+#[pyo3[signature = (g, initial_infected_ratio, infection_probability, seed=None, iterations=1)]]
 pub fn si(
     g: &PyGraphView,
     initial_infected_ratio: f64,
     infection_probability: f64,
     seed: Option<[u8; 32]>,
+    steps: Option<i32>,
 ) -> PyResult<HashSet<VertexView<DynamicGraph>>> {
     match si_rs(
         &g.graph,
         initial_infected_ratio,
         infection_probability,
         seed,
+        steps
     ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),

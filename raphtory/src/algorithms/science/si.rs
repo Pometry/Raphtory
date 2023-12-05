@@ -12,6 +12,7 @@ use std::collections::HashSet;
 /// * `initial_infected_ratio` - The initial ratio of infected nodes.
 /// * `infection_probability` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
+/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -23,12 +24,13 @@ pub fn si<G>(
     initial_infected_ratio: f64,
     infection_probability: f64,
     seed: Option<[u8; 32]>,
+    steps: Option<i32>,
 ) -> Result<HashSet<VertexView<G>>, &'static str>
 where
     G: StaticGraphViewOps,
 {
     let mut rng: StdRng = SeedableRng::from_seed(seed.unwrap_or_default());
-    let infected_count = graph.count_vertices() as f64 * infection_probability;
+    let infected_count = graph.count_vertices() as f64 * initial_infected_ratio;
     let mut population: Vec<VertexView<G>> = graph.vertices().iter().collect();
     // Infect initial number of infected nodes
     population.shuffle(&mut rng);
@@ -39,12 +41,14 @@ where
         .collect();
 
     // simulate future infections
-    for v in population.into_iter() {
-        if infected.contains(&v) {
-            let neighbours = v.neighbours();
-            for neighbour in neighbours.iter() {
-                if !infected.contains(&neighbour) & (rng.gen::<f64>() < infection_probability) {
-                    let _ = infected.insert(neighbour);
+    for i in 0..steps.unwrap_or(1i32) {
+        for v in graph.vertices().iter() {
+            if infected.contains(&v) {
+                let neighbours = v.neighbours();
+                for neighbour in neighbours.iter() {
+                    if !infected.contains(&neighbour) & (rng.gen::<f64>() < infection_probability) {
+                        let _ = infected.insert(neighbour);
+                    }
                 }
             }
         }
@@ -79,7 +83,7 @@ mod si_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let seed = Some([5; 32]);
-        let result = si(&graph, 0.1f64, 0.2f64, seed).unwrap();
+        let result = si(&graph, 0.2f64, 0.2f64, seed, None).unwrap();
         let expected = HashSet::from([graph.vertex("G").unwrap(), graph.vertex("B1").unwrap()]);
         assert_eq!(expected, result);
     }
