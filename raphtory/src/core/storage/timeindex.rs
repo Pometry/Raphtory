@@ -297,7 +297,10 @@ pub trait TimeIndexOps {
 
     fn active(&self, w: Range<i64>) -> bool;
 
-    fn range<'a>(&'a self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
+    fn range<'a>(
+        &'a self,
+        w: Range<i64>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
 
     fn first_t(&self) -> Option<i64> {
         self.first().map(|ti| *ti.t())
@@ -328,7 +331,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>{
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match &self {
             TimeIndex::Empty => Box::new(TimeIndexWindow::Empty),
             TimeIndex::One(t) => {
@@ -404,7 +407,7 @@ where
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>{
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             TimeIndexWindow::Empty => Box::new(TimeIndexWindow::Empty),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -468,13 +471,16 @@ where
         self.timeindex.iter().any(|t| t.active(w.clone()))
     }
 
-    fn range<'a>(&'a self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + 'a> {
+    fn range<'a>(
+        &'a self,
+        w: Range<i64>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + 'a> {
         let timeindex = self
             .timeindex
             .iter()
             .map(|t| t.range(w.clone()))
             .collect_vec();
-        Box::new(LayeredTimeIndexWindow{ timeindex })
+        Box::new(LayeredTimeIndexWindow { timeindex })
     }
 
     fn first(&self) -> Option<T> {

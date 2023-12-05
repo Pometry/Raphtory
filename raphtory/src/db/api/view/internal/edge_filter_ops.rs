@@ -13,7 +13,7 @@ pub enum TimeIndexLike<'a> {
     External(&'a dyn TimeIndexOps<IndexType = TimeIndexEntry>),
 }
 
-impl <'a> TimeIndexOps for TimeIndexLike<'a> {
+impl<'a> TimeIndexOps for TimeIndexLike<'a> {
     type IndexType = TimeIndexEntry;
 
     fn active(&self, w: Range<i64>) -> bool {
