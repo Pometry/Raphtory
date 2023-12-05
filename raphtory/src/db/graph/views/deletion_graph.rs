@@ -68,40 +68,40 @@ fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => return false,
             LayerIds::All => (
-                e.additions_iter().flat_map(|v| v.first().copied()).min(),
-                e.deletions_iter().flat_map(|v| v.first().copied()).min(),
+                e.additions_iter().flat_map(|v| v.first()).min(),
+                e.deletions_iter().flat_map(|v| v.first()).min(),
                 e.additions_iter()
-                    .flat_map(|v| v.range(range.clone()).last().copied())
+                    .flat_map(|v| v.range(range.clone()).last())
                     .max(),
                 e.deletions_iter()
-                    .flat_map(|v| v.range(range.clone()).last().copied())
+                    .flat_map(|v| v.range(range.clone()).last())
                     .max(),
             ),
             LayerIds::One(l_id) => (
-                e.additions(*l_id).and_then(|v| v.first().copied()),
-                e.deletions(*l_id).and_then(|v| v.first().copied()),
+                e.additions(*l_id).and_then(|v| v.first()),
+                e.deletions(*l_id).and_then(|v| v.first()),
                 e.additions(*l_id)
-                    .and_then(|v| v.range(range.clone()).last().copied()),
+                    .and_then(|v| v.range(range.clone()).last()),
                 e.deletions(*l_id)
-                    .and_then(|v| v.range(range.clone()).last().copied()),
+                    .and_then(|v| v.range(range.clone()).last()),
             ),
             LayerIds::Multiple(ids) => (
                 ids.iter()
-                    .flat_map(|l_id| e.additions(*l_id).and_then(|v| v.first().copied()))
+                    .flat_map(|l_id| e.additions(*l_id).and_then(|v| v.first()))
                     .min(),
                 ids.iter()
-                    .flat_map(|l_id| e.deletions(*l_id).and_then(|v| v.first().copied()))
+                    .flat_map(|l_id| e.deletions(*l_id).and_then(|v| v.first()))
                     .min(),
                 ids.iter()
                     .flat_map(|l_id| {
                         e.additions(*l_id)
-                            .and_then(|v| v.range(range.clone()).last().copied())
+                            .and_then(|v| v.range(range.clone()).last())
                     })
                     .max(),
                 ids.iter()
                     .flat_map(|l_id| {
                         e.deletions(*l_id)
-                            .and_then(|v| v.range(range.clone()).last().copied())
+                            .and_then(|v| v.range(range.clone()).last())
                     })
                     .max(),
             ),

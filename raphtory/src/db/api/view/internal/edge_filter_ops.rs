@@ -8,7 +8,49 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
-type TimeIndexLike<'a> = &'a TimeIndex<TimeIndexEntry>;
+pub enum TimeIndexLike<'a> {
+    TimeIndex(&'a TimeIndex<TimeIndexEntry>),
+    External(&'a dyn TimeIndexOps<IndexType = TimeIndexEntry>),
+}
+
+impl <'a> TimeIndexOps for TimeIndexLike<'a> {
+    type IndexType = TimeIndexEntry;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.active(w),
+            TimeIndexLike::External(ref t) => t.active(w),
+        }
+    }
+
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.range(w),
+            TimeIndexLike::External(ref t) => t.range(w),
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.first(),
+            TimeIndexLike::External(ref t) => t.first(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.last(),
+            TimeIndexLike::External(ref t) => t.last(),
+        }
+    }
+
+    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.iter_t(),
+            TimeIndexLike::External(ref t) => t.iter_t(),
+        }
+    }
+}
 
 pub trait EdgeLike {
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
@@ -41,19 +83,31 @@ impl EdgeLike for EdgeStore {
     }
 
     fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(self.additions().into_iter())
+        Box::new(
+            self.additions()
+                .into_iter()
+                .map(|x| TimeIndexLike::TimeIndex(x)),
+        )
     }
 
     fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(self.deletions().into_iter())
+        Box::new(
+            self.deletions()
+                .into_iter()
+                .map(|x| TimeIndexLike::TimeIndex(x)),
+        )
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions().get(layer_id)
+        self.additions()
+            .get(layer_id)
+            .map(|x| TimeIndexLike::TimeIndex(x))
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions().get(layer_id)
+        self.deletions()
+            .get(layer_id)
+            .map(|x| TimeIndexLike::TimeIndex(x))
     }
 }
 
