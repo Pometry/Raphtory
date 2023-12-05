@@ -10,21 +10,18 @@ use crate::{
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
-use core::pin::Pin;
-use futures_util::future::BoxFuture;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
     db::api::view::MaterializedGraph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        Embedding, EmbeddingFunction,
+        EmbeddingFunction,
     },
 };
 use std::{
     collections::HashMap,
-    future::Future,
-    ops::{Deref, DerefMut},
+    ops::Deref,
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -33,9 +30,9 @@ use tokio::{
     signal,
     sync::{
         mpsc,
-        mpsc::{error::SendError, Receiver, Sender},
-        RwLock,
+        mpsc::{Receiver, Sender},
     },
+    task::JoinHandle,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
@@ -136,12 +133,13 @@ impl RaphtoryServer {
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
         println!("Playground: http://localhost:{port}");
-        let result = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
+        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
+        let server_result = tokio::spawn(server_task);
 
         RunningRaphtoryServer {
             signal_sender,
-            server_result: Mutex::new(Box::pin(result)),
+            server_result, //: Mutex::new(Box::pin(result)),
         }
     }
 
@@ -157,7 +155,8 @@ impl RaphtoryServer {
 pub struct RunningRaphtoryServer {
     signal_sender: Sender<()>,
     // server_result: BoxFuture<'static, IoResult<()>>,
-    server_result: Mutex<Pin<Box<dyn Future<Output = IoResult<()>> + Send>>>,
+    // server_result: Mutex<Pin<Box<dyn Future<Output = IoResult<()>> + Send>>>,
+    server_result: JoinHandle<IoResult<()>>,
 }
 
 impl RunningRaphtoryServer {
@@ -166,7 +165,9 @@ impl RunningRaphtoryServer {
     }
 
     pub async fn wait(self) -> IoResult<()> {
-        self.server_result.into_inner().unwrap().await
+        self.server_result
+            .await
+            .expect("Coudln't join tokio task for the server")
     }
 
     // TODO: make this optional with some python feature flag
@@ -208,16 +209,22 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
 
 #[cfg(test)]
 mod server_tests {
+    extern crate chrono;
     use crate::server::RaphtoryServer;
+    use chrono::prelude::*;
     use raphtory::prelude::{Graph, GraphViewOps};
     use std::collections::HashMap;
+    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_server_stop() {
         let g = Graph::new().materialize().unwrap();
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
-        let handler = server.start_with_port(27655);
+        println!("calling start at time {}", Local::now());
+        let handler = server.start_with_port(1737);
+        sleep(Duration::from_secs(5)).await;
+        println!("Calling stop at time {}", Local::now());
         handler.stop().await;
         handler.wait().await.unwrap()
     }

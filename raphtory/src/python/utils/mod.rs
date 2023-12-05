@@ -12,7 +12,7 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-use std::{future::Future, thread};
+use std::{future::Future, thread, thread::JoinHandle};
 
 pub mod errors;
 
@@ -366,7 +366,7 @@ impl PyNestedGenericIterator {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub fn spawn_async_task<T, F, O>(task: T) -> O
+pub fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
@@ -374,6 +374,7 @@ where
 {
     Python::with_gil(|py| {
         py.allow_threads(move || {
+            // we call `allow_threads` because the task might need to grab the GIL
             thread::spawn(move || {
                 tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
@@ -387,22 +388,17 @@ where
     })
 }
 
-pub fn spawn_async_execution<T, F>(task: T)
-where
-    T: FnOnce() -> F + Send + 'static,
-    F: Future<Output = ()> + 'static,
-{
-    Python::with_gil(|py| {
-        py.allow_threads(move || {
-            thread::spawn(move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-                    .block_on(task())
-            })
-            .join()
-            .expect("error when waiting for async task to complete")
-        })
-    })
-}
+// pub fn spawn_async_task<T, F, O>(task: T) -> JoinHandle<O>
+// where
+//     T: FnOnce() -> F + Send + 'static,
+//     F: Future<Output = O> + 'static,
+//     O: Send + 'static,
+// {
+//     thread::spawn(move || {
+//         tokio::runtime::Builder::new_multi_thread()
+//             .enable_all()
+//             .build()
+//             .unwrap()
+//             .block_on(task())
+//     })
+// }

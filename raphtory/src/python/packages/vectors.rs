@@ -10,7 +10,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::{
         graph::{edge::PyEdge, vertex::PyVertex},
-        utils::{spawn_async_task, PyTime},
+        utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
@@ -306,7 +306,7 @@ impl PyVectorisedGraph {
 
 fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
     let embedding = vectors.embedding.clone();
-    spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
+    execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }
 
 impl EmbeddingFunction for Py<PyFunction> {
