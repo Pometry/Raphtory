@@ -4,7 +4,7 @@ use itertools::kmerge_by;
 use raphtory::{
     arrow::{
         col_graph2::TempColGraphFragment, edge::Edge, global_order::GlobalOrder,
-        graph::TemporalGraph, loader::ExternalEdgeList, Time,
+        graph::TemporalGraph, loader::ExternalEdgeList, prelude::ArrayOps, Time,
     },
     core::{
         entities::{EID, VID},
@@ -223,6 +223,9 @@ fn local_login_count(
     prop_id: usize,
     prog1_map: &[(Time, usize)],
 ) -> Option<usize> {
+    if login_edge.timestamps().iter().next()? >= prog1_map.first()?.0 {
+        return None;
+    }
     login_edge
         .par_prop_items_unchecked::<i64>(prop_id)
         .map(|iter| {
