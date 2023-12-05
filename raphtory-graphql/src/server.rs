@@ -237,7 +237,7 @@ mod server_tests {
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
         let handler = server.start_with_port(1737);
-        sleep(Duration::from_secs(5)).await;
+        sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.stop().await;
         handler.wait().await.unwrap()
