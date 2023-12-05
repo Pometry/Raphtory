@@ -286,13 +286,6 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> TimeIndexOps
 }
 
 pub trait TimeIndexOps {
-    // type IterType<'a>: Iterator<Item = &'a i64> + Send + 'a
-    // where
-    //     Self: 'a;
-
-    // type WindowType<'a>: TimeIndexOps<IndexType = Self::IndexType> + 'a
-    // where
-    //     Self: 'a;
     type IndexType: AsTime;
 
     fn active(&self, w: Range<i64>) -> bool;
@@ -318,8 +311,6 @@ pub trait TimeIndexOps {
 }
 
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
-    // type IterType<'a> = Box<dyn Iterator<Item = &'a i64> + Send + 'a> where T: 'a;
-    // type WindowType<'a> = TimeIndexWindow<'a, T> where Self: 'a;
     type IndexType = T;
 
     #[inline(always)]
@@ -391,8 +382,6 @@ impl<'b, T: AsTime> TimeIndexOps for TimeIndexWindow<'b, T>
 where
     Self: 'b,
 {
-    // type IterType<'a> = WindowIter<'a> where Self: 'a;
-    // type WindowType<'a> = TimeIndexWindow<'a, T> where Self: 'a;
     type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
@@ -463,8 +452,6 @@ impl<'b, T: AsTime> TimeIndexOps for LayeredTimeIndexWindow<'b, T>
 where
     Self: 'b,
 {
-    // type IterType<'a> = KMerge<WindowIter<'a>> where Self: 'a;
-    // type WindowType<'a> = LayeredTimeIndexWindow<'a, T> where Self: 'a;
     type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {

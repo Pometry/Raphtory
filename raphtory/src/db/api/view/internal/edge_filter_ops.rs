@@ -11,6 +11,7 @@ use std::{ops::Range, sync::Arc};
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),
     External(&'a dyn TimeIndexOps<IndexType = TimeIndexEntry>),
+    BoxExternal(Box<dyn TimeIndexOps<IndexType = TimeIndexEntry> + 'a>),
 }
 
 impl<'a> TimeIndexOps for TimeIndexLike<'a> {
@@ -20,6 +21,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.active(w),
             TimeIndexLike::External(ref t) => t.active(w),
+            TimeIndexLike::BoxExternal(ref t) => t.active(w),
         }
     }
 
@@ -27,6 +29,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.range(w),
             TimeIndexLike::External(ref t) => t.range(w),
+            TimeIndexLike::BoxExternal(ref t) => t.range(w),
         }
     }
 
@@ -34,6 +37,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.first(),
             TimeIndexLike::External(ref t) => t.first(),
+            TimeIndexLike::BoxExternal(ref t) => t.first(),
         }
     }
 
@@ -41,6 +45,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.last(),
             TimeIndexLike::External(ref t) => t.last(),
+            TimeIndexLike::BoxExternal(ref t) => t.last(),
         }
     }
 
@@ -48,6 +53,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.iter_t(),
             TimeIndexLike::External(ref t) => t.iter_t(),
+            TimeIndexLike::BoxExternal(ref t) => t.iter_t(),
         }
     }
 }
