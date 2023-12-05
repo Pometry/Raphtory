@@ -15,6 +15,7 @@ use rayon::prelude::*;
 use std::{
     cmp::Ordering,
     collections::{hash_map::Entry, VecDeque},
+    sync::atomic::{AtomicU64, Ordering::Relaxed},
     time::Instant,
 };
 
@@ -87,12 +88,9 @@ fn valid_netflow_events(
         .filter_map(|(edge_id, e_vid)| {
             let nf1 = nft_graph.edge(edge_id);
             let mut valid_events: Vec<_> = nf1
-                .into_prop_items::<i64>(bytes_prop_id)
+                .par_prop_items_unchecked::<i64>(bytes_prop_id)
                 .unwrap()
-                .filter_map(move |(t, v)| {
-                    v.filter(|&v| v > 100_000_000)
-                        .map(|_| window_bounds(t, window))
-                })
+                .filter_map(move |(&t, &v)| (v > 100_000_000).then(|| window_bounds(t, window)))
                 .flatten()
                 .collect();
             if valid_events.is_empty() {
@@ -315,6 +313,10 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
         log_nodes.len()
     );
 
+    let valid_netflow_events_ms = AtomicU64::default();
+    let prog1_merge_ms = AtomicU64::default();
+    let count_login_ms = AtomicU64::default();
+
     let count = log_nodes
         .into_par_iter()
         .flat_map(|b_vid| {
@@ -324,8 +326,12 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
                 .unwrap()
                 .filter(|(_, n_vid)| *n_vid == b_vid)
                 .next()?;
-            let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, 30)?;
 
+            let now = Instant::now();
+            let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, 30)?;
+            valid_netflow_events_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
+
+            let now = Instant::now();
             let merged_nft_events = kmerge_by(
                 nft_events.iter().map(|(_, windows)| windows),
                 |a: &&Window, b: &&Window| a >= b,
@@ -335,6 +341,9 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
 
             let prog1_eventmap =
                 merge_nft_prog1(&events_1v_edge, merged_nft_events, prog1_prop_id)?;
+            prog1_merge_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
+
+            let now = Instant::now();
             let count = count_logins(
                 b_vid,
                 &prog1_eventmap,
@@ -345,9 +354,19 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>) -> Option<usize> {
                 event_id_prop_id_2v,
                 prog1_prop_id,
             );
+            count_login_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
             Some(count)
         })
         .sum();
+    println!(
+        "finding valid netflow took {}ms",
+        valid_netflow_events_ms.load(Relaxed)
+    );
+    println!(
+        "merging netflow with prog1 took {}ms",
+        prog1_merge_ms.load(Relaxed)
+    );
+    println!("counting logins took {}ms", count_login_ms.load(Relaxed));
     Some(count)
 }
 
