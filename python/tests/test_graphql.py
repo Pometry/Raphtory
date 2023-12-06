@@ -36,6 +36,10 @@ def test_graphql():
     dir_server = RaphtoryServer(graph_dir=temp_dir).start_with_port(1738)
     map_dir_server = RaphtoryServer(graphs=graphs, graph_dir=temp_dir).start_with_port(1739)
 
+    map_server.wait_for_online()
+    dir_server.wait_for_online()
+    map_dir_server.wait_for_online()
+
     query_g1 = """{graph(name: "g1") {nodes {name}}}"""
     query_g2 = """{graph(name: "g2") {nodes {name}}}"""
     query_g3 = """{graph(name: "g3") {nodes {name}}}"""
@@ -119,6 +123,8 @@ def test_graphqlclient():
 
 
 def generic_client_test(raphtory_client, temp_dir):
+    raphtory_client.wait_for_online()
+
     # load a graph into the client from a path
     res = raphtory_client.load_graphs_from_path(temp_dir)
     assert res == {"loadGraphsFromPath": ["g1.bincode"]}

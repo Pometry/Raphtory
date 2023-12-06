@@ -15,7 +15,13 @@ use raphtory_core::{
 use raphtory_graphql::{url_decode_graph, url_encode_graph, RaphtoryServer};
 use reqwest::Client;
 use serde_json::{json, Map, Number, Value};
-use std::{collections::HashMap, path::PathBuf, thread, thread::JoinHandle};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    thread,
+    thread::{sleep, JoinHandle},
+    time::Duration,
+};
 use tokio::{self, io::Result as IoResult};
 
 /// A class for defining and running a Raphtory GraphQL server
@@ -202,6 +208,14 @@ impl PyRunningRaphtoryServer {
         wait_server(&mut slf.0)
     }
 
+    /// Wait for the server to be online.
+    ///
+    /// Arguments:
+    ///   * `millis`: the minimum number of milliseconds to wait (default 5000).
+    fn wait_for_online(&self, millis: Option<u64>) -> PyResult<()> {
+        self.apply_if_alive(|handler| handler.client.wait_for_online(millis))
+    }
+
     /// Make a graphQL query against the server.
     ///
     /// Arguments:
@@ -350,13 +364,49 @@ impl PyRaphtoryClient {
             ))),
         }
     }
+
+    fn is_online(&self) -> bool {
+        match reqwest::blocking::get(&self.url) {
+            Ok(response) => response.status().as_u16() == 200,
+            _ => false,
+        }
+    }
 }
+
+const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
 
 #[pymethods]
 impl PyRaphtoryClient {
     #[new]
     fn new(url: String) -> Self {
         Self { url }
+    }
+
+    /// Wait for the server to be online.
+    ///
+    /// Arguments:
+    ///   * `millis`: the minimum number of milliseconds to wait (default 5000).
+    fn wait_for_online(&self, millis: Option<u64>) -> PyResult<()> {
+        let millis = millis.unwrap_or(5000);
+        let num_intervals = millis / WAIT_CHECK_INTERVAL_MILLIS;
+
+        let mut online = false;
+        for _ in 0..num_intervals {
+            if self.is_online() {
+                online = true;
+                break;
+            } else {
+                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
+            }
+        }
+
+        if online {
+            Ok(())
+        } else {
+            Err(PyException::new_err(
+                "Failed to connect to the server after {millis} milliseconds",
+            ))
+        }
     }
 
     /// Make a graphQL query against the server.
