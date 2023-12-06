@@ -1,1 +1,1 @@
-pub mod si;
+pub mod epidemic;

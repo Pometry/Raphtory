@@ -1,11 +1,6 @@
-use std::collections::{HashMap, HashSet};
 use neo4rs::Graph;
+use std::collections::{HashMap, HashSet};
 
-use crate::{
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
-    python::graph::edge::PyDirection,
-};
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -44,10 +39,15 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        science::si::{si as si_rs, sir as sir_rs},
+        science::epidemic::{si_model as si_model_rs, sir_model as sir_model_rs},
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
+};
+use crate::{
+    core::Prop,
+    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
+    python::graph::edge::PyDirection,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -623,14 +623,14 @@ pub fn label_propagation(
 ///
 #[pyfunction]
 #[pyo3[signature = (g, initial_infected_ratio, infection_probability, seed=None, steps=1)]]
-pub fn si(
+pub fn si_model(
     g: &PyGraphView,
     initial_infected_ratio: f64,
     infection_probability: f64,
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
 ) -> PyResult<HashSet<VertexView<DynamicGraph>>> {
-    match si_rs(
+    match si_model_rs(
         &g.graph,
         initial_infected_ratio,
         infection_probability,
@@ -659,7 +659,7 @@ pub fn si(
 ///
 #[pyfunction]
 #[pyo3[signature = (g, initial_infected_ratio, infection_probability, recovery_rate, seed=None, steps=1)]]
-pub fn sir(
+pub fn sir_model(
     g: &PyGraphView,
     initial_infected_ratio: f64,
     infection_probability: f64,
@@ -667,7 +667,7 @@ pub fn sir(
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
 ) -> PyResult<HashMap<VertexView<DynamicGraph>, u8>> {
-    match sir_rs(
+    match sir_model_rs(
         &g.graph,
         initial_infected_ratio,
         infection_probability,
