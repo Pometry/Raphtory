@@ -94,13 +94,12 @@ impl PyRaphtoryServer {
     //     self.0.register_algorithm(???)
     // }
 
-    /// Start the server on the default port and return a handle to it.
-    pub fn start(slf: PyRefMut<Self>) -> PyResult<PyRunningRaphtoryServer> {
-        PyRaphtoryServer::start_with_port(slf, 1736)
-    }
-
-    /// Start the server on the port `port` and return a handle to it.
-    pub fn start_with_port(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
+    /// Start the server and return a handle to it.
+    ///
+    /// Arguments:
+    ///   * `port`: the port to use (defaults to 1736).
+    #[pyo3(signature = (port = 1736))]
+    pub fn start(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<()>(1);
         let server = take_sever_ownership(slf)?;
 
@@ -125,14 +124,13 @@ impl PyRaphtoryServer {
         Ok(PyRunningRaphtoryServer::new(join_handle, sender, port))
     }
 
-    /// Run the server on the default port until completion.
-    pub fn run(slf: PyRefMut<Self>) -> PyResult<()> {
-        wait_server(&mut Self::start(slf)?.0)
-    }
-
-    /// Run the server on the port `port` until completion.
-    pub fn run_with_port(slf: PyRefMut<Self>, port: u16) -> PyResult<()> {
-        wait_server(&mut Self::start_with_port(slf, port)?.0)
+    /// Run the server until completion.
+    ///
+    /// Arguments:
+    ///   * `port`: the port to use (defaults to 1736).
+    #[pyo3(signature = (port = 1736))]
+    pub fn run(slf: PyRefMut<Self>, port: u16) -> PyResult<()> {
+        wait_server(&mut Self::start(slf, port)?.0)
     }
 }
 
