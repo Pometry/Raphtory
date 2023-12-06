@@ -153,7 +153,7 @@ def generic_client_test(raphtory_client, temp_dir):
     g3.add_edge(1, "shivam", "rachel")
     g3.add_edge(2, "lucas", "shivam")
     g3.save_to_file(multi_graph_temp_dir + "/g3.bincode")
-    res = raphtory_client.load_new_graphs_from_path(multi_graph_temp_dir, overwrite=False)
+    res = raphtory_client.load_graphs_from_path(multi_graph_temp_dir, overwrite=False)
     result_sorted = {"loadNewGraphsFromPath": sorted(res["loadNewGraphsFromPath"])}
     assert result_sorted == {"loadNewGraphsFromPath": ["g2.bincode", "g3.bincode"]}
 

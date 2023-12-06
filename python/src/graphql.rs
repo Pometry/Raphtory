@@ -17,6 +17,7 @@ use reqwest::Client;
 use serde_json::{json, Map, Number, Value};
 use std::{
     collections::HashMap,
+    future::Future,
     path::PathBuf,
     thread,
     thread::{sleep, JoinHandle},
@@ -100,8 +101,10 @@ impl PyRaphtoryServer {
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(signature = (port = 1736))]
     pub fn start(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
-        let (sender, receiver) = crossbeam_channel::bounded::<()>(1);
+        let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
+
+        let cloned_sender = sender.clone();
 
         let join_handle = thread::spawn(move || {
             tokio::runtime::Builder::new_multi_thread()
@@ -112,12 +115,16 @@ impl PyRaphtoryServer {
                     let handler = server.start_with_port(port);
                     let tokio_sender = handler._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
-                        receiver.recv().expect("Failed to wait for cancellation");
-                        tokio_sender
-                            .blocking_send(())
-                            .expect("Failed to send cancellation signal");
+                        match receiver.recv().expect("Failed to wait for cancellation") {
+                            BridgeCommand::StopServer => tokio_sender
+                                .blocking_send(())
+                                .expect("Failed to send cancellation signal"),
+                            BridgeCommand::StopListening => (),
+                        }
                     });
-                    handler.wait().await
+                    let result = handler.wait().await;
+                    _ = cloned_sender.send(BridgeCommand::StopListening);
+                    result
                 })
         });
 
@@ -161,14 +168,23 @@ const RUNNING_SERVER_CONSUMED_MSG: &str =
 #[pyclass(name = "RunningRaphtoryServer")]
 pub(crate) struct PyRunningRaphtoryServer(Option<ServerHandler>);
 
+enum BridgeCommand {
+    StopServer,
+    StopListening,
+}
+
 struct ServerHandler {
     join_handle: JoinHandle<IoResult<()>>,
-    sender: Sender<()>,
+    sender: Sender<BridgeCommand>,
     client: PyRaphtoryClient,
 }
 
 impl PyRunningRaphtoryServer {
-    fn new(join_handle: JoinHandle<IoResult<()>>, sender: Sender<()>, port: u16) -> Self {
+    fn new(
+        join_handle: JoinHandle<IoResult<()>>,
+        sender: Sender<BridgeCommand>,
+        port: u16,
+    ) -> Self {
         let url = format!("http://localhost:{port}");
         Self(Some(ServerHandler {
             join_handle,
@@ -195,7 +211,7 @@ impl PyRunningRaphtoryServer {
         self.apply_if_alive(|handler| {
             handler
                 .sender
-                .send(())
+                .send(BridgeCommand::StopServer)
                 .expect("Failed when sending cancellation signal");
             Ok(())
         })
