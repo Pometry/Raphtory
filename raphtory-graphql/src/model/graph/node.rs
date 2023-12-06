@@ -44,7 +44,7 @@ impl Node {
     ////////////////////////
 
     async fn layers(&self, names: Vec<String>) -> Option<Node> {
-        self.vv.layer(names).map(move |v| v.into())
+        self.vv.layer(names).map(|v| v.into())
     }
     async fn layer(&self, name: String) -> Option<Node> {
         self.vv.layer(name).map(|v| v.into())

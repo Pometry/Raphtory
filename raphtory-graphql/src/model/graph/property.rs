@@ -78,9 +78,9 @@ impl GqlProperties {
     }
 }
 
-impl From<DynProperties> for GqlProperties {
-    fn from(value: DynProperties) -> Self {
-        GqlProperties::new(value)
+impl<P: Into<DynProperties>> From<P> for GqlProperties {
+    fn from(value: P) -> Self {
+        Self{props:value.into()}
     }
 }
 

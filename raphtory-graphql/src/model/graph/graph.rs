@@ -48,28 +48,28 @@ impl GqlGraph {
 
     async fn default_layer(&self) -> GqlGraph {
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.default_layer().into_dynamic_indexed(),
         )
     }
 
     async fn layers(&self, names: Vec<String>) -> Option<GqlGraph> {
-        let name = self.name().await;
+        let name = self.name.clone();
         self.graph
             .layer(names)
             .map(move |g| GqlGraph::new(name, g.into_dynamic_indexed()))
     }
     async fn layer(&self, name: String) -> Option<GqlGraph> {
-        let v_name = self.name().await;
+        let v_name = self.name.clone();
         self.graph
             .layer(name)
             .map(|g| GqlGraph::new(v_name, g.into_dynamic_indexed()))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        let nodes: Vec<VertexRef> = nodes.iter().map(|v| v.clone().into()).collect();
+        let nodes: Vec<VertexRef> = nodes.iter().map(|v| v.as_str().into()).collect();
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.subgraph(nodes).into_dynamic_indexed(),
         )
     }
@@ -84,7 +84,7 @@ impl GqlGraph {
             })
             .collect();
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.subgraph(nodes).into_dynamic_indexed(),
         )
     }
@@ -92,27 +92,27 @@ impl GqlGraph {
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.window(start, end).into_dynamic_indexed(),
         )
     }
     async fn at(&self, time: i64) -> GqlGraph {
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.at(time).into_dynamic_indexed(),
         )
     }
 
     async fn before(&self, time: i64) -> GqlGraph {
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.before(time).into_dynamic_indexed(),
         )
     }
 
     async fn after(&self, time: i64) -> GqlGraph {
         GqlGraph::new(
-            self.name().await,
+            self.name.clone(),
             self.graph.after(time).into_dynamic_indexed(),
         )
     }
@@ -164,7 +164,7 @@ impl GqlGraph {
     //////// COUNTERS //////
     ////////////////////////
 
-    async fn edge_count(&self, filter: Option<EdgeFilter>) -> usize {
+    async fn count_edges(&self, filter: Option<EdgeFilter>) -> usize {
         if let Some(filter) = filter {
             self.graph
                 .edges()
@@ -177,7 +177,7 @@ impl GqlGraph {
         }
     }
 
-    async fn temporal_edge_count(&self, filter: Option<EdgeFilter>) -> usize {
+    async fn count_temporal_edges(&self, filter: Option<EdgeFilter>) -> usize {
         if let Some(filter) = filter {
             self.graph
                 .edges()
@@ -195,7 +195,7 @@ impl GqlGraph {
         self.graph.search_edge_count(&query).unwrap_or(0)
     }
 
-    async fn node_count(&self, filter: Option<NodeFilter>) -> usize {
+    async fn count_nodes(&self, filter: Option<NodeFilter>) -> usize {
         if let Some(filter) = filter {
             self.graph
                 .vertices()
@@ -385,7 +385,7 @@ impl GqlGraph {
         self.graph
             .search_edges(&query, limit, offset)
             .into_iter()
-            .flat_map(|vv| vv)
+            .flatten()
             .map(|vv| vv.into())
             .collect()
     }

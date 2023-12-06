@@ -86,7 +86,7 @@ impl Edge {
     }
 
     async fn properties(&self) -> GqlProperties {
-        Into::<DynProperties>::into(self.ee.properties()).into()
+        self.ee.properties().into()
     }
 
     async fn layer_names(&self) -> Vec<String> {
