@@ -5,7 +5,7 @@ use crate::{
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{StaticGraphViewOps, VertexViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -34,10 +34,10 @@ struct InState {
 ///
 pub fn in_components<G>(graph: &G, threads: Option<usize>) -> AlgorithmResult<G, Vec<u64>, Vec<u64>>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<'_, G, _, _>| {
+    let step1 = ATask::new(move |vv: &mut EvalVertexView<G, InState>| {
         let mut in_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().id().for_each(|id| {
@@ -45,7 +45,7 @@ where
             to_check_stack.push(id);
         });
         while let Some(neighbour_id) = to_check_stack.pop() {
-            if let Some(neighbour) = vv.graph.vertex(neighbour_id) {
+            if let Some(neighbour) = vv.graph().vertex(neighbour_id) {
                 neighbour.in_neighbours().id().for_each(|id| {
                     if !in_components.contains(&id) {
                         in_components.insert(id);

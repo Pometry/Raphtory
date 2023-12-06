@@ -39,28 +39,26 @@
 
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            vertices::vertex_ref::VertexRef,
-            LayerIds, EID, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, EID, VID},
         utils::time::IntoTime,
         ArcStr, Direction, Prop,
     },
-    db::api::{
-        properties::internal::{
-            InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-        },
-        view::{
-            internal::{
-                Base, DynamicGraph, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritLayerOps, InheritMaterialize, IntoDynamic, Static, TimeSemantics,
+    db::{
+        api::{
+            properties::internal::{
+                InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            BoxedIter,
+            view::{
+                internal::{
+                    Base, EdgeFilter, EdgeFilterOps, EdgeWindowFilter, GraphOps, Immutable,
+                    InheritCoreOps, InheritLayerOps, InheritMaterialize, Static, TimeSemantics,
+                },
+                BoxedIter, BoxedLIter,
+            },
         },
+        graph::graph::graph_equal,
     },
-    prelude::{GraphViewOps, TimeOps},
-    search::IndexedGraph,
+    prelude::GraphViewOps,
 };
 use std::{
     cmp::{max, min},
@@ -71,7 +69,7 @@ use std::{
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Clone)]
-pub struct WindowedGraph<G: GraphViewOps> {
+pub struct WindowedGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The inclusive start time of the window.
@@ -79,11 +77,12 @@ pub struct WindowedGraph<G: GraphViewOps> {
     /// The exclusive end time of the window.
     pub end: i64,
     filter: EdgeFilter,
+    window_filter: EdgeWindowFilter,
 }
 
-impl<G: GraphViewOps> Static for WindowedGraph<G> {}
+impl<G> Static for WindowedGraph<G> {}
 
-impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
+impl<'graph, G: Debug + 'graph> Debug for WindowedGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -93,19 +92,15 @@ impl<G: GraphViewOps + Debug> Debug for WindowedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> WindowedGraph<IndexedGraph<G>> {
-    pub fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
-        IndexedGraph {
-            graph: self.graph.graph.window(self.start, self.end).into_dynamic(),
-            vertex_index: self.graph.vertex_index,
-            edge_index: self.graph.edge_index,
-            reader: self.graph.reader,
-            edge_reader: self.graph.edge_reader,
-        }
+impl<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>> PartialEq<G2>
+    for WindowedGraph<G1>
+{
+    fn eq(&self, other: &G2) -> bool {
+        graph_equal(self, other)
     }
 }
 
-impl<G: GraphViewOps> Base for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -113,16 +108,16 @@ impl<G: GraphViewOps> Base for WindowedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> Immutable for WindowedGraph<G> {}
-impl<G: GraphViewOps> InheritCoreOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 
-impl<G: GraphViewOps> InheritMaterialize for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
-impl<G: GraphViewOps> InheritStaticPropertiesOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritStaticPropertiesOps for WindowedGraph<G> {}
 
-impl<G: GraphViewOps> InheritLayerOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 
-impl<G: GraphViewOps> TemporalPropertyViewOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<G> {
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.temporal_prop_vec(id)
             .into_iter()
@@ -138,7 +133,7 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for WindowedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .get_temporal_prop_id(name)
@@ -158,7 +153,7 @@ impl<G: GraphViewOps> TemporalPropertiesOps for WindowedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph
             .vertex_earliest_time_window(v, self.start, self.end)
@@ -228,12 +223,8 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        self.graph.include_edge_window(
-            e,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+    fn include_edge_window(&self) -> &EdgeWindowFilter {
+        &self.window_filter
     }
 
     fn vertex_history(&self, v: VID) -> Vec<i64> {
@@ -436,17 +427,82 @@ impl<G: GraphViewOps> TimeSemantics for WindowedGraph<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeFilterOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     #[inline]
     fn edge_filter(&self) -> Option<&EdgeFilter> {
         Some(&self.filter)
     }
 }
 
-/// Implementation of the GraphViewInternalOps trait for WindowedGraph.
-/// This trait provides operations to a `WindowedGraph` used internally by the `GraphWindowSet`.
-/// *Note: All functions in this are bound by the time set in the windowed graph.
-impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
+    /// Get an iterator over the references of all vertices as references
+    ///
+    /// Returns:
+    ///
+    /// An iterator over the references of all vertices
+    #[inline]
+    fn vertex_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        let g = self.clone();
+        let filter_cloned = filter.cloned();
+        Box::new(
+            self.graph
+                .vertex_refs(layers.clone(), filter)
+                .filter(move |v| {
+                    g.include_vertex_window(*v, g.start..g.end, &layers, filter_cloned.as_ref())
+                }),
+        )
+    }
+
+    /// Get an iterator of all edges as references
+    ///
+    /// Returns:
+    ///
+    /// An iterator over all edges as references
+    #[inline]
+    fn edge_refs(
+        &self,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.graph.edge_refs(layer, filter)
+    }
+
+    #[inline]
+    fn vertex_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.graph.vertex_edges(v, d, layer, filter)
+    }
+
+    /// Get the neighbours of a vertex as references in a given direction
+    ///
+    /// # Arguments
+    ///
+    /// - `v` - The vertex to get the neighbours for
+    /// - `d` - The direction of the edges
+    ///
+    /// Returns:
+    ///
+    /// An iterator over all neighbours in that vertex direction as references
+    #[inline]
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        self.graph.neighbours(v, d, layer, filter)
+    }
+
     #[inline]
     fn internal_vertex_ref(
         &self,
@@ -480,6 +536,14 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     fn edges_len(&self, layer: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         // filter takes care of checking the window
         self.graph.edges_len(layer, filter)
+    }
+
+    #[inline]
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        self.graph
+            .edge_refs(layers.clone(), filter)
+            .flat_map(|eref| self.edge_exploded(eref, layers.clone()))
+            .count()
     }
 
     /// Check if there is an edge from src to dst in the window.
@@ -563,28 +627,6 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
         self.internal_vertex_ref(v.into(), layers, filter)
     }
 
-    /// Get an iterator over the references of all vertices as references
-    ///
-    /// Returns:
-    ///
-    /// An iterator over the references of all vertices
-    #[inline]
-    fn vertex_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        let g = self.clone();
-        let filter_cloned = filter.cloned();
-        Box::new(
-            self.graph
-                .vertex_refs(layers.clone(), filter)
-                .filter(move |v| {
-                    g.include_vertex_window(*v, g.start..g.end, &layers, filter_cloned.as_ref())
-                }),
-        )
-    }
-
     /// Get an iterator over the references of an edges as a reference
     ///
     /// # Arguments
@@ -609,52 +651,6 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
     ) -> Option<EdgeRef> {
         self.graph.edge_ref(src, dst, layer, filter)
     }
-
-    /// Get an iterator of all edges as references
-    ///
-    /// Returns:
-    ///
-    /// An iterator over all edges as references
-    #[inline]
-    fn edge_refs(
-        &self,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.edge_refs(layer, filter)
-    }
-
-    #[inline]
-    fn vertex_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = EdgeRef> + Send> {
-        self.graph.vertex_edges(v, d, layer, filter)
-    }
-
-    /// Get the neighbours of a vertex as references in a given direction
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The vertex to get the neighbours for
-    /// - `d` - The direction of the edges
-    ///
-    /// Returns:
-    ///
-    /// An iterator over all neighbours in that vertex direction as references
-    #[inline]
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        self.graph.neighbours(v, d, layer, filter)
-    }
 }
 
 /// A windowed graph is a graph that only allows access to vertices and edges within a time window.
@@ -673,7 +669,7 @@ impl<G: GraphViewOps> GraphOps for WindowedGraph<G> {
 /// graph.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
 /// let windowed_graph = graph.window(0, 1);
 /// ```
-impl<G: GraphViewOps> WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
     /// Create a new windowed graph
     ///
     /// # Arguments
@@ -686,23 +682,29 @@ impl<G: GraphViewOps> WindowedGraph<G> {
     ///
     /// A new windowed graph
     pub fn new<T: IntoTime>(graph: G, start: T, end: T) -> Self {
-        let filter_graph = graph.clone();
         let start = start.into_time();
         let end = end.into_time();
-        let base_filter = filter_graph.edge_filter_window().cloned();
+        let base_filter = graph.edge_filter_window().cloned();
+        let base_window_filter = graph.include_edge_window().clone();
         let filter: EdgeFilter = match base_filter {
-            Some(f) => Arc::new(move |e, layers| {
-                f(e, layers) && filter_graph.include_edge_window(e, start..end, layers)
-            }),
-            None => {
-                Arc::new(move |e, layers| filter_graph.include_edge_window(e, start..end, layers))
+            Some(f) => {
+                Arc::new(move |e, layers| f(e, layers) && base_window_filter(e, layers, start..end))
             }
+            None => Arc::new(move |e, layers| base_window_filter(e, layers, start..end)),
         };
+
+        let base_window_filter = graph.include_edge_window().clone();
+        let window_filter: EdgeWindowFilter = Arc::new(move |e, layers, w| {
+            let start = max(w.start, start);
+            let end = max(start, min(w.end, end));
+            base_window_filter(e, layers, start..end)
+        });
         WindowedGraph {
             graph,
             start,
             end,
             filter,
+            window_filter,
         }
     }
 
@@ -723,7 +725,10 @@ impl<G: GraphViewOps> WindowedGraph<G> {
 mod views_test {
 
     use super::*;
-    use crate::{db::api::view::Layer, prelude::*};
+    use crate::{
+        algorithms::centrality::degree_centrality::degree_centrality, db::api::view::Layer,
+        prelude::*,
+    };
     use itertools::Itertools;
     use quickcheck::TestResult;
     use rand::prelude::*;
@@ -1109,5 +1114,26 @@ mod views_test {
         let expected = wg.vertices().id().collect::<Vec<_>>();
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_reference() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let mut w = WindowedGraph::new(&g, 0, 1);
+        assert_eq!(w, g);
+        w = WindowedGraph::new(&g, 1, 2);
+
+        assert_eq!(w, Graph::new());
+    }
+
+    #[test]
+    fn test_algorithm_on_windowed_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let w = WindowedGraph::new(g, 0, 1);
+
+        let res = degree_centrality(&w, None);
+        println!("{:?}", res)
     }
 }

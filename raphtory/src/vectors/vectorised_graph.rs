@@ -1,7 +1,10 @@
 use crate::{
     core::entities::vertices::vertex_ref::VertexRef,
-    db::graph::{edge::EdgeView, vertex::VertexView},
-    prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, vertex::VertexView},
+    },
+    prelude::*,
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate,
         embedding_cache::EmbeddingCache, entity_id::EntityId, Document, DocumentOps, Embedding,
@@ -22,7 +25,7 @@ enum ExpansionPath {
     Both,
 }
 
-pub struct VectorisedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
+pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) source_graph: G,
     template: Arc<T>,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
@@ -34,7 +37,7 @@ pub struct VectorisedGraph<G: GraphViewOps, T: DocumentTemplate<G>> {
     empty_vec: Vec<DocumentRef>,
 }
 
-impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
+impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
     fn clone(&self) -> Self {
         Self::new(
             self.source_graph.clone(),
@@ -47,7 +50,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
     }
 }
 
-impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
+impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     pub(crate) fn new(
         graph: G,
         template: Arc<T>,
@@ -228,7 +231,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    fn expand_with_window<W: GraphViewOps>(
+    fn expand_with_window<W: StaticGraphViewOps>(
         &self,
         hops: usize,
         window: Option<(i64, i64)>,
@@ -344,7 +347,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     }
 
     /// this function only exists so that we can make the type of graph generic
-    fn expand_by_similarity_with_path_and_window<W: GraphViewOps>(
+    fn expand_by_similarity_with_path_and_window<W: StaticGraphViewOps>(
         &self,
         query: &Embedding,
         limit: usize,
@@ -426,7 +429,7 @@ impl<G: GraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     }
 
     // this might return the document used as input, uniqueness need to be check outside of this
-    fn get_context<'a, W: GraphViewOps>(
+    fn get_context<'a, W: StaticGraphViewOps>(
         &'a self,
         document: &DocumentRef,
         windowed_graph: &'a W,

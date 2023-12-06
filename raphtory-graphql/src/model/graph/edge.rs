@@ -3,10 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            EdgeViewOps, GraphViewOps,
-        },
+        api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
     prelude::{LayerOps, TimeOps},
@@ -17,11 +14,14 @@ pub(crate) struct Edge {
     pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for Edge {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<EdgeView<G, GH>> for Edge
+{
+    fn from(value: EdgeView<G, GH>) -> Self {
         Self {
             ee: EdgeView {
-                graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
                 edge: value.edge,
             },
         }
@@ -64,6 +64,14 @@ impl Edge {
 
     async fn layers(&self) -> Vec<String> {
         self.ee.layer_names().map_into().collect()
+    }
+
+    async fn exploded_edges(&self) -> Vec<Edge> {
+        self.ee
+            .explode()
+            .into_iter()
+            .map(|ee| ee.into())
+            .collect_vec()
     }
 
     async fn layer_exploded_edges(&self) -> Vec<Edge> {

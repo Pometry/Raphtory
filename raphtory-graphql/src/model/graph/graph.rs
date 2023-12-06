@@ -13,13 +13,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            GraphViewOps, TimeOps, VertexViewOps,
-        },
+        api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps, TimeOps, VertexViewOps},
         graph::edge::EdgeView,
     },
-    prelude::{EdgeListOps, EdgeViewOps},
+    prelude::*,
     search::IndexedGraph,
 };
 
@@ -64,7 +61,7 @@ pub(crate) struct GqlGraph {
     graph: IndexedGraph<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
+impl<G: StaticGraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
     fn from(value: IndexedGraph<G>) -> Self {
         Self {
             graph: value.into_dynamic_indexed(),
@@ -84,6 +81,18 @@ impl GqlGraph {
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         let w = self.graph.window(start, end);
         w.into_dynamic_indexed().into()
+    }
+
+    async fn at(&self, time: i64) -> GqlGraph {
+        self.graph.at(time).into_dynamic_indexed().into()
+    }
+
+    async fn before(&self, time: i64) -> GqlGraph {
+        self.graph.before(time).into_dynamic_indexed().into()
+    }
+
+    async fn after(&self, time: i64) -> GqlGraph {
+        self.graph.after(time).into_dynamic_indexed().into()
     }
 
     async fn layer_names(&self) -> Vec<String> {

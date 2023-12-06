@@ -1,6 +1,5 @@
 use crate::{
-    db::api::view::internal::IntoDynamic,
-    prelude::GraphViewOps,
+    db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     vectors::{
         document_ref::DocumentRef,
         document_template::{DefaultTemplate, DocumentTemplate},
@@ -25,7 +24,7 @@ struct IndexedDocumentInput {
 }
 
 #[async_trait(?Send)]
-pub trait Vectorisable<G: GraphViewOps> {
+pub trait Vectorisable<G: StaticGraphViewOps> {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
@@ -43,7 +42,7 @@ pub trait Vectorisable<G: GraphViewOps> {
 }
 
 #[async_trait(?Send)]
-impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
+impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
     /// Create a VectorisedGraph from the current graph
     ///
     /// # Arguments:

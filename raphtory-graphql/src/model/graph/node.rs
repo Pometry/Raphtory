@@ -4,13 +4,7 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::{
-    api::view::{
-        internal::{DynamicGraph, IntoDynamic},
-        *,
-    },
-    graph::vertex::VertexView,
-};
+use raphtory::db::{api::view::*, graph::vertex::VertexView};
 use std::collections::HashSet;
 
 use super::property_update::PropertyUpdateGroup;
@@ -20,11 +14,14 @@ pub(crate) struct Node {
     pub(crate) vv: VertexView<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<VertexView<G>> for Node {
-    fn from(value: VertexView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<VertexView<G, GH>> for Node
+{
+    fn from(value: VertexView<G, GH>) -> Self {
         Self {
             vv: VertexView {
-                graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
                 vertex: value.vertex,
             },
         }
@@ -167,24 +164,36 @@ impl Node {
     }
 
     /// Returns the number edges with this node as the source
-    async fn out_degree(&self, layer: Option<String>) -> usize {
-        match layer.as_deref() {
+    async fn out_degree(&self, layers: Option<Vec<String>>) -> usize {
+        match layers {
             None => self.vv.out_degree(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => 0,
-                Some(vvv) => vvv.out_degree(),
-            },
+            Some(layers) => layers
+                .iter()
+                .map(|layer| {
+                    let degree = match self.vv.layer(layer) {
+                        None => 0,
+                        Some(vvv) => vvv.out_degree(),
+                    };
+                    degree
+                })
+                .sum(),
         }
     }
 
     /// Returns the number edges with this node as the destination
-    async fn in_degree(&self, layer: Option<String>) -> usize {
-        match layer.as_deref() {
+    async fn in_degree(&self, layers: Option<Vec<String>>) -> usize {
+        match layers {
             None => self.vv.in_degree(),
-            Some(layer) => match self.vv.layer(layer) {
-                None => 0,
-                Some(vvv) => vvv.in_degree(),
-            },
+            Some(layers) => layers
+                .iter()
+                .map(|layer| {
+                    let degree = match self.vv.layer(layer) {
+                        None => 0,
+                        Some(vvv) => vvv.in_degree(),
+                    };
+                    degree
+                })
+                .sum(),
         }
     }
 

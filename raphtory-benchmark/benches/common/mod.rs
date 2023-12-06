@@ -2,7 +2,7 @@
 
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::prelude::*;
+use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -261,7 +261,7 @@ pub fn run_analysis_benchmarks<F, G>(
     parameter: Option<usize>,
 ) where
     F: Fn() -> G,
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let graph = make_graph();
     let edges: HashSet<(u64, u64)> = graph

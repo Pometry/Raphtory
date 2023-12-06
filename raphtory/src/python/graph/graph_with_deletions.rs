@@ -171,7 +171,7 @@ impl PyGraphWithDeletions {
         dst: PyInputVertex,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<EdgeView<GraphWithDeletions>, GraphError> {
+    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
@@ -218,7 +218,11 @@ impl PyGraphWithDeletions {
     /// Returns:
     ///     the edge with the specified source and destination vertices, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<GraphWithDeletions>> {
+    pub fn edge(
+        &self,
+        src: VertexRef,
+        dst: VertexRef,
+    ) -> Option<EdgeView<GraphWithDeletions, GraphWithDeletions>> {
         self.graph.edge(src, dst)
     }
 

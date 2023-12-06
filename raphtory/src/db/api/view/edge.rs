@@ -2,42 +2,127 @@ use chrono::NaiveDateTime;
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::time::IntoTime,
         ArcStr,
     },
-    db::api::{
-        properties::{
-            internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-            Properties,
+    db::{
+        api::{
+            properties::{
+                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                Properties,
+            },
+            view::{
+                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+                BoxedIter,
+            },
         },
-        view::{internal::*, *},
+        graph::edge::EdgeView,
     },
+    prelude::{GraphViewOps, Layer, LayerOps, TimeOps, VertexListOps, VertexViewOps},
 };
 
-pub trait EdgeViewInternalOps<G: GraphViewOps, V: VertexViewOps<Graph = G>> {
-    fn graph(&self) -> G;
-
-    fn eref(&self) -> EdgeRef;
-
-    fn new_vertex(&self, v: VID) -> V;
-
-    fn new_edge(&self, e: EdgeRef) -> Self;
-}
-
-pub trait EdgeViewOps:
-    EdgeViewInternalOps<Self::Graph, Self::Vertex>
+pub trait EdgeViewInternalOps<'graph>:
+    InternalLayerOps
     + ConstPropertiesOps
     + TemporalPropertiesOps
     + TemporalPropertyViewOps
-    + TimeOps
+    + TimeOps<'graph>
+    + LayerOps<'graph>
+    + Clone
+{
+    type BaseGraph: GraphViewOps<'graph>;
+    type Graph: GraphViewOps<'graph>;
+
+    type EList: EdgeListOps<'graph, Edge = Self>;
+
+    type Neighbour: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+    fn graph(&self) -> &Self::Graph;
+
+    fn eref(&self) -> EdgeRef;
+
+    fn new_vertex(&self, v: VID) -> Self::Neighbour;
+
+    fn new_edge(&self, e: EdgeRef) -> Self;
+
+    /// Explodes an edge and returns all instances it had been updated as seperate edges
+    fn internal_explode(&self) -> Self::EList;
+
+    fn internal_explode_layers(&self) -> Self::EList;
+}
+
+pub trait EdgeViewOps<'graph>:
+    ConstPropertiesOps
+    + TemporalPropertiesOps
+    + TemporalPropertyViewOps
+    + TimeOps<'graph>
+    + LayerOps<'graph>
     + Sized
     + Clone
 {
-    type Graph: GraphViewOps;
-    type Vertex: VertexViewOps<Graph = Self::Graph>;
-    type EList: EdgeListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type Graph: GraphViewOps<'graph>;
+    type BaseGraph: GraphViewOps<'graph>;
+    type Vertex: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+    type EList: EdgeListOps<'graph, Edge = Self>;
+
+    /// list the activation timestamps for the edge
+    fn history(&self) -> Vec<i64>;
+
+    /// Return a view of the properties of the edge
+    fn properties(&self) -> Properties<Self>;
+    /// Returns the source vertex of the edge.
+    fn src(&self) -> Self::Vertex;
+
+    /// Returns the destination vertex of the edge.
+    fn dst(&self) -> Self::Vertex;
+
+    /// Check if edge is active at a given time point
+    fn active(&self, t: i64) -> bool;
+
+    /// Returns the id of the edge.
+    fn id(
+        &self,
+    ) -> (
+        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
+    );
+
+    /// Explodes an edge and returns all instances it had been updated as seperate edges
+    fn explode(&self) -> Self::EList;
+
+    fn explode_layers(&self) -> Self::EList;
+
+    /// Gets the first time an edge was seen
+    fn earliest_time(&self) -> Option<i64>;
+
+    fn earliest_date_time(&self) -> Option<NaiveDateTime>;
+    fn latest_date_time(&self) -> Option<NaiveDateTime>;
+    /// Gets the latest time an edge was updated
+    fn latest_time(&self) -> Option<i64>;
+
+    fn start_date_time(&self) -> Option<NaiveDateTime>;
+    fn end_date_time(&self) -> Option<NaiveDateTime>;
+
+    /// Gets the time stamp of the edge if it is exploded
+    fn time(&self) -> Option<i64>;
+    fn date_time(&self) -> Option<NaiveDateTime>;
+
+    /// Gets the layer name for the edge if it is restricted to a single layer
+    fn layer_name(&self) -> Option<ArcStr>;
+
+    /// Gets the TimeIndexEntry if the edge is exploded
+    fn time_and_index(&self) -> Option<TimeIndexEntry>;
+
+    /// Gets the name of the layer this edge belongs to
+    fn layer_names(&self) -> BoxedIter<ArcStr>;
+}
+
+impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
+    type Graph = E::Graph;
+    type BaseGraph = E::BaseGraph;
+    type Vertex = E::Neighbour;
+    type EList = E::EList;
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
@@ -70,11 +155,14 @@ pub trait EdgeViewOps:
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         match self.eref().time() {
             Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
-            None => self.graph().include_edge_window(
-                &self.graph().core_edge(self.eref().pid()),
-                t..t.saturating_add(1),
-                &layer_ids,
-            ),
+            None => {
+                let window_filter = self.graph().include_edge_window();
+                window_filter(
+                    &self.graph().core_edge(self.eref().pid()),
+                    &layer_ids,
+                    t..t.saturating_add(1),
+                )
+            }
         }
     }
 
@@ -82,16 +170,20 @@ pub trait EdgeViewOps:
     fn id(
         &self,
     ) -> (
-        <Self::Vertex as VertexViewOps>::ValueType<u64>,
-        <Self::Vertex as VertexViewOps>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
+        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
     ) {
         (self.src().id(), self.dst().id())
     }
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
-    fn explode(&self) -> Self::EList;
+    fn explode(&self) -> Self::EList {
+        self.internal_explode()
+    }
 
-    fn explode_layers(&self) -> Self::EList;
+    fn explode_layers(&self) -> Self::EList {
+        self.internal_explode_layers()
+    }
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64> {
@@ -154,26 +246,38 @@ pub trait EdgeViewOps:
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> BoxedIter<ArcStr> {
-        let layer_ids = self
-            .graph()
-            .edge_layer_ids(&self.graph().core_edge(self.eref().pid()))
-            .constrain_from_edge(self.eref());
-        self.graph().get_layer_names_from_ids(layer_ids)
+        self.graph().get_layer_names_from_ids(self.layer_ids())
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
+    for EdgeView<G, GH>
+{
+    fn layer_ids(&self) -> LayerIds {
+        self.graph
+            .core_edge(self.edge.pid())
+            .layer_ids()
+            .intersect(&self.graph.layer_ids())
+            .constrain_from_edge(self.edge)
+    }
+
+    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph
+            .layer_ids_from_names(key)
+            .intersect(&self.layer_ids())
     }
 }
 
 /// This trait defines the operations that can be
 /// performed on a list of edges in a temporal graph view.
-pub trait EdgeListOps:
+pub trait EdgeListOps<'graph>:
     IntoIterator<Item = Self::ValueType<Self::Edge>, IntoIter = Self::IterType<Self::Edge>> + Sized
 {
-    type Graph: GraphViewOps;
-    type Vertex: VertexViewOps<Graph = Self::Graph>;
-    type Edge: EdgeViewOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type Edge: EdgeViewOps<'graph>;
     type ValueType<T>;
 
     /// the type of list of vertices
-    type VList: VertexListOps<Graph = Self::Graph, Vertex = Self::Vertex>;
+    type VList: VertexListOps<'graph, Vertex = <Self::Edge as EdgeViewOps<'graph>>::Vertex>;
 
     /// the type of iterator
     type IterType<T>: Iterator<Item = Self::ValueType<T>>;
@@ -220,13 +324,16 @@ pub trait EdgeListOps:
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
 
-    fn at<T: IntoTime>(self, t: T) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
+    fn at<T: IntoTime>(
+        self,
+        t: T,
+    ) -> Self::IterType<<Self::Edge as TimeOps<'graph>>::WindowedViewType>;
 
     fn window<T: IntoTime>(
         self,
         start: T,
         end: T,
-    ) -> Self::IterType<<Self::Edge as TimeOps>::WindowedViewType>;
+    ) -> Self::IterType<<Self::Edge as TimeOps<'graph>>::WindowedViewType>;
 }
 
 #[cfg(test)]

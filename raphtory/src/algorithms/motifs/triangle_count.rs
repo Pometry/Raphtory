@@ -58,7 +58,7 @@ use rustc_hash::FxHashSet;
 /// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
+pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
     let vertex_set = k_core_set(graph, 2, usize::MAX, None);
     let g = graph.subgraph(vertex_set);
     let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
@@ -70,16 +70,14 @@ pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usi
     ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(
-        move |s: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
-            for t in s.neighbours() {
-                if s.id() > t.id() {
-                    t.update(&neighbours_set, s.id());
-                }
+    let step1 = ATask::new(move |s: &mut EvalVertexView<VertexSubgraph<G>, ()>| {
+        for t in s.neighbours() {
+            if s.id() > t.id() {
+                t.update(&neighbours_set, s.id());
             }
-            Step::Continue
-        },
-    );
+        }
+        Step::Continue
+    });
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {
