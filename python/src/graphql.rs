@@ -59,8 +59,8 @@ impl PyRaphtoryServer {
     ///   * `graph_names`: the names of the graphs to vectorise.
     ///   * `embedding`: the embedding function to translate documents to embeddings.
     ///   * `cache`: the directory to use as cache for the embeddings.
-    ///   * `node_document`: the property to use as document for nodes.
-    ///   * `edge_document`: the property to use as document for edges.
+    ///   * `node_document`: the property name to use as the source for the documents on nodes.
+    ///   * `edge_document`: the property name to use as the source for the documents on edges.
     ///
     /// Returns:
     ///    A new server object containing the vectorised graphs.
@@ -75,7 +75,7 @@ impl PyRaphtoryServer {
         let embedding: Py<PyFunction> = embedding.into();
         let template = PyDocumentTemplate::new(node_document, edge_document);
 
-        let server = take_sever_ownership(slf)?;
+        let server = take_server_ownership(slf)?;
         execute_async_task(move || async move {
             let new_server = server
                 .with_vectorised(
@@ -101,7 +101,7 @@ impl PyRaphtoryServer {
     #[pyo3(signature = (port = 1736))]
     pub fn start(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<()>(1);
-        let server = take_sever_ownership(slf)?;
+        let server = take_server_ownership(slf)?;
 
         let join_handle = thread::spawn(move || {
             tokio::runtime::Builder::new_multi_thread()
@@ -134,7 +134,7 @@ impl PyRaphtoryServer {
     }
 }
 
-fn take_sever_ownership(mut server: PyRefMut<PyRaphtoryServer>) -> PyResult<RaphtoryServer> {
+fn take_server_ownership(mut server: PyRefMut<PyRaphtoryServer>) -> PyResult<RaphtoryServer> {
     let new_server = server.0.take().ok_or_else(|| {
         PyException::new_err(
             "Server object has already been used, please create another one from scratch",
@@ -209,9 +209,9 @@ impl PyRunningRaphtoryServer {
     /// Wait for the server to be online.
     ///
     /// Arguments:
-    ///   * `millis`: the minimum number of milliseconds to wait (default 5000).
-    fn wait_for_online(&self, millis: Option<u64>) -> PyResult<()> {
-        self.apply_if_alive(|handler| handler.client.wait_for_online(millis))
+    ///   * `timeout_millis`: the timeout in milliseconds (default 5000).
+    fn wait_for_online(&self, timeout_millis: Option<u64>) -> PyResult<()> {
+        self.apply_if_alive(|handler| handler.client.wait_for_online(timeout_millis))
     }
 
     /// Make a graphQL query against the server.
@@ -250,38 +250,20 @@ impl PyRunningRaphtoryServer {
 
     /// Set the server to load all the graphs from its path `path`.
     ///
-    /// Note:
-    ///    Existing graphs with the same name are overwritten.
-    ///
     /// Arguments:
     ///   * `path`: the path to load the graphs from.
+    ///   * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
+    #[pyo3(signature=(path, overwrite = false))]
     fn load_graphs_from_path(
         &self,
         py: Python,
         path: String,
+        overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.load_graphs_from_path(py, path))
-    }
-
-    /// Set the server to load the new graphs from a directory of bincode files.
-    ///
-    /// Note:
-    ///    Existing graphs will not be overwritten.
-    ///
-    /// Arguments:
-    ///   * `path`: the path to load the graphs from.
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    fn load_new_graphs_from_path(
-        &self,
-        py: Python,
-        path: String,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.apply_if_alive(|handler| handler.client.load_new_graphs_from_path(py, path))
+        self.apply_if_alive(|handler| handler.client.load_graphs_from_path(py, path, overwrite))
     }
 }
 
@@ -475,38 +457,24 @@ impl PyRaphtoryClient {
 
     /// Set the server to load all the graphs from its path `path`.
     ///
-    /// Note:
-    ///    Existing graphs with the same name are overwritten.
-    ///
     /// Arguments:
     ///   * `path`: the path to load the graphs from.
+    ///   * `overwrite`: whether or not to overwrite existing graphs (defaults to False)
     ///
     /// Returns:
     ///    The `data` field from the graphQL response after executing the mutation.
+    #[pyo3(signature=(path, overwrite = false))]
     fn load_graphs_from_path(
         &self,
         py: Python,
         path: String,
+        overwrite: bool,
     ) -> PyResult<HashMap<String, PyObject>> {
-        self.generic_load_graphs(py, "loadGraphsFromPath", path)
-    }
-
-    /// Set the server to load the new graphs from a directory of bincode files.
-    ///
-    /// Note:
-    ///    Existing graphs will not be overwritten.
-    ///
-    /// Arguments:
-    ///   * `path`: the path to load the graphs from.
-    ///
-    /// Returns:
-    ///    The `data` field from the graphQL response after executing the mutation.
-    fn load_new_graphs_from_path(
-        &self,
-        py: Python,
-        path: String,
-    ) -> PyResult<HashMap<String, PyObject>> {
-        self.generic_load_graphs(py, "loadNewGraphsFromPath", path)
+        if overwrite {
+            self.generic_load_graphs(py, "loadGraphsFromPath", path)
+        } else {
+            self.generic_load_graphs(py, "loadNewGraphsFromPath", path)
+        }
     }
 }
 
@@ -582,27 +550,12 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<PyObjec
     }
 }
 
-// TODO: do we want to keep this? or only to be used by `send_graph` ?
-#[pyfunction]
-pub fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
+fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
     match result {
         Ok(s) => Ok(s),
         Err(e) => Err(exceptions::PyValueError::new_err(format!(
             "Error encoding: {:?}",
-            e
-        ))),
-    }
-}
-
-// TODO: do we want to keep this?
-#[pyfunction]
-pub fn decode_graph(py: Python, encoded_graph: String) -> PyResult<PyObject> {
-    let result = url_decode_graph(encoded_graph);
-    match result {
-        Ok(s) => Ok(s.into_py(py)),
-        Err(e) => Err(exceptions::PyValueError::new_err(format!(
-            "Error decoding: {:?}",
             e
         ))),
     }
