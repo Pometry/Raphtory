@@ -2996,7 +2996,6 @@ dependencies = [
  "crossbeam-channel",
  "openssl",
  "pyo3",
- "pyo3-asyncio",
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
