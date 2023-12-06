@@ -608,6 +608,48 @@ mod test_deletions {
     use itertools::Itertools;
 
     #[test]
+    fn test_vertices() {
+        let g = GraphWithDeletions::new();
+
+        g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
+            .unwrap();
+        g.add_edge(1, 1, 3, [("added", Prop::I64(0))], Some("assigned"))
+            .unwrap();
+        g.add_edge(2, 4, 2, [("added", Prop::I64(0))], Some("has"))
+            .unwrap();
+        g.add_edge(3, 4, 2, [("added", Prop::I64(0))], Some("has"))
+            .unwrap();
+        g.add_edge(4, 5, 2, [("added", Prop::I64(0))], Some("blocks"))
+            .unwrap();
+        g.add_edge(5, 4, 5, [("added", Prop::I64(0))], Some("has"))
+            .unwrap();
+        g.add_edge(6, 6, 5, [("added", Prop::I64(0))], Some("assigned"))
+            .unwrap();
+
+        let vertices = g
+            .window(0, 1701786285758)
+            .layer(vec!["assigned", "has", "blocks"])
+            .unwrap()
+            .vertices()
+            .into_iter()
+            .map(|vv| vv.name())
+            .collect_vec();
+
+        assert_eq!(vertices, vec!["1", "2", "3", "4", "5", "6"]);
+
+        let vertices = g
+            .at(1701786285758)
+            .layer(vec!["assigned", "has", "blocks"])
+            .unwrap()
+            .vertices()
+            .into_iter()
+            .map(|vv| vv.name())
+            .collect_vec();
+
+        assert_eq!(vertices, vec!["1", "2", "3", "4", "5", "6"]);
+    }
+
+    #[test]
     fn test_edge_deletions() {
         let g = GraphWithDeletions::new();
 
