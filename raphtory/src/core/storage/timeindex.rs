@@ -255,8 +255,6 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> LayeredIndex<'a, 
 impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> TimeIndexOps
     for LayeredIndex<'a, T, V>
 {
-    // type IterType<'b> = Box<dyn Iterator<Item = &'b i64> + Send + 'b> where Self: 'b;
-    // type WindowType<'b> = LayeredTimeIndexWindow<'b, T> where Self: 'b;
     type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
@@ -482,5 +480,149 @@ where
 
     fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
         Box::new(self.timeindex.iter().map(|t| t.iter_t()).kmerge())
+    }
+}
+
+#[cfg(test)]
+#[cfg(feature = "arrow")]
+mod test {
+    use std::collections::BTreeSet;
+
+    use arrow2::{
+        array::{PrimitiveArray, StructArray},
+        datatypes::{DataType, Field},
+    };
+    use itertools::Itertools;
+
+    use crate::core::{entities::LayerIds, storage::locked_view::LockedView};
+
+    use crate::arrow::{
+        chunked_array::{
+            array_ops::{BaseArrayOps, IntoNonNullPrimitiveCol, NonNullPrimitiveCol, PrimitiveCol},
+            chunked_array::ChunkedArray,
+            ChunkedArraySlice,
+        },
+        timestamps::TimeStamps,
+        Time,
+    };
+
+    use super::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps};
+
+    #[test]
+    fn time_index_1() {
+        check_time_index(vec![3], |vec_t_index, arr_t_index| {
+            assert_eq!(vec_t_index.active(0..5), arr_t_index.active(0..5));
+            assert_eq!(vec_t_index.active(0..3), arr_t_index.active(0..3));
+            assert_eq!(vec_t_index.active(0..2), arr_t_index.active(0..2));
+            assert_eq!(vec_t_index.active(3..100), arr_t_index.active(3..100));
+
+            assert_eq!(vec_t_index.first(), arr_t_index.first());
+            assert_eq!(vec_t_index.last(), arr_t_index.last());
+
+            assert_eq!(
+                vec_t_index.iter_t().collect_vec(),
+                arr_t_index.iter_t().collect_vec()
+            )
+        });
+    }
+
+    #[test]
+    fn time_index() {
+        check_time_index(vec![7, 9, 12, 34], |vec_t_index, arr_t_index| {
+            assert_eq!(vec_t_index.active(0..5), arr_t_index.active(0..5));
+            assert_eq!(vec_t_index.active(0..7), arr_t_index.active(0..7));
+            assert_eq!(vec_t_index.active(7..13), arr_t_index.active(7..13));
+            assert_eq!(vec_t_index.active(10..100), arr_t_index.active(10..100));
+            assert_eq!(vec_t_index.active(35..200), arr_t_index.active(35..200));
+
+            assert_eq!(vec_t_index.first(), arr_t_index.first());
+            assert_eq!(vec_t_index.last(), arr_t_index.last());
+
+            assert_eq!(
+                vec_t_index.iter_t().collect_vec(),
+                arr_t_index.iter_t().collect_vec()
+            );
+        })
+    }
+
+    #[test]
+    fn time_index_range() {
+        check_time_index(vec![7, 9, 12, 34], |vec_t_index, arr_t_index| {
+            let vec_window = vec_t_index.range(0..5);
+            let arr_window = arr_t_index.range(0..5);
+
+            assert_eq!(vec_window.active(0..5), arr_window.active(0..5));
+            assert_eq!(vec_window.active(0..7), arr_window.active(0..7));
+
+            assert_eq!(
+                vec_window.iter_t().collect_vec(),
+                arr_window.iter_t().collect_vec()
+            );
+
+            let vec_t_index = vec_t_index.range(0..13);
+            let arr_t_index = arr_t_index.range(0..13);
+
+            assert_eq!(vec_t_index.active(0..5), arr_t_index.active(0..5));
+            assert_eq!(vec_t_index.active(0..7), arr_t_index.active(0..7));
+            assert_eq!(vec_t_index.active(7..13), arr_t_index.active(7..13));
+            assert_eq!(vec_t_index.active(10..100), arr_t_index.active(10..100));
+            assert_eq!(vec_t_index.active(35..200), arr_t_index.active(35..200));
+
+            assert_eq!(vec_t_index.first(), arr_t_index.first());
+            assert_eq!(vec_t_index.last(), arr_t_index.last());
+
+            assert_eq!(
+                vec_t_index.iter_t().collect_vec(),
+                arr_t_index.iter_t().collect_vec()
+            );
+        })
+    }
+
+    fn check_time_index(
+        times: Vec<i64>,
+        f: impl Fn(&LockedLayeredIndex<'_, TimeIndexEntry>, &LockedLayeredIndex<'_, TimeIndexEntry>),
+    ) {
+        let t_index_vec: BTreeSet<_> = times.iter().map(|t| TimeIndexEntry::new(*t, 0)).collect();
+
+        let locked_t_index =
+            parking_lot::RwLock::new(vec![TimeIndex::One(TimeIndexEntry::new(3, 0))]);
+
+        let vec_t_index = LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
+            LayerIds::One(0),
+            LockedView::Locked(locked_t_index.read()),
+        ));
+
+        let make_chunks = make_chunks(vec![3], 1);
+        let slice = make_chunks.slice(0..);
+        let time_chunks = slice.into_non_null_primitive_col::<Time>(0).unwrap();
+
+        let ts: TimeStamps<'_, TimeIndexEntry> = TimeStamps::new(time_chunks, None);
+        let arr_t_index: LockedLayeredIndex<'_, TimeIndexEntry> =
+            LockedLayeredIndex::External(Box::new(ts));
+
+        f(&vec_t_index, &arr_t_index);
+    }
+
+    fn make_chunks(data: Vec<i64>, chunk_size: usize) -> ChunkedArray<StructArray> {
+        let data = data
+            .into_iter()
+            .chunks(chunk_size)
+            .into_iter()
+            .map(|c| c.collect_vec())
+            .collect_vec();
+
+        let dtype = DataType::Struct(vec![Field::new("test", DataType::Int64, false)]);
+        let arrays = data
+            .into_iter()
+            .map(|v| {
+                StructArray::new(
+                    dtype.clone(),
+                    vec![PrimitiveArray::from_vec(v).boxed()],
+                    None,
+                )
+            })
+            .collect_vec();
+        let chunks: ChunkedArray<StructArray> = arrays.into();
+        chunks
     }
 }

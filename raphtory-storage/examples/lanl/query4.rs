@@ -79,7 +79,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                             .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                         {
                             for (b, nft1_ts) in nft_ts.iter() {
-                                g.edges(*b, Direction::OUT, nft)
+                                g.edges_iter(*b, Direction::OUT, nft)
                                     .filter(|(_, c)| b != c && a != *c)
                                     .for_each(|(e_id, _)| {
                                         let nf2 = g.edge(e_id, nft);
@@ -119,7 +119,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                 for i in (0..i).rev() {
                                                     let (v, program_t) =
                                                         (event_ids.get(i), edge_ts.get(i));
-                                                    if program_t != t
+                                                    if program_t != &t
                                                         || nft1_t < &program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
@@ -209,7 +209,8 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
 
                                 for i in (0..i).rev() {
                                     let (v, program_t) = (event_ids.get(i), edge_ts.get(i));
-                                    if program_t != t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                    if program_t != &t || nft_t < &program_t || nft_t - t >= WINDOW
+                                    {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {
@@ -246,7 +247,7 @@ fn expand_nf2_hop(
 ) -> usize {
     let mut count = 0;
     for (e_id, c) in g
-        .edges(b, Direction::OUT, nft_layer)
+        .edges_iter(b, Direction::OUT, nft_layer)
         .filter(|(_, c)| *c != a && *c != b)
     {
         let edge = g.edge(e_id, nft_layer);

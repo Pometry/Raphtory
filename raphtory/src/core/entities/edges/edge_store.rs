@@ -164,6 +164,7 @@ impl EdgeStore {
                 .into_dyn_boxed(),
         }
     }
+
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
         let layer_ids = self
             .additions

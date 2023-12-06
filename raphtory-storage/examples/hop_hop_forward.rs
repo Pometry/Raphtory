@@ -39,7 +39,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
         event_id_prop_id_1v,
         event_id_prop_id_2v,
     );
-    println!("vertex count: {:?}", g.num_vertices());
+    println!("node count: {:?}", g.num_nodes());
     Some(res)
 }
 
@@ -192,7 +192,7 @@ fn query1_v7(
                                 let login1_ts = login1.timestamps();
 
                                 let min_login1 = login1_ts.iter().next().unwrap();
-                                if min_login1 > max_prog1 {
+                                if min_login1 > &max_prog1 {
                                     skip = true;
                                 }
                             }

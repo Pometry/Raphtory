@@ -37,6 +37,9 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(feature = "arrow")]
+use arrow2::datatypes::DataType;
+
 #[cfg(test)]
 extern crate core;
 
@@ -130,6 +133,27 @@ pub enum PropType {
     Map,
     DTime,
     Graph,
+}
+
+#[cfg(feature = "arrow")]
+impl From<&DataType> for PropType {
+    fn from(value: &DataType) -> Self {
+        match value {
+            DataType::Utf8 => PropType::Str,
+            DataType::LargeUtf8 => PropType::Str,
+            DataType::UInt8 => PropType::U8,
+            DataType::UInt16 => PropType::U16,
+            DataType::Int32 => PropType::I32,
+            DataType::Int64 => PropType::I64,
+            DataType::UInt32 => PropType::U32,
+            DataType::UInt64 => PropType::U64,
+            DataType::Float32 => PropType::F32,
+            DataType::Float64 => PropType::F64,
+            DataType::Boolean => PropType::Bool,
+
+            _ => PropType::Empty,
+        }
+    }
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.

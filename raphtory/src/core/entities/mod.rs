@@ -22,6 +22,12 @@ pub mod properties;
 )]
 pub struct VID(pub usize);
 
+impl VID {
+    pub fn as_u64(&self) -> u64 {
+        self.0 as u64
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LocalID {
     pub(crate) bucket: usize,
@@ -45,6 +51,12 @@ impl From<VID> for usize {
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
 pub struct EID(pub usize);
+
+impl EID {
+    pub fn from_u64(id: u64) -> Self {
+        EID(id as usize)
+    }
+}
 
 impl From<EID> for usize {
     fn from(id: EID) -> Self {

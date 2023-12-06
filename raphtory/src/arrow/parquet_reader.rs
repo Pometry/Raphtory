@@ -52,17 +52,6 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
             .clone()
             .filter(|_, field| field.name == src_col || field.name == dst_col);
 
-        let src_col = src_dest_schema
-            .fields
-            .iter()
-            .position(|f| f.name == src_col)
-            .ok_or_else(|| Error::ColumnNotFound(src_col.to_owned()))?;
-        let dst_col = src_dest_schema
-            .fields
-            .iter()
-            .position(|f| f.name == dst_col)
-            .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
-
         let edge_t_prop_schema =
             schema.filter(|_, field| !excluded_cols.contains(&field.name.as_str()));
         let time_col = edge_t_prop_schema
@@ -71,7 +60,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
             .position(|f| f.name == time_col)
             .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
 
-        let edge_props_builder = EdgePropsBuilder::new(graph_dir, src_col, dst_col, time_col);
+        let edge_props_builder = EdgePropsBuilder::new(graph_dir, time_col);
 
         Ok(Self {
             files,
@@ -132,7 +121,10 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         let chunks = self.files.borrow().par_iter().flat_map_iter(|path| {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
-                .map_ok(|chunk| GraphChunk::from_chunk(chunk, 0, 1))
+                .map_ok(move |chunk| {
+                    println!("chunk_len: {:?}, {path:?}", chunk.len());
+                    GraphChunk::from_chunk(chunk, 0, 1)
+                })
         });
         self.edge_props_builder
             .load_t_edge_offsets_from_par_chunks(chunks)

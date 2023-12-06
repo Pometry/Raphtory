@@ -6,6 +6,7 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
+        arrow::PyArrowGraph,
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
@@ -44,6 +45,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     add_classes!(
         m,
         PyGraph,
+        PyArrowGraph,
         PyGraphWithDeletions,
         PyNode,
         PyNodes,

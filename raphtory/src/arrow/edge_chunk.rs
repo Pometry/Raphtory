@@ -8,7 +8,7 @@ use arrow2::{
 use std::iter;
 use std::sync::Arc;
 
-use super::{list_buffer::ListColumn, vertex_chunk::RowOwned, Time};
+use super::{list_buffer::ListColumn, node_chunk::RowOwned, Time};
 
 #[derive(Debug, Clone)]
 pub(crate) struct EdgeChunk {

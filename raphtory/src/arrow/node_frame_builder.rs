@@ -15,11 +15,11 @@ use std::{
     sync::Arc,
 };
 
-use super::{global_order::GlobalOrder, vertex_chunk::VertexChunk, GID};
+use super::{global_order::GlobalOrder, node_chunk::NodeChunk, GID};
 
-pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
-    pub(crate) adj_out_chunks: Vec<VertexChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
-    pub(crate) global_order: Arc<GO>,            // the sorted global ids of the vertices
+pub(crate) struct NodeFrameBuilder<GO: GlobalOrder> {
+    pub(crate) adj_out_chunks: Vec<NodeChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    pub(crate) global_order: Arc<GO>,          // the sorted global ids of the nodes
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -35,7 +35,7 @@ pub(crate) struct VertexFrameBuilder<GO: GlobalOrder> {
     location_path: PathBuf,
 }
 
-impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
+impl<GO: GlobalOrder> NodeFrameBuilder<GO> {
     pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, go: Arc<GO>, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
@@ -84,12 +84,12 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema.clone(), &chunk)?;
         let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_out_chunks.push(VertexChunk::new(mmapped_chunk));
+        self.adj_out_chunks.push(NodeChunk::new(mmapped_chunk));
         Ok(())
     }
 
-    fn find_or_push_vertex(&mut self, vertex: &GID) -> usize {
-        self.global_order.find(vertex).unwrap()
+    fn find_or_push_node(&mut self, node: &GID) -> usize {
+        self.global_order.find(node).unwrap()
     }
 
     pub(crate) fn push_update(&mut self, src: GID, dst: GID) -> Result<(u64, u64), Error> {
@@ -108,7 +108,7 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
         if !same_edge {
             if not_same_source {
                 // new source or first edge
-                self.last_src_idx = self.find_or_push_vertex(&src);
+                self.last_src_idx = self.find_or_push_node(&src);
                 let chunk_id = self.last_src_idx / self.chunk_size;
                 if let Some(last_chunk) = self.last_chunk {
                     assert!(
@@ -123,7 +123,7 @@ impl<GO: GlobalOrder> VertexFrameBuilder<GO> {
                 self.extend_empty(self.last_src_idx)?;
             }
             self.adj_out_eid.push(self.e_id);
-            self.last_dst_idx = self.find_or_push_vertex(&dst);
+            self.last_dst_idx = self.find_or_push_node(&dst);
             self.adj_out_dst.push(self.last_dst_idx as u64);
 
             self.e_id += 1;

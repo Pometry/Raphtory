@@ -1,6 +1,6 @@
 use crate::arrow::{
     mmap::{mmap_batch, write_batches},
-    DST_COLUMN, SRC_COLUMN,
+    Time, DST_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
     array::PrimitiveArray,
@@ -74,11 +74,6 @@ impl EdgeFrameBuilder {
         self.src_chunks.push(src.clone());
         self.dst_chunks.push(dst.clone());
 
-        Ok(())
-    }
-
-    pub(crate) fn write_down_chunk(&mut self) -> Result<(), Error> {
-        self.push_chunk()?;
         Ok(())
     }
 

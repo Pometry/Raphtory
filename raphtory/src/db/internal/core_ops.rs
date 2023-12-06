@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            edges::edge_ref::EdgeRef,
             graph::tgraph::InnerTemporalGraph,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
@@ -18,11 +18,14 @@ use crate::{
         },
         ArcStr,
     },
-    db::api::view::{internal::CoreGraphOps, BoxedIter},
+    db::api::view::{
+        internal::{CoreEdgeView, CoreGraphOps, NodeAdditions},
+        BoxedIter,
+    },
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter};
+use std::{collections::HashMap, iter, marker::PhantomData};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
@@ -82,9 +85,9 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
+    fn node_additions(&self, v: VID) -> NodeAdditions {
         let node = self.inner().node(v);
-        node.additions().unwrap()
+        node.additions().map(NodeAdditions::Mem).unwrap()
     }
 
     #[inline]
@@ -261,18 +264,23 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
-        Box::new(self.inner().storage.edges.read_lock().into_iter())
+    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
+        Box::new(
+            self.inner()
+                .storage
+                .edges
+                .read_lock()
+                .into_iter()
+                .map(|edge| CoreEdgeView::Mem(edge, PhantomData)),
+        )
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
-        self.inner().storage.edges.entry_arc(eid.into())
-    }
-
-    #[inline]
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
-        Box::new(self.inner().storage.nodes.read_lock().into_iter())
+    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
+        CoreEdgeView::Mem(
+            self.inner().storage.edges.entry_arc(eid.into()),
+            PhantomData,
+        )
     }
 
     #[inline]

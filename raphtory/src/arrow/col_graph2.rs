@@ -7,6 +7,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
+    thread::JoinHandle,
 };
 
 use crate::{
@@ -18,10 +19,9 @@ use crate::{
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, sort_dedup_2, sort_within_chunks, ExternalEdgeList},
         mmap::{mmap_batch, mmap_batches, write_batches},
+        node_frame_builder::NodeFrameBuilder,
         parquet_reader::{ParquetOffsetIter, ParquetReader},
-        prepare_graph_dir,
-        vertex_frame_builder::VertexFrameBuilder,
-        Error,
+        prepare_graph_dir, Error,
     },
     core::{
         entities::{EID, VID},
@@ -30,8 +30,9 @@ use crate::{
 };
 use arrow2::{
     array::{Array, ListArray, PrimitiveArray, StructArray},
+    buffer::Buffer,
     chunk::Chunk,
-    datatypes::{Field, Schema},
+    datatypes::{DataType, Field, Schema},
     io::ipc::write::{FileWriter, WriteOptions},
     offset::OffsetsBuffer,
 };
@@ -41,34 +42,21 @@ use tempfile::tempfile_in;
 
 use super::{
     array_as_id_iter,
-    edges::Edges,
+    chunked_array::chunked_array::ChunkedArray,
+    edge_frame_builder::edge_props_builder::write_buffer,
+    edges::{calculate_earliest_latest_time, Edges},
     global_order::{GlobalMap, GlobalOrder},
-    ipc, split_struct_chunk,
-    vertex_chunk::{RowOwned, VertexChunk},
-    GraphChunk,
+    node_chunk::{NodeChunk, RowOwned},
+    nodes::{Node, Nodes},
+    split_struct_chunk, GraphChunk, Time,
 };
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
-    vertex_chunk_size: usize,
-    adj_out_chunks: Vec<VertexChunk>,
-    adj_in_chunks: Vec<VertexChunk>,
+    nodes: Nodes,
     edges: Edges,
     graph_dir: Box<Path>,
-}
-
-fn is_out_chunk(path: impl AsRef<Path>) -> bool {
-    path.as_ref()
-        .file_name()
-        .map(|f| f.to_str().unwrap().starts_with("adj_out_chunk_"))
-        .unwrap_or(false)
-}
-
-fn is_in_chunk(path: impl AsRef<Path>) -> bool {
-    path.as_ref()
-        .file_name()
-        .map(|f| f.to_str().unwrap().starts_with("adj_in_chunk_"))
-        .unwrap_or(false)
+    layer_id: usize,
 }
 
 fn is_parquet_file(path: impl AsRef<Path>) -> bool {
@@ -78,7 +66,7 @@ fn is_parquet_file(path: impl AsRef<Path>) -> bool {
         .unwrap_or(false)
 }
 
-fn list_sorted_files(
+pub fn list_sorted_files(
     path: impl AsRef<Path>,
     pred: impl Fn(&PathBuf) -> bool,
 ) -> Result<impl Iterator<Item = PathBuf>, Error> {
@@ -91,54 +79,214 @@ fn list_sorted_files(
 }
 
 impl TempColGraphFragment {
-    pub fn new<P: AsRef<Path>>(graph_dir: P, mmap: bool) -> Result<Self, Error> {
-        let iter = list_sorted_files(&graph_dir, |path| is_out_chunk(&path) || is_in_chunk(&path))?;
+    pub fn new<P: AsRef<Path>>(graph_dir: P, mmap: bool, layer_id: usize) -> Result<Self, Error> {
+        let nodes = Nodes::from_path(graph_dir.as_ref(), mmap, layer_id)?;
 
-        let mut adj_out_chunks = vec![];
-        let mut adj_in_chunks = vec![];
+        let has_additions = nodes.additions.len() > 0;
 
-        for file_path in iter {
-            if is_in_chunk(&file_path) {
-                let chunk = if mmap {
-                    unsafe { mmap_batch(&file_path, 0)? }
-                } else {
-                    ipc::read_batch(&file_path)?
-                };
-                adj_in_chunks.push(VertexChunk::new(chunk));
-            } else if is_out_chunk(&file_path) {
-                let chunk = if mmap {
-                    unsafe { mmap_batch(&file_path, 0)? }
-                } else {
-                    ipc::read_batch(&file_path)?
-                };
-                adj_out_chunks.push(VertexChunk::new(chunk));
-            }
-        }
+        let edges = Edges::from_path(graph_dir.as_ref(), mmap, layer_id)?;
 
-        let vertex_chunk_size = adj_out_chunks
-            .first()
-            .ok_or_else(|| Error::NoEdgeLists)?
-            .len();
+        let edges_chunk_size = edges.t_props_chunk_size();
 
-        let edges = Edges::from_path(graph_dir.as_ref(), mmap)?;
-
-        Ok(Self {
-            vertex_chunk_size,
-            adj_out_chunks,
-            adj_in_chunks,
+        let mut grapho = Self {
+            nodes,
             edges,
             graph_dir: graph_dir.as_ref().into(),
-        })
+            layer_id,
+        };
+
+        if !has_additions {
+            println!("No additions found, building them");
+            grapho.node_additions_2(edges_chunk_size)?;
+        }
+
+        Ok(grapho)
+    }
+
+    pub(crate) fn earliest_time(&self) -> Time {
+        self.edges.earliest_time
+    }
+
+    pub(crate) fn latest_time(&self) -> Time {
+        self.edges.latest_time
     }
 
     pub fn edge_property_id(&self, name: &str) -> Option<usize> {
         self.edges.property_id(name)
     }
 
+    pub fn edges_data_type(&self) -> &Vec<Field> {
+        self.edges.data_type()
+    }
+
+    pub fn out_slice(&self, node_id: VID) -> Option<&[u64]> {
+        self.nodes.out_slice(node_id)
+    }
+
+    pub fn in_slice(&self, node_id: VID) -> Option<&[u64]> {
+        self.nodes.in_slice(node_id)
+    }
+
+    pub fn node_additions_2(&mut self, temp_prop_chunk_size: usize) -> Result<(), Error> {
+        // go over every node and merge join and dedup all the additions for edges then write them down
+        let node_times = (0..self.num_nodes()).into_iter().map(VID).flat_map(|v_id| {
+            self.edges(v_id, Direction::OUT)
+                .map(|(e, _)| e)
+                .merge(self.edges(v_id, Direction::IN).map(|(e, _)| e))
+                .dedup()
+                .map(|e| {
+                    let edge = self.edge(e);
+                    edge.into_timestamps()
+                })
+                .kmerge_by(|t1, t2| t1 < t2)
+                .dedup()
+        });
+
+        let counts = (0..self.num_nodes())
+            .into_par_iter()
+            .map(VID)
+            .map(|v_id| {
+                self.edges(v_id, Direction::OUT)
+                    .map(|(e, _)| e)
+                    .merge(self.edges(v_id, Direction::IN).map(|(e, _)| e))
+                    .dedup()
+                    .map(|e| {
+                        let edge = self.edge(e);
+                        edge.into_timestamps()
+                    })
+                    .kmerge_by(|t1, t2| t1 < t2)
+                    .dedup()
+                    .count() as i64
+            })
+            .collect::<Vec<_>>();
+
+        let mut offsets = counts
+            .into_iter()
+            .scan(0i64, |off, v_count| {
+                let out = Some(v_count + *off);
+                *off += v_count;
+                out
+            })
+            .collect::<Vec<_>>();
+
+        offsets.insert(0, 0);
+
+        assert_eq!(offsets.len(), self.num_nodes() + 1);
+
+        let mut time_chunks = vec![];
+        let mut jobs = vec![];
+        let mut chunk_count = 0;
+
+        for t in node_times {
+            time_chunks.push(t);
+
+            if time_chunks.len() == temp_prop_chunk_size {
+                let task = self.persist_node_additions_task(&mut time_chunks, chunk_count)?;
+                jobs.push(task);
+                chunk_count += 1;
+            }
+        }
+
+        let mut time_addition_arrays = vec![];
+        for job in jobs {
+            let arr = job.join().unwrap();
+            time_addition_arrays.push(arr);
+        }
+        // finalize whatever is left
+        if time_chunks.len() > 0 {
+            self.persist_node_additions(&mut time_chunks, &mut time_addition_arrays)?;
+        }
+        // persist offsets
+
+        let offsets = Buffer::from(offsets);
+        write_buffer(
+            self.graph_dir.as_ref().join("node_offsets.ipc"),
+            offsets.clone(),
+        )?;
+
+        let arrays: Vec<_> = time_addition_arrays
+            .into_iter()
+            .map(|time_col| {
+                StructArray::new(
+                    DataType::Struct(vec![Field::new(
+                        "additions",
+                        time_col.data_type().clone(),
+                        false,
+                    )]),
+                    vec![time_col],
+                    None,
+                )
+            })
+            .collect();
+        let chunked_t_array = ChunkedArray::from(arrays);
+        let offsets = unsafe { OffsetsBuffer::new_unchecked(offsets) };
+
+        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
+        self.nodes.additions = chunked_list_array;
+        Ok(())
+    }
+
+    fn persist_node_additions(
+        &self,
+        time_chunks: &mut Vec<i64>,
+        time_addition_arrays: &mut Vec<Box<dyn Array>>,
+    ) -> Result<(), Error> {
+        // write down time chunk as
+        let mut times = Vec::with_capacity(time_chunks.len());
+        std::mem::swap(&mut times, time_chunks);
+
+        let time_chunk = PrimitiveArray::from_vec(times).boxed();
+        let time_chunk = Chunk::new(vec![time_chunk]);
+        let schema = Schema::from(vec![Field::new("additions", DataType::Int64, false)]);
+
+        let chunk_count = time_addition_arrays.len();
+        let file_path = self
+            .graph_dir
+            .join(format!("node_additions_{:08}.ipc", chunk_count));
+        write_batches(file_path.as_path(), schema, &[time_chunk])?;
+
+        let arr = unsafe { mmap_batch(file_path.as_path(), 0) }
+            .unwrap()
+            .into_arrays()
+            .remove(0);
+        time_addition_arrays.push(arr);
+        Ok(())
+    }
+
+    fn persist_node_additions_task(
+        &self,
+        time_chunks: &mut Vec<i64>,
+        chunk_count: usize,
+    ) -> Result<JoinHandle<Box<dyn Array>>, Error> {
+        println!("persisting node additions chunk: {}", chunk_count);
+        // write down time chunk as
+        let mut times = Vec::with_capacity(time_chunks.len());
+        std::mem::swap(&mut times, time_chunks);
+
+        let time_chunk = PrimitiveArray::from_vec(times).boxed();
+        let time_chunk = Chunk::new(vec![time_chunk]);
+        let schema = Schema::from(vec![Field::new("additions", DataType::Int64, false)]);
+        let graph_dir = self.graph_dir.to_path_buf();
+
+        let arr_job = std::thread::spawn(move || {
+            let file_path = graph_dir.join(format!("node_additions_{:08}.ipc", chunk_count));
+            write_batches(file_path.as_path(), schema, &[time_chunk])
+                .expect("write batches failed");
+
+            let arr = unsafe { mmap_batch(file_path.as_path(), 0) }
+                .unwrap()
+                .into_arrays()
+                .remove(0);
+            arr
+        });
+        Ok(arr_job)
+    }
+
     pub fn load_from_edge_list<G: GlobalOrder, I: IntoIterator<Item = StructArray>>(
         graph_dir: &Path,
+        layer_id: usize,
         num_threads: NonZeroUsize,
-        vertex_chunk_size: usize,
+        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         go: Arc<G>,
@@ -148,9 +296,9 @@ impl TempColGraphFragment {
         edge_list: I,
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir)?;
-        let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, go, graph_dir);
+        let mut vf_builder = NodeFrameBuilder::new(node_chunk_size, go, graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
-        let edge_props_builder = EdgePropsBuilder::new(graph_dir, 0, 1, 0);
+        let edge_props_builder = EdgePropsBuilder::new(graph_dir, 0);
 
         let (edges, props): (Vec<_>, Vec<_>) = edge_list
             .into_iter()
@@ -165,18 +313,29 @@ impl TempColGraphFragment {
         let graph_chunks_iter = edges.into_par_iter().map(Ok);
         let offsets = edge_props_builder.load_t_edge_offsets_from_par_chunks(graph_chunks_iter)?;
 
+        let temporal_props = ChunkedListArray::new_from_parts(edge_props_values, offsets);
+
+        let (earliest_time, latest_time) = calculate_earliest_latest_time(&temporal_props);
+
+        // write to edge_metadata.json
+        write_graph_metadata(graph_dir, earliest_time, latest_time)?;
+
         let edges = Edges::new(
             edge_builder.src_chunks,
             edge_builder.dst_chunks,
-            ChunkedListArray::new_from_parts(edge_props_values, offsets),
+            temporal_props,
+            layer_id,
+            earliest_time,
+            latest_time,
         );
 
+        let nodes = Nodes::new(node_chunk_size, vf_builder.adj_out_chunks, Vec::default());
+
         Ok(TempColGraphFragment {
-            vertex_chunk_size,
-            adj_out_chunks: vf_builder.adj_out_chunks,
-            adj_in_chunks: Vec::default(),
+            nodes,
             edges,
             graph_dir: graph_dir.into(),
+            layer_id,
         })
     }
 
@@ -184,15 +343,17 @@ impl TempColGraphFragment {
         el: &ExternalEdgeList<P>,
         graph_dir: &Path,
         global_order: Arc<GO>,
+        layer_id: usize,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
-        vertex_chunk_size: usize,
+        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
     ) -> Result<TempColGraphFragment, Error> {
         Self::from_sorted_parquet_files_edge_list(
             el.files(),
             global_order,
+            layer_id,
             graph_dir.as_ref(),
             el.src_col,
             el.src_hash_col,
@@ -201,7 +362,7 @@ impl TempColGraphFragment {
             el.time_col,
             exclude_cols,
             num_threads,
-            vertex_chunk_size,
+            node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
         )
@@ -210,6 +371,7 @@ impl TempColGraphFragment {
     fn from_sorted_parquet_files_edge_list<GO: GlobalOrder>(
         files: &[PathBuf],
         global_order: Arc<GO>,
+        layer_id: usize,
         graph_dir: &Path,
         src_col: &str,
         src_hash_col: &str,
@@ -218,17 +380,17 @@ impl TempColGraphFragment {
         time_col: &str,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
-        vertex_chunk_size: usize,
+        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir)?;
         let chunks = files
             .iter()
-            .flat_map(|dir_entry| read_file_chunks(dir_entry, src_col, dst_col))
+            .flat_map(|dir_entry| read_file_chunks(dir_entry, src_col, dst_col, time_col))
             .flatten();
 
-        let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, global_order, graph_dir);
+        let mut vf_builder = NodeFrameBuilder::new(node_chunk_size, global_order, graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
 
         load_chunks(&mut vf_builder, &mut edge_builder, chunks)?;
@@ -245,20 +407,33 @@ impl TempColGraphFragment {
         )?;
 
         let t_props = reader.load_edges(num_threads, t_props_chunk_size)?;
-        let edges = Edges::new(edge_builder.src_chunks, edge_builder.dst_chunks, t_props);
+
+        let (earliest_time, latest_time) = calculate_earliest_latest_time(&t_props);
+        let edges = Edges::new(
+            edge_builder.src_chunks,
+            edge_builder.dst_chunks,
+            t_props,
+            layer_id,
+            earliest_time,
+            latest_time,
+        );
+
+        write_graph_metadata(graph_dir, earliest_time, latest_time)?;
+
+        let nodes = Nodes::new(node_chunk_size, vf_builder.adj_out_chunks, Vec::default());
 
         Ok(TempColGraphFragment {
-            vertex_chunk_size,
-            adj_out_chunks: vf_builder.adj_out_chunks,
-            adj_in_chunks: Vec::default(),
+            nodes,
             edges,
             graph_dir: graph_dir.into(),
+            layer_id,
         })
     }
 
     pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone + Send + Sync>(
         parquet_path: P,
         graph_dir: P,
+        layer_id: usize,
         src_col: &str,
         src_hash_col: &str,
         dst_col: &str,
@@ -266,7 +441,7 @@ impl TempColGraphFragment {
         time_col: &str,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
-        vertex_chunk_size: usize,
+        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
     ) -> Result<Self, Error> {
@@ -280,34 +455,42 @@ impl TempColGraphFragment {
 
         let now = std::time::Instant::now();
 
-        let sorted_vertices = if sorted_gids_path.exists() {
+        let sorted_nodes = if sorted_gids_path.exists() {
             let chunk = unsafe { mmap_batch(sorted_gids_path.as_path(), 0)? };
             chunk.into_arrays().into_iter().next().unwrap()
         } else {
-            let (_, sorted_vertices) = srcs_parquet_files
-                .par_iter()
-                .map(|dir_entry| {
-                    sort_within_chunks(dir_entry, src_col, src_hash_col, dst_col, dst_hash_col)
-                })
-                .flatten()
-                .reduce_with(|(l_hash, l), (r_hash, r)| {
-                    sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
-                })
+            let thread_pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads.get())
+                .build()
                 .unwrap();
+
+            let sorted_nodes = thread_pool.install(|| {
+                let (_, sorted_nodes) = srcs_parquet_files
+                    .par_iter()
+                    .map(|dir_entry| {
+                        sort_within_chunks(dir_entry, src_col, src_hash_col, dst_col, dst_hash_col)
+                    })
+                    .flatten()
+                    .reduce_with(|(l_hash, l), (r_hash, r)| {
+                        sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
+                    })
+                    .unwrap();
+                sorted_nodes
+            });
 
             let schema = Schema::from(vec![Field::new(
                 "sorted_global_ids",
-                sorted_vertices.data_type().clone(),
+                sorted_nodes.data_type().clone(),
                 false,
             )]);
 
-            let chunk = [Chunk::try_new(vec![sorted_vertices.clone()])?];
+            let chunk = [Chunk::try_new(vec![sorted_nodes.clone()])?];
             write_batches(sorted_gids_path.as_path(), schema, &chunk)?;
-            sorted_vertices
+            sorted_nodes
         };
 
         let mut go: GlobalMap = GlobalMap::default();
-        for (i, gid) in array_as_id_iter(&sorted_vertices)?.enumerate() {
+        for (i, gid) in array_as_id_iter(&sorted_nodes)?.enumerate() {
             go.insert(gid, i);
         }
 
@@ -320,6 +503,7 @@ impl TempColGraphFragment {
         Self::from_sorted_parquet_files_edge_list(
             &srcs_parquet_files,
             Arc::new(go),
+            layer_id,
             graph_dir.as_ref(),
             src_col,
             src_hash_col,
@@ -328,27 +512,28 @@ impl TempColGraphFragment {
             time_col,
             exclude_cols,
             num_threads,
-            vertex_chunk_size,
+            node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
         )
     }
 
-    pub fn num_vertices(&self) -> usize {
-        match self.adj_out_chunks.last() {
-            Some(v) => (self.adj_out_chunks.len() - 1) * self.vertex_chunk_size + v.len(), // all but the last chunk are always full
-            None => 0, // we have an empty graph
-        }
+    pub fn num_nodes(&self) -> usize {
+        self.nodes.len()
+    }
+
+    pub fn num_edges(&self) -> usize {
+        self.edges.len()
     }
 
     pub fn edges(
         &self,
-        vertex_id: VID,
+        node_id: VID,
         dir: Direction,
     ) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
         match dir {
             Direction::IN | Direction::OUT => {
-                let adj_array = self.adj_list(vertex_id.into(), dir);
+                let adj_array = self.adj_list(node_id.into(), dir);
                 if let Some((v, e)) = adj_array {
                     let iter = v
                         .into_iter()
@@ -361,8 +546,8 @@ impl TempColGraphFragment {
                 }
             }
             Direction::BOTH => {
-                let out = self.edges(vertex_id, Direction::OUT);
-                let inb = self.edges(vertex_id, Direction::IN);
+                let out = self.edges(node_id, Direction::OUT);
+                let inb = self.edges(node_id, Direction::IN);
                 Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2))
             }
         }
@@ -370,18 +555,18 @@ impl TempColGraphFragment {
 
     pub fn edges_par_iter(
         &self,
-        vertex_id: VID,
+        node_id: VID,
         dir: Direction,
     ) -> Option<impl IndexedParallelIterator<Item = (EID, VID)> + '_> {
         let (v_slice, edge_slice) = match dir {
             Direction::OUT => {
-                let out_slice = self.out_slice(vertex_id)?;
-                let edge_out_slice = self.out_edges(vertex_id)?;
+                let out_slice = self.nodes.out_slice(node_id)?;
+                let edge_out_slice = self.nodes.out_edges(node_id)?;
                 (out_slice, edge_out_slice)
             }
             Direction::IN => {
-                let in_slice = self.in_slice(vertex_id)?;
-                let edge_in_slice = self.in_edges(vertex_id)?;
+                let in_slice = self.nodes.in_slice(node_id)?;
+                let edge_in_slice = self.nodes.in_edges(node_id)?;
                 (in_slice, edge_in_slice)
             }
             Direction::BOTH => panic!("No parallel iterators for both directions"),
@@ -396,22 +581,10 @@ impl TempColGraphFragment {
 
     pub fn edges_iter(
         &self,
-        vertex_id: VID,
+        node_id: VID,
         dir: Direction,
     ) -> Option<impl DoubleEndedIterator<Item = (EID, VID)> + Send + '_> {
-        let (v_slice, edge_slice) = match dir {
-            Direction::OUT => {
-                let out_slice = self.out_slice(vertex_id)?;
-                let edge_out_slice = self.out_edges(vertex_id)?;
-                (out_slice, edge_out_slice)
-            }
-            Direction::IN => {
-                let in_slice = self.in_slice(vertex_id)?;
-                let edge_in_slice = self.in_edges(vertex_id)?;
-                (in_slice, edge_in_slice)
-            }
-            Direction::BOTH => panic!("No parallel iterators for both directions"),
-        };
+        let (v_slice, edge_slice) = self.edges_slice(node_id, dir)?;
         Some(
             edge_slice
                 .iter()
@@ -420,8 +593,28 @@ impl TempColGraphFragment {
         )
     }
 
+    pub fn edges_slice(&self, node_id: VID, dir: Direction) -> Option<(&[u64], &[u64])> {
+        match dir {
+            Direction::OUT => {
+                let out_slice = self.nodes.out_slice(node_id)?;
+                let edge_out_slice = self.nodes.out_edges(node_id)?;
+                Some((out_slice, edge_out_slice))
+            }
+            Direction::IN => {
+                let in_slice = self.nodes.in_slice(node_id)?;
+                let edge_in_slice = self.nodes.in_edges(node_id)?;
+                Some((in_slice, edge_in_slice))
+            }
+            Direction::BOTH => panic!("No parallel iterators for both directions"),
+        }
+    }
+
     pub fn edge(&self, e_id: EID) -> Edge<'_> {
         self.edges.edge(e_id)
+    }
+
+    pub fn node(&self, v_id: VID) -> Node<'_> {
+        self.nodes.node(v_id)
     }
 
     pub fn all_edges_iter(&self) -> impl Iterator<Item = Edge> + '_ {
@@ -432,6 +625,10 @@ impl TempColGraphFragment {
         &self.edges
     }
 
+    pub fn all_edge_ids(&self) -> impl Iterator<Item = EID> {
+        (0..self.num_edges()).map(|e_id| EID(e_id))
+    }
+
     pub fn all_edges_par(&self) -> impl ParallelIterator<Item = Edge> + '_ {
         self.edges.par_iter()
     }
@@ -440,82 +637,16 @@ impl TempColGraphFragment {
         self.edges.iter().flat_map(|e| e.explode())
     }
 
-    fn adj_list(&self, vertex_id: usize, dir: Direction) -> Option<(RowOwned<u64>, RowOwned<u64>)> {
-        let chunks = match dir {
-            Direction::OUT => self.outbound(),
-            Direction::IN => self.inbound(),
-            Direction::BOTH => return None,
-        };
-
-        let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
-
-        let chunk_idx = vertex_id / chunk_size;
-        let idx = vertex_id % chunk_size;
-
-        let neighbours = chunks[chunk_idx].neighbours_own(idx)?;
-        let edges = chunks[chunk_idx].edges_own(idx)?;
-
-        Some((neighbours, edges))
+    fn adj_list(&self, node_id: usize, dir: Direction) -> Option<(RowOwned<u64>, RowOwned<u64>)> {
+        self.nodes.adj_list(node_id, dir)
     }
 
-    pub(crate) fn out_slice(&self, vertex_id: VID) -> Option<&[u64]> {
-        self.v_slice(vertex_id, Direction::OUT)
-    }
-
-    pub(crate) fn in_slice(&self, vertex_id: VID) -> Option<&[u64]> {
-        self.v_slice(vertex_id, Direction::IN)
-    }
-
-    fn v_slice(&self, vertex_id: VID, dir: Direction) -> Option<&[u64]> {
-        let vertex_id: usize = vertex_id.into();
-        let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
-
-        let chunk_idx = vertex_id / chunk_size;
-        let idx = vertex_id % chunk_size;
-
-        let chunks = match dir {
-            Direction::OUT => self.outbound(),
-            Direction::IN => self.inbound(),
-            Direction::BOTH => panic!("no slice for both directions"),
-        };
-        let neighbours = chunks[chunk_idx].neighbours_col()?;
-        Some(neighbours.into_value(idx))
-    }
-
-    pub(crate) fn out_edges(&self, vertex_id: VID) -> Option<&[u64]> {
-        self.e_slice(vertex_id, Direction::OUT)
-    }
-
-    pub(crate) fn in_edges(&self, vertex_id: VID) -> Option<&[u64]> {
-        self.e_slice(vertex_id, Direction::IN)
-    }
-
-    fn e_slice(&self, vertex_id: VID, dir: Direction) -> Option<&[u64]> {
-        let vertex_id: usize = vertex_id.into();
-        let chunk_size = self.vertex_chunk_size; // we assume all the chunks are the same size
-
-        let chunk_idx = vertex_id / chunk_size;
-        let idx = vertex_id % chunk_size;
-
-        let chunks = match dir {
-            Direction::OUT => self.outbound(),
-            Direction::IN => self.inbound(),
-            Direction::BOTH => panic!("no slice for both directions"),
-        };
-        let neighbours = chunks[chunk_idx].edge_col()?;
-        Some(neighbours.into_value(idx))
-    }
-
-    pub fn outbound(&self) -> &[VertexChunk] {
-        &self.adj_out_chunks
-    }
-
-    pub fn inbound(&self) -> &[VertexChunk] {
-        &self.adj_in_chunks
+    pub fn outbound(&self) -> &[NodeChunk] {
+        self.nodes.outbound()
     }
 
     pub fn vertex_chunk_size(&self) -> usize {
-        self.vertex_chunk_size
+        self.nodes.node_chunk_size
     }
 
     pub fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
@@ -548,7 +679,7 @@ impl TempColGraphFragment {
             let mut progress = vec![0usize; outbound_chunksize]; // keeps track of how far we got for each list
             for inbound_chunk_id in 0..num_chunks {
                 // build partial inbound chunk sequentially
-                let chunk_max_id = self.vertex_chunk_size * (inbound_chunk_id + 1); // id in this chunk less than this
+                let chunk_max_id = self.nodes.node_chunk_size * (inbound_chunk_id + 1); // id in this chunk less than this
                 let inbound_chunksize = self.outbound()[inbound_chunk_id].len();
                 // let offsets = vec![0i64; inbound_chunksize + 1];
                 let mut counts = Vec::with_capacity(inbound_chunksize);
@@ -557,15 +688,15 @@ impl TempColGraphFragment {
                     .par_iter()
                     .enumerate()
                     .map(|(row, &start)| {
-                        let vertex_ids = &adj_column[row][start..];
+                        let node_ids = &adj_column[row][start..];
                         let mut row_size = 0usize;
-                        for &id in vertex_ids {
+                        for &id in node_ids {
                             let id = id as usize;
                             if id < chunk_max_id {
-                                if let Some(counts) = counts.get(id % self.vertex_chunk_size) {
+                                if let Some(counts) = counts.get(id % self.nodes.node_chunk_size) {
                                     counts.fetch_add(1, Ordering::Relaxed);
                                 } else {
-                                    let inner_id = id % self.vertex_chunk_size;
+                                    let inner_id = id % self.nodes.node_chunk_size;
                                     panic!("counts index out of bounds for inbound chunk {inbound_chunk_id} with size {inbound_chunksize}: id {id}, index in chunk: {inner_id}")
                                 }
                                 row_size += 1;
@@ -590,16 +721,16 @@ impl TempColGraphFragment {
                 let mut extra_offsets = vec![0usize; inbound_chunksize];
 
                 for (row, &start) in progress.iter().enumerate() {
-                    let row_vertex_ids = &adj_column[row][start..start + new_progress[row]];
+                    let row_node_ids = &adj_column[row][start..start + new_progress[row]];
                     let row_edge_ids = &edge_ids_column[row][start..start + new_progress[row]];
                     // in principle we can do all these updates in parallel as they end up pointing at unique rows of the vector
                     // this would require some careful unsafe code though
-                    for (&vid, &eid) in row_vertex_ids.iter().zip(row_edge_ids) {
-                        let vid = vid as usize % self.vertex_chunk_size; //local index
+                    for (&vid, &eid) in row_node_ids.iter().zip(row_edge_ids) {
+                        let vid = vid as usize % self.nodes.node_chunk_size; //local index
                         let insertion_point = offsets[vid] as usize + extra_offsets[vid];
                         extra_offsets[vid] += 1;
                         inbound_vids[insertion_point] =
-                            (outbound_chunk_id * self.vertex_chunk_size + row) as u64;
+                            (outbound_chunk_id * self.nodes.node_chunk_size + row) as u64;
                         inbound_eids[insertion_point] = eid;
                     }
                 }
@@ -703,20 +834,36 @@ impl TempColGraphFragment {
             .to_boxed();
             let dtype = res.data_type().clone();
             let schema = Schema::from(vec![Field::new("adj_in", dtype, false)]);
-            let file_path = self
-                .graph_dir
-                .join(format!("adj_in_chunk_{:08}.ipc", self.adj_in_chunks.len()));
+            let file_path = self.graph_dir.join(format!(
+                "adj_in_chunk_{:08}.ipc",
+                self.nodes.adj_in_chunks.len()
+            ));
             let chunk = [Chunk::try_new(vec![res])?];
             write_batches(file_path.as_path(), schema, &chunk)?;
             let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-            self.adj_in_chunks.push(VertexChunk::new(mmapped_chunk));
+            self.nodes.adj_in_chunks.push(NodeChunk::new(mmapped_chunk));
         }
         Ok(())
     }
+
+    pub(crate) fn t_len(&self) -> usize {
+        self.edges.t_len()
+    }
+}
+
+pub(crate) fn write_graph_metadata(
+    graph_dir: &Path,
+    earliest_time: i64,
+    latest_time: i64,
+) -> Result<(), Error> {
+    let metadata_file = graph_dir.join("edge_metadata.json");
+    let metadata = serde_json::to_string(&(earliest_time, latest_time))?;
+    std::fs::write(metadata_file, metadata)?;
+    Ok(())
 }
 
 pub(crate) fn load_chunks<GO: GlobalOrder, C: Borrow<GraphChunk>>(
-    vf_builder: &mut VertexFrameBuilder<GO>,
+    vf_builder: &mut NodeFrameBuilder<GO>,
     edge_builder: &mut EdgeFrameBuilder,
     chunks_iter: impl IntoIterator<Item = C>,
 ) -> Result<(), Error> {
@@ -751,7 +898,7 @@ mod test {
     use proptest::prelude::*;
     use tempfile::TempDir;
 
-    fn edges_sanity_vertex_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
+    fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
         edges
             .iter()
             .map(|(s, _, _)| *s)
@@ -764,9 +911,9 @@ mod test {
     fn edges_sanity_check_build_graph<P: AsRef<Path>>(
         test_dir: P,
         edges: &[(u64, u64, i64)],
-        vertices: &[u64],
+        nodes: &[u64],
         input_chunk_size: u64,
-        vertex_chunk_size: usize,
+        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
     ) -> Result<TempColGraphFragment, Error> {
@@ -806,12 +953,13 @@ mod test {
             )
         });
 
-        let go: GlobalMap = vertices.iter().copied().collect();
+        let go: GlobalMap = nodes.iter().copied().collect();
 
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.as_ref(),
+            0,
             4.try_into().unwrap(),
-            vertex_chunk_size,
+            node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
             go.into(),
@@ -821,6 +969,7 @@ mod test {
             triples,
         )?;
         graph.build_inbound_adj_index()?;
+        graph.node_additions_2(t_props_chunk_size)?;
         Ok(graph)
     }
 
@@ -833,7 +982,7 @@ mod test {
         }
 
         let actual_num_verts = nodes.len();
-        let g_num_verts = graph.num_vertices();
+        let g_num_verts = graph.num_nodes();
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
             .all_edges_iter()
@@ -888,28 +1037,28 @@ mod test {
     fn edges_sanity_check_inner(
         edges: Vec<(u64, u64, i64)>,
         input_chunk_size: u64,
-        vertex_chunk_size: usize,
+        node_chunk_size: usize,
         edge_chunk_size: usize,
         edge_max_list_size: usize,
     ) {
         let test_dir = TempDir::new().unwrap();
-        let vertices = edges_sanity_vertex_list(&edges);
+        let nodes = edges_sanity_node_list(&edges);
         match edges_sanity_check_build_graph(
             test_dir.path(),
             &edges,
-            &vertices,
+            &nodes,
             input_chunk_size,
-            vertex_chunk_size,
+            node_chunk_size,
             edge_chunk_size,
             edge_max_list_size,
         ) {
             Ok(graph) => {
                 // check graph is sane
-                check_graph_sanity(&edges, &vertices, &graph);
+                check_graph_sanity(&edges, &nodes, &graph);
 
                 // check that reloading from graph dir works
-                let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true).unwrap();
-                check_graph_sanity(&edges, &vertices, &reloaded_graph)
+                let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true, 0).unwrap();
+                check_graph_sanity(&edges, &nodes, &reloaded_graph)
             }
             Err(Error::NoEdgeLists) => assert!(edges.is_empty()),
             Err(error) => panic!("{}", error.to_string()),
@@ -927,17 +1076,22 @@ mod test {
                 v.sort();
                 v}),
             input_chunk_size in 1..1024u64,
-            vertex_chunk_size in 1..1024usize,
+            node_chunk_size in 1..1024usize,
             edge_chunk_size in 1..1024usize,
             edge_max_list_size in 1..128usize
         ) {
-            edges_sanity_check_inner(edges, input_chunk_size, vertex_chunk_size, edge_chunk_size, edge_max_list_size);
+            edges_sanity_check_inner(edges, input_chunk_size, node_chunk_size, edge_chunk_size, edge_max_list_size);
         }
     }
 
     #[test]
     fn edges_sanity_chunk_1() {
         edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1, 1)
+    }
+
+    #[test]
+    fn edges_sanity_chunk_2() {
+        edges_sanity_check_inner(vec![(4, 3, 2), (4, 5, 0)], 2, 2, 2, 2)
     }
 
     #[test]
@@ -965,14 +1119,14 @@ mod test {
             (9, 11, -75),
         ];
         let input_chunk_size = 411;
-        let vertex_chunk_size = 10;
+        let node_chunk_size = 10;
         let edge_chunk_size = 5;
         let edge_max_list_size = 7;
 
         edges_sanity_check_inner(
             edges,
             input_chunk_size,
-            vertex_chunk_size,
+            node_chunk_size,
             edge_chunk_size,
             edge_max_list_size,
         );
@@ -1016,6 +1170,7 @@ mod test {
         let g = TempColGraphFragment::from_sorted_parquet_dir_edge_list(
             file_path.as_path(),
             test_dir.path(),
+            0,
             "src",
             "src_hash",
             "dst",
@@ -1063,7 +1218,7 @@ mod test {
     }
 
     #[test]
-    fn load_one_edge_from_sorted_adj_list_num_vertices_props() {
+    fn load_one_edge_from_sorted_adj_list_num_nodes_props() {
         let test_dir = TempDir::new().unwrap();
         let srcs = PrimitiveArray::from_vec(vec![1u64]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![2u64]).boxed();
@@ -1077,6 +1232,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             100,
             100,
@@ -1103,7 +1259,7 @@ mod test {
     }
 
     #[test]
-    fn load_one_edge_from_sorted_adj_list_num_vertices_multiple_timestamps() {
+    fn load_one_edge_from_sorted_adj_list_num_nodes_multiple_timestamps() {
         let test_dir = TempDir::new().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![1u64, 1u64, 1u64]).boxed();
@@ -1118,6 +1274,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             100,
             100,
@@ -1172,6 +1329,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             4,
             2,
@@ -1235,6 +1393,7 @@ mod test {
 
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             100,
             100,
@@ -1298,6 +1457,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             100,
             100,
@@ -1349,6 +1509,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             1,
             1,
@@ -1412,6 +1573,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             2,
             2,
@@ -1451,7 +1613,7 @@ mod test {
     }
 
     #[test]
-    fn test_number_of_vertices() {
+    fn test_number_of_nodes() {
         let test_dir = TempDir::new().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![
@@ -1483,6 +1645,7 @@ mod test {
 
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             2,
             2,
@@ -1494,7 +1657,7 @@ mod test {
             vec![chunk],
         )
         .unwrap();
-        assert_eq!(graph.num_vertices(), 11);
+        assert_eq!(graph.num_nodes(), 11);
     }
 
     #[test]
@@ -1513,6 +1676,7 @@ mod test {
         );
         let graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             2,
             2,
@@ -1549,6 +1713,7 @@ mod test {
         );
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.path(),
+            0,
             4.try_into().unwrap(),
             2,
             2,
@@ -1573,8 +1738,9 @@ mod test {
         ];
         assert_eq!(all_exploded, expected);
         graph.build_inbound_adj_index().unwrap();
+        graph.node_additions_2(2).unwrap();
 
-        let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true).unwrap();
+        let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true, 0).unwrap();
         check_graph_sanity(
             &[(0, 1, 0), (0, 1, 1), (0, 1, 2), (1, 2, 3)],
             &[0, 1, 2],

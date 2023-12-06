@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            edges::edge_ref::EdgeRef,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
@@ -33,6 +33,7 @@ use crate::{
     },
     prelude::{Layer, Prop},
 };
+
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::path::Path;

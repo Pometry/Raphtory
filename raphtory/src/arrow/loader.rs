@@ -16,12 +16,9 @@ use arrow2::{
 use itertools::Itertools;
 use rayon::prelude::*;
 
-use crate::arrow::{
-    array_as_id_iter,
-    mmap::{mmap_batch, write_batches},
-};
+use crate::arrow::mmap::{mmap_batch, write_batches};
 
-use super::{global_order::GlobalOrder, Error, GraphChunk};
+use super::{global_order::SortedGIDs, Error, GraphChunk};
 
 #[derive(Debug)]
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
@@ -77,7 +74,7 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
         self.layer
     }
 
-    pub(crate) fn par_sorted_vertices(
+    pub(crate) fn par_sorted_nodes(
         &self,
     ) -> impl ParallelIterator<Item = (Box<dyn Array>, Box<dyn Array>)> + '_ {
         self.parquet_files
@@ -94,13 +91,6 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
             .flatten()
     }
 
-    pub(crate) fn load_chunks(&self) -> impl Iterator<Item = GraphChunk> + '_ {
-        self.parquet_files.iter().flat_map(|path| {
-            read_file_chunks(path, self.src_col, self.dst_col)
-                .expect("failed to load chunks from path")
-        })
-    }
-
     pub(crate) fn files(&self) -> &[PathBuf] {
         &self.parquet_files
     }
@@ -113,7 +103,11 @@ pub(crate) fn sort_within_chunks<P: AsRef<Path>>(
     dst_col: &str,
     dst_hash_col: &str,
 ) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
-    println!("pre sort reading file: {:?}", parquet_file.as_ref());
+    let thread_id = std::thread::current().id();
+    println!(
+        "pre sort reading file: {:?} on thread {thread_id:?}",
+        parquet_file.as_ref()
+    );
     let file = std::fs::File::open(&parquet_file)?;
     let mut reader = BufReader::new(file);
     let metadata = read::read_metadata(&mut reader)?;
@@ -148,7 +142,7 @@ pub(crate) fn sort_within_chunks<P: AsRef<Path>>(
         .unwrap();
 
     let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
-    let sorted_vertices = reader
+    let sorted_nodes = reader
         .flatten()
         .par_bridge()
         .map(|chunk| {
@@ -164,11 +158,11 @@ pub(crate) fn sort_within_chunks<P: AsRef<Path>>(
         })
         .unwrap();
 
-    if sorted_vertices.is_err() {
-        println!("error reading file: {:?}", sorted_vertices);
+    if sorted_nodes.is_err() {
+        println!("error reading file: {:?}", sorted_nodes);
     }
 
-    sorted_vertices
+    sorted_nodes
 }
 
 // sort by 2 columns
@@ -212,18 +206,17 @@ pub(crate) fn sort_dedup_2(
     let rhs_hash = rhs_sorted[0].as_ref();
     let lhs_hash = lhs_sorted[0].as_ref();
 
-    let rhs_vertices = rhs_sorted[1].as_ref();
-    let lhs_vertices = lhs_sorted[1].as_ref();
+    let rhs_nodes = rhs_sorted[1].as_ref();
+    let lhs_nodes = lhs_sorted[1].as_ref();
 
     let hashes = vec![rhs_hash.as_ref(), lhs_hash.as_ref()];
-    let vertices = vec![rhs_vertices.as_ref(), lhs_vertices.as_ref()];
-    let pairs = vec![(hashes.as_ref(), &options), (vertices.as_ref(), &options)];
+    let nodes = vec![rhs_nodes.as_ref(), lhs_nodes.as_ref()];
+    let pairs = vec![(hashes.as_ref(), &options), (nodes.as_ref(), &options)];
 
     let slices = merge_sort::slices(pairs.as_ref())?;
 
     let new_hashes = merge_sort::take_arrays(&[rhs_hash, lhs_hash], slices.iter().copied(), None);
-    let merged =
-        merge_sort::take_arrays(&[rhs_vertices, lhs_vertices], slices.iter().copied(), None);
+    let merged = merge_sort::take_arrays(&[rhs_nodes, lhs_nodes], slices.iter().copied(), None);
 
     if let Some(hash_arr) = new_hashes.as_any().downcast_ref::<PrimitiveArray<i64>>() {
         let mut deduped_hash: Vec<i64> = Vec::with_capacity(hash_arr.len());
@@ -270,9 +263,23 @@ pub(crate) fn sort_dedup_2(
             let next_hash = PrimitiveArray::from_vec(deduped_hash);
             let arr: Utf8Array<i32> = deduped.into();
             Ok((next_hash.boxed(), arr.to_boxed()))
+        } else if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<i64>>() {
+            let mut deduped: Vec<i64> = Vec::with_capacity(arr.len());
+            for (h, v) in hash_arr
+                .into_iter()
+                .flatten()
+                .zip(arr.into_iter().flatten())
+                .dedup()
+            {
+                deduped_hash.push(*h);
+                deduped.push(*v);
+            }
+            let arr = PrimitiveArray::from_vec(deduped);
+            let next_hash = PrimitiveArray::from_vec(deduped_hash);
+            Ok((next_hash.boxed(), arr.to_boxed()))
         } else {
             Err(Error::InvalidTypeColumn(format!(
-                "src or dst column need to be u64 or string, found: {:?}",
+                "src or dst column need to be u64, i64 or string, found: {:?}",
                 merged.data_type()
             )))
         }
@@ -288,6 +295,7 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
     parquet_file: P,
     src_col: &str,
     dst_col: &str,
+    time_col: &str,
 ) -> Result<impl Iterator<Item = GraphChunk>, Error> {
     println!("reading file: {:?}", parquet_file.as_ref());
 
@@ -305,9 +313,18 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
         .iter()
         .find(|field| &field.name == dst_col)
         .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
+    let time_col_field = schema
+        .fields
+        .iter()
+        .find(|field| &field.name == time_col)
+        .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
 
-    let schema = Schema::from(vec![src_col_field.clone(), dst_col_field.clone()])
-        .with_metadata(schema.metadata);
+    let schema = Schema::from(vec![
+        src_col_field.clone(),
+        dst_col_field.clone(),
+        time_col_field.clone(),
+    ])
+    .with_metadata(schema.metadata);
 
     let reader = read::FileReader::new(
         reader,
@@ -322,54 +339,65 @@ pub(crate) fn read_file_chunks<P: AsRef<Path>>(
         .map(|chunk| GraphChunk::from_chunk(chunk, 0, 1)))
 }
 
-pub(crate) fn make_global_ordering<'a, GO: GlobalOrder, P: AsRef<Path> + Sync + Send>(
+pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
     sorted_gids_path: impl AsRef<Path>,
     edge_lists: &[ExternalEdgeList<'a, P>],
-    go: &mut GO,
-) -> Result<(), Error> {
+    num_threads: usize,
+) -> Result<SortedGIDs, Error> {
     let now = std::time::Instant::now();
 
-    let sorted_vertices = if sorted_gids_path.as_ref().exists() {
-        let chunk = unsafe { mmap_batch(sorted_gids_path.as_ref(), 0)? };
-        chunk.into_arrays().into_iter().next().unwrap()
+    let (node_hashes, nodes) = if sorted_gids_path.as_ref().exists() {
+        read_sorted_gids(sorted_gids_path.as_ref())?
     } else {
-        let (_, sorted_vertices) = edge_lists
-            .par_iter()
-            .flat_map(|e_list| e_list.par_sorted_vertices())
-            .reduce_with(|(l_hash, l), (r_hash, r)| {
-                sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .build()
+            .unwrap();
+
+        let (node_hashes, nodes) = thread_pool
+            .install(|| {
+                edge_lists
+                    .par_iter()
+                    .flat_map(|e_list| e_list.par_sorted_nodes())
+                    .reduce_with(|(l_hash, l), (r_hash, r)| {
+                        sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
+                    })
             })
             .ok_or_else(|| Error::NoEdgeLists)?;
 
-        let schema = Schema::from(vec![Field::new(
-            "sorted_global_ids",
-            sorted_vertices.data_type().clone(),
-            false,
-        )]);
-
-        let chunk = [Chunk::try_new(vec![sorted_vertices.clone()])?];
-        write_batches(sorted_gids_path.as_ref(), schema, &chunk)?;
-        sorted_vertices
+        persist_sorted_gids(sorted_gids_path, node_hashes.clone(), nodes.clone())?;
+        (node_hashes, nodes)
     };
 
     println!(
         "DONE sorting time: {:?}, len: {}",
         now.elapsed(),
-        sorted_vertices.len()
+        nodes.len()
     );
 
-    for (i, gid) in array_as_id_iter(&sorted_vertices)?.enumerate() {
-        go.insert(gid, i);
-    }
+    (Some(node_hashes), nodes).try_into()
+}
 
-    go.finalize();
-
-    println!(
-        "DONE global order time: {:?}, len: {}, vec len: {}",
-        now.elapsed(),
-        go.len(),
-        sorted_vertices.len()
-    );
-
+pub(crate) fn persist_sorted_gids(
+    sorted_gids_path: impl AsRef<Path>,
+    node_hashes: Box<dyn Array>,
+    nodes: Box<dyn Array>,
+) -> Result<(), Error> {
+    let schema = Schema::from(vec![
+        Field::new("hash", node_hashes.data_type().clone(), false),
+        Field::new("gid", nodes.data_type().clone(), false),
+    ]);
+    let chunk = [Chunk::try_new(vec![node_hashes, nodes])?];
+    write_batches(sorted_gids_path.as_ref(), schema, &chunk)?;
     Ok(())
+}
+
+pub(crate) fn read_sorted_gids(
+    sorted_gids_path: impl AsRef<Path>,
+) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
+    let chunk = unsafe { mmap_batch(sorted_gids_path.as_ref(), 0)? };
+    let arrays = chunk.into_arrays();
+    let hash_arr = arrays[0].clone();
+    let gid_arr = arrays[1].clone();
+    Ok((hash_arr, gid_arr))
 }

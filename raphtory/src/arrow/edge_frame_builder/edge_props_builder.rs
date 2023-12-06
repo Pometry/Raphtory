@@ -1,7 +1,7 @@
 use std::{num::NonZeroUsize, path::Path};
 
 use arrow2::{
-    array::{self, PrimitiveArray, StructArray},
+    array::{PrimitiveArray, StructArray},
     buffer::Buffer,
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
@@ -21,22 +21,13 @@ use crate::arrow::{
 
 pub struct EdgePropsBuilder<P> {
     graph_dir: P,
-    pub(crate) src_col_idx: usize,
-    pub(crate) dst_col_idx: usize,
     time_col_idx: usize,
 }
 
 impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
-    pub(crate) fn new(
-        graph_dir: P,
-        src_col_idx: usize,
-        dst_col_idx: usize,
-        time_col_idx: usize,
-    ) -> Self {
+    pub(crate) fn new(graph_dir: P, time_col_idx: usize) -> Self {
         Self {
             graph_dir,
-            src_col_idx,
-            dst_col_idx,
             time_col_idx,
         }
     }
@@ -163,7 +154,7 @@ struct EdgeBounds {
     last: (GID, GID),
 }
 
-fn write_buffer<T: NativeType>(
+pub fn write_buffer<T: NativeType>(
     file_path: impl AsRef<Path>,
     buffer: Buffer<T>,
 ) -> Result<(), Error> {

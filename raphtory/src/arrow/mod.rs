@@ -19,13 +19,16 @@ pub(crate) mod edge_frame_builder;
 pub(crate) mod edges;
 pub mod global_order;
 pub mod graph;
+pub mod graph_impl;
 pub mod ipc;
 pub(crate) mod list_buffer;
 pub mod loader;
 pub mod mmap;
+pub(crate) mod node_chunk;
+pub(crate) mod node_frame_builder;
+pub(crate) mod nodes;
 pub(crate) mod parquet_reader;
-pub(crate) mod vertex_chunk;
-pub(crate) mod vertex_frame_builder;
+pub(crate) mod timestamps;
 
 pub type Time = i64;
 
@@ -39,9 +42,12 @@ pub enum Error {
     Arrow(#[from] arrow2::error::Error),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
+    //serde error
+    #[error("Serde error: {0}")]
+    Serde(#[from] serde_json::Error),
     #[error("LMDB error: {0}")]
     LMDB(#[from] heed::Error),
-    #[error("Bad data type for vertex column: {0:?}")]
+    #[error("Bad data type for node column: {0:?}")]
     DType(DataType),
     #[error("Graph directory is not empty before loading")]
     GraphDirNotEmpty,
@@ -206,6 +212,7 @@ pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(
         GraphChunk {
             srcs: all_cols[src_col_idx].clone(),
             dsts: all_cols[dst_col_idx].clone(),
+            // time: all_cols[time_col_idx].clone(),
         },
         PropsChunk(t_prop_cols),
     )

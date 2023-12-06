@@ -6,20 +6,18 @@ use arrow2::{
 };
 use std::sync::Arc;
 
-use rayon::prelude::*;
-
 use super::list_buffer::ListColumn;
 
-// this is a list_array<struct_array<(u64, u64)>>, where the struct_array is (vertex, edge)
+// this is a list_array<struct_array<(u64, u64)>>, where the struct_array is (node, edge)
 #[derive(Debug, Clone)]
-pub struct VertexChunk {
+pub struct NodeChunk {
     columns: Arc<[Box<dyn Array>]>,
 }
 
-impl VertexChunk {
+impl NodeChunk {
     pub(crate) fn new(chunk: Chunk<Box<dyn Array>>) -> Self {
         let columns = chunk.into_arrays().into();
-        VertexChunk { columns }
+        NodeChunk { columns }
     }
 
     pub fn adj(&self) -> &ListArray<i64> {
@@ -62,15 +60,7 @@ impl VertexChunk {
 pub struct RowOwned<T>(Buffer<T>);
 
 impl<T: NativeType> RowOwned<T> {
-    pub fn new(row: Buffer<T>) -> Self {
-        RowOwned(row)
-    }
-
     pub(crate) fn into_iter(self) -> impl Iterator<Item = T> {
         self.0.into_iter()
-    }
-
-    pub(crate) fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = &T> + '_ {
-        self.0.par_iter()
     }
 }

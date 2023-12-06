@@ -1,9 +1,9 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, properties::tprop::LayeredTProp, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
-        Direction, Prop,
+        Prop,
     },
     db::{
         api::{
@@ -519,17 +519,29 @@ impl TimeSemantics for GraphWithDeletions {
                 LayerIds::All => entry.layer_ids_iter().any(|id| {
                     entry
                         .temporal_prop_layer(id, prop_id)
-                        .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
+                        .filter(|prop| {
+                            prop.iter_window_te(search_start..search_end)
+                                .next()
+                                .is_some()
+                        })
                         .is_some()
                 }),
                 LayerIds::One(id) => entry
                     .temporal_prop_layer(id, prop_id)
-                    .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
+                    .filter(|prop| {
+                        prop.iter_window_te(search_start..search_end)
+                            .next()
+                            .is_some()
+                    })
                     .is_some(),
                 LayerIds::Multiple(ids) => ids.iter().any(|&id| {
                     entry
                         .temporal_prop_layer(id, prop_id)
-                        .filter(|prop| prop.iter_window(search_start..search_end).next().is_some())
+                        .filter(|prop| {
+                            prop.iter_window_te(search_start..search_end)
+                                .next()
+                                .is_some()
+                        })
                         .is_some()
                 }),
             }

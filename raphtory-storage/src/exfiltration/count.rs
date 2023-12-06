@@ -215,7 +215,7 @@ fn local_login_count(
     prop_id: usize,
     prog1_map: &[(Time, usize)],
 ) -> Option<usize> {
-    if login_edge.timestamps().iter().next()? >= prog1_map.first()?.0 {
+    if login_edge.timestamps().iter().copied().next()? >= prog1_map.first()?.0 {
         return None;
     }
     login_edge
@@ -407,6 +407,7 @@ mod test {
 
         let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
@@ -437,6 +438,7 @@ mod test {
 
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
@@ -468,6 +470,7 @@ mod test {
 
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
+            0,
             4.try_into().unwrap(),
             100,
             100,

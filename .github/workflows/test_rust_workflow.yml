@@ -19,8 +19,8 @@ jobs:
             sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
           - os: ubuntu-latest
             sccache-path: /home/runner/.cache/sccache
-          - os: windows-latest
-            sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
+          # - os: windows-latest
+          #   sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_CACHE_SIZE: 2G
