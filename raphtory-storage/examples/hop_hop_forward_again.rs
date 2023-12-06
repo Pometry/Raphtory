@@ -201,6 +201,7 @@ fn merge_nft_prog1(
         }
         merge_counter.update_prog1(t);
     }
+    // finalise any remaining open windows!
     merge_counter.finish(next_nft_event.into_iter().chain(nft_events_iter))
 }
 
@@ -603,7 +604,7 @@ mod test {
                 "netflow".to_owned(),
             ],
         );
-        let actual = query(&graph);
+        let actual = query(&graph, 30);
         assert_eq!(actual, Some(4));
     }
 }
