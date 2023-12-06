@@ -29,6 +29,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        override_cache: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate>;
 
@@ -36,6 +37,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        override_cache: bool,
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T>;
@@ -58,16 +60,24 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        override_cache: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate> {
-        self.vectorise_with_template(embedding, cache_file, DefaultTemplate, verbose)
-            .await
+        self.vectorise_with_template(
+            embedding,
+            cache_file,
+            override_cache,
+            DefaultTemplate,
+            verbose,
+        )
+        .await
     }
 
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        override_cache: bool,
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T> {
@@ -106,7 +116,9 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         }
         let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
 
-        cache.iter().for_each(|cache| cache.dump_to_disk());
+        if override_cache {
+            cache.iter().for_each(|cache| cache.dump_to_disk());
+        }
 
         VectorisedGraph::new(
             self.clone(),

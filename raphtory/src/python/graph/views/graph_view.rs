@@ -313,17 +313,19 @@ impl PyGraphView {
     /// Args:
     ///   embedding (Callable[[list], list]): an embedding function that takes a list of texts and returns a list of embeddings
     ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
+    ///   override_cache (bool): whether or not override the cache file with new embeddings  (optional)
     ///   node_document (str): the property name to be used as document for nodes (optional)
     ///   edge_document (str): the property name to be used as document for edges (optional)
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///   
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, node_document = None, edge_document = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, override_cache = false, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
         cache: Option<String>,
+        override_cache: bool,
         node_document: Option<String>,
         edge_document: Option<String>,
         verbose: bool,
@@ -334,7 +336,13 @@ impl PyGraphView {
         let template = PyDocumentTemplate::new(node_document, edge_document);
         spawn_async_task(move || async move {
             graph
-                .vectorise_with_template(Box::new(embedding.clone()), cache, template, verbose)
+                .vectorise_with_template(
+                    Box::new(embedding.clone()),
+                    cache,
+                    override_cache,
+                    template,
+                    verbose,
+                )
                 .await
         })
     }
