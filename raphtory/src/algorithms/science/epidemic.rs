@@ -22,31 +22,29 @@ const GAMMA: &str = "g";
 const SIGMA: &str = "0";
 const XI: &str = "X";
 
-fn setup_si<G, T>(
+fn setup_si<G>(
     graph: &G,
-    initial_infection_time: T,
     initial_infected_ratio: f64,
     seed: Option<[u8; 32]>,
-) -> (StdRng, HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>)
+    infected_state: u8,
+) -> (StdRng, HashMap<VertexView<G>, (u8, i64)>)
 where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
     let mut rng: StdRng = SeedableRng::from_seed(seed.unwrap_or_default());
     let infected_count =
-        graph.after(initial_infection_time).count_vertices() as f64 * initial_infected_ratio;
-    let mut population: Vec<VertexView<WindowedGraph<G>>> = graph
-        .after(initial_infection_time.into_time().clone())
+        graph.count_vertices() as f64 * initial_infected_ratio;
+    let mut population: Vec<VertexView<G>> = graph
         .vertices()
         .iter()
         .collect();
     // Infect initial number of infected nodes
     population.shuffle(&mut rng);
-    let mut all_vertices_status: HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> = population
+    let mut all_vertices_status: HashMap<VertexView<G>, (u8, i64)> = population
         .clone()
         .into_iter()
         .take(infected_count as usize)
-        .map(|v| (v.clone(), (SUSCEPTIBLE, initial_infection_time.into_time())))
+        .map(|v| (v.clone(), (infected_state, graph.start().unwrap_or(-1i64)+1i64)))
         .collect();
     (rng, all_vertices_status)
 }
@@ -67,29 +65,29 @@ fn change_state_by_prob<G, T>(
     }
 }
 
-fn change_state_by_neighbors<G, T>(
+fn change_state_by_neighbors<G>(
     transition_probability: f64,
     rng: &mut StdRng,
     all_vertices_status: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
     v: VertexView<WindowedGraph<G>>,
     new_state: u8,
-    infection_time: T,
 ) where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
-    for edgeview in v.edges() {
+    for edgeview in v.edges().map(|e| e.explode()).flatten() {
         let neighbour = if edgeview.src() != v {
             edgeview.src()
         }  else {
             edgeview.dst()
         };
-        let neighbour_status = all_vertices_status.get(&neighbour).unwrap_or(&(SUSCEPTIBLE, infection_time.into_time()));
-        if (neighbour_status.0 == new_state) // if the neighbour has a different state
-            & (neighbour_status.1 <= edgeview.latest_time().unwrap()) // if the neighbour was infected before the interaction, it means they can infect again
+        let current_time = edgeview.latest_time().unwrap();
+        let not_infected_state = (SUSCEPTIBLE, current_time);
+        let neighbour_status = all_vertices_status.get(&neighbour).unwrap_or(&not_infected_state);
+        if (neighbour_status.0 == new_state) // if the neighbour is the new (infected) state
+            & (neighbour_status.1 <= current_time) // if the neighbour was infected before the interaction, it means they can infect again
             & (rng.gen::<f64>() < transition_probability) // then roll the dice and infect them
         {
-            let _ = all_vertices_status.insert(neighbour, (new_state, infection_time.into_time()));
+            let _ = all_vertices_status.insert(v.clone(), (new_state, current_time));
             break;
         }
     }
@@ -105,9 +103,6 @@ where
     T: IntoTime + Copy,
 {
     match all_vertices_status.get(&v) {
-        // None => {
-        // }
-        // Some(&v_status) => v_status,
         None => {
                 all_vertices_status.insert(v.clone(), (SUSCEPTIBLE, initial_infection_time.into_time()));
                 SUSCEPTIBLE
@@ -127,12 +122,14 @@ fn si_sis_model<G: StaticGraphViewOps, T: IntoTime + Copy>(
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
     is_sis: bool,
-) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str> {
+) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
+{
+    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
+    let g_after = graph.after(sat_initial_infection_time.into_time().clone());
     let (mut rng, mut all_vertices_status) =
-        setup_si(graph, initial_infection_time, initial_infected_ratio, seed);
+        setup_si(&g_after, initial_infected_ratio, seed, INFECTIOUS);
     for i in 0..steps.unwrap_or(1i32) {
-        for v in graph
-            .after(initial_infection_time.into_time().clone())
+        for v in g_after
             .vertices()
             .iter()
         {
@@ -143,7 +140,6 @@ fn si_sis_model<G: StaticGraphViewOps, T: IntoTime + Copy>(
                     &mut all_vertices_status,
                     v,
                     INFECTIOUS,
-                    initial_infection_time,
                 ),
                 // infected
                 INFECTIOUS => {
@@ -258,11 +254,13 @@ where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
+    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
+    let g_after = graph
+        .after(sat_initial_infection_time);
     let (mut rng, mut all_vertices_status) =
-        setup_si(graph, initial_infection_time, initial_infected_ratio, seed);
+        setup_si(&g_after, initial_infected_ratio, seed, INFECTIOUS);
     for i in 0..steps.unwrap_or(1i32) {
-        for v in graph
-            .after(initial_infection_time.into_time().clone())
+        for v in g_after
             .vertices()
             .iter()
         {
@@ -273,8 +271,7 @@ where
                     &mut rng,
                     &mut all_vertices_status,
                     v,
-                    INFECTIOUS,
-                    initial_infection_time,
+                    INFECTIOUS
                 ),
                 INFECTIOUS => change_state_by_prob(
                     recovery_rate,
@@ -292,7 +289,7 @@ where
                             &mut all_vertices_status,
                             v,
                             SUSCEPTIBLE,
-                            initial_infection_time,
+                            initial_infection_time
                         )
                     }
                 }
@@ -398,16 +395,19 @@ fn seir_seirs_model<G, T>(
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
     is_seirs: bool,
+    initial_infection_type: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
+    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
+    let g_after = graph
+        .after(sat_initial_infection_time);
     let (mut rng, mut all_vertices_status) =
-        setup_si(graph, initial_infection_time, initial_infected_ratio, seed);
+        setup_si(&g_after, initial_infected_ratio, seed, initial_infection_type);
     for i in 0..steps.unwrap_or(1i32) {
-        for v in graph
-            .after(initial_infection_time.into_time().clone())
+        for v in g_after
             .vertices()
             .iter()
         {
@@ -419,7 +419,6 @@ where
                     &mut all_vertices_status,
                     v,
                     EXPOSED,
-                    initial_infection_time,
                 ),
                 EXPOSED => change_state_by_prob(
                     exposure_rate,
@@ -481,6 +480,7 @@ pub fn seir_model<G, T>(
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
+    initial_infection_type: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -497,6 +497,7 @@ where
         seed,
         steps,
         false,
+        initial_infection_type,
     )
 }
 
@@ -526,6 +527,7 @@ pub fn seirs_model<G, T>(
     rec_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
+    initial_infection_type: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -542,6 +544,7 @@ where
         seed,
         steps,
         true,
+        initial_infection_type,
     )
 }
 
@@ -575,19 +578,22 @@ mod si_tests {
     fn si_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = si_model(&graph, 0, 0.2f64, 0.2f64, seed, None).unwrap();
+        let result = si_model(&graph, 0, 0.2f64, 0.5f64, seed, None).unwrap();
         let g_after = graph.after(0);
-        let expected = HashMap::from([
-            (g_after.vertex("B1").unwrap(), INFECTIOUS),
-            (g_after.vertex("B3").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R1").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("B5").unwrap(), INFECTIOUS),
-            (g_after.vertex("B4").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R2").unwrap(), INFECTIOUS),
-            (g_after.vertex("B2").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R3").unwrap(), INFECTIOUS),
-            (g_after.vertex("G").unwrap(), SUSCEPTIBLE),
+        let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, (u8, i64)> = HashMap::from([
+            (g_after.vertex("B1").unwrap(), (INFECTIOUS, 0)),
+            (g_after.vertex("B3").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("R1").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("B5").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("B4").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("R2").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("B2").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("R3").unwrap(), (INFECTIOUS, 0)),
+            (g_after.vertex("G").unwrap(), (SUSCEPTIBLE, 0)),
         ]);
+        for (k, v) in result.iter() {
+            println!("{:?} {:?}", k.name(), v)
+        }
         assert_eq!(expected, result);
     }
 
@@ -597,17 +603,20 @@ mod si_tests {
         let seed = Some([5; 32]);
         let result = sis_model(&graph, 0, 0.2f64, 0.2f64, 0.2f64, seed, None).unwrap();
         let g_after = graph.after(0);
-        let expected = HashMap::from([
-            (g_after.vertex("B1").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("B3").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R1").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("B5").unwrap(), INFECTIOUS),
-            (g_after.vertex("B4").unwrap(), INFECTIOUS),
-            (g_after.vertex("R2").unwrap(), INFECTIOUS),
-            (g_after.vertex("B2").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R3").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("G").unwrap(), INFECTIOUS),
+        let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, (u8, i64)> = HashMap::from([
+            (g_after.vertex("B1").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("B3").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("R1").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("B5").unwrap(), (INFECTIOUS, 0)),
+            (g_after.vertex("B4").unwrap(), (INFECTIOUS, 0)),
+            (g_after.vertex("R2").unwrap(), (INFECTIOUS, 0)),
+            (g_after.vertex("B2").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("R3").unwrap(), (SUSCEPTIBLE, 0)),
+            (g_after.vertex("G").unwrap(), (INFECTIOUS, 0)),
         ]);
+        for (k, v) in result.iter() {
+            println!("{:?} {:?}", k.name(), v)
+        }
         assert_eq!(expected, result);
     }
 
@@ -615,23 +624,24 @@ mod si_tests {
     fn sir_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sir_model(&graph, 0, 0.3f64, 0.2f64, 0.5f64, seed, None).unwrap();
+        let result = sir_model(&graph, 0, 0.2f64, 0.2f64, 0.2f64, seed, None).unwrap();
         let g_after = graph.after(0);
-        let expected: HashMap<VertexView<WindowedGraph<Graph>>, u8> = HashMap::from([
-            (g_after.vertex("B1").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("B3").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R1").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("B5").unwrap(), INFECTIOUS),
-            (g_after.vertex("B4").unwrap(), RECOVERED),
-            (g_after.vertex("R2").unwrap(), INFECTIOUS),
-            (g_after.vertex("B2").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("R3").unwrap(), SUSCEPTIBLE),
-            (g_after.vertex("G").unwrap(), RECOVERED),
+        let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, (u8, i64)> = HashMap::from([
+            (g_after.vertex("B1").unwrap(), (SUSCEPTIBLE, 1)),
+            (g_after.vertex("B3").unwrap(), (SUSCEPTIBLE, 1)),
+            (g_after.vertex("R1").unwrap(), (SUSCEPTIBLE, 1)),
+            (g_after.vertex("B5").unwrap(), (INFECTIOUS, 1)),
+            (g_after.vertex("B4").unwrap(), (RECOVERED, 1)),
+            (g_after.vertex("R2").unwrap(), (INFECTIOUS, 1)),
+            (g_after.vertex("B2").unwrap(), (SUSCEPTIBLE, 1)),
+            (g_after.vertex("R3").unwrap(), (SUSCEPTIBLE, 1)),
+            (g_after.vertex("G").unwrap(), (RECOVERED, 1)),
         ]);
+        for (k, v) in result.iter() {
+            println!("{:?} {:?}", k.name(), v)
+        }
         assert_eq!(expected, result);
     }
 }
 
-// for (k, v) in result.iter() {
-//     println!("{:?} {:?}", k.name(), v)
-// }
+
