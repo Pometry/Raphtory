@@ -510,7 +510,7 @@ where
     })
 }
 
-/// # Returns the top k nodes in descending order
+/// Returns the top k nodes in descending order
 fn find_top_k<'a, I>(elements: I, k: usize) -> impl Iterator<Item = (DocumentRef, f32)> + 'a
 where
     I: Iterator<Item = (DocumentRef, f32)> + 'a,
