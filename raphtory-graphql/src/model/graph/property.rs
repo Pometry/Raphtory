@@ -80,7 +80,9 @@ impl GqlProperties {
 
 impl<P: Into<DynProperties>> From<P> for GqlProperties {
     fn from(value: P) -> Self {
-        Self{props:value.into()}
+        Self {
+            props: value.into(),
+        }
     }
 }
 

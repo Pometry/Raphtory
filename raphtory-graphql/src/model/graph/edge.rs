@@ -3,9 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::{
-            view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
-        },
+        api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
     prelude::{LayerOps, TimeOps},
