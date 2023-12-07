@@ -297,7 +297,4 @@ def test_windows_and_layers():
     json_ra = json.loads(ra)
     assert json_a == json_ra
 
-    server.stop()
-    server.wait()
-
 
