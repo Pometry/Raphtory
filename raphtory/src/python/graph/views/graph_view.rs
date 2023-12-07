@@ -26,9 +26,9 @@ use crate::{
     prelude::*,
     python::{
         graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
-        packages::vectors::{spawn_async_task, DynamicVectorisedGraph, PyDocumentTemplate},
+        packages::vectors::{DynamicVectorisedGraph, PyDocumentTemplate},
         types::repr::Repr,
-        utils::{PyInterval, PyTime},
+        utils::{execute_async_task, PyInterval, PyTime},
     },
     vectors::vectorisable::Vectorisable,
     *,
@@ -321,7 +321,7 @@ impl PyGraphView {
         let graph = self.graph.clone();
         let cache = cache.map(PathBuf::from);
         let template = PyDocumentTemplate::new(node_document, edge_document);
-        spawn_async_task(move || async move {
+        execute_async_task(move || async move {
             graph
                 .vectorise_with_template(Box::new(embedding.clone()), cache, template, verbose)
                 .await

@@ -15,7 +15,7 @@ use crate::{
 };
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::iter;
+use std::{iter, ops::Deref};
 
 impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
     fn vertex_refs(
@@ -41,7 +41,12 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
                     .edges
                     .read_lock()
                     .into_iter()
-                    .filter(move |e| filter.as_ref().map(|f| f(e, &layers)).unwrap_or(true))
+                    .filter(move |e| {
+                        filter
+                            .as_ref()
+                            .map(|f| f(e.deref(), &layers))
+                            .unwrap_or(true)
+                    })
                     .map_into();
                 Box::new(iter)
             }
@@ -54,7 +59,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
                     .filter(move |edge| {
                         filter
                             .as_ref()
-                            .map(|f| f(edge, &layers))
+                            .map(|f| f(edge.deref(), &layers))
                             .unwrap_or_else(|| edge.has_layer(&layers))
                     })
                     .map(|edge| edge.into()),
@@ -110,9 +115,11 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
                     None => iter,
                     Some(filter) => {
                         let edge_store = self.inner().storage.edges.read_lock();
-                        Box::new(iter.filter(move |eref| {
-                            filter(&edge_store.get(eref.pid().into()), &layers)
-                        }))
+                        Box::new(
+                            iter.filter(move |eref| {
+                                filter(edge_store.get(eref.pid().into()), &layers)
+                            }),
+                        )
                     }
                 }
             }
@@ -155,9 +162,11 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
                     None => iter,
                     Some(filter) => {
                         let edge_store = self.inner().storage.edges.read_lock();
-                        Box::new(iter.filter(move |eref| {
-                            filter(&edge_store.get(eref.pid().into()), &layers)
-                        }))
+                        Box::new(
+                            iter.filter(move |eref| {
+                                filter(edge_store.get(eref.pid().into()), &layers)
+                            }),
+                        )
                     }
                 }
             }
@@ -209,7 +218,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         }
         let e = self.inner().storage.edges.get(e_id_usize);
         filter
-            .map(|f| f(&e, layer_ids))
+            .map(|f| f(&*e, layer_ids))
             .unwrap_or(true)
             .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
     }
@@ -226,7 +235,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         let edges = self.inner().storage.edges.read_lock();
         edges
             .par_iter()
-            .filter(|e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
+            .filter(|&e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
             .map(|e| e.additions_iter(&layers).map(|ts| ts.len()).sum::<usize>())
             .sum()
     }
@@ -253,7 +262,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
             .find_edge(src, dst, layer)
             .filter(|eid| {
                 filter
-                    .map(|f| f(&self.inner().storage.edges.get((*eid).into()), layer))
+                    .map(|f| f(&*self.inner().storage.edges.get((*eid).into()), layer))
                     .unwrap_or(true)
             })
             .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
