@@ -1,14 +1,10 @@
 import sys
 import tempfile
+from raphtory import Graph
+from raphtory.graphql import RaphtoryServer, RaphtoryClient
 
 
-def test_graphQL():
-    from raphtory import Graph
-    from raphtory import graphqlserver
-    import random
-    import string
-    import os
-
+def test_graphql():
     g1 = Graph()
     g1.add_edge(1, "ben", "hamza")
     g1.add_edge(2, "haaroon", "hamza")
@@ -36,11 +32,13 @@ def test_graphQL():
     g3.save_to_file(temp_dir + "/g3")
     g4.save_to_file(temp_dir + "/g4")
 
-    map_server = graphqlserver.run_server(graphs=graphs, port=1736, daemon=True)
-    dir_server = graphqlserver.run_server(graph_dir=temp_dir, port=1737, daemon=True)
-    map_dir_server = graphqlserver.run_server(
-        graphs=graphs, graph_dir=temp_dir, port=1738, daemon=True
-    )
+    map_server = RaphtoryServer(graphs=graphs).start(port=1737)
+    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1738)
+    map_dir_server = RaphtoryServer(graphs=graphs, graph_dir=temp_dir).start(port=1739)
+
+    map_server.wait_for_online()
+    dir_server.wait_for_online()
+    map_dir_server.wait_for_online()
 
     query_g1 = """{graph(name: "g1") {nodes {name}}}"""
     query_g2 = """{graph(name: "g2") {nodes {name}}}"""
@@ -89,13 +87,16 @@ def test_graphQL():
         " ", ""
     )
 
+    map_server.stop()
+    dir_server.stop()
+    map_dir_server.stop()
+
+    map_server.wait()
+    dir_server.wait()
+    map_dir_server.wait()
+
 
 def test_graphqlclient():
-    from raphtory import Graph
-    from raphtory import graphqlserver
-    from raphtory import graphqlclient
-    import os
-
     temp_dir = tempfile.mkdtemp()
 
     g1 = Graph()
@@ -104,13 +105,28 @@ def test_graphqlclient():
     g1.add_edge(3, "ben", "haaroon")
     g1.save_to_file(temp_dir + "/g1.bincode")
 
-    dir_server = graphqlserver.run_server(graph_dir=temp_dir, port=1739, daemon=True)
+    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1737)
+    raphtory_client = RaphtoryClient("http://localhost:1737")
+    generic_client_test(raphtory_client, temp_dir)
+    dir_server.stop()
+    dir_server.wait()
 
-    # create a client
-    raphtory_client = graphqlclient.RaphtoryGraphQLClient(url="http://localhost:1739/")
+    raphtory_client = RaphtoryServer(graph_dir=temp_dir).start(port=1737)
+    generic_client_test(raphtory_client, temp_dir)
+    raphtory_client.stop()
+    raphtory_client.wait()
+
+    raphtory_client = RaphtoryServer(graph_dir=temp_dir).start(port=1738)
+    generic_client_test(raphtory_client, temp_dir)
+    raphtory_client.stop()
+    raphtory_client.wait()
+
+
+def generic_client_test(raphtory_client, temp_dir):
+    raphtory_client.wait_for_online()
 
     # load a graph into the client from a path
-    res = raphtory_client.load_graphs_from_path(temp_dir)
+    res = raphtory_client.load_graphs_from_path(temp_dir, overwrite=True)
     assert res == {"loadGraphsFromPath": ["g1.bincode"]}
 
     # run a get nodes query and check the results
@@ -137,7 +153,7 @@ def test_graphqlclient():
     g3.add_edge(1, "shivam", "rachel")
     g3.add_edge(2, "lucas", "shivam")
     g3.save_to_file(multi_graph_temp_dir + "/g3.bincode")
-    res = raphtory_client.load_new_graphs_from_path(multi_graph_temp_dir)
+    res = raphtory_client.load_graphs_from_path(multi_graph_temp_dir, overwrite=False)
     result_sorted = {"loadNewGraphsFromPath": sorted(res["loadNewGraphsFromPath"])}
     assert result_sorted == {"loadNewGraphsFromPath": ["g2.bincode", "g3.bincode"]}
 
