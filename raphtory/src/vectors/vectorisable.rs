@@ -25,17 +25,40 @@ struct IndexedDocumentInput {
 
 #[async_trait(?Send)]
 pub trait Vectorisable<G: StaticGraphViewOps> {
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// # Arguments:
+    ///   * embedding - the embedding function to translate documents to embeddings
+    ///   * cache - the file to be used as a cache to avoid calling the embedding function
+    ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
+    ///   * verbose - whether or not to print logs reporting the progress
+    ///   
+    /// # Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        override_cache: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate>;
 
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// # Arguments:
+    ///   * embedding - the embedding function to translate documents to embeddings
+    ///   * cache - the file to be used as a cache to avoid calling the embedding function
+    ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
+    ///   * template - the template to use to translate entities into documents
+    ///   * verbose - whether or not to print logs reporting the progress
+    ///   
+    /// # Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
+        cache: Option<PathBuf>,
+        override_cache: bool,
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T>;
@@ -46,17 +69,19 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
+        cache: Option<PathBuf>,
+        overwrite_cache: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate> {
-        self.vectorise_with_template(embedding, cache_file, DefaultTemplate, verbose)
+        self.vectorise_with_template(embedding, cache, overwrite_cache, DefaultTemplate, verbose)
             .await
     }
 
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
+        cache: Option<PathBuf>,
+        overwrite_cache: bool,
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T> {
@@ -83,19 +108,21 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
                 })
         });
 
-        let cache = cache_file.map(EmbeddingCache::from_path);
+        let cache_storage = cache.map(EmbeddingCache::from_path);
 
         if verbose {
-            println!("compute embeddings for nodes");
+            println!("computing embeddings for nodes");
         }
-        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
+        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache_storage).await;
 
         if verbose {
-            println!("compute embeddings for edges");
+            println!("computing embeddings for edges");
         }
-        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
+        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable
 
-        cache.iter().for_each(|cache| cache.dump_to_disk());
+        if overwrite_cache {
+            cache_storage.iter().for_each(|cache| cache.dump_to_disk());
+        }
 
         VectorisedGraph::new(
             self.clone(),
