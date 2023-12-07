@@ -10,7 +10,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
     python::{
         graph::{edge::PyEdge, vertex::PyVertex},
-        utils::PyTime,
+        utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
@@ -424,33 +424,7 @@ impl PyVectorisedGraph {
 
 fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
     let embedding = vectors.embedding.clone();
-    spawn_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
-}
-
-// TODO: move this function somewhere else
-// This function takes a function that returns a future instead of taking just a future because
-// a task might return an unsendable future but what we can do is making a function returning that
-// future which is sendable itself
-#[cfg(feature = "python")]
-pub fn spawn_async_task<T, F, O>(task: T) -> O
-where
-    T: FnOnce() -> F + Send + 'static,
-    F: Future<Output = O> + 'static,
-    O: Send + 'static,
-{
-    Python::with_gil(|py| {
-        py.allow_threads(move || {
-            thread::spawn(move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-                    .block_on(task())
-            })
-            .join()
-            .expect("error when waiting for async task to complete")
-        })
-    })
+    execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }
 
 impl EmbeddingFunction for Py<PyFunction> {
