@@ -311,21 +311,21 @@ impl PyGraphView {
     /// Create a VectorisedGraph from the current graph
     ///
     /// Args:
-    ///   embedding (Callable[[list], list]): an embedding function that takes a list of texts and returns a list of embeddings
+    ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
     ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
-    ///   override_cache (bool): whether or not override the cache file with new embeddings  (optional)
+    ///   overwrite_cache (bool): whether or not override the cache file with new embeddings  (optional)
     ///   node_document (str): the property name to be used as document for nodes (optional)
     ///   edge_document (str): the property name to be used as document for edges (optional)
     ///   verbose (bool): whether or not to print logs reporting the progress
     ///   
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, override_cache = false, node_document = None, edge_document = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
         cache: Option<String>,
-        override_cache: bool,
+        overwrite_cache: bool,
         node_document: Option<String>,
         edge_document: Option<String>,
         verbose: bool,
@@ -339,7 +339,7 @@ impl PyGraphView {
                 .vectorise_with_template(
                     Box::new(embedding.clone()),
                     cache,
-                    override_cache,
+                    overwrite_cache,
                     template,
                     verbose,
                 )
