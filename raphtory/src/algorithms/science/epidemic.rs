@@ -7,11 +7,10 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
 };
 use rand::{
-    prelude::{SliceRandom, StdRng},
+    prelude::{SliceRandom, StdRng, ThreadRng},
     Rng, SeedableRng,
 };
 use std::collections::HashMap;
-use rand::prelude::ThreadRng;
 
 const SUSCEPTIBLE: u8 = 0u8;
 const INFECTIOUS: u8 = 1u8;
@@ -161,7 +160,6 @@ fn sir_sirs_strategy<G, T>(
         _ => {}
     }
 }
-
 
 /// Simulates the SIR (Susceptible-Infected-Recovery) infection model on a graph.
 ///
@@ -379,14 +377,18 @@ where
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
-        (infection_rate, recovery_rate, rec_to_sus_rate, exposure_rate),
+        (
+            infection_rate,
+            recovery_rate,
+            rec_to_sus_rate,
+            exposure_rate,
+        ),
         seed,
         steps,
         seir_seirs_strategy,
         true,
     )
 }
-
 
 fn unified_model<G, T, F>(
     graph: &G,
@@ -399,18 +401,18 @@ fn unified_model<G, T, F>(
     state_transition_strategy: F,
     is_alt: bool,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-    where
-        G: StaticGraphViewOps,
-        T: IntoTime + Copy,
-        F: Fn(
-            &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
-            &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
-            &mut StdRng,
-            &VertexView<WindowedGraph<G>>,
-            (f64, f64, f64, f64),
-            T,
-            bool,
-        ) -> (),
+where
+    G: StaticGraphViewOps,
+    T: IntoTime + Copy,
+    F: Fn(
+        &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+        &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+        &mut StdRng,
+        &VertexView<WindowedGraph<G>>,
+        (f64, f64, f64, f64),
+        T,
+        bool,
+    ) -> (),
 {
     let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
     let g_after = graph.after(sat_initial_infection_time);
@@ -421,7 +423,8 @@ fn unified_model<G, T, F>(
         initial_infection_state,
     );
     for _ in 0..steps.unwrap_or(1i32) {
-        let mut new_vertices_state: HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
+        let mut new_vertices_state: HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> =
+            HashMap::new();
         for v in g_after.vertices().iter() {
             state_transition_strategy(
                 &mut prev_vertices_state,
@@ -430,14 +433,13 @@ fn unified_model<G, T, F>(
                 &v,
                 rates,
                 initial_infection_time,
-                is_alt
+                is_alt,
             );
         }
         prev_vertices_state.extend(new_vertices_state);
     }
     Ok(prev_vertices_state)
 }
-
 
 /// Simulates the SI (Susceptible-Infected) infection model on a graph.
 ///
@@ -461,9 +463,9 @@ pub fn si_model<G, T>(
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-    where
-        G: StaticGraphViewOps,
-        T: IntoTime + Copy,
+where
+    G: StaticGraphViewOps,
+    T: IntoTime + Copy,
 {
     unified_model(
         graph,
@@ -501,9 +503,9 @@ pub fn sis_model<G, T>(
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-    where
-        G: StaticGraphViewOps,
-        T: IntoTime + Copy,
+where
+    G: StaticGraphViewOps,
+    T: IntoTime + Copy,
 {
     unified_model(
         graph,
@@ -554,7 +556,6 @@ fn si_sis_strategy<G, T>(
         _ => {}
     }
 }
-
 
 #[cfg(test)]
 mod si_tests {
