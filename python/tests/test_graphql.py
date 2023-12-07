@@ -173,3 +173,131 @@ def generic_client_test(raphtory_client, temp_dir):
     variables = {"graphname": "hello"}
     res = raphtory_client.query(query, variables)
     assert res == {"graph": {"nodes": [{"name": "1"}]}}
+
+
+def test_windows_and_layers():
+    from raphtory import graph_loader
+    from raphtory import Graph
+    import json
+    from raphtory.graphql import RaphtoryServer
+
+    g_lotr = graph_loader.lotr_graph()
+    g_layers = Graph()
+    g_layers.add_edge(1,1,2,layer="layer1")
+    g_layers.add_edge(1,2,3,layer="layer2")
+    hm = {"lotr":g_lotr,"layers":g_layers}
+    server = RaphtoryServer(hm).start()
+
+    q = """
+    query GetEdges {
+      graph(name: "lotr") {
+        window(start:200,end:800){
+        node(name: "Frodo"){
+          after(time:500){
+            history
+            neighbours{
+              name
+              before(time:300){
+                history
+              }
+            }
+          }
+        }
+      }
+      }
+    }
+    """
+    ra = """
+    {
+        "graph": {
+          "window": {
+            "node": {
+              "after": {
+                "history": [
+                  555,
+                  562
+                ],
+                "neighbours": [
+                  {
+                    "name": "Gandalf",
+                    "before": {
+                      "history": [
+                        270
+                      ]
+                    }
+                  },
+                  {
+                    "name": "Bilbo",
+                    "before": {
+                      "history": [
+                        205,
+                        270,
+                        286
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+    }
+    """
+    a = json.dumps(server.query(q))
+    json_a = json.loads(a)
+    json_ra = json.loads(ra)
+    assert json_a == json_ra
+
+    q = """
+    query GetEdges {
+      graph(name: "layers") {
+            node(name:"1"){
+          layer(name:"layer1"){
+            name
+            neighbours{
+              name
+              layer(name:"layer2"){
+               neighbours{
+                name
+              } 
+              }
+            }
+            }
+        }
+      }
+    }
+    """
+
+    ra = """
+    {
+        "graph": {
+            "node": {
+                "layer": {
+                    "name": "1",
+                    "neighbours": [
+                        {
+                            "name": "2",
+                            "layer": {
+                                "neighbours": [
+                                    {
+                                        "name": "3"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+      """
+
+    a = json.dumps(server.query(q))
+    json_a = json.loads(a)
+    json_ra = json.loads(ra)
+    assert json_a == json_ra
+
+    server.stop()
+    server.wait()
+
+
