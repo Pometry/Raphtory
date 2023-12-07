@@ -4,7 +4,6 @@ use itertools::Itertools;
 use raphtory::{
     db::{
         api::{
-            properties::dyn_props::DynProperties,
             view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         },
         graph::edge::EdgeView,
