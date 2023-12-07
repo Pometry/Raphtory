@@ -297,29 +297,31 @@ impl PyRaphtoryClient {
         variables: HashMap<String, Value>,
     ) -> PyResult<HashMap<String, Value>> {
         let client = self.clone();
-        let cloned_query = query.clone();
-        let mut graphql_result = execute_async_task(move || async move {
-            client.send_graphql_query(cloned_query, variables).await
+        // let cloned_query = query.clone();
+        let (graphql_query, graphql_result) = execute_async_task(move || async move {
+            client.send_graphql_query(query, variables).await
         })?;
+        let mut graphql_result = graphql_result;
 
         match graphql_result.remove("data") {
             Some(Value::Object(data)) => Ok(data.into_iter().collect()),
             _ => match graphql_result.remove("errors") {
                 Some(Value::Array(errors)) => Err(PyException::new_err(format!(
-                    "Got errors from GraphQL server:\n{errors:?}"
+                    "After sending query to the server:\n\t{graphql_query}\nGot the following errors:\n\t{errors:?}"
                 ))),
                 _ => Err(PyException::new_err(format!(
-                    "Error while reading server response for query:\n\t{query}"
+                    "Error while reading server response for query:\n\t{graphql_query}"
                 ))),
             },
         }
     }
 
+    /// Returns the query sent and the response
     async fn send_graphql_query(
         &self,
         query: String,
         variables: HashMap<String, Value>,
-    ) -> PyResult<HashMap<String, Value>> {
+    ) -> PyResult<(Value, HashMap<String, Value>)> {
         let client = Client::new();
 
         let request_body = json!({
