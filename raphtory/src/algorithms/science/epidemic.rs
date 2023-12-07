@@ -11,6 +11,7 @@ use rand::{
     Rng, SeedableRng,
 };
 use std::collections::HashMap;
+use rand::prelude::ThreadRng;
 
 const SUSCEPTIBLE: u8 = 0u8;
 const INFECTIOUS: u8 = 1u8;
@@ -53,7 +54,7 @@ fn change_state_by_prob<G, T>(
     recovery_rate: f64,
     rng: &mut StdRng,
     new_vertices_status: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
-    v: VertexView<WindowedGraph<G>>,
+    v: &VertexView<WindowedGraph<G>>,
     new_state: u8,
     infection_time: T,
 ) where
@@ -70,13 +71,13 @@ fn change_state_by_neighbors<G>(
     rng: &mut StdRng,
     prev_vertices_status: &HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
     new_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
-    v: VertexView<WindowedGraph<G>>,
+    v: &VertexView<WindowedGraph<G>>,
     new_state: u8,
 ) where
     G: StaticGraphViewOps,
 {
     for edgeview in v.edges().map(|e| e.explode()).flatten() {
-        let neighbour = if edgeview.src() != v {
+        let neighbour = if edgeview.src() != *v {
             edgeview.src()
         } else {
             edgeview.dst()
@@ -116,192 +117,51 @@ where
     }
 }
 
-fn si_sis_model<G: StaticGraphViewOps, T: IntoTime + Copy>(
-    graph: &G,
+fn sir_sirs_strategy<G, T>(
+    prev_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+    new_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+    rng: &mut StdRng,
+    v: &VertexView<WindowedGraph<G>>,
+    (infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate): (f64, f64, f64, f64),
     initial_infection_time: T,
-    initial_infected_ratio: f64,
-    infection_rate: f64, // beta
-    recovery_rate: f64,  // Y
-    seed: Option<[u8; 32]>,
-    steps: Option<i32>,
-    is_sis: bool,
-) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str> {
-    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
-    let g_after = graph.after(sat_initial_infection_time.into_time().clone());
-    let (mut rng, mut prev_vertices_status) =
-        setup_si(&g_after, initial_infected_ratio, seed, INFECTIOUS);
-    for i in 0..steps.unwrap_or(1i32) {
-        let mut new_vertices_state : HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
-        for v in g_after.vertices().iter() {
-            match get_node_state(&mut prev_vertices_status, &v, initial_infection_time) {
-                SUSCEPTIBLE => change_state_by_neighbors(
-                    infection_rate,
-                    &mut rng,
-                    &prev_vertices_status,
-                    &mut new_vertices_state,
-                    v,
-                    INFECTIOUS,
-                ),
-                // infected
-                INFECTIOUS => {
-                    if is_sis {
-                        change_state_by_prob(
-                            recovery_rate,
-                            &mut rng,
-                            &mut new_vertices_state,
-                            v,
-                            SUSCEPTIBLE,
-                            initial_infection_time,
-                        )
-                    }
-                }
-                _ => {}
-            }
-        }
-        // Now consolidate the hashmap
-        prev_vertices_status.extend(new_vertices_state);
-    }
-    Ok(prev_vertices_status)
-}
-
-/// Simulates the SI (Susceptible-Infected) infection model on a graph.
-///
-/// # Arguments
-/// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
-/// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
-/// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
-///
-/// # Returns
-/// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SI state (0 - Susceptible, 1 - Infected).
-/// * `Err(&'static str)` - An error message in case of failure.
-///
-pub fn si_model<G, T>(
-    graph: &G,
-    initial_infection_time: T,
-    initial_infected_ratio: f64,
-    infection_rate: f64,
-    seed: Option<[u8; 32]>,
-    steps: Option<i32>,
-) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-where
-    G: StaticGraphViewOps,
-    T: IntoTime + Copy,
-{
-    si_sis_model(
-        graph,
-        initial_infection_time,
-        initial_infected_ratio,
-        infection_rate,
-        0.0f64,
-        seed,
-        steps,
-        false,
-    )
-}
-
-/// Simulates the SIR (Susceptible-Infected-Recovery) infection model on a graph.
-///
-/// # Arguments
-/// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
-/// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
-/// * `recovery_rate` - The probability of recovery from an infected state to a susceptible one.
-/// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
-///
-/// # Returns
-/// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIS state (0 - Susceptible, 1 - Infected).
-/// * `Err(&'static str)` - An error message in case of failure.
-///
-pub fn sis_model<G, T>(
-    graph: &G,
-    initial_infection_time: T,
-    initial_infected_ratio: f64,
-    infection_rate: f64, // beta
-    recovery_rate: f64,  // Y
-    seed: Option<[u8; 32]>,
-    steps: Option<i32>,
-) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-where
-    G: StaticGraphViewOps,
-    T: IntoTime + Copy,
-{
-    si_sis_model(
-        graph,
-        initial_infection_time,
-        initial_infected_ratio,
-        infection_rate,
-        recovery_rate,
-        seed,
-        steps,
-        true,
-    )
-}
-
-fn sir_sirs_model<G, T>(
-    graph: &G,
-    initial_infection_time: T,
-    initial_infected_ratio: f64,
-    infection_rate: f64,
-    recovery_rate: f64,
-    rec_to_sus_rate: f64,
-    seed: Option<[u8; 32]>,
-    steps: Option<i32>,
     is_sirs: bool,
-) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-where
+) where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
-    let g_after = graph.after(sat_initial_infection_time);
-    let (mut rng, mut prev_vertices_status) =
-        setup_si(&g_after, initial_infected_ratio, seed, INFECTIOUS);
-    for i in 0..steps.unwrap_or(1i32) {
-        let mut new_vertices_state : HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
-        for v in g_after.vertices().iter() {
-            // if they are susceptible, then check their neighbours
-            match get_node_state(&mut prev_vertices_status, &v, initial_infection_time) {
-                SUSCEPTIBLE => change_state_by_neighbors(
-                    infection_rate,
-                    &mut rng,
-                    &prev_vertices_status,
-                    &mut new_vertices_state,
+    match get_node_state(prev_vertices_state, &v, initial_infection_time) {
+        SUSCEPTIBLE => change_state_by_neighbors(
+            infection_rate,
+            rng,
+            prev_vertices_state,
+            new_vertices_state,
+            v,
+            INFECTIOUS,
+        ),
+        INFECTIOUS => change_state_by_prob(
+            recovery_rate,
+            rng,
+            new_vertices_state,
+            v,
+            RECOVERED,
+            initial_infection_time,
+        ),
+        RECOVERED => {
+            if is_sirs {
+                change_state_by_prob(
+                    recovery_to_sus_rate,
+                    rng,
+                    new_vertices_state,
                     v,
-                    INFECTIOUS,
-                ),
-                INFECTIOUS => change_state_by_prob(
-                    recovery_rate,
-                    &mut rng,
-                    &mut new_vertices_state,
-                    v,
-                    RECOVERED,
+                    SUSCEPTIBLE,
                     initial_infection_time,
-                ),
-                RECOVERED => {
-                    if is_sirs {
-                        change_state_by_prob(
-                            rec_to_sus_rate,
-                            &mut rng,
-                            &mut new_vertices_state,
-                            v,
-                            SUSCEPTIBLE,
-                            initial_infection_time,
-                        )
-                    }
-                }
-                _ => {}
+                )
             }
         }
-        // Now consolidate the hashmap
-        prev_vertices_status.extend(new_vertices_state);
+        _ => {}
     }
-    Ok(prev_vertices_status)
 }
+
 
 /// Simulates the SIR (Susceptible-Infected-Recovery) infection model on a graph.
 ///
@@ -331,15 +191,15 @@ where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    sir_sirs_model(
+    unified_model(
         graph,
         initial_infection_time,
         initial_infected_ratio,
-        infection_rate,
-        recovery_rate,
-        0.0f64,
+        INFECTIOUS,
+        (infection_rate, recovery_rate, 0.0f64, 0.0f64),
         seed,
         steps,
+        sir_sirs_strategy,
         false,
     )
 }
@@ -366,7 +226,7 @@ pub fn sirs_model<G, T>(
     initial_infected_ratio: f64,
     infection_rate: f64,
     recovery_rate: f64,
-    rec_to_sus_rate: f64,
+    recovery_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
@@ -374,92 +234,70 @@ where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    sir_sirs_model(
+    unified_model(
         graph,
         initial_infection_time,
         initial_infected_ratio,
-        infection_rate,
-        recovery_rate,
-        rec_to_sus_rate,
+        INFECTIOUS,
+        (infection_rate, recovery_rate, recovery_to_sus_rate, 0.0f64),
         seed,
         steps,
+        sir_sirs_strategy,
         true,
     )
 }
 
-fn seir_seirs_model<G, T>(
-    graph: &G,
+fn seir_seirs_strategy<G, T>(
+    prev_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+    new_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+    rng: &mut StdRng,
+    v: &VertexView<WindowedGraph<G>>,
+    (infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate): (f64, f64, f64, f64),
     initial_infection_time: T,
-    initial_infected_ratio: f64,
-    infection_rate: f64,
-    exposure_rate: f64,
-    recovery_rate: f64,
-    rec_to_sus_rate: f64,
-    seed: Option<[u8; 32]>,
-    steps: Option<i32>,
     is_seirs: bool,
-    initial_infection_type: u8,
-) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
-where
+) where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
-    let g_after = graph.after(sat_initial_infection_time);
-    let (mut rng, mut prev_vertices_status) = setup_si(
-        &g_after,
-        initial_infected_ratio,
-        seed,
-        initial_infection_type,
-    );
-    for i in 0..steps.unwrap_or(1i32) {
-        let mut new_vertices_state : HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
-        for v in g_after.vertices().iter() {
-            // if they are susceptible, then check their neighbours
-            match get_node_state(&mut prev_vertices_status, &v, initial_infection_time) {
-                SUSCEPTIBLE => change_state_by_neighbors(
-                    infection_rate,
-                    &mut rng,
-                    &prev_vertices_status,
-                    &mut new_vertices_state,
+    match get_node_state(prev_vertices_state, &v, initial_infection_time) {
+        SUSCEPTIBLE => change_state_by_neighbors(
+            infection_rate,
+            rng,
+            prev_vertices_state,
+            new_vertices_state,
+            v,
+            EXPOSED,
+        ),
+        EXPOSED => change_state_by_prob(
+            exposure_rate,
+            rng,
+            new_vertices_state,
+            v,
+            INFECTIOUS,
+            initial_infection_time,
+        ),
+        INFECTIOUS => change_state_by_prob(
+            recovery_rate,
+            rng,
+            new_vertices_state,
+            v,
+            RECOVERED,
+            initial_infection_time,
+        ),
+        RECOVERED => {
+            if is_seirs {
+                change_state_by_prob(
+                    recovery_to_sus_rate,
+                    rng,
+                    new_vertices_state,
                     v,
-                    EXPOSED,
-                ),
-                EXPOSED => change_state_by_prob(
-                    exposure_rate,
-                    &mut rng,
-                    &mut new_vertices_state,
-                    v,
-                    INFECTIOUS,
+                    SUSCEPTIBLE,
                     initial_infection_time,
-                ),
-                INFECTIOUS => change_state_by_prob(
-                    recovery_rate,
-                    &mut rng,
-                    &mut new_vertices_state,
-                    v,
-                    RECOVERED,
-                    initial_infection_time,
-                ),
-                RECOVERED => {
-                    if is_seirs {
-                        change_state_by_prob(
-                            rec_to_sus_rate,
-                            &mut rng,
-                            &mut new_vertices_state,
-                            v,
-                            SUSCEPTIBLE,
-                            initial_infection_time,
-                        )
-                    }
-                }
-                _ => {}
+                )
             }
         }
-        // Now consolidate the hashmap
-        prev_vertices_status.extend(new_vertices_state);
+        _ => {}
     }
-    Ok(prev_vertices_status)
 }
 
 /// Simulates the SEIR (Susceptible-Exposed-Infectious-Recovered ) infection model on a graph.
@@ -487,24 +325,21 @@ pub fn seir_model<G, T>(
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
-    initial_infection_type: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    seir_seirs_model(
+    unified_model(
         graph,
         initial_infection_time,
         initial_infected_ratio,
-        infection_rate,
-        exposure_rate,
-        recovery_rate,
-        0.0f64,
+        INFECTIOUS,
+        (infection_rate, recovery_rate, 0.0f64, exposure_rate),
         seed,
         steps,
+        seir_seirs_strategy,
         false,
-        initial_infection_type,
     )
 }
 
@@ -534,26 +369,192 @@ pub fn seirs_model<G, T>(
     rec_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
     steps: Option<i32>,
-    initial_infection_type: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    seir_seirs_model(
+    unified_model(
         graph,
         initial_infection_time,
         initial_infected_ratio,
-        infection_rate,
-        exposure_rate,
-        recovery_rate,
-        rec_to_sus_rate,
+        INFECTIOUS,
+        (infection_rate, recovery_rate, rec_to_sus_rate, exposure_rate),
         seed,
         steps,
+        seir_seirs_strategy,
         true,
-        initial_infection_type,
     )
 }
+
+
+fn unified_model<G, T, F>(
+    graph: &G,
+    initial_infection_time: T,
+    initial_infected_ratio: f64,
+    initial_infection_state: u8,
+    rates: (f64, f64, f64, f64), // infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate
+    seed: Option<[u8; 32]>,
+    steps: Option<i32>,
+    state_transition_strategy: F,
+    is_alt: bool,
+) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
+    where
+        G: StaticGraphViewOps,
+        T: IntoTime + Copy,
+        F: Fn(
+            &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+            &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+            &mut StdRng,
+            &VertexView<WindowedGraph<G>>,
+            (f64, f64, f64, f64),
+            T,
+            bool,
+        ) -> (),
+{
+    let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
+    let g_after = graph.after(sat_initial_infection_time);
+    let (mut rng, mut prev_vertices_state) = setup_si(
+        &g_after,
+        initial_infected_ratio,
+        seed,
+        initial_infection_state,
+    );
+    for _ in 0..steps.unwrap_or(1i32) {
+        let mut new_vertices_state: HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
+        for v in g_after.vertices().iter() {
+            state_transition_strategy(
+                &mut prev_vertices_state,
+                &mut new_vertices_state,
+                &mut rng,
+                &v,
+                rates,
+                initial_infection_time,
+                is_alt
+            );
+        }
+        prev_vertices_state.extend(new_vertices_state);
+    }
+    Ok(prev_vertices_state)
+}
+
+
+/// Simulates the SI (Susceptible-Infected) infection model on a graph.
+///
+/// # Arguments
+/// * `graph` - The graph on which to run the simulation.
+/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
+/// * `seed` - An optional seed for the random number generator for reproducibility.
+/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+///
+/// # Returns
+/// A `Result` which is either:
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SI state (0 - Susceptible, 1 - Infected).
+/// * `Err(&'static str)` - An error message in case of failure.
+///
+pub fn si_model<G, T>(
+    graph: &G,
+    initial_infection_time: T,
+    initial_infected_ratio: f64,
+    infection_rate: f64, // beta
+    seed: Option<[u8; 32]>,
+    steps: Option<i32>,
+) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
+    where
+        G: StaticGraphViewOps,
+        T: IntoTime + Copy,
+{
+    unified_model(
+        graph,
+        initial_infection_time,
+        initial_infected_ratio,
+        INFECTIOUS,
+        (infection_rate, 0.0f64, 0.0f64, 0.0f64),
+        seed,
+        steps,
+        si_sis_strategy,
+        false,
+    )
+}
+
+/// Simulates the SIR (Susceptible-Infected-Recovery) infection model on a graph.
+///
+/// # Arguments
+/// * `graph` - The graph on which to run the simulation.
+/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
+/// * `recovery_rate` - The probability of recovery from an infected state to a susceptible one.
+/// * `seed` - An optional seed for the random number generator for reproducibility.
+/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+///
+/// # Returns
+/// A `Result` which is either:
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIS state (0 - Susceptible, 1 - Infected).
+/// * `Err(&'static str)` - An error message in case of failure.
+pub fn sis_model<G, T>(
+    graph: &G,
+    initial_infection_time: T,
+    initial_infected_ratio: f64,
+    infection_rate: f64, // beta
+    recovery_rate: f64,  // Y
+    seed: Option<[u8; 32]>,
+    steps: Option<i32>,
+) -> Result<HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>, &'static str>
+    where
+        G: StaticGraphViewOps,
+        T: IntoTime + Copy,
+{
+    unified_model(
+        graph,
+        initial_infection_time,
+        initial_infected_ratio,
+        INFECTIOUS,
+        (infection_rate, recovery_rate, 0.0f64, 0.0f64),
+        seed,
+        steps,
+        si_sis_strategy,
+        true,
+    )
+}
+
+fn si_sis_strategy<G, T>(
+    prev_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+    new_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
+    rng: &mut StdRng,
+    v: &VertexView<WindowedGraph<G>>,
+    (infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate): (f64, f64, f64, f64),
+    initial_infection_time: T,
+    is_sis: bool,
+) where
+    G: StaticGraphViewOps,
+    T: IntoTime + Copy,
+{
+    match get_node_state(prev_vertices_state, &v, initial_infection_time) {
+        SUSCEPTIBLE => change_state_by_neighbors(
+            infection_rate,
+            rng,
+            &prev_vertices_state,
+            new_vertices_state,
+            v,
+            INFECTIOUS,
+        ),
+        INFECTIOUS => {
+            if is_sis {
+                change_state_by_prob(
+                    recovery_rate,
+                    rng,
+                    new_vertices_state,
+                    v,
+                    SUSCEPTIBLE,
+                    initial_infection_time,
+                )
+            }
+        }
+        _ => {}
+    }
+}
+
 
 #[cfg(test)]
 mod si_tests {
