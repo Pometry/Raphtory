@@ -274,7 +274,7 @@ impl<const N: usize> TemporalGraph<N> {
             },
             Some(filter) => {
                 let guard = self.storage.edges.read_lock();
-                guard.par_iter().filter(|e| filter(e, layers)).count()
+                guard.par_iter().filter(|&e| filter(e, layers)).count()
             }
         }
     }

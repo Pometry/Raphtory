@@ -271,7 +271,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+    pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self.deletions().iter().flat_map(|d| d.last()).max(),
@@ -283,7 +283,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+    pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self.additions().iter().flat_map(|d| d.last()).max(),
@@ -301,18 +301,18 @@ impl EdgeStore {
             LayerIds::All => self
                 .deletions()
                 .iter()
-                .flat_map(|dels| dels.range(i64::MIN..t).last().copied())
+                .flat_map(|dels| dels.range(i64::MIN..t).last())
                 .max(),
             LayerIds::One(id) => {
                 let layer = self.deletions.get(*id)?;
-                layer.range(i64::MIN..t).last().copied()
+                layer.range(i64::MIN..t).last()
             }
             LayerIds::Multiple(ids) => ids
                 .iter()
                 .flat_map(|id| {
                     self.deletions
                         .get(*id)
-                        .and_then(|t_index| t_index.range(i64::MIN..t).last().copied())
+                        .and_then(|t_index| t_index.range(i64::MIN..t).last())
                 })
                 .max(),
         }
