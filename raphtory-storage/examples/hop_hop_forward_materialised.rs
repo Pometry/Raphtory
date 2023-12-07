@@ -1,64 +1,18 @@
-use itertools::kmerge_by;
+use itertools::{kmerge_by, Itertools};
 use raphtory::{
     arrow::{
-        col_graph2::TempColGraphFragment,
-        edge::{Edge, ExplodedEdge},
-        global_order::GlobalOrder,
-        graph::TemporalGraph,
-        loader::ExternalEdgeList,
-        prelude::ArrayOps,
-        Time,
+        col_graph2::TempColGraphFragment, edge::ExplodedEdge, global_order::GlobalOrder,
+        graph::TemporalGraph, loader::ExternalEdgeList, Time,
     },
-    core::{
-        entities::{EID, VID},
-        Direction,
-    },
+    core::{entities::VID, Direction},
 };
 use rayon::prelude::*;
 use std::{
     cmp::Ordering,
     collections::VecDeque,
-    iter::Peekable,
     sync::atomic::{AtomicU64, Ordering::Relaxed},
     time::Instant,
 };
-
-#[derive(Debug, Eq, Copy, Clone)]
-enum Window {
-    Start { t: i64 },
-    End { t: i64 },
-}
-
-impl PartialOrd for Window {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.t().partial_cmp(&other.t())
-    }
-}
-
-impl Ord for Window {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.t().cmp(&other.t())
-    }
-}
-
-impl PartialEq for Window {
-    fn eq(&self, other: &Self) -> bool {
-        self.t() == other.t()
-    }
-}
-
-impl Window {
-    pub fn t(&self) -> i64 {
-        match self {
-            Window::Start { t, .. } => *t,
-            Window::End { t, .. } => *t,
-        }
-    }
-}
-
-fn window_bounds(t: i64, w: i64) -> [Window; 2] {
-    [Window::Start { t: t - w }, Window::End { t }]
-}
 
 fn find_active_nodes<GO: GlobalOrder>(graph: &TemporalGraph<GO>, layer: usize) -> Vec<VID> {
     let layer = graph.layer(layer);
@@ -83,7 +37,7 @@ fn valid_netflow_events(
     nft_graph: &TempColGraphFragment,
     b_vid: VID,
     bytes_prop_id: usize,
-) -> impl Iterator<Item = ExplodedEdge> {
+) -> impl Iterator<Item = Event> {
     kmerge_by(
         nft_graph
             .edges_iter(b_vid, Direction::OUT)
@@ -99,13 +53,14 @@ fn valid_netflow_events(
             }),
         |e1: &ExplodedEdge, e2: &ExplodedEdge| e1.timestamp() >= e2.timestamp(),
     )
+    .map(Event::Netflow)
 }
 
 fn login_edges(
     events_2v_graph: &TempColGraphFragment,
     b_vid: VID,
     login_event_prop_id: usize,
-) -> impl Iterator<Item = ExplodedEdge> {
+) -> impl Iterator<Item = Event> {
     kmerge_by(
         events_2v_graph
             .edges_iter(b_vid, Direction::IN)
@@ -121,13 +76,14 @@ fn login_edges(
             }),
         |e1: &ExplodedEdge, e2: &ExplodedEdge| e1.timestamp() >= e2.timestamp(),
     )
+    .map(Event::Login)
 }
 
 fn prog1_edges(
     event_1v_graph: &TempColGraphFragment,
     b_vid: VID,
     prog1_event_prop_id: usize,
-) -> impl Iterator<Item = ExplodedEdge> {
+) -> impl Iterator<Item = Event> {
     event_1v_graph
         .edges_iter(b_vid, Direction::OUT)
         .into_iter()
@@ -140,6 +96,7 @@ fn prog1_edges(
                 .filter(move |e| e.prop::<i64>(prog1_event_prop_id) == Some(4688))
         })
         .rev()
+        .map(Event::Prog1)
 }
 
 #[derive(Debug, Clone)]
@@ -147,6 +104,51 @@ enum Event<'a> {
     Login(ExplodedEdge<'a>),
     Prog1(ExplodedEdge<'a>),
     Netflow(ExplodedEdge<'a>),
+}
+
+impl<'a> PartialEq for Event<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Event::Login(e1), Event::Login(e2)) => e1.timestamp() == e2.timestamp(),
+            (Event::Prog1(e1), Event::Prog1(e2)) => e1.timestamp() == e2.timestamp(),
+            (Event::Netflow(e1), Event::Netflow(e2)) => e1.timestamp() == e2.timestamp(),
+            _ => false,
+        }
+    }
+}
+
+impl<'a> Eq for Event<'a> {}
+
+impl<'a> PartialOrd for Event<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> Ord for Event<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match other.t().cmp(&self.t()) {
+            Ordering::Less => Ordering::Less,
+            Ordering::Equal => match self {
+                Event::Login(_) => match other {
+                    Event::Login(_) => Ordering::Equal,
+                    Event::Prog1(_) => Ordering::Less,
+                    Event::Netflow(_) => Ordering::Less,
+                },
+                Event::Prog1(_) => match other {
+                    Event::Login(_) => Ordering::Greater,
+                    Event::Prog1(_) => Ordering::Equal,
+                    Event::Netflow(_) => Ordering::Less,
+                },
+                Event::Netflow(_) => match other {
+                    Event::Login(_) => Ordering::Greater,
+                    Event::Prog1(_) => Ordering::Greater,
+                    Event::Netflow(_) => Ordering::Equal,
+                },
+            },
+            Ordering::Greater => Ordering::Greater,
+        }
+    }
 }
 
 impl<'a> Event<'a> {
@@ -164,14 +166,27 @@ impl<'a> Event<'a> {
 }
 
 struct MergeIter<'a, I: Iterator<Item = Event<'a>>> {
-    events: Peekable<I>,
+    events: I,
     active_netflow: VecDeque<(Time, usize, ExplodedEdge<'a>)>,
     active_prog1: VecDeque<ExplodedEdge<'a>>,
     inner_state: Option<MergeInnerState<'a>>,
     event_count: usize,
+    window: i64,
+    last_t: Option<i64>,
 }
 
 impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
+    fn new(events: I, window: i64) -> Self {
+        Self {
+            events,
+            active_netflow: Default::default(),
+            active_prog1: Default::default(),
+            inner_state: None,
+            event_count: 0,
+            window,
+            last_t: None,
+        }
+    }
     fn oldest_window_t(&self) -> Option<Time> {
         self.active_netflow.front().map(|(t, _, _)| *t)
     }
@@ -181,7 +196,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
     }
 
     fn advance_windows(&mut self, new_t: Time) {
-        while self.oldest_window_t() >= Some(new_t) {
+        while self.oldest_window_t() > Some(new_t) {
             let (_, index, _) = self.active_netflow.pop_front().unwrap();
             if let Some(next_index) = self.oldest_count() {
                 let to_remove = next_index - index;
@@ -195,9 +210,24 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
         if let Some(next_event) = self.events.next() {
             self.advance_windows(next_event.t());
             match next_event {
-                Event::Login(login) => if let Some(oldest_window_t) = self.oldest_window_t() {},
-                Event::Prog1(prog1) => {}
-                Event::Netflow(nf) => {}
+                Event::Login(login) => {
+                    if !self.active_prog1.is_empty() {
+                        self.last_t = Some(login.timestamp()); // need to delay clearing of windows
+                        self.inner_state =
+                            Some(MergeInnerState::new(login, self.active_prog1.len()))
+                    }
+                }
+                Event::Prog1(prog1) => {
+                    if !self.active_netflow.is_empty() {
+                        self.active_prog1.push_front(prog1); // most recent in front for easier truncation
+                        self.event_count += 1; // keep track of prog1 events
+                    }
+                }
+                Event::Netflow(nf) => {
+                    let t = nf.timestamp();
+                    self.active_netflow
+                        .push_back((t - self.window, self.event_count, nf));
+                }
             }
             true
         } else {
@@ -205,8 +235,31 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
         }
     }
 
-    fn next_inner(&mut self) -> (ExplodedEdge<'a>, ExplodedEdge<'a>, ExplodedEdge<'a>) {
-        todo!()
+    fn next_inner(&mut self) -> Option<(ExplodedEdge<'a>, ExplodedEdge<'a>, ExplodedEdge<'a>)> {
+        let inner_state = self.inner_state.as_mut()?;
+        let (_, _, netflow) = self.active_netflow[inner_state.netflow_index].clone();
+        let login = inner_state.login.clone();
+        let prog1 = self.active_prog1[inner_state.prog1_index].clone();
+        if inner_state.advance() {
+            if inner_state.netflow_index >= self.active_netflow.len() {
+                self.inner_state = None;
+            } else {
+                let (_, count, _) = self.active_netflow[inner_state.netflow_index];
+                let new_len = self.event_count - count;
+                if new_len == 0 {
+                    self.inner_state = None;
+                } else {
+                    inner_state.prog1_len = new_len;
+                }
+            }
+        }
+
+        let value = if login.src() == netflow.dst() {
+            self.next_inner()
+        } else {
+            Some((login, prog1, netflow))
+        };
+        value
     }
 }
 
@@ -219,174 +272,43 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for MergeIter<'a, I> {
                 return None;
             }
         }
-        Some(self.next_inner())
+        self.next_inner()
     }
 }
 
 struct MergeInnerState<'a> {
     login: ExplodedEdge<'a>,
+    prog1_index: usize,
+    netflow_index: usize,
+    prog1_len: usize,
 }
 
-// impl MergeCounter {
-//     fn update_lookup(&mut self, t: Time) {
-//         if let Some(last) = self.lookup.last_mut().filter(|(last_t, _)| last_t == &t) {
-//             last.1 = self.count;
-//         } else {
-//             self.lookup.push((t, self.count))
-//         }
-//     }
-//
-//     #[inline]
-//     fn update_window_start(&mut self, t: Time) {
-//         //finished a window
-//         let index = self.active_windows.pop_front().unwrap();
-//         let num_events = self.event_count - index;
-//         if num_events != 0 {
-//             self.count -= num_events;
-//             self.update_lookup(t);
-//         }
-//     }
-//
-//     fn update_nft(&mut self, event: Window) {
-//         match event {
-//             Window::Start { t } => self.update_window_start(t),
-//             Window::End { .. } => {
-//                 //start a new window
-//                 self.active_windows.push_back(self.event_count);
-//             }
-//         }
-//     }
-//
-//     fn update_prog1(&mut self, prog1: i64) {
-//         if !self.active_windows.is_empty() {
-//             self.event_count += 1;
-//             self.count += self.active_windows.len();
-//             self.update_lookup(prog1);
-//         }
-//     }
-//
-//     fn finish(
-//         mut self,
-//         remaining_windows: impl Iterator<Item = Window>,
-//     ) -> Option<Vec<(Time, usize)>> {
-//         if !self.active_windows.is_empty() {
-//             for w in remaining_windows {
-//                 match w {
-//                     Window::Start { t } => self.update_window_start(t),
-//                     _ => {}
-//                 }
-//                 if self.active_windows.is_empty() {
-//                     break;
-//                 }
-//             }
-//         }
-//         if self.lookup.is_empty() {
-//             None
-//         } else {
-//             Some(self.lookup)
-//         }
-//     }
-// }
-//
-// fn merge_nft_prog1(
-//     events_1v_edge: &Edge,
-//     nft_events: impl IntoIterator<Item = Window>,
-//     prop_id: usize,
-// ) -> Option<Vec<(Time, usize)>> {
-//     let prog_events = events_1v_edge
-//         .prop_items_unchecked::<i64>(prop_id)
-//         .unwrap()
-//         .filter_map(|(t, v)| (v == 4688).then_some(t))
-//         .rev();
-//     let mut nft_events_iter = nft_events.into_iter();
-//     let mut next_nft_event = nft_events_iter.next();
-//     let mut merge_counter = MergeCounter::default();
-//     for t in prog_events {
-//         while next_nft_event.filter(|event| event.t() > t).is_some() {
-//             merge_counter.update_nft(next_nft_event.unwrap());
-//             next_nft_event = nft_events_iter.next();
-//         }
-//         if next_nft_event.is_none() {
-//             // no more windows
-//             break;
-//         }
-//         merge_counter.update_prog1(t);
-//     }
-//     // finalise any remaining open windows!
-//     merge_counter.finish(next_nft_event.into_iter().chain(nft_events_iter))
-// }
-//
-// fn loop_events(
-//     a_vid: VID,
-//     events_1v_edge: &Edge,
-//     login_edge: &Edge,
-//     nft_events: &[(VID, Vec<Window>)],
-//     prog1_prop_id: usize,
-//     login_prop_id: usize,
-// ) -> Option<usize> {
-//     let index = nft_events.binary_search_by_key(&a_vid, |(v, _)| *v).ok()?;
-//     let nf_events_iter = nft_events[index].1.iter().copied();
-//     let prog1_map = merge_nft_prog1(events_1v_edge, nf_events_iter, prog1_prop_id)?;
-//     local_login_count(login_edge, login_prop_id, &prog1_map)
-// }
-//
-// fn local_login_count(
-//     login_edge: &Edge,
-//     prop_id: usize,
-//     prog1_map: &[(Time, usize)],
-// ) -> Option<usize> {
-//     if login_edge.timestamps().iter().next()? >= prog1_map.first()?.0 {
-//         return None;
-//     }
-//     login_edge
-//         .par_prop_items_unchecked::<i64>(prop_id)
-//         .map(|iter| {
-//             iter.filter(|(_, &id)| id == 4624)
-//                 .map(|(t, _)| {
-//                     let index = prog1_map.partition_point(|(ti, _)| ti > t);
-//                     if index > 0 {
-//                         prog1_map[index - 1].1
-//                     } else {
-//                         0
-//                     }
-//                 })
-//                 .sum()
-//         })
-// }
-//
-// fn count_logins(
-//     b_vid: VID,
-//     prog1_map: &[(Time, usize)],
-//     nft_events: &[(VID, Vec<Window>)],
-//     events_2v_graph: &TempColGraphFragment,
-//     events_1v_edge: &Edge,
-//     edges_par_iter: impl IndexedParallelIterator<Item = (EID, VID)>,
-//     login_prop_id: usize,
-//     prog1_prop_id: usize,
-// ) -> usize {
-//     edges_par_iter
-//         .filter(|(_, a_vid)| *a_vid != b_vid)
-//         .filter_map(|(eid, a_vid)| {
-//             let edge = events_2v_graph.edge(eid);
-//             local_login_count(&edge, login_prop_id, prog1_map).map(move |c| (a_vid, edge, c))
-//         })
-//         .filter(|(_, _, count)| *count != 0)
-//         .map(|(a_vid, edge, count)| {
-//             let loop_count = loop_events(
-//                 a_vid,
-//                 events_1v_edge,
-//                 &edge,
-//                 nft_events,
-//                 prog1_prop_id,
-//                 login_prop_id,
-//             )
-//             .unwrap_or(0);
-//             count - loop_count
-//         })
-//         .sum()
-// }
+impl<'a> MergeInnerState<'a> {
+    fn new(login: ExplodedEdge<'a>, prog1_len: usize) -> Self {
+        Self {
+            login,
+            prog1_index: 0,
+            netflow_index: 0,
+            prog1_len,
+        }
+    }
 
-fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
+    fn advance(&mut self) -> bool {
+        self.prog1_index += 1;
+        if self.prog1_index >= self.prog1_len {
+            self.prog1_index = 0;
+            self.netflow_index += 1;
+            true
+        } else {
+            false
+        }
+    }
+}
+
+fn query<GO: GlobalOrder>(
+    g: &TemporalGraph<GO>,
+    window: i64,
+) -> Option<impl ParallelIterator<Item = (ExplodedEdge, ExplodedEdge, ExplodedEdge)> + '_> {
     //   MATCH
     //     (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
     //   WHERE A <> B AND B <> E AND A <> E
@@ -432,47 +354,13 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
     let prog1_merge_ms = AtomicU64::default();
     let count_login_ms = AtomicU64::default();
 
-    // let count = log_nodes
-    //     .into_par_iter()
-    //     .flat_map(|b_vid| {
-    //         let login_edges = events_2v_graph.edges_par_iter(b_vid, Direction::IN)?;
-    //         let (self_loop, _) = events_1v_graph
-    //             .edges_iter(b_vid, Direction::OUT)
-    //             .unwrap()
-    //             .filter(|(_, n_vid)| *n_vid == b_vid)
-    //             .next()?;
-    //
-    //         let now = Instant::now();
-    //         let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, window)?;
-    //         valid_netflow_events_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
-    //
-    //         let now = Instant::now();
-    //         let merged_nft_events = kmerge_by(
-    //             nft_events.iter().map(|(_, windows)| windows),
-    //             |a: &&Window, b: &&Window| a >= b,
-    //         )
-    //         .copied();
-    //         let events_1v_edge = events_1v_graph.edge(self_loop);
-    //
-    //         let prog1_eventmap =
-    //             merge_nft_prog1(&events_1v_edge, merged_nft_events, prog1_prop_id)?;
-    //         prog1_merge_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
-    //
-    //         let now = Instant::now();
-    //         let count = count_logins(
-    //             b_vid,
-    //             &prog1_eventmap,
-    //             &nft_events,
-    //             events_2v_graph,
-    //             &events_1v_edge,
-    //             login_edges,
-    //             event_id_prop_id_2v,
-    //             prog1_prop_id,
-    //         );
-    //         count_login_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
-    //         Some(count)
-    //     })
-    //     .sum();
+    let iter = log_nodes.into_par_iter().flat_map_iter(move |b_vid| {
+        let logins = login_edges(events_2v_graph, b_vid, event_id_prop_id_2v);
+        let prog1s = prog1_edges(events_1v_graph, b_vid, prog1_prop_id);
+        let netflows = valid_netflow_events(nft_graph, b_vid, bytes_prop_id);
+        let events = logins.merge(prog1s).merge(netflows);
+        MergeIter::new(events, window)
+    });
 
     println!(
         "finding valid netflow took {}ms",
@@ -483,7 +371,7 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
         prog1_merge_ms.load(Relaxed)
     );
     println!("counting logins took {}ms", count_login_ms.load(Relaxed));
-    todo!()
+    Some(iter)
 }
 
 fn main() {
@@ -563,9 +451,9 @@ fn main() {
 
     let now = Instant::now();
 
-    let count = query(&graph, window);
-
-    println!("Time taken: {:?}, count: {:?}", now.elapsed(), count);
+    let iter = query(&graph, window).unwrap();
+    let count = iter.count();
+    println!("Time taken: {:?}, count: {count}", now.elapsed());
 }
 
 #[cfg(test)]
@@ -578,6 +466,7 @@ mod test {
     use raphtory::arrow::{
         col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph,
     };
+    use rayon::prelude::*;
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -687,7 +576,8 @@ mod test {
                 "netflow".to_owned(),
             ],
         );
-        let actual = query(&graph, 30);
-        assert_eq!(actual, Some(4));
+        let actual: Vec<_> = query(&graph, 30).unwrap().collect();
+        println!("{:?}", actual);
+        assert_eq!(actual.len(), 4);
     }
 }
