@@ -1,5 +1,8 @@
 use crate::{
-    core::utils::time::IntoTime,
+    core::{
+        entities::vertices::{input_vertex::InputVertex, vertex_ref::VertexRef},
+        utils::time::IntoTime,
+    },
     db::{
         api::view::StaticGraphViewOps,
         graph::{vertex::VertexView, views::window_graph::WindowedGraph},
@@ -7,10 +10,10 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, TimeOps, VertexViewOps},
 };
 use rand::{
-    prelude::{SliceRandom, StdRng, ThreadRng},
+    prelude::{SliceRandom, StdRng},
     Rng, SeedableRng,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const SUSCEPTIBLE: u8 = 0u8;
 const INFECTIOUS: u8 = 1u8;
@@ -21,32 +24,50 @@ const GAMMA: &str = "g";
 const SIGMA: &str = "0";
 const XI: &str = "X";
 
-fn setup_si<G>(
+fn setup_si<G, V>(
     graph: &G,
     initial_infected_ratio: f64,
+    initial_infected_nodes: Option<HashSet<V>>,
     seed: Option<[u8; 32]>,
     infected_state: u8,
 ) -> (StdRng, HashMap<VertexView<G>, (u8, i64)>)
 where
     G: StaticGraphViewOps,
+    V: InputVertex,
 {
     let mut rng: StdRng = SeedableRng::from_seed(seed.unwrap_or_default());
-    let infected_count = graph.count_vertices() as f64 * initial_infected_ratio;
-    let mut population: Vec<VertexView<G>> = graph.vertices().iter().collect();
-    // Infect initial number of infected nodes
-    population.shuffle(&mut rng);
-    let mut prev_vertices_status: HashMap<VertexView<G>, (u8, i64)> = population
-        .clone()
-        .into_iter()
-        .take(infected_count as usize)
-        .map(|v| {
-            (
-                v.clone(),
-                (infected_state, graph.start().unwrap_or(-1i64) + 1i64),
-            )
-        })
-        .collect();
-    (rng, prev_vertices_status)
+    match initial_infected_nodes {
+        None => {
+            let infected_count = graph.count_vertices() as f64 * initial_infected_ratio;
+            let mut population: Vec<VertexView<G>> = graph.vertices().iter().collect();
+            // Infect initial number of infected nodes
+            population.shuffle(&mut rng);
+            let mut prev_vertices_status: HashMap<VertexView<G>, (u8, i64)> = population
+                .clone()
+                .into_iter()
+                .take(infected_count as usize)
+                .map(|v| {
+                    (
+                        v.clone(),
+                        (infected_state, graph.start().unwrap_or(-1i64) + 1i64),
+                    )
+                })
+                .collect();
+            (rng, prev_vertices_status)
+        }
+        Some(initial_infected) => {
+            let prev_vertices_status: HashMap<VertexView<G>, (u8, i64)> = initial_infected
+                .iter()
+                .map(|v| {
+                    (
+                        graph.vertex(v.clone()).unwrap(),
+                        (infected_state, graph.start().unwrap_or(-1i64) + 1i64),
+                    )
+                })
+                .collect();
+            (rng, prev_vertices_status)
+        }
+    }
 }
 
 fn change_state_by_prob<G, T>(
@@ -176,8 +197,9 @@ fn sir_sirs_strategy<G, T>(
 /// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIR state (0 - Susceptible, 1 - Infected, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
-pub fn sir_model<G, T>(
+pub fn sir_model<G, T, V>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     infection_rate: f64,
@@ -188,9 +210,11 @@ pub fn sir_model<G, T>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
 {
-    unified_model(
+    unified_model::<G, T, V, _>(
         graph,
+        initial_input_vertices,
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
@@ -218,8 +242,9 @@ where
 /// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIRS state (0 - Susceptible, 1 - Infected, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
-pub fn sirs_model<G, T>(
+pub fn sirs_model<G, T, V>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     infection_rate: f64,
@@ -231,9 +256,11 @@ pub fn sirs_model<G, T>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
 {
-    unified_model(
+    unified_model::<G, T, V, _>(
         graph,
+        initial_input_vertices,
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
@@ -314,8 +341,9 @@ fn seir_seirs_strategy<G, T>(
 /// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIR state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
-pub fn seir_model<G, T>(
+pub fn seir_model<G, T, V>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     infection_rate: f64,
@@ -327,9 +355,11 @@ pub fn seir_model<G, T>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
 {
     unified_model(
         graph,
+        initial_input_vertices,
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
@@ -357,8 +387,9 @@ where
 /// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIR state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
-pub fn seirs_model<G, T>(
+pub fn seirs_model<G, T, V>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     infection_rate: f64,
@@ -371,9 +402,11 @@ pub fn seirs_model<G, T>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
 {
     unified_model(
         graph,
+        initial_input_vertices,
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
@@ -390,8 +423,9 @@ where
     )
 }
 
-fn unified_model<G, T, F>(
+fn unified_model<G, T, V, F>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     initial_infection_state: u8,
@@ -404,6 +438,7 @@ fn unified_model<G, T, F>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
     F: Fn(
         &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
         &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
@@ -419,6 +454,7 @@ where
     let (mut rng, mut prev_vertices_state) = setup_si(
         &g_after,
         initial_infected_ratio,
+        initial_input_vertices,
         seed,
         initial_infection_state,
     );
@@ -455,8 +491,9 @@ where
 /// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SI state (0 - Susceptible, 1 - Infected).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
-pub fn si_model<G, T>(
+pub fn si_model<G, T, V>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     infection_rate: f64, // beta
@@ -466,9 +503,11 @@ pub fn si_model<G, T>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
 {
     unified_model(
         graph,
+        initial_input_vertices,
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
@@ -494,8 +533,9 @@ where
 /// A `Result` which is either:
 /// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIS state (0 - Susceptible, 1 - Infected).
 /// * `Err(&'static str)` - An error message in case of failure.
-pub fn sis_model<G, T>(
+pub fn sis_model<G, T, V>(
     graph: &G,
+    initial_input_vertices: Option<HashSet<V>>,
     initial_infection_time: T,
     initial_infected_ratio: f64,
     infection_rate: f64, // beta
@@ -506,9 +546,11 @@ pub fn sis_model<G, T>(
 where
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
+    V: InputVertex,
 {
-    unified_model(
+    unified_model::<G, T, V, _>(
         graph,
+        initial_input_vertices,
         initial_infection_time,
         initial_infected_ratio,
         INFECTIOUS,
@@ -560,7 +602,10 @@ fn si_sis_strategy<G, T>(
 #[cfg(test)]
 mod si_tests {
     use super::*;
-    use crate::prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS};
+    use crate::{
+        db,
+        prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS},
+    };
 
     fn gen_graph() -> Graph {
         let graph: Graph = Graph::new();
@@ -587,7 +632,7 @@ mod si_tests {
     fn si_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = si_model(&graph, 0, 0.3f64, 0.75f64, seed, None).unwrap();
+        let result = si_model(&graph, None, 0, 0.3f64, 0.75f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, (u8, i64)> =
             HashMap::from([
@@ -611,7 +656,7 @@ mod si_tests {
     fn sis_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sis_model(&graph, 0, 0.2f64, 0.2f64, 0.2f64, seed, None).unwrap();
+        let result = sis_model(&graph, None, 0, 0.2f64, 0.2f64, 0.2f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, (u8, i64)> =
             HashMap::from([
@@ -635,7 +680,7 @@ mod si_tests {
     fn sir_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sir_model(&graph, 0, 0.2f64, 0.2f64, 0.2f64, seed, None).unwrap();
+        let result = sir_model(&graph, None, 0, 0.2f64, 0.2f64, 0.2f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, (u8, i64)> =
             HashMap::from([
