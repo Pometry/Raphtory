@@ -16,6 +16,11 @@ pub(crate) struct EmbeddingCache {
 }
 
 impl EmbeddingCache {
+    pub(crate) fn new(path: PathBuf) -> Self {
+        let cache = RwLock::new(CacheStore::new());
+        Self { cache, path }
+    }
+
     pub(crate) fn from_path(path: PathBuf) -> Self {
         let inner_cache = Self::try_reading_from_disk(&path).unwrap_or(HashMap::new());
         let cache = RwLock::new(inner_cache);

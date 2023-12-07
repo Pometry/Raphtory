@@ -9,8 +9,12 @@ use crate::{
 use itertools::Itertools;
 use std::{convert::identity, sync::Arc};
 
+/// Trait to be implemented for custom document templates
 pub trait DocumentTemplate<G: StaticGraphViewOps>: Send + Sync {
+    /// A function that translate a node into an iterator of documents
     fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
+
+    /// A function that translate an edge into an iterator of documents
     fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>>;
 }
 
