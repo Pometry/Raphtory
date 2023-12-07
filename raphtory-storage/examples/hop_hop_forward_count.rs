@@ -1,5 +1,3 @@
-use ahash::HashMap;
-use arrow2::types::Index;
 use itertools::kmerge_by;
 use raphtory::{
     arrow::{
@@ -14,7 +12,7 @@ use raphtory::{
 use rayon::prelude::*;
 use std::{
     cmp::Ordering,
-    collections::{hash_map::Entry, VecDeque},
+    collections::VecDeque,
     sync::atomic::{AtomicU64, Ordering::Relaxed},
     time::Instant,
 };
@@ -276,7 +274,7 @@ fn count_logins(
 }
 
 fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
-    //     MATCH
+    //   MATCH
     //     (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
     //   WHERE A <> B AND B <> E AND A <> E
     //     AND login1.eventID = 4624
@@ -463,11 +461,8 @@ mod test {
         array::{PrimitiveArray, StructArray},
         datatypes::{DataType, Field},
     };
-    use raphtory::{
-        algorithms::usecases::netflow_one_path_vertex::netflow_one_path_vertex,
-        arrow::{col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph},
-        core::Prop,
-        prelude::{Graph, NO_PROPS},
+    use raphtory::arrow::{
+        col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph,
     };
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -567,32 +562,6 @@ mod test {
             vec![chunk],
         )
         .unwrap();
-
-        // let graph = Graph::new();
-        // graph
-        //     .add_edge(0, 1, 2, NO_PROPS, Some("Events2v4624"))
-        //     .expect("Panic");
-        // graph
-        //     .add_edge(1, 2, 2, NO_PROPS, Some("Events1v4688"))
-        //     .expect("Panic");
-        // graph
-        //     .add_edge(
-        //         2,
-        //         2,
-        //         3,
-        //         [("dstBytes", Prop::I64(100_000_005))],
-        //         Some("Netflow"),
-        //     )
-        //     .expect("Panic");
-        // graph
-        //     .add_edge(
-        //         2,
-        //         4,
-        //         5,
-        //         [("dstBytes", Prop::U64(100000005))],
-        //         Some("Netflow"),
-        //     )
-        //     .expect("Panic");
 
         let graph = TemporalGraph::new_from_layers(
             vertices,
