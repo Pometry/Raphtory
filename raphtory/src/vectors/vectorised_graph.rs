@@ -6,13 +6,15 @@ use crate::{
     },
     prelude::*,
     vectors::{
-        document_ref::DocumentRef, document_template::DocumentTemplate, entity_id::EntityId,
-        Document, Embedding, EmbeddingFunction,
+        document_ref::DocumentRef, document_template::DocumentTemplate,
+        embedding_cache::EmbeddingCache, entity_id::EntityId, Document, DocumentOps, Embedding,
+        EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -68,7 +70,71 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    /// This assumes forced documents to have a score of 0
+    /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
+    pub fn save_embeddings(&self, file: PathBuf) {
+        let cache = EmbeddingCache::new(file);
+        chain!(self.node_documents.iter(), self.edge_documents.iter()).for_each(|(_, group)| {
+            group.iter().for_each(|doc| {
+                let original = doc.regenerate(&self.source_graph, self.template.as_ref());
+                cache.upsert_embedding(original.content(), doc.embedding.clone());
+            })
+        });
+        cache.dump_to_disk();
+    }
+
+    /// Return the nodes present in the current selection
+    pub fn nodes(&self) -> Vec<VertexView<G>> {
+        self.selected_docs
+            .iter()
+            .filter_map(|(doc, _)| match doc.entity_id {
+                EntityId::Node { id } => self.source_graph.vertex(id),
+                EntityId::Edge { .. } => None,
+            })
+            .collect_vec()
+    }
+
+    /// Return the edges present in the current selection
+    pub fn edges(&self) -> Vec<EdgeView<G>> {
+        self.selected_docs
+            .iter()
+            .filter_map(|(doc, _)| match doc.entity_id {
+                EntityId::Node { .. } => None,
+                EntityId::Edge { src, dst } => self.source_graph.edge(src, dst),
+            })
+            .collect_vec()
+    }
+
+    /// Return the documents present in the current selection
+    pub fn get_documents(&self) -> Vec<Document> {
+        self.get_documents_with_scores()
+            .into_iter()
+            .map(|(doc, _)| doc)
+            .collect_vec()
+    }
+
+    /// Return the documents alongside their scores present in the current selection
+    pub fn get_documents_with_scores(&self) -> Vec<(Document, f32)> {
+        self.selected_docs
+            .iter()
+            .map(|(doc, score)| {
+                (
+                    doc.regenerate(&self.source_graph, self.template.as_ref()),
+                    *score,
+                )
+            })
+            .collect_vec()
+    }
+
+    /// Add all the documents from `nodes` and `edges` to the current selection
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
+    ///
+    /// # Arguments
+    ///   * nodes - a list of the vertex ids or vertices to add
+    ///   * edges - a list of the edge ids or edges to add
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn append<V: Into<VertexRef>>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
         let node_docs = nodes.into_iter().flat_map(|id| {
             let vertex = self.source_graph.vertex(id);
@@ -87,45 +153,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    pub fn nodes(&self) -> Vec<VertexView<G>> {
-        self.selected_docs
-            .iter()
-            .filter_map(|(doc, _)| match doc.entity_id {
-                EntityId::Node { id } => self.source_graph.vertex(id),
-                EntityId::Edge { .. } => None,
-            })
-            .collect_vec()
-    }
-
-    pub fn edges(&self) -> Vec<EdgeView<G>> {
-        self.selected_docs
-            .iter()
-            .filter_map(|(doc, _)| match doc.entity_id {
-                EntityId::Node { .. } => None,
-                EntityId::Edge { src, dst } => self.source_graph.edge(src, dst),
-            })
-            .collect_vec()
-    }
-
-    pub fn get_documents(&self) -> Vec<Document> {
-        self.get_documents_with_scores()
-            .into_iter()
-            .map(|(doc, _)| doc)
-            .collect_vec()
-    }
-
-    pub fn get_documents_with_scores(&self) -> Vec<(Document, f32)> {
-        self.selected_docs
-            .iter()
-            .map(|(doc, score)| {
-                (
-                    doc.regenerate(&self.source_graph, self.template.as_ref()),
-                    *score,
-                )
-            })
-            .collect_vec()
-    }
-
+    /// Add the top `limit` documents to the current selection using `query`
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of new documents to add
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn append_by_similarity(
         &self,
         query: &Embedding,
@@ -136,6 +172,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         self.add_top_documents(joined, query, limit, window)
     }
 
+    /// Add the top `limit` node documents to the current selection using `query`
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of new documents to add
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn append_nodes_by_similarity(
         &self,
         query: &Embedding,
@@ -144,6 +189,16 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     ) -> Self {
         self.add_top_documents(self.node_documents.as_ref(), query, limit, window)
     }
+
+    /// Add the top `limit` edge documents to the current selection using `query`
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of new documents to add
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn append_edges_by_similarity(
         &self,
         query: &Embedding,
@@ -153,7 +208,19 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         self.add_top_documents(self.edge_documents.as_ref(), query, limit, window)
     }
 
-    /// This assumes forced documents to have a score of 0
+    /// Add all the documents `hops` hops away to the selection
+    ///
+    /// Two documents A and B are considered to be 1 hop away of each other if they are on the same
+    /// entity or if they are on the same node/edge pair. Provided that, two nodes A and C are n
+    /// hops away of  each other if there is a document B such that A is n - 1 hops away of B and B
+    /// is 1 hop away of C.
+    ///
+    /// # Arguments
+    ///   * hops - the number of hops to carry out the expansion
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn expand(&self, hops: usize, window: Option<(i64, i64)>) -> Self {
         match window {
             None => self.expand_with_window(hops, window, &self.source_graph),
@@ -185,6 +252,23 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
+    /// Add the top `limit` adjacent documents with higher score for `query` to the selection
+    ///
+    /// The expansion algorithm is a loop with two steps on each iteration:
+    ///   1. All the documents 1 hop away of some of the documents included on the selection (and
+    /// not already selected) are marked as candidates.
+    ///  2. Those candidates are added to the selection in descending order according to the
+    /// similarity score obtained against the `query`.
+    ///
+    /// This loops goes on until the current selection reaches a total of `limit`  documents or
+    /// until no more documents are available
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn expand_by_similarity(
         &self,
         query: &Embedding,
@@ -194,6 +278,17 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Both)
     }
 
+    /// Add the top `limit` adjacent node documents with higher score for `query` to the selection
+    ///
+    /// This function has the same behavior as expand_by_similarity but it only considers nodes.
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of new documents to add  
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn expand_nodes_by_similarity(
         &self,
         query: &Embedding,
@@ -203,6 +298,17 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         self.expand_by_similarity_with_path(query, limit, window, ExpansionPath::Nodes)
     }
 
+    /// Add the top `limit` adjacent edge documents with higher score for `query` to the selection
+    ///
+    /// This function has the same behavior as expand_by_similarity but it only considers edges.
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of new documents to add
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
     pub fn expand_edges_by_similarity(
         &self,
         query: &Embedding,

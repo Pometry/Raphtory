@@ -94,6 +94,7 @@ impl RaphtoryServer {
                 .vectorise_with_template(
                     Box::new(embedding.clone()),
                     Some(graph_cache),
+                    true,
                     template.clone(),
                     true,
                 )
