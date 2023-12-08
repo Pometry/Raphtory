@@ -11,6 +11,7 @@ use raphtory_core::{
         packages::vectors::PyDocumentTemplate,
         utils::{errors::adapt_err_value, execute_async_task},
     },
+    vectors::{embeddings::openai_embedding, EmbeddingFunction},
 };
 use raphtory_graphql::{url_decode_graph, url_encode_graph, RaphtoryServer};
 use reqwest::Client;
@@ -32,6 +33,29 @@ pub(crate) struct PyRaphtoryServer(Option<RaphtoryServer>);
 impl PyRaphtoryServer {
     fn new(server: RaphtoryServer) -> Self {
         Self(Some(server))
+    }
+
+    fn with_vectorised_generic_embedding<F: EmbeddingFunction + Clone + 'static>(
+        slf: PyRefMut<Self>,
+        graph_names: Vec<String>,
+        embedding: F,
+        cache: String,
+        node_document: Option<String>,
+        edge_document: Option<String>,
+    ) -> PyResult<Self> {
+        let template = PyDocumentTemplate::new(node_document, edge_document);
+        let server = take_server_ownership(slf)?;
+        execute_async_task(move || async move {
+            let new_server = server
+                .with_vectorised(
+                    graph_names,
+                    embedding,
+                    &PathBuf::from(cache),
+                    Some(template),
+                )
+                .await;
+            Ok(Self::new(new_server))
+        })
     }
 }
 
@@ -56,10 +80,15 @@ impl PyRaphtoryServer {
 
     /// Vectorise a subset of the graphs of the server.
     ///
+    /// Note:
+    ///   If no embedding function is provided, the server will attempt to use the OpenAI API
+    ///   embedding model, which will only work is the env variable OPENAI_API_KEY is set
+    ///   appropriately
+    ///
     /// Arguments:
     ///   * `graph_names`: the names of the graphs to vectorise.
-    ///   * `embedding`: the embedding function to translate documents to embeddings.
     ///   * `cache`: the directory to use as cache for the embeddings.
+    ///   * `embedding`: the embedding function to translate documents to embeddings.
     ///   * `node_document`: the property name to use as the source for the documents on nodes.
     ///   * `edge_document`: the property name to use as the source for the documents on edges.
     ///
@@ -68,26 +97,33 @@ impl PyRaphtoryServer {
     fn with_vectorised(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,
-        embedding: &PyFunction,
         cache: String,
+        // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
+        embedding: Option<&PyFunction>,
         node_document: Option<String>,
         edge_document: Option<String>,
     ) -> PyResult<Self> {
-        let embedding: Py<PyFunction> = embedding.into();
-        let template = PyDocumentTemplate::new(node_document, edge_document);
-
-        let server = take_server_ownership(slf)?;
-        execute_async_task(move || async move {
-            let new_server = server
-                .with_vectorised(
+        match embedding {
+            Some(embedding) => {
+                let embedding: Py<PyFunction> = embedding.into();
+                Self::with_vectorised_generic_embedding(
+                    slf,
                     graph_names,
-                    embedding.clone(),
-                    &PathBuf::from(cache),
-                    Some(template),
+                    embedding,
+                    cache,
+                    node_document,
+                    edge_document,
                 )
-                .await;
-            Ok(Self::new(new_server))
-        })
+            }
+            None => Self::with_vectorised_generic_embedding(
+                slf,
+                graph_names,
+                openai_embedding,
+                cache,
+                node_document,
+                edge_document,
+            ),
+        }
     }
 
     // // TODO: this is doable!!!
@@ -336,7 +372,11 @@ impl PyRaphtoryClient {
             .await
             .map_err(|err| adapt_err_value(&err))?;
 
-        response.json().await.map_err(|err| adapt_err_value(&err))
+        response
+            .json()
+            .await
+            .map_err(|err| adapt_err_value(&err))
+            .map(|json| (request_body, json))
     }
 
     fn generic_load_graphs(
@@ -497,7 +537,7 @@ impl PyRaphtoryClient {
 }
 
 fn translate_from_python(py: Python, value: PyObject) -> PyResult<Value> {
-    if let Ok(value) = value.extract::<i32>(py) {
+    if let Ok(value) = value.extract::<i64>(py) {
         Ok(Value::Number(value.into()))
     } else if let Ok(value) = value.extract::<f64>(py) {
         Ok(Value::Number(Number::from_f64(value).unwrap()))
