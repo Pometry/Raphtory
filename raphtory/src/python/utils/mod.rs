@@ -13,8 +13,7 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-use std::collections::HashSet;
-use std::{future::Future, thread, thread::JoinHandle};
+use std::{collections::HashSet, future::Future, thread, thread::JoinHandle};
 
 pub mod errors;
 
