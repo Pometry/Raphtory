@@ -27,7 +27,6 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for WindowedGraph<
     }
 }
 
-
 impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for LayeredGraph<IndexedGraph<G>> {
     fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         let l = self.one_hop_filtered(LayeredGraph::new(
@@ -56,7 +55,6 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for VertexSubgraph
         }
     }
 }
-
 
 impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for IndexedGraph<G> {
     fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
