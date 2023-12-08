@@ -463,24 +463,40 @@ def test_label_propagation_algorithm():
         assert group in result
 
 
-def test_si_algorithm():
+SUSCEPTIBLE = 0
+INFECTIOUS  = 1
+RECOVERED   = 2
+EXPOSED     = 3
+
+def presetup_epidemics():
     g = Graph()
     edges_str = [
-        (1, "R1", "R2"),
-        (1, "R2", "R3"),
-        (1, "R3", "G"),
-        (1, "G", "B1"),
-        (1, "G", "B3"),
-        (1, "B1", "B2"),
-        (1, "B2", "B3"),
-        (1, "B2", "B4"),
-        (1, "B3", "B4"),
-        (1, "B3", "B5"),
-        (1, "B4", "B5"),
+        (3, "A", "B"),
+        (2, "A", "C"),
+        (4, "B", "E"),
+        (2, "B", "D"),
+        (1, "E", "D"),
+        (5, "E", "G"),
+        (5, "D", "G"),
+        (3, "C", "F"),
+        (4, "F", "G"),
     ]
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
     seed = [5] * 32
-    result = algorithms.si(g, 0.1, 0.2, seed)
-    expected = {g.vertex("G"), g.vertex("B1")}
+    g_after = g.after(0)
+    return g, seed, g_after
+
+def test_si_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.si_model(g, ["A"], 2, 1.0, seed, 3)
+    expected = {
+            g_after.vertex("A"): INFECTIOUS,
+            g_after.vertex("B"): INFECTIOUS,
+            g_after.vertex("C"): SUSCEPTIBLE,
+            g_after.vertex("D"): SUSCEPTIBLE,
+            g_after.vertex("E"): INFECTIOUS,
+            g_after.vertex("F"): SUSCEPTIBLE,
+            g_after.vertex("G"): INFECTIOUS,
+    }
     assert result == expected

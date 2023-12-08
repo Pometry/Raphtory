@@ -3,6 +3,7 @@
 //! This module contains helper functions for the Python bindings.
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
+    algorithms::science::epidemic::SeedSet,
     core::{
         entities::vertices::{input_vertex::InputVertex, vertex_ref::VertexRef},
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
@@ -12,8 +13,21 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
+use std::collections::HashSet;
 
 pub mod errors;
+
+impl<'source> FromPyObject<'source> for SeedSet<VertexRef> {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        if let Ok(probality) = ob.extract::<f64>() {
+            Ok(probality.into())
+        } else if let Ok(hashsetvref) = ob.extract::<Vec<VertexRef>>() {
+            Ok(hashsetvref.into())
+        } else {
+            Err(PyTypeError::new_err("Not a valid vertex"))
+        }
+    }
+}
 
 /// Extract a `VertexRef` from a Python object.
 /// The object can be a `str`, `u64` or `PyVertex`.
@@ -50,7 +64,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<i64> {
     })
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct PyTime {
     parsing_result: i64,
 }

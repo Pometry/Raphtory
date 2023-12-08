@@ -1,6 +1,14 @@
-use neo4rs::Graph;
 use std::collections::{HashMap, HashSet};
 
+use crate::{
+    algorithms::science::epidemic::SeedSet,
+    core::Prop,
+    db::{
+        api::view::internal::DynamicGraph,
+        graph::{vertex::VertexView, views::window_graph::WindowedGraph},
+    },
+    python::{graph::edge::PyDirection, utils::PyTime},
+};
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -39,15 +47,13 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        science::epidemic::{si_model as si_model_rs, sir_model as sir_model_rs},
+        science::epidemic::{
+            seir_model as seir_model_rs, seirs_model as seirs_model_rs, si_model as si_model_rs,
+            sir_model as sir_model_rs, sirs_model as sirs_model_rs, sis_model as sis_model_rs,
+        },
     },
     core::entities::vertices::vertex_ref::VertexRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
-};
-use crate::{
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::vertex::VertexView},
-    python::graph::edge::PyDirection,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -611,31 +617,75 @@ pub fn label_propagation(
 ///
 /// Arguments:
 ///     graph (Raphtory Graph) : The graph on which to run the simulation.
-///     initial_infected_ratio (float) : The initial ratio of infected nodes.
-///     infection_probability (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     initial_seed_set (array,float) : The initial list of nodes to infect, or a float which will be used to randomly infect a percentage of nodes.
+///     initial_infection_time (PyTime) : Time when the infection starts
+///     infection_rate (float) : The probability of infection spreading from an infected node to a susceptible one.
 ///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
-///     steps (int): Number of times to iterate through the graph, default 1
+///     hops (int): Number of hops to iterate through the graph, default 1
 ///
 /// Returns:
 /// A `Result` which is either:
-///     A set of vertices that are infected at the end of the simulation.
+///     A dict of vertices with their state (0 - Susceptible, 1 - Infected).
 ///     An error message in case of failure.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, initial_infected_ratio, infection_probability, seed=None, steps=1)]]
+#[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, seed=None, hops=1)]]
 pub fn si_model(
     g: &PyGraphView,
-    initial_infected_ratio: f64,
-    infection_probability: f64,
+    initial_seed_set: SeedSet<VertexRef>,
+    initial_infection_time: PyTime,
+    infection_rate: f64,
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
-) -> PyResult<HashSet<VertexView<DynamicGraph>>> {
+    hops: Option<i32>,
+) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
     match si_model_rs(
         &g.graph,
-        initial_infected_ratio,
-        infection_probability,
+        initial_seed_set,
+        initial_infection_time,
+        infection_rate,
         seed,
-        steps,
+        hops,
+    ) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
+}
+
+/// Simulates the SIS (Susceptible-Infected-Susceptible) infection model on a graph.
+///
+/// Arguments:
+///     graph (Raphtory Graph) : The graph on which to run the simulation.
+///     initial_seed_set (array,float) : The initial list of nodes to infect, or a float which will be used to randomly infect a percentage of nodes.
+///     initial_infection_time (PyTime) : Time when the infection starts
+///     infection_rate (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     recovery_rate (float) : The probability of recovery from an infected state to a susceptible one.
+///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
+///     hops (int): Number of hops to iterate through the graph, default 1
+///
+/// Returns:
+/// A `Result` which is either:
+///     A dict of vertices with their state (0 - Susceptible, 1 - Infected).
+///     An error message in case of failure.
+///
+#[pyfunction]
+#[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, recovery_rate, seed=None, hops=1)]]
+pub fn sis_model(
+    g: &PyGraphView,
+    initial_seed_set: SeedSet<VertexRef>,
+    initial_infection_time: PyTime,
+    infection_rate: f64,
+    recovery_rate: f64,
+    seed: Option<[u8; 32]>,
+    hops: Option<i32>,
+) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+    match sis_model_rs(
+        &g.graph,
+        initial_seed_set,
+        initial_infection_time,
+        infection_rate,
+        recovery_rate,
+        seed,
+        hops,
     ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
@@ -646,34 +696,178 @@ pub fn si_model(
 ///
 /// Arguments:
 ///     graph (Raphtory Graph) : The graph on which to run the simulation.
-///     initial_infected_ratio (float) : The initial ratio of infected nodes.
-///     infection_probability (float) : The probability of infection spreading from an infected node to a susceptible one.
-///     recovery_rate (float) : The probability on infected node recovering spreading.
+///     initial_seed_set (array,float) : The initial list of nodes to infect, or a float which will be used to randomly infect a percentage of nodes.
+///     initial_infection_time (PyTime) : Time when the infection starts
+///     infection_rate (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     recovery_rate (float): The probability of recovering from infection
 ///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
-///     steps (int): Number of times to iterate through the graph, default 1
+///     hops (int): Number of hops to iterate through the graph, default 1
 ///
 /// Returns:
 /// A `Result` which is either:
-///     A hashmap of vertices with their SIR state (0 - Susceptible, 1 - Infected, 2 - Recovered).
+///     A dict of vertices with their state (0 - Susceptible, 1 - Infected, 2 - Recovered).
 ///     An error message in case of failure.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, initial_infected_ratio, infection_probability, recovery_rate, seed=None, steps=1)]]
+#[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, recovery_rate, seed=None, hops=1)]]
 pub fn sir_model(
     g: &PyGraphView,
-    initial_infected_ratio: f64,
-    infection_probability: f64,
+    initial_seed_set: SeedSet<VertexRef>,
+    initial_infection_time: PyTime,
+    infection_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
-) -> PyResult<HashMap<VertexView<DynamicGraph>, u8>> {
+    hops: Option<i32>,
+) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
     match sir_model_rs(
         &g.graph,
-        initial_infected_ratio,
-        infection_probability,
+        initial_seed_set,
+        initial_infection_time,
+        infection_rate,
         recovery_rate,
         seed,
-        steps,
+        hops,
+    ) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
+}
+
+/// Simulates the SIRS (Susceptible-Infected-Recovered-Susceptible) infection model on a graph.
+///
+/// Arguments:
+///     graph (Raphtory Graph) : The graph on which to run the simulation.
+///     initial_seed_set (array,float) : The initial list of nodes to infect, or a float which will be used to randomly infect a percentage of nodes.
+///     initial_infection_time (PyTime) : Time when the infection starts
+///     infection_rate (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     recovery_rate (float): The probability of recovering from infection
+///     rec_to_sus_rate (float): The probability of an recovered node going back to susceptible.
+///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
+///     hops (int): Number of hops to iterate through the graph, default 1
+///
+/// Returns:
+/// A `Result` which is either:
+///     A dict of vertices with their state (0 - Susceptible, 1 - Infected, 2 - Recovered).
+///     An error message in case of failure.
+///
+#[pyfunction]
+#[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, recovery_rate, rec_to_sus_rate, seed=None, hops=1)]]
+pub fn sirs_model(
+    g: &PyGraphView,
+    initial_seed_set: SeedSet<VertexRef>,
+    initial_infection_time: PyTime,
+    infection_rate: f64,
+    recovery_rate: f64,
+    rec_to_sus_rate: f64,
+    seed: Option<[u8; 32]>,
+    hops: Option<i32>,
+) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+    match sirs_model_rs(
+        &g.graph,
+        initial_seed_set,
+        initial_infection_time,
+        infection_rate,
+        recovery_rate,
+        rec_to_sus_rate,
+        seed,
+        hops,
+    ) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
+}
+
+/// Simulates the SEIR (Susceptible-Exposed-Infectious-Recovered) infection model on a graph.
+///
+/// Arguments:
+///     graph (Raphtory Graph) : The graph on which to run the simulation.
+///     initial_seed_set (array,float) : The initial list of nodes to infect, or a float which will be used to randomly infect a percentage of nodes.
+///     initial_infection_time (PyTime) : Time when the infection starts
+///     infection_rate (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     exposure_rate (float) :  The probability of a node moving from Exposed to Infectious.
+///     recovery_rate (float) : The probability of recovering from infection
+///     seed (Array of ints, optional) : Array of 32 bytes of u8 which is set as the rng seed
+///     hops (int) : Number of hops to iterate through the graph, default 1
+///     initial_state (float, optional) : A state the infected nodes should start at. Default 3 for Exposed
+///
+/// Returns:
+/// A `Result` which is either:
+///     A dict of vertices with their state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
+///     An error message in case of failure.
+///
+#[pyfunction]
+#[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, exposure_rate, recovery_rate, seed=None, hops=1, initial_state=3)]]
+pub fn seir_model(
+    g: &PyGraphView,
+    initial_seed_set: SeedSet<VertexRef>,
+    initial_infection_time: PyTime,
+    infection_rate: f64,
+    exposure_rate: f64,
+    recovery_rate: f64,
+    seed: Option<[u8; 32]>,
+    hops: Option<i32>,
+    initial_state: u8,
+) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+    match seir_model_rs(
+        &g.graph,
+        initial_seed_set,
+        initial_infection_time,
+        infection_rate,
+        exposure_rate,
+        recovery_rate,
+        seed,
+        hops,
+        initial_state,
+    ) {
+        Ok(result) => Ok(result),
+        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    }
+}
+
+/// Simulates the SEIRS (Susceptible-Exposed-Infectious-Recovered-Susceptible) infection model on a graph.
+///
+/// Arguments:
+///     graph (Raphtory Graph) : The graph on which to run the simulation.
+///     initial_seed_set (array,float) : The initial list of nodes to infect, or a float which will be used to randomly infect a percentage of nodes.
+///     initial_infection_time (PyTime) : Time when the infection starts
+///     infection_rate (float) : The probability of infection spreading from an infected node to a susceptible one.
+///     exposure_rate (float) :  The probability of a node moving from Exposed to Infectious.
+///     recovery_rate (float) : The probability of recovering from infection
+///     rec_to_sus_rate (float) : The probability of an recovered node going back to susceptible.
+///     seed (Array of ints, optional) : Array of 32 bytes of u8 which is set as the rng seed
+///     hops (int) : Number of hops to iterate through the graph, default 1
+///     initial_state (float, optional) : A state the infected nodes should start at. Default 3 for Exposed
+///
+/// Returns:
+/// A `Result` which is either:
+///     A dict of vertices with their state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
+///     An error message in case of failure.
+///
+#[pyfunction]
+#[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, exposure_rate, recovery_rate, rec_to_sus_rate, seed=None, hops=1, initial_state=3)]]
+pub fn seirs_model(
+    g: &PyGraphView,
+    initial_seed_set: SeedSet<VertexRef>,
+    initial_infection_time: PyTime,
+    infection_rate: f64,
+    exposure_rate: f64,
+    recovery_rate: f64,
+    rec_to_sus_rate: f64,
+    seed: Option<[u8; 32]>,
+    hops: Option<i32>,
+    initial_state: u8,
+) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+    match seirs_model_rs(
+        &g.graph,
+        initial_seed_set,
+        initial_infection_time,
+        infection_rate,
+        exposure_rate,
+        recovery_rate,
+        rec_to_sus_rate,
+        seed,
+        hops,
+        initial_state,
     ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),

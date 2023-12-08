@@ -28,17 +28,17 @@ where
     V: Into<VertexRef>,
 {
     /// Represents a set of vertices to be initially infected.
-    VertexSet(HashSet<V>),
+    VertexSet(Vec<V>),
     /// Represents an initial infection rate.
     InitialInfect(f64),
 }
 
-/// Converts a `HashSet<V>` into a `SeedSet`.
-impl<V> From<HashSet<V>> for SeedSet<V>
+/// Converts a `Vec<V>` into a `SeedSet`.
+impl<V> From<Vec<V>> for SeedSet<V>
 where
     V: Into<VertexRef> + Copy,
 {
-    fn from(vertex_set: HashSet<V>) -> Self {
+    fn from(vertex_set: Vec<V>) -> Self {
         SeedSet::VertexSet(vertex_set)
     }
 }
@@ -93,7 +93,6 @@ where
             (rng, prev_vertices_status)
         }
         SeedSet::VertexSet(initial_infected_nodes) => {
-            println!("I see you were initially infected");
             let prev_vertices_status: HashMap<VertexView<G>, (u8, i64)> = initial_infected_nodes
                 .iter()
                 .map(|v| {
@@ -261,7 +260,7 @@ fn sir_sirs_strategy<G, T>(
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a Vec of nodes that should start as infected.
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of an infected node recovering.
@@ -270,7 +269,7 @@ fn sir_sirs_strategy<G, T>(
 ///
 /// # Returns
 /// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIR state (0 - Susceptible, 1 - Infected, 2 - Recovered).
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their state (0 - Susceptible, 1 - Infected, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
 pub fn sir_model<G, T, V, W>(
@@ -301,11 +300,11 @@ where
     )
 }
 
-/// Simulates the SIRS (Susceptible-Infected-Recovery-Susceptible ) infection model on a graph.
+/// Simulates the SIRS (Susceptible-Infected-Recovery-Susceptible) infection model on a graph.
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a Vec of nodes that should start as infected.
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of an infected node recovering, going from infection to recovered
@@ -315,7 +314,7 @@ where
 ///
 /// # Returns
 /// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIRS state (0 - Susceptible, 1 - Infected, 2 - Recovered).
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their state (0 - Susceptible, 1 - Infected, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
 pub fn sirs_model<G, T, V, W>(
@@ -404,17 +403,18 @@ fn seir_seirs_strategy<G, T>(
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a Vec of nodes that should start as infected.
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from Susceptible to Exposed.
 /// * `exposure_rate` - The probability of a node moving from Exposed to Infectious.
 /// * `recovery_rate` - The probability of an infected node recovering, going from Infectious to recovered
 /// * `seed` - An optional seed for the random number generator for reproducibility.
 /// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `initial_state` - A state, u8, the infected nodes should start at e.g. 3 for Exposed
 ///
 /// # Returns
 /// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIR state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
 pub fn seir_model<G, T, V, W>(
@@ -451,7 +451,7 @@ where
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a Vec of nodes that should start as infected.
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from Susceptible to Exposed.
 /// * `exposure_rate` - The probability of a node moving from Exposed to Infectious.
@@ -463,7 +463,7 @@ where
 ///
 /// # Returns
 /// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIR state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their state (0 - Susceptible, 3 - Exposed, 2 - Infectious, 2 - Recovered).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
 pub fn seirs_model<G, T, V, W>(
@@ -558,7 +558,7 @@ where
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a Vec of nodes that should start as infected.
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
@@ -566,7 +566,7 @@ where
 ///
 /// # Returns
 /// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SI state (0 - Susceptible, 1 - Infected).
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their state (0 - Susceptible, 1 - Infected).
 /// * `Err(&'static str)` - An error message in case of failure.
 ///
 pub fn si_model<G, T, V, W>(
@@ -596,11 +596,11 @@ where
     )
 }
 
-/// Simulates the SIR (Susceptible-Infected-Recovery) infection model on a graph.
+/// Simulates the SIS (Susceptible-Infected-Susceptible) infection model on a graph.
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a Vec of nodes that should start as infected.
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of recovery from an infected state to a susceptible one.
@@ -609,7 +609,7 @@ where
 ///
 /// # Returns
 /// A `Result` which is either:
-/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their SIS state (0 - Susceptible, 1 - Infected).
+/// * `Ok(HashMap<VertexView<G>, u8>)` - A hashmap of vertices with their state (0 - Susceptible, 1 - Infected).
 /// * `Err(&'static str)` - An error message in case of failure.
 pub fn sis_model<G, T, V, W>(
     graph: &G,
@@ -704,7 +704,7 @@ mod si_tests {
     fn si_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = si_model(&graph, HashSet::from(["A"]), 2, 1.00f64, seed, Some(3)).unwrap();
+        let result = si_model(&graph, vec!["A"], 2, 1.00f64, seed, Some(3)).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>>, u8> = HashMap::from([
             (g_after.vertex("A").unwrap(), INFECTIOUS),
@@ -722,16 +722,7 @@ mod si_tests {
     fn sis_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sis_model(
-            &graph,
-            HashSet::from(["A"]),
-            2,
-            1.00f64,
-            0.5f64,
-            seed,
-            Some(3),
-        )
-        .unwrap();
+        let result = sis_model(&graph, vec!["A"], 2, 1.00f64, 0.5f64, seed, Some(3)).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>>, u8> = HashMap::from([
             (g_after.vertex("A").unwrap(), SUSCEPTIBLE),
@@ -749,16 +740,7 @@ mod si_tests {
     fn sir_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sir_model(
-            &graph,
-            HashSet::from(["A"]),
-            0,
-            1.0f64,
-            0.3f64,
-            seed,
-            Some(3),
-        )
-        .unwrap();
+        let result = sir_model(&graph, vec!["A"], 0, 1.0f64, 0.3f64, seed, Some(3)).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, u8> =
             HashMap::from([
@@ -777,17 +759,8 @@ mod si_tests {
     fn sirs_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sirs_model(
-            &graph,
-            HashSet::from(["A"]),
-            0,
-            1.0f64,
-            0.5f64,
-            0.3f64,
-            seed,
-            Some(3),
-        )
-        .unwrap();
+        let result =
+            sirs_model(&graph, vec!["A"], 0, 1.0f64, 0.5f64, 0.3f64, seed, Some(3)).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<VertexView<WindowedGraph<Graph>, WindowedGraph<Graph>>, u8> =
             HashMap::from([
@@ -811,7 +784,7 @@ mod si_tests {
         let seed = Some([5; 32]);
         let result = seir_model(
             &graph,
-            HashSet::from(["A"]),
+            vec!["A"],
             2,
             1.0f64,
             1.0f64,
@@ -844,7 +817,7 @@ mod si_tests {
         let seed = Some([5; 32]);
         let result = seirs_model(
             &graph,
-            HashSet::from(["A"]),
+            vec!["A"],
             0,
             1.0f64,
             1.0f64,
