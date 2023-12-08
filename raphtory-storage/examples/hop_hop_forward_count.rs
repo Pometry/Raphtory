@@ -13,7 +13,10 @@ use rayon::prelude::*;
 use std::{
     cmp::Ordering,
     collections::VecDeque,
-    sync::atomic::{AtomicU64, Ordering::Relaxed},
+    sync::{
+        atomic::{AtomicU64, Ordering::Relaxed},
+        Arc,
+    },
     time::Instant,
 };
 
@@ -273,7 +276,10 @@ fn count_logins(
         .sum()
 }
 
-fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
+fn query<GO: GlobalOrder>(
+    g: &TemporalGraph<GO>,
+    window: i64,
+) -> Option<impl ParallelIterator<Item = (VID, usize)> + '_> {
     //   MATCH
     //     (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
     //   WHERE A <> B AND B <> E AND A <> E
@@ -315,51 +321,50 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
         log_nodes.len()
     );
 
-    let valid_netflow_events_ms = AtomicU64::default();
-    let prog1_merge_ms = AtomicU64::default();
-    let count_login_ms = AtomicU64::default();
+    let valid_netflow_events_ms = Arc::new(AtomicU64::default());
+    let valid_netflow_events_ms_ref = valid_netflow_events_ms.clone();
+    let prog1_merge_ms = Arc::new(AtomicU64::default());
+    let prog1_merge_ms_ref = prog1_merge_ms.clone();
+    let count_login_ms = Arc::new(AtomicU64::default());
+    let count_login_ms_ref = count_login_ms.clone();
 
-    let count = log_nodes
-        .into_par_iter()
-        .flat_map(|b_vid| {
-            let login_edges = events_2v_graph.edges_par_iter(b_vid, Direction::IN)?;
-            let (self_loop, _) = events_1v_graph
-                .edges_iter(b_vid, Direction::OUT)
-                .unwrap()
-                .filter(|(_, n_vid)| *n_vid == b_vid)
-                .next()?;
+    let count = log_nodes.into_par_iter().flat_map(move |b_vid| {
+        let login_edges = events_2v_graph.edges_par_iter(b_vid, Direction::IN)?;
+        let (self_loop, _) = events_1v_graph
+            .edges_iter(b_vid, Direction::OUT)
+            .unwrap()
+            .filter(|(_, n_vid)| *n_vid == b_vid)
+            .next()?;
 
-            let now = Instant::now();
-            let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, window)?;
-            valid_netflow_events_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
+        let now = Instant::now();
+        let nft_events = valid_netflow_events(nft_graph, b_vid, bytes_prop_id, window)?;
+        valid_netflow_events_ms_ref.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
 
-            let now = Instant::now();
-            let merged_nft_events = kmerge_by(
-                nft_events.iter().map(|(_, windows)| windows),
-                |a: &&Window, b: &&Window| a >= b,
-            )
-            .copied();
-            let events_1v_edge = events_1v_graph.edge(self_loop);
+        let now = Instant::now();
+        let merged_nft_events = kmerge_by(
+            nft_events.iter().map(|(_, windows)| windows),
+            |a: &&Window, b: &&Window| a >= b,
+        )
+        .copied();
+        let events_1v_edge = events_1v_graph.edge(self_loop);
 
-            let prog1_eventmap =
-                merge_nft_prog1(&events_1v_edge, merged_nft_events, prog1_prop_id)?;
-            prog1_merge_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
+        let prog1_eventmap = merge_nft_prog1(&events_1v_edge, merged_nft_events, prog1_prop_id)?;
+        prog1_merge_ms_ref.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
 
-            let now = Instant::now();
-            let count = count_logins(
-                b_vid,
-                &prog1_eventmap,
-                &nft_events,
-                events_2v_graph,
-                &events_1v_edge,
-                login_edges,
-                event_id_prop_id_2v,
-                prog1_prop_id,
-            );
-            count_login_ms.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
-            Some(count)
-        })
-        .sum();
+        let now = Instant::now();
+        let count = count_logins(
+            b_vid,
+            &prog1_eventmap,
+            &nft_events,
+            events_2v_graph,
+            &events_1v_edge,
+            login_edges,
+            event_id_prop_id_2v,
+            prog1_prop_id,
+        );
+        count_login_ms_ref.fetch_add(now.elapsed().as_millis() as u64, Relaxed);
+        Some((b_vid, count))
+    });
     println!(
         "finding valid netflow took {}ms",
         valid_netflow_events_ms.load(Relaxed)
@@ -370,6 +375,14 @@ fn query<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> Option<usize> {
     );
     println!("counting logins took {}ms", count_login_ms.load(Relaxed));
     Some(count)
+}
+
+fn query_total<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> usize {
+    query(g, window)
+        .into_par_iter()
+        .flatten()
+        .map(|(_, c)| c)
+        .sum()
 }
 
 fn main() {
@@ -449,14 +462,19 @@ fn main() {
 
     let now = Instant::now();
 
-    let count = query(&graph, window);
+    let count: usize = query_total(&graph, window);
+    let max_per_vertex_count = query(&graph, window)
+        .into_par_iter()
+        .flatten()
+        .max_by(|a, b| a.1.cmp(&b.1));
+    println!("Max count: {max_per_vertex_count:?}");
 
     println!("Time taken: {:?}, count: {:?}", now.elapsed(), count);
 }
 
 #[cfg(test)]
 mod test {
-    use crate::query;
+    use crate::{query, query_total};
     use arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{DataType, Field},
@@ -573,7 +591,7 @@ mod test {
                 "netflow".to_owned(),
             ],
         );
-        let actual = query(&graph, 30);
-        assert_eq!(actual, Some(4));
+        let actual = query_total(&graph, 30);
+        assert_eq!(actual, 4);
     }
 }

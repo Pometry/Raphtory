@@ -125,6 +125,8 @@ impl<'a> PartialOrd for Event<'a> {
     }
 }
 
+// the order of the different events at the same time point is crucial, need Login, then Prog1
+// and then Netflow to get the window bounds correct
 impl<'a> Ord for Event<'a> {
     fn cmp(&self, other: &Self) -> Ordering {
         match other.t().cmp(&self.t()) {
@@ -172,7 +174,6 @@ struct MergeIter<'a, I: Iterator<Item = Event<'a>>> {
     inner_state: Option<MergeInnerState<'a>>,
     event_count: usize,
     window: i64,
-    last_t: Option<i64>,
 }
 
 impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
@@ -184,7 +185,6 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
             inner_state: None,
             event_count: 0,
             window,
-            last_t: None,
         }
     }
     fn oldest_window_t(&self) -> Option<Time> {
@@ -202,6 +202,8 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
                 let to_remove = next_index - index;
                 let new_len = self.active_prog1.len() - to_remove;
                 self.active_prog1.truncate(new_len);
+            } else {
+                self.active_prog1.clear()
             }
         }
     }
@@ -212,7 +214,6 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
             match next_event {
                 Event::Login(login) => {
                     if !self.active_prog1.is_empty() {
-                        self.last_t = Some(login.timestamp()); // need to delay clearing of windows
                         self.inner_state =
                             Some(MergeInnerState::new(login, self.active_prog1.len()))
                     }
