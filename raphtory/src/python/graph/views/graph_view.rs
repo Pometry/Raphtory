@@ -26,9 +26,9 @@ use crate::{
     prelude::*,
     python::{
         graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
-        packages::vectors::{spawn_async_task, DynamicVectorisedGraph, PyDocumentTemplate},
+        packages::vectors::{DynamicVectorisedGraph, PyDocumentTemplate},
         types::repr::Repr,
-        utils::{PyInterval, PyTime},
+        utils::{execute_async_task, PyInterval, PyTime},
     },
     vectors::vectorisable::Vectorisable,
     *,
@@ -308,11 +308,24 @@ impl PyGraphView {
         GraphIndex::new(self.graph.clone())
     }
 
-    #[pyo3(signature = (embedding, cache = None, node_document = None, edge_document = None, verbose = false))]
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// Args:
+    ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
+    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
+    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
+    ///   node_document (str): the property name to be used as document for nodes (optional)
+    ///   edge_document (str): the property name to be used as document for edges (optional)
+    ///   verbose (bool): whether or not to print logs reporting the progress
+    ///   
+    /// Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
         cache: Option<String>,
+        overwrite_cache: bool,
         node_document: Option<String>,
         edge_document: Option<String>,
         verbose: bool,
@@ -321,9 +334,15 @@ impl PyGraphView {
         let graph = self.graph.clone();
         let cache = cache.map(PathBuf::from);
         let template = PyDocumentTemplate::new(node_document, edge_document);
-        spawn_async_task(move || async move {
+        execute_async_task(move || async move {
             graph
-                .vectorise_with_template(Box::new(embedding.clone()), cache, template, verbose)
+                .vectorise_with_template(
+                    Box::new(embedding.clone()),
+                    cache,
+                    overwrite_cache,
+                    template,
+                    verbose,
+                )
                 .await
         })
     }

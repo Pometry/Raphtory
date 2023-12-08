@@ -156,20 +156,27 @@ mod vector_tests {
         g.add_vertex(0, "test", NO_PROPS).unwrap();
 
         // the following succeeds with no cache set up
-        g.vectorise(Box::new(fake_embedding), None, false).await;
+        g.vectorise(Box::new(fake_embedding), None, true, false)
+            .await;
 
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
         let _ = remove_file(path);
 
         // the following creates the embeddings, and store them on the cache
-        g.vectorise(Box::new(fake_embedding), Some(PathBuf::from(path)), false)
-            .await;
+        g.vectorise(
+            Box::new(fake_embedding),
+            Some(PathBuf::from(path)),
+            true,
+            false,
+        )
+        .await;
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
         g.vectorise(
             Box::new(panicking_embedding),
             Some(PathBuf::from(path)),
+            true,
             false,
         )
         .await;
@@ -182,7 +189,7 @@ mod vector_tests {
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
         let vectors = g
-            .vectorise(Box::new(fake_embedding), Some(cache), false)
+            .vectorise(Box::new(fake_embedding), Some(cache), true, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
@@ -263,6 +270,7 @@ age: 30"###;
             .vectorise_with_template(
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-multi-test")),
+                true,
                 FakeMultiDocumentTemplate,
                 false,
             )
@@ -316,6 +324,7 @@ age: 30"###;
             .vectorise_with_template(
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
+                true,
                 FakeTemplateWithIntervals,
                 false,
             )
@@ -393,6 +402,7 @@ age: 30"###;
             .vectorise_with_template(
                 Box::new(openai_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
+                true,
                 CustomTemplate,
                 false,
             )

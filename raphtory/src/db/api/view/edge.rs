@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use chrono::NaiveDateTime;
 
 use crate::{
@@ -158,7 +160,7 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
             None => {
                 let window_filter = self.graph().include_edge_window();
                 window_filter(
-                    &self.graph().core_edge(self.eref().pid()),
+                    self.graph().core_edge(self.eref().pid()).deref(),
                     &layer_ids,
                     t..t.saturating_add(1),
                 )
