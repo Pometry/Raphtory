@@ -106,6 +106,11 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         balance,
         label_propagation,
         si_model,
+        sis_model,
+        sir_model,
+        sirs_model,
+        seir_model,
+        seirs_model,
     );
     m.add_submodule(algorithm_module)?;
 

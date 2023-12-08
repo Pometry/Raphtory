@@ -812,7 +812,7 @@ mod si_tests {
     }
 
     #[test]
-    fn siers_test() {
+    fn seirs_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
         let result = seirs_model(
