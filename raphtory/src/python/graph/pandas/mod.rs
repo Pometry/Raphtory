@@ -8,7 +8,7 @@ mod test {
         prelude::*,
         python::graph::pandas::{
             dataframe::PretendDF,
-            loaders::{load_edges_from_df, load_vertices_from_df},
+            loaders::{load_edges_from_df, load_nodes_from_df},
         },
     };
     use arrow2::array::{PrimitiveArray, Utf8Array};
@@ -85,7 +85,7 @@ mod test {
     }
 
     #[test]
-    fn load_vertices_from_pretend_df() {
+    fn load_nodes_from_pretend_df() {
         let df = PretendDF {
             names: vec!["id", "name", "time"]
                 .iter()
@@ -106,11 +106,11 @@ mod test {
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, 3, "id", "time", Some(vec!["name"]), None, None, &graph)
-            .expect("failed to load vertices from pretend df");
+        load_nodes_from_df(&df, 3, "id", "time", Some(vec!["name"]), None, None, &graph)
+            .expect("failed to load nodes from pretend df");
 
         let actual = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| {
                 (

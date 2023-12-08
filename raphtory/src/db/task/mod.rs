@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 pub mod context;
 pub mod edge;
+pub mod node;
 pub mod task;
 pub mod task_runner;
 pub(crate) mod task_state;
-pub mod vertex;
 
 pub static POOL: Lazy<Arc<ThreadPool>> = Lazy::new(|| {
     let num_threads = std::env::var("DOCBROWN_MAX_THREADS")
@@ -42,7 +42,7 @@ pub fn custom_pool(n_threads: usize) -> Arc<ThreadPool> {
 mod task_tests {
     use crate::{
         core::state::{self, compute_state::ComputeStateVec},
-        db::{api::mutation::AdditionOps, task::vertex::eval_vertex::EvalVertexView},
+        db::{api::mutation::AdditionOps, task::node::eval_node::EvalNodeView},
         prelude::*,
     };
 
@@ -52,9 +52,9 @@ mod task_tests {
         task_runner::TaskRunner,
     };
 
-    // count all the vertices with a global state
+    // count all the nodes with a global state
     #[test]
-    fn count_all_vertices_with_global_state() {
+    fn count_all_nodes_with_global_state() {
         let graph = Graph::new();
 
         let edges = vec![
@@ -77,7 +77,7 @@ mod task_tests {
 
         ctx.global_agg(count.clone());
 
-        let step1 = ATask::new(move |vv: &mut EvalVertexView<_, ()>| {
+        let step1 = ATask::new(move |vv: &mut EvalNodeView<_, ()>| {
             vv.global_update(&count, 1);
             Step::Done
         });

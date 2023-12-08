@@ -1,7 +1,7 @@
 use crate::db::{
     api::view::{internal::DynamicGraph, StaticGraphViewOps},
     graph::views::{
-        layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph, window_graph::WindowedGraph,
+        layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
     },
 };
 use enum_dispatch::enum_dispatch;
@@ -29,7 +29,7 @@ impl IntoDynamic for DynamicGraph {
     }
 }
 
-impl<G: StaticGraphViewOps> IntoDynamic for VertexSubgraph<G> {
+impl<G: StaticGraphViewOps> IntoDynamic for NodeSubgraph<G> {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }

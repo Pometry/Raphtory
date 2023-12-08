@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_store::VertexStore, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Direction, Prop,
@@ -118,9 +118,9 @@ static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
 });
 
 impl GraphWithDeletions {
-    fn vertex_alive_at(
+    fn node_alive_at(
         &self,
-        v: &VertexStore,
+        v: &NodeStore,
         t: i64,
         layers: &LayerIds,
         edge_filter: Option<&EdgeFilter>,
@@ -156,7 +156,7 @@ impl GraphWithDeletions {
     /// use std::fs::File;
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// g.add_vertex(1, 1, NO_PROPS).unwrap();
+    /// g.add_node(1, 1, NO_PROPS).unwrap();
     /// g.save_to_file("path_str").expect("failed to save file");
     /// ```
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
@@ -250,28 +250,28 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.latest_time_window(start, end)
     }
 
-    fn include_vertex_window(
+    fn include_node_window(
         &self,
         v: VID,
         w: Range<i64>,
         _layer_ids: &LayerIds,
         _edge_filter: Option<&EdgeFilter>,
     ) -> bool {
-        // FIXME: Think about vertex deletions
+        // FIXME: Think about node deletions
         let v = self.graph.inner().storage.get_node(v);
         v.timestamps().first_t().filter(|&t| t <= w.end).is_some()
     }
 
-    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph.vertex_earliest_time(v)
+    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+        self.graph.node_earliest_time(v)
     }
 
-    fn vertex_latest_time(&self, _v: VID) -> Option<i64> {
+    fn node_latest_time(&self, _v: VID) -> Option<i64> {
         Some(i64::MAX)
     }
 
-    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        let v = self.core_vertex(v);
+    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+        let v = self.core_node(v);
         if v.timestamps().first_t()? <= start {
             Some(v.timestamps().range(start..end).first_t().unwrap_or(start))
         } else {
@@ -279,8 +279,8 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
-    fn vertex_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
-        let v = self.core_vertex(v);
+    fn node_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
+        let v = self.core_node(v);
         if v.timestamps().first_t()? < end {
             Some(end - 1)
         } else {
@@ -293,12 +293,12 @@ impl TimeSemantics for GraphWithDeletions {
         &WINDOW_FILTER
     }
 
-    fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.graph.vertex_history(v)
+    fn node_history(&self, v: VID) -> Vec<i64> {
+        self.graph.node_history(v)
     }
 
-    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.graph.vertex_history_window(v, w)
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+        self.graph.node_history_window(v, w)
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
@@ -478,27 +478,27 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     #[inline]
-    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
-        self.graph.has_temporal_vertex_prop(v, prop_id)
+    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
+        self.graph.has_temporal_node_prop(v, prop_id)
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.graph.temporal_vertex_prop_vec(v, prop_id)
+    fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
+        self.graph.temporal_node_prop_vec(v, prop_id)
     }
 
-    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
         self.graph
-            .has_temporal_vertex_prop_window(v, prop_id, i64::MIN..w.end)
+            .has_temporal_node_prop_window(v, prop_id, i64::MIN..w.end)
     }
 
-    fn temporal_vertex_prop_vec_window(
+    fn temporal_node_prop_vec_window(
         &self,
         v: VID,
         prop_id: usize,
         start: i64,
         end: i64,
     ) -> Vec<(i64, Prop)> {
-        let prop = self.temporal_vertex_prop(v, prop_id);
+        let prop = self.temporal_node_prop(v, prop_id);
         match prop {
             Some(p) => p
                 .last_before(start.saturating_add(1))
@@ -600,7 +600,7 @@ mod test_deletions {
     use itertools::Itertools;
 
     #[test]
-    fn test_vertices() {
+    fn test_nodes() {
         let g = GraphWithDeletions::new();
 
         g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
@@ -618,27 +618,27 @@ mod test_deletions {
         g.add_edge(6, 6, 5, [("added", Prop::I64(0))], Some("assigned"))
             .unwrap();
 
-        let vertices = g
+        let nodes = g
             .window(0, 1701786285758)
             .layer(vec!["assigned", "has", "blocks"])
             .unwrap()
-            .vertices()
+            .nodes()
             .into_iter()
             .map(|vv| vv.name())
             .collect_vec();
 
-        assert_eq!(vertices, vec!["1", "2", "3", "4", "5", "6"]);
+        assert_eq!(nodes, vec!["1", "2", "3", "4", "5", "6"]);
 
-        let vertices = g
+        let nodes = g
             .at(1701786285758)
             .layer(vec!["assigned", "has", "blocks"])
             .unwrap()
-            .vertices()
+            .nodes()
             .into_iter()
             .map(|vv| vv.name())
             .collect_vec();
 
-        assert_eq!(vertices, vec!["1", "2", "3", "4", "5", "6"]);
+        assert_eq!(nodes, vec!["1", "2", "3", "4", "5", "6"]);
     }
 
     #[test]
@@ -685,7 +685,7 @@ mod test_deletions {
             vec![(1, Prop::I64(0))]
         );
 
-        assert_eq!(g.window(1, 2).vertex(0).unwrap().out_degree(), 1)
+        assert_eq!(g.window(1, 2).node(0).unwrap().out_degree(), 1)
     }
 
     #[test]
@@ -843,13 +843,11 @@ mod test_deletions {
     }
 
     #[test]
-    fn test_vertex_property_semantics() {
+    fn test_node_property_semantics() {
         let g = GraphWithDeletions::new();
-        let _v = g.add_vertex(1, 1, [("test_prop", "test value")]).unwrap();
-        let v = g
-            .add_vertex(11, 1, [("test_prop", "test value 2")])
-            .unwrap();
-        let v_from_graph = g.at(10).vertex(1).unwrap();
+        let _v = g.add_node(1, 1, [("test_prop", "test value")]).unwrap();
+        let v = g.add_node(11, 1, [("test_prop", "test value 2")]).unwrap();
+        let v_from_graph = g.at(10).node(1).unwrap();
         assert_eq!(v.properties().get("test_prop").unwrap_str(), "test value 2");
         assert_eq!(
             v.at(10).properties().get("test_prop").unwrap_str(),
@@ -913,7 +911,7 @@ mod test_deletions {
         g.add_edge(6, 6, 5, [("added", Prop::I64(0))], Some("assigned"))
             .unwrap();
 
-        let vertices = g
+        let nodes = g
             .window(0, 1701786285758)
             .layer(vec!["assigned", "has", "blocks"])
             .unwrap()
@@ -922,20 +920,20 @@ mod test_deletions {
             .map(|vv| vv.id())
             .collect_vec();
 
-        println!("windowed edges = {:?}", vertices);
+        println!("windowed edges = {:?}", nodes);
 
-        let vertices = g
+        let nodes = g
             .window(0, 1701786285758)
             .layer(vec!["assigned", "has", "blocks"])
             .unwrap()
-            .vertices()
+            .nodes()
             .into_iter()
             .map(|vv| vv.name())
             .collect_vec();
 
-        println!("windowed vertices = {:?}", vertices);
+        println!("windowed nodes = {:?}", nodes);
 
-        let vertices = g
+        let nodes = g
             .at(1701786285758)
             .layer(vec!["assigned", "has", "blocks"])
             .unwrap()
@@ -943,18 +941,18 @@ mod test_deletions {
             .into_iter()
             .map(|vv| vv.id())
             .collect_vec();
-        println!("at edges = {:?}", vertices);
+        println!("at edges = {:?}", nodes);
 
-        let vertices = g
+        let nodes = g
             .at(1701786285758)
             .layer(vec!["assigned", "has", "blocks"])
             .unwrap()
-            .vertices()
+            .nodes()
             .into_iter()
             .map(|vv| vv.id())
             .collect_vec();
 
-        println!("at vertices = {:?}", vertices);
-        // assert_eq!(g.window(1, 2).vertex(0).unwrap().out_degree(), 1)
+        println!("at nodes = {:?}", nodes);
+        // assert_eq!(g.window(1, 2).node(0).unwrap().out_degree(), 1)
     }
 }

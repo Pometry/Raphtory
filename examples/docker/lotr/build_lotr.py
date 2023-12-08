@@ -12,8 +12,8 @@ with open(structure_file, 'r') as csvfile:
         destination_node = row[1]
         timestamp = int(row[2])
 
-        graph.add_vertex(timestamp, source_node, {"vertex_type": "Character"})
-        graph.add_vertex(timestamp, destination_node, {"vertex_type": "Character"})
+        graph.add_node(timestamp, source_node, {"node_type": "Character"})
+        graph.add_node(timestamp, destination_node, {"node_type": "Character"})
         graph.add_edge(timestamp, source_node, destination_node, {"edge_type": "Character_Co-occurence"})
 
 graph.save_to_file("lotr")

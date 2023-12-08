@@ -226,8 +226,8 @@ mod time_tests {
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
         let g = Graph::new();
-        g.add_vertex(start, 0, NO_PROPS).unwrap();
-        g.add_vertex(end - 1, 0, NO_PROPS).unwrap();
+        g.add_node(start, 0, NO_PROPS).unwrap();
+        g.add_node(end - 1, 0, NO_PROPS).unwrap();
         assert_eq!(g.start().unwrap(), start);
         assert_eq!(g.end().unwrap(), end);
         g

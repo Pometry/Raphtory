@@ -4,11 +4,11 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::vertices::{input_vertex::InputVertex, vertex_ref::VertexRef},
+        entities::nodes::{input_node::InputNode, node_ref::NodeRef},
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
     db::api::view::*,
-    python::graph::vertex::PyVertex,
+    python::graph::node::PyNode,
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
@@ -16,27 +16,27 @@ use std::{future::Future, thread, thread::JoinHandle};
 
 pub mod errors;
 
-/// Extract a `VertexRef` from a Python object.
-/// The object can be a `str`, `u64` or `PyVertex`.
-/// If the object is a `PyVertex`, the `VertexRef` is extracted from the `PyVertex`.
-/// If the object is a `str`, the `VertexRef` is created from the `str`.
-/// If the object is a `int`, the `VertexRef` is created from the `int`.
+/// Extract a `NodeRef` from a Python object.
+/// The object can be a `str`, `u64` or `PyNode`.
+/// If the object is a `PyNode`, the `NodeRef` is extracted from the `PyNode`.
+/// If the object is a `str`, the `NodeRef` is created from the `str`.
+/// If the object is a `int`, the `NodeRef` is created from the `int`.
 ///
 /// Arguments
-///     vref: The Python object to extract the `VertexRef` from.
+///     vref: The Python object to extract the `NodeRef` from.
 ///
 /// Returns
-///    A `VertexRef` extracted from the Python object.
-impl<'source> FromPyObject<'source> for VertexRef {
+///    A `NodeRef` extracted from the Python object.
+impl<'source> FromPyObject<'source> for NodeRef {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
         if let Ok(s) = vref.extract::<String>() {
             Ok(s.into())
         } else if let Ok(gid) = vref.extract::<u64>() {
             Ok(gid.into())
-        } else if let Ok(v) = vref.extract::<PyVertex>() {
+        } else if let Ok(v) = vref.extract::<PyNode>() {
             Ok(v.into())
         } else {
-            Err(PyTypeError::new_err("Not a valid vertex"))
+            Err(PyTypeError::new_err("Not a valid node"))
         }
     }
 }
@@ -133,50 +133,50 @@ impl TryFrom<PyInterval> for Interval {
     }
 }
 
-/// A trait for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
+/// A trait for nodes that can be used as input for the graph.
+/// This allows us to add nodes with different types of ids, either strings or ints.
 #[derive(Clone, Debug)]
-pub struct PyInputVertex {
+pub struct PyInputNode {
     id: u64,
     name: Option<String>,
 }
 
-impl<'source> FromPyObject<'source> for PyInputVertex {
+impl<'source> FromPyObject<'source> for PyInputNode {
     fn extract(id: &'source PyAny) -> PyResult<Self> {
         match id.extract::<String>() {
-            Ok(string) => Ok(PyInputVertex::new(string)),
+            Ok(string) => Ok(PyInputNode::new(string)),
             Err(_) => {
                 let msg = "IDs need to be strings or an unsigned integers";
                 let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-                Ok(PyInputVertex::new(number))
+                Ok(PyInputNode::new(number))
             }
         }
     }
 }
 
-/// Implementation for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-impl PyInputVertex {
-    pub(crate) fn new<T>(vertex: T) -> PyInputVertex
+/// Implementation for nodes that can be used as input for the graph.
+/// This allows us to add nodes with different types of ids, either strings or ints.
+impl PyInputNode {
+    pub(crate) fn new<T>(node: T) -> PyInputNode
     where
-        T: InputVertex,
+        T: InputNode,
     {
-        PyInputVertex {
-            id: vertex.id(),
-            name: vertex.id_str().map(|s| s.into()),
+        PyInputNode {
+            id: node.id(),
+            name: node.id_str().map(|s| s.into()),
         }
     }
 }
 
-/// Implementation for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-impl InputVertex for PyInputVertex {
-    /// Returns the id of the vertex.
+/// Implementation for nodes that can be used as input for the graph.
+/// This allows us to add nodes with different types of ids, either strings or ints.
+impl InputNode for PyInputNode {
+    /// Returns the id of the node.
     fn id(&self) -> u64 {
         self.id
     }
 
-    /// Returns the name property of the vertex.
+    /// Returns the name property of the node.
     fn id_str(&self) -> Option<&str> {
         match &self.name {
             Some(n) => Some(n),

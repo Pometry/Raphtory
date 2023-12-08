@@ -13,7 +13,7 @@ use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
+    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use std::{
@@ -135,7 +135,7 @@ impl Mut {
 
             let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
             let new_subgraph = parent_graph
-                .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
+                .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
                 .materialize()?;
 
             let static_props_without_name: Vec<(ArcStr, Prop)> = subgraph
@@ -294,7 +294,7 @@ impl Mut {
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let new_subgraph = parent_graph
-            .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
+            .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
             .materialize()?;
 
         let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph

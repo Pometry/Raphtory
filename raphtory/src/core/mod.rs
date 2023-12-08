@@ -484,8 +484,8 @@ impl fmt::Display for Prop {
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::Graph(value) => write!(
                 f,
-                "Graph(num_vertices={}, num_edges={})",
-                value.count_vertices(),
+                "Graph(num_nodes={}, num_edges={})",
+                value.count_nodes(),
                 value.count_edges()
             ),
             Prop::List(value) => {

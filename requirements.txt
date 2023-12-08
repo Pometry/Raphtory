@@ -4,6 +4,7 @@
 #
 #    pip-compile requirements.in
 #
+altair
 asttokens==2.2.1
     # via stack-data
 attrs==23.1.0
@@ -72,6 +73,7 @@ jmespath==1.0.1
 jsonpickle==3.0.1
     # via pyvis
 kiwisolver==1.4.4
+langchain
     # via matplotlib
 lxml==4.9.2
     # via
@@ -170,6 +172,7 @@ seaborn==0.12.2
     # via -r requirements.in
 service-identity==21.1.0
     # via scrapy
+sentence_transformers    
 six==1.16.0
     # via
     #   asttokens

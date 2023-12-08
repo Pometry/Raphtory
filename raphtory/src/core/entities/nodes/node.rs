@@ -2,13 +2,13 @@ use crate::core::{
     entities::{
         edges::{edge::EdgeView, edge_ref::EdgeRef, edge_store::EdgeStore},
         graph::tgraph::TGraph,
+        nodes::{
+            node_store::NodeStore,
+            structure::iter::{Paged, PagedIter},
+        },
         properties::{
             props::{DictMapper, Meta},
             tprop::TProp,
-        },
-        vertices::{
-            structure::iter::{Paged, PagedIter},
-            vertex_store::VertexStore,
         },
         LayerIds, VRef, VID,
     },
@@ -22,21 +22,21 @@ use crate::core::{
 use itertools::Itertools;
 use std::{ops::Range, sync::Arc};
 
-pub struct Vertex<'a, const N: usize> {
+pub struct Node<'a, const N: usize> {
     node: VRef<'a, N>,
     pub graph: &'a TGraph<N>,
 }
 
-impl<'a, const N: usize> Vertex<'a, N> {
+impl<'a, const N: usize> Node<'a, N> {
     pub fn id(&self) -> VID {
         self.node.index().into()
     }
 
     pub(crate) fn new(node: VRef<'a, N>, graph: &'a TGraph<N>) -> Self {
-        Vertex { node, graph }
+        Node { node, graph }
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, VertexStore, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, NodeStore, N>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
     }
 
@@ -52,15 +52,15 @@ impl<'a, const N: usize> Vertex<'a, N> {
         &'a self,
         layers: Vec<&'b str>,
         dir: Direction,
-    ) -> impl Iterator<Item = Vertex<'a, N>> + 'a {
+    ) -> impl Iterator<Item = Node<'a, N>> + 'a {
         let layer_ids = layers
             .iter()
-            .filter_map(|str| self.graph.vertex_meta.get_layer_id(str))
+            .filter_map(|str| self.graph.node_meta.get_layer_id(str))
             .collect_vec();
 
         (*self.node)
             .neighbours(layer_ids.into(), dir)
-            .map(move |dst| self.graph.vertex(dst))
+            .map(move |dst| self.graph.node(dst))
     }
 
     pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex<i64>>> {
@@ -86,8 +86,8 @@ impl<'a, const N: usize> Vertex<'a, N> {
     }
 }
 
-impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
-    type Item = Vertex<'a, N>;
+impl<'a, const N: usize> IntoIterator for Node<'a, N> {
+    type Item = Node<'a, N>;
     type IntoIter = std::iter::Once<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -95,14 +95,14 @@ impl<'a, const N: usize> IntoIterator for Vertex<'a, N> {
     }
 }
 
-pub struct ArcVertex {
-    e: ArcEntry<VertexStore>,
+pub struct ArcNode {
+    e: ArcEntry<NodeStore>,
     meta: Arc<Meta>,
 }
 
-impl ArcVertex {
-    pub(crate) fn from_entry(e: ArcEntry<VertexStore>, meta: Arc<Meta>) -> Self {
-        ArcVertex { e, meta }
+impl ArcNode {
+    pub(crate) fn from_entry(e: ArcEntry<NodeStore>, meta: Arc<Meta>) -> Self {
+        ArcNode { e, meta }
     }
 
     pub fn edge_tuples(

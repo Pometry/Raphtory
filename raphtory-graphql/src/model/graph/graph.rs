@@ -7,11 +7,11 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::vertices::vertex_ref::VertexRef,
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{DynamicGraph, TimeOps, VertexViewOps},
+            view::{DynamicGraph, NodeViewOps, TimeOps},
         },
         graph::edge::EdgeView,
     },
@@ -67,7 +67,7 @@ impl GqlGraph {
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        let nodes: Vec<VertexRef> = nodes.iter().map(|v| v.as_str().into()).collect();
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
         GqlGraph::new(
             self.name.clone(),
             self.graph.subgraph(nodes).into_dynamic_indexed(),
@@ -75,11 +75,11 @@ impl GqlGraph {
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<VertexRef> = nodes
+        let nodes: Vec<NodeRef> = nodes
             .iter()
             .map(|v| {
                 let v = *v;
-                let v: VertexRef = v.into();
+                let v: NodeRef = v.into();
                 v
             })
             .collect();
@@ -198,17 +198,17 @@ impl GqlGraph {
     async fn count_nodes(&self, filter: Option<NodeFilter>) -> usize {
         if let Some(filter) = filter {
             self.graph
-                .vertices()
+                .nodes()
                 .iter()
                 .map(|vv| vv.into())
                 .filter(|n| filter.matches(n))
                 .count()
         } else {
-            self.graph.count_vertices()
+            self.graph.count_nodes()
         }
     }
     async fn search_node_count(&self, query: String) -> usize {
-        self.graph.search_vertex_count(&query).unwrap_or(0)
+        self.graph.search_node_count(&query).unwrap_or(0)
     }
 
     ////////////////////////
@@ -216,22 +216,22 @@ impl GqlGraph {
     ////////////////////////
 
     async fn has_node(&self, name: String) -> bool {
-        let v_ref: VertexRef = name.into();
-        self.graph.has_vertex(v_ref)
+        let v_ref: NodeRef = name.into();
+        self.graph.has_node(v_ref)
     }
     async fn has_node_id(&self, id: u64) -> bool {
-        let v_ref: VertexRef = id.into();
-        self.graph.has_vertex(v_ref)
+        let v_ref: NodeRef = id.into();
+        self.graph.has_node(v_ref)
     }
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
-        let src: VertexRef = src.into();
-        let dst: VertexRef = dst.into();
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
         self.graph.has_edge(src, dst, layer)
     }
 
     async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
-        let src: VertexRef = src.into();
-        let dst: VertexRef = dst.into();
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
         self.graph.has_edge(src, dst, layer)
     }
 
@@ -239,24 +239,24 @@ impl GqlGraph {
     //////// GETTERS ///////
     ////////////////////////
     async fn node(&self, name: String) -> Option<Node> {
-        let v_ref: VertexRef = name.into();
-        self.graph.vertex(v_ref).map(|v| v.into())
+        let v_ref: NodeRef = name.into();
+        self.graph.node(v_ref).map(|v| v.into())
     }
     async fn node_id(&self, id: u64) -> Option<Node> {
-        let v_ref: VertexRef = id.into();
-        self.graph.vertex(v_ref).map(|v| v.into())
+        let v_ref: NodeRef = id.into();
+        self.graph.node(v_ref).map(|v| v.into())
     }
 
     async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
         match filter {
             Some(filter) => self
                 .graph
-                .vertices()
+                .nodes()
                 .iter()
                 .map(|vv| vv.into())
                 .filter(|n| filter.matches(n))
                 .collect(),
-            None => self.graph.vertices().iter().map(|vv| vv.into()).collect(),
+            None => self.graph.nodes().iter().map(|vv| vv.into()).collect(),
         }
     }
 
@@ -285,14 +285,14 @@ impl GqlGraph {
     }
 
     pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
-        let src: VertexRef = src.into();
-        let dst: VertexRef = dst.into();
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
     pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
-        let src: VertexRef = src.into();
-        let dst: VertexRef = dst.into();
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
@@ -427,7 +427,7 @@ impl GqlGraph {
 
     async fn node_names(&self) -> Vec<String> {
         self.graph
-            .vertices()
+            .nodes()
             .into_iter()
             .map(|v| v.name())
             .collect_vec()
@@ -444,7 +444,7 @@ impl GqlGraph {
 
         let nodes: Vec<Node> = self
             .graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|vv| vv.into())
             .filter(|n| NodeFilter::new(nodes_to_expand.clone()).matches(n))

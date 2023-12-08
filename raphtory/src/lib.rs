@@ -32,14 +32,14 @@
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
 //! let graph = Graph::new();
 //!
-//! // Add vertex and edges to your graph with the respective properties
-//! graph.add_vertex(
+//! // Add node and edges to your graph with the respective properties
+//! graph.add_node(
 //!   1,
 //!   "Gandalf",
 //!   [("type", Prop::str("Character"))],
 //! ).unwrap();
 //!
-//! graph.add_vertex(
+//! graph.add_node(
 //!   2,
 //!   "Frodo",
 //!   [("type", Prop::str("Character"))],
@@ -57,7 +57,7 @@
 //! ).unwrap();
 //!
 //! // Get the in-degree, out-degree and degree of Gandalf
-//! println!("Number of vertices {:?}", graph.count_vertices());
+//! println!("Number of nodes {:?}", graph.count_nodes());
 //! println!("Number of Edges {:?}", graph.count_edges());
 //! ```
 //!
@@ -110,8 +110,8 @@ pub mod prelude {
             api::{
                 mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
                 view::{
-                    EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
-                    VertexListOps, VertexViewOps,
+                    EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeListOps,
+                    NodeViewOps, TimeOps,
                 },
             },
             graph::graph::Graph,

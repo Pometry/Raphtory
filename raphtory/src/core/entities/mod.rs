@@ -5,17 +5,17 @@ use std::{ops::Deref, sync::Arc};
 use crate::core::entities::edges::edge_ref::EdgeRef;
 use edges::edge::ERef;
 use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
+use nodes::{node_ref::NodeRef, node_store::NodeStore};
 use serde::{Deserialize, Serialize};
-use vertices::{vertex_ref::VertexRef, vertex_store::VertexStore};
 
 use super::{storage::Entry, Direction};
 
 pub mod edges;
 pub mod graph;
+pub mod nodes;
 pub mod properties;
-pub mod vertices;
 
-// the only reason this is public is because the physical ids of the vertices don't move
+// the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
@@ -59,8 +59,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, VertexStore, N>), // returned from graph.vertex
-    LockedEntry(GraphEntry<VertexStore, N>), // returned from locked_vertices
+    Entry(Entry<'a, NodeStore, N>),        // returned from graph.node
+    LockedEntry(GraphEntry<NodeStore, N>), // returned from locked_nodes
 }
 
 // return index -> usize for VRef
@@ -84,7 +84,7 @@ impl<'a, const N: usize> VRef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for VRef<'a, N> {
-    type Target = VertexStore;
+    type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
         match self {
