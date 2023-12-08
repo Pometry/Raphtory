@@ -1,3 +1,7 @@
+/// Epidemic modeling library
+///
+/// This library provides various utilities and models for simulating and analyzing epidemic
+/// spread on graphs.
 use crate::{
     core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime},
     db::{
@@ -12,23 +16,24 @@ use rand::{
 };
 use std::collections::{HashMap, HashSet};
 
+// Constants representing different states in epidemic models.
 const SUSCEPTIBLE: u8 = 0u8;
 const INFECTIOUS: u8 = 1u8;
 const RECOVERED: u8 = 2u8;
 const EXPOSED: u8 = 3u8;
-const BETA: &str = "b";
-const GAMMA: &str = "g";
-const SIGMA: &str = "0";
-const XI: &str = "X";
 
+/// An enum representing the initial seeding strategy for an epidemic model.
 pub enum SeedSet<V>
 where
     V: Into<VertexRef>,
 {
+    /// Represents a set of vertices to be initially infected.
     VertexSet(HashSet<V>),
+    /// Represents an initial infection rate.
     InitialInfect(f64),
 }
 
+/// Converts a `HashSet<V>` into a `SeedSet`.
 impl<V> From<HashSet<V>> for SeedSet<V>
 where
     V: Into<VertexRef> + Copy,
@@ -37,12 +42,24 @@ where
         SeedSet::VertexSet(vertex_set)
     }
 }
+
+/// Converts a `f64` seed value into a `SeedSet`.
 impl From<f64> for SeedSet<VertexRef> {
     fn from(seed: f64) -> Self {
         SeedSet::InitialInfect(seed)
     }
 }
 
+/// Sets up an SI (Susceptible-Infected) model on a graph.
+///
+/// # Arguments
+/// * `graph` - A reference to the graph.
+/// * `initial_seed_set` - The initial seeding strategy. Either be an f64 or a hashset of vertices
+/// * `seed` - An optional seed for random number generation.
+/// * `infected_state` - The state representing infection.
+///
+/// # Returns
+/// A tuple containing the random number generator and a map of vertex views to their states.
 fn setup_si<G, V, W>(
     graph: &G,
     initial_seed_set: W,
@@ -91,6 +108,15 @@ where
     }
 }
 
+/// Changes the state of a node based on a probability.
+///
+/// # Arguments
+/// * `recovery_rate` - Probability of recovery.
+/// * `rng` - Random number generator.
+/// * `new_vertices_status` - Map of new vertex statuses.
+/// * `v` - Vertex view.
+/// * `new_state` - The new state to be assigned.
+/// * `infection_time` - The time of infection.
 fn change_state_by_prob<G, T>(
     recovery_rate: f64,
     rng: &mut StdRng,
@@ -107,6 +133,15 @@ fn change_state_by_prob<G, T>(
     }
 }
 
+/// Changes the state of a node based on its neighbors' states.
+///
+/// # Arguments
+/// * `transition_probability` - Probability of state transition.
+/// * `rng` - Random number generator.
+/// * `prev_vertices_status` - Map of previous vertex statuses.
+/// * `new_vertices_state` - Map of new vertex states.
+/// * `v` - Vertex view.
+/// * `new_state` - The new state to be assigned.
 fn change_state_by_neighbors<G>(
     transition_probability: f64,
     rng: &mut StdRng,
@@ -139,6 +174,15 @@ fn change_state_by_neighbors<G>(
     }
 }
 
+/// Gets the state of a node.
+///
+/// # Arguments
+/// * `prev_vertices_status` - Map of previous vertex statuses.
+/// * `v` - Vertex view.
+/// * `initial_infection_time` - The initial time of infection.
+///
+/// # Returns
+/// The state of the node.
 fn get_node_state<G, T>(
     prev_vertices_status: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
     v: &VertexView<WindowedGraph<G>, WindowedGraph<G>>,
@@ -158,6 +202,16 @@ where
     }
 }
 
+/// Implements the SIR/SIRS infection strategy.
+///
+/// # Arguments
+/// * `prev_vertices_state` - Map of previous vertex statuses.
+/// * `new_vertices_state` - Map of new vertex states.
+/// * `rng` - Random number generator.
+/// * `v` - Vertex view.
+/// * `rates` - Tuple of rates (infection, recovery, recovery_to_susceptible, exposure).
+/// * `initial_infection_time` - The initial time of infection.
+/// * `is_sirs` - Flag to indicate if SIRS model is used.
 fn sir_sirs_strategy<G, T>(
     prev_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
     new_vertices_state: &mut HashMap<VertexView<WindowedGraph<G>>, (u8, i64)>,
@@ -207,11 +261,12 @@ fn sir_sirs_strategy<G, T>(
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of an infected node recovering.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -225,7 +280,7 @@ pub fn sir_model<G, T, V, W>(
     infection_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -240,7 +295,7 @@ where
         INFECTIOUS,
         (infection_rate, recovery_rate, 0.0f64, 0.0f64),
         seed,
-        steps,
+        hops,
         sir_sirs_strategy,
         false,
     )
@@ -250,12 +305,13 @@ where
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of an infected node recovering, going from infection to recovered
 /// * `rec_to_sus_rate` - The probability of an recovered node going back to susceptible.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -270,7 +326,7 @@ pub fn sirs_model<G, T, V, W>(
     recovery_rate: f64,
     recovery_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -285,7 +341,7 @@ where
         INFECTIOUS,
         (infection_rate, recovery_rate, recovery_to_sus_rate, 0.0f64),
         seed,
-        steps,
+        hops,
         sir_sirs_strategy,
         true,
     )
@@ -348,12 +404,13 @@ fn seir_seirs_strategy<G, T>(
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from Susceptible to Exposed.
 /// * `exposure_rate` - The probability of a node moving from Exposed to Infectious.
 /// * `recovery_rate` - The probability of an infected node recovering, going from Infectious to recovered
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -368,7 +425,7 @@ pub fn seir_model<G, T, V, W>(
     exposure_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
     initial_state: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
 where
@@ -384,7 +441,7 @@ where
         initial_state,
         (infection_rate, recovery_rate, 0.0f64, exposure_rate),
         seed,
-        steps,
+        hops,
         seir_seirs_strategy,
         false,
     )
@@ -394,12 +451,15 @@ where
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from Susceptible to Exposed.
 /// * `exposure_rate` - The probability of a node moving from Exposed to Infectious.
 /// * `recovery_rate` - The probability of an infected node recovering, going from Infectious to recovered
+/// * `rec_to_sus_rate` - The probability of an recovered node going back to susceptible.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `initial_state` - The state of which infected nodes should start at.
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -415,7 +475,7 @@ pub fn seirs_model<G, T, V, W>(
     recovery_rate: f64,
     rec_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
     initial_state: u8,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
 where
@@ -436,7 +496,7 @@ where
             exposure_rate,
         ),
         seed,
-        steps,
+        hops,
         seir_seirs_strategy,
         true,
     )
@@ -449,7 +509,7 @@ fn unified_model<G, T, V, W, F>(
     initial_infection_state: u8,
     rates: (f64, f64, f64, f64), // infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
     state_transition_strategy: F,
     is_alt: bool,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
@@ -472,7 +532,7 @@ where
     let g_after = graph.after(sat_initial_infection_time);
     let (mut rng, mut prev_vertices_state) =
         setup_si(&g_after, initial_seed_set, seed, initial_infection_state);
-    for _ in 0..steps.unwrap_or(1i32) {
+    for _ in 0..hops.unwrap_or(1i32) {
         let mut new_vertices_state: HashMap<VertexView<WindowedGraph<G>>, (u8, i64)> =
             HashMap::new();
         for v in g_after.vertices().iter() {
@@ -498,10 +558,11 @@ where
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -514,7 +575,7 @@ pub fn si_model<G, T, V, W>(
     initial_infection_time: T,
     infection_rate: f64, // beta
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -529,7 +590,7 @@ where
         INFECTIOUS,
         (infection_rate, 0.0f64, 0.0f64, 0.0f64),
         seed,
-        steps,
+        hops,
         si_sis_strategy,
         false,
     )
@@ -539,11 +600,12 @@ where
 ///
 /// # Arguments
 /// * `graph` - The graph on which to run the simulation.
-/// * `initial_infected_ratio` - The initial ratio of infected nodes.
+/// * `initial_seed_set` - The initial seed status for initial infection, can be either an f64 (to allow random nodes to begin infected) or a HashSet of nodes that should start as infected.
+/// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of recovery from an infected state to a susceptible one.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `steps` - An optional int for the number of times to iterate through the graph for infection, default 1
+/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -556,7 +618,7 @@ pub fn sis_model<G, T, V, W>(
     infection_rate: f64, // beta
     recovery_rate: f64,  // Y
     seed: Option<[u8; 32]>,
-    steps: Option<i32>,
+    hops: Option<i32>,
 ) -> Result<HashMap<VertexView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -571,7 +633,7 @@ where
         INFECTIOUS,
         (infection_rate, recovery_rate, 0.0f64, 0.0f64),
         seed,
-        steps,
+        hops,
         si_sis_strategy,
         true,
     )
