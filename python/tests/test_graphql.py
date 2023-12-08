@@ -178,6 +178,7 @@ def generic_client_test(raphtory_client, temp_dir):
 def test_windows_and_layers():
     from raphtory import graph_loader
     from raphtory import Graph
+    import time
     import json
     from raphtory.graphql import RaphtoryServer
 
@@ -187,7 +188,7 @@ def test_windows_and_layers():
     g_layers.add_edge(1,2,3,layer="layer2")
     hm = {"lotr":g_lotr,"layers":g_layers}
     server = RaphtoryServer(hm).start()
-
+    server.wait_for_online()
     q = """
     query GetEdges {
       graph(name: "lotr") {
@@ -296,5 +297,6 @@ def test_windows_and_layers():
     json_a = json.loads(a)
     json_ra = json.loads(ra)
     assert json_a == json_ra
-
+    server.stop()
+    server.wait()
 
