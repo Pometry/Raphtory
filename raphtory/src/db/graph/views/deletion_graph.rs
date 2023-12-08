@@ -118,22 +118,6 @@ static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
 });
 
 impl GraphWithDeletions {
-    fn vertex_alive_at(
-        &self,
-        v: &VertexStore,
-        t: i64,
-        layers: &LayerIds,
-        edge_filter: Option<&EdgeFilter>,
-    ) -> bool {
-        let edges = self.graph.inner().storage.edges.read_lock();
-        v.edge_tuples(layers, Direction::BOTH)
-            .map(|eref| edges.get(eref.pid().into()))
-            .find(|&e| {
-                edge_filter.map(|f| f(e, layers)).unwrap_or(true) && edge_alive_at(e, t, layers)
-            })
-            .is_some()
-    }
-
     pub fn new() -> Self {
         Self {
             graph: Arc::new(InternalGraph::default()),

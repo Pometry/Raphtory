@@ -56,7 +56,7 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.read().get(name).cloned()?;
-        Some(GqlGraph::new(name.to_string(), g.into_dynamic_indexed()))
+        Some(GqlGraph::new(name.to_string(), g))
     }
 
     async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
@@ -70,7 +70,7 @@ impl QueryRoot {
         data.graphs
             .read()
             .iter()
-            .map(|(name, g)| GqlGraph::new(name.clone(), g.clone().into_dynamic_indexed()))
+            .map(|(name, g)| GqlGraph::new(name.clone(), g.clone()))
             .collect_vec()
     }
 
