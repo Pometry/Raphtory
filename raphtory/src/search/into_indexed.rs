@@ -60,7 +60,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for IndexedGraph<G
     fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
             graph: self.graph.into_dynamic(),
-            vertex_index: self.vertex_index,
+            node_index: self.node_index,
             edge_index: self.edge_index,
             reader: self.reader,
             edge_reader: self.edge_reader,
