@@ -346,12 +346,6 @@ pub fn query_per_vertex<'a, GO: GlobalOrder>(
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let prog1_prop_id = g.edge_property_id("event_id", events_1v)?;
 
-    let now = Instant::now();
-
-    let valid_netflow_events_ms = AtomicU64::default();
-    let prog1_merge_ms = AtomicU64::default();
-    let count_login_ms = AtomicU64::default();
-
     let iter = nodes.map(move |b_vid| {
         let logins = login_edges(events_2v_graph, b_vid, event_id_prop_id_2v);
         let prog1s = prog1_edges(events_1v_graph, b_vid, prog1_prop_id);
@@ -362,16 +356,6 @@ pub fn query_per_vertex<'a, GO: GlobalOrder>(
             MergeIter::new(events, window).filter(|(l, _, n)| l.src() != n.dst()),
         )
     });
-
-    println!(
-        "finding valid netflow took {}ms",
-        valid_netflow_events_ms.load(Relaxed)
-    );
-    println!(
-        "merging netflow with prog1 took {}ms",
-        prog1_merge_ms.load(Relaxed)
-    );
-    println!("counting logins took {}ms", count_login_ms.load(Relaxed));
     Some(iter)
 }
 
