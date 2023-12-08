@@ -64,10 +64,7 @@ impl GqlGraph {
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.subgraph(nodes),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
