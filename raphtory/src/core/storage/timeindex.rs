@@ -192,12 +192,12 @@ impl<'a> Iterator for WindowIter<'a> {
     }
 }
 
-pub enum LockedLayeredIndex<'a, T: AsTime>{
+pub enum LockedLayeredIndex<'a, T: AsTime> {
     LayeredIndex(LayeredIndex<'a, T, LockedView<'a, Vec<TimeIndex<T>>>>),
     External(Box<dyn TimeIndexOps<IndexType = T> + 'a>),
 }
 
-impl <'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
+impl<'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
     type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
@@ -207,10 +207,7 @@ impl <'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
         }
     }
 
-    fn range(
-        &self,
-        w: Range<i64>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             LockedLayeredIndex::LayeredIndex(t) => t.range(w),
             LockedLayeredIndex::External(t) => t.range(w),
@@ -253,7 +250,6 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> LayeredIndex<'a, 
             marker: PhantomData,
         }
     }
-
 }
 
 impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> TimeIndexOps
