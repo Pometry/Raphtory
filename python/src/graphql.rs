@@ -82,7 +82,7 @@ impl PyRaphtoryServer {
     ///
     /// Note:
     ///   If no embedding function is provided, the server will attempt to use the OpenAI API
-    ///   embedding model, which will only work is the env variable OPENAI_API_KEY is set
+    ///   embedding model, which will only work if the env variable OPENAI_API_KEY is set
     ///   appropriately
     ///
     /// Arguments:
@@ -333,7 +333,6 @@ impl PyRaphtoryClient {
         variables: HashMap<String, Value>,
     ) -> PyResult<HashMap<String, Value>> {
         let client = self.clone();
-        // let cloned_query = query.clone();
         let (graphql_query, graphql_result) = execute_async_task(move || async move {
             client.send_graphql_query(query, variables).await
         })?;
