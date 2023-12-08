@@ -16,7 +16,7 @@ use raphtory::{
         graph::edge::EdgeView,
     },
     prelude::*,
-    search::IndexedGraph,
+    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -31,8 +31,11 @@ pub(crate) struct GqlGraph {
 }
 
 impl GqlGraph {
-    pub fn new(name: String, graph: IndexedGraph<DynamicGraph>) -> Self {
-        Self { name, graph }
+    pub fn new<G: DynamicIndexedGraph>(name: String, graph: G) -> Self {
+        Self {
+            name,
+            graph: graph.into_dynamic_indexed(),
+        }
     }
 }
 
@@ -47,30 +50,23 @@ impl GqlGraph {
     }
 
     async fn default_layer(&self) -> GqlGraph {
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.default_layer().into_dynamic_indexed(),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.default_layer())
     }
 
     async fn layers(&self, names: Vec<String>) -> Option<GqlGraph> {
         let name = self.name.clone();
-        self.graph
-            .layer(names)
-            .map(move |g| GqlGraph::new(name, g.into_dynamic_indexed()))
+        self.graph.layer(names).map(move |g| GqlGraph::new(name, g))
     }
     async fn layer(&self, name: String) -> Option<GqlGraph> {
         let v_name = self.name.clone();
-        self.graph
-            .layer(name)
-            .map(|g| GqlGraph::new(v_name, g.into_dynamic_indexed()))
+        self.graph.layer(name).map(|g| GqlGraph::new(v_name, g))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
         GqlGraph::new(
             self.name.clone(),
-            self.graph.subgraph(nodes).into_dynamic_indexed(),
+            self.graph.subgraph(nodes),
         )
     }
 
@@ -83,38 +79,23 @@ impl GqlGraph {
                 v
             })
             .collect();
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.subgraph(nodes).into_dynamic_indexed(),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.window(start, end).into_dynamic_indexed(),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.window(start, end))
     }
     async fn at(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.at(time).into_dynamic_indexed(),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.at(time))
     }
 
     async fn before(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.before(time).into_dynamic_indexed(),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.before(time))
     }
 
     async fn after(&self, time: i64) -> GqlGraph {
-        GqlGraph::new(
-            self.name.clone(),
-            self.graph.after(time).into_dynamic_indexed(),
-        )
+        GqlGraph::new(self.name.clone(), self.graph.after(time))
     }
 
     ////////////////////////
