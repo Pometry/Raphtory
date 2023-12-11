@@ -814,7 +814,7 @@ mod test {
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
-            go,
+            go.into(),
             0,
             1,
             2,
@@ -1085,7 +1085,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]),
+            GlobalMap::from(vec![1u64, 2u64]).into(),
             0,
             1,
             2,
@@ -1126,7 +1126,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]),
+            GlobalMap::from(vec![1u64, 2u64]).into(),
             0,
             1,
             2,
@@ -1180,7 +1180,7 @@ mod test {
             4,
             2,
             100,
-            GlobalMap::from(1u64..=7u64),
+            GlobalMap::from(1u64..=7u64).into(),
             0,
             1,
             2,
@@ -1214,10 +1214,10 @@ mod test {
         assert_eq!(actual, expected);
 
         let e0 = graph.edge(0.into());
-        assert_eq!(e0.timestamps().into_iter().next().unwrap(), Some(0i64));
+        assert_eq!(e0.timestamps().into_iter().next().unwrap(), 0i64);
 
         let e5 = graph.edge(5.into());
-        assert_eq!(e5.timestamps().into_iter().next().unwrap(), Some(5i64));
+        assert_eq!(e5.timestamps().into_iter().next().unwrap(), 5i64);
     }
 
     #[test]
@@ -1243,7 +1243,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             0,
             1,
             2,
@@ -1306,7 +1306,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             0,
             1,
             2,
@@ -1357,7 +1357,7 @@ mod test {
             1,
             1,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             0,
             1,
             2,
@@ -1420,7 +1420,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..=7u64),
+            GlobalMap::from(1u64..=7u64).into(),
             0,
             1,
             2,
@@ -1491,7 +1491,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..12u64),
+            GlobalMap::from(1u64..12u64).into(),
             0,
             1,
             2,
@@ -1521,7 +1521,7 @@ mod test {
             2,
             2,
             5,
-            GlobalMap::from([0u64, 1u64]),
+            GlobalMap::from([0u64, 1u64]).into(),
             0,
             1,
             2,
@@ -1557,7 +1557,7 @@ mod test {
             2,
             2,
             1,
-            GlobalMap::from([0u64, 1u64, 2u64]),
+            GlobalMap::from([0u64, 1u64, 2u64]).into(),
             0,
             1,
             2,
