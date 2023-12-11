@@ -204,6 +204,7 @@ fn loop_events(
     local_login_count(login_edge, login_prop_id, &prog1_map)
 }
 
+#[inline]
 fn local_login_count(
     login_edge: &Edge,
     prop_id: usize,
