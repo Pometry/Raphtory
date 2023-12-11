@@ -260,6 +260,7 @@ fn count_logins(
         .sum()
 }
 
+#[inline]
 pub fn query<GO: GlobalOrder>(
     g: &TemporalGraph<GO>,
     window: i64,
