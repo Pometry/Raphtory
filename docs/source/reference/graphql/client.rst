@@ -2,7 +2,7 @@
 Client
 ======
 
-.. automodule:: raphtory.graphqlclient
+.. autoclass:: raphtory.graphql.RaphtoryClient
    :autosummary:
    :members:
    :undoc-members:
