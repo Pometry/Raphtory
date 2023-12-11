@@ -2,17 +2,17 @@ import { Graph } from "js-raphtory";
 
 const g = new Graph();
 
-g.addVertex(2n, "Bob");
-g.addVertex(3n, "Alice");
-g.addVertex(12n, "Charlie");
+g.addNode(2n, "Bob");
+g.addNode(3n, "Alice");
+g.addNode(12n, "Charlie");
 
 // both src and dst must be the same type
 g.addEdge(9n, "Bob", "Alice", { relation: "knows" });
 
-const bob = g.getVertex("Bob");
-const alice = g.getVertex("Alice");
+const bob = g.getNode("Bob");
+const alice = g.getNode("Alice");
 
-function printVertex(v) {
+function printNode(v) {
 
     console.log(
         {
@@ -31,9 +31,9 @@ function printVertex(v) {
 
 const wg = g.window(3n, 9n);
 
-const charlie = g.getVertex("Charlie");
+const charlie = g.getNode("Charlie");
 console.log(charlie);
 
-printVertex(charlie);
-printVertex(bob);
-printVertex(alice);
+printNode(charlie);
+printNode(bob);
+printNode(alice);

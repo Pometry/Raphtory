@@ -1,14 +1,14 @@
 use crate::{
     db::{
         api::view::internal::DynamicGraph,
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
     python::utils::errors::adapt_err_value,
     search::IndexedGraph,
 };
 use pyo3::prelude::*;
 
-/// A searchable Index for a `Graph`. This allows for fuzzy and exact searches of vertices and edges.
+/// A searchable Index for a `Graph`. This allows for fuzzy and exact searches of nodes and edges.
 /// This makes use of Tantivity internally to provide the search functionality.
 /// To create a graph index, call `graph.index()` on any `Graph` object in python.
 #[pyclass]
@@ -26,7 +26,7 @@ impl GraphIndex {
 
 #[pymethods]
 impl GraphIndex {
-    /// Searches for vertices which match the given query. This uses Tantivy's fuzzy search.
+    /// Searches for nodes which match the given query. This uses Tantivy's fuzzy search.
     /// If you would like to better understand the query syntax, please visit our documentation at https://docs.raphtory.com
     ///
     /// Arguments:
@@ -37,7 +37,7 @@ impl GraphIndex {
     ///    levenshtein_distance(int): The levenshtein_distance parameter defines the maximum edit distance allowed for fuzzy matching. It specifies the number of changes (insertions, deletions, or substitutions) required to match the query term. Defaults to 0 (exact matching).
     ///
     /// Returns:
-    ///    A list of vertices which match the query. The list will be empty if no vertices match.
+    ///    A list of nodes which match the query. The list will be empty if no nodes match.
     #[pyo3(signature = (query, limit=25, offset=0, prefix=false, levenshtein_distance=0))]
     fn fuzzy_search_nodes(
         &self,
@@ -46,7 +46,7 @@ impl GraphIndex {
         offset: usize,
         prefix: bool,
         levenshtein_distance: u8,
-    ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
+    ) -> Result<Vec<NodeView<DynamicGraph>>, PyErr> {
         self.graph
             .fuzzy_search_nodes(query, limit, offset, prefix, levenshtein_distance)
             .map_err(|e| adapt_err_value(&e))
@@ -77,7 +77,7 @@ impl GraphIndex {
             .map_err(|e| adapt_err_value(&e))
     }
 
-    /// Searches for vertices which match the given query. This uses Tantivy's exact search.
+    /// Searches for nodes which match the given query. This uses Tantivy's exact search.
     ///
     /// Arguments:
     ///    query(str): The query to search for.
@@ -85,14 +85,14 @@ impl GraphIndex {
     ///    offset(int): The number of results to skip. This is useful for pagination. Defaults to 0 i.e. the first page of results.
     ///
     /// Returns:
-    ///    A list of vertices which match the query. The list will be empty if no vertices match.
+    ///    A list of nodes which match the query. The list will be empty if no nodes match.
     #[pyo3(signature = (query, limit=25, offset=0))]
     fn search_nodes(
         &self,
         query: &str,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<VertexView<DynamicGraph>>, PyErr> {
+    ) -> Result<Vec<NodeView<DynamicGraph>>, PyErr> {
         self.graph
             .search_nodes(query, limit, offset)
             .map_err(|e| adapt_err_value(&e))

@@ -20,7 +20,7 @@ fn main() {
 
     let g = stable_coin_graph(data_dir, true);
 
-    assert_eq!(g.count_vertices(), 1523333);
+    assert_eq!(g.count_nodes(), 1523333);
     assert_eq!(g.count_edges(), 2814155);
 
     assert_eq!(

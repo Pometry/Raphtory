@@ -29,7 +29,7 @@ use crate::{
                 BoxedIter, BoxedLIter, EdgeViewInternalOps, StaticGraphViewOps,
             },
         },
-        graph::{vertex::VertexView, views::window_graph::WindowedGraph},
+        graph::{node::NodeView, views::window_graph::WindowedGraph},
     },
     prelude::*,
 };
@@ -106,7 +106,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeViewInternal
     type BaseGraph = G;
     type Graph = GH;
     type EList = BoxedLIter<'graph, Self>;
-    type Neighbour = VertexView<G, G>;
+    type Neighbour = NodeView<G, G>;
 
     fn graph(&self) -> &GH {
         &self.graph
@@ -116,8 +116,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeViewInternal
         self.edge
     }
 
-    fn new_vertex(&self, v: VID) -> VertexView<G, G> {
-        VertexView::new_internal(self.base_graph.clone(), v)
+    fn new_node(&self, v: VID) -> NodeView<G, G> {
+        NodeView::new_internal(self.base_graph.clone(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
@@ -355,7 +355,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 /// Implement `EdgeListOps` trait for an iterator of `EdgeView` objects.
 ///
-/// This implementation enables the use of the `src` and `dst` methods to retrieve the vertices
+/// This implementation enables the use of the `src` and `dst` methods to retrieve the nodes
 /// connected to the edges inside the iterator.
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'graph>
     for BoxedLIter<'graph, EdgeView<G, GH>>
@@ -363,8 +363,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
     type Edge = EdgeView<G, GH>;
     type ValueType<T> = T;
 
-    /// Specifies the associated type for an iterator over vertices.
-    type VList = BoxedLIter<'graph, VertexView<G, G>>;
+    /// Specifies the associated type for an iterator over nodes.
+    type VList = BoxedLIter<'graph, NodeView<G, G>>;
 
     /// Specifies the associated type for the iterator over edges.
     type IterType<T> = BoxedLIter<'graph, T>;
@@ -373,12 +373,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(move |e| e.properties()))
     }
 
-    /// Returns an iterator over the source vertices of the edges in the iterator.
+    /// Returns an iterator over the source nodes of the edges in the iterator.
     fn src(self) -> Self::VList {
         Box::new(self.map(|e| e.src()))
     }
 
-    /// Returns an iterator over the destination vertices of the edges in the iterator.
+    /// Returns an iterator over the destination nodes of the edges in the iterator.
     fn dst(self) -> Self::VList {
         Box::new(self.map(|e| e.dst()))
     }
@@ -467,7 +467,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
 {
     type Edge = EdgeView<G, GH>;
     type ValueType<T> = BoxedLIter<'graph, T>;
-    type VList = BoxedLIter<'graph, BoxedLIter<'graph, VertexView<G, G>>>;
+    type VList = BoxedLIter<'graph, BoxedLIter<'graph, NodeView<G, G>>>;
     type IterType<T> = BoxedLIter<'graph, BoxedLIter<'graph, T>>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {

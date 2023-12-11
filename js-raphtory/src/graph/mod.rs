@@ -19,7 +19,7 @@ use crate::{
     graph::{
         edge::Edge,
         misc::{JSError, JsObjectEntry},
-        vertex::{JsVertex, Vertex},
+        node::{JsNode, Node},
     },
     log,
     utils::set_panic_hook,
@@ -28,7 +28,7 @@ use crate::{
 mod edge;
 mod graph_view_impl;
 mod misc;
-mod vertex;
+mod node;
 
 #[wasm_bindgen]
 #[repr(transparent)]
@@ -86,18 +86,18 @@ impl Graph {
         }
     }
 
-    #[wasm_bindgen(js_name = getVertex)]
-    pub fn get_vertex(&self, id: JsValue) -> Option<Vertex> {
-        let vertex_view = match JsVertex::try_from(id).ok()? {
-            JsVertex::Str(vertex) => self.vertex(vertex),
-            JsVertex::Number(vertex) => self.vertex(vertex),
+    #[wasm_bindgen(js_name = getNode)]
+    pub fn get_node(&self, id: JsValue) -> Option<Node> {
+        let node_view = match JsNode::try_from(id).ok()? {
+            JsNode::Str(node) => self.node(node),
+            JsNode::Number(node) => self.node(node),
         };
 
-        vertex_view.map(Vertex)
+        node_view.map(Node)
     }
 
-    #[wasm_bindgen(js_name = addVertex)]
-    pub fn add_vertex_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Vertex, JSError> {
+    #[wasm_bindgen(js_name = addNode)]
+    pub fn add_node_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Node, JSError> {
         let rust_props = if js_props.is_string() {
             vec![("name".to_string(), Prop::str(js_props.as_string().unwrap()))]
         } else if js_props.is_object() {
@@ -112,15 +112,15 @@ impl Graph {
             vec![]
         };
 
-        match JsVertex::try_from(id)? {
-            JsVertex::Str(vertex) => self
+        match JsNode::try_from(id)? {
+            JsNode::Str(node) => self
                 .mutable_graph()
-                .add_vertex(t, vertex, rust_props)
+                .add_node(t, node, rust_props)
                 .map(|v| v.into())
                 .map_err(JSError),
-            JsVertex::Number(vertex) => self
+            JsNode::Number(node) => self
                 .mutable_graph()
-                .add_vertex(t, vertex, rust_props)
+                .add_node(t, node, rust_props)
                 .map(|v| v.into())
                 .map_err(JSError),
         }
@@ -152,18 +152,18 @@ impl Graph {
             vec![]
         };
 
-        match (JsVertex::try_from(src)?, JsVertex::try_from(dst)?) {
-            (JsVertex::Str(src), JsVertex::Str(dst)) => self
+        match (JsNode::try_from(src)?, JsNode::try_from(dst)?) {
+            (JsNode::Str(src), JsNode::Str(dst)) => self
                 .mutable_graph()
                 .add_edge(t, src, dst, props, None)
                 .map_err(JSError)
                 .map(|e| e.into()),
-            (JsVertex::Number(src), JsVertex::Number(dst)) => self
+            (JsNode::Number(src), JsNode::Number(dst)) => self
                 .mutable_graph()
                 .add_edge(t, src, dst, props, None)
                 .map_err(JSError)
                 .map(|e| e.into()),
-            _ => Err(JSError(GraphError::VertexIdNotStringOrNumber)),
+            _ => Err(JSError(GraphError::NodeIdNotStringOrNumber)),
         }
     }
 
@@ -187,8 +187,8 @@ mod js_test {
     fn add_one_edge_get_neighbours() -> Result<(), super::JSError> {
         let graph = super::Graph::new();
 
-        graph.add_vertex_js(2, "Bob".into(), Object::new())?;
-        graph.add_vertex_js(3, "Alice".into(), Object::new())?;
+        graph.add_node_js(2, "Bob".into(), Object::new())?;
+        graph.add_node_js(3, "Alice".into(), Object::new())?;
 
         let js_weight = JsValue::from_f64(3.14);
 

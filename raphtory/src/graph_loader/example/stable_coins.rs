@@ -47,9 +47,9 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
                 .ok()?;
 
             println!(
-                "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
+                "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
-                g.count_vertices(),
+                g.count_nodes(),
                 g.count_edges(),
                 now.elapsed().as_secs()
             );
@@ -98,9 +98,9 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );

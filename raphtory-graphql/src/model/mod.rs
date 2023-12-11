@@ -1,9 +1,6 @@
 use crate::{
     data::Data,
-    model::graph::{
-        graph::{GqlGraph, GraphMeta},
-        vectorised_graph::GqlVectorisedGraph,
-    },
+    model::graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -15,8 +12,8 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
-    db::api::view::{IntoDynamic, MaterializedGraph},
-    prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
+    db::api::view::MaterializedGraph,
+    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use std::{
@@ -24,7 +21,6 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
     io::BufReader,
-    ops::Deref,
 };
 use utils::path_prefix;
 use uuid::Uuid;
@@ -60,7 +56,7 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.read().get(name).cloned()?;
-        Some(GqlGraph::new(g.into_dynamic_indexed()))
+        Some(GqlGraph::new(name.to_string(), g))
     }
 
     async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
@@ -69,21 +65,12 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn subgraph<'a>(ctx: &Context<'a>, name: &str) -> Option<GraphMeta> {
-        let data = ctx.data_unchecked::<Data>();
-        let g = data.graphs.read().get(name).cloned()?;
-        Some(GraphMeta::new(
-            name.to_string(),
-            g.deref().clone().into_dynamic(),
-        ))
-    }
-
-    async fn subgraphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
             .read()
             .iter()
-            .map(|(name, g)| GraphMeta::new(name.clone(), g.deref().clone().into_dynamic()))
+            .map(|(name, g)| GqlGraph::new(name.clone(), g.clone()))
             .collect_vec()
     }
 
@@ -148,7 +135,7 @@ impl Mut {
 
             let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
             let new_subgraph = parent_graph
-                .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
+                .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
                 .materialize()?;
 
             let static_props_without_name: Vec<(ArcStr, Prop)> = subgraph
@@ -307,7 +294,7 @@ impl Mut {
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let new_subgraph = parent_graph
-            .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
+            .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
             .materialize()?;
 
         let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph

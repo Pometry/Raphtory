@@ -17,29 +17,29 @@ use pyo3::prelude::*;
 /// Physical Review E 64.4 (2001): 041902.
 ///
 /// Arguments:
-///   g: The graph you wish to add vertices and edges to
-///   vertices_to_add: The amount of vertices you wish to add to the graph (steps)
-///   edges_per_step: The amount of edges a joining vertex should add to the graph
+///   g: The graph you wish to add nodes and edges to
+///   nodes_to_add: The amount of nodes you wish to add to the graph (steps)
+///   edges_per_step: The amount of edges a joining node should add to the graph
 ///   seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
 ///  None
 #[pyfunction]
-#[pyo3[signature = (g, vertices_to_add, edges_per_step, seed=None)]]
+#[pyo3[signature = (g, nodes_to_add, edges_per_step, seed=None)]]
 pub fn random_attachment(
     g: &PyGraph,
-    vertices_to_add: usize,
+    nodes_to_add: usize,
     edges_per_step: usize,
     seed: Option<[u8; 32]>,
 ) {
-    ra(&g.graph, vertices_to_add, edges_per_step, seed);
+    ra(&g.graph, nodes_to_add, edges_per_step, seed);
 }
 
 /// Generates a graph using the preferential attachment model.
 ///
-/// Given a graph this function will add a user defined number of vertices, each with a user
+/// Given a graph this function will add a user defined number of nodes, each with a user
 /// defined number of edges.
-/// This is an iterative algorithm where at each `step` a vertex is added and its neighbours are
+/// This is an iterative algorithm where at each `step` a node is added and its neighbours are
 /// chosen from the pool of nodes already within the network.
 /// For this model the neighbours are chosen proportionally based upon their degree, favouring
 /// nodes with higher degree (more connections).
@@ -49,21 +49,21 @@ pub fn random_attachment(
 /// the min number of both will be added before generation begins.
 ///
 /// Arguments:
-///    g: The graph you wish to add vertices and edges to
-///    vertices_to_add: The amount of vertices you wish to add to the graph (steps)
-///    edges_per_step: The amount of edges a joining vertex should add to the graph
+///    g: The graph you wish to add nodes and edges to
+///    nodes_to_add: The amount of nodes you wish to add to the graph (steps)
+///    edges_per_step: The amount of edges a joining node should add to the graph
 ///    seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
 ///
 /// None
 #[pyfunction]
-#[pyo3[signature = (g, vertices_to_add, edges_per_step, seed=None)]]
+#[pyo3[signature = (g, nodes_to_add, edges_per_step, seed=None)]]
 pub fn ba_preferential_attachment(
     g: &PyGraph,
-    vertices_to_add: usize,
+    nodes_to_add: usize,
     edges_per_step: usize,
     seed: Option<[u8; 32]>,
 ) {
-    pa(&g.graph, vertices_to_add, edges_per_step, seed);
+    pa(&g.graph, nodes_to_add, edges_per_step, seed);
 }

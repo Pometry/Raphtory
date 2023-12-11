@@ -1,8 +1,8 @@
-//! Defines the `Vertex` struct, which represents a vertex in the graph.
+//! Defines the `Node` struct, which represents a node in the graph.
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::vertex_ref::VertexRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, VID},
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         ArcStr,
@@ -19,10 +19,10 @@ use crate::{
             },
             view::{
                 internal::{CoreGraphOps, InternalLayerOps, OneHopFilter, Static, TimeSemantics},
-                BaseVertexViewOps, BoxedLIter, IntoDynBoxed, Layer, StaticGraphViewOps,
+                BaseNodeViewOps, BoxedLIter, IntoDynBoxed, Layer, StaticGraphViewOps,
             },
         },
-        graph::{edge::EdgeView, path::PathFromVertex},
+        graph::{edge::EdgeView, path::PathFromNode},
     },
     prelude::*,
 };
@@ -32,16 +32,16 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-/// View of a Vertex in a Graph
+/// View of a Node in a Graph
 #[derive(Clone)]
-pub struct VertexView<G, GH = G> {
+pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
-    pub vertex: VID,
+    pub node: VID,
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
-    for VertexView<G, GH>
+    for NodeView<G, GH>
 {
     fn layer_ids(&self) -> LayerIds {
         self.graph.layer_ids()
@@ -52,46 +52,46 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
     }
 }
 
-impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<VertexView<G2, G2H>>
-    for VertexView<G1, G1H>
+impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
+    for NodeView<G1, G1H>
 {
-    fn eq(&self, other: &VertexView<G2, G2H>) -> bool {
-        self.base_graph.vertex_id(self.vertex) == other.base_graph.vertex_id(other.vertex)
+    fn eq(&self, other: &NodeView<G2, G2H>) -> bool {
+        self.base_graph.node_id(self.node) == other.base_graph.node_id(other.node)
     }
 }
 
-impl<G, GH> From<VertexView<G, GH>> for VertexRef {
-    fn from(value: VertexView<G, GH>) -> Self {
-        VertexRef::Internal(value.vertex)
+impl<G, GH> From<NodeView<G, GH>> for NodeRef {
+    fn from(value: NodeView<G, GH>) -> Self {
+        NodeRef::Internal(value.node)
     }
 }
 
-impl<G, GH> From<&VertexView<G, GH>> for VertexRef {
-    fn from(value: &VertexView<G, GH>) -> Self {
-        VertexRef::Internal(value.vertex)
+impl<G, GH> From<&NodeView<G, GH>> for NodeRef {
+    fn from(value: &NodeView<G, GH>) -> Self {
+        NodeRef::Internal(value.node)
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for VertexView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Debug for NodeView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "VertexView {{ graph: {}{}, vertex: {} }}",
-            self.graph.count_vertices(),
+            "NodeView {{ graph: {}{}, node: {} }}",
+            self.graph.count_nodes(),
             self.graph.count_edges(),
-            self.vertex.0
+            self.node.0
         )
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Display for VertexView<G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Display for NodeView<G, GH> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "VertexView {{ graph: {}{}, vertex: {} }}",
-            self.graph.count_vertices(),
+            "NodeView {{ graph: {}{}, node: {} }}",
+            self.graph.count_nodes(),
             self.graph.count_edges(),
-            self.vertex.0
+            self.node.0
         )
     }
 }
@@ -102,47 +102,47 @@ impl<
         G1H: GraphViewOps<'graph>,
         G2: GraphViewOps<'graph>,
         G2H: GraphViewOps<'graph>,
-    > PartialOrd<VertexView<G2, G2H>> for VertexView<G1, G1H>
+    > PartialOrd<NodeView<G2, G2H>> for NodeView<G1, G1H>
 {
-    fn partial_cmp(&self, other: &VertexView<G2, G2H>) -> Option<std::cmp::Ordering> {
-        self.vertex.0.partial_cmp(&other.vertex.0)
+    fn partial_cmp(&self, other: &NodeView<G2, G2H>) -> Option<std::cmp::Ordering> {
+        self.node.0.partial_cmp(&other.node.0)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for VertexView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for NodeView<G, GH> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.vertex.0.cmp(&other.vertex.0)
+        self.node.0.cmp(&other.node.0)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for VertexView<G, GH> {}
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for NodeView<G, GH> {}
 
-impl<'graph, G: GraphViewOps<'graph>> VertexView<G> {
-    /// Creates a new `VertexView` wrapping an internal vertex reference and a graph
-    pub fn new_internal(graph: G, vertex: VID) -> VertexView<G> {
-        VertexView {
+impl<'graph, G: GraphViewOps<'graph>> NodeView<G> {
+    /// Creates a new `NodeView` wrapping an internal node reference and a graph
+    pub fn new_internal(graph: G, node: VID) -> NodeView<G> {
+        NodeView {
             base_graph: graph.clone(),
             graph,
-            vertex,
+            node,
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexView<G, GH> {
-    pub fn new_one_hop_filtered(base_graph: G, graph: GH, vertex: VID) -> Self {
-        VertexView {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeView<G, GH> {
+    pub fn new_one_hop_filtered(base_graph: G, graph: GH, node: VID) -> Self {
+        NodeView {
             base_graph,
             graph,
-            vertex,
+            node,
         }
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-    for VertexView<G, GH>
+    for NodeView<G, GH>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = VertexView<G, GHH>;
+    type Filtered<GHH: GraphViewOps<'graph>> = NodeView<G, GHH>;
 
     fn current_filter(&self) -> &Self::Graph {
         &self.graph
@@ -153,58 +153,58 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
         let base_graph = self.base_graph.clone();
-        let vertex = self.vertex;
-        VertexView {
+        let node = self.node;
+        NodeView {
             base_graph,
             graph: filtered_graph,
-            vertex,
+            node,
         }
     }
 }
 
-impl<G, GH: CoreGraphOps> Hash for VertexView<G, GH> {
+impl<G, GH: CoreGraphOps> Hash for NodeView<G, GH> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the graph
         "1".to_string().hash(state);
-        let id = self.graph.vertex_id(self.vertex);
-        // Hash the vertex ID
+        let id = self.graph.node_id(self.node);
+        // Hash the node ID
         id.hash(state);
     }
 }
 
-impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for VertexView<G, GH> {
+impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, GH> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
-            .vertex_meta()
+            .node_meta()
             .temporal_prop_meta()
             .get_id(name)
-            .filter(|id| self.graph.has_temporal_vertex_prop(self.vertex, *id))
+            .filter(|id| self.graph.has_temporal_node_prop(self.node, *id))
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.vertex_meta().temporal_prop_meta().get_name(id)
+        self.graph.node_meta().temporal_prop_meta().get_name(id)
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
         Box::new(
             self.graph
-                .temporal_vertex_prop_ids(self.vertex)
-                .filter(|id| self.graph.has_temporal_vertex_prop(self.vertex, *id)),
+                .temporal_node_prop_ids(self.node)
+                .filter(|id| self.graph.has_temporal_node_prop(self.node, *id)),
         )
     }
 }
 
-impl<G, GH: TimeSemantics> TemporalPropertyViewOps for VertexView<G, GH> {
+impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.graph
-            .temporal_vertex_prop_vec(self.vertex, id)
+            .temporal_node_prop_vec(self.node, id)
             .last()
             .map(|(_, v)| v.to_owned())
     }
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_vertex_prop_vec(self.vertex, id)
+            .temporal_node_prop_vec(self.node, id)
             .into_iter()
             .map(|(t, _)| t)
             .collect()
@@ -212,7 +212,7 @@ impl<G, GH: TimeSemantics> TemporalPropertyViewOps for VertexView<G, GH> {
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.graph
-            .temporal_vertex_prop_vec(self.vertex, id)
+            .temporal_node_prop_vec(self.node, id)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -227,34 +227,34 @@ impl<G, GH: TimeSemantics> TemporalPropertyViewOps for VertexView<G, GH> {
     }
 }
 
-impl<G, GH: CoreGraphOps> ConstPropertiesOps for VertexView<G, GH> {
+impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.vertex_meta().const_prop_meta().get_id(name)
+        self.graph.node_meta().const_prop_meta().get_id(name)
     }
 
     fn get_const_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.vertex_meta().const_prop_meta().get_name(id)
+        self.graph.node_meta().const_prop_meta().get_name(id)
     }
 
     fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        self.graph.constant_vertex_prop_ids(self.vertex)
+        self.graph.constant_node_prop_ids(self.node)
     }
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
-        self.graph.constant_vertex_prop(self.vertex, id)
+        self.graph.constant_node_prop(self.node, id)
     }
 }
 
-impl<G, GH> Static for VertexView<G, GH> {}
+impl<G, GH> Static for NodeView<G, GH> {}
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOps<'graph>
-    for VertexView<G, GH>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
+    for NodeView<G, GH>
 {
     type BaseGraph = G;
     type Graph = GH;
     type ValueType<T> = T where T: 'graph;
     type PropType = Self;
-    type PathType = PathFromVertex<'graph, G, G>;
+    type PathType = PathFromNode<'graph, G, G>;
     type Edge = EdgeView<G, GH>;
     type EList = BoxedLIter<'graph, EdgeView<G, GH>>;
 
@@ -262,7 +262,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        op(&self.graph, self.vertex)
+        op(&self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -278,7 +278,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
     ) -> Self::EList {
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
-        op(&self.graph, self.vertex)
+        op(&self.graph, self.node)
             .map(move |edge| EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge))
             .into_dyn_boxed()
     }
@@ -291,23 +291,23 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseVertexViewOp
         op: F,
     ) -> Self::PathType {
         let graph = self.graph.clone();
-        PathFromVertex::new(self.base_graph.clone(), self.vertex, move |vid| {
+        PathFromNode::new(self.base_graph.clone(), self.node, move |vid| {
             op(&graph, vid).into_dyn_boxed()
         })
     }
 }
 
-impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> VertexView<G, G> {
+impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> NodeView<G, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         props: C,
     ) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_vertex_property(name, dtype, true),
+            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
             |prop| self.graph.process_prop_value(prop),
         )?;
         self.graph
-            .internal_add_constant_vertex_properties(self.vertex, properties)
+            .internal_add_constant_node_properties(self.node, properties)
     }
 
     pub fn update_constant_properties<C: CollectProperties>(
@@ -315,11 +315,11 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
     ) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_vertex_property(name, dtype, true),
+            |name, dtype| self.graph.resolve_node_property(name, dtype, true),
             |prop| self.graph.process_prop_value(prop),
         )?;
         self.graph
-            .internal_update_constant_vertex_properties(self.vertex, properties)
+            .internal_update_constant_node_properties(self.node, properties)
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -329,19 +329,19 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(
-            |name, dtype| self.graph.resolve_vertex_property(name, dtype, false),
+            |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        self.graph.internal_add_vertex(t, self.vertex, properties)
+        self.graph.internal_add_node(t, self.node, properties)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'graph>
-    for BoxedLIter<'graph, VertexView<G, GH>>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeListOps<'graph>
+    for BoxedLIter<'graph, NodeView<G, GH>>
 {
-    type Vertex = VertexView<G, GH>;
+    type Node = NodeView<G, GH>;
 
-    type Neighbour = VertexView<G, G>;
+    type Neighbour = NodeView<G, G>;
     type Edge = EdgeView<G, GH>;
     type IterType<T> = BoxedLIter<'graph, T> where T: 'graph;
     type ValueType<T> = T where T: 'graph;
@@ -357,11 +357,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'g
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+    ) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
         self.map(move |v| v.window(start, end)).into_dyn_boxed()
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
         self.map(move |v| v.at(end)).into_dyn_boxed()
     }
 
@@ -375,7 +375,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'g
 
     fn properties(
         self,
-    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>> {
+    ) -> Self::IterType<Properties<<Self::Node as NodeViewOps<'graph>>::PropType>> {
         self.map(|v| v.properties()).into_dyn_boxed()
     }
 
@@ -421,46 +421,46 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'g
 }
 
 #[cfg(test)]
-mod vertex_test {
+mod node_test {
     use crate::prelude::*;
     use std::collections::HashMap;
 
     #[test]
     fn test_earliest_time() {
         let g = Graph::new();
-        g.add_vertex(0, 1, NO_PROPS).unwrap();
-        g.add_vertex(1, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS).unwrap();
+        g.add_node(2, 1, NO_PROPS).unwrap();
         let view = g.before(2);
-        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
+        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
 
         let view = g.before(3);
-        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
         let view = g.after(0);
-        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 2);
+        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
         let view = g.after(2);
-        assert_eq!(view.vertex(1), None);
-        assert_eq!(view.vertex(1), None);
+        assert_eq!(view.node(1), None);
+        assert_eq!(view.node(1), None);
 
         let view = g.at(1);
-        assert_eq!(view.vertex(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.vertex(1).expect("v").latest_time().unwrap(), 1);
+        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
     }
 
     #[test]
     fn test_properties() {
         let g = Graph::new();
         let props = [("test", "test")];
-        g.add_vertex(0, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, props).unwrap();
+        g.add_node(0, 1, NO_PROPS).unwrap();
+        g.add_node(2, 1, props).unwrap();
 
-        let v1 = g.vertex(1).unwrap();
-        let v1_w = g.window(0, 1).vertex(1).unwrap();
+        let v1 = g.node(1).unwrap();
+        let v1_w = g.window(0, 1).node(1).unwrap();
         assert_eq!(
             v1.properties().as_map(),
             props
@@ -475,7 +475,7 @@ mod vertex_test {
     fn test_property_additions() {
         let g = Graph::new();
         let props = [("test", "test")];
-        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        let v1 = g.add_node(0, 1, NO_PROPS).unwrap();
         v1.add_updates(2, props).unwrap();
         let v1_w = v1.window(0, 1);
         assert_eq!(
@@ -491,7 +491,7 @@ mod vertex_test {
     #[test]
     fn test_constant_property_additions() {
         let g = Graph::new();
-        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        let v1 = g.add_node(0, 1, NO_PROPS).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test".into()))
     }
@@ -499,7 +499,7 @@ mod vertex_test {
     #[test]
     fn test_constant_property_updates() {
         let g = Graph::new();
-        let v1 = g.add_vertex(0, 1, NO_PROPS).unwrap();
+        let v1 = g.add_node(0, 1, NO_PROPS).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         v1.update_constant_properties([("test", "test2")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test2".into()))
@@ -509,7 +509,7 @@ mod vertex_test {
     fn test_string_deduplication() {
         let g = Graph::new();
         let v1 = g
-            .add_vertex(0, 1, [("test1", "test"), ("test2", "test")])
+            .add_node(0, 1, [("test1", "test"), ("test2", "test")])
             .unwrap();
         let s1 = v1.properties().get("test1").unwrap_str();
         let s2 = v1.properties().get("test2").unwrap_str();

@@ -1,5 +1,5 @@
 use crate::model::schema::{
-    get_vertex_type, merge_schemas, property_schema::PropertySchema, SchemaAggregate,
+    get_node_type, merge_schemas, property_schema::PropertySchema, SchemaAggregate,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -41,8 +41,8 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     /// Returns the list of property schemas for edges connecting these types of nodes
     async fn properties(&self) -> Vec<PropertySchema> {
         let filter_types = |edge: &EdgeView<G>| {
-            let src_type = get_vertex_type(edge.src());
-            let dst_type = get_vertex_type(edge.dst());
+            let src_type = get_node_type(edge.src());
+            let dst_type = get_node_type(edge.dst());
             src_type == self.src_type && dst_type == self.dst_type
         };
 
