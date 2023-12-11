@@ -228,6 +228,7 @@ fn local_login_count(
         })
 }
 
+#[inline]
 fn count_logins(
     b_vid: VID,
     prog1_map: &[(Time, usize)],
