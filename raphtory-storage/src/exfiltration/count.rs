@@ -190,6 +190,7 @@ fn merge_nft_prog1(
     merge_counter.finish(next_nft_event.into_iter().chain(nft_events_iter))
 }
 
+#[inline]
 fn loop_events(
     a_vid: VID,
     events_1v_edge: &Edge,
