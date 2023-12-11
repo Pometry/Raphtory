@@ -14,12 +14,12 @@ use crate::{
                 BoxedLIter, IntoDynBoxed, TimeOps,
             },
         },
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 
-pub trait BaseVertexViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
+pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
@@ -27,7 +27,7 @@ pub trait BaseVertexViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> 
         T: 'graph;
 
     type PropType: PropertiesOps + Clone + 'graph;
-    type PathType: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
+    type PathType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
         + 'graph;
     type Edge: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
     type EList: EdgeListOps<'graph, Edge = Self::Edge> + 'graph;
@@ -56,110 +56,110 @@ pub trait BaseVertexViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> 
     ) -> Self::PathType;
 }
 
-/// Operations defined for a vertex
-pub trait VertexViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
+/// Operations defined for a node
+pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
     where
         T: 'graph;
-    type PathType: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
+    type PathType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
         + 'graph;
     type PropType: PropertiesOps + Clone + 'graph;
     type Edge: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
     type EList: EdgeListOps<'graph, Edge = Self::Edge> + 'graph;
 
-    /// Get the numeric id of the vertex
+    /// Get the numeric id of the node
     fn id(&self) -> Self::ValueType<u64>;
 
-    /// Get the name of this vertex if a user has set one otherwise it returns the ID.
+    /// Get the name of this node if a user has set one otherwise it returns the ID.
     ///
     /// Returns:
     ///
-    /// The name of the vertex if one exists, otherwise the ID as a string.
+    /// The name of the node if one exists, otherwise the ID as a string.
     fn name(&self) -> Self::ValueType<String>;
 
-    /// Get the timestamp for the earliest activity of the vertex
+    /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    /// Get the timestamp for the latest activity of the vertex
+    /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    /// Gets the history of the vertex (time that the vertex was added and times when changes were made to the vertex)
+    /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// Get a view of the temporal properties of this vertex.
+    /// Get a view of the temporal properties of this node.
     ///
     /// Returns:
     ///
     /// A view with the names of the properties as keys and the property values as values.
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
-    /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
+    /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
     /// Returns:
     ///
-    /// The degree of this vertex.
+    /// The degree of this node.
     fn degree(&self) -> Self::ValueType<usize>;
 
-    /// Get the in-degree of this vertex (i.e., the number of edges that point into it).
+    /// Get the in-degree of this node (i.e., the number of edges that point into it).
     ///
     /// Returns:
     ///
-    /// The in-degree of this vertex.
+    /// The in-degree of this node.
     fn in_degree(&self) -> Self::ValueType<usize>;
 
-    /// Get the out-degree of this vertex (i.e., the number of edges that point out of it).
+    /// Get the out-degree of this node (i.e., the number of edges that point out of it).
     ///
     /// Returns:
     ///
-    /// The out-degree of this vertex.
+    /// The out-degree of this node.
     fn out_degree(&self) -> Self::ValueType<usize>;
 
-    /// Get the edges that are incident to this vertex.
+    /// Get the edges that are incident to this node.
     ///
     /// Returns:
     ///
-    /// An iterator over the edges that are incident to this vertex.
+    /// An iterator over the edges that are incident to this node.
     fn edges(&self) -> Self::EList;
 
-    /// Get the edges that point into this vertex.
+    /// Get the edges that point into this node.
     ///
     /// Returns:
     ///
-    /// An iterator over the edges that point into this vertex.
+    /// An iterator over the edges that point into this node.
     fn in_edges(&self) -> Self::EList;
 
-    /// Get the edges that point out of this vertex.
+    /// Get the edges that point out of this node.
     ///
     /// Returns:
     ///
-    /// An iterator over the edges that point out of this vertex.
+    /// An iterator over the edges that point out of this node.
     fn out_edges(&self) -> Self::EList;
 
-    /// Get the neighbours of this vertex.
+    /// Get the neighbours of this node.
     ///
     /// Returns:
     ///
-    /// An iterator over the neighbours of this vertex.
+    /// An iterator over the neighbours of this node.
     fn neighbours(&self) -> Self::PathType;
 
-    /// Get the neighbours of this vertex that point into this vertex.
+    /// Get the neighbours of this node that point into this node.
     ///
     /// Returns:
     ///
-    /// An iterator over the neighbours of this vertex that point into this vertex.
+    /// An iterator over the neighbours of this node that point into this node.
     fn in_neighbours(&self) -> Self::PathType;
 
-    /// Get the neighbours of this vertex that point out of this vertex.
+    /// Get the neighbours of this node that point out of this node.
     ///
     /// Returns:
     ///
-    /// An iterator over the neighbours of this vertex that point out of this vertex.
+    /// An iterator over the neighbours of this node that point out of this node.
     fn out_neighbours(&self) -> Self::PathType;
 }
 
-impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V {
+impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     type BaseGraph = V::BaseGraph;
     type Graph = V::Graph;
     type ValueType<T: 'graph> = V::ValueType<T>;
@@ -170,23 +170,23 @@ impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V 
 
     #[inline]
     fn id(&self) -> Self::ValueType<u64> {
-        self.map(|g, v| g.vertex_id(v))
+        self.map(|g, v| g.node_id(v))
     }
     #[inline]
     fn name(&self) -> Self::ValueType<String> {
-        self.map(|g, v| g.vertex_name(v))
+        self.map(|g, v| g.node_name(v))
     }
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, v| g.vertex_earliest_time(v))
+        self.map(|g, v| g.node_earliest_time(v))
     }
     #[inline]
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, v| g.vertex_latest_time(v))
+        self.map(|g, v| g.node_latest_time(v))
     }
     #[inline]
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, v| g.vertex_history(v))
+        self.map(|g, v| g.node_history(v))
     }
     #[inline]
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -206,15 +206,15 @@ impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V 
     }
     #[inline]
     fn edges(&self) -> Self::EList {
-        self.map_edges(|g, v| g.vertex_edges(v, Direction::BOTH, g.layer_ids(), g.edge_filter()))
+        self.map_edges(|g, v| g.node_edges(v, Direction::BOTH, g.layer_ids(), g.edge_filter()))
     }
     #[inline]
     fn in_edges(&self) -> Self::EList {
-        self.map_edges(|g, v| g.vertex_edges(v, Direction::IN, g.layer_ids(), g.edge_filter()))
+        self.map_edges(|g, v| g.node_edges(v, Direction::IN, g.layer_ids(), g.edge_filter()))
     }
     #[inline]
     fn out_edges(&self) -> Self::EList {
-        self.map_edges(|g, v| g.vertex_edges(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
+        self.map_edges(|g, v| g.node_edges(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
@@ -230,25 +230,23 @@ impl<'graph, V: BaseVertexViewOps<'graph> + 'graph> VertexViewOps<'graph> for V 
     }
 }
 
-/// A trait for operations on a list of vertices.
-pub trait VertexListOps<'graph>:
-    IntoIterator<Item = Self::ValueType<Self::Vertex>> + Sized
-{
-    type Vertex: VertexViewOps<'graph> + TimeOps<'graph> + 'graph;
-    type Neighbour: VertexViewOps<
+/// A trait for operations on a list of nodes.
+pub trait NodeListOps<'graph>: IntoIterator<Item = Self::ValueType<Self::Node>> + Sized {
+    type Node: NodeViewOps<'graph> + TimeOps<'graph> + 'graph;
+    type Neighbour: NodeViewOps<
         'graph,
-        BaseGraph = <Self::Vertex as VertexViewOps<'graph>>::BaseGraph,
-        Graph = <Self::Vertex as VertexViewOps<'graph>>::BaseGraph,
+        BaseGraph = <Self::Node as NodeViewOps<'graph>>::BaseGraph,
+        Graph = <Self::Node as NodeViewOps<'graph>>::BaseGraph,
     >;
     type Edge: EdgeViewOps<
             'graph,
-            BaseGraph = <Self::Vertex as VertexViewOps<'graph>>::BaseGraph,
-            Graph = <Self::Vertex as VertexViewOps<'graph>>::Graph,
+            BaseGraph = <Self::Node as NodeViewOps<'graph>>::BaseGraph,
+            Graph = <Self::Node as NodeViewOps<'graph>>::Graph,
         > + 'graph;
 
-    /// The type of the iterator for the list of vertices
+    /// The type of the iterator for the list of nodes
     type IterType<T>: Iterator<
-        Item = Self::ValueType<<Self::Vertex as VertexViewOps<'graph>>::ValueType<T>>,
+        Item = Self::ValueType<<Self::Node as NodeViewOps<'graph>>::ValueType<T>>,
     >
     where
         T: 'graph;
@@ -263,95 +261,95 @@ pub trait VertexListOps<'graph>:
     /// Return the timestamp of the latest activity.
     fn latest_time(self) -> Self::IterType<Option<i64>>;
 
-    /// Create views for the vertices including all events between `start` (inclusive) and `end` (exclusive)
+    /// Create views for the nodes including all events between `start` (inclusive) and `end` (exclusive)
     fn window(
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType>;
+    ) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType>;
 
-    /// Create views for the vertices including all events until `end` (inclusive)
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType>;
+    /// Create views for the nodes including all events until `end` (inclusive)
+    fn at(self, end: i64) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType>;
 
-    /// Returns the ids of vertices in the list.
+    /// Returns the ids of nodes in the list.
     ///
     /// Returns:
-    /// The ids of vertices in the list.
+    /// The ids of nodes in the list.
     fn id(self) -> Self::IterType<u64>;
     fn name(self) -> Self::IterType<String>;
 
-    /// Returns an iterator over properties of the vertices
+    /// Returns an iterator over properties of the nodes
     fn properties(
         self,
-    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>>;
+    ) -> Self::IterType<Properties<<Self::Node as NodeViewOps<'graph>>::PropType>>;
 
     fn history(self) -> Self::IterType<Vec<i64>>;
 
-    /// Returns an iterator over the degree of the vertices.
+    /// Returns an iterator over the degree of the nodes.
     ///
     /// Returns:
-    /// An iterator over the degree of the vertices.
+    /// An iterator over the degree of the nodes.
     fn degree(self) -> Self::IterType<usize>;
 
-    /// Returns an iterator over the in-degree of the vertices.
-    /// The in-degree of a vertex is the number of edges that connect to it from other vertices.
+    /// Returns an iterator over the in-degree of the nodes.
+    /// The in-degree of a node is the number of edges that connect to it from other nodes.
     ///
     /// Returns:
-    /// An iterator over the in-degree of the vertices.
+    /// An iterator over the in-degree of the nodes.
     fn in_degree(self) -> Self::IterType<usize>;
 
-    /// Returns an iterator over the out-degree of the vertices.
-    /// The out-degree of a vertex is the number of edges that connects to it from the vertex.
+    /// Returns an iterator over the out-degree of the nodes.
+    /// The out-degree of a node is the number of edges that connects to it from the node.
     ///
     /// Returns:
     ///
-    /// An iterator over the out-degree of the vertices.
+    /// An iterator over the out-degree of the nodes.
     fn out_degree(self) -> Self::IterType<usize>;
 
-    /// Returns an iterator over the edges of the vertices.
+    /// Returns an iterator over the edges of the nodes.
     fn edges(self) -> Self::IterType<Self::Edge>;
 
-    /// Returns an iterator over the incoming edges of the vertices.
+    /// Returns an iterator over the incoming edges of the nodes.
     ///
     /// Returns:
     ///
-    /// An iterator over the incoming edges of the vertices.
+    /// An iterator over the incoming edges of the nodes.
     fn in_edges(self) -> Self::IterType<Self::Edge>;
 
-    /// Returns an iterator over the outgoing edges of the vertices.
+    /// Returns an iterator over the outgoing edges of the nodes.
     ///
     /// Returns:
     ///
-    /// An iterator over the outgoing edges of the vertices.
+    /// An iterator over the outgoing edges of the nodes.
     fn out_edges(self) -> Self::IterType<Self::Edge>;
 
-    /// Returns an iterator over the neighbours of the vertices.
+    /// Returns an iterator over the neighbours of the nodes.
     ///
     /// Returns:
     ///
-    /// An iterator over the neighbours of the vertices as VertexViews.
+    /// An iterator over the neighbours of the nodes as NodeViews.
     fn neighbours(self) -> Self::IterType<Self::Neighbour>;
 
-    /// Returns an iterator over the incoming neighbours of the vertices.
+    /// Returns an iterator over the incoming neighbours of the nodes.
     ///
     /// Returns:
     ///
-    /// An iterator over the incoming neighbours of the vertices as VertexViews.
+    /// An iterator over the incoming neighbours of the nodes as NodeViews.
     fn in_neighbours(self) -> Self::IterType<Self::Neighbour>;
 
-    /// Returns an iterator over the outgoing neighbours of the vertices.
+    /// Returns an iterator over the outgoing neighbours of the nodes.
     ///
     /// Returns:
     ///
-    /// An iterator over the outgoing neighbours of the vertices as VertexViews.
+    /// An iterator over the outgoing neighbours of the nodes as NodeViews.
     fn out_neighbours(self) -> Self::IterType<Self::Neighbour>;
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'graph>
-    for BoxedLIter<'graph, BoxedLIter<'graph, VertexView<G, GH>>>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeListOps<'graph>
+    for BoxedLIter<'graph, BoxedLIter<'graph, NodeView<G, GH>>>
 {
-    type Vertex = VertexView<G, GH>;
-    type Neighbour = VertexView<G, G>;
+    type Node = NodeView<G, GH>;
+    type Neighbour = NodeView<G, G>;
     type Edge = EdgeView<G, GH>;
     type IterType<T> = BoxedLIter<'graph, BoxedLIter<'graph, T>> where T: 'graph;
     type ValueType<T> = BoxedLIter<'graph, T> where T: 'graph;
@@ -368,11 +366,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'g
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+    ) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
         self.map(move |it| it.window(start, end)).into_dyn_boxed()
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
         self.map(move |it| it.at(end)).into_dyn_boxed()
     }
 
@@ -386,7 +384,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> VertexListOps<'g
 
     fn properties(
         self,
-    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>> {
+    ) -> Self::IterType<Properties<<Self::Node as NodeViewOps<'graph>>::PropType>> {
         self.map(|it| it.properties()).into_dyn_boxed()
     }
 

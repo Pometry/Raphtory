@@ -1,8 +1,8 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::entities::VID,
-    db::graph::vertex::VertexView,
-    prelude::{GraphViewOps, VertexViewOps},
+    db::graph::node::NodeView,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use ordered_float::OrderedFloat;
 use std::collections::{HashMap, VecDeque};
@@ -26,9 +26,9 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     // Initialize a hashmap to store betweenness centrality values.
     let mut betweenness: HashMap<usize, f64> = HashMap::new();
 
-    // Get the vertices and the total number of vertices in the graph.
-    let nodes = g.vertices();
-    let n = g.count_vertices();
+    // Get the nodes and the total number of nodes in the graph.
+    let nodes = g.nodes();
+    let n = g.count_nodes();
     let k_sample = k.unwrap_or(n);
 
     // Main loop over each node to compute betweenness centrality.
@@ -41,32 +41,32 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
 
         // Initialize distance and sigma values for each node.
         for node in nodes.iter() {
-            dist.insert(node.vertex.0, -1);
-            sigma.insert(node.vertex.0, 0.0);
+            dist.insert(node.node.0, -1);
+            sigma.insert(node.node.0, 0.0);
         }
-        dist.insert(node.vertex.0, 0);
-        sigma.insert(node.vertex.0, 1.0);
-        queue.push_back(node.vertex.0);
+        dist.insert(node.node.0, 0);
+        sigma.insert(node.node.0, 1.0);
+        queue.push_back(node.node.0);
 
         // BFS loop to find shortest paths.
         while let Some(current_node_id) = queue.pop_front() {
             stack.push(current_node_id);
             for neighbor in
-                VertexView::new_internal(g.clone(), VID::from(current_node_id)).out_neighbours()
+                NodeView::new_internal(g.clone(), VID::from(current_node_id)).out_neighbours()
             {
                 // Path discovery
-                if dist[&neighbor.vertex.0] < 0 {
-                    queue.push_back(neighbor.vertex.0);
-                    dist.insert(neighbor.vertex.0, dist[&current_node_id] + 1);
+                if dist[&neighbor.node.0] < 0 {
+                    queue.push_back(neighbor.node.0);
+                    dist.insert(neighbor.node.0, dist[&current_node_id] + 1);
                 }
                 // Path counting
-                if dist[&neighbor.vertex.0] == dist[&current_node_id] + 1 {
+                if dist[&neighbor.node.0] == dist[&current_node_id] + 1 {
                     sigma.insert(
-                        neighbor.vertex.0,
-                        sigma[&neighbor.vertex.0] + sigma[&current_node_id],
+                        neighbor.node.0,
+                        sigma[&neighbor.node.0] + sigma[&current_node_id],
                     );
                     predecessors
-                        .entry(neighbor.vertex.0)
+                        .entry(neighbor.node.0)
                         .or_insert_with(Vec::new)
                         .push(current_node_id);
                 }
@@ -75,7 +75,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
 
         let mut delta: HashMap<usize, f64> = HashMap::new();
         for node in nodes.iter() {
-            delta.insert(node.vertex.0, 0.0);
+            delta.insert(node.node.0, 0.0);
         }
 
         // Accumulation
@@ -85,7 +85,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
                 let new_delta_v = delta[v] + coeff;
                 delta.insert(*v, new_delta_v);
             }
-            if w != node.vertex.0 {
+            if w != node.node.0 {
                 let updated_betweenness = betweenness.entry(w).or_insert(0.0);
                 *updated_betweenness += delta[&w];
             }
@@ -96,16 +96,16 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     if let Some(true) = normalized {
         let factor = 1.0 / ((n as f64 - 1.0) * (n as f64 - 2.0));
         for node in nodes.iter() {
-            if betweenness.contains_key(&node.vertex.0) {
-                betweenness.insert(node.vertex.0, betweenness[&node.vertex.0] * factor);
+            if betweenness.contains_key(&node.node.0) {
+                betweenness.insert(node.node.0, betweenness[&node.node.0] * factor);
             } else {
-                betweenness.insert(node.vertex.0, 0.0f64);
+                betweenness.insert(node.node.0, 0.0f64);
             }
         }
     } else {
         for node in nodes.iter() {
-            if !betweenness.contains_key(&node.vertex.0) {
-                betweenness.insert(node.vertex.0, 0.0f64);
+            if !betweenness.contains_key(&node.node.0) {
+                betweenness.insert(node.node.0, 0.0f64);
             }
         }
     }

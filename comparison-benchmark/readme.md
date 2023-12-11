@@ -50,7 +50,7 @@ The results for a 1000 edge file are below
     Raphtory Quick Benchmark
     Running setup...
     Setup took 0.015264357 seconds
-    Graph has 864 vertices and 1000 edges
+    Graph has 864 nodes and 1000 edges
     Degree: 0.001719875 seconds
     Out neighbours: 0.000247832 seconds
     Page rank: 0.012001127 seconds

@@ -41,7 +41,7 @@
 //!
 //! let graph = sx_superuser_graph().unwrap();
 //!
-//! println!("The graph has {:?} vertices", graph.count_vertices());
+//! println!("The graph has {:?} nodes", graph.count_nodes());
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 

@@ -101,9 +101,9 @@ mod vector_tests {
         core::Prop,
         db::{
             api::view::StaticGraphViewOps,
-            graph::{edge::EdgeView, vertex::VertexView},
+            graph::{edge::EdgeView, node::NodeView},
         },
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
+        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
         vectors::{
             document_template::DocumentTemplate, embeddings::openai_embedding,
             graph_entity::GraphEntity, vectorisable::Vectorisable,
@@ -131,11 +131,11 @@ mod vector_tests {
     struct CustomTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
-            let name = vertex.name();
-            let node_type = vertex.properties().get("type").unwrap().to_string();
+        fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+            let name = node.name();
+            let node_type = node.properties().get("type").unwrap().to_string();
             let property_list =
-                vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
+                node.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
             let content =
                 format!("{name} is a {node_type} with the following details:\n{property_list}");
             Box::new(std::iter::once(content.into()))
@@ -153,7 +153,7 @@ mod vector_tests {
     #[tokio::test]
     async fn test_embedding_cache() {
         let g = Graph::new();
-        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS).unwrap();
 
         // the following succeeds with no cache set up
         g.vectorise(Box::new(fake_embedding), None, true, false)
@@ -204,7 +204,7 @@ mod vector_tests {
     #[test]
     fn test_node_into_doc() {
         let g = Graph::new();
-        g.add_vertex(
+        g.add_node(
             0,
             "Frodo",
             [
@@ -216,7 +216,7 @@ mod vector_tests {
 
         let custom_template = CustomTemplate;
         let doc: DocumentInput = custom_template
-            .node(&g.vertex("Frodo").unwrap())
+            .node(&g.node("Frodo").unwrap())
             .next()
             .unwrap()
             .into();
@@ -249,7 +249,7 @@ age: 30"###;
     struct FakeMultiDocumentTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
-        fn node(&self, _vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
                     .into_iter()
@@ -264,7 +264,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_multi_embedding() {
         let g = Graph::new();
-        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS).unwrap();
 
         let vectors = g
             .vectorise_with_template(
@@ -297,7 +297,7 @@ age: 30"###;
     struct FakeTemplateWithIntervals;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
-        fn node(&self, _vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
                 life: Lifespan::Event { time: 20 },
@@ -317,7 +317,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_window() {
         let g = Graph::new();
-        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS).unwrap();
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
@@ -367,7 +367,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store() {
         let g = Graph::new();
-        g.add_vertex(
+        g.add_node(
             0,
             "Gandalf",
             [
@@ -376,7 +376,7 @@ age: 30"###;
             ],
         )
         .unwrap();
-        g.add_vertex(
+        g.add_node(
             0,
             "Frodo",
             [
@@ -387,7 +387,7 @@ age: 30"###;
         .unwrap();
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
-        g.add_vertex(
+        g.add_node(
             2,
             "Aragorn",
             [

@@ -1,16 +1,16 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{nodes::node_ref::NodeRef, VID},
         state::compute_state::ComputeStateVec,
     },
     db::{
         api::view::StaticGraphViewOps,
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
     prelude::*,
@@ -37,7 +37,7 @@ fn tarjan<'graph, G>(
     on_stack.insert(node);
 
     let out_neighbours = graph
-        .vertex(node)
+        .node(node)
         .map(|vv| vv.out_neighbours().iter().map(|vv| vv.id()).collect_vec());
 
     if let Some(neighbors) = out_neighbours {
@@ -78,9 +78,9 @@ where
     let mut on_stack: HashSet<u64> = HashSet::new();
     let mut result: Vec<Vec<u64>> = Vec::new();
 
-    let vertices = graph.vertices().id().collect::<Vec<u64>>();
+    let nodes = graph.nodes().id().collect::<Vec<u64>>();
 
-    for node in vertices {
+    for node in nodes {
         if !indices.contains_key(&node) {
             tarjan(
                 node,
@@ -108,7 +108,7 @@ where
     }
 
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<G, SCCNode>| {
+    let step1 = ATask::new(move |vv: &mut EvalNodeView<G, SCCNode>| {
         let id = vv.id();
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
@@ -118,7 +118,7 @@ where
         });
 
         while let Some(neighbour_id) = to_check_stack.pop() {
-            if let Some(neighbour) = vv.graph().vertex(neighbour_id) {
+            if let Some(neighbour) = vv.graph().node(neighbour_id) {
                 neighbour.out_neighbours().id().for_each(|id| {
                     if !out_components.contains(&id) {
                         out_components.insert(id);
@@ -149,7 +149,7 @@ where
                 .filter_map(|(v_ref_id, state)| {
                     let v_ref = VID(v_ref_id);
                     graph
-                        .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
+                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
                         .then_some((v_ref_id, state.is_scc_node.clone()))
                 })
                 .collect::<HashMap<_, _>>()

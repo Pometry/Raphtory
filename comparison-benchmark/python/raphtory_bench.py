@@ -49,10 +49,10 @@ class RaphtoryBench(BenchmarkBase):
                 self.graph.add_edge(1, row[0], row[1], {})
 
     def degree(self):
-        return list(self.graph.vertices().degree())
+        return list(self.graph.nodes().degree())
 
     def out_neighbours(self):
-        return list([list(o) for o in self.graph.vertices().out_neighbours()])
+        return list([list(o) for o in self.graph.nodes().out_neighbours()])
 
     def page_rank(self):
         return pagerank(self.graph, iter_count=100)

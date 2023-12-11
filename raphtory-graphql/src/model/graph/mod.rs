@@ -3,9 +3,9 @@ use raphtory::{
     core::ArcStr,
     db::{
         api::view::DynamicGraph,
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, NodeViewOps},
 };
 use std::collections::HashSet;
 
@@ -17,7 +17,7 @@ pub(crate) mod vectorised_graph;
 
 fn get_expanded_edges(
     graph_nodes: HashSet<String>,
-    vv: VertexView<DynamicGraph>,
+    vv: NodeView<DynamicGraph>,
     maybe_layers: Option<Vec<String>>,
 ) -> Vec<EdgeView<DynamicGraph>> {
     let node_found_in_graph_nodes =

@@ -45,7 +45,7 @@ class GraphToolBench(BenchmarkBase):
         self.graph.degree_property_map("total").get_array()
 
     def out_neighbours(self):
-        [len(list(v.out_neighbours())) for v in self.graph.vertices()]
+        [len(list(v.out_neighbours())) for v in self.graph.nodes()]
 
     def page_rank(self):
         pr = gt.pagerank(self.graph)

@@ -50,19 +50,19 @@
 
 use crate::{
     algorithms::motifs::local_triangle_count::local_triangle_count,
-    core::entities::vertices::vertex_ref::VertexRef, db::api::view::*,
+    core::entities::nodes::node_ref::NodeRef, db::api::view::*,
 };
 
 /// measures the degree to which nodes in a graph tend to cluster together
-pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: Into<VertexRef>>(
+pub fn local_clustering_coefficient<G: StaticGraphViewOps, V: Into<NodeRef>>(
     graph: &G,
     v: V,
 ) -> Option<f32> {
     let v = v.into();
-    if let Some(vertex) = graph.vertex(v) {
+    if let Some(node) = graph.node(v) {
         if let Some(triangle_count) = local_triangle_count(graph, v) {
             let triangle_count = triangle_count as f32;
-            let degree = vertex.degree() as f32;
+            let degree = node.degree() as f32;
             if degree > 1.0 {
                 Some((2.0 * triangle_count) / (degree * (degree - 1.0)))
             } else {
