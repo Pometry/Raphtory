@@ -293,7 +293,7 @@ mod graphql_test {
 
         let list_graphs = r#"
         {
-          subgraphs {
+          graphs {
             name
           }
         }"#;
@@ -334,7 +334,7 @@ mod graphql_test {
         let req = Request::new(list_graphs);
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"subgraphs": [{"name": "g0"}]}));
+        assert_eq!(res_json, json!({"graphs": [{"name": "g0"}]}));
 
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
