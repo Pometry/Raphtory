@@ -138,7 +138,7 @@ impl MergeCounter {
             self.update_lookup(prog1);
         }
     }
-
+    #[inline]
     fn finish(
         mut self,
         remaining_windows: impl Iterator<Item = Window>,
