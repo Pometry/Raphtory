@@ -162,6 +162,7 @@ impl MergeCounter {
     }
 }
 
+#[inline]
 fn merge_nft_prog1(
     events_1v_edge: &Edge,
     nft_events: impl IntoIterator<Item = Window>,
