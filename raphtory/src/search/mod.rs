@@ -1,6 +1,6 @@
 // search goes here
 
-mod into_indexed;
+pub mod into_indexed;
 
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 

@@ -118,22 +118,6 @@ static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
 });
 
 impl GraphWithDeletions {
-    fn vertex_alive_at(
-        &self,
-        v: &VertexStore,
-        t: i64,
-        layers: &LayerIds,
-        edge_filter: Option<&EdgeFilter>,
-    ) -> bool {
-        let edges = self.graph.inner().storage.edges.read_lock();
-        v.edge_tuples(layers, Direction::BOTH)
-            .map(|eref| edges.get(eref.pid().into()))
-            .find(|&e| {
-                edge_filter.map(|f| f(e, layers)).unwrap_or(true) && edge_alive_at(e, t, layers)
-            })
-            .is_some()
-    }
-
     pub fn new() -> Self {
         Self {
             graph: Arc::new(InternalGraph::default()),
@@ -892,5 +876,69 @@ mod test_deletions {
         assert_eq!(v.at(10).earliest_time(), Some(10));
         assert_eq!(v.at(10).latest_time(), Some(10));
         assert_eq!(v.latest_time(), Some(i64::MAX));
+    }
+
+    #[test]
+    fn test_jira() {
+        let g = GraphWithDeletions::new();
+
+        g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
+            .unwrap();
+        g.add_edge(1, 1, 3, [("added", Prop::I64(0))], Some("assigned"))
+            .unwrap();
+        g.add_edge(2, 4, 2, [("added", Prop::I64(0))], Some("has"))
+            .unwrap();
+        g.add_edge(3, 4, 2, [("added", Prop::I64(0))], Some("has"))
+            .unwrap();
+        g.add_edge(4, 5, 2, [("added", Prop::I64(0))], Some("blocks"))
+            .unwrap();
+        g.add_edge(5, 4, 5, [("added", Prop::I64(0))], Some("has"))
+            .unwrap();
+        g.add_edge(6, 6, 5, [("added", Prop::I64(0))], Some("assigned"))
+            .unwrap();
+
+        let vertices = g
+            .window(0, 1701786285758)
+            .layer(vec!["assigned", "has", "blocks"])
+            .unwrap()
+            .edges()
+            .into_iter()
+            .map(|vv| vv.id())
+            .collect_vec();
+
+        println!("windowed edges = {:?}", vertices);
+
+        let vertices = g
+            .window(0, 1701786285758)
+            .layer(vec!["assigned", "has", "blocks"])
+            .unwrap()
+            .vertices()
+            .into_iter()
+            .map(|vv| vv.name())
+            .collect_vec();
+
+        println!("windowed vertices = {:?}", vertices);
+
+        let vertices = g
+            .at(1701786285758)
+            .layer(vec!["assigned", "has", "blocks"])
+            .unwrap()
+            .edges()
+            .into_iter()
+            .map(|vv| vv.id())
+            .collect_vec();
+        println!("at edges = {:?}", vertices);
+
+        let vertices = g
+            .at(1701786285758)
+            .layer(vec!["assigned", "has", "blocks"])
+            .unwrap()
+            .vertices()
+            .into_iter()
+            .map(|vv| vv.id())
+            .collect_vec();
+
+        println!("at vertices = {:?}", vertices);
+        // assert_eq!(g.window(1, 2).vertex(0).unwrap().out_degree(), 1)
     }
 }
