@@ -30,24 +30,28 @@ enum Window {
 }
 
 impl PartialOrd for Window {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.t().partial_cmp(&other.t())
     }
 }
 
 impl Ord for Window {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.t().cmp(&other.t())
     }
 }
 
 impl PartialEq for Window {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.t() == other.t()
     }
 }
 
 impl Window {
+    #[inline]
     pub fn t(&self) -> i64 {
         match self {
             Window::Start { t, .. } => *t,
@@ -55,11 +59,11 @@ impl Window {
         }
     }
 }
-
+#[inline]
 fn window_bounds(t: i64, w: i64) -> [Window; 2] {
     [Window::Start { t: t - w }, Window::End { t }]
 }
-
+#[inline]
 fn valid_netflow_events(
     nft_graph: &TempColGraphFragment,
     b_vid: VID,
@@ -102,6 +106,7 @@ struct MergeCounter {
 }
 
 impl MergeCounter {
+    #[inline]
     fn update_lookup(&mut self, t: Time) {
         if let Some(last) = self.lookup.last_mut().filter(|(last_t, _)| last_t == &t) {
             last.1 = self.count;
@@ -120,7 +125,7 @@ impl MergeCounter {
             self.update_lookup(t);
         }
     }
-
+    #[inline]
     fn update_nft(&mut self, event: Window) {
         match event {
             Window::Start { t } => self.update_window_start(t),
@@ -130,7 +135,7 @@ impl MergeCounter {
             }
         }
     }
-
+    #[inline]
     fn update_prog1(&mut self, prog1: i64) {
         if !self.active_windows.is_empty() {
             self.event_count += 1;

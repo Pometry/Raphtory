@@ -7,6 +7,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 pub mod count;
 pub mod list;
 
+#[inline]
 fn find_active_nodes(layer: &TempColGraphFragment) -> impl ParallelIterator<Item = VID> + '_ {
     let chunk_size = layer.vertex_chunk_size();
     layer
