@@ -18,6 +18,7 @@ use std::{
     time::Instant,
 };
 
+#[inline]
 fn valid_netflow_events(
     nft_graph: &TempColGraphFragment,
     b_vid: VID,
@@ -41,6 +42,7 @@ fn valid_netflow_events(
     .map(Event::Netflow)
 }
 
+#[inline]
 fn login_edges(
     events_2v_graph: &TempColGraphFragment,
     b_vid: VID,
@@ -64,6 +66,7 @@ fn login_edges(
     .map(Event::Login)
 }
 
+#[inline]
 fn prog1_edges(
     event_1v_graph: &TempColGraphFragment,
     b_vid: VID,
@@ -92,6 +95,7 @@ enum Event<'a> {
 }
 
 impl<'a> PartialEq for Event<'a> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Event::Login(e1), Event::Login(e2)) => e1.timestamp() == e2.timestamp(),
@@ -105,6 +109,7 @@ impl<'a> PartialEq for Event<'a> {
 impl<'a> Eq for Event<'a> {}
 
 impl<'a> PartialOrd for Event<'a> {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -113,6 +118,7 @@ impl<'a> PartialOrd for Event<'a> {
 // the order of the different events at the same time point is crucial, need Login, then Prog1
 // and then Netflow to get the window bounds correct
 impl<'a> Ord for Event<'a> {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         match other.t().cmp(&self.t()) {
             Ordering::Less => Ordering::Less,
@@ -139,6 +145,7 @@ impl<'a> Ord for Event<'a> {
 }
 
 impl<'a> Event<'a> {
+    #[inline]
     fn inner(&self) -> &ExplodedEdge<'a> {
         match self {
             Event::Login(e) => e,
@@ -147,10 +154,12 @@ impl<'a> Event<'a> {
         }
     }
 
+    #[inline]
     fn t(&self) -> Time {
         self.inner().timestamp()
     }
 
+    #[inline]
     fn name(&self) -> &'static str {
         match self {
             Event::Login(_) => "Login",
@@ -170,6 +179,7 @@ struct MergeIter<'a, I: Iterator<Item = Event<'a>>> {
 }
 
 impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
+    #[inline]
     fn new(events: I, window: i64) -> Self {
         Self {
             events,
@@ -180,14 +190,17 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
             window,
         }
     }
+    #[inline]
     fn oldest_window_t(&self) -> Option<Time> {
         self.active_netflow.front().map(|(t, _, _)| *t)
     }
 
+    #[inline]
     fn oldest_count(&self) -> Option<usize> {
         self.active_netflow.front().map(|(_, count, _)| *count)
     }
 
+    #[inline]
     fn advance_windows(&mut self, new_t: Time) {
         while self.oldest_window_t() > Some(new_t) {
             let (_, index, _) = self.active_netflow.pop_front().unwrap();
@@ -201,6 +214,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
         }
     }
 
+    #[inline]
     fn handle_next_event(&mut self) -> bool {
         if let Some(next_event) = self.events.next() {
             self.advance_windows(next_event.t());
@@ -237,6 +251,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
         }
     }
 
+    #[inline]
     fn next_inner(&mut self) -> (ExplodedEdge<'a>, ExplodedEdge<'a>, ExplodedEdge<'a>) {
         let inner_state = self.inner_state.as_mut().unwrap();
         let (_, _, netflow) = self.active_netflow[inner_state.netflow_index].clone();
@@ -262,6 +277,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> MergeIter<'a, I> {
 impl<'a, I: Iterator<Item = Event<'a>>> Iterator for MergeIter<'a, I> {
     type Item = (ExplodedEdge<'a>, ExplodedEdge<'a>, ExplodedEdge<'a>);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         while self.inner_state.is_none() {
             if !self.handle_next_event() {
@@ -280,6 +296,7 @@ struct MergeInnerState<'a> {
 }
 
 impl<'a> MergeInnerState<'a> {
+    #[inline]
     fn new(login: ExplodedEdge<'a>, netflow_index: usize, prog1_len: usize) -> Self {
         Self {
             login,
@@ -289,6 +306,7 @@ impl<'a> MergeInnerState<'a> {
         }
     }
 
+    #[inline]
     fn advance(&mut self) -> bool {
         self.prog1_index += 1;
         if self.prog1_index >= self.prog1_len {
@@ -359,6 +377,7 @@ pub fn query_per_vertex<'a, GO: GlobalOrder>(
     Some(iter)
 }
 
+#[inline]
 pub fn query_all_log_vertices<GO: GlobalOrder>(
     g: &TemporalGraph<GO>,
     window: i64,
