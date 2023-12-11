@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::vertices::input_vertex::InputVertex,
+        entities::nodes::input_node::InputNode,
         state::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
@@ -11,9 +11,9 @@ use crate::{
         api::view::StaticGraphViewOps,
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
     prelude::*,
@@ -25,7 +25,7 @@ use std::{collections::HashMap, ops::Add};
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
     pub event_time: i64,
-    pub src_vertex: String,
+    pub src_node: String,
 }
 
 impl Add for TaintMessage {
@@ -40,7 +40,7 @@ impl Zero for TaintMessage {
     fn zero() -> Self {
         TaintMessage {
             event_time: -1,
-            src_vertex: "".to_string(),
+            src_node: "".to_string(),
         }
     }
 
@@ -52,7 +52,7 @@ impl Zero for TaintMessage {
         *self
             == TaintMessage {
                 event_time: -1,
-                src_vertex: "".to_string(),
+                src_node: "".to_string(),
             }
     }
 }
@@ -63,10 +63,10 @@ impl Zero for TaintMessage {
 ///
 /// Returns
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to a vector of tuples containing the time at which
-/// the vertex was tainted and the ID of the vertex that tainted it
+/// * An AlgorithmResult object containing the mapping from node ID to a vector of tuples containing the time at which
+/// the node was tainted and the ID of the node that tainted it
 ///
-pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
+pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
     g: &G,
     threads: Option<usize>,
     max_hops: usize,
@@ -95,19 +95,19 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
     let earliest_taint_time = min::<i64>(3);
     ctx.agg(earliest_taint_time);
 
-    let tainted_vertices = hash_set::<u64>(4);
-    ctx.global_agg(tainted_vertices);
+    let tainted_nodes = hash_set::<u64>(4);
+    ctx.global_agg(tainted_nodes);
 
-    let step1 = ATask::new(move |evv: &mut EvalVertexView<G, ()>| {
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, ()>| {
         if infected_nodes.contains(&evv.id()) {
-            evv.global_update(&tainted_vertices, evv.id());
+            evv.global_update(&tainted_nodes, evv.id());
             evv.update(&taint_status, true);
             evv.update(&earliest_taint_time, start_time);
             evv.update(
                 &taint_history,
                 TaintMessage {
                     event_time: start_time,
-                    src_vertex: "start".to_string(),
+                    src_node: "start".to_string(),
                 },
             );
             evv.window(start_time, i64::MAX)
@@ -120,7 +120,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
                             &recv_tainted_msgs,
                             TaintMessage {
                                 event_time: t,
-                                src_vertex: evv.name(),
+                                src_node: evv.name(),
                             },
                         )
                     });
@@ -135,7 +135,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
         // println!("v = {}, msgs = {:?}, taint_history = {:?}", evv.global_id(), msgs, evv.read(&taint_history));
 
         if !msgs.is_empty() {
-            evv.global_update(&tainted_vertices, evv.id());
+            evv.global_update(&tainted_nodes, evv.id());
 
             if !evv.read(&taint_status) {
                 evv.update(&taint_status, true);
@@ -156,7 +156,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
                             &recv_tainted_msgs,
                             TaintMessage {
                                 event_time: t,
-                                src_vertex: evv.name(),
+                                src_node: evv.name(),
                             },
                         )
                     });
@@ -167,8 +167,8 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
     });
 
     let step3 = Job::Check(Box::new(move |state| {
-        let prev_tainted_vs = state.read_prev(&tainted_vertices);
-        let curr_tainted_vs = state.read(&tainted_vertices);
+        let prev_tainted_vs = state.read_prev(&tainted_nodes);
+        let curr_tainted_vs = state.read(&tainted_nodes);
         let difference: Vec<_> = curr_tainted_vs
             .iter()
             .filter(|item| !prev_tainted_vs.contains(*item))
@@ -189,7 +189,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputVertex>(
             ess.finalize(&taint_history, |taint_history| {
                 taint_history
                     .into_iter()
-                    .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
+                    .map(|tmsg| (tmsg.event_time, tmsg.src_node))
                     .collect_vec()
             })
         },
@@ -230,7 +230,7 @@ mod generic_taint_tests {
         graph
     }
 
-    fn test_generic_taint<T: InputVertex>(
+    fn test_generic_taint<T: InputNode>(
         graph: Graph,
         iter_count: usize,
         start_time: i64,

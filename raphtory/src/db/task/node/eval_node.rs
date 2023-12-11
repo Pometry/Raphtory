@@ -13,13 +13,11 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{InternalLayerOps, OneHopFilter},
-                BaseVertexViewOps,
+                BaseNodeViewOps,
             },
         },
-        graph::{path::PathFromVertex, vertex::VertexView},
-        task::{
-            edge::eval_edge::EvalEdgeView, task_state::Local2, vertex::eval_vertex_state::EVState,
-        },
+        graph::{node::NodeView, path::PathFromNode},
+        task::{edge::eval_edge::EvalEdgeView, node::eval_node_state::EVState, task_state::Local2},
     },
     prelude::{GraphViewOps, Layer},
 };
@@ -29,16 +27,16 @@ use std::{
     rc::Rc,
 };
 
-pub struct EvalVertexView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
+pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
     ss: usize,
-    vertex: VertexView<&'graph G, GH>,
+    node: NodeView<&'graph G, GH>,
     local_state: Option<&'graph mut S>,
     local_state_prev: &'graph Local2<'a, S>,
-    vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+    node_state: Rc<RefCell<EVState<'a, CS>>>,
 }
 
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
-    EvalVertexView<'graph, 'a, G, S, &'graph G, CS>
+    EvalNodeView<'graph, 'a, G, S, &'graph G, CS>
 {
     pub(crate) fn new_local(
         ss: usize,
@@ -46,19 +44,19 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
         g: &'graph G,
         local_state: Option<&'graph mut S>,
         local_state_prev: &'graph Local2<'a, S>,
-        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+        node_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
-        let vertex = VertexView {
+        let node = NodeView {
             base_graph: g,
             graph: g,
-            vertex: v_ref,
+            node: v_ref,
         };
         Self {
             ss,
-            vertex,
+            node,
             local_state,
             local_state_prev,
-            vertex_state,
+            node_state,
         }
     }
 }
@@ -70,15 +68,15 @@ impl<
         S,
         CS: ComputeState,
         GH: GraphViewOps<'graph>,
-    > Clone for EvalVertexView<'graph, 'a, G, S, GH, CS>
+    > Clone for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     fn clone(&self) -> Self {
-        EvalVertexView::new_from_vertex(
+        EvalNodeView::new_from_node(
             self.ss,
-            self.vertex.clone(),
+            self.node.clone(),
             None,
             self.local_state_prev,
-            self.vertex_state.clone(),
+            self.node_state.clone(),
         )
     }
 }
@@ -90,13 +88,13 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > EvalVertexView<'graph, 'a, G, S, GH, CS>
+    > EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     pub fn graph(&self) -> GH {
-        self.vertex.graph.clone()
+        self.node.graph.clone()
     }
     pub fn prev(&self) -> &S {
-        let VID(i) = self.vertex.vertex;
+        let VID(i) = self.node.node;
         &self.local_state_prev.state[i]
     }
 
@@ -114,37 +112,37 @@ impl<
         }
     }
 
-    pub(crate) fn new_from_vertex(
+    pub(crate) fn new_from_node(
         ss: usize,
-        vertex: VertexView<&'graph G, GH>,
+        node: NodeView<&'graph G, GH>,
         local_state: Option<&'graph mut S>,
         local_state_prev: &'graph Local2<'a, S>,
-        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+        node_state: Rc<RefCell<EVState<'a, CS>>>,
     ) -> Self {
         Self {
             ss,
-            vertex,
+            node,
             local_state,
             local_state_prev,
-            vertex_state,
+            node_state,
         }
     }
 
-    pub(crate) fn update_vertex<GHH: GraphViewOps<'graph>>(
+    pub(crate) fn update_node<GHH: GraphViewOps<'graph>>(
         &self,
-        vertex: VertexView<&'graph G, GHH>,
-    ) -> EvalVertexView<'graph, 'a, G, S, GHH, CS> {
-        EvalVertexView::new_from_vertex(
+        node: NodeView<&'graph G, GHH>,
+    ) -> EvalNodeView<'graph, 'a, G, S, GHH, CS> {
+        EvalNodeView::new_from_node(
             self.ss,
-            vertex,
+            node,
             None,
             self.local_state_prev,
-            self.vertex_state.clone(),
+            self.node_state.clone(),
         )
     }
 
     fn pid(&self) -> usize {
-        let VID(i) = self.vertex.vertex;
+        let VID(i) = self.node.node;
         i
     }
 
@@ -153,7 +151,7 @@ impl<
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.vertex_state
+        self.node_state
             .borrow_mut()
             .shard_mut()
             .accumulate_into(self.ss, self.pid(), a, id);
@@ -164,7 +162,7 @@ impl<
         id: &AccId<A, IN, OUT, ACC>,
         a: IN,
     ) {
-        self.vertex_state
+        self.node_state
             .borrow_mut()
             .global_mut()
             .accumulate_global(self.ss, a, id);
@@ -195,13 +193,10 @@ impl<
         OUT: StateType,
         A: StateType,
     {
-        self.vertex_state
-            .borrow()
-            .global()
-            .read_global(self.ss, agg)
+        self.node_state.borrow().global().read_global(self.ss, agg)
     }
 
-    /// Read the current value of the vertex state using the given accumulator.
+    /// Read the current value of the node state using the given accumulator.
     /// Returns a default value if the value is not present.
     pub fn read<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
@@ -211,14 +206,14 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.vertex_state
+        self.node_state
             .borrow()
             .shard()
             .read_with_pid(self.ss, self.pid(), agg_r)
             .unwrap_or(ACC::finish(&ACC::zero()))
     }
 
-    /// Read the current value of the vertex state using the given accumulator.
+    /// Read the current value of the node state using the given accumulator.
     /// Returns a default value if the value is not present.
     pub fn entry<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
@@ -228,15 +223,10 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        Entry::new(
-            self.vertex_state.borrow(),
-            *agg_r,
-            &self.vertex.vertex,
-            self.ss,
-        )
+        Entry::new(self.node_state.borrow(), *agg_r, &self.node.node, self.ss)
     }
 
-    /// Read the prev value of the vertex state using the given accumulator.
+    /// Read the prev value of the node state using the given accumulator.
     /// Returns a default value if the value is not present.
     pub fn read_prev<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
@@ -246,7 +236,7 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.vertex_state
+        self.node_state
             .borrow()
             .shard()
             .read_with_pid(self.ss + 1, self.pid(), agg_r)
@@ -261,7 +251,7 @@ impl<
         A: StateType,
         OUT: std::fmt::Debug,
     {
-        self.vertex_state
+        self.node_state
             .borrow()
             .global()
             .read_global(self.ss + 1, agg_r)
@@ -269,7 +259,7 @@ impl<
     }
 }
 
-pub struct EvalPathFromVertex<
+pub struct EvalPathFromNode<
     'graph,
     'a: 'graph,
     G: GraphViewOps<'graph>,
@@ -277,9 +267,9 @@ pub struct EvalPathFromVertex<
     CS: ComputeState,
     S,
 > {
-    path: PathFromVertex<'graph, &'graph G, GH>,
+    path: PathFromNode<'graph, &'graph G, GH>,
     ss: usize,
-    vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+    node_state: Rc<RefCell<EVState<'a, CS>>>,
     local_state_prev: &'graph Local2<'a, S>,
 }
 
@@ -290,15 +280,15 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+    > EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
-    pub fn iter(&self) -> impl Iterator<Item = EvalVertexView<'graph, 'a, G, S, GH, CS>> + 'graph {
+    pub fn iter(&self) -> impl Iterator<Item = EvalNodeView<'graph, 'a, G, S, GH, CS>> + 'graph {
         let local = self.local_state_prev;
-        let vertex_state = self.vertex_state.clone();
+        let node_state = self.node_state.clone();
         let ss = self.ss;
         self.path
             .iter()
-            .map(move |v| EvalVertexView::new_from_vertex(ss, v, None, local, vertex_state.clone()))
+            .map(move |v| EvalNodeView::new_from_node(ss, v, None, local, node_state.clone()))
     }
 }
 
@@ -309,9 +299,9 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > IntoIterator for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+    > IntoIterator for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
-    type Item = EvalVertexView<'graph, 'a, G, S, GH, CS>;
+    type Item = EvalNodeView<'graph, 'a, G, S, GH, CS>;
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -326,13 +316,13 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > Clone for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+    > Clone for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
     fn clone(&self) -> Self {
-        EvalPathFromVertex {
+        EvalPathFromNode {
             path: self.path.clone(),
             ss: self.ss,
-            vertex_state: self.vertex_state.clone(),
+            node_state: self.node_state.clone(),
             local_state_prev: self.local_state_prev,
         }
     }
@@ -345,7 +335,7 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > InternalLayerOps for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+    > InternalLayerOps for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
     fn layer_ids(&self) -> LayerIds {
         self.path.layer_ids()
@@ -363,13 +353,13 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > BaseVertexViewOps<'graph> for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+    > BaseNodeViewOps<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
-    type PropType = VertexView<GH, GH>;
-    type PathType = EvalPathFromVertex<'graph, 'a, G, &'graph G, CS, S>;
+    type PropType = NodeView<GH, GH>;
+    type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
@@ -392,12 +382,12 @@ impl<
         op: F,
     ) -> Self::EList {
         let local_state_prev = self.local_state_prev;
-        let vertex_state = self.vertex_state.clone();
+        let node_state = self.node_state.clone();
         let ss = self.ss;
         Box::new(
             self.path
                 .map_edges(op)
-                .map(move |e| EvalEdgeView::new(ss, e, vertex_state.clone(), local_state_prev)),
+                .map(move |e| EvalEdgeView::new(ss, e, node_state.clone(), local_state_prev)),
         )
     }
 
@@ -410,12 +400,12 @@ impl<
     ) -> Self::PathType {
         let path = self.path.hop(op);
         let ss = self.ss;
-        let vertex_state = self.vertex_state.clone();
+        let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
-        EvalPathFromVertex {
+        EvalPathFromNode {
             path,
             ss,
-            vertex_state,
+            node_state,
             local_state_prev,
         }
     }
@@ -428,10 +418,10 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > OneHopFilter<'graph> for EvalPathFromVertex<'graph, 'a, G, GH, CS, S>
+    > OneHopFilter<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = EvalPathFromVertex<'graph, 'a, G, GHH, CS, S>;
+    type Filtered<GHH: GraphViewOps<'graph>> = EvalPathFromNode<'graph, 'a, G, GHH, CS, S>;
 
     fn current_filter(&self) -> &Self::Graph {
         self.path.current_filter()
@@ -443,12 +433,12 @@ impl<
     ) -> Self::Filtered<GHH> {
         let path = self.path.one_hop_filtered(filtered_graph);
         let local_state_prev = self.local_state_prev;
-        let vertex_state = self.vertex_state.clone();
+        let node_state = self.node_state.clone();
         let ss = self.ss;
-        EvalPathFromVertex {
+        EvalPathFromNode {
             path,
             ss,
-            vertex_state,
+            node_state,
             local_state_prev,
         }
     }
@@ -461,21 +451,21 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > OneHopFilter<'graph> for EvalVertexView<'graph, 'a, G, S, GH, CS>
+    > OneHopFilter<'graph> for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     type Graph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = EvalVertexView<'graph, 'a, G, S, GHH, CS>;
+    type Filtered<GHH: GraphViewOps<'graph>> = EvalNodeView<'graph, 'a, G, S, GHH, CS>;
 
     fn current_filter(&self) -> &Self::Graph {
-        &self.vertex.graph
+        &self.node.graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
-        let vertex = self.vertex.one_hop_filtered(filtered_graph);
-        self.update_vertex(vertex)
+        let node = self.node.one_hop_filtered(filtered_graph);
+        self.update_node(node)
     }
 }
 
@@ -486,14 +476,14 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > InternalLayerOps for EvalVertexView<'graph, 'a, G, S, GH, CS>
+    > InternalLayerOps for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     fn layer_ids(&self) -> LayerIds {
-        self.vertex.layer_ids()
+        self.node.layer_ids()
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.vertex.layer_ids_from_names(key)
+        self.node.layer_ids_from_names(key)
     }
 }
 
@@ -504,13 +494,13 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > BaseVertexViewOps<'graph> for EvalVertexView<'graph, 'a, G, S, GH, CS>
+    > BaseNodeViewOps<'graph> for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T>  = T where T: 'graph;
-    type PathType = EvalPathFromVertex<'graph, 'a, G, &'graph G, CS, S>;
-    type PropType = VertexView<&'graph G, GH>;
+    type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
+    type PropType = NodeView<&'graph G, GH>;
     type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
 
@@ -518,11 +508,11 @@ impl<
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        self.vertex.map(op)
+        self.node.map(op)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.vertex.as_props()
+        self.node.as_props()
     }
 
     fn map_edges<
@@ -534,11 +524,11 @@ impl<
     ) -> Self::EList {
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
-        let vertex_state = self.vertex_state.clone();
+        let node_state = self.node_state.clone();
         Box::new(
-            self.vertex
+            self.node
                 .map_edges(op)
-                .map(move |e| EvalEdgeView::new(ss, e, vertex_state.clone(), local_state_prev)),
+                .map(move |e| EvalEdgeView::new(ss, e, node_state.clone(), local_state_prev)),
         )
     }
 
@@ -549,14 +539,14 @@ impl<
         &self,
         op: F,
     ) -> Self::PathType {
-        let path = self.vertex.hop(op);
+        let path = self.node.hop(op);
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
-        let vertex_state = self.vertex_state.clone();
-        EvalPathFromVertex {
+        let node_state = self.node_state.clone();
+        EvalPathFromNode {
             path,
             local_state_prev,
-            vertex_state,
+            node_state,
             ss,
         }
     }

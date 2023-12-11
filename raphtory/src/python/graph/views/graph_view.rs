@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        entities::vertices::vertex_ref::VertexRef,
+        entities::nodes::node_ref::NodeRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
         ArcStr,
     },
@@ -16,16 +16,15 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
-            vertex::VertexView,
+            node::NodeView,
             views::{
-                layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph,
-                window_graph::WindowedGraph,
+                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
             },
         },
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
+        graph::{edge::PyEdges, index::GraphIndex, node::PyNodes},
         packages::vectors::{DynamicVectorisedGraph, PyDocumentTemplate},
         types::repr::Repr,
         utils::{execute_async_task, PyInterval, PyTime},
@@ -98,7 +97,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -169,76 +168,72 @@ impl PyGraphView {
         self.graph.count_temporal_edges()
     }
 
-    /// Number of vertices in the graph
+    /// Number of nodes in the graph
     ///
     /// Returns:
-    ///   the number of vertices in the graph
-    pub fn count_vertices(&self) -> usize {
-        self.graph.count_vertices()
+    ///   the number of nodes in the graph
+    pub fn count_nodes(&self) -> usize {
+        self.graph.count_nodes()
     }
 
-    /// Returns true if the graph contains the specified vertex
+    /// Returns true if the graph contains the specified node
     ///
     /// Arguments:
-    ///    id (str or int): the vertex id
+    ///    id (str or int): the node id
     ///
     /// Returns:
-    ///   true if the graph contains the specified vertex, false otherwise
-    pub fn has_vertex(&self, id: VertexRef) -> bool {
-        self.graph.has_vertex(id)
+    ///   true if the graph contains the specified node, false otherwise
+    pub fn has_node(&self, id: NodeRef) -> bool {
+        self.graph.has_node(id)
     }
 
     /// Returns true if the graph contains the specified edge
     ///
     /// Arguments:
-    ///   src (str or int): the source vertex id
-    ///   dst (str or int): the destination vertex id  
+    ///   src (str or int): the source node id
+    ///   dst (str or int): the destination node id
     ///   layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
     #[pyo3(signature = (src, dst, layer=None))]
-    pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: Option<&str>) -> bool {
+    pub fn has_edge(&self, src: NodeRef, dst: NodeRef, layer: Option<&str>) -> bool {
         self.graph.has_edge(src, dst, layer)
     }
 
     //******  Getter APIs ******//
 
-    /// Gets the vertex with the specified id
+    /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str or int): the vertex id
+    ///   id (str or int): the node id
     ///
     /// Returns:
-    ///   the vertex with the specified id, or None if the vertex does not exist
-    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<DynamicGraph>> {
-        self.graph.vertex(id)
+    ///   the node with the specified id, or None if the node does not exist
+    pub fn node(&self, id: NodeRef) -> Option<NodeView<DynamicGraph>> {
+        self.graph.node(id)
     }
 
-    /// Gets the vertices in the graph
+    /// Gets the nodes in the graph
     ///
     /// Returns:
-    ///  the vertices in the graph
+    ///  the nodes in the graph
     #[getter]
-    pub fn vertices(&self) -> PyVertices {
-        self.graph.vertices().into()
+    pub fn nodes(&self) -> PyNodes {
+        self.graph.nodes().into()
     }
 
-    /// Gets the edge with the specified source and destination vertices
+    /// Gets the edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str or int): the source vertex id
-    ///     dst (str or int): the destination vertex id
+    ///     src (str or int): the source node id
+    ///     dst (str or int): the destination node id
     ///     layer (str): the edge layer (optional)
     ///
     /// Returns:
-    ///     the edge with the specified source and destination vertices, or None if the edge does not exist
+    ///     the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(
-        &self,
-        src: VertexRef,
-        dst: VertexRef,
-    ) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn edge(&self, src: NodeRef, dst: NodeRef) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -279,15 +274,15 @@ impl PyGraphView {
         self.graph.properties()
     }
 
-    /// Returns a subgraph given a set of vertices
+    /// Returns a subgraph given a set of nodes
     ///
     /// Arguments:
-    ///   * `vertices`: set of vertices
+    ///   * `nodes`: set of nodes
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, vertices: Vec<VertexRef>) -> VertexSubgraph<DynamicGraph> {
-        self.graph.subgraph(vertices)
+    fn subgraph(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
+        self.graph.subgraph(nodes)
     }
 
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
@@ -298,8 +293,8 @@ impl PyGraphView {
         self.graph.materialize()
     }
 
-    /// Indexes all vertex and edge properties.
-    /// Returns a GraphIndex which allows the user to search the edges and vertices of the graph via tantivity fuzzy matching queries.
+    /// Indexes all node and edge properties.
+    /// Returns a GraphIndex which allows the user to search the edges and nodes of the graph via tantivity fuzzy matching queries.
     /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
     ///
     /// Returns:
@@ -364,7 +359,7 @@ impl_timeops!(PyGraphView, graph, DynamicGraph, "graph");
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
         let num_edges = self.graph.count_edges();
-        let num_vertices = self.graph.count_vertices();
+        let num_nodes = self.graph.count_nodes();
         let num_temporal_edges: usize = self.graph.count_temporal_edges();
         let earliest_time = self.graph.earliest_time().repr();
         let latest_time = self.graph.latest_time().repr();
@@ -376,14 +371,14 @@ impl Repr for PyGraphView {
             .join(", ");
         if properties.is_empty() {
             return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
-                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time
+                "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
+                num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time
             );
         } else {
             let property_string: String = format!("{{{properties}}}");
             return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
-                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time, property_string
+                "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
+                num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time, property_string
             );
         }
     }

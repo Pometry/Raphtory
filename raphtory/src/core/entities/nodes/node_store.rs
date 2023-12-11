@@ -2,8 +2,8 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::{Dir, EdgeRef},
+            nodes::structure::{adj, adj::Adj},
             properties::{props::Props, tprop::TProp},
-            vertices::structure::{adj, adj::Adj},
             LayerIds, EID, VID,
         },
         storage::{
@@ -26,19 +26,19 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
-pub struct VertexStore {
+pub struct NodeStore {
     pub(crate) global_id: u64,
     pub(crate) name: Option<String>,
     pub(crate) vid: VID,
-    // all the timestamps that have been seen by this vertex
+    // all the timestamps that have been seen by this node
     timestamps: TimeIndex<i64>,
     // each layer represents a separate view of the graph
     pub(crate) layers: Vec<Adj>,
-    // props for vertex
+    // props for node
     pub(crate) props: Option<Props>,
 }
 
-impl VertexStore {
+impl NodeStore {
     pub fn new(global_id: u64, t: TimeIndexEntry) -> Self {
         let mut layers = Vec::with_capacity(1);
         layers.push(Adj::Solo);
@@ -250,7 +250,7 @@ impl VertexStore {
                 _ => self
                     .layers
                     .iter()
-                    .map(|l| l.vertex_iter(d))
+                    .map(|l| l.node_iter(d))
                     .kmerge()
                     .dedup()
                     .count(),
@@ -263,7 +263,7 @@ impl VertexStore {
             LayerIds::None => 0,
             LayerIds::Multiple(ids) => ids
                 .iter()
-                .flat_map(|l_id| self.layers.get(*l_id).map(|layer| layer.vertex_iter(d)))
+                .flat_map(|l_id| self.layers.get(*l_id).map(|layer| layer.node_iter(d)))
                 .kmerge()
                 .dedup()
                 .count(),
@@ -360,7 +360,7 @@ impl VertexStore {
     }
 }
 
-impl ArcEntry<VertexStore> {
+impl ArcEntry<NodeStore> {
     pub fn into_layers(self) -> LockedLayers {
         let len = self.layers.len();
         LockedLayers {
@@ -379,7 +379,7 @@ impl ArcEntry<VertexStore> {
 }
 
 pub struct LockedLayers {
-    entry: ArcEntry<VertexStore>,
+    entry: ArcEntry<NodeStore>,
     pos: usize,
     len: usize,
 }
@@ -406,7 +406,7 @@ impl Iterator for LockedLayers {
 }
 
 pub struct LockedLayer {
-    entry: ArcEntry<VertexStore>,
+    entry: ArcEntry<NodeStore>,
     offset: usize,
 }
 

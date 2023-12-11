@@ -121,7 +121,7 @@ mod test_layers {
     use crate::prelude::*;
     use itertools::Itertools;
     #[test]
-    fn test_layer_vertex() {
+    fn test_layer_node() {
         let g = Graph::new();
 
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
@@ -130,7 +130,7 @@ mod test_layers {
         let neighbours = g
             .layer(vec!["layer1", "layer2"])
             .unwrap()
-            .vertex(1)
+            .node(1)
             .unwrap()
             .neighbours()
             .into_iter()
@@ -147,7 +147,7 @@ mod test_layers {
         assert_eq!(
             g.layer("layer2")
                 .unwrap()
-                .vertex(neighbours[0].name())
+                .node(neighbours[0].name())
                 .unwrap()
                 .edges()
                 .id()
@@ -157,7 +157,7 @@ mod test_layers {
         let mut edges = g
             .layer("layer1")
             .unwrap()
-            .vertex(neighbours[0].name())
+            .node(neighbours[0].name())
             .unwrap()
             .edges()
             .id()

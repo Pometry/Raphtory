@@ -159,7 +159,7 @@ def generic_client_test(raphtory_client, temp_dir):
 
     # upload a graph
     g4 = Graph()
-    g4.add_vertex(0, 1)
+    g4.add_node(0, 1)
     res = raphtory_client.send_graph("hello", g4)
     assert res == {"sendGraph": "hello"}
     # Ensure the sent graph can be queried

@@ -51,11 +51,11 @@ mod graphql_test {
     async fn search_for_gandalf_query() {
         let graph = GraphWithDeletions::new();
         graph
-            .add_vertex(0, "Gandalf", [("kind".to_string(), Prop::str("wizard"))])
-            .expect("Could not add vertex!");
+            .add_node(0, "Gandalf", [("kind".to_string(), Prop::str("wizard"))])
+            .expect("Could not add node!");
         graph
-            .add_vertex(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
-            .expect("Could not add vertex!");
+            .add_node(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
+            .expect("Could not add node!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = data::Data::from_map(graphs);
@@ -92,8 +92,8 @@ mod graphql_test {
     async fn basic_query() {
         let graph = GraphWithDeletions::new();
         graph
-            .add_vertex(0, 11, NO_PROPS)
-            .expect("Could not add vertex!");
+            .add_node(0, 11, NO_PROPS)
+            .expect("Could not add node!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let data = data::Data::from_map(graphs);
@@ -130,14 +130,14 @@ mod graphql_test {
     #[tokio::test]
     async fn query_nodefilter() {
         let graph = GraphWithDeletions::new();
-        if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
-            panic!("Could not add vertex! {:?}", err);
+        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS) {
+            panic!("Could not add node! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "bilbo", NO_PROPS) {
-            panic!("Could not add vertex! {:?}", err);
+        if let Err(err) = graph.add_node(0, "bilbo", NO_PROPS) {
+            panic!("Could not add node! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "frodo", NO_PROPS) {
-            panic!("Could not add vertex! {:?}", err);
+        if let Err(err) = graph.add_node(0, "frodo", NO_PROPS) {
+            panic!("Could not add node! {:?}", err);
         }
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
@@ -202,14 +202,14 @@ mod graphql_test {
     #[tokio::test]
     async fn query_properties() {
         let graph = GraphWithDeletions::new();
-        if let Err(err) = graph.add_vertex(0, "gandalf", NO_PROPS) {
-            panic!("Could not add vertex! {:?}", err);
+        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS) {
+            panic!("Could not add node! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "bilbo", [("food".to_string(), Prop::str("lots"))]) {
-            panic!("Could not add vertex! {:?}", err);
+        if let Err(err) = graph.add_node(0, "bilbo", [("food".to_string(), Prop::str("lots"))]) {
+            panic!("Could not add node! {:?}", err);
         }
-        if let Err(err) = graph.add_vertex(0, "frodo", [("food".to_string(), Prop::str("some"))]) {
-            panic!("Could not add vertex! {:?}", err);
+        if let Err(err) = graph.add_node(0, "frodo", [("food".to_string(), Prop::str("some"))]) {
+            panic!("Could not add node! {:?}", err);
         }
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
@@ -283,10 +283,10 @@ mod graphql_test {
         g0.save_to_file(f0).unwrap();
 
         let g1 = GraphWithDeletions::new();
-        g1.add_vertex(0, 1, NO_PROPS).unwrap();
+        g1.add_node(0, 1, NO_PROPS).unwrap();
 
         let g2 = GraphWithDeletions::new();
-        g2.add_vertex(0, 2, NO_PROPS).unwrap();
+        g2.add_node(0, 2, NO_PROPS).unwrap();
 
         let data = Data::default();
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -381,7 +381,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_graph_injection() {
         let g = GraphWithDeletions::new();
-        g.add_vertex(0, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS).unwrap();
         let tmp_file = tempfile::NamedTempFile::new().unwrap();
         let path = tmp_file.path();
         g.save_to_file(path).unwrap();
@@ -431,7 +431,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_graph_send_receive_base64() {
         let g = GraphWithDeletions::new();
-        g.add_vertex(0, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS).unwrap();
 
         let graph_str = url_encode_graph(g.clone()).unwrap();
 

@@ -3,7 +3,7 @@ use crate::model::{
     graph::{edge::Edge, node::Node},
 };
 use dynamic_graphql::InputObject;
-use raphtory::{core::Prop, db::api::view::VertexViewOps, prelude::EdgeViewOps};
+use raphtory::{core::Prop, db::api::view::NodeViewOps, prelude::EdgeViewOps};
 
 #[derive(InputObject, Clone)]
 pub(crate) struct PropertyHasFilter {

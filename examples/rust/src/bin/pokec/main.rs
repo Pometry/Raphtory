@@ -40,9 +40,9 @@ fn main() {
     };
 
     println!(
-        "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
+        "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
         data_dir.to_str().unwrap(),
-        g.count_vertices(),
+        g.count_nodes(),
         g.count_edges(),
         now.elapsed().as_secs()
     );

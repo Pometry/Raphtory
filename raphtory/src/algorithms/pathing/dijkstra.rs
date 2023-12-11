@@ -1,21 +1,21 @@
 use crate::db::api::view::StaticGraphViewOps;
 /// Dijkstra's algorithm
 use crate::{
-    core::entities::vertices::input_vertex::InputVertex,
+    core::entities::nodes::input_node::InputNode,
     core::PropType,
     prelude::Prop,
-    prelude::{EdgeViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, NodeViewOps},
 };
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
 
-/// A state in the Dijkstra algorithm with a cost and a vertex name.
+/// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]
 struct State {
     cost: Prop,
-    vertex: String, // TODO MOVE AWAY VERTEX FROM STRING INTO VERTEXVIEW
+    node: String, // TODO MOVE AWAY VERTEX FROM STRING INTO VERTEXVIEW
 }
 
 impl Eq for State {}
@@ -37,24 +37,24 @@ impl PartialOrd for State {
 /// # Arguments
 ///
 /// * `graph`: The graph to search in.
-/// * `source`: The source vertex.
-/// * `targets`: A vector of target vertices.
+/// * `source`: The source node.
+/// * `targets`: A vector of target nodes.
 /// * `weight`: The name of the weight property for the edges.
 ///
 /// # Returns
 ///
-/// Returns a `HashMap` where the key is the target vertex and the value is a tuple containing
-/// the total cost and a vector of vertices representing the shortest path.
+/// Returns a `HashMap` where the key is the target node and the value is a tuple containing
+/// the total cost and a vector of nodes representing the shortest path.
 ///
-pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputVertex>(
+pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode>(
     graph: &G,
     source: T,
     targets: Vec<T>,
     weight: String,
 ) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
-    let source_vertex = match graph.vertex(source) {
+    let source_node = match graph.node(source) {
         Some(src) => src,
-        None => return Err("Source vertex not found"),
+        None => return Err("Source node not found"),
     };
     let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&weight) {
         Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
@@ -76,8 +76,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputVert
 
     let target_nodes: Vec<String> = targets
         .iter()
-        .filter_map(|p| match graph.has_vertex(p.clone()) {
-            true => Some(graph.vertex(p.clone())?.name()),
+        .filter_map(|p| match graph.has_node(p.clone()) {
+            true => Some(graph.node(p.clone())?.name()),
             false => None,
         })
         .collect();
@@ -121,7 +121,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputVert
     let mut heap = BinaryHeap::new();
     heap.push(State {
         cost: cost_val.clone(),
-        vertex: source_vertex.name(),
+        node: source_node.name(),
     });
 
     let mut dist: HashMap<String, Prop> = HashMap::new();
@@ -129,29 +129,29 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputVert
     let mut visited: HashSet<String> = HashSet::new();
     let mut paths: HashMap<String, (Prop, Vec<String>)> = HashMap::new();
 
-    dist.insert(source_vertex.name(), cost_val.clone());
+    dist.insert(source_node.name(), cost_val.clone());
 
     while let Some(State {
         cost,
-        vertex: vertex_name,
+        node: node_name,
     }) = heap.pop()
     {
-        if target_nodes.contains(&vertex_name) && !paths.contains_key(&vertex_name) {
-            let mut path = vec![vertex_name.clone()];
-            let mut current_vertex_name = vertex_name.clone();
-            while let Some(prev_vertex) = predecessor.get(&current_vertex_name) {
-                path.push(prev_vertex.clone());
-                current_vertex_name = prev_vertex.clone();
+        if target_nodes.contains(&node_name) && !paths.contains_key(&node_name) {
+            let mut path = vec![node_name.clone()];
+            let mut current_node_name = node_name.clone();
+            while let Some(prev_node) = predecessor.get(&current_node_name) {
+                path.push(prev_node.clone());
+                current_node_name = prev_node.clone();
             }
             path.reverse();
-            paths.insert(vertex_name.clone(), (cost.clone(), path));
+            paths.insert(node_name.clone(), (cost.clone(), path));
         }
-        if !visited.insert(vertex_name.clone()) {
+        if !visited.insert(node_name.clone()) {
             continue;
         }
         // Replace this loop with your actual logic to iterate over the outgoing edges
-        for edge in graph.vertex(vertex_name.clone()).unwrap().out_edges() {
-            let next_vertex_name = edge.dst().name();
+        for edge in graph.node(node_name.clone()).unwrap().out_edges() {
+            let next_node_name = edge.dst().name();
             let edge_val = match edge.properties().get(&weight) {
                 Some(prop) => prop,
                 _ => continue,
@@ -159,15 +159,15 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputVert
             let next_cost = cost.clone().add(edge_val).unwrap();
             if next_cost
                 < *dist
-                    .entry(next_vertex_name.clone())
+                    .entry(next_node_name.clone())
                     .or_insert(max_val.clone())
             {
                 heap.push(State {
                     cost: next_cost.clone(),
-                    vertex: next_vertex_name.clone(),
+                    node: next_node_name.clone(),
                 });
-                dist.insert(next_vertex_name.clone(), next_cost);
-                predecessor.insert(next_vertex_name, vertex_name.clone());
+                dist.insert(next_node_name.clone(), next_cost);
+                predecessor.insert(next_node_name, node_name.clone());
             }
         }
     }

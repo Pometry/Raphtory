@@ -9,3 +9,6 @@ seaborn
 scipy
 Scrapy
 networkx
+altair
+langchain
+sentence_transformers

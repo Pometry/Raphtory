@@ -5,11 +5,11 @@ use std::{borrow::Cow, sync::Arc};
 #[derive(Clone, Debug)]
 pub struct Global<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 
-// this contains the vertex specific shard state and it is synchronized after each task run
+// this contains the node specific shard state and it is synchronized after each task run
 #[derive(Clone, Debug)]
 pub struct Shard<CS: ComputeState>(Arc<ShuffleComputeState<CS>>);
 
-// this contains the local shard state global and vertex specific and it is not synchronized
+// this contains the local shard state global and node specific and it is not synchronized
 #[derive(Clone, Debug)]
 pub(crate) struct Local<CS: ComputeState>(Arc<Option<ShuffleComputeState<CS>>>);
 

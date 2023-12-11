@@ -6,24 +6,24 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::db::{
     api::{properties::dyn_props::DynProperties, view::*},
-    graph::vertex::VertexView,
+    graph::node::NodeView,
 };
 use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
-    pub(crate) vv: VertexView<DynamicGraph>,
+    pub(crate) vv: NodeView<DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<VertexView<G, GH>> for Node
+    From<NodeView<G, GH>> for Node
 {
-    fn from(value: VertexView<G, GH>) -> Self {
+    fn from(value: NodeView<G, GH>) -> Self {
         Self {
-            vv: VertexView {
+            vv: NodeView {
                 base_graph: value.base_graph.into_dynamic(),
                 graph: value.graph.into_dynamic(),
-                vertex: value.vertex,
+                node: value.node,
             },
         }
     }

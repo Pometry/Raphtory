@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     core::{
-        entities::vertices::vertex_ref::VertexRef,
+        entities::nodes::node_ref::NodeRef,
         state::{
             compute_state::ComputeState,
             shuffle_state::{EvalLocalState, EvalShardState},
@@ -15,7 +15,7 @@ use crate::{
     },
     db::{
         api::view::StaticGraphViewOps,
-        task::vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
+        task::node::{eval_node::EvalNodeView, eval_node_state::EVState},
     },
 };
 use rayon::{prelude::*, ThreadPool};
@@ -63,23 +63,23 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut done = true;
 
-        let vertex_state = EVState::rc_from(shard_state_view, global_state_view);
+        let node_state = EVState::rc_from(shard_state_view, global_state_view);
 
         let local = Local2::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
-            if g.has_vertex_ref(
-                VertexRef::Internal(v_ref.into()),
+            if g.has_node_ref(
+                NodeRef::Internal(v_ref.into()),
                 &g.layer_ids(),
                 g.edge_filter().as_deref(),
             ) {
-                let mut vv = EvalVertexView::new_local(
+                let mut vv = EvalNodeView::new_local(
                     self.ctx.ss(),
                     v_ref.into(),
                     &g,
                     Some(local_state),
                     &local,
-                    vertex_state.clone(),
+                    node_state.clone(),
                 );
 
                 match task.run(&mut vv) {
@@ -96,8 +96,8 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             atomic_done.store(false, Ordering::Relaxed);
         }
 
-        let vertex_state: EVState<CS> = Rc::try_unwrap(vertex_state).unwrap().into_inner();
-        let (shard_state_view, global_state_view) = vertex_state.restore_states();
+        let node_state: EVState<CS> = Rc::try_unwrap(node_state).unwrap().into_inner();
+        let (shard_state_view, global_state_view) = node_state.restore_states();
 
         match (shard_state_view, global_state_view) {
             (Cow::Owned(state), Cow::Owned(global_state)) => {
@@ -201,7 +201,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
     fn make_cur_and_prev_states<S: Clone + Default>(&self, mut init: Vec<S>) -> (Vec<S>, Vec<S>) {
         let g = self.ctx.graph();
-        init.resize(g.unfiltered_num_vertices(), S::default());
+        init.resize(g.unfiltered_num_nodes(), S::default());
 
         (init.clone(), init)
     }
@@ -225,16 +225,16 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             .map(|nt| custom_pool(nt))
             .unwrap_or_else(|| POOL.clone());
 
-        let num_vertices = self.ctx.graph().unfiltered_num_vertices();
-        let morcel_size = num_vertices.min(16_000);
+        let num_nodes = self.ctx.graph().unfiltered_num_nodes();
+        let morcel_size = num_nodes.min(16_000);
         let num_chunks = if morcel_size == 0 {
             1
         } else {
-            (num_vertices + morcel_size - 1) / morcel_size
+            (num_nodes + morcel_size - 1) / morcel_size
         };
 
-        let mut shard_state = shard_initial_state
-            .unwrap_or_else(|| Shard::new(num_vertices, num_chunks, morcel_size));
+        let mut shard_state =
+            shard_initial_state.unwrap_or_else(|| Shard::new(num_nodes, num_chunks, morcel_size));
 
         let mut global_state = global_initial_state.unwrap_or_else(|| Global::new());
 

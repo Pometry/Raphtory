@@ -6,7 +6,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
-/// View of the properties of an entity (graph|vertex|edge)
+/// View of the properties of an entity (graph|node|edge)
 #[derive(Clone)]
 pub struct Properties<P: PropertiesOps + Clone> {
     pub(crate) props: P,

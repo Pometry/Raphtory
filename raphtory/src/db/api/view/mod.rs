@@ -4,8 +4,8 @@ mod edge;
 mod graph;
 pub(crate) mod internal;
 mod layer;
+mod node;
 mod time;
-mod vertex;
 
 pub(crate) use edge::EdgeViewInternalOps;
 pub use edge::{EdgeListOps, EdgeViewOps};
@@ -15,9 +15,9 @@ pub use internal::{
     Base, BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph,
 };
 pub use layer::*;
+pub(crate) use node::BaseNodeViewOps;
+pub use node::{NodeListOps, NodeViewOps};
 pub use time::*;
-pub(crate) use vertex::BaseVertexViewOps;
-pub use vertex::{VertexListOps, VertexViewOps};
 
 pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;
 pub type BoxedLIter<'a, T> = Box<dyn Iterator<Item = T> + Send + 'a>;

@@ -5,8 +5,8 @@ use crate::core::{
             tgraph::TGraph,
             tgraph_storage::{GraphEntry, LockedGraphStorage},
         },
+        nodes::node::Node,
         properties::tprop::{LockedLayeredTProp, TProp},
-        vertices::vertex::Vertex,
         GraphItem, LayerIds, VRef, EID, VID,
     },
     storage::{
@@ -42,7 +42,7 @@ impl<'a, const N: usize> ERef<'a, N> {
         }
     }
 
-    fn vertex_ref(&self, src: VID) -> Option<VRef<'a, N>> {
+    fn node_ref(&self, src: VID) -> Option<VRef<'a, N>> {
         match self {
             ERef::ELock { lock, .. } => {
                 Some(VRef::LockedEntry(GraphEntry::new(lock.clone(), src.into())))
@@ -203,19 +203,19 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         self.edge_id.edge_id()
     }
 
-    pub fn src(&self) -> Vertex<'a, N> {
-        if let Some(v_ref) = self.edge_id.vertex_ref(self.src) {
-            Vertex::new(v_ref, self.graph)
+    pub fn src(&self) -> Node<'a, N> {
+        if let Some(v_ref) = self.edge_id.node_ref(self.src) {
+            Node::new(v_ref, self.graph)
         } else {
-            self.graph.vertex(self.src)
+            self.graph.node(self.src)
         }
     }
 
-    pub fn dst(&self) -> Vertex<'a, N> {
-        if let Some(v_ref) = self.edge_id.vertex_ref(self.dst) {
-            Vertex::new(v_ref, self.graph)
+    pub fn dst(&self) -> Node<'a, N> {
+        if let Some(v_ref) = self.edge_id.node_ref(self.dst) {
+            Node::new(v_ref, self.graph)
         } else {
-            self.graph.vertex(self.dst)
+            self.graph.node(self.dst)
         }
     }
 

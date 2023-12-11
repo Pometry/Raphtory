@@ -3,8 +3,8 @@ use crate::{db::api::mutation::AdditionOps, prelude::*};
 /// `karate_club_graph` constructs a karate club graph.
 ///
 /// This function uses the Zachary's karate club dataset to create
-/// a graph object. Vertices represent members of the club, and edges
-/// represent relationships between them. Vertex properties indicate
+/// a graph object. Nodes represent members of the club, and edges
+/// represent relationships between them. Node properties indicate
 /// the club to which each member belongs.
 ///
 /// BACKGROUND These are data collected from the members of a university karate club by Wayne
@@ -67,7 +67,7 @@ pub fn karate_club_graph() -> Graph {
     let graph = Graph::new();
     for i in 0..34 {
         graph
-            .add_vertex(0, i, NO_PROPS)
+            .add_node(0, i, NO_PROPS)
             .map_err(|err| println!("{:?}", err))
             .ok();
     }
@@ -91,13 +91,12 @@ pub fn karate_club_graph() -> Graph {
 
     // Add properties
     for v in 0..34 {
-        let vertex = graph.vertex(v).unwrap();
+        let node = graph.node(v).unwrap();
         let mut const_prop = "Officer";
         if club1.contains(&v) {
             const_prop = "Mr. Hi";
         }
-        vertex
-            .add_constant_properties([("club", const_prop)])
+        node.add_constant_properties([("club", const_prop)])
             .map_err(|err| println!("{:?}", err))
             .ok();
     }
@@ -112,7 +111,7 @@ mod karate_test {
     #[test]
     fn test_graph_sizes() {
         let g = karate_club_graph();
-        assert_eq!(g.count_vertices(), 34);
+        assert_eq!(g.count_nodes(), 34);
         assert_eq!(g.count_edges(), 155);
     }
 }

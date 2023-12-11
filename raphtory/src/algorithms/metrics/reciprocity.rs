@@ -15,7 +15,7 @@
 //! it could imply a less reciprocal or more one-sided relationship.
 //!
 //! There are three algorithms in this module:
-//! - `all_local_reciprocity` - returns the reciprocity of every vertex in the graph as a tuple of
+//! - `all_local_reciprocity` - returns the reciprocity of every node in the graph as a tuple of
 //! vector id and the reciprocity
 //! - `global_reciprocity` - returns the global reciprocity of the entire graph
 //!
@@ -50,12 +50,12 @@ use crate::{
         compute_state::{ComputeState, ComputeStateVec},
     },
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
     prelude::GraphViewOps,
@@ -63,7 +63,7 @@ use crate::{
 use ordered_float::OrderedFloat;
 use std::collections::HashSet;
 
-/// Gets the unique edge counts excluding cycles for a vertex. Returns a tuple of usize
+/// Gets the unique edge counts excluding cycles for a node. Returns a tuple of usize
 /// (out neighbours, in neighbours, the intersection of the out and in neighbours)
 fn get_reciprocal_edge_count<
     'graph,
@@ -71,7 +71,7 @@ fn get_reciprocal_edge_count<
     GH: GraphViewOps<'graph>,
     CS: ComputeState,
 >(
-    v: &EvalVertexView<'graph, '_, G, (), GH, CS>,
+    v: &EvalNodeView<'graph, '_, G, (), GH, CS>,
 ) -> (usize, usize, usize) {
     let id = v.id();
     let out_neighbours: HashSet<u64> = v.out_neighbours().id().filter(|x| *x != id).collect();
@@ -117,7 +117,7 @@ pub fn global_reciprocity<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) 
     )
 }
 
-/// returns the reciprocity of every vertex in the graph as a tuple of
+/// returns the reciprocity of every node in the graph as a tuple of
 /// vector id and the reciprocity
 pub fn all_local_reciprocity<G: StaticGraphViewOps>(
     g: &G,

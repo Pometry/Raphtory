@@ -1,8 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
-        },
+        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
         utils::errors::GraphError,
         ArcStr,
     },
@@ -12,10 +10,7 @@ use crate::{
             properties::Properties,
             view::{internal::*, *},
         },
-        graph::{
-            edge::EdgeView, vertex::VertexView, vertices::Vertices,
-            views::vertex_subgraph::VertexSubgraph,
-        },
+        graph::{edge::EdgeView, node::NodeView, nodes::Nodes, views::node_subgraph::NodeSubgraph},
     },
     prelude::{DeletionOps, NO_PROPS},
 };
@@ -23,15 +18,15 @@ use rustc_hash::FxHashSet;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
-/// that are used to define the type of the vertices, edges
+/// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
 ///
 pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph>;
 
-    /// Return a View of the vertices in the Graph
-    fn vertices(&self) -> Vertices<'graph, Self, Self>;
+    /// Return a View of the nodes in the Graph
+    fn nodes(&self) -> Nodes<'graph, Self, Self>;
 
     /// Get a graph clone
     ///
@@ -40,22 +35,20 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     /// Returns:
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
-        &self,
-        vertices: I,
-    ) -> VertexSubgraph<Self>;
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I)
+        -> NodeSubgraph<Self>;
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
-    /// Return the number of vertices in the graph.
-    fn count_vertices(&self) -> usize;
+    /// Return the number of nodes in the graph.
+    fn count_nodes(&self) -> usize;
 
     /// Check if the graph is empty.
     fn is_empty(&self) -> bool {
-        self.count_vertices() == 0
+        self.count_nodes() == 0
     }
 
     /// Return the number of edges in the graph.
@@ -64,17 +57,17 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     // Return the number of temporal edges in the graph.
     fn count_temporal_edges(&self) -> usize;
 
-    /// Check if the graph contains a vertex `v`.
-    fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
+    /// Check if the graph contains a node `v`.
+    fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool;
 
-    /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
+    /// Check if the graph contains an edge given a pair of nodes `(src, dst)`.
+    fn has_edge<T: Into<NodeRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
 
-    /// Get a vertex `v`.
-    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self, Self>>;
+    /// Get a node `v`.
+    fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
+    fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
 
     /// Get all property values of this graph.
     ///
@@ -94,13 +87,13 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
             .into_dyn_boxed()
     }
 
-    fn vertices(&self) -> Vertices<'graph, Self, Self> {
+    fn nodes(&self) -> Nodes<'graph, Self, Self> {
         let graph = self.clone();
-        Vertices::new(graph)
+        Nodes::new(graph)
     }
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InnerTemporalGraph::default();
-        // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
+        // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {
             // FIXME: this needs to be verified
             for ee in e.explode_layers() {
@@ -135,17 +128,17 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
             }
         }
 
-        for v in self.vertices().iter() {
+        for v in self.nodes().iter() {
             for h in v.history() {
-                g.add_vertex(h, v.name(), NO_PROPS)?;
+                g.add_node(h, v.name(), NO_PROPS)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_vertex(t, v.name(), [(name.clone(), prop)])?;
+                    g.add_node(t, v.name(), [(name.clone(), prop)])?;
                 }
             }
-            g.vertex(v.id())
-                .expect("vertex added")
+            g.node(v.id())
+                .expect("node added")
                 .add_constant_properties(v.properties().constant())?;
         }
 
@@ -153,17 +146,14 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
 
         Ok(self.new_base_graph(g))
     }
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
-        &self,
-        vertices: I,
-    ) -> VertexSubgraph<G> {
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
         let filter = self.edge_filter();
         let layer_ids = self.layer_ids();
-        let vertices: FxHashSet<VID> = vertices
+        let nodes: FxHashSet<VID> = nodes
             .into_iter()
-            .flat_map(|v| self.internal_vertex_ref(v.into(), &layer_ids, filter))
+            .flat_map(|v| self.internal_node_ref(v.into(), &layer_ids, filter))
             .collect();
-        VertexSubgraph::new(self.clone(), vertices)
+        NodeSubgraph::new(self.clone(), nodes)
     }
 
     /// Return all the layer ids in the graph
@@ -179,8 +169,8 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.latest_time_global()
     }
 
-    fn count_vertices(&self) -> usize {
-        self.vertices_len(self.layer_ids(), self.edge_filter())
+    fn count_nodes(&self) -> usize {
+        self.nodes_len(self.layer_ids(), self.edge_filter())
     }
 
     #[inline]
@@ -192,33 +182,33 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.temporal_edges_len(self.layer_ids(), self.edge_filter())
     }
 
-    fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
-        self.has_vertex_ref(v.into(), &self.layer_ids(), self.edge_filter())
+    fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool {
+        self.has_node_ref(v.into(), &self.layer_ids(), self.edge_filter())
     }
 
-    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
+    fn has_edge<T: Into<NodeRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
         let src_ref = src.into();
         let dst_ref = dst.into();
         let layers = self.layer_ids_from_names(layer.into());
-        if let Some(src) = self.internalise_vertex(src_ref) {
-            if let Some(dst) = self.internalise_vertex(dst_ref) {
+        if let Some(src) = self.internalise_node(src_ref) {
+            if let Some(dst) = self.internalise_node(dst_ref) {
                 return self.has_edge_ref(src, dst, &layers, self.edge_filter());
             }
         }
         false
     }
 
-    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self, Self>> {
+    fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>> {
         let v = v.into();
-        self.internal_vertex_ref(v, &self.layer_ids(), self.edge_filter())
-            .map(|v| VertexView::new_internal(self.clone(), v))
+        self.internal_node_ref(v, &self.layer_ids(), self.edge_filter())
+            .map(|v| NodeView::new_internal(self.clone(), v))
     }
 
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
+    fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
         let layer_ids = self.layer_ids();
         let edge_filter = self.edge_filter();
-        if let Some(src) = self.internal_vertex_ref(src.into(), &layer_ids, edge_filter) {
-            if let Some(dst) = self.internal_vertex_ref(dst.into(), &layer_ids, edge_filter) {
+        if let Some(src) = self.internal_node_ref(src.into(), &layer_ids, edge_filter) {
+            if let Some(dst) = self.internal_node_ref(dst.into(), &layer_ids, edge_filter) {
                 return self
                     .edge_ref(src, dst, &layer_ids, edge_filter)
                     .map(|e| EdgeView::new(self.clone(), e));
@@ -280,7 +270,7 @@ mod test_materialize {
 
         let gm = g.materialize().unwrap();
         assert!(gm
-            .vertices()
+            .nodes()
             .name()
             .collect::<Vec<String>>()
             .eq(&vec!["1", "2"]));
@@ -313,8 +303,8 @@ mod test_materialize {
         g.add_properties(0, props_0.clone()).unwrap();
         assert!(g.add_properties(1, props_1.clone()).is_err());
 
-        g.add_vertex(0, 1, props_0.clone()).unwrap();
-        assert!(g.add_vertex(1, 1, props_1.clone()).is_err());
+        g.add_node(0, 1, props_0.clone()).unwrap();
+        assert!(g.add_node(1, 1, props_1.clone()).is_err());
 
         g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
         assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());

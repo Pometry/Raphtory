@@ -51,7 +51,7 @@ def to_pyvis(
         from raphtory import export
 
         g = Graph()
-        g.add_vertex(1, src, properties={"image": "image.png"})
+        g.add_node(1, src, properties={"image": "image.png"})
         g.add_edge(1, 1, 2, {"title": "edge", "weight": 1})
         g.add_edge(1, 2, 1, {"title": "edge", "weight": 3})
 
@@ -63,11 +63,11 @@ def to_pyvis(
         groups = {
             value: index + 1
             for index, value in enumerate(
-                set(graph.vertices.properties.get(type_property))
+                set(graph.nodes.properties.get(type_property))
             )
         }
 
-    for v in graph.vertices:
+    for v in graph.nodes:
         image = (
             v.properties.get(node_image)
             if node_image != None
@@ -108,7 +108,7 @@ def to_pyvis(
 def to_networkx(
     graph,
     explode_edges=False,
-    include_vertex_properties=True,
+    include_node_properties=True,
     include_edge_properties=True,
     include_update_history=True,
     include_property_histories=True,
@@ -123,7 +123,7 @@ def to_networkx(
 
     :param Graph graph: A Raphtory graph.
     :param bool explode_edges: A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
-    :param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
+    :param bool include_node_properties: A boolean that is set to True if you want to include the node properties in the graph. By default this is set to True.
     :param bool include_edge_properties: A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
     :param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
     :param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
@@ -133,10 +133,10 @@ def to_networkx(
 
     networkXGraph = nx.MultiDiGraph()
 
-    vertex_tuples = []
-    for v in graph.vertices:
+    node_tuples = []
+    for v in graph.nodes:
         properties = {}
-        if include_vertex_properties:
+        if include_node_properties:
             if include_property_histories:
                 properties.update(v.properties.constant.as_dict())
                 properties.update(v.properties.temporal.histories())
@@ -144,8 +144,8 @@ def to_networkx(
                 properties = v.properties.as_dict()
         if include_update_history:
             properties.update({"update_history": v.history()})
-        vertex_tuples.append((v.name, properties))
-    networkXGraph.add_nodes_from(vertex_tuples)
+        node_tuples.append((v.name, properties))
+    networkXGraph.add_nodes_from(node_tuples)
 
     edge_tuples = []
     edges = graph.edges.explode() if explode_edges else graph.edges.explode_layers()
@@ -228,13 +228,13 @@ def to_edge_df(
     return pd.DataFrame(edge_tuples, columns=columns)
 
 
-def to_vertex_df(
+def to_node_df(
     graph,
-    include_vertex_properties=True,
+    include_node_properties=True,
     include_update_history=True,
     include_property_histories=True,
 ):
-    r"""Returns an vertex list pandas dataframe for the given graph.
+    r"""Returns an node list pandas dataframe for the given graph.
 
     .. note::
 
@@ -243,23 +243,23 @@ def to_vertex_df(
         you install pandas with ``pip install pandas``
 
     :param Graph graph: A Raphtory graph.
-    :param bool include_vertex_properties: A boolean that is set to True if you want to include the vertex properties in the graph. By default this is set to True.
+    :param bool include_node_properties: A boolean that is set to True if you want to include the node properties in the graph. By default this is set to True.
     :param bool include_update_history: A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
     :param bool include_property_histories: A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
 
     :returns: A pandas dataframe.
 
     """
-    vertex_tuples = []
+    node_tuples = []
     columns = ["id"]
-    if include_vertex_properties:
+    if include_node_properties:
         columns.append("properties")
     if include_update_history:
         columns.append("update_history")
 
-    for v in graph.vertices:
+    for v in graph.nodes:
         tuple = [v.name]
-        if include_vertex_properties:
+        if include_node_properties:
             properties = {}
             if include_property_histories:
                 properties.update(v.properties.constant.as_dict())
@@ -269,5 +269,5 @@ def to_vertex_df(
             tuple.append(properties)
         if include_update_history:
             tuple.append(v.history())
-        vertex_tuples.append(tuple)
-    return pd.DataFrame(vertex_tuples, columns=columns)
+        node_tuples.append(tuple)
+    return pd.DataFrame(node_tuples, columns=columns)
