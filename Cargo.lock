@@ -3259,12 +3259,15 @@ dependencies = [
 name = "raphtory-pymodule"
 version = "0.6.1"
 dependencies = [
+ "crossbeam-channel",
  "openssl",
  "pyo3",
- "pyo3-asyncio",
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
+ "reqwest",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
