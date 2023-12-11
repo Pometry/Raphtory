@@ -192,7 +192,49 @@ impl<'a> Iterator for WindowIter<'a> {
     }
 }
 
-pub type LockedLayeredIndex<'a, T> = LayeredIndex<'a, T, LockedView<'a, Vec<TimeIndex<T>>>>;
+pub enum LockedLayeredIndex<'a, T: AsTime> {
+    LayeredIndex(LayeredIndex<'a, T, LockedView<'a, Vec<TimeIndex<T>>>>),
+    External(Box<dyn TimeIndexOps<IndexType = T> + 'a>),
+}
+
+impl<'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
+    type IndexType = T;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        match self {
+            LockedLayeredIndex::LayeredIndex(t) => t.active(w),
+            LockedLayeredIndex::External(t) => t.active(w),
+        }
+    }
+
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        match self {
+            LockedLayeredIndex::LayeredIndex(t) => t.range(w),
+            LockedLayeredIndex::External(t) => t.range(w),
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            LockedLayeredIndex::LayeredIndex(t) => t.first(),
+            LockedLayeredIndex::External(t) => t.first(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            LockedLayeredIndex::LayeredIndex(t) => t.last(),
+            LockedLayeredIndex::External(t) => t.last(),
+        }
+    }
+
+    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+        match self {
+            LockedLayeredIndex::LayeredIndex(t) => t.iter_t(),
+            LockedLayeredIndex::External(t) => t.iter_t(),
+        }
+    }
+}
 
 pub struct LayeredIndex<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> {
     layers: LayerIds,
@@ -207,46 +249,6 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> LayeredIndex<'a, 
             view,
             marker: PhantomData,
         }
-    }
-
-    pub fn range_iter(&'a self, w: Range<i64>) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
-        let iter = self
-            .view
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| self.layers.contains(i))
-            .map(|(_, t)| t.range_iter(w.clone()).map(|t| t.t()))
-            .kmerge()
-            .dedup();
-        Box::new(iter)
-    }
-
-    pub fn first(&self) -> Option<i64> {
-        self.view
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| self.layers.contains(i))
-            .map(|(_, t)| t.first_t())
-            .min()
-            .flatten()
-    }
-
-    pub fn active(&self, w: Range<i64>) -> bool {
-        self.view
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| self.layers.contains(i))
-            .any(|(_, t)| t.active(w.clone()))
-    }
-
-    fn last_window(&self, w: Range<i64>) -> Option<i64> {
-        self.view
-            .iter()
-            .enumerate()
-            .filter(|(i, _)| self.layers.contains(i))
-            .map(|(_, t)| t.range_iter(w.clone()).next_back().map(|t| *t.t()))
-            .max()
-            .flatten()
     }
 }
 
