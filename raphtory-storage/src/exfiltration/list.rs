@@ -304,7 +304,7 @@ impl<'a> MergeInnerState<'a> {
 pub fn query_per_vertex<'a, GO: GlobalOrder>(
     g: &'a TemporalGraph<GO>,
     window: i64,
-    nodes: impl ParallelIterator<Item = VID> + 'a,
+    nodes: impl IntoParallelIterator<Item = VID> + 'a,
 ) -> Option<
     impl ParallelIterator<
             Item = (
@@ -346,7 +346,7 @@ pub fn query_per_vertex<'a, GO: GlobalOrder>(
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let prog1_prop_id = g.edge_property_id("event_id", events_1v)?;
 
-    let iter = nodes.map(move |b_vid| {
+    let iter = nodes.into_par_iter().map(move |b_vid| {
         let logins = login_edges(events_2v_graph, b_vid, event_id_prop_id_2v);
         let prog1s = prog1_edges(events_1v_graph, b_vid, prog1_prop_id);
         let netflows = valid_netflow_events(nft_graph, b_vid, bytes_prop_id);

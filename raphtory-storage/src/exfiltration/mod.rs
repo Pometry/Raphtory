@@ -8,7 +8,7 @@ pub mod count;
 pub mod list;
 
 #[inline]
-fn find_active_nodes(layer: &TempColGraphFragment) -> impl ParallelIterator<Item = VID> + '_ {
+fn find_active_nodes(layer: &TempColGraphFragment) -> Vec<VID> {
     let chunk_size = layer.vertex_chunk_size();
     layer
         .outbound()
@@ -23,6 +23,7 @@ fn find_active_nodes(layer: &TempColGraphFragment) -> impl ParallelIterator<Item
                 .enumerate()
                 .filter_map(move |(i, d)| (d > 0).then(|| VID(chunk_start + i)))
         })
+        .collect()
 }
 
 #[cfg(test)]

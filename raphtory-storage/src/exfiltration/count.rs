@@ -1,4 +1,4 @@
-use crate::exfiltration;
+use crate::exfiltration::find_active_nodes;
 use itertools::kmerge_by;
 use raphtory::{
     arrow::{
@@ -10,9 +10,7 @@ use raphtory::{
         Direction,
     },
 };
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
-};
+use rayon::prelude::*;
 use std::{
     cmp::Ordering,
     collections::VecDeque,
@@ -307,8 +305,7 @@ pub fn query<GO: GlobalOrder>(
     let event_id_prop_id_2v = g.edge_property_id("event_id", events_2v)?;
     let prog1_prop_id = g.edge_property_id("event_id", events_1v)?;
 
-    let now = Instant::now();
-    let log_nodes = exfiltration::find_active_nodes(events_1v_graph);
+    let log_nodes = find_active_nodes(events_1v_graph);
 
     let valid_netflow_events_ms = Arc::new(AtomicU64::default());
     let valid_netflow_events_ms_ref = valid_netflow_events_ms.clone();
