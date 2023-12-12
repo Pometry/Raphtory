@@ -115,24 +115,24 @@ where
 /// * `v` - Vertex view.
 /// * `new_state` - The new state to be assigned.
 /// * `infection_time` - The time of infection.
-fn change_state_by_prob<G, T>(
+fn change_state_by_prob<G>(
     recovery_rate: f64,
     rng: &mut StdRng,
     prev_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     new_nodes_status: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     v: &NodeView<WindowedGraph<G>>,
     new_state: u8,
-    infection_time: T,
+    infection_time: i64,
 ) where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
     let prev_infected_time = prev_nodes_state.get(v).unwrap().1;
-    if (rng.gen::<f64>() < recovery_rate) & (prev_infected_time < infection_time.into_time()) {
-        let _ = new_nodes_status.insert(v.clone(), (new_state, infection_time.into_time()));
+    println!("Node {:?} prev {:?} cur {:?}", v.name(), prev_infected_time, infection_time);
+    if (rng.gen::<f64>() < recovery_rate) & (prev_infected_time < infection_time) {
+        let _ = new_nodes_status.insert(v.clone(), (new_state, infection_time));
         println!(
             "Changed state by p ({:?}) {:?}->{:?}",
-            infection_time.into_time(),
+            infection_time,
             v.name(),
             new_state
         );
@@ -195,18 +195,17 @@ fn change_state_by_neighbors<G>(
 ///
 /// # Returns
 /// The state of the node.
-fn get_node_state<G, T>(
+fn get_node_state<G>(
     prev_nodes_status: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     v: &NodeView<WindowedGraph<G>, WindowedGraph<G>>,
-    initial_infection_time: T,
+    initial_infection_time: i64,
 ) -> u8
 where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
     match prev_nodes_status.get(&v) {
         None => {
-            prev_nodes_status.insert(v.clone(), (SUSCEPTIBLE, initial_infection_time.into_time()));
+            prev_nodes_status.insert(v.clone(), (SUSCEPTIBLE, initial_infection_time));
             SUSCEPTIBLE
         }
         Some((v_status, _)) => *v_status,
@@ -223,17 +222,16 @@ where
 /// * `rates` - Tuple of rates (infection, recovery, recovery_to_susceptible, exposure).
 /// * `initial_infection_time` - The initial time of infection.
 /// * `is_sirs` - Flag to indicate if SIRS model is used.
-fn sir_sirs_strategy<G, T>(
+fn sir_sirs_strategy<G>(
     prev_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     new_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     rng: &mut StdRng,
     v: &NodeView<WindowedGraph<G>>,
     (infection_rate, recovery_rate, recovery_to_sus_rate, _): (f64, f64, f64, f64),
-    initial_infection_time: T,
+    initial_infection_time: i64,
     is_sirs: bool,
 ) where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
     match get_node_state(prev_nodes_state, &v, initial_infection_time) {
         SUSCEPTIBLE => change_state_by_neighbors(
@@ -360,17 +358,16 @@ where
     )
 }
 
-fn seir_seirs_strategy<G, T>(
+fn seir_seirs_strategy<G>(
     prev_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     new_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     rng: &mut StdRng,
     v: &NodeView<WindowedGraph<G>>,
     (infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate): (f64, f64, f64, f64),
-    initial_infection_time: T,
+    initial_infection_time: i64,
     is_seirs: bool,
 ) where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
     match get_node_state(prev_nodes_state, &v, initial_infection_time) {
         SUSCEPTIBLE => change_state_by_neighbors(
@@ -541,12 +538,12 @@ where
         &mut StdRng,
         &NodeView<WindowedGraph<G>>,
         (f64, f64, f64, f64),
-        T,
+        i64,
         bool,
     ) -> (),
 {
     let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
-    let mut g_after = graph.after(sat_initial_infection_time);
+    let g_after = graph.after(sat_initial_infection_time);
     let (mut rng, mut prev_nodes_state) =
         setup_si(&g_after, initial_seed_set, seed, initial_infection_state);
     let max_time = match time_hops {
@@ -567,7 +564,7 @@ where
                 &mut rng,
                 &v,
                 rates,
-                initial_infection_time,
+                cur_time,
                 is_alt,
             );
         }
@@ -664,17 +661,16 @@ where
     )
 }
 
-fn si_sis_strategy<G, T>(
+fn si_sis_strategy<G>(
     prev_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     new_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     rng: &mut StdRng,
     v: &NodeView<WindowedGraph<G>>,
     (infection_rate, recovery_rate, _, _): (f64, f64, f64, f64),
-    initial_infection_time: T,
+    initial_infection_time: i64,
     is_sis: bool,
 ) where
     G: StaticGraphViewOps,
-    T: IntoTime + Copy,
 {
     match get_node_state(prev_nodes_state, &v, initial_infection_time) {
         SUSCEPTIBLE => change_state_by_neighbors(
