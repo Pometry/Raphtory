@@ -13,15 +13,15 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-use std::{collections::HashSet, future::Future, thread, thread::JoinHandle};
+use std::{future::Future, thread};
 
 pub mod errors;
 
-impl<'source> FromPyObject<'source> for SeedSet<VertexRef> {
+impl<'source> FromPyObject<'source> for SeedSet<NodeRef> {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         if let Ok(probality) = ob.extract::<f64>() {
             Ok(probality.into())
-        } else if let Ok(hashsetvref) = ob.extract::<Vec<VertexRef>>() {
+        } else if let Ok(hashsetvref) = ob.extract::<Vec<NodeRef>>() {
             Ok(hashsetvref.into())
         } else {
             Err(PyTypeError::new_err("Not a valid vertex"))

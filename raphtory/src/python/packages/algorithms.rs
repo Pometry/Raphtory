@@ -5,7 +5,7 @@ use crate::{
     core::Prop,
     db::{
         api::view::internal::DynamicGraph,
-        graph::{vertex::VertexView, views::window_graph::WindowedGraph},
+        graph::{node::NodeView, views::window_graph::WindowedGraph},
     },
     python::{graph::edge::PyDirection, utils::PyTime},
 };
@@ -54,11 +54,6 @@ use crate::{
     },
     core::entities::nodes::node_ref::NodeRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
-};
-use crate::{
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    python::graph::edge::PyDirection,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -637,12 +632,12 @@ pub fn label_propagation(
 #[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, seed=None, hops=1)]]
 pub fn si_model(
     g: &PyGraphView,
-    initial_seed_set: SeedSet<VertexRef>,
+    initial_seed_set: SeedSet<NodeRef>,
     initial_infection_time: PyTime,
     infection_rate: f64,
     seed: Option<[u8; 32]>,
     hops: Option<i32>,
-) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+) -> PyResult<HashMap<NodeView<WindowedGraph<DynamicGraph>>, u8>> {
     match si_model_rs(
         &g.graph,
         initial_seed_set,
@@ -676,13 +671,13 @@ pub fn si_model(
 #[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, recovery_rate, seed=None, hops=1)]]
 pub fn sis_model(
     g: &PyGraphView,
-    initial_seed_set: SeedSet<VertexRef>,
+    initial_seed_set: SeedSet<NodeRef>,
     initial_infection_time: PyTime,
     infection_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
     hops: Option<i32>,
-) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+) -> PyResult<HashMap<NodeView<WindowedGraph<DynamicGraph>>, u8>> {
     match sis_model_rs(
         &g.graph,
         initial_seed_set,
@@ -717,13 +712,13 @@ pub fn sis_model(
 #[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, recovery_rate, seed=None, hops=1)]]
 pub fn sir_model(
     g: &PyGraphView,
-    initial_seed_set: SeedSet<VertexRef>,
+    initial_seed_set: SeedSet<NodeRef>,
     initial_infection_time: PyTime,
     infection_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
     hops: Option<i32>,
-) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+) -> PyResult<HashMap<NodeView<WindowedGraph<DynamicGraph>>, u8>> {
     match sir_model_rs(
         &g.graph,
         initial_seed_set,
@@ -759,14 +754,14 @@ pub fn sir_model(
 #[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, recovery_rate, rec_to_sus_rate, seed=None, hops=1)]]
 pub fn sirs_model(
     g: &PyGraphView,
-    initial_seed_set: SeedSet<VertexRef>,
+    initial_seed_set: SeedSet<NodeRef>,
     initial_infection_time: PyTime,
     infection_rate: f64,
     recovery_rate: f64,
     rec_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
     hops: Option<i32>,
-) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+) -> PyResult<HashMap<NodeView<WindowedGraph<DynamicGraph>>, u8>> {
     match sirs_model_rs(
         &g.graph,
         initial_seed_set,
@@ -804,7 +799,7 @@ pub fn sirs_model(
 #[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, exposure_rate, recovery_rate, seed=None, hops=1, initial_state=3)]]
 pub fn seir_model(
     g: &PyGraphView,
-    initial_seed_set: SeedSet<VertexRef>,
+    initial_seed_set: SeedSet<NodeRef>,
     initial_infection_time: PyTime,
     infection_rate: f64,
     exposure_rate: f64,
@@ -812,7 +807,7 @@ pub fn seir_model(
     seed: Option<[u8; 32]>,
     hops: Option<i32>,
     initial_state: u8,
-) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+) -> PyResult<HashMap<NodeView<WindowedGraph<DynamicGraph>>, u8>> {
     match seir_model_rs(
         &g.graph,
         initial_seed_set,
@@ -852,7 +847,7 @@ pub fn seir_model(
 #[pyo3[signature = (g, initial_seed_set, initial_infection_time, infection_rate, exposure_rate, recovery_rate, rec_to_sus_rate, seed=None, hops=1, initial_state=3)]]
 pub fn seirs_model(
     g: &PyGraphView,
-    initial_seed_set: SeedSet<VertexRef>,
+    initial_seed_set: SeedSet<NodeRef>,
     initial_infection_time: PyTime,
     infection_rate: f64,
     exposure_rate: f64,
@@ -861,7 +856,7 @@ pub fn seirs_model(
     seed: Option<[u8; 32]>,
     hops: Option<i32>,
     initial_state: u8,
-) -> PyResult<HashMap<VertexView<WindowedGraph<DynamicGraph>>, u8>> {
+) -> PyResult<HashMap<NodeView<WindowedGraph<DynamicGraph>>, u8>> {
     match seirs_model_rs(
         &g.graph,
         initial_seed_set,
