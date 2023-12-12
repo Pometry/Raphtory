@@ -117,6 +117,7 @@ where
 fn change_state_by_prob<G, T>(
     recovery_rate: f64,
     rng: &mut StdRng,
+    prev_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     new_nodes_status: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     v: &NodeView<WindowedGraph<G>>,
     new_state: u8,
@@ -125,8 +126,10 @@ fn change_state_by_prob<G, T>(
     G: StaticGraphViewOps,
     T: IntoTime + Copy,
 {
-    if rng.gen::<f64>() < recovery_rate {
+    let prev_infected_time = prev_nodes_state.get(v).unwrap().1;
+    if (rng.gen::<f64>() < recovery_rate) & (prev_infected_time < infection_time.into_time()) {
         let _ = new_nodes_status.insert(v.clone(), (new_state, infection_time.into_time()));
+        println!("Changed state by p ({:?}) {:?}->{:?}", infection_time.into_time(), v.name(), new_state);
     }
 }
 
@@ -166,6 +169,7 @@ fn change_state_by_neighbors<G>(
         // then roll the dice and infect them
         {
             let _ = new_nodes_state.insert(v.clone(), (new_state, current_time));
+            println!("Changed state by n ({:?}) {:?}->{:?}", current_time, v.name(), new_state);
             break;
         }
     }
@@ -232,6 +236,7 @@ fn sir_sirs_strategy<G, T>(
         INFECTIOUS => change_state_by_prob(
             recovery_rate,
             rng,
+            prev_nodes_state,
             new_nodes_state,
             v,
             RECOVERED,
@@ -239,9 +244,11 @@ fn sir_sirs_strategy<G, T>(
         ),
         RECOVERED => {
             if is_sirs {
+                println!("recovered {:?}", &v.name());
                 change_state_by_prob(
                     recovery_to_sus_rate,
                     rng,
+                    prev_nodes_state,
                     new_nodes_state,
                     v,
                     SUSCEPTIBLE,
@@ -367,6 +374,7 @@ fn seir_seirs_strategy<G, T>(
         EXPOSED => change_state_by_prob(
             exposure_rate,
             rng,
+            prev_nodes_state,
             new_nodes_state,
             v,
             INFECTIOUS,
@@ -375,6 +383,7 @@ fn seir_seirs_strategy<G, T>(
         INFECTIOUS => change_state_by_prob(
             recovery_rate,
             rng,
+            prev_nodes_state,
             new_nodes_state,
             v,
             RECOVERED,
@@ -385,6 +394,7 @@ fn seir_seirs_strategy<G, T>(
                 change_state_by_prob(
                     recovery_to_sus_rate,
                     rng,
+                    prev_nodes_state,
                     new_nodes_state,
                     v,
                     SUSCEPTIBLE,
@@ -526,10 +536,11 @@ where
     ) -> (),
 {
     let sat_initial_infection_time = initial_infection_time.into_time().saturating_sub(1);
-    let g_after = graph.after(sat_initial_infection_time);
+    let mut g_after = graph.after(sat_initial_infection_time);
     let (mut rng, mut prev_nodes_state) =
         setup_si(&g_after, initial_seed_set, seed, initial_infection_state);
-    for _ in 0..hops.unwrap_or(1i32) {
+    for cur_time in initial_infection_time.into_time()..graph.end().unwrap() {
+        g_after = graph.at(cur_time);
         let mut new_nodes_state: HashMap<NodeView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
         for v in g_after.nodes().iter() {
             state_transition_strategy(
@@ -661,6 +672,7 @@ fn si_sis_strategy<G, T>(
                 change_state_by_prob(
                     recovery_rate,
                     rng,
+                    prev_nodes_state,
                     new_nodes_state,
                     v,
                     SUSCEPTIBLE,
@@ -730,6 +742,19 @@ mod si_tests {
             (g_after.node("G").unwrap(), INFECTIOUS),
         ]);
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn sir_test_temporal() {
+        let graph: Graph = Graph::new();
+        let edges = vec![
+            (100, "A", "B"),
+            (10, "B", "C"),
+        ];
+        for (ts, src, dst) in edges {
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+        }
+
     }
 
     #[test]
