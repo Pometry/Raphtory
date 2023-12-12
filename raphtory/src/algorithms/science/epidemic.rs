@@ -127,7 +127,7 @@ fn change_state_by_prob<G>(
     G: StaticGraphViewOps,
 {
     let prev_infected_time = prev_nodes_state.get(v).unwrap().1;
-    println!("Node {:?} prev {:?} cur {:?}", v.name(), prev_infected_time, infection_time);
+    println!("prob: Node {:?} prev {:?} cur {:?}", v.name(), prev_infected_time, infection_time);
     if (rng.gen::<f64>() < recovery_rate) & (prev_infected_time < infection_time) {
         let _ = new_nodes_status.insert(v.clone(), (new_state, infection_time));
         println!(
@@ -155,16 +155,12 @@ fn change_state_by_neighbors<G>(
     new_nodes_state: &mut HashMap<NodeView<WindowedGraph<G>>, (u8, i64)>,
     v: &NodeView<WindowedGraph<G>>,
     new_state: u8,
+    current_time: i64,
 ) where
     G: StaticGraphViewOps,
 {
-    for edgeview in v.edges().map(|e| e.explode()).flatten() {
-        let neighbour = if edgeview.src() != *v {
-            edgeview.src()
-        } else {
-            edgeview.dst()
-        };
-        let current_time = edgeview.latest_time().unwrap();
+    for edgeview in v.at(current_time).in_edges() {
+        let neighbour  = edgeview.src();
         let not_infected_state = (SUSCEPTIBLE, current_time);
         let neighbour_status = prev_nodes_status
             .get(&neighbour)
@@ -241,6 +237,7 @@ fn sir_sirs_strategy<G>(
             new_nodes_state,
             v,
             INFECTIOUS,
+            initial_infection_time,
         ),
         INFECTIOUS => change_state_by_prob(
             recovery_rate,
@@ -377,6 +374,7 @@ fn seir_seirs_strategy<G>(
             new_nodes_state,
             v,
             EXPOSED,
+            initial_infection_time,
         ),
         EXPOSED => change_state_by_prob(
             exposure_rate,
@@ -680,6 +678,7 @@ fn si_sis_strategy<G>(
             new_nodes_state,
             v,
             INFECTIOUS,
+            initial_infection_time,
         ),
         INFECTIOUS => {
             if is_sis {
@@ -732,7 +731,7 @@ mod si_tests {
             (g_after.node("A").unwrap(), INFECTIOUS),
             (g_after.node("B").unwrap(), INFECTIOUS),
             (g_after.node("C").unwrap(), SUSCEPTIBLE),
-            (g_after.node("D").unwrap(), SUSCEPTIBLE),
+            (g_after.node("D").unwrap(), INFECTIOUS),
             (g_after.node("E").unwrap(), INFECTIOUS),
             (g_after.node("F").unwrap(), SUSCEPTIBLE),
             (g_after.node("G").unwrap(), INFECTIOUS),
@@ -751,10 +750,10 @@ mod si_tests {
         let g_after = graph.after(0);
         let expected: HashMap<NodeView<WindowedGraph<Graph>>, u8> = HashMap::from([
             (g_after.node("A").unwrap(), INFECTIOUS),
-            (g_after.node("B").unwrap(), INFECTIOUS),
+            (g_after.node("B").unwrap(), SUSCEPTIBLE),
             (g_after.node("C").unwrap(), SUSCEPTIBLE),
-            (g_after.node("D").unwrap(), SUSCEPTIBLE),
-            (g_after.node("E").unwrap(), INFECTIOUS),
+            (g_after.node("D").unwrap(), INFECTIOUS),
+            (g_after.node("E").unwrap(), SUSCEPTIBLE),
             (g_after.node("F").unwrap(), SUSCEPTIBLE),
             (g_after.node("G").unwrap(), INFECTIOUS),
         ]);
@@ -773,11 +772,11 @@ mod si_tests {
         let expected: HashMap<NodeView<WindowedGraph<Graph>, WindowedGraph<Graph>>, u8> =
             HashMap::from([
                 (g_after.node("A").unwrap(), RECOVERED),
-                (g_after.node("B").unwrap(), INFECTIOUS),
+                (g_after.node("B").unwrap(), RECOVERED),
                 (g_after.node("C").unwrap(), RECOVERED),
-                (g_after.node("D").unwrap(), SUSCEPTIBLE),
+                (g_after.node("D").unwrap(), INFECTIOUS),
                 (g_after.node("E").unwrap(), RECOVERED),
-                (g_after.node("F").unwrap(), INFECTIOUS),
+                (g_after.node("F").unwrap(), RECOVERED),
                 (g_after.node("G").unwrap(), INFECTIOUS),
             ]);
         for (k, v) in result.iter() {
