@@ -129,7 +129,12 @@ fn change_state_by_prob<G, T>(
     let prev_infected_time = prev_nodes_state.get(v).unwrap().1;
     if (rng.gen::<f64>() < recovery_rate) & (prev_infected_time < infection_time.into_time()) {
         let _ = new_nodes_status.insert(v.clone(), (new_state, infection_time.into_time()));
-        println!("Changed state by p ({:?}) {:?}->{:?}", infection_time.into_time(), v.name(), new_state);
+        println!(
+            "Changed state by p ({:?}) {:?}->{:?}",
+            infection_time.into_time(),
+            v.name(),
+            new_state
+        );
     }
 }
 
@@ -169,7 +174,12 @@ fn change_state_by_neighbors<G>(
         // then roll the dice and infect them
         {
             let _ = new_nodes_state.insert(v.clone(), (new_state, current_time));
-            println!("Changed state by n ({:?}) {:?}->{:?}", current_time, v.name(), new_state);
+            println!(
+                "Changed state by n ({:?}) {:?}->{:?}",
+                current_time,
+                v.name(),
+                new_state
+            );
             break;
         }
     }
@@ -747,14 +757,10 @@ mod si_tests {
     #[test]
     fn sir_test_temporal() {
         let graph: Graph = Graph::new();
-        let edges = vec![
-            (100, "A", "B"),
-            (10, "B", "C"),
-        ];
+        let edges = vec![(100, "A", "B"), (10, "B", "C")];
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-
     }
 
     #[test]
