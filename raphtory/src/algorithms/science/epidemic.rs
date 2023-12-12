@@ -13,6 +13,7 @@ use rand::{
     Rng, SeedableRng,
 };
 use std::collections::HashMap;
+use kdam::format::time;
 
 // Constants representing different states in epidemic models.
 const SUSCEPTIBLE: u8 = 0u8;
@@ -254,7 +255,6 @@ fn sir_sirs_strategy<G, T>(
         ),
         RECOVERED => {
             if is_sirs {
-                println!("recovered {:?}", &v.name());
                 change_state_by_prob(
                     recovery_to_sus_rate,
                     rng,
@@ -279,7 +279,7 @@ fn sir_sirs_strategy<G, T>(
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of an infected node recovering.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `time_hops` - An optional int for the amount of times to advance through the graph for infection, default 1. The graph advance forward from infection time by this amount
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -293,7 +293,7 @@ pub fn sir_model<G, T, V, W>(
     infection_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -308,7 +308,7 @@ where
         INFECTIOUS,
         (infection_rate, recovery_rate, 0.0f64, 0.0f64),
         seed,
-        hops,
+        time_hops,
         sir_sirs_strategy,
         false,
     )
@@ -324,7 +324,7 @@ where
 /// * `recovery_rate` - The probability of an infected node recovering, going from infection to recovered
 /// * `rec_to_sus_rate` - The probability of an recovered node going back to susceptible.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `time_hops` - An optional int for the amount of times to advance through the graph for infection, default 1. The graph advance forward from infection time by this amount
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -339,7 +339,7 @@ pub fn sirs_model<G, T, V, W>(
     recovery_rate: f64,
     recovery_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -354,7 +354,7 @@ where
         INFECTIOUS,
         (infection_rate, recovery_rate, recovery_to_sus_rate, 0.0f64),
         seed,
-        hops,
+        time_hops,
         sir_sirs_strategy,
         true,
     )
@@ -426,7 +426,7 @@ fn seir_seirs_strategy<G, T>(
 /// * `exposure_rate` - The probability of a node moving from Exposed to Infectious.
 /// * `recovery_rate` - The probability of an infected node recovering, going from Infectious to recovered
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `time_hops` - An optional int for the amount of times to advance through the graph for infection, default 1. The graph advance forward from infection time by this amount
 /// * `initial_state` - A state, u8, the infected nodes should start at e.g. 3 for Exposed
 ///
 /// # Returns
@@ -442,7 +442,7 @@ pub fn seir_model<G, T, V, W>(
     exposure_rate: f64,
     recovery_rate: f64,
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
     initial_state: u8,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
 where
@@ -458,7 +458,7 @@ where
         initial_state,
         (infection_rate, recovery_rate, 0.0f64, exposure_rate),
         seed,
-        hops,
+        time_hops,
         seir_seirs_strategy,
         false,
     )
@@ -475,7 +475,7 @@ where
 /// * `recovery_rate` - The probability of an infected node recovering, going from Infectious to recovered
 /// * `rec_to_sus_rate` - The probability of an recovered node going back to susceptible.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `time_hops` - An optional int for the amount of times to advance through the graph for infection, default 1. The graph advance forward from infection time by this amount
 /// * `initial_state` - The state of which infected nodes should start at.
 ///
 /// # Returns
@@ -492,7 +492,7 @@ pub fn seirs_model<G, T, V, W>(
     recovery_rate: f64,
     rec_to_sus_rate: f64,
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
     initial_state: u8,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
 where
@@ -513,7 +513,7 @@ where
             exposure_rate,
         ),
         seed,
-        hops,
+        time_hops,
         seir_seirs_strategy,
         true,
     )
@@ -526,7 +526,7 @@ fn unified_model<G, T, V, W, F>(
     initial_infection_state: u8,
     rates: (f64, f64, f64, f64), // infection_rate, recovery_rate, recovery_to_sus_rate, exposure_rate
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
     state_transition_strategy: F,
     is_alt: bool,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
@@ -549,10 +549,18 @@ where
     let mut g_after = graph.after(sat_initial_infection_time);
     let (mut rng, mut prev_nodes_state) =
         setup_si(&g_after, initial_seed_set, seed, initial_infection_state);
-    for cur_time in initial_infection_time.into_time()..graph.end().unwrap() {
-        g_after = graph.at(cur_time);
+    let max_time = match time_hops {
+        None => {
+            graph.end().unwrap()+1i64
+        }
+        Some(val) => {
+            initial_infection_time.into_time() + val
+        }
+    };
+    for cur_time in initial_infection_time.into_time()..max_time {
         let mut new_nodes_state: HashMap<NodeView<WindowedGraph<G>>, (u8, i64)> = HashMap::new();
-        for v in g_after.nodes().iter() {
+        for v in graph.before(cur_time+1).nodes().iter() {
+            println!("Checking {:?} at t){:?}", v.name(), cur_time);
             state_transition_strategy(
                 &mut prev_nodes_state,
                 &mut new_nodes_state,
@@ -579,7 +587,7 @@ where
 /// * `initial_infection_time` - The initial time for infection to start at
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `time_hops` - An optional int for the amount of times to advance through the graph for infection, default 1. The graph advance forward from infection time by this amount
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -592,7 +600,7 @@ pub fn si_model<G, T, V, W>(
     initial_infection_time: T,
     infection_rate: f64, // beta
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -607,7 +615,7 @@ where
         INFECTIOUS,
         (infection_rate, 0.0f64, 0.0f64, 0.0f64),
         seed,
-        hops,
+        time_hops,
         si_sis_strategy,
         false,
     )
@@ -622,7 +630,7 @@ where
 /// * `infection_rate` - The probability of infection spreading from an infected node to a susceptible one.
 /// * `recovery_rate` - The probability of recovery from an infected state to a susceptible one.
 /// * `seed` - An optional seed for the random number generator for reproducibility.
-/// * `hops` - An optional int for the number of times to iterate through the graph for infection, default 1. The graph will only go this many hops for each node that is infected
+/// * `time_hops` - An optional int for the amount of times to advance through the graph for infection, default 1. The graph advance forward from infection time by this amount
 ///
 /// # Returns
 /// A `Result` which is either:
@@ -635,7 +643,7 @@ pub fn sis_model<G, T, V, W>(
     infection_rate: f64, // beta
     recovery_rate: f64,  // Y
     seed: Option<[u8; 32]>,
-    hops: Option<i32>,
+    time_hops: Option<i64>,
 ) -> Result<HashMap<NodeView<WindowedGraph<G>>, u8>, &'static str>
 where
     G: StaticGraphViewOps,
@@ -650,7 +658,7 @@ where
         INFECTIOUS,
         (infection_rate, recovery_rate, 0.0f64, 0.0f64),
         seed,
-        hops,
+        time_hops,
         si_sis_strategy,
         true,
     )
@@ -722,7 +730,7 @@ mod si_tests {
     fn si_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = si_model(&graph, vec!["A"], 2, 1.00f64, seed, Some(3)).unwrap();
+        let result = si_model(&graph, vec!["A"], 2, 1.00f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<NodeView<WindowedGraph<Graph>>, u8> = HashMap::from([
             (g_after.node("A").unwrap(), INFECTIOUS),
@@ -733,6 +741,9 @@ mod si_tests {
             (g_after.node("F").unwrap(), SUSCEPTIBLE),
             (g_after.node("G").unwrap(), INFECTIOUS),
         ]);
+        for (k, v) in result.iter() {
+            println!("{:?} {:?}", k.name(), v)
+        }
         assert_eq!(expected, result);
     }
 
@@ -740,38 +751,32 @@ mod si_tests {
     fn sis_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sis_model(&graph, vec!["A"], 2, 1.00f64, 0.5f64, seed, Some(3)).unwrap();
+        let result = sis_model(&graph, vec!["A"], 2, 1.00f64, 0.5f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<NodeView<WindowedGraph<Graph>>, u8> = HashMap::from([
-            (g_after.node("A").unwrap(), SUSCEPTIBLE),
+            (g_after.node("A").unwrap(), INFECTIOUS),
             (g_after.node("B").unwrap(), INFECTIOUS),
             (g_after.node("C").unwrap(), SUSCEPTIBLE),
             (g_after.node("D").unwrap(), SUSCEPTIBLE),
-            (g_after.node("E").unwrap(), SUSCEPTIBLE),
+            (g_after.node("E").unwrap(), INFECTIOUS),
             (g_after.node("F").unwrap(), SUSCEPTIBLE),
             (g_after.node("G").unwrap(), INFECTIOUS),
         ]);
-        assert_eq!(expected, result);
-    }
-
-    #[test]
-    fn sir_test_temporal() {
-        let graph: Graph = Graph::new();
-        let edges = vec![(100, "A", "B"), (10, "B", "C")];
-        for (ts, src, dst) in edges {
-            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+        for (k, v) in result.iter() {
+            println!("{:?} {:?}", k.name(), v)
         }
+        assert_eq!(expected, result);
     }
 
     #[test]
     fn sir_test() {
         let graph = gen_graph();
         let seed = Some([5; 32]);
-        let result = sir_model(&graph, vec!["A"], 0, 1.0f64, 0.3f64, seed, Some(3)).unwrap();
+        let result = sir_model(&graph, vec!["A"], 0, 1.0f64, 0.5f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<NodeView<WindowedGraph<Graph>, WindowedGraph<Graph>>, u8> =
             HashMap::from([
-                (g_after.node("A").unwrap(), INFECTIOUS),
+                (g_after.node("A").unwrap(), RECOVERED),
                 (g_after.node("B").unwrap(), INFECTIOUS),
                 (g_after.node("C").unwrap(), RECOVERED),
                 (g_after.node("D").unwrap(), SUSCEPTIBLE),
@@ -779,6 +784,9 @@ mod si_tests {
                 (g_after.node("F").unwrap(), INFECTIOUS),
                 (g_after.node("G").unwrap(), INFECTIOUS),
             ]);
+        for (k, v) in result.iter() {
+            println!("{:?} {:?}", k.name(), v)
+        }
         assert_eq!(expected, result);
     }
 
@@ -787,7 +795,7 @@ mod si_tests {
         let graph = gen_graph();
         let seed = Some([5; 32]);
         let result =
-            sirs_model(&graph, vec!["A"], 0, 1.0f64, 0.5f64, 0.3f64, seed, Some(3)).unwrap();
+            sirs_model(&graph, vec!["A"], 0, 1.0f64, 0.5f64, 0.3f64, seed, None).unwrap();
         let g_after = graph.after(0);
         let expected: HashMap<NodeView<WindowedGraph<Graph>, WindowedGraph<Graph>>, u8> =
             HashMap::from([
@@ -817,7 +825,7 @@ mod si_tests {
             1.0f64,
             0.5f64,
             seed,
-            Some(3),
+            None,
             EXPOSED,
         )
         .unwrap();
@@ -851,7 +859,7 @@ mod si_tests {
             0.5f64,
             0.4f64,
             seed,
-            Some(3),
+            None,
             EXPOSED,
         )
         .unwrap();
