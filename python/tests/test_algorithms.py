@@ -461,3 +461,119 @@ def test_label_propagation_algorithm():
     assert len(result) == len(expected)
     for group in expected:
         assert group in result
+
+
+SUSCEPTIBLE = 0
+INFECTIOUS = 1
+RECOVERED = 2
+EXPOSED = 3
+
+
+def presetup_epidemics():
+    g = Graph()
+    edges_str = [
+        (3, "A", "B"),
+        (2, "A", "C"),
+        (4, "B", "E"),
+        (2, "B", "D"),
+        (1, "E", "D"),
+        (5, "E", "G"),
+        (5, "D", "G"),
+        (3, "C", "F"),
+        (4, "F", "G"),
+    ]
+    for time, src, dst in edges_str:
+        g.add_edge(time, src, dst)
+    seed = [5] * 32
+    g_after = g.after(0)
+    return g, seed, g_after
+
+
+def test_si_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.si_model(g, ["A"], 2, 1.0, seed, 3)
+    expected = {
+        g_after.node("A"): INFECTIOUS,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): SUSCEPTIBLE,
+        g_after.node("G"): INFECTIOUS,
+    }
+    assert result == expected
+
+
+def test_sis_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.sis_model(g, ["A"], 2, 1.0, 0.5, seed, 3)
+    expected = {
+        g_after.node("A"): SUSCEPTIBLE,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): SUSCEPTIBLE,
+        g_after.node("F"): SUSCEPTIBLE,
+        g_after.node("G"): INFECTIOUS,
+    }
+    assert result == expected
+
+
+def test_sir_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.sir_model(g, ["A"], 0, 1.0, 0.3, seed, 3)
+    expected = {
+        g_after.node("A"): INFECTIOUS,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): RECOVERED,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): RECOVERED,
+        g_after.node("F"): INFECTIOUS,
+        g_after.node("G"): INFECTIOUS,
+    }
+    assert result == expected
+
+
+def test_sirs_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.sirs_model(g, ["A"], 0, 1.0, 0.5, 0.3, seed, 3)
+    expected = {
+        g_after.node("A"): RECOVERED,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): INFECTIOUS,
+        g_after.node("G"): INFECTIOUS,
+    }
+    assert result == expected
+
+
+def test_seir_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.seir_model(g, ["A"], 2, 1.0, 1.0, 0.5, seed, 3)
+    expected = {
+        g_after.node("A"): RECOVERED,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): SUSCEPTIBLE,
+        g_after.node("G"): EXPOSED,
+    }
+    assert result == expected
+
+
+def test_seirs_algorithm():
+    g, seed, g_after = presetup_epidemics()
+    result = algorithms.seirs_model(g, ["A"], 0, 1.0, 1.0, 0.5, 0.4, seed, 3)
+    expected = {
+        g_after.node("A"): RECOVERED,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): RECOVERED,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): INFECTIOUS,
+        g_after.node("G"): EXPOSED,
+    }
+    assert result == expected

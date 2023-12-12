@@ -35,3 +35,4 @@ pub mod cores;
 pub mod metrics;
 pub mod motifs;
 pub mod pathing;
+pub mod science;

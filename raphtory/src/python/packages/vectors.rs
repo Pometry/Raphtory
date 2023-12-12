@@ -25,7 +25,6 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, thread};
 
 #[derive(Clone)]
 pub enum PyQuery {
