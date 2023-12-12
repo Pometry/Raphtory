@@ -13,8 +13,8 @@ def build_graph():
         "datetime64[ms, UTC]"
     )
 
-    vertices_df = pd.read_csv(base_dir / "data/network_traffic_vertices.csv")
-    vertices_df["timestamp"] = pd.to_datetime(vertices_df["timestamp"]).astype(
+    nodes_df = pd.read_csv(base_dir / "data/network_traffic_nodes.csv")
+    nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
 
@@ -27,12 +27,12 @@ def build_graph():
         edge_layer="transaction_type",
         edge_const_props=["is_encrypted"],
         edge_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
-        vertex_df=vertices_df,
-        vertex_id="server_id",
-        vertex_time="timestamp",
-        vertex_props=["OS_version", "primary_function", "uptime_days"],
-        vertex_const_props=["server_name", "hardware_type"],
-        vertex_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
+        node_df=nodes_df,
+        node_id="server_id",
+        node_time="timestamp",
+        node_props=["OS_version", "primary_function", "uptime_days"],
+        node_const_props=["server_name", "hardware_type"],
+        node_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
     )
 
 
@@ -457,7 +457,7 @@ def test_networkx_no_props():
     g = build_graph()
 
     networkxGraph = export.to_networkx(
-        g, include_vertex_properties=False, include_edge_properties=False
+        g, include_node_properties=False, include_edge_properties=False
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -559,7 +559,7 @@ def test_networkx_no_props():
 
     networkxGraph = export.to_networkx(
         g,
-        include_vertex_properties=False,
+        include_node_properties=False,
         include_edge_properties=False,
         include_update_history=False,
     )
@@ -923,14 +923,14 @@ def build_to_df():
         edge_df, "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
     )
 
-    vertex_df = export.to_vertex_df(g)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_all.json")
-    vertex_df = export.to_vertex_df(g, include_vertex_properties=False)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_props.json")
-    vertex_df = export.to_vertex_df(g, include_update_history=False)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_hist.json")
-    vertex_df = export.to_vertex_df(g, include_property_histories=False)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_prop_hist.json")
+    node_df = export.to_node_df(g)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_all.json")
+    node_df = export.to_node_df(g, include_node_properties=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_props.json")
+    node_df = export.to_node_df(g, include_update_history=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_hist.json")
+    node_df = export.to_node_df(g, include_property_histories=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_prop_hist.json")
 
 
 def jsonify_df(df):
@@ -1012,20 +1012,20 @@ def test_to_df():
     )
 
     compare_df(
-        export.to_vertex_df(g),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_all.json"),
+        export.to_node_df(g),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_all.json"),
     )
     compare_df(
-        export.to_vertex_df(g, include_vertex_properties=False),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_props.json"),
+        export.to_node_df(g, include_node_properties=False),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_props.json"),
     )
     compare_df(
-        export.to_vertex_df(g, include_update_history=False),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_hist.json"),
+        export.to_node_df(g, include_update_history=False),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_hist.json"),
     )
     compare_df(
-        export.to_vertex_df(g, include_property_histories=False),
+        export.to_node_df(g, include_property_histories=False),
         pd.read_json(
-            base_dir / "expected/dataframe_output/vertex_df_no_prop_hist.json"
+            base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"
         ),
     )

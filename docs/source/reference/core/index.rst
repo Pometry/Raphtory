@@ -6,7 +6,7 @@ Graph Core
    :maxdepth: 2
 
    graph
-   vertex
+   node
    edge
    properties
    temporalproperties

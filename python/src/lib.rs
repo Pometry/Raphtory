@@ -10,8 +10,8 @@ use raphtory_core::python::{
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
+        node::{PyMutableNode, PyNode, PyNodes},
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
-        vertex::{PyMutableVertex, PyVertex, PyVertices},
     },
     packages::{
         algorithms::*,
@@ -45,9 +45,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m,
         PyGraph,
         PyGraphWithDeletions,
-        PyVertex,
-        PyVertices,
-        PyMutableVertex,
+        PyNode,
+        PyNodes,
+        PyMutableNode,
         PyEdge,
         PyEdges,
         PyProperties,
@@ -110,7 +110,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_submodule(algorithm_module)?;
 
     // let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
-    // add_functions!(usecase_algorithm_module, one_path_vertex);
+    // add_functions!(usecase_algorithm_module, one_path_node);
     // m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER

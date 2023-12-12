@@ -2,8 +2,8 @@ use crate::model::schema::{merge_schemas, property_schema::PropertySchema, Schem
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::{api::view::DynamicGraph, graph::vertex::VertexView},
-    prelude::{GraphViewOps, VertexViewOps},
+    db::{api::view::DynamicGraph, graph::node::NodeView},
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -30,16 +30,15 @@ impl NodeSchema {
 
     /// Returns the list of property schemas for this node
     async fn properties(&self) -> Vec<PropertySchema> {
-        let filter_type = |vertex: &VertexView<DynamicGraph>| match vertex.properties().get("type")
-        {
+        let filter_type = |node: &NodeView<DynamicGraph>| match node.properties().get("type") {
             Some(node_type) => node_type.to_string() == self.type_name,
             None => false,
         };
 
-        let filtered_vertices = self.graph.vertices().iter().filter(filter_type);
+        let filtered_nodes = self.graph.nodes().iter().filter(filter_type);
 
-        let schema: SchemaAggregate = filtered_vertices
-            .map(collect_vertex_schema)
+        let schema: SchemaAggregate = filtered_nodes
+            .map(collect_node_schema)
             .reduce(merge_schemas)
             .unwrap_or_else(|| HashMap::new());
 
@@ -47,9 +46,8 @@ impl NodeSchema {
     }
 }
 
-fn collect_vertex_schema(vertex: VertexView<DynamicGraph>) -> SchemaAggregate {
-    vertex
-        .properties()
+fn collect_node_schema(node: NodeView<DynamicGraph>) -> SchemaAggregate {
+    node.properties()
         .iter()
         .map(|(key, value)| (key.to_string(), HashSet::from([value.to_string()])))
         .collect()

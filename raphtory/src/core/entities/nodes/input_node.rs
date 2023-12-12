@@ -1,17 +1,17 @@
-//! A data structure for representing input vertices in a temporal graph.
+//! A data structure for representing input nodes in a temporal graph.
 //!
-//! Input vertices are used when first creating or accessing verticies by the user.
-//! This trait allows you to use a variety of types as input vertices, including
+//! Input nodes are used when first creating or accessing verticies by the user.
+//! This trait allows you to use a variety of types as input nodes, including
 //! `u64`, `&str`, and `String`.
 
 use crate::core::utils::hashing;
 
-pub trait InputVertex: Clone {
+pub trait InputNode: Clone {
     fn id(&self) -> u64;
     fn id_str(&self) -> Option<&str>;
 }
 
-impl InputVertex for u64 {
+impl InputNode for u64 {
     fn id(&self) -> u64 {
         *self
     }
@@ -21,7 +21,7 @@ impl InputVertex for u64 {
     }
 }
 
-impl<'a> InputVertex for &'a str {
+impl<'a> InputNode for &'a str {
     fn id(&self) -> u64 {
         if &self.chars().next().unwrap_or('0') != &'0' {
             self.parse().unwrap_or(hashing::calculate_hash(self))
@@ -35,7 +35,7 @@ impl<'a> InputVertex for &'a str {
     }
 }
 
-impl InputVertex for String {
+impl InputNode for String {
     fn id(&self) -> u64 {
         let s: &str = self;
         s.id()

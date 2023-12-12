@@ -3,7 +3,7 @@ use crate::{
         entities::{
             edges::edge_ref::{Dir, EdgeRef},
             graph::tgraph::InnerTemporalGraph,
-            vertices::vertex_ref::VertexRef,
+            nodes::node_ref::NodeRef,
             LayerIds, EID, VID,
         },
         Direction,
@@ -18,12 +18,12 @@ use rayon::prelude::*;
 use std::{iter, ops::Deref};
 
 impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
-    fn vertex_refs(
+    fn node_refs(
         &self,
         _layers: LayerIds,
         _filter: Option<&EdgeFilter>,
     ) -> Box<dyn Iterator<Item = VID> + Send> {
-        Box::new(self.inner().vertex_ids())
+        Box::new(self.inner().node_ids())
     }
 
     fn edge_refs(
@@ -67,7 +67,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         }
     }
 
-    fn vertex_edges(
+    fn node_edges(
         &self,
         v: VID,
         d: Direction,
@@ -171,8 +171,8 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
                 }
             }
             Direction::BOTH => Box::new(
-                self.vertex_edges(v, Direction::IN, layers.clone(), filter)
-                    .merge(self.vertex_edges(v, Direction::OUT, layers, filter)),
+                self.node_edges(v, Direction::IN, layers.clone(), filter)
+                    .merge(self.node_edges(v, Direction::OUT, layers, filter)),
             ),
         }
     }
@@ -184,23 +184,23 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, VID> {
-        let iter = self.vertex_edges(v, d, layers, filter).map(|e| e.remote());
+        let iter = self.node_edges(v, d, layers, filter).map(|e| e.remote());
         if matches!(d, Direction::BOTH) {
             Box::new(iter.dedup())
         } else {
             Box::new(iter)
         }
     }
-    fn internal_vertex_ref(
+    fn internal_node_ref(
         &self,
-        v: VertexRef,
+        v: NodeRef,
         _layer_ids: &LayerIds,
         _filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         match v {
-            VertexRef::Internal(l) => Some(l),
-            VertexRef::External(_) => {
-                let vid = self.inner().resolve_vertex_ref(v)?;
+            NodeRef::Internal(l) => Some(l),
+            NodeRef::External(_) => {
+                let vid = self.inner().resolve_node_ref(v)?;
                 Some(vid)
             }
         }
@@ -223,8 +223,8 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
             .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
     }
 
-    fn vertices_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
-        self.inner().internal_num_vertices()
+    fn nodes_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
+        self.inner().internal_num_nodes()
     }
 
     fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {

@@ -2,12 +2,12 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
         storage::{
@@ -55,15 +55,15 @@ pub enum MaterializedGraph {
 }
 
 impl<'graph> GraphOps<'graph> for MaterializedGraph {
-    fn internal_vertex_ref(
+    fn internal_node_ref(
         &self,
-        v: VertexRef,
+        v: NodeRef,
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
         match self {
-            MaterializedGraph::EventGraph(g) => g.internal_vertex_ref(v, layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.internal_vertex_ref(v, layer_ids, filter),
+            MaterializedGraph::EventGraph(g) => g.internal_node_ref(v, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.internal_node_ref(v, layer_ids, filter),
         }
     }
 
@@ -79,10 +79,10 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         }
     }
 
-    fn vertices_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+    fn nodes_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         match self {
-            MaterializedGraph::EventGraph(g) => g.vertices_len(layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.vertices_len(layer_ids, filter),
+            MaterializedGraph::EventGraph(g) => g.nodes_len(layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.nodes_len(layer_ids, filter),
         }
     }
 
@@ -126,14 +126,10 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         }
     }
 
-    fn vertex_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
+    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
         match self {
-            MaterializedGraph::EventGraph(g) => g.vertex_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.vertex_refs(layers, filter),
+            MaterializedGraph::EventGraph(g) => g.node_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.node_refs(layers, filter),
         }
     }
 
@@ -148,7 +144,7 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         }
     }
 
-    fn vertex_edges(
+    fn node_edges(
         &self,
         v: VID,
         d: Direction,
@@ -156,8 +152,8 @@ impl<'graph> GraphOps<'graph> for MaterializedGraph {
         filter: Option<&EdgeFilter>,
     ) -> BoxedLIter<'graph, EdgeRef> {
         match self {
-            MaterializedGraph::EventGraph(g) => g.vertex_edges(v, d, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.vertex_edges(v, d, layer, filter),
+            MaterializedGraph::EventGraph(g) => g.node_edges(v, d, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.node_edges(v, d, layer, filter),
         }
     }
 
@@ -248,13 +244,13 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_core_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.unfiltered_num_vertices(), 0);
+        assert_eq!(mg.unfiltered_num_nodes(), 0);
     }
 
     #[test]
     fn materialised_graph_has_graph_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.vertices_len(mg.layer_ids(), mg.edge_filter()), 0);
+        assert_eq!(mg.nodes_len(mg.layer_ids(), mg.edge_filter()), 0);
     }
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
@@ -286,7 +282,7 @@ mod test_materialised_graph_dispatch {
 
         let mg = g.materialize().unwrap();
 
-        let v = mg.add_vertex(0, 1, NO_PROPS).unwrap();
+        let v = mg.add_node(0, 1, NO_PROPS).unwrap();
         assert_eq!(v.id(), 1)
     }
 }

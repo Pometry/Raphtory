@@ -5,16 +5,16 @@ use crate::{
         api::view::StaticGraphViewOps,
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
     prelude::*,
 };
 use ordered_float::OrderedFloat;
 
-/// Computes the degree centrality of all vertices in the graph. The values are normalized
+/// Computes the degree centrality of all nodes in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
 pub fn degree_centrality<G: StaticGraphViewOps>(
@@ -29,7 +29,7 @@ pub fn degree_centrality<G: StaticGraphViewOps>(
 
     ctx.agg(min);
 
-    let step1 = ATask::new(move |evv: &mut EvalVertexView<_, ()>| {
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<_, ()>| {
         // The division below is fine as floating point division of 0.0
         // causes the result to be an NaN
         let res = evv.degree() as f64 / max_degree as f64;

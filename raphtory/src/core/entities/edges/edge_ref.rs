@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{vertices::vertex_ref::VertexRef, EID, VID},
+    entities::{nodes::node_ref::NodeRef, EID, VID},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use std::cmp::Ordering;
@@ -14,7 +14,7 @@ pub struct EdgeRef {
     layer_id: Option<usize>,
 }
 
-// This is used for merging iterators of EdgeRefs and only makes sense if the local vertex for both
+// This is used for merging iterators of EdgeRefs and only makes sense if the local node for both
 // sides is the same
 impl PartialOrd for EdgeRef {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

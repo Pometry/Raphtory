@@ -25,13 +25,13 @@ pub trait InternalPropertyAdditionOps {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError>;
 
-    fn internal_add_constant_vertex_properties(
+    fn internal_add_constant_node_properties(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError>;
 
-    fn internal_update_constant_vertex_properties(
+    fn internal_update_constant_node_properties(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
@@ -95,23 +95,23 @@ impl<G: DelegatePropertyAdditionOps> InternalPropertyAdditionOps for G {
     }
 
     #[inline]
-    fn internal_add_constant_vertex_properties(
+    fn internal_add_constant_node_properties(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         self.graph()
-            .internal_add_constant_vertex_properties(vid, props)
+            .internal_add_constant_node_properties(vid, props)
     }
 
     #[inline]
-    fn internal_update_constant_vertex_properties(
+    fn internal_update_constant_node_properties(
         &self,
         vid: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         self.graph()
-            .internal_update_constant_vertex_properties(vid, props)
+            .internal_update_constant_node_properties(vid, props)
     }
 
     #[inline]

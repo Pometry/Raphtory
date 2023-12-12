@@ -52,31 +52,36 @@ use crate::{
             sir_model as sir_model_rs, sirs_model as sirs_model_rs, sis_model as sis_model_rs,
         },
     },
-    core::entities::vertices::vertex_ref::VertexRef,
-    python::{graph::views::graph_view::PyGraphView, utils::PyInputVertex},
+    core::entities::nodes::node_ref::NodeRef,
+    python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
+};
+use crate::{
+    core::Prop,
+    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    python::graph::edge::PyDirection,
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
-/// Local triangle count - calculates the number of triangles (a cycle of length 3) a vertex participates in.
+/// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
 /// This function returns the number of pairs of neighbours of a given node which are themselves connected.
 ///
 /// Arguments:
 ///     g (Raphtory graph) : Raphtory graph, this can be directed or undirected but will be treated as undirected
-///     v (int or str) : vertex id or name
+///     v (int or str) : node id or name
 ///
 /// Returns:
-///     triangles(int) : number of triangles associated with vertex v
+///     triangles(int) : number of triangles associated with node v
 ///
 #[pyfunction]
-pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
+pub fn local_triangle_count(g: &PyGraphView, v: NodeRef) -> Option<usize> {
     local_triangle_count_rs(&g.graph, v)
 }
 
 /// Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 ///
-/// This function assigns a component id to each vertex such that vertices with the same component id are mutually reachable
+/// This function assigns a component id to each node such that nodes with the same component id are mutually reachable
 /// by an undirected path.
 ///
 /// Arguments:
@@ -84,7 +89,7 @@ pub fn local_triangle_count(g: &PyGraphView, v: VertexRef) -> Option<usize> {
 ///     iter_count (int) : Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object mapping vertices to their component ids.
+///     AlgorithmResult : AlgorithmResult object mapping nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=9223372036854775807))]
 pub fn weakly_connected_components(
@@ -102,7 +107,7 @@ pub fn weakly_connected_components(
 ///     g (Raphtory graph) : Raphtory graph
 ///
 /// Returns:
-///     Vec<Vec<u64>> : List of strongly connected vertices identified by ids
+///     Vec<Vec<u64>> : List of strongly connected nodes identified by ids
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
@@ -115,7 +120,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
 ///     g (Raphtory graph) : Raphtory graph
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object mapping each vertex to an array containing the ids of all vertices within their 'in-component'
+///     AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'in-component'
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
@@ -128,16 +133,16 @@ pub fn in_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>,
 ///     g (Raphtory graph) : Raphtory graph
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult object mapping each vertex to an array containing the ids of all vertices within their 'out-component'
+///     AlgorithmResult : AlgorithmResult object mapping each node to an array containing the ids of all nodes within their 'out-component'
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>, Vec<u64>> {
     components::out_components(&g.graph, None)
 }
 
-/// Pagerank -- pagerank centrality value of the vertices in a graph
+/// Pagerank -- pagerank centrality value of the nodes in a graph
 ///
-/// This function calculates the Pagerank value of each vertex in a graph. See https://en.wikipedia.org/wiki/PageRank for more information on PageRank centrality.
+/// This function calculates the Pagerank value of each node in a graph. See https://en.wikipedia.org/wiki/PageRank for more information on PageRank centrality.
 /// A default damping factor of 0.85 is used. This is an iterative algorithm which terminates if the sum of the absolute difference in pagerank values between iterations
 /// is less than the max diff value given.
 ///
@@ -148,7 +153,7 @@ pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>
 /// is less than the max diff value given.
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=20, max_diff=None))]
 pub fn pagerank(
@@ -169,18 +174,18 @@ pub fn pagerank(
 ///     g (Raphtory graph) : directed Raphtory graph
 ///     max_hops (int) : maximum number of hops to propagate out
 ///     start_time (int) : time at which to start the path (such that t_1 > start_time for any path starting from these seed nodes)
-///     seed_nodes (list(str) or list(int)) : list of vertex names or ids which should be the starting nodes
+///     seed_nodes (list(str) or list(int)) : list of node names or ids which should be the starting nodes
 ///     stop_nodes (list(str) or list(int)) : nodes at which a path shouldn't go any further
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult with string keys and float values mapping vertex names to their pagerank value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
 #[pyfunction]
 pub fn temporally_reachable_nodes(
     g: &PyGraphView,
     max_hops: usize,
     start_time: i64,
-    seed_nodes: Vec<PyInputVertex>,
-    stop_nodes: Option<Vec<PyInputVertex>>,
+    seed_nodes: Vec<PyInputNode>,
+    stop_nodes: Option<Vec<PyInputNode>>,
 ) -> AlgorithmResult<DynamicGraph, Vec<(i64, String)>, Vec<(i64, String)>> {
     temporal_reachability_rs(&g.graph, None, max_hops, start_time, seed_nodes, stop_nodes)
 }
@@ -191,12 +196,12 @@ pub fn temporally_reachable_nodes(
 ///
 /// Arguments:
 ///     g (Raphtory graph) : Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v (int or str): vertex id or name
+///     v (int or str): node id or name
 ///
 /// Returns:
-///     float : the local clustering coefficient of vertex v in g.
+///     float : the local clustering coefficient of node v in g.
 #[pyfunction]
-pub fn local_clustering_coefficient(g: &PyGraphView, v: VertexRef) -> Option<f32> {
+pub fn local_clustering_coefficient(g: &PyGraphView, v: NodeRef) -> Option<f32> {
     local_clustering_coefficient_rs(&g.graph, v)
 }
 
@@ -215,7 +220,7 @@ pub fn directed_graph_density(g: &PyGraphView) -> f32 {
     directed_graph_density_rs(&g.graph)
 }
 
-/// The average (undirected) degree of all vertices in the graph.
+/// The average (undirected) degree of all nodes in the graph.
 ///
 /// Note that this treats the graph as simple and undirected and is equal to twice
 /// the number of undirected edges divided by the number of nodes.
@@ -230,7 +235,7 @@ pub fn average_degree(g: &PyGraphView) -> f64 {
     average_degree_rs(&g.graph)
 }
 
-/// The maximum out degree of any vertex in the graph.
+/// The maximum out degree of any node in the graph.
 ///
 /// Arguments:
 ///     g (Raphtory graph) : a directed Raphtory graph
@@ -242,7 +247,7 @@ pub fn max_out_degree(g: &PyGraphView) -> usize {
     max_out_degree_rs(&g.graph)
 }
 
-/// The maximum in degree of any vertex in the graph.
+/// The maximum in degree of any node in the graph.
 ///
 /// Arguments:
 ///     g (Raphtory graph) : a directed Raphtory graph
@@ -254,7 +259,7 @@ pub fn max_in_degree(g: &PyGraphView) -> usize {
     max_in_degree_rs(&g.graph)
 }
 
-/// The minimum out degree of any vertex in the graph.
+/// The minimum out degree of any node in the graph.
 ///
 /// Arguments:
 ///     g (Raphtory graph) : a directed Raphtory graph
@@ -266,7 +271,7 @@ pub fn min_out_degree(g: &PyGraphView) -> usize {
     min_out_degree_rs(&g.graph)
 }
 
-/// The minimum in degree of any vertex in the graph.
+/// The minimum in degree of any node in the graph.
 ///
 /// Arguments:
 ///     g (Raphtory graph) : a directed Raphtory graph
@@ -294,15 +299,15 @@ pub fn global_reciprocity(g: &PyGraphView) -> f64 {
     global_reciprocity_rs(&g.graph, None)
 }
 
-/// Local reciprocity - measure of the symmetry of relationships associated with a vertex
+/// Local reciprocity - measure of the symmetry of relationships associated with a node
 ///
-/// This measures the proportion of a vertex's outgoing edges which are reciprocated with an incoming edge.
+/// This measures the proportion of a node's outgoing edges which are reciprocated with an incoming edge.
 ///
 /// Arguments:
 ///     g (Raphtory graph) : a directed Raphtory graph
 ///
 /// Returns:
-///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each vertex name to its reciprocity value.
+///     AlgorithmResult : AlgorithmResult with string keys and float values mapping each node name to its reciprocity value.
 ///
 #[pyfunction]
 pub fn all_local_reciprocity(
@@ -362,8 +367,8 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 ///
 ///  Two node motifs:
 ///
-///  Also included are two node motifs, of which there are 8 when counted from the perspective of each vertex. These are characterised by the direction of each edge, enumerated
-///  in the above order. Note that for the global graph counts, each motif is counted in both directions (a single III motif for one vertex is an OOO motif for the other vertex).
+///  Also included are two node motifs, of which there are 8 when counted from the perspective of each node. These are characterised by the direction of each edge, enumerated
+///  in the above order. Note that for the global graph counts, each motif is counted in both directions (a single III motif for one node is an OOO motif for the other node).
 ///
 ///  Triangles:
 ///
@@ -433,11 +438,11 @@ pub fn local_temporal_three_node_motifs(
 }
 
 /// HITS (Hubs and Authority) Algorithm:
-/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
-///     Sum of HubScore of all vertices in the current iteration
+/// AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
+///     Sum of HubScore of all nodes in the current iteration
 ///
-/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
-///     Sum of AuthScore of all vertices in the current iteration
+/// HubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /
+///     Sum of AuthScore of all nodes in the current iteration
 ///
 /// Arguments:
 ///     g (Raphtory Graph): Graph to run the algorithm on
@@ -445,7 +450,7 @@ pub fn local_temporal_three_node_motifs(
 ///     threads (int): Number of threads to use (optional)
 ///
 /// Returns
-///     An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
+///     An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
 #[pyfunction]
 #[pyo3(signature = (g, iter_count=20, threads=None))]
 pub fn hits(
@@ -470,7 +475,7 @@ pub fn hits(
 ///     threads (int, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
 ///
 /// Returns:
-///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated edge weights.
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of node names to the computed sum of their associated edge weights.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, name="weight".to_string(), direction=PyDirection::new("BOTH"),  threads=None)]]
@@ -483,7 +488,7 @@ pub fn balance(
     balance_rs(&g.graph, name.clone(), direction.into(), threads)
 }
 
-/// Computes the degree centrality of all vertices in the graph. The values are normalized
+/// Computes the degree centrality of all nodes in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
 /// values of centrality greater than 1.
 ///
@@ -492,7 +497,7 @@ pub fn balance(
 ///     threads (`Option<usize>`, default = `None`): The number of threads to be used for parallel execution. Defaults to single-threaded operation if not provided.
 ///
 /// Returns:
-///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of vertex names to the computed sum of their associated degree centrality.
+///     AlgorithmResult<String, OrderedFloat<f64>>: A result containing a mapping of node names to the computed sum of their associated degree centrality.
 #[pyfunction]
 #[pyo3[signature = (g, threads=None)]]
 pub fn degree_centrality(
@@ -528,21 +533,21 @@ pub fn min_degree(g: &PyGraphView) -> usize {
     min_degree_rs(&g.graph)
 }
 
-/// Calculates the single source shortest paths from a given source vertex.
+/// Calculates the single source shortest paths from a given source node.
 ///
 /// Arguments:
 ///     g (Raphtory Graph): A reference to the graph. Must implement `GraphViewOps`.
-///     source (InputVertex): The source vertex. Must implement `InputVertex`.
+///     source (InputNode): The source node. Must implement `InputNode`.
 ///     cutoff (Int, Optional): An optional cutoff level. The algorithm will stop if this level is reached.
 ///
 /// Returns:
-///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
+///     Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable nodes.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     g: &PyGraphView,
-    source: PyInputVertex,
+    source: PyInputNode,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
@@ -552,19 +557,19 @@ pub fn single_source_shortest_path(
 ///
 /// Arguments:
 ///     g (Raphtory Graph): The graph to search in.
-///     source (InputVertex): The source vertex.
-///     targets (List(InputVertices)): A list of target vertices.
+///     source (InputNode): The source node.
+///     targets (List(InputNodes)): A list of target nodes.
 ///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
 ///
 /// Returns:
-///     Returns a `Dict` where the key is the target vertex and the value is a tuple containing the total cost and a vector of vertices representing the shortest path.
+///     Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
 #[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
-    source: PyInputVertex,
-    targets: Vec<PyInputVertex>,
+    source: PyInputNode,
+    targets: Vec<PyInputNode>,
     weight: String,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
     match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
@@ -599,14 +604,14 @@ pub fn betweenness_centrality(
 ///     seed (Array of ints, optional) Array of 32 bytes of u8 which is set as the rng seed
 ///
 /// Returns:
-///     A list of sets each containing vertices that have been grouped
+///     A list of sets each containing nodes that have been grouped
 ///
 #[pyfunction]
 #[pyo3[signature = (g, seed=None)]]
 pub fn label_propagation(
     g: &PyGraphView,
     seed: Option<[u8; 32]>,
-) -> PyResult<Vec<HashSet<VertexView<DynamicGraph>>>> {
+) -> PyResult<Vec<HashSet<NodeView<DynamicGraph>>>> {
     match label_propagation_rs(&g.graph, seed) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
