@@ -493,13 +493,13 @@ def test_si_algorithm():
     g, seed, g_after = presetup_epidemics()
     result = algorithms.si_model(g, ["A"], 2, 1.0, seed, 3)
     expected = {
-        g_after.vertex("A"): INFECTIOUS,
-        g_after.vertex("B"): INFECTIOUS,
-        g_after.vertex("C"): SUSCEPTIBLE,
-        g_after.vertex("D"): SUSCEPTIBLE,
-        g_after.vertex("E"): INFECTIOUS,
-        g_after.vertex("F"): SUSCEPTIBLE,
-        g_after.vertex("G"): INFECTIOUS,
+        g_after.node("A"): INFECTIOUS,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): SUSCEPTIBLE,
+        g_after.node("G"): INFECTIOUS,
     }
     assert result == expected
 
@@ -508,13 +508,13 @@ def test_sis_algorithm():
     g, seed, g_after = presetup_epidemics()
     result = algorithms.sis_model(g, ["A"], 2, 1.0, 0.5, seed, 3)
     expected = {
-        g_after.vertex("A"): SUSCEPTIBLE,
-        g_after.vertex("B"): INFECTIOUS,
-        g_after.vertex("C"): SUSCEPTIBLE,
-        g_after.vertex("D"): SUSCEPTIBLE,
-        g_after.vertex("E"): SUSCEPTIBLE,
-        g_after.vertex("F"): SUSCEPTIBLE,
-        g_after.vertex("G"): INFECTIOUS,
+        g_after.node("A"): SUSCEPTIBLE,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): SUSCEPTIBLE,
+        g_after.node("F"): SUSCEPTIBLE,
+        g_after.node("G"): INFECTIOUS,
     }
     assert result == expected
 
@@ -523,13 +523,13 @@ def test_sir_algorithm():
     g, seed, g_after = presetup_epidemics()
     result = algorithms.sir_model(g, ["A"], 0, 1.0, 0.3, seed, 3)
     expected = {
-        g_after.vertex("A"): INFECTIOUS,
-        g_after.vertex("B"): INFECTIOUS,
-        g_after.vertex("C"): RECOVERED,
-        g_after.vertex("D"): SUSCEPTIBLE,
-        g_after.vertex("E"): RECOVERED,
-        g_after.vertex("F"): INFECTIOUS,
-        g_after.vertex("G"): INFECTIOUS,
+        g_after.node("A"): INFECTIOUS,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): RECOVERED,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): RECOVERED,
+        g_after.node("F"): INFECTIOUS,
+        g_after.node("G"): INFECTIOUS,
     }
     assert result == expected
 
@@ -538,13 +538,13 @@ def test_sirs_algorithm():
     g, seed, g_after = presetup_epidemics()
     result = algorithms.sirs_model(g, ["A"], 0, 1.0, 0.5, 0.3, seed, 3)
     expected = {
-        g_after.vertex("A"): RECOVERED,
-        g_after.vertex("B"): INFECTIOUS,
-        g_after.vertex("C"): SUSCEPTIBLE,
-        g_after.vertex("D"): SUSCEPTIBLE,
-        g_after.vertex("E"): INFECTIOUS,
-        g_after.vertex("F"): INFECTIOUS,
-        g_after.vertex("G"): INFECTIOUS,
+        g_after.node("A"): RECOVERED,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): INFECTIOUS,
+        g_after.node("G"): INFECTIOUS,
     }
     assert result == expected
 
@@ -553,13 +553,13 @@ def test_seir_algorithm():
     g, seed, g_after = presetup_epidemics()
     result = algorithms.seir_model(g, ["A"], 2, 1.0, 1.0, 0.5, seed, 3)
     expected = {
-        g_after.vertex("A"): RECOVERED,
-        g_after.vertex("B"): INFECTIOUS,
-        g_after.vertex("C"): SUSCEPTIBLE,
-        g_after.vertex("D"): SUSCEPTIBLE,
-        g_after.vertex("E"): INFECTIOUS,
-        g_after.vertex("F"): SUSCEPTIBLE,
-        g_after.vertex("G"): EXPOSED,
+        g_after.node("A"): RECOVERED,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): SUSCEPTIBLE,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): SUSCEPTIBLE,
+        g_after.node("G"): EXPOSED,
     }
     assert result == expected
 
@@ -568,12 +568,12 @@ def test_seirs_algorithm():
     g, seed, g_after = presetup_epidemics()
     result = algorithms.seirs_model(g, ["A"], 0, 1.0, 1.0, 0.5, 0.4, seed, 3)
     expected = {
-        g_after.vertex("A"): RECOVERED,
-        g_after.vertex("B"): INFECTIOUS,
-        g_after.vertex("C"): RECOVERED,
-        g_after.vertex("D"): SUSCEPTIBLE,
-        g_after.vertex("E"): INFECTIOUS,
-        g_after.vertex("F"): INFECTIOUS,
-        g_after.vertex("G"): EXPOSED,
+        g_after.node("A"): RECOVERED,
+        g_after.node("B"): INFECTIOUS,
+        g_after.node("C"): RECOVERED,
+        g_after.node("D"): SUSCEPTIBLE,
+        g_after.node("E"): INFECTIOUS,
+        g_after.node("F"): INFECTIOUS,
+        g_after.node("G"): EXPOSED,
     }
     assert result == expected
