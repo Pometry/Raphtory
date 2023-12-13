@@ -1,11 +1,11 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::entities::{nodes::node_ref::NodeRef, VID},
-    db::api::view::{
-        internal::{CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps},
-        StaticGraphViewOps,
+    core::{
+        entities::{nodes::node_ref::NodeRef, VID},
+        utils::time::{error::ParseTimeError, IntoTime, TryIntoTime},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
+    db::api::view::StaticGraphViewOps,
+    prelude::*,
 };
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
@@ -13,12 +13,11 @@ use std::{
     cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fmt::Debug,
-    ops::Range,
 };
 
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq)]
-pub struct Probability(pub f64);
+pub struct Probability(f64);
 
 impl Probability {
     pub fn sample<R: Rng + ?Sized>(self, rng: &mut R) -> bool {
@@ -28,14 +27,11 @@ impl Probability {
 
 pub struct Number(pub usize);
 
-#[derive(Debug, Clone)]
-pub enum State {
-    Susceptible,
-    Infected {
-        infected: i64,
-        active: i64,
-        recovered: i64,
-    },
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct Infected {
+    pub infected: i64,
+    pub active: i64,
+    pub recovered: i64,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -55,6 +51,12 @@ pub enum SeedError {
     InvalidRecoveryRate {
         #[from]
         source: rand_distr::ExpError,
+    },
+
+    #[error("Invalid initial time")]
+    InvalidTime {
+        #[from]
+        source: ParseTimeError,
     },
 }
 
@@ -146,20 +148,35 @@ struct Infection {
 /// Simulated SEIR dynamics on temporal network
 ///
 /// This algorithm is based on https://arxiv.org/abs/2007.14386
+///
+/// # Arguments
+///
+/// * `graph` - the graph
+/// * `recovery_rate` - Optional recovery rate (actual recovery times are sampled from an exponential
+///                     distribution with this rate). If `None`, nodes never recover (i.e. SI model)
+/// * `incubation_rate` - Optional incubation rate (the time nodes take to transition from exposed to infected
+///                       is sampled from an exponential distribution with this rate). If `None`,
+///                       the incubation time is `1`, i.e., an infected nodes becomes infectious at
+///                       the next time step
+/// * `initial_infection` - time stamp for the initial infection events
+/// * `seeds` - Specify how to choose seeds, can be either a list of nodes, `Number(n: usize)` for
+///             sampling a fixed number `n` of seed nodes, or `Probability(p: f64)` in which case a node is initially infected with probability `p`.
+/// * `rng` - The random number generator to use
 pub fn temporal_SEIR<
     G: StaticGraphViewOps,
     P: TryInto<Probability>,
     S: IntoSeeds,
     R: Rng + ?Sized,
+    T: TryIntoTime,
 >(
     graph: &G,
     recovery_rate: Option<f64>,
     incubation_rate: Option<f64>,
     infection_prob: P,
-    initial_infection: i64,
+    initial_infection: T,
     seeds: S,
     rng: &mut R,
-) -> Result<AlgorithmResult<G, State>, SeedError>
+) -> Result<AlgorithmResult<G, Infected>, SeedError>
 where
     SeedError: From<P::Error>,
 {
@@ -168,7 +185,8 @@ where
     let recovery_dist = recovery_rate.map(|r| Exp::new(r)).transpose()?;
     let incubation_dist = incubation_rate.map(|r| Exp::new(r)).transpose()?;
     let infection_dist = Bernoulli::new(infection_prob.0).unwrap();
-    let mut states: HashMap<VID, State> = HashMap::default();
+    let initial_infection = initial_infection.try_into_time()?;
+    let mut states: HashMap<VID, Infected> = HashMap::default();
     let mut event_queue: BinaryHeap<Reverse<Infection>> = seeds
         .into_iter()
         .map(|v| {
@@ -193,7 +211,7 @@ where
             let end_t = start_t.saturating_add(recovery_time);
             states.insert(
                 next_event.node,
-                State::Infected {
+                Infected {
                     infected: next_event.time,
                     active: start_t,
                     recovered: end_t,

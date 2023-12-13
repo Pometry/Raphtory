@@ -32,7 +32,7 @@ pub mod community_detection;
 
 pub mod components;
 pub mod cores;
-mod dynamics;
+pub mod dynamics;
 pub mod metrics;
 pub mod motifs;
 pub mod pathing;

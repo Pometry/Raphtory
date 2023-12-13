@@ -24,6 +24,38 @@ pub fn iterator_dict_repr<I: Iterator<Item = (K, V)>, K: Repr, V: Repr>(iter: I)
     }
 }
 
+pub struct StructReprBuilder {
+    value: String,
+    has_fields: bool,
+}
+
+impl StructReprBuilder {
+    pub fn new(name: &str) -> Self {
+        Self {
+            value: name.to_owned() + "(",
+            has_fields: false,
+        }
+    }
+
+    pub fn add_field<V: Repr>(mut self, name: &str, value: V) -> Self {
+        if self.has_fields {
+            self.value.push_str(", ");
+        } else {
+            self.has_fields = true;
+        }
+        self.value.push_str(name);
+        self.value.push('=');
+        self.value.push_str(&value.repr());
+        self
+    }
+
+    pub fn finish(self) -> String {
+        let mut value = self.value;
+        value.push(')');
+        value
+    }
+}
+
 pub trait Repr {
     fn repr(&self) -> String;
 }

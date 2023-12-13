@@ -1,5 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::{
+    algorithms::dynamics::temporal::epidemics::{
+        temporal_SEIR as temporal_SEIR_rs, Infected, SeedError,
+    },
+    core::Prop,
+    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    python::{graph::edge::PyDirection, utils::PyTime},
+};
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -42,13 +50,9 @@ use crate::{
     core::entities::nodes::node_ref::NodeRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
 };
-use crate::{
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    python::graph::edge::PyDirection,
-};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+use rand::{prelude::StdRng, SeedableRng};
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
@@ -603,4 +607,29 @@ pub fn label_propagation(
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+#[pyfunction(name = "temporal_SEIR")]
+pub fn temporal_SEIR(
+    graph: &PyGraphView,
+    seeds: crate::python::algorithm::epidemics::PySeed,
+    recovery_rate: Option<f64>,
+    incubation_rate: Option<f64>,
+    infection_prob: f64,
+    initial_infection: PyTime,
+    rng_seed: Option<u64>,
+) -> Result<AlgorithmResult<DynamicGraph, Infected, Infected>, SeedError> {
+    let mut rng = match rng_seed {
+        None => StdRng::from_entropy(),
+        Some(seed) => StdRng::seed_from_u64(seed),
+    };
+    temporal_SEIR_rs(
+        &graph.graph,
+        recovery_rate,
+        incubation_rate,
+        infection_prob,
+        initial_infection,
+        seeds,
+        &mut rng,
+    )
 }
