@@ -79,6 +79,7 @@ quickcheck_macros = "1"
 tempfile = "3.2"
 tokio = { version = "1.27.0", features = ["full"]} # for vector testing
 dotenv = "0.15.0" # for vector testing
+streaming-stats = "0.2"
 
 [features]
 default = ["search", "vectors"]

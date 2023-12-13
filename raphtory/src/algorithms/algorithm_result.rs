@@ -312,6 +312,10 @@ where
             Some(items[median_index].1.clone()),
         ))
     }
+
+    pub fn len(&self) -> usize {
+        self.result.len()
+    }
 }
 
 impl<'graph, G, V, O> AlgorithmResult<G, V, O>
