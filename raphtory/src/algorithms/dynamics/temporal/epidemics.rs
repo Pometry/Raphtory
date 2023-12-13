@@ -10,6 +10,7 @@ use crate::{
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
 use std::{
+    cmp::Reverse,
     collections::{BinaryHeap, HashMap},
     fmt::Debug,
     ops::Range,
@@ -27,6 +28,7 @@ impl Probability {
 
 pub struct Number(pub usize);
 
+#[derive(Debug, Clone)]
 pub enum State {
     Susceptible,
     Infected {
@@ -154,7 +156,7 @@ pub fn temporal_SEIR<
     initial_infection: i64,
     seeds: S,
     rng: &mut R,
-) -> Result<HashMap<VID, State>, SeedError>
+) -> Result<AlgorithmResult<G, State>, SeedError>
 where
     SeedError: From<P::Error>,
 {
@@ -164,15 +166,17 @@ where
     let incubation_dist = incubation_rate.map(|r| Exp::new(r)).transpose()?;
     let infection_dist = Bernoulli::new(infection_prob.0).unwrap();
     let mut states: HashMap<VID, State> = HashMap::default();
-    let mut event_queue: BinaryHeap<Infection> = seeds
+    let mut event_queue: BinaryHeap<Reverse<Infection>> = seeds
         .into_iter()
-        .map(|v| Infection {
-            time: initial_infection,
-            node: v,
+        .map(|v| {
+            Reverse(Infection {
+                time: initial_infection,
+                node: v,
+            })
         })
         .collect();
     while !event_queue.is_empty() {
-        let next_event = event_queue.pop().unwrap();
+        let Reverse(next_event) = event_queue.pop().unwrap();
         if !states.contains_key(&next_event.node) {
             // node not yet infected
             let node = graph.node(next_event.node).unwrap();
@@ -197,10 +201,10 @@ where
                 if !states.contains_key(&neighbour) {
                     for ee in e.explode() {
                         if infection_dist.sample(rng) {
-                            event_queue.push(Infection {
+                            event_queue.push(Reverse(Infection {
                                 node: neighbour,
                                 time: ee.time().unwrap(),
-                            });
+                            }));
                             break;
                         }
                     }
@@ -208,11 +212,29 @@ where
             }
         }
     }
-    Ok(states)
+    let result = AlgorithmResult::new(
+        graph.clone(),
+        "temporal_SEIR",
+        "State",
+        states.into_iter().map(|(k, v)| (k.0, v)).collect(),
+    );
+    Ok(result)
 }
 
 #[cfg(test)]
 mod test {
+    use crate::{algorithms::dynamics::temporal::epidemics::temporal_SEIR, prelude::*};
+    use rand::thread_rng;
+
     #[test]
-    fn test() {}
+    fn test() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 3, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
+        let mut rng = thread_rng();
+        let res = temporal_SEIR(&g, None, None, 1.0, 0, [1u64], &mut rng).unwrap();
+        println!("{res:?}");
+    }
 }

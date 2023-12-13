@@ -107,7 +107,7 @@ where
     /// Returns the value corresponding to the provided key in the `result` hashmap.
     ///
     /// Arguments:
-    ///     `key`: The key of the node, can be the node object, or namraphtory/src/algorithms/motifs/three_node_local_single_thread.rse.
+    ///     `key`: The key of the node, can be the node object, or name.
     pub fn get<T: Into<NodeRef>>(&self, name: T) -> Option<&V> {
         let v = name.into();
         if self.graph.has_node(v) {
