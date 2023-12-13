@@ -1,9 +1,22 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef, db::api::view::internal::DynamicGraph,
-    python::types::repr::Repr,
+    algorithms::algorithm_result::AlgorithmResult,
+    core::entities::nodes::node_ref::NodeRef,
+    db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
+    python::types::repr::{iterator_dict_repr, Repr},
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+
+impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResult<G, V, O> {
+    fn repr(&self) -> String {
+        let algo_name = &self.algo_repr.algo_name;
+        let num_nodes = &self.result.len();
+        format!(
+            "{algo_name}(num_nodes={num_nodes}, result={})",
+            iterator_dict_repr(self.get_all().iter().filter(|(_, v)| v.is_some()))
+        )
+    }
+}
 
 #[macro_export]
 macro_rules! py_algorithm_result {
@@ -16,24 +29,6 @@ macro_rules! py_algorithm_result {
                 $rustSortValue,
             >,
         );
-
-        impl $crate::python::types::repr::Repr
-            for $crate::algorithms::algorithm_result::AlgorithmResult<
-                $rustGraph,
-                $rustValue,
-                $rustSortValue,
-            >
-        {
-            fn repr(&self) -> String {
-                let algo_name = &self.algo_repr.algo_name;
-                let num_nodes = &self.result.len();
-                let result_type = &self.algo_repr.result_type;
-                format!(
-                    "Algorithm Name: {}, Number of Nodes: {}, Result Type: {}",
-                    algo_name, num_nodes, result_type
-                )
-            }
-        }
 
         impl pyo3::IntoPy<pyo3::PyObject>
             for $crate::algorithms::algorithm_result::AlgorithmResult<
@@ -116,6 +111,10 @@ macro_rules! py_algorithm_result_base {
 
             fn __len__(&self) -> usize {
                 self.0.len()
+            }
+
+            fn __repr__(&self) -> String {
+                self.0.repr()
             }
 
             /// Creates a dataframe from the result

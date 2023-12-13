@@ -88,17 +88,6 @@ where
         }
     }
 
-    /// Returns a formatted string representation of the algorithm.
-    pub fn repr(&self) -> String {
-        let algo_info_str = format!(
-            "Algorithm Name: {}, Number of Nodes: {}, Result Type: {}",
-            &self.algo_repr.algo_name,
-            &self.result.len(),
-            &self.algo_repr.result_type
-        );
-        algo_info_str
-    }
-
     /// Returns a reference to the entire `result` vector of values.
     pub fn get_all_values(&self) -> Vec<V> {
         self.result.clone().into_values().collect()

@@ -132,19 +132,7 @@ impl Repr for ArcStr {
     }
 }
 
-impl Repr for &ArcStr {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
 impl Repr for &str {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl Repr for &NaiveDateTime {
     fn repr(&self) -> String {
         self.to_string()
     }
@@ -194,6 +182,11 @@ impl<'a, T: Repr> Repr for LockedView<'a, T> {
     }
 }
 
+impl<'a, R: Repr> Repr for &'a R {
+    fn repr(&self) -> String {
+        R::repr(self)
+    }
+}
 #[cfg(test)]
 mod repr_tests {
     use super::*;

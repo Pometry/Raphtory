@@ -613,10 +613,10 @@ pub fn label_propagation(
 pub fn temporal_SEIR(
     graph: &PyGraphView,
     seeds: crate::python::algorithm::epidemics::PySeed,
-    recovery_rate: Option<f64>,
-    incubation_rate: Option<f64>,
     infection_prob: f64,
     initial_infection: PyTime,
+    recovery_rate: Option<f64>,
+    incubation_rate: Option<f64>,
     rng_seed: Option<u64>,
 ) -> Result<AlgorithmResult<DynamicGraph, Infected, Infected>, SeedError> {
     let mut rng = match rng_seed {
