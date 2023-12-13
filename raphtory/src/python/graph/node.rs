@@ -1,7 +1,6 @@
 //! Defines the `Node`, which represents a node in the graph.
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::db::graph::path::{PathFromGraph, PathFromNode};
 use crate::{
     core::{
         entities::nodes::node_ref::NodeRef,
@@ -33,6 +32,10 @@ use crate::{
         utils::{PyInterval, PyTime},
     },
     *,
+};
+use crate::{
+    db::graph::path::{PathFromGraph, PathFromNode},
+    python::types::repr::StructReprBuilder,
 };
 use chrono::NaiveDateTime;
 use itertools::Itertools;
@@ -327,20 +330,18 @@ impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for NodeView<G, GH> {
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
         if properties.is_empty() {
-            format!(
-                "Node(name={}, earliest_time={:?}, latest_time={:?})",
-                self.name().trim_matches('"'),
-                earliest_time,
-                latest_time
-            )
+            StructReprBuilder::new("Node")
+                .add_field("name", self.name())
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .finish()
         } else {
-            format!(
-                "Node(name={}, earliest_time={:?}, latest_time={:?}, properties={})",
-                self.name().trim_matches('"'),
-                earliest_time,
-                latest_time,
-                format!("{{{properties}}}")
-            )
+            StructReprBuilder::new("Node")
+                .add_field("name", self.name())
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .add_field("properties", self.properties())
+                .finish()
         }
     }
 }

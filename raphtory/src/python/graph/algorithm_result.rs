@@ -2,7 +2,7 @@ use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::entities::nodes::node_ref::NodeRef,
     db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
-    python::types::repr::{iterator_dict_repr, Repr},
+    python::types::repr::{iterator_dict_repr, Repr, StructReprBuilder},
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -11,10 +11,11 @@ impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResult<G, V, O
     fn repr(&self) -> String {
         let algo_name = &self.algo_repr.algo_name;
         let num_nodes = &self.result.len();
-        format!(
-            "{algo_name}(num_nodes={num_nodes}, result={})",
-            iterator_dict_repr(self.get_all().iter().filter(|(_, v)| v.is_some()))
-        )
+        StructReprBuilder::new("AlgorithmResult")
+            .add_field("name", algo_name)
+            .add_field("num_nodes", num_nodes)
+            .add_field("result", self.get_all_with_names())
+            .finish()
     }
 }
 

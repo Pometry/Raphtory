@@ -54,6 +54,10 @@ impl PyInfected {
     fn recovered(&self) -> i64 {
         self.inner.recovered
     }
+
+    fn __repr__(&self) -> String {
+        self.inner.repr()
+    }
 }
 
 impl IntoPy<PyObject> for Infected {
