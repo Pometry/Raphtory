@@ -609,6 +609,26 @@ pub fn label_propagation(
     }
 }
 
+/// temporal_SEIR(graph: GraphView, seeds: int | float | list, infection_prob: float, initial_infection: int | str | DateTime, recovery_rate: Optional[float], incubation_rate: Optional[float], rng_seed: Optional[int]) -> AlgorithmResult  
+/// Simulate an SEIR dynamic on the network
+///
+/// The algorithm uses the event-based sampling strategy from https://doi.org/10.1371/journal.pone.0246961
+///
+/// Arguments:
+///     graph: the graph view
+///     seeds: the seeding strategy to use for the initial infection (if `int`, choose fixed number
+///            of nodes at random, if `float` infect each node with this probability, if `[Node]`
+///            initially infect the specified nodes
+///     infection_prob: the probability for a contact between infected and susceptible nodes to lead
+///                     to a transmission
+///     initial_infection: the time of the initial infection
+///     recovery_rate: optional recovery rate (if None, simulates SEI dynamic where nodes never recover)
+///                    the actual recovery time is sampled from an exponential distribution with this rate
+///     incubation_rate: optional incubation rate (if None, simulates SI or SIR dynamics where infected
+///                      nodes are infectious at the next time step)
+///                      the actual incubation time is sampled from an exponential distribution with
+///                      this rate
+///     rng_seed: optional seed for the random number generator
 #[pyfunction(name = "temporal_SEIR")]
 pub fn temporal_SEIR(
     graph: &PyGraphView,
