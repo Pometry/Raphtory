@@ -1,12 +1,12 @@
 use crate::{
-    algorithms::algorithm_result::AlgorithmResult,
+    algorithms::algorithm_result::AlgorithmResult as AlgorithmResultRs,
     db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
     python::types::repr::{Repr, StructReprBuilder},
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
-impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResult<G, V, O> {
+impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V, O> {
     fn repr(&self) -> String {
         let algo_name = &self.algo_repr.algo_name;
         let num_nodes = &self.result.len();
@@ -268,8 +268,8 @@ macro_rules! py_algorithm_result_new_ord_hash_eq {
     };
 }
 
-py_algorithm_result!(AlgorithmResultString, DynamicGraph, String, String);
-py_algorithm_result_new_ord_hash_eq!(AlgorithmResultString, DynamicGraph, String, String);
+py_algorithm_result!(AlgorithmResult, DynamicGraph, String, String);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResult, DynamicGraph, String, String);
 
 py_algorithm_result!(AlgorithmResultF64, DynamicGraph, f64, OrderedFloat<f64>);
 py_algorithm_result_partial_ord!(AlgorithmResultF64, DynamicGraph, f64, OrderedFloat<f64>);

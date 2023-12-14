@@ -5,7 +5,7 @@ use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
-        algorithm_result::AlgorithmResultString,
+        algorithm_result::AlgorithmResult,
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
@@ -55,7 +55,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyTemporalProperties,
         PyTemporalProp,
         PyDirection,
-        AlgorithmResultString,
+        AlgorithmResult,
         GraphIndex
     );
 
