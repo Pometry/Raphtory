@@ -460,3 +460,21 @@ def test_label_propagation_algorithm():
     assert len(result) == len(expected)
     for group in expected:
         assert group in result
+
+
+def test_temporal_SEIR():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 2, 3)
+    g.add_edge(3, 3, 4)
+    g.add_edge(4, 4, 5)
+    # Should be seeded with 2 vertices
+    res = algorithms.temporal_SEIR(g, 2, 1.0, 0, rng_seed=1)
+    seeded = [v for v in res.get_all_values() if v.infected == 0]
+    assert len(seeded) == 2
+
+    res = algorithms.temporal_SEIR(g, [1], 1.0, 0, rng_seed=1).sort_by_value(reverse=False)
+    for i, (n, v) in enumerate(res):
+        assert n == g.node(i+1)
+        assert v.infected == i
+
