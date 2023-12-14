@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-criterion = "0.4"
+criterion = "0.5.1"
 raphtory = { path = "../raphtory" , features=["io"]}
 sorted_vector_map = "0.1"
 rand = "0.8.5"

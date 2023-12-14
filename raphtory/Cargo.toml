@@ -17,10 +17,10 @@ homepage.workspace = true
 [dependencies]
 bincode = "1"
 chrono = { version = "0.4", features = ["serde"] }
-flume = "0.10"
+flume = "0.11.0"
 futures = {version = "0.3", features = ["thread-pool"] }
 genawaiter = "0.99"
-itertools="0.10"
+itertools= "0.12.0"
 num-traits = "0.2"
 parking_lot = { version = "0.12" , features = ["serde", "arc_lock", "send_guard"] }
 quickcheck = "1"
@@ -43,7 +43,7 @@ lock_api = { version = "0.4", features = ["arc_lock", "serde"] }
 dashmap = {version ="5", features = ["serde"] }
 serde_with = "3.3.0"
 enum_dispatch = "0.3"
-ordered-float = "3.7.0"
+ordered-float = "4.1.1"
 
 # io optional dependencies
 csv = {version="1.1.6", optional=true}
@@ -56,19 +56,19 @@ reqwest = { version = "0.11.14", features = ["blocking"], optional=true}
 tokio = { version = "1.27.0", features = ["full"], optional=true}
 
 # search optional dependencies
-tantivy = {version="0.20", optional=true} # 0.21 does not work (see https://github.com/quickwit-oss/tantivy/issues/2175)
+tantivy = {version= "0.21.1", optional=true} # 0.21 does not work (see https://github.com/quickwit-oss/tantivy/issues/2175)
 
 # vectors optional dependencies
 futures-util = {version="0.3.0", optional=true}
 async-trait = {version="0.1.73", optional=true}
-async-openai = {version="0.14.0", optional=true}
+async-openai = {version= "0.17.1", optional=true}
 
 # python binding optional dependencies
-pyo3 =  {version= "0.19.2", features=["multiple-pymethods", "chrono"], optional=true}
-pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"], optional=true }
+pyo3 =  {version= "0.20.0", features=["multiple-pymethods", "chrono"], optional=true}
+pyo3-asyncio = { version = "0.20.0", features = ["tokio-runtime"], optional=true }
 num = {version="0.4.0", optional=true}
 display-error-chain = {version= "0.2.0", optional=true}
-arrow2 = {version="0.17", optional=true}
+arrow2 = {version= "0.18.0", optional=true}
 kdam = { version="0.5.0", features = ["notebook"], optional = true}
 rustls = "0.22.1"
 
