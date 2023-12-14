@@ -1,8 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::entities::nodes::node_ref::NodeRef,
     db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
-    python::types::repr::{iterator_dict_repr, Repr, StructReprBuilder},
+    python::types::repr::{Repr, StructReprBuilder},
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -58,7 +57,7 @@ macro_rules! py_algorithm_result_base {
                 &self,
             ) -> std::collections::HashMap<
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             > {
                 self.0.get_all()
             }
@@ -88,7 +87,7 @@ macro_rules! py_algorithm_result_base {
             ///
             /// Returns:
             ///     a dict with node names and values
-            fn get_all_with_names(&self) -> std::collections::HashMap<String, Option<$rustValue>> {
+            fn get_all_with_names(&self) -> std::collections::HashMap<String, $rustValue> {
                 self.0.get_all_with_names()
             }
 
@@ -105,7 +104,7 @@ macro_rules! py_algorithm_result_base {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.sort_by_node(reverse)
             }
@@ -161,7 +160,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.sort_by_value(reverse)
             }
@@ -182,7 +181,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.sort_by_node_name(reverse)
             }
@@ -207,7 +206,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.top_k(k, percentage, reverse)
             }
@@ -217,9 +216,9 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
             ) -> Option<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
-                self.0.min().map(|(k, v)| (k, v.map(|val| val)))
+                self.0.min()
             }
 
             /// Returns a tuple of the max result with its key
@@ -227,9 +226,9 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
             ) -> Option<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
-                self.0.max().map(|(k, v)| (k, v.map(|val| val)))
+                self.0.max()
             }
 
             /// Returns a tuple of the median result with its key
@@ -237,9 +236,9 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
             ) -> Option<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
-                self.0.median().map(|(k, v)| (k, v.map(|val| val)))
+                self.0.median()
             }
         }
         $crate::py_algorithm_result_base!($objectName, $rustGraph, $rustValue, $rustOrderedValue);

@@ -1,27 +1,20 @@
 use crate::{
-    algorithms::{
-        algorithm_result::AlgorithmResult,
-        dynamics::temporal::epidemics::{
-            temporal_SEIR, Infected, IntoSeeds, Number, Probability, SeedError,
-        },
+    algorithms::dynamics::temporal::epidemics::{
+        Infected, IntoSeeds, Number, Probability, SeedError,
     },
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        utils::time::IntoTime,
-    },
+    core::entities::{nodes::node_ref::NodeRef, VID},
     db::api::view::{DynamicGraph, StaticGraphViewOps},
     py_algorithm_result, py_algorithm_result_new_ord_hash_eq,
     python::{
-        graph::views::graph_view::PyGraphView,
         types::repr::{Repr, StructReprBuilder},
-        utils::{errors::adapt_err_value, PyTime},
+        utils::errors::adapt_err_value,
     },
 };
 use pyo3::{
     prelude::*,
     types::{PyFloat, PyLong},
 };
-use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+use rand::Rng;
 
 impl Repr for Infected {
     fn repr(&self) -> String {

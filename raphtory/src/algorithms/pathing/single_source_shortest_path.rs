@@ -106,32 +106,23 @@ mod sssp_tests {
 
         let binding = single_source_shortest_path(&graph, 1, Some(4));
         let results = binding.get_all_with_names();
-        let expected: HashMap<String, Option<Vec<String>>> = HashMap::from([
-            ("1".to_string(), Some(vec!["1".to_string()])),
-            (
-                "2".to_string(),
-                Some(vec!["1".to_string(), "2".to_string()]),
-            ),
-            (
-                "3".to_string(),
-                Some(vec!["1".to_string(), "3".to_string()]),
-            ),
-            (
-                "4".to_string(),
-                Some(vec!["1".to_string(), "4".to_string()]),
-            ),
+        let expected: HashMap<String, Vec<String>> = HashMap::from([
+            ("1".to_string(), vec!["1".to_string()]),
+            ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
+            ("3".to_string(), vec!["1".to_string(), "3".to_string()]),
+            ("4".to_string(), vec!["1".to_string(), "4".to_string()]),
             (
                 "5".to_string(),
-                Some(vec!["1".to_string(), "4".to_string(), "5".to_string()]),
+                vec!["1".to_string(), "4".to_string(), "5".to_string()],
             ),
             (
                 "6".to_string(),
-                Some(vec![
+                vec![
                     "1".to_string(),
                     "4".to_string(),
                     "5".to_string(),
                     "6".to_string(),
-                ]),
+                ],
             ),
         ]);
         assert_eq!(results, expected);

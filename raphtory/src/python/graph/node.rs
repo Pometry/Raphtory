@@ -38,7 +38,7 @@ use crate::{
     python::types::repr::StructReprBuilder,
 };
 use chrono::NaiveDateTime;
-use itertools::Itertools;
+
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -47,7 +47,7 @@ use pyo3::{
     pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]
@@ -322,14 +322,7 @@ impl Repr for PyNode {
 
 impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for NodeView<G, GH> {
     fn repr(&self) -> String {
-        let earliest_time = self.earliest_time().repr();
-        let latest_time = self.latest_time().repr();
-        let properties: String = self
-            .properties()
-            .iter()
-            .map(|(k, v)| format!("{}: {}", k.deref(), v))
-            .join(", ");
-        if properties.is_empty() {
+        if self.properties().is_empty() {
             StructReprBuilder::new("Node")
                 .add_field("name", self.name())
                 .add_field("earliest_time", self.earliest_time())

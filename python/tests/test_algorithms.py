@@ -311,7 +311,6 @@ def test_single_source_shortest_path():
     assert res_one.get_all_with_names() == {
         "1": ["1"],
         "2": ["1", "2"],
-        "3": None,
         "4": ["1", "4"],
     }
     assert (

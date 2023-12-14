@@ -172,31 +172,31 @@ mod sum_weight_test {
         let node_four = graph.node("4").unwrap();
         let node_five = graph.node("5").unwrap();
         let expected = HashMap::from([
-            (node_one.clone(), Some(-26.0)),
-            (node_two.clone(), Some(7.0)),
-            (node_three.clone(), Some(12.0)),
-            (node_four.clone(), Some(5.0)),
-            (node_five.clone(), Some(2.0)),
+            (node_one.clone(), -26.0),
+            (node_two.clone(), 7.0),
+            (node_three.clone(), 12.0),
+            (node_four.clone(), 5.0),
+            (node_five.clone(), 2.0),
         ]);
         assert_eq!(res.get_all(), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::IN, None);
         let expected = HashMap::from([
-            (node_one.clone(), Some(6.0)),
-            (node_two.clone(), Some(12.0)),
-            (node_three.clone(), Some(15.0)),
-            (node_four.clone(), Some(20.0)),
-            (node_five.clone(), Some(2.0)),
+            (node_one.clone(), 6.0),
+            (node_two.clone(), 12.0),
+            (node_three.clone(), 15.0),
+            (node_four.clone(), 20.0),
+            (node_five.clone(), 2.0),
         ]);
         assert_eq!(res.get_all(), expected);
 
         let res = balance(&graph, "value_dec".to_string(), Direction::OUT, None);
         let expected = HashMap::from([
-            (node_one, Some(-32.0)),
-            (node_two, Some(-5.0)),
-            (node_three, Some(-3.0)),
-            (node_four, Some(-15.0)),
-            (node_five, Some(0.0)),
+            (node_one, -32.0),
+            (node_two, -5.0),
+            (node_three, -3.0),
+            (node_four, -15.0),
+            (node_five, 0.0),
         ]);
         assert_eq!(res.get_all(), expected);
     }

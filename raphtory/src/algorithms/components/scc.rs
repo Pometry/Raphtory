@@ -165,7 +165,7 @@ where
     let res = algo_res.get_all_with_names();
     let cycle_nodes = res
         .into_iter()
-        .filter(|(_, is_cycle_node)| is_cycle_node.unwrap_or(false))
+        .filter(|(_, is_cycle_node)| *is_cycle_node)
         .map(|(v, _)| v)
         .collect_vec();
 

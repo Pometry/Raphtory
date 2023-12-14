@@ -12,7 +12,7 @@ use crate::{
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-use std::{future::Future, thread, thread::JoinHandle};
+use std::{future::Future, thread};
 
 pub mod errors;
 

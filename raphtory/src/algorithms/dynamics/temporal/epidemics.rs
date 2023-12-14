@@ -2,7 +2,7 @@ use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
         entities::{nodes::node_ref::NodeRef, VID},
-        utils::time::{error::ParseTimeError, IntoTime, TryIntoTime},
+        utils::time::{error::ParseTimeError, TryIntoTime},
     },
     db::api::view::StaticGraphViewOps,
     prelude::*,
@@ -248,8 +248,8 @@ mod test {
         algorithms::dynamics::temporal::epidemics::{temporal_SEIR, Number},
         prelude::*,
     };
-    use rand::{rngs::SmallRng, thread_rng, Rng, SeedableRng};
-    use rand_distr::{Distribution, Exp, Exp1};
+    use rand::{rngs::SmallRng, Rng, SeedableRng};
+    use rand_distr::{Distribution, Exp};
     use rayon::prelude::*;
     use stats::{mean, stddev};
 
