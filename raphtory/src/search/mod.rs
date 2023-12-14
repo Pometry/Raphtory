@@ -825,7 +825,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
 #[cfg(test)]
 mod test {
     use std::time::SystemTime;
-    use tantivy::{doc, DocAddress};
+    use tantivy::{doc, DocAddress, Order};
 
     use super::*;
 
@@ -1194,7 +1194,8 @@ mod test {
         let query_parser = tantivy::query::QueryParser::for_index(&index, vec![]);
         let query = query_parser.parse_query(r#"name:"gandalf""#).unwrap();
 
-        let ranking = TopDocs::with_limit(10).order_by_u64_field(fields::VERTEX_ID.to_string());
+        let ranking =
+            TopDocs::with_limit(10).order_by_fast_field(fields::VERTEX_ID.to_string(), Order::Asc);
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());

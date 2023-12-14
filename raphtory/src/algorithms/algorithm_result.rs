@@ -1,5 +1,4 @@
 use crate::{core::entities::nodes::node_ref::NodeRef, prelude::NodeViewOps};
-use num_traits::Float;
 use ordered_float::OrderedFloat;
 use std::{
     collections::{hash_map::Iter, HashMap},
@@ -22,13 +21,13 @@ impl<T: Ord> AsOrd<T> for T {
     }
 }
 
-impl<T: Float> AsOrd<OrderedFloat<T>> for T {
+impl<T: FloatCore> AsOrd<OrderedFloat<T>> for T {
     fn as_ord(&self) -> &OrderedFloat<T> {
         self.into()
     }
 }
 
-impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
+impl<T: FloatCore> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
     fn as_ord(&self) -> &(OrderedFloat<T>, OrderedFloat<T>) {
         // Safety: OrderedFloat is #[repr(transparent)] and has no invalid values, i.e. there is no physical difference between OrderedFloat and Float.
         unsafe { &*(self as *const (T, T) as *const (OrderedFloat<T>, OrderedFloat<T>)) }
@@ -366,6 +365,7 @@ where
 }
 
 use crate::{core::entities::VID, db::graph::node::NodeView, prelude::GraphViewOps};
+use num_traits::float::FloatCore;
 use std::fmt;
 
 impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
