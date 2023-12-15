@@ -1,12 +1,9 @@
-use crate::{
-    db::api::{
-        properties::{
-            internal::{InheritPropertiesOps, PropertiesOps},
-            ConstProperties, Properties, TemporalProperties, TemporalPropertyView,
-        },
-        view::{internal::Static, DynamicGraph},
+use crate::db::api::{
+    properties::{
+        internal::{InheritPropertiesOps, PropertiesOps},
+        ConstProperties, Properties, TemporalProperties, TemporalPropertyView,
     },
-    search::IndexedGraph,
+    view::{internal::Static, DynamicGraph},
 };
 use std::sync::Arc;
 
@@ -29,12 +26,6 @@ impl From<Properties<DynamicGraph>> for DynProperties {
     }
 }
 
-impl From<Properties<IndexedGraph<DynamicGraph>>> for DynProperties {
-    fn from(value: Properties<IndexedGraph<DynamicGraph>>) -> Self {
-        let props: DynProps = Arc::new(value.props);
-        Properties::new(props)
-    }
-}
 pub type DynConstProperties = ConstProperties<DynProps>;
 
 impl<P: PropertiesOps + Send + Sync + Static + 'static> From<ConstProperties<P>>

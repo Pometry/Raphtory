@@ -9,11 +9,12 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
-        graph::{edge::PyEdge, node::PyNode},
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
+        vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
@@ -139,6 +140,48 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
 }
 
 pub(crate) type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
+
+#[pymethods]
+impl PyGraphView {
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// Args:
+    ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
+    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
+    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
+    ///   node_document (str): the property name to be used as document for nodes (optional)
+    ///   edge_document (str): the property name to be used as document for edges (optional)
+    ///   verbose (bool): whether or not to print logs reporting the progress
+    ///
+    /// Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]
+    fn vectorise(
+        &self,
+        embedding: &PyFunction,
+        cache: Option<String>,
+        overwrite_cache: bool,
+        node_document: Option<String>,
+        edge_document: Option<String>,
+        verbose: bool,
+    ) -> DynamicVectorisedGraph {
+        let embedding: Py<PyFunction> = embedding.into();
+        let graph = self.graph.clone();
+        let cache = cache.map(PathBuf::from);
+        let template = PyDocumentTemplate::new(node_document, edge_document);
+        execute_async_task(move || async move {
+            graph
+                .vectorise_with_template(
+                    Box::new(embedding.clone()),
+                    cache,
+                    overwrite_cache,
+                    template,
+                    verbose,
+                )
+                .await
+        })
+    }
+}
 
 #[pyclass(name = "VectorisedGraph", frozen)]
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);

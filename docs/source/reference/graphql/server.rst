@@ -1,7 +1,7 @@
 Server
 ======
 
-.. automodule:: raphtory.graphqlserver
+.. autoclass:: raphtory.graphql.RaphtoryServer
    :autosummary:
    :members:
    :undoc-members:
