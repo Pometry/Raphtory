@@ -79,7 +79,7 @@ jobs:
           RUSTFLAGS: -Awarnings
         with:
           command: test
-          args: --all --no-default-features --features ${{ matrix.features }}
+          args: --all --no-default-features --features "${{ matrix.features }}"
       - name: Print sccache stats
         run: sccache --show-stats
       - name: Stop sccache server
