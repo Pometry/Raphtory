@@ -824,11 +824,7 @@ mod test {
         Ok(graph)
     }
 
-    fn check_graph_sanity(
-        edges: &[(u64, u64, i64)],
-        vertices: &[u64],
-        graph: &TempColGraphFragment,
-    ) {
+    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TempColGraphFragment) {
         let expected_graph = Graph::new();
         for (src, dst, t) in edges {
             expected_graph
@@ -836,7 +832,7 @@ mod test {
                 .unwrap();
         }
 
-        let actual_num_verts = vertices.len();
+        let actual_num_verts = nodes.len();
         let g_num_verts = graph.num_vertices();
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
@@ -859,19 +855,19 @@ mod test {
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|e| (vertices[e.src().0], vertices[e.dst().0], e.timestamp()))
+            .map(|e| (nodes[e.src().0], nodes[e.dst().0], e.timestamp()))
             .collect();
         assert_eq!(exploded_edges, edges);
 
         // check incoming edges
-        for (v_id, g_id) in vertices.iter().enumerate() {
-            let vertex = expected_graph.vertex(*g_id).unwrap();
-            let mut expected_inbound = vertex.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
+        for (v_id, g_id) in nodes.iter().enumerate() {
+            let node = expected_graph.node(*g_id).unwrap();
+            let mut expected_inbound = node.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
             expected_inbound.sort();
 
             let actual_inbound = graph
                 .edges(VID(v_id), Direction::IN)
-                .map(|(_, v)| vertices[v.0])
+                .map(|(_, v)| nodes[v.0])
                 .collect::<Vec<_>>();
 
             assert_eq!(expected_inbound, actual_inbound);
@@ -884,8 +880,8 @@ mod test {
             let VID(src_id) = edge.src();
             let VID(dst_id) = edge.dst();
 
-            assert_eq!(vertices[src_id], src);
-            assert_eq!(vertices[dst_id], dst);
+            assert_eq!(nodes[src_id], src);
+            assert_eq!(nodes[dst_id], dst);
         }
     }
 
