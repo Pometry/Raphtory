@@ -1,17 +1,16 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::TimeIndexOps,
+        storage::timeindex::{AsTime, TimeIndexOps},
         Prop,
     },
     db::api::view::{
-        internal::{
-            materialize::MaterializedGraph, Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter,
-        },
+        internal::{Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter},
         BoxedIter,
     },
 };
 use enum_dispatch::enum_dispatch;
+use itertools::kmerge;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
@@ -78,6 +77,26 @@ pub trait TimeSemantics: CoreGraphOps {
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.node_additions(v).range(w).iter_t().copied().collect()
+    }
+
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(|index| index.iter_t().copied()),
+        )
+        .collect()
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(move |index| index.range_iter(w).map(|ti| *ti.t())),
+        )
+        .collect()
     }
 
     /// Exploded edge iterator for edge `e`
