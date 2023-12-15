@@ -14,6 +14,7 @@ jobs:
     runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
+        features: ["", "raphtory/io", "raphtory/python", "raphtory/search", "raphtory/vectors"] # make sure all features actually compile on their own
         include:
           - os: macos-latest
             sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
@@ -78,7 +79,7 @@ jobs:
           RUSTFLAGS: -Awarnings
         with:
           command: test
-          args: --all --no-default-features --features "raphtory/io raphtory/python"
+          args: --all --no-default-features --features ${{ matrix.features }}
       - name: Print sccache stats
         run: sccache --show-stats
       - name: Stop sccache server
