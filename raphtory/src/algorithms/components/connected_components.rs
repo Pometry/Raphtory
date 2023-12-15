@@ -127,17 +127,17 @@ mod cc_test {
         assert_eq!(
             results,
             vec![
-                ("1".to_string(), Some(1)),
-                ("2".to_string(), Some(1)),
-                ("3".to_string(), Some(1)),
-                ("4".to_string(), Some(1)),
-                ("5".to_string(), Some(1)),
-                ("6".to_string(), Some(1)),
-                ("7".to_string(), Some(7)),
-                ("8".to_string(), Some(7)),
+                ("1".to_string(), 1),
+                ("2".to_string(), 1),
+                ("3".to_string(), 1),
+                ("4".to_string(), 1),
+                ("5".to_string(), 1),
+                ("6".to_string(), 1),
+                ("7".to_string(), 7),
+                ("8".to_string(), 7),
             ]
             .into_iter()
-            .collect::<HashMap<String, Option<u64>>>()
+            .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -180,20 +180,20 @@ mod cc_test {
         assert_eq!(
             results,
             vec![
-                ("1".to_string(), Some(1)),
-                ("2".to_string(), Some(1)),
-                ("3".to_string(), Some(1)),
-                ("4".to_string(), Some(1)),
-                ("5".to_string(), Some(1)),
-                ("6".to_string(), Some(1)),
-                ("7".to_string(), Some(1)),
-                ("8".to_string(), Some(1)),
-                ("9".to_string(), Some(1)),
-                ("10".to_string(), Some(1)),
-                ("11".to_string(), Some(1)),
+                ("1".to_string(), 1),
+                ("2".to_string(), 1),
+                ("3".to_string(), 1),
+                ("4".to_string(), 1),
+                ("5".to_string(), 1),
+                ("6".to_string(), 1),
+                ("7".to_string(), 1),
+                ("8".to_string(), 1),
+                ("9".to_string(), 1),
+                ("10".to_string(), 1),
+                ("11".to_string(), 1),
             ]
             .into_iter()
-            .collect::<HashMap<String, Option<u64>>>()
+            .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -212,9 +212,9 @@ mod cc_test {
 
         assert_eq!(
             results,
-            vec![("1".to_string(), Some(1))]
+            vec![("1".to_string(), 1)]
                 .into_iter()
-                .collect::<HashMap<String, Option<u64>>>()
+                .collect::<HashMap<String, u64>>()
         );
     }
 
@@ -228,13 +228,13 @@ mod cc_test {
 
         let results = weakly_connected_components(&graph, usize::MAX, None).get_all_with_names();
         let expected = vec![
-            ("1".to_string(), Some(1)),
-            ("2".to_string(), Some(1)),
-            ("3".to_string(), Some(3)),
-            ("4".to_string(), Some(3)),
+            ("1".to_string(), 1),
+            ("2".to_string(), 1),
+            ("3".to_string(), 3),
+            ("4".to_string(), 3),
         ]
         .into_iter()
-        .collect::<HashMap<String, Option<u64>>>();
+        .collect::<HashMap<String, u64>>();
 
         assert_eq!(results, expected);
 
@@ -243,8 +243,8 @@ mod cc_test {
 
         let expected = vec![("1", 1), ("2", 1)]
             .into_iter()
-            .map(|(k, v)| (k.to_string(), Some(v)))
-            .collect::<HashMap<String, Option<u64>>>();
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<HashMap<String, u64>>();
 
         assert_eq!(results, expected);
     }

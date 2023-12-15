@@ -100,6 +100,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         hits,
         balance,
         label_propagation,
+        temporal_SEIR,
     );
     m.add_submodule(algorithm_module)?;
 

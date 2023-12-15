@@ -2,7 +2,7 @@ use crate::{
     core::{ArcStr, Prop},
     db::api::{
         properties::{
-            dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
+            dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
             internal::PropertiesOps,
             Properties,
         },

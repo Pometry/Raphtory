@@ -1,7 +1,6 @@
 //! Defines the `Node`, which represents a node in the graph.
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::db::graph::path::{PathFromGraph, PathFromNode};
 use crate::{
     core::{
         entities::nodes::node_ref::NodeRef,
@@ -34,8 +33,12 @@ use crate::{
     },
     *,
 };
+use crate::{
+    db::graph::path::{PathFromGraph, PathFromNode},
+    python::types::repr::StructReprBuilder,
+};
 use chrono::NaiveDateTime;
-use itertools::Itertools;
+
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -44,7 +47,7 @@ use pyo3::{
     pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]
@@ -319,28 +322,19 @@ impl Repr for PyNode {
 
 impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for NodeView<G, GH> {
     fn repr(&self) -> String {
-        let earliest_time = self.earliest_time().repr();
-        let latest_time = self.latest_time().repr();
-        let properties: String = self
-            .properties()
-            .iter()
-            .map(|(k, v)| format!("{}: {}", k.deref(), v))
-            .join(", ");
-        if properties.is_empty() {
-            format!(
-                "Node(name={}, earliest_time={:?}, latest_time={:?})",
-                self.name().trim_matches('"'),
-                earliest_time,
-                latest_time
-            )
+        if self.properties().is_empty() {
+            StructReprBuilder::new("Node")
+                .add_field("name", self.name())
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .finish()
         } else {
-            format!(
-                "Node(name={}, earliest_time={:?}, latest_time={:?}, properties={})",
-                self.name().trim_matches('"'),
-                earliest_time,
-                latest_time,
-                format!("{{{properties}}}")
-            )
+            StructReprBuilder::new("Node")
+                .add_field("name", self.name())
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .add_field("properties", self.properties())
+                .finish()
         }
     }
 }

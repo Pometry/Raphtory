@@ -88,17 +88,6 @@ where
         }
     }
 
-    /// Returns a formatted string representation of the algorithm.
-    pub fn repr(&self) -> String {
-        let algo_info_str = format!(
-            "Algorithm Name: {}, Number of Nodes: {}, Result Type: {}",
-            &self.algo_repr.algo_name,
-            &self.result.len(),
-            &self.algo_repr.result_type
-        );
-        algo_info_str
-    }
-
     /// Returns a reference to the entire `result` vector of values.
     pub fn get_all_values(&self) -> Vec<V> {
         self.result.clone().into_values().collect()
@@ -107,7 +96,7 @@ where
     /// Returns the value corresponding to the provided key in the `result` hashmap.
     ///
     /// Arguments:
-    ///     `key`: The key of the node, can be the node object, or namraphtory/src/algorithms/motifs/three_node_local_single_thread.rse.
+    ///     `key`: The key of the node, can be the node object, or name.
     pub fn get<T: Into<NodeRef>>(&self, name: T) -> Option<&V> {
         let v = name.into();
         if self.graph.has_node(v) {
@@ -122,15 +111,10 @@ where
     ///
     /// Returns:
     ///     a hashmap with node names and values
-    pub fn get_all_with_names(&self) -> HashMap<String, Option<V>> {
-        self.graph
-            .nodes()
+    pub fn get_all_with_names(&self) -> HashMap<String, V> {
+        self.result
             .iter()
-            .map(|node| {
-                let name = node.name();
-                let value = self.result.get(&node.node.0).cloned();
-                (name.to_string(), value)
-            })
+            .map(|(k, v)| (self.graph.node_name(VID(*k)), v.clone()))
             .collect()
     }
 
@@ -138,11 +122,15 @@ where
     ///
     /// Returns:
     ///     a `HashMap` containing `NodeView<G>` keys and `Option<V>` values.
-    pub fn get_all(&self) -> HashMap<NodeView<G, G>, Option<V>> {
-        self.graph
-            .nodes()
+    pub fn get_all(&self) -> HashMap<NodeView<G, G>, V> {
+        self.result
             .iter()
-            .map(|node| (node.clone(), self.result.get(&node.node.0).cloned()))
+            .map(|(k, v)| {
+                (
+                    NodeView::new_internal(self.graph.clone(), VID(*k)),
+                    v.clone(),
+                )
+            })
             .collect()
     }
 
@@ -155,8 +143,8 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing node names and values.
-    pub fn sort_by_node(&self, reverse: bool) -> Vec<(NodeView<G, G>, Option<V>)> {
-        let mut sorted: Vec<(NodeView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
+    pub fn sort_by_node(&self, reverse: bool) -> Vec<(NodeView<G, G>, V)> {
+        let mut sorted: Vec<(NodeView<G, G>, V)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
     }
@@ -173,8 +161,8 @@ where
     ///
     /// The function `sort_by_node_name` returns a vector of tuples, where each tuple contains a
     /// `NodeView<G>` and an optional `V` value.
-    pub fn sort_by_node_name(&self, reverse: bool) -> Vec<(NodeView<G, G>, Option<V>)> {
-        let mut sorted: Vec<(NodeView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
+    pub fn sort_by_node_name(&self, reverse: bool) -> Vec<(NodeView<G, G>, V)> {
+        let mut sorted: Vec<(NodeView<G, G>, V)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| {
             if reverse {
                 b.name().cmp(&a.name())
@@ -208,16 +196,10 @@ where
         &self,
         mut cmp: F,
         reverse: bool,
-    ) -> Vec<(NodeView<G, G>, Option<V>)> {
-        let mut all_as_vec: Vec<(NodeView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
+    ) -> Vec<(NodeView<G, G>, V)> {
+        let mut all_as_vec: Vec<(NodeView<G, G>, V)> = self.get_all().into_iter().collect();
         all_as_vec.sort_by(|a, b| {
-            let order = match (&a.1, &b.1) {
-                (Some(a_value), Some(b_value)) => cmp(a_value, b_value),
-                (Some(_), None) => std::cmp::Ordering::Greater, // Put Some(_) values before None
-                (None, Some(_)) => std::cmp::Ordering::Less,    // Put Some(_) values before None
-                (None, None) => std::cmp::Ordering::Equal,      // Equal if both are None
-            };
-
+            let order = cmp(&a.1, &b.1);
             // Reverse the order if `reverse` is true
             if reverse {
                 order.reverse()
@@ -248,7 +230,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(NodeView<G, G>, Option<V>)> {
+    ) -> Vec<(NodeView<G, G>, V)> {
         let k = if percentage {
             let total_count = self.result.len();
             (total_count as f64 * (k as f64 / 100.0)) as usize
@@ -264,41 +246,35 @@ where
     pub fn min_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(NodeView<G, G>, Option<V>)> {
+    ) -> Option<(NodeView<G, G>, V)> {
         let min_element = self
             .get_all()
             .into_iter()
-            .filter_map(|(k, v)| v.map(|v| (k, v)))
             .min_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
-        min_element.map(|(k, v)| (k.clone(), Some(v.clone())))
+        min_element.map(|(k, v)| (k.clone(), v.clone()))
     }
 
     pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(NodeView<G, G>, Option<V>)> {
+    ) -> Option<(NodeView<G, G>, V)> {
         let max_element = self
             .get_all()
             .into_iter()
-            .filter_map(|(k, v)| v.map(|v| (k, v)))
             .max_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
 
         // Clone the key and value
-        max_element.map(|(k, v)| (k.clone(), Some(v.clone())))
+        max_element.map(|(k, v)| (k.clone(), v.clone()))
     }
 
     pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(NodeView<G, G>, Option<V>)> {
+    ) -> Option<(NodeView<G, G>, V)> {
         // Assuming self.result is Vec<(String, Option<V>)>
-        let mut items: Vec<(NodeView<G, G>, V)> = self
-            .get_all()
-            .into_iter()
-            .filter_map(|(k, v)| v.map(|v| (k, v)))
-            .collect();
+        let mut items: Vec<(NodeView<G, G>, V)> = self.get_all().into_iter().collect();
         let len = items.len();
         if len == 0 {
             return None;
@@ -307,10 +283,11 @@ where
         items.sort_by(|(_, a_value), (_, b_value)| cmp(a_value, b_value));
         let median_index = len / 2;
 
-        Some((
-            items[median_index].0.clone(),
-            Some(items[median_index].1.clone()),
-        ))
+        Some((items[median_index].0.clone(), items[median_index].1.clone()))
+    }
+
+    pub fn len(&self) -> usize {
+        self.result.len()
     }
 }
 
@@ -345,7 +322,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(NodeView<G, G>, Option<V>)> {
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(NodeView<G, G>, V)> {
         self.sort_by_values(|a, b| O::cmp(a.as_ord(), b.as_ord()), reverse)
     }
 
@@ -363,12 +340,7 @@ where
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    pub fn top_k(
-        &self,
-        k: usize,
-        percentage: bool,
-        reverse: bool,
-    ) -> Vec<(NodeView<G, G>, Option<V>)> {
+    pub fn top_k(&self, k: usize, percentage: bool, reverse: bool) -> Vec<(NodeView<G, G>, V)> {
         self.top_k_by(
             |a, b| O::cmp(a.as_ord(), b.as_ord()),
             k,
@@ -378,22 +350,22 @@ where
     }
 
     /// Returns a tuple of the min result with its key
-    pub fn min(&self) -> Option<(NodeView<G, G>, Option<V>)> {
+    pub fn min(&self) -> Option<(NodeView<G, G>, V)> {
         self.min_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the max result with its key
-    pub fn max(&self) -> Option<(NodeView<G, G>, Option<V>)> {
+    pub fn max(&self) -> Option<(NodeView<G, G>, V)> {
         self.max_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the median result with its key
-    pub fn median(&self) -> Option<(NodeView<G, G>, Option<V>)> {
+    pub fn median(&self) -> Option<(NodeView<G, G>, V)> {
         self.median_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 }
 
-use crate::{db::graph::node::NodeView, prelude::GraphViewOps};
+use crate::{core::entities::VID, db::graph::node::NodeView, prelude::GraphViewOps};
 use std::fmt;
 
 impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
@@ -525,13 +497,13 @@ mod algorithm_result_test {
         let v_a = algo_result.graph.node("A".to_string()).unwrap();
         let v_b = algo_result.graph.node("B".to_string()).unwrap();
         let v_c = algo_result.graph.node("C".to_string()).unwrap();
-        assert_eq!(algo_result.min(), Some((v_a.clone(), Some(10u64))));
-        assert_eq!(algo_result.max(), Some((v_c.clone(), Some(30u64))));
-        assert_eq!(algo_result.median(), Some((v_b.clone(), Some(20u64))));
+        assert_eq!(algo_result.min(), Some((v_a.clone(), 10u64)));
+        assert_eq!(algo_result.max(), Some((v_c.clone(), 30u64)));
+        assert_eq!(algo_result.median(), Some((v_b.clone(), 20u64)));
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.min(), Some((v_a, Some(10.0))));
-        assert_eq!(algo_result.max(), Some((v_c, Some(30.0))));
-        assert_eq!(algo_result.median(), Some((v_b, Some(20.0))));
+        assert_eq!(algo_result.min(), Some((v_a, 10.0)));
+        assert_eq!(algo_result.max(), Some((v_c, 30.0)));
+        assert_eq!(algo_result.median(), Some((v_b, 20.0)));
     }
 
     #[test]
@@ -555,18 +527,18 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_u64();
         let sorted = algo_result.sort_by_value(true);
         let v_c = algo_result.graph.node("C").unwrap();
-        let v_d = algo_result.graph.node("D").unwrap();
+        let v_b = algo_result.graph.node("B").unwrap();
         let v_a = algo_result.graph.node("A").unwrap();
         assert_eq!(sorted[0].0, v_c.clone());
         let sorted = algo_result.sort_by_value(false);
-        assert_eq!(sorted[0].0, v_d.clone());
+        assert_eq!(sorted[0].0, v_a.clone());
 
         let algo_result = create_algo_result_f64();
         let sorted = algo_result.sort_by_value(true);
         assert_eq!(sorted[0].0, v_c.clone());
         let sorted = algo_result.sort_by_value(false);
-        assert_eq!(sorted[0].0, v_d);
-        assert_eq!(sorted[1].0, v_a);
+        assert_eq!(sorted[0].0, v_a);
+        assert_eq!(sorted[1].0, v_b);
 
         let algo_result = create_algo_result_tuple();
         assert_eq!(algo_result.sort_by_value(true)[0].0, v_c.clone());
@@ -579,29 +551,28 @@ mod algorithm_result_test {
     fn test_top_k() {
         let algo_result = create_algo_result_u64();
         let v_c = algo_result.graph.node("C").unwrap();
-        let v_d = algo_result.graph.node("D").unwrap();
         let v_a = algo_result.graph.node("A").unwrap();
         let v_b = algo_result.graph.node("B").unwrap();
 
         let top_k = algo_result.top_k(2, false, false);
-        assert_eq!(top_k[0].0, v_d.clone());
+        assert_eq!(top_k[0].0, v_a.clone());
         let top_k = algo_result.top_k(2, false, true);
         assert_eq!(top_k[0].0, v_c.clone());
 
         let algo_result = create_algo_result_f64();
         let top_k = algo_result.top_k(2, false, false);
-        assert_eq!(top_k[0].0, v_d.clone());
-        assert_eq!(top_k[1].0, v_a.clone());
+        assert_eq!(top_k[0].0, v_a.clone());
+        assert_eq!(top_k[1].0, v_b.clone());
         let top_k = algo_result.top_k(2, false, true);
         assert_eq!(top_k[0].0, v_c);
 
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.top_k(2, false, false)[0].0, v_d.clone());
-        assert_eq!(algo_result.top_k(2, false, false)[1].0, v_a);
+        assert_eq!(algo_result.top_k(2, false, false)[0].0, v_a.clone());
+        assert_eq!(algo_result.top_k(2, false, false)[1].0, v_b.clone());
 
         let algo_result = create_algo_result_hashmap_vec();
-        assert_eq!(algo_result.top_k(2, false, false)[0].0, v_d);
-        assert_eq!(algo_result.top_k(2, false, false)[1].0, v_b);
+        assert_eq!(algo_result.top_k(2, false, false)[0].0, v_b);
+        assert_eq!(algo_result.top_k(2, false, false)[1].0, v_a);
     }
 
     #[test]
@@ -636,13 +607,13 @@ mod algorithm_result_test {
         let algo_result = create_algo_result_tuple();
         let algo_results_hashmap = algo_result.get_all_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
-        assert_eq!(tuple_result.unwrap().0, 10.0);
+        assert_eq!(tuple_result.0, 10.0);
         assert_eq!(algo_result.get_all_values().len(), 3);
 
         let algo_result = create_algo_result_hashmap_vec();
         let algo_results_hashmap = algo_result.get_all_with_names();
         let tuple_result = algo_results_hashmap.get("A").unwrap();
-        assert_eq!(tuple_result.clone().unwrap().get(0).unwrap().0, 11);
+        assert_eq!(tuple_result.clone().get(0).unwrap().0, 11);
         assert_eq!(algo_result.get_all_values().len(), 3);
     }
 
@@ -650,50 +621,37 @@ mod algorithm_result_test {
     fn test_sort_by_node() {
         let algo_result = create_algo_result_u64();
         let v_c = algo_result.graph.node("C").unwrap();
-        let v_d = algo_result.graph.node("D").unwrap();
         let v_a = algo_result.graph.node("A").unwrap();
         let v_b = algo_result.graph.node("B").unwrap();
         let sorted = algo_result.sort_by_node(true);
-        let my_array: Vec<(NodeView<Graph, Graph>, Option<u64>)> = vec![
-            (v_d, None),
-            (v_c, Some(30u64)),
-            (v_b, Some(20u64)),
-            (v_a, Some(10u64)),
-        ];
+        let my_array: Vec<(NodeView<Graph, Graph>, u64)> =
+            vec![(v_c, 30u64), (v_b, 20u64), (v_a, 10u64)];
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_f64();
         let v_c = algo_result.graph.node("C").unwrap();
-        let v_d = algo_result.graph.node("D").unwrap();
         let v_a = algo_result.graph.node("A").unwrap();
         let v_b = algo_result.graph.node("B").unwrap();
         let sorted = algo_result.sort_by_node(true);
-        let my_array: Vec<(NodeView<Graph, Graph>, Option<f64>)> = vec![
-            (v_d, None),
-            (v_c, Some(30.0)),
-            (v_b, Some(20.0)),
-            (v_a, Some(10.0)),
-        ];
+        let my_array: Vec<(NodeView<Graph, Graph>, f64)> =
+            vec![(v_c, 30.0), (v_b, 20.0), (v_a, 10.0)];
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_tuple();
         let v_c = algo_result.graph.node("C").unwrap();
-        let v_d = algo_result.graph.node("D").unwrap();
         let v_a = algo_result.graph.node("A").unwrap();
         let v_b = algo_result.graph.node("B").unwrap();
 
         let sorted = algo_result.sort_by_node(true);
-        let my_array: Vec<(NodeView<Graph, Graph>, Option<(f32, f32)>)> = vec![
-            (v_d, None),
-            (v_c, Some((30.0, 40.0))),
-            (v_b, Some((20.0, 30.0))),
-            (v_a, Some((10.0, 20.0))),
+        let my_array: Vec<(NodeView<Graph, Graph>, (f32, f32))> = vec![
+            (v_c, (30.0, 40.0)),
+            (v_b, (20.0, 30.0)),
+            (v_a, (10.0, 20.0)),
         ];
         assert_eq!(my_array, sorted);
         //
         let algo_result = create_algo_result_hashmap_vec();
         let v_c = algo_result.graph.node("C").unwrap();
-        let v_d = algo_result.graph.node("D").unwrap();
         let v_a = algo_result.graph.node("A").unwrap();
         let v_b = algo_result.graph.node("B").unwrap();
 
@@ -701,12 +659,8 @@ mod algorithm_result_test {
         let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
         let vec_b = vec![];
         let vec_a = vec![(11, "H".to_string())];
-        let my_array: Vec<(NodeView<Graph, Graph>, Option<Vec<(i32, String)>>)> = vec![
-            (v_d, None),
-            (v_c, Some(vec_c)),
-            (v_b, Some(vec_b)),
-            (v_a, Some(vec_a)),
-        ];
+        let my_array: Vec<(NodeView<Graph, Graph>, Vec<(i32, String)>)> =
+            vec![(v_c, vec_c), (v_b, vec_b), (v_a, vec_a)];
         assert_eq!(my_array, sorted);
     }
 
@@ -733,16 +687,16 @@ mod algorithm_result_test {
             .expect("Unable to add edge");
         let g_layer = g.layer(vec!["ZERO-TWO"]).unwrap();
         let res_window = weakly_connected_components(&g_layer, 20, None);
-        let mut expected_result: HashMap<String, Option<u64>> = HashMap::new();
-        expected_result.insert("8".to_string(), Some(8));
-        expected_result.insert("1".to_string(), Some(1));
-        expected_result.insert("3".to_string(), Some(1));
-        expected_result.insert("2".to_string(), Some(1));
-        expected_result.insert("5".to_string(), Some(4));
-        expected_result.insert("6".to_string(), Some(6));
-        expected_result.insert("7".to_string(), Some(7));
-        expected_result.insert("4".to_string(), Some(4));
-        expected_result.insert("9".to_string(), Some(9));
+        let mut expected_result: HashMap<String, u64> = HashMap::new();
+        expected_result.insert("8".to_string(), 8);
+        expected_result.insert("1".to_string(), 1);
+        expected_result.insert("3".to_string(), 1);
+        expected_result.insert("2".to_string(), 1);
+        expected_result.insert("5".to_string(), 4);
+        expected_result.insert("6".to_string(), 6);
+        expected_result.insert("7".to_string(), 7);
+        expected_result.insert("4".to_string(), 4);
+        expected_result.insert("9".to_string(), 9);
         assert_eq!(res_window.get_all_with_names(), expected_result);
     }
 }

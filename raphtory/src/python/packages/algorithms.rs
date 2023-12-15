@@ -1,5 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::{
+    algorithms::dynamics::temporal::epidemics::{
+        temporal_SEIR as temporal_SEIR_rs, Infected, SeedError,
+    },
+    core::Prop,
+    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    python::{graph::edge::PyDirection, utils::PyTime},
+};
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -42,13 +50,9 @@ use crate::{
     core::entities::nodes::node_ref::NodeRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
 };
-use crate::{
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    python::graph::edge::PyDirection,
-};
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+use rand::{prelude::StdRng, SeedableRng};
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
@@ -573,7 +577,7 @@ pub fn dijkstra_single_source_shortest_paths(
 ///     normalized (boolean, optional): Indicates whether to normalize the centrality values.
 ///
 /// Returns:
-///     Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+///     AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
 #[pyfunction]
 #[pyo3[signature = (g, k=None, normalized=true)]]
 pub fn betweenness_centrality(
@@ -603,4 +607,58 @@ pub fn label_propagation(
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+/// Simulate an SEIR dynamic on the network
+///
+/// The algorithm uses the event-based sampling strategy from https://doi.org/10.1371/journal.pone.0246961
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     seeds (int | float | list[Node]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
+///            of nodes at random, if `float` infect each node with this probability, if `[Node]`
+///            initially infect the specified nodes
+///     infection_prob (float): the probability for a contact between infected and susceptible nodes to lead
+///                     to a transmission
+///     initial_infection (int | str | DateTime): the time of the initial infection
+///     recovery_rate (float | None): optional recovery rate (if None, simulates SEI dynamic where nodes never recover)
+///                    the actual recovery time is sampled from an exponential distribution with this rate
+///     incubation_rate ( float | None): optional incubation rate (if None, simulates SI or SIR dynamics where infected
+///                      nodes are infectious at the next time step)
+///                      the actual incubation time is sampled from an exponential distribution with
+///                      this rate
+///     rng_seed (int | None): optional seed for the random number generator
+///
+/// Returns:
+///     AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes
+///     
+///     `infected`: the time stamp of the infection event
+///
+///     `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
+///
+///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
+///              
+#[pyfunction(name = "temporal_SEIR")]
+pub fn temporal_SEIR(
+    graph: &PyGraphView,
+    seeds: crate::python::algorithm::epidemics::PySeed,
+    infection_prob: f64,
+    initial_infection: PyTime,
+    recovery_rate: Option<f64>,
+    incubation_rate: Option<f64>,
+    rng_seed: Option<u64>,
+) -> Result<AlgorithmResult<DynamicGraph, Infected>, SeedError> {
+    let mut rng = match rng_seed {
+        None => StdRng::from_entropy(),
+        Some(seed) => StdRng::seed_from_u64(seed),
+    };
+    temporal_SEIR_rs(
+        &graph.graph,
+        recovery_rate,
+        incubation_rate,
+        infection_prob,
+        initial_infection,
+        seeds,
+        &mut rng,
+    )
 }

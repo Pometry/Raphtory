@@ -90,7 +90,7 @@ pub mod core;
 pub mod db;
 pub mod graphgen;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
 pub mod python;
 
 #[cfg(feature = "io")]
