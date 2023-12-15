@@ -26,6 +26,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub enum PyQuery {
