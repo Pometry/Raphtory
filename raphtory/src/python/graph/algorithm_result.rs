@@ -1,10 +1,24 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef, db::api::view::internal::DynamicGraph,
-    python::types::repr::Repr,
+    algorithms::algorithm_result::AlgorithmResult as AlgorithmResultRs,
+    db::api::view::{internal::DynamicGraph, StaticGraphViewOps},
+    python::types::repr::{Repr, StructReprBuilder},
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 
+impl<G: StaticGraphViewOps, V: Repr + Clone, O> Repr for AlgorithmResultRs<G, V, O> {
+    fn repr(&self) -> String {
+        let algo_name = &self.algo_repr.algo_name;
+        let num_nodes = &self.result.len();
+        StructReprBuilder::new("AlgorithmResult")
+            .add_field("name", algo_name)
+            .add_field("num_nodes", num_nodes)
+            .add_field("result", self.get_all_with_names())
+            .finish()
+    }
+}
+
+#[macro_export]
 macro_rules! py_algorithm_result {
     ($objectName:ident, $rustGraph:ty, $rustValue:ty, $rustSortValue:ty) => {
         #[pyclass]
@@ -15,24 +29,6 @@ macro_rules! py_algorithm_result {
                 $rustSortValue,
             >,
         );
-
-        impl Repr
-            for $crate::algorithms::algorithm_result::AlgorithmResult<
-                $rustGraph,
-                $rustValue,
-                $rustSortValue,
-            >
-        {
-            fn repr(&self) -> String {
-                let algo_name = &self.algo_repr.algo_name;
-                let num_nodes = &self.result.len();
-                let result_type = &self.algo_repr.result_type;
-                format!(
-                    "Algorithm Name: {}, Number of Nodes: {}, Result Type: {}",
-                    algo_name, num_nodes, result_type
-                )
-            }
-        }
 
         impl pyo3::IntoPy<pyo3::PyObject>
             for $crate::algorithms::algorithm_result::AlgorithmResult<
@@ -45,10 +41,6 @@ macro_rules! py_algorithm_result {
                 $objectName(self).into_py(py)
             }
         }
-    };
-
-    ($name:ident, $rustGraph:ty, $rustKey:ty, $rustSortValue:ty) => {
-        py_algorithm_result!($name, $rustGraph, $rustKey, $rustSortValue);
     };
 }
 
@@ -65,7 +57,7 @@ macro_rules! py_algorithm_result_base {
                 &self,
             ) -> std::collections::HashMap<
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             > {
                 self.0.get_all()
             }
@@ -84,7 +76,10 @@ macro_rules! py_algorithm_result_base {
             ///
             /// Arguments:
             ///     key: The key of type `H` for which the value is to be retrieved.
-            fn get(&self, key: NodeRef) -> Option<$rustValue> {
+            fn get(
+                &self,
+                key: $crate::core::entities::nodes::node_ref::NodeRef,
+            ) -> Option<$rustValue> {
                 self.0.get(key).cloned()
             }
 
@@ -92,7 +87,7 @@ macro_rules! py_algorithm_result_base {
             ///
             /// Returns:
             ///     a dict with node names and values
-            fn get_all_with_names(&self) -> std::collections::HashMap<String, Option<$rustValue>> {
+            fn get_all_with_names(&self) -> std::collections::HashMap<String, $rustValue> {
                 self.0.get_all_with_names()
             }
 
@@ -109,9 +104,17 @@ macro_rules! py_algorithm_result_base {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.sort_by_node(reverse)
+            }
+
+            fn __len__(&self) -> usize {
+                self.0.len()
+            }
+
+            fn __repr__(&self) -> String {
+                self.0.repr()
             }
 
             /// Creates a dataframe from the result
@@ -157,7 +160,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.sort_by_value(reverse)
             }
@@ -178,7 +181,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.sort_by_node_name(reverse)
             }
@@ -203,7 +206,7 @@ macro_rules! py_algorithm_result_partial_ord {
                 reverse: bool,
             ) -> std::vec::Vec<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
                 self.0.top_k(k, percentage, reverse)
             }
@@ -213,9 +216,9 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
             ) -> Option<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
-                self.0.min().map(|(k, v)| (k, v.map(|val| val)))
+                self.0.min()
             }
 
             /// Returns a tuple of the max result with its key
@@ -223,9 +226,9 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
             ) -> Option<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
-                self.0.max().map(|(k, v)| (k, v.map(|val| val)))
+                self.0.max()
             }
 
             /// Returns a tuple of the median result with its key
@@ -233,12 +236,12 @@ macro_rules! py_algorithm_result_partial_ord {
                 &self,
             ) -> Option<(
                 $crate::db::graph::node::NodeView<$rustGraph, $rustGraph>,
-                Option<$rustValue>,
+                $rustValue,
             )> {
-                self.0.median().map(|(k, v)| (k, v.map(|val| val)))
+                self.0.median()
             }
         }
-        py_algorithm_result_base!($objectName, $rustGraph, $rustValue, $rustOrderedValue);
+        $crate::py_algorithm_result_base!($objectName, $rustGraph, $rustValue, $rustOrderedValue);
     };
 }
 
@@ -256,54 +259,58 @@ macro_rules! py_algorithm_result_new_ord_hash_eq {
                 self.0.group_by()
             }
         }
-        py_algorithm_result_partial_ord!($objectName, $rustGraph, $rustValue, $rustOrderedValue);
+        $crate::py_algorithm_result_partial_ord!(
+            $objectName,
+            $rustGraph,
+            $rustValue,
+            $rustOrderedValue
+        );
     };
 }
 
 py_algorithm_result!(AlgorithmResult, DynamicGraph, String, String);
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResult, DynamicGraph, String, String);
 
-py_algorithm_result!(AlgorithmResultStrF64, DynamicGraph, f64, OrderedFloat<f64>);
-py_algorithm_result_partial_ord!(AlgorithmResultStrF64, DynamicGraph, f64, OrderedFloat<f64>);
+py_algorithm_result!(AlgorithmResultF64, DynamicGraph, f64, OrderedFloat<f64>);
+py_algorithm_result_partial_ord!(AlgorithmResultF64, DynamicGraph, f64, OrderedFloat<f64>);
 
-py_algorithm_result!(AlgorithmResultStrU64, DynamicGraph, u64, u64);
-py_algorithm_result_new_ord_hash_eq!(AlgorithmResultStrU64, DynamicGraph, u64, u64);
+py_algorithm_result!(AlgorithmResultU64, DynamicGraph, u64, u64);
+py_algorithm_result_new_ord_hash_eq!(AlgorithmResultU64, DynamicGraph, u64, u64);
 
 py_algorithm_result!(
-    AlgorithmResultStrTupleF32F32,
+    AlgorithmResultTupleF32F32,
     DynamicGraph,
     (f32, f32),
     (OrderedFloat<f32>, OrderedFloat<f32>)
 );
 py_algorithm_result_partial_ord!(
-    AlgorithmResultStrTupleF32F32,
+    AlgorithmResultTupleF32F32,
     DynamicGraph,
     (f32, f32),
     (f32, f32)
 );
 
 py_algorithm_result!(
-    AlgorithmResultStrVecI64Str,
+    AlgorithmResultVecI64Str,
     DynamicGraph,
     Vec<(i64, String)>,
     Vec<(i64, String)>
 );
 py_algorithm_result_new_ord_hash_eq!(
-    AlgorithmResultStrVecI64Str,
+    AlgorithmResultVecI64Str,
     DynamicGraph,
     Vec<(i64, String)>,
     Vec<(i64, String)>
 );
 
 py_algorithm_result!(
-    AlgorithmResultU64VecUsize,
+    AlgorithmResultVecUsize,
     DynamicGraph,
     Vec<usize>,
     Vec<usize>
 );
-
 py_algorithm_result_new_ord_hash_eq!(
-    AlgorithmResultU64VecUsize,
+    AlgorithmResultVecUsize,
     DynamicGraph,
     Vec<usize>,
     Vec<usize>
@@ -313,13 +320,13 @@ py_algorithm_result!(AlgorithmResultU64VecU64, DynamicGraph, Vec<u64>, Vec<u64>)
 py_algorithm_result_new_ord_hash_eq!(AlgorithmResultU64VecU64, DynamicGraph, Vec<u64>, Vec<u64>);
 
 py_algorithm_result!(
-    AlgorithmResultStrVecStr,
+    AlgorithmResultVecStr,
     DynamicGraph,
     Vec<String>,
     Vec<String>
 );
 py_algorithm_result_new_ord_hash_eq!(
-    AlgorithmResultStrVecStr,
+    AlgorithmResultVecStr,
     DynamicGraph,
     Vec<String>,
     Vec<String>

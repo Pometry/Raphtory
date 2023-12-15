@@ -118,24 +118,19 @@ mod components_test {
         }
         let results = out_components(&graph, None).get_all_with_names();
         let mut correct = HashMap::new();
-        correct.insert("1".to_string(), Some(vec![2, 3, 4, 5, 6, 7, 8]));
-        correct.insert("2".to_string(), Some(vec![4, 5, 6, 7, 8]));
-        correct.insert("3".to_string(), Some(vec![]));
-        correct.insert("4".to_string(), Some(vec![6, 7]));
-        correct.insert("5".to_string(), Some(vec![4, 6, 7, 8]));
-        correct.insert("6".to_string(), Some(vec![]));
-        correct.insert("7".to_string(), Some(vec![]));
-        correct.insert("8".to_string(), Some(vec![]));
-        let map: HashMap<String, Option<Vec<u64>>> = results
+        correct.insert("1".to_string(), vec![2, 3, 4, 5, 6, 7, 8]);
+        correct.insert("2".to_string(), vec![4, 5, 6, 7, 8]);
+        correct.insert("3".to_string(), vec![]);
+        correct.insert("4".to_string(), vec![6, 7]);
+        correct.insert("5".to_string(), vec![4, 6, 7, 8]);
+        correct.insert("6".to_string(), vec![]);
+        correct.insert("7".to_string(), vec![]);
+        correct.insert("8".to_string(), vec![]);
+        let map: HashMap<String, Vec<u64>> = results
             .into_iter()
-            .map(|(k, v)| {
-                (
-                    k,
-                    v.map(|mut vec| {
-                        vec.sort();
-                        vec
-                    }),
-                )
+            .map(|(k, mut v)| {
+                v.sort();
+                (k, v)
             })
             .collect();
         assert_eq!(map, correct);

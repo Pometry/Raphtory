@@ -26,7 +26,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, path::PathBuf, thread};
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -153,7 +153,7 @@ impl PyGraphView {
     ///   node_document (str): the property name to be used as document for nodes (optional)
     ///   edge_document (str): the property name to be used as document for edges (optional)
     ///   verbose (bool): whether or not to print logs reporting the progress
-    ///   
+    ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]

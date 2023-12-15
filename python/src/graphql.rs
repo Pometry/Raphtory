@@ -13,12 +13,11 @@ use raphtory_core::{
     },
     vectors::{embeddings::openai_embedding, EmbeddingFunction},
 };
-use raphtory_graphql::{url_decode_graph, url_encode_graph, RaphtoryServer};
+use raphtory_graphql::{url_encode_graph, RaphtoryServer};
 use reqwest::Client;
 use serde_json::{json, Map, Number, Value};
 use std::{
     collections::HashMap,
-    future::Future,
     path::PathBuf,
     thread,
     thread::{sleep, JoinHandle},

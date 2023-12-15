@@ -140,24 +140,24 @@ mod betweenness_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
-        let mut expected: HashMap<String, Option<f64>> = HashMap::new();
-        expected.insert("1".to_string(), Some(0.0));
-        expected.insert("2".to_string(), Some(1.0));
-        expected.insert("3".to_string(), Some(4.0));
-        expected.insert("4".to_string(), Some(1.0));
-        expected.insert("5".to_string(), Some(0.0));
-        expected.insert("6".to_string(), Some(0.0));
+        let mut expected: HashMap<String, f64> = HashMap::new();
+        expected.insert("1".to_string(), 0.0);
+        expected.insert("2".to_string(), 1.0);
+        expected.insert("3".to_string(), 4.0);
+        expected.insert("4".to_string(), 1.0);
+        expected.insert("5".to_string(), 0.0);
+        expected.insert("6".to_string(), 0.0);
 
         let res = betweenness_centrality(&graph, None, Some(false));
         assert_eq!(res.get_all_with_names(), expected);
 
-        let mut expected: HashMap<String, Option<f64>> = HashMap::new();
-        expected.insert("1".to_string(), Some(0.0));
-        expected.insert("2".to_string(), Some(0.05));
-        expected.insert("3".to_string(), Some(0.2));
-        expected.insert("4".to_string(), Some(0.05));
-        expected.insert("5".to_string(), Some(0.0));
-        expected.insert("6".to_string(), Some(0.0));
+        let mut expected: HashMap<String, f64> = HashMap::new();
+        expected.insert("1".to_string(), 0.0);
+        expected.insert("2".to_string(), 0.05);
+        expected.insert("3".to_string(), 0.2);
+        expected.insert("4".to_string(), 0.05);
+        expected.insert("5".to_string(), 0.0);
+        expected.insert("6".to_string(), 0.0);
         let res = betweenness_centrality(&graph, None, Some(true));
         assert_eq!(res.get_all_with_names(), expected);
     }

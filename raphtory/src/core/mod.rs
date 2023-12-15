@@ -45,7 +45,7 @@ pub mod state;
 pub(crate) mod storage;
 pub mod utils;
 
-/// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
+// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
 #[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct ArcStr(pub(crate) Arc<str>);
 
