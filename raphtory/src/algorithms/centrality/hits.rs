@@ -1,19 +1,19 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::vertices::vertex_ref::VertexRef,
+        entities::nodes::node_ref::NodeRef,
         state::{
             accumulator_id::accumulators::{max, sum},
             compute_state::ComputeStateVec,
         },
     },
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -37,15 +37,15 @@ impl Default for Hits {
 }
 
 /// HITS (Hubs and Authority) Algorithm:
-/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
-///     Sum of HubScore of all vertices in the current iteration
+/// AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
+///     Sum of HubScore of all nodes in the current iteration
 ///
-/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
-///     Sum of AuthScore of all vertices in the current iteration
+/// HubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /
+///     Sum of AuthScore of all nodes in the current iteration
 ///
 /// Returns
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
+/// * An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
 pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
@@ -75,7 +75,7 @@ pub fn hits<G: StaticGraphViewOps>(
     ctx.global_agg_reset(max_diff_hub_score);
     ctx.global_agg_reset(max_diff_auth_score);
 
-    let step2 = ATask::new(move |evv: &mut EvalVertexView<G, Hits>| {
+    let step2 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let hub_score = evv.get().hub_score;
         let auth_score = evv.get().auth_score;
         for t in evv.out_neighbours() {
@@ -87,7 +87,7 @@ pub fn hits<G: StaticGraphViewOps>(
         Step::Continue
     });
 
-    let step3 = ATask::new(move |evv: &mut EvalVertexView<G, Hits>| {
+    let step3 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -96,7 +96,7 @@ pub fn hits<G: StaticGraphViewOps>(
         Step::Continue
     });
 
-    let step4 = ATask::new(move |evv: &mut EvalVertexView<G, Hits>| {
+    let step4 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -144,8 +144,8 @@ pub fn hits<G: StaticGraphViewOps>(
             let layers = g.layer_ids();
             let edge_filter = g.edge_filter();
             for (v_ref, hit) in local.iter().enumerate() {
-                if g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter) {
-                    let v_gid = g.vertex_name(v_ref.into());
+                if g.has_node_ref(NodeRef::Internal(v_ref.into()), &layers, edge_filter) {
+                    let v_gid = g.node_name(v_ref.into());
                     hubs.insert(v_gid.clone(), hit.hub_score);
                     auths.insert(v_gid, hit.auth_score);
                 }
@@ -161,11 +161,11 @@ pub fn hits<G: StaticGraphViewOps>(
     let mut results: HashMap<usize, (f32, f32)> = HashMap::new();
 
     hub_scores.into_iter().for_each(|(k, v)| {
-        results.insert(g.vertex(k).unwrap().vertex.0, (v, 0.0));
+        results.insert(g.node(k).unwrap().node.0, (v, 0.0));
     });
 
     auth_scores.into_iter().for_each(|(k, v)| {
-        let vid = g.vertex(k).unwrap().vertex.0;
+        let vid = g.node(k).unwrap().node.0;
         let (a, _) = results.get(&vid).unwrap();
         results.insert(vid, (*a, v));
     });

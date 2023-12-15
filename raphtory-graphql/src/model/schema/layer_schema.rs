@@ -1,4 +1,4 @@
-use crate::model::schema::{edge_schema::EdgeSchema, get_vertex_type};
+use crate::model::schema::{edge_schema::EdgeSchema, get_node_type};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
@@ -35,8 +35,8 @@ impl<G: StaticGraphViewOps> LayerSchema<G> {
             .edges()
             .into_iter()
             .map(|edge| {
-                let src_type = get_vertex_type(edge.src());
-                let dst_type = get_vertex_type(edge.dst());
+                let src_type = get_node_type(edge.src());
+                let dst_type = get_node_type(edge.dst());
                 (src_type, dst_type)
             })
             .unique()

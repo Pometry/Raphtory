@@ -18,8 +18,8 @@ use crate::{
         },
         graph::{edge::EdgeView, views::window_graph::WindowedGraph},
         task::{
+            node::{eval_node::EvalNodeView, eval_node_state::EVState},
             task_state::Local2,
-            vertex::{eval_vertex::EvalVertexView, eval_vertex_state::EVState},
         },
     },
 };
@@ -29,7 +29,7 @@ use std::{cell::RefCell, rc::Rc};
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
     ss: usize,
     edge: EdgeView<&'graph G, GH>,
-    vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+    node_state: Rc<RefCell<EVState<'a, CS>>>,
     local_state_prev: &'graph Local2<'a, S>,
 }
 
@@ -45,13 +45,13 @@ impl<
     pub(crate) fn new(
         ss: usize,
         edge: EdgeView<&'graph G, GH>,
-        vertex_state: Rc<RefCell<EVState<'a, CS>>>,
+        node_state: Rc<RefCell<EVState<'a, CS>>>,
         local_state_prev: &'graph Local2<'a, S>,
     ) -> Self {
         Self {
             ss,
             edge,
-            vertex_state,
+            node_state,
             local_state_prev,
         }
     }
@@ -60,7 +60,7 @@ impl<
         Self::new(
             self.ss,
             edge,
-            self.vertex_state.clone(),
+            self.node_state.clone(),
             self.local_state_prev,
         )
     }
@@ -78,7 +78,7 @@ impl<
     type BaseGraph = &'graph G;
     type Graph = GH;
     type EList = Box<dyn Iterator<Item = Self> + 'graph>;
-    type Neighbour = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>;
+    type Neighbour = EvalNodeView<'graph, 'a, G, S, &'graph G, CS>;
 
     fn graph(&self) -> &GH {
         self.edge.graph()
@@ -88,25 +88,20 @@ impl<
         self.edge.eref()
     }
 
-    fn new_vertex(&self, v: VID) -> EvalVertexView<'graph, 'a, G, S, &'graph G, CS> {
-        let vertex = self.edge.new_vertex(v);
-        EvalVertexView::new_from_vertex(
+    fn new_node(&self, v: VID) -> EvalNodeView<'graph, 'a, G, S, &'graph G, CS> {
+        let node = self.edge.new_node(v);
+        EvalNodeView::new_from_node(
             self.ss,
-            vertex,
+            node,
             None,
             self.local_state_prev,
-            self.vertex_state.clone(),
+            self.node_state.clone(),
         )
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
         let ev = self.edge.new_edge(e);
-        EvalEdgeView::new(
-            self.ss,
-            ev,
-            self.vertex_state.clone(),
-            self.local_state_prev,
-        )
+        EvalEdgeView::new(self.ss, ev, self.node_state.clone(), self.local_state_prev)
     }
 
     fn internal_explode(&self) -> Self::EList {
@@ -163,7 +158,7 @@ impl<
         Self {
             ss: self.ss,
             edge: self.edge.clone(),
-            vertex_state: self.vertex_state.clone(),
+            node_state: self.node_state.clone(),
             local_state_prev: self.local_state_prev,
         }
     }
@@ -250,7 +245,7 @@ impl<
         EvalEdgeView::new(
             self.ss,
             edge,
-            self.vertex_state.clone(),
+            self.node_state.clone(),
             self.local_state_prev,
         )
     }
@@ -268,7 +263,7 @@ impl<
 {
     type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type ValueType<T> = T;
-    type VList = Box<dyn Iterator<Item = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>> + 'graph>;
+    type VList = Box<dyn Iterator<Item = EvalNodeView<'graph, 'a, G, S, &'graph G, CS>> + 'graph>;
     type IterType<T> = Box<dyn Iterator<Item = T> + 'graph>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
@@ -369,11 +364,11 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > VertexListOps<'graph>
-    for Box<(dyn Iterator<Item = EvalVertexView<'graph, 'a, G, S, GH, CS>> + 'graph)>
+    > NodeListOps<'graph>
+    for Box<(dyn Iterator<Item = EvalNodeView<'graph, 'a, G, S, GH, CS>> + 'graph)>
 {
-    type Vertex = EvalVertexView<'graph, 'a, G, S, GH, CS>;
-    type Neighbour = EvalVertexView<'graph, 'a, G, S, &'graph G, CS>;
+    type Node = EvalNodeView<'graph, 'a, G, S, GH, CS>;
+    type Neighbour = EvalNodeView<'graph, 'a, G, S, &'graph G, CS>;
     type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
     type IterType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
     type ValueType<T: 'graph> = T;
@@ -390,11 +385,11 @@ impl<
         self,
         start: i64,
         end: i64,
-    ) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+    ) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
         Box::new(self.map(move |v| v.window(start, end)))
     }
 
-    fn at(self, end: i64) -> Self::IterType<<Self::Vertex as TimeOps<'graph>>::WindowedViewType> {
+    fn at(self, end: i64) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
         Box::new(self.map(move |v| v.at(end)))
     }
 
@@ -408,7 +403,7 @@ impl<
 
     fn properties(
         self,
-    ) -> Self::IterType<Properties<<Self::Vertex as VertexViewOps<'graph>>::PropType>> {
+    ) -> Self::IterType<Properties<<Self::Node as NodeViewOps<'graph>>::PropType>> {
         Box::new(self.map(|v| v.properties()))
     }
 

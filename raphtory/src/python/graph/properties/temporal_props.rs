@@ -1,11 +1,15 @@
 use crate::{
     core::{utils::time::IntoTime, ArcStr, Prop},
     db::api::{
-        properties::{internal::PropertiesOps, TemporalProperties, TemporalPropertyView},
+        properties::{
+            dyn_props::{DynTemporalProperties, DynTemporalProperty},
+            internal::PropertiesOps,
+            TemporalProperties, TemporalPropertyView,
+        },
         view::internal::{DynamicGraph, Static},
     },
     python::{
-        graph::properties::{DynProps, PyPropValueList, PyPropValueListList},
+        graph::properties::{PyPropValueList, PyPropValueListList},
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
@@ -25,24 +29,6 @@ use pyo3::{
     prelude::*,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-
-pub type DynTemporalProperties = TemporalProperties<DynProps>;
-pub type DynTemporalProperty = TemporalPropertyView<DynProps>;
-
-impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<TemporalProperties<P>>
-    for DynTemporalProperties
-{
-    fn from(value: TemporalProperties<P>) -> Self {
-        TemporalProperties::new(Arc::new(value.props))
-    }
-}
-
-impl From<TemporalProperties<DynamicGraph>> for DynTemporalProperties {
-    fn from(value: TemporalProperties<DynamicGraph>) -> Self {
-        let props: Arc<dyn PropertiesOps + Send + Sync> = Arc::new(value.props);
-        TemporalProperties::new(props)
-    }
-}
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
     fn from(value: P) -> Self {

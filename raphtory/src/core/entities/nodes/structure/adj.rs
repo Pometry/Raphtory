@@ -1,7 +1,7 @@
 use crate::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
-        vertices::structure::adjset::AdjSet,
+        nodes::structure::adjset::AdjSet,
         EID, VID,
     },
     Direction,
@@ -102,7 +102,7 @@ impl Adj {
         }
     }
 
-    pub(crate) fn vertex_iter(&self, dir: Direction) -> impl Iterator<Item = VID> + Send + '_ {
+    pub(crate) fn node_iter(&self, dir: Direction) -> impl Iterator<Item = VID> + Send + '_ {
         self.iter(dir).map(|(v, _)| v)
     }
 

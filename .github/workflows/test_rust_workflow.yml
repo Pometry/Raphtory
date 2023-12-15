@@ -72,13 +72,31 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: update
-      - name: Run Tests
-        uses: actions-rs/cargo@v1
+      - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
-        with:
-          command: test
-          args: --all --no-default-features --features "raphtory/io raphtory/python"
+        run: |
+          cargo test --all --no-default-features
+      - name: Run Tests (features=io)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo test -p raphtory --no-default-features --features "io"
+      - name: Run Tests (features=python)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo test -p raphtory --no-default-features --features "python"
+      - name: Run Tests (features=search)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo test -p raphtory --no-default-features --features "search"
+      - name: Run Tests (features=vectors)
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo test -p raphtory --no-default-features --features "vectors"
       - name: Print sccache stats
         run: sccache --show-stats
       - name: Stop sccache server

@@ -99,8 +99,8 @@ impl Debug for DynamicGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "DynamicGraph(num_vertices={}, num_edges={})",
-            self.count_vertices(),
+            "DynamicGraph(num_nodes={}, num_edges={})",
+            self.count_nodes(),
             self.count_edges()
         )
     }
@@ -150,8 +150,8 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new();
-        g.add_vertex(0, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
-        assert_eq!(boxed.vertices().id().collect_vec(), vec![1])
+        assert_eq!(boxed.nodes().id().collect_vec(), vec![1])
     }
 }

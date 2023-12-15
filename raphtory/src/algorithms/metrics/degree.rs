@@ -1,16 +1,16 @@
 //! Varying degree calculations for the entire graph.
-//! The degree of a vertex is the number of edges connected to it.
+//! The degree of a node is the number of edges connected to it.
 //!
 //! There are two types of degree: in-degree and out-degree.
-//! In-degree is the number of edges that point to a vertex.
-//! Out-degree is the number of edges that point away from a vertex.
+//! In-degree is the number of edges that point to a node.
+//! Out-degree is the number of edges that point away from a node.
 //!
 //! This library provides the following degree calculations:
-//! - max_out_degree - The maximum out degree of any vertex in the graph.
-//! - max_in_degree - The maximum in degree of any vertex in the graph.
-//! - min_out_degree - The minimum out degree of any vertex in the graph.
-//! - min_in_degree - The minimum in degree of any vertex in the graph.
-//! - average_degree - The average degree of all vertices in the graph.
+//! - max_out_degree - The maximum out degree of any node in the graph.
+//! - max_in_degree - The maximum in degree of any node in the graph.
+//! - min_out_degree - The minimum out degree of any node in the graph.
+//! - min_in_degree - The minimum in degree of any node in the graph.
+//! - average_degree - The average degree of all nodes in the graph.
 //!
 //!
 //! # Examples
@@ -45,40 +45,40 @@
 //!
 use crate::db::api::view::*;
 
-/// The maximum degree of any vertex in the graph
+/// The maximum degree of any node in the graph
 pub fn max_degree<'graph, G: GraphViewOps<'graph>>(graph: &G) -> usize {
-    graph.vertices().degree().max().unwrap_or(0)
+    graph.nodes().degree().max().unwrap_or(0)
 }
 
-/// The minimum degree of any vertex in the graph
+/// The minimum degree of any node in the graph
 pub fn min_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
-    graph.vertices().degree().min().unwrap_or(0)
+    graph.nodes().degree().min().unwrap_or(0)
 }
 
-/// The maximum out degree of any vertex in the graph.
+/// The maximum out degree of any node in the graph.
 pub fn max_out_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
-    graph.vertices().out_degree().max().unwrap_or(0)
+    graph.nodes().out_degree().max().unwrap_or(0)
 }
 
-/// The maximum in degree of any vertex in the graph.
+/// The maximum in degree of any node in the graph.
 pub fn max_in_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
-    graph.vertices().in_degree().max().unwrap_or(0)
+    graph.nodes().in_degree().max().unwrap_or(0)
 }
 
-/// The minimum out degree of any vertex in the graph.
+/// The minimum out degree of any node in the graph.
 pub fn min_out_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
-    graph.vertices().out_degree().min().unwrap_or(0)
+    graph.nodes().out_degree().min().unwrap_or(0)
 }
 
-/// The minimum in degree of any vertex in the graph.
+/// The minimum in degree of any node in the graph.
 pub fn min_in_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> usize {
-    graph.vertices().in_degree().min().unwrap_or(0)
+    graph.nodes().in_degree().min().unwrap_or(0)
 }
 
-/// The average degree of all vertices in the graph.
+/// The average degree of all nodes in the graph.
 pub fn average_degree<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> f64 {
     let (deg_sum, count) = graph
-        .vertices()
+        .nodes()
         .degree()
         .fold((0usize, 0usize), |(deg_sum, count), deg| {
             (deg_sum + deg, count + 1)

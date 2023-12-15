@@ -96,7 +96,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         }
     }
 
-    pub fn vertices(&self) -> Box<dyn Iterator<Item = K> + Send + '_> {
+    pub fn nodes(&self) -> Box<dyn Iterator<Item = K> + Send + '_> {
         match self {
             AdjSet::Empty => Box::new(std::iter::empty()),
             AdjSet::One(v, ..) => Box::new(std::iter::once(*v)),

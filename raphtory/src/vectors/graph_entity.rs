@@ -1,9 +1,9 @@
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::VertexViewOps,
+    prelude::NodeViewOps,
 };
 use itertools::{chain, Itertools};
 use std::{collections::HashSet, fmt::Display};
@@ -20,7 +20,7 @@ pub trait GraphEntity: Sized {
         D: Display;
 }
 
-impl<G: StaticGraphViewOps> GraphEntity for VertexView<G> {
+impl<G: StaticGraphViewOps> GraphEntity for NodeView<G> {
     fn generate_property_list<F, D>(
         &self,
         time_fmt: &F,

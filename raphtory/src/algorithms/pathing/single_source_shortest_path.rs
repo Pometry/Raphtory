@@ -1,42 +1,42 @@
 //! # Single Source Shortest Path (SSSP) Algorithm
 //!
 //! This module provides an implementation of the Single Source Shortest Path algorithm.
-//! It finds the shortest paths from a given source vertex to all other vertices in a graph.
+//! It finds the shortest paths from a given source node to all other nodes in a graph.
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::entities::{vertices::input_vertex::InputVertex, VID},
-    db::graph::vertex::VertexView,
+    core::entities::{nodes::input_node::InputNode, VID},
+    db::graph::node::NodeView,
     prelude::*,
 };
 use std::collections::HashMap;
 
-/// Calculates the single source shortest paths from a given source vertex.
+/// Calculates the single source shortest paths from a given source node.
 ///
 /// # Arguments
 ///
 /// - `g: &G`: A reference to the graph. Must implement `GraphViewOps`.
-/// - `source: T`: The source vertex. Must implement `InputVertex`.
+/// - `source: T`: The source node. Must implement `InputNode`.
 /// - `cutoff: Option<usize>`: An optional cutoff level. The algorithm will stop if this level is reached.
 ///
 /// # Returns
 ///
-/// Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable vertices.
+/// Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable nodes.
 ///
-pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputVertex>(
+pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputNode>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<G, Vec<String>, Vec<String>> {
     let results_type = std::any::type_name::<Vec<String>>();
     let mut paths: HashMap<usize, Vec<String>> = HashMap::new();
-    if g.has_vertex(source.clone()) {
-        let source_node = g.vertex(source).unwrap();
-        let vertex_internal_id = source_node.vertex.0;
+    if g.has_node(source.clone()) {
+        let source_node = g.node(source).unwrap();
+        let node_internal_id = source_node.node.0;
         let mut level = 0;
         let mut nextlevel: HashMap<usize, String> = HashMap::new();
-        nextlevel.insert(vertex_internal_id, "1".to_string());
+        nextlevel.insert(node_internal_id, "1".to_string());
 
-        paths.insert(vertex_internal_id, vec![source_node.name()]);
+        paths.insert(node_internal_id, vec![source_node.name()]);
 
         if let Some(0) = cutoff {
             return AlgorithmResult::new(
@@ -51,13 +51,13 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputVert
             let thislevel: HashMap<usize, String> = nextlevel.clone();
             nextlevel.clear();
             for v in thislevel.keys() {
-                let vertex = VertexView::new_internal(g.clone(), VID::from(*v));
-                for w in vertex.neighbours() {
-                    if !paths.contains_key(&w.vertex.0) {
+                let node = NodeView::new_internal(g.clone(), VID::from(*v));
+                for w in node.neighbours() {
+                    if !paths.contains_key(&w.node.0) {
                         let mut new_path = paths.get(v).unwrap().clone();
                         new_path.push(w.name());
-                        paths.insert(w.vertex.0, new_path);
-                        nextlevel.insert(w.vertex.0, "1".to_string());
+                        paths.insert(w.node.0, new_path);
+                        nextlevel.insert(w.node.0, "1".to_string());
                     }
                 }
             }

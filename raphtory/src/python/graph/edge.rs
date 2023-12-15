@@ -1,5 +1,5 @@
 //! The edge module contains the PyEdge class, which is used to represent edges in the graph and
-//! provides access to the edge's properties and vertices.
+//! provides access to the edge's properties and nodes.
 //!
 //! The PyEdge class also provides access to the perspective APIs, which allow the user to view the
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
@@ -28,8 +28,8 @@ use crate::{
     prelude::*,
     python::{
         graph::{
+            node::{PyNestedNodeIterable, PyNode, PyNodeIterable},
             properties::{PyNestedPropsIterable, PyPropsList},
-            vertex::{PyNestedVertexIterable, PyVertex, PyVertexIterable},
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -54,7 +54,7 @@ use std::{
 };
 
 /// PyEdge is a Python class that represents an edge in the graph.
-/// An edge is a directed connection between two vertices.
+/// An edge is a directed connection between two nodes.
 #[pyclass(name = "Edge", subclass)]
 pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph, DynamicGraph>,
@@ -166,10 +166,10 @@ impl<'source> FromPyObject<'source> for ArcStr {
 }
 
 /// PyEdge is a Python class that represents an edge in the graph.
-/// An edge is a directed connection between two vertices.
+/// An edge is a directed connection between two nodes.
 #[pymethods]
 impl PyEdge {
-    /// Rich Comparison for Vertex objects
+    /// Rich Comparison for Node objects
     pub fn __richcmp__(&self, other: PyRef<PyEdge>, op: CompareOp) -> Py<PyAny> {
         let py = other.py();
         match op {
@@ -217,21 +217,21 @@ impl PyEdge {
         self.edge.properties()
     }
 
-    /// Get the source vertex of the Edge.
+    /// Get the source node of the Edge.
     ///
     /// Returns:
-    ///   The source vertex of the Edge.
+    ///   The source node of the Edge.
     #[getter]
-    fn src(&self) -> PyVertex {
+    fn src(&self) -> PyNode {
         self.edge.src().into()
     }
 
-    /// Get the destination vertex of the Edge.
+    /// Get the destination node of the Edge.
     ///
     /// Returns:
-    ///   The destination vertex of the Edge.
+    ///   The destination node of the Edge.
     #[getter]
-    fn dst(&self) -> PyVertex {
+    fn dst(&self) -> PyNode {
         self.edge.dst().into()
     }
 
@@ -471,19 +471,19 @@ impl PyEdges {
         self.py_iter().into()
     }
 
-    /// Returns all source vertices of the Edges as an iterable.
+    /// Returns all source nodes of the Edges as an iterable.
     ///
     /// Returns:
-    ///   The source vertices of the Edges as an iterable.
+    ///   The source nodes of the Edges as an iterable.
     #[getter]
-    fn src(&self) -> PyVertexIterable {
+    fn src(&self) -> PyNodeIterable {
         let builder = self.builder.clone();
         (move || builder().src()).into()
     }
 
-    /// Returns all destination vertices as an iterable
+    /// Returns all destination nodes as an iterable
     #[getter]
-    fn dst(&self) -> PyVertexIterable {
+    fn dst(&self) -> PyNodeIterable {
         let builder = self.builder.clone();
         (move || builder().dst()).into()
     }
@@ -842,19 +842,19 @@ py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph, DynamicGraph>);
 
 #[pymethods]
 impl PyNestedEdges {
-    /// Returns all source vertices of the Edges as an iterable.
+    /// Returns all source nodes of the Edges as an iterable.
     ///
     /// Returns:
     ///   The source verticeÍs of the Edges as an iterable.
     #[getter]
-    fn src(&self) -> PyNestedVertexIterable {
+    fn src(&self) -> PyNestedNodeIterable {
         let builder = self.builder.clone();
         (move || builder().src()).into()
     }
 
-    /// Returns all destination vertices as an iterable
+    /// Returns all destination nodes as an iterable
     #[getter]
-    fn dst(&self) -> PyNestedVertexIterable {
+    fn dst(&self) -> PyNestedNodeIterable {
         let builder = self.builder.clone();
         (move || builder().dst()).into()
     }

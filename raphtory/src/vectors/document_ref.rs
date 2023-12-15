@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    prelude::{Layer, VertexViewOps},
+    prelude::{Layer, NodeViewOps},
     vectors::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },
@@ -78,7 +78,7 @@ impl DocumentRef {
 
     fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: &G) -> bool {
         match self.entity_id {
-            EntityId::Node { id } => graph.has_vertex(id),
+            EntityId::Node { id } => graph.has_node(id),
             EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
             // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
@@ -94,16 +94,16 @@ impl DocumentRef {
         // the document using the windowed values for the properties of the entities
         match self.entity_id {
             EntityId::Node { id } => Document::Node {
-                name: original_graph.vertex(id).unwrap().name(),
+                name: original_graph.node(id).unwrap().name(),
                 content: template
-                    .node(&original_graph.vertex(id).unwrap())
+                    .node(&original_graph.node(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
             },
             EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.vertex(src).unwrap().name(),
-                dst: original_graph.vertex(dst).unwrap().name(),
+                src: original_graph.node(src).unwrap().name(),
+                dst: original_graph.node(dst).unwrap().name(),
                 content: template
                     .edge(&original_graph.edge(src, dst).unwrap())
                     .nth(self.index)

@@ -3,27 +3,27 @@ use crate::graph::{edge::Edge, misc::JsProp, UnderGraph};
 use raphtory::{
     core::utils::errors::GraphError,
     db::{
-        api::view::VertexViewOps,
-        graph::{graph::Graph as TGraph, vertex::VertexView},
+        api::view::NodeViewOps,
+        graph::{graph::Graph as TGraph, node::NodeView},
     },
 };
 use std::{convert::TryFrom, sync::Arc};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub struct Vertex(pub(crate) VertexView<Graph>);
+pub struct Node(pub(crate) NodeView<Graph>);
 
-impl From<VertexView<TGraph>> for Vertex {
-    fn from(value: VertexView<TGraph>) -> Self {
-        let vid = value.vertex;
+impl From<NodeView<TGraph>> for Node {
+    fn from(value: NodeView<TGraph>) -> Self {
+        let vid = value.node;
         let graph = value.graph;
         let js_graph = Graph(UnderGraph::TGraph(Arc::new(graph)));
-        Vertex(VertexView::new_internal(js_graph, vid))
+        Node(NodeView::new_internal(js_graph, vid))
     }
 }
 
 #[wasm_bindgen]
-impl Vertex {
+impl Node {
     #[wasm_bindgen(js_name = id)]
     pub fn id(&self) -> u64 {
         self.0.id()
@@ -54,7 +54,7 @@ impl Vertex {
         self.0
             .neighbours()
             .iter()
-            .map(Vertex)
+            .map(Node)
             .map(JsValue::from)
             .collect()
     }
@@ -64,7 +64,7 @@ impl Vertex {
         self.0
             .out_neighbours()
             .iter()
-            .map(Vertex)
+            .map(Node)
             .map(JsValue::from)
             .collect()
     }
@@ -74,7 +74,7 @@ impl Vertex {
         self.0
             .in_neighbours()
             .iter()
-            .map(Vertex)
+            .map(Node)
             .map(JsValue::from)
             .collect()
     }
@@ -115,25 +115,25 @@ impl Vertex {
     }
 }
 
-pub enum JsVertex {
+pub enum JsNode {
     Str(String),
     Number(u64),
 }
 
-impl TryFrom<JsValue> for JsVertex {
+impl TryFrom<JsValue> for JsNode {
     type Error = JSError;
 
     fn try_from(value: JsValue) -> Result<Self, Self::Error> {
         if value.is_string() {
-            return Ok(JsVertex::Str(value.as_string().unwrap()));
+            return Ok(JsNode::Str(value.as_string().unwrap()));
         } else {
             let num = js_sys::Number::from(value);
             if let Some(number) = num.as_f64() {
                 if !number.is_nan() && number.fract() == 0.0 {
-                    return Ok(JsVertex::Number(number as u64));
+                    return Ok(JsNode::Number(number as u64));
                 }
             }
         }
-        Err(JSError(GraphError::VertexIdNotStringOrNumber))
+        Err(JSError(GraphError::NodeIdNotStringOrNumber))
     }
 }

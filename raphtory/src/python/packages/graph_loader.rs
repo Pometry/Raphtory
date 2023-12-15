@@ -101,8 +101,8 @@ pub fn neo4j_movie_graph(
 /// `karate_club_graph` constructs a karate club graph.
 ///
 /// This function uses the Zachary's karate club dataset to create
-/// a graph object. Vertices represent members of the club, and edges
-/// represent relationships between them. Vertex properties indicate
+/// a graph object. Nodes represent members of the club, and edges
+/// represent relationships between them. Node properties indicate
 /// the club to which each member belongs.
 ///
 /// Background:

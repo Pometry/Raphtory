@@ -1,5 +1,5 @@
 use super::Graph;
-use crate::graph::{misc::JsProp, vertex::Vertex, UnderGraph};
+use crate::graph::{misc::JsProp, node::Node, UnderGraph};
 use raphtory::db::{
     api::view::*,
     graph::{edge::EdgeView, graph::Graph as TGraph},
@@ -22,13 +22,13 @@ impl From<EdgeView<TGraph>> for Edge {
 #[wasm_bindgen]
 impl Edge {
     #[wasm_bindgen(js_name = source)]
-    pub fn src(&self) -> Vertex {
-        Vertex(self.0.src())
+    pub fn src(&self) -> Node {
+        Node(self.0.src())
     }
 
     #[wasm_bindgen(js_name = destination)]
-    pub fn dst(&self) -> Vertex {
-        Vertex(self.0.dst())
+    pub fn dst(&self) -> Node {
+        Node(self.0.dst())
     }
 
     #[wasm_bindgen(js_name = properties)]

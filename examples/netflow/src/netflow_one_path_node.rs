@@ -4,20 +4,20 @@ use raphtory::{
         compute_state::{ComputeState, ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, StaticGraphViewOps, VertexViewOps},
+        api::view::{GraphViewOps, NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
             edge::eval_edge::EvalEdgeView,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
     prelude::{EdgeListOps, EdgeViewOps, LayerOps, PropUnwrap, TimeOps},
 };
 
 fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
-    evv: &EvalVertexView<'graph, '_, G, ()>,
+    evv: &EvalNodeView<'graph, '_, G, ()>,
     no_time: bool,
 ) -> usize {
     evv.layer("Netflow")
@@ -100,7 +100,7 @@ fn one_path_algorithm<
     event_count
 }
 
-pub fn netflow_one_path_vertex<G: StaticGraphViewOps>(
+pub fn netflow_one_path_node<G: StaticGraphViewOps>(
     g: &G,
     no_time: bool,
     threads: Option<usize>,
@@ -165,7 +165,7 @@ mod one_path_test {
         //         Some("Netflow"),
         //     )
         //     .expect("Panic");
-        let actual = netflow_one_path_vertex(&graph, true, None);
+        let actual = netflow_one_path_node(&graph, true, None);
         assert_eq!(actual, 1);
     }
 }
