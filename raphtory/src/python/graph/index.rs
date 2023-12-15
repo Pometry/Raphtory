@@ -3,10 +3,23 @@ use crate::{
         api::view::internal::DynamicGraph,
         graph::{edge::EdgeView, node::NodeView},
     },
-    python::utils::errors::adapt_err_value,
+    python::{graph::views::graph_view::PyGraphView, utils::errors::adapt_err_value},
     search::IndexedGraph,
 };
 use pyo3::prelude::*;
+
+#[pymethods]
+impl PyGraphView {
+    /// Indexes all node and edge properties.
+    /// Returns a GraphIndex which allows the user to search the edges and nodes of the graph via tantivity fuzzy matching queries.
+    /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
+    ///
+    /// Returns:
+    ///    GraphIndex - Returns a GraphIndex
+    fn index(&self) -> GraphIndex {
+        GraphIndex::new(self.graph.clone())
+    }
+}
 
 /// A searchable Index for a `Graph`. This allows for fuzzy and exact searches of nodes and edges.
 /// This makes use of Tantivity internally to provide the search functionality.
