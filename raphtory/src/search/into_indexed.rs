@@ -1,8 +1,14 @@
 use crate::{
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic, OneHopFilter},
-            StaticGraphViewOps,
+        api::{
+            properties::{
+                dyn_props::{DynProperties, DynProps},
+                Properties,
+            },
+            view::{
+                internal::{DynamicGraph, IntoDynamic, OneHopFilter},
+                StaticGraphViewOps,
+            },
         },
         graph::views::{
             layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
@@ -11,6 +17,7 @@ use crate::{
     prelude::{GraphViewOps, TimeOps},
     search::IndexedGraph,
 };
+use std::sync::Arc;
 
 pub trait DynamicIndexedGraph {
     fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph>;
@@ -65,5 +72,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for IndexedGraph<G
             reader: self.reader,
             edge_reader: self.edge_reader,
         }
+    }
+}
+
+impl From<Properties<IndexedGraph<DynamicGraph>>> for DynProperties {
+    fn from(value: Properties<IndexedGraph<DynamicGraph>>) -> Self {
+        let props: DynProps = Arc::new(value.props);
+        Properties::new(props)
     }
 }

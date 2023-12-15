@@ -24,21 +24,16 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, index::GraphIndex, node::PyNodes},
-        packages::vectors::{DynamicVectorisedGraph, PyDocumentTemplate},
+        graph::{edge::PyEdges, node::PyNodes},
         types::repr::Repr,
-        utils::{execute_async_task, PyInterval, PyTime},
+        utils::{PyInterval, PyTime},
     },
-    vectors::vectorisable::Vectorisable,
     *,
 };
 use chrono::prelude::*;
 use itertools::Itertools;
-use pyo3::{
-    prelude::*,
-    types::{PyBytes, PyFunction},
-};
-use std::{ops::Deref, path::PathBuf};
+use pyo3::{prelude::*, types::PyBytes};
+use std::ops::Deref;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -293,55 +288,6 @@ impl PyGraphView {
         self.graph.materialize()
     }
 
-    /// Indexes all node and edge properties.
-    /// Returns a GraphIndex which allows the user to search the edges and nodes of the graph via tantivity fuzzy matching queries.
-    /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
-    ///
-    /// Returns:
-    ///    GraphIndex - Returns a GraphIndex
-    fn index(&self) -> GraphIndex {
-        GraphIndex::new(self.graph.clone())
-    }
-
-    /// Create a VectorisedGraph from the current graph
-    ///
-    /// Args:
-    ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
-    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
-    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
-    ///   node_document (str): the property name to be used as document for nodes (optional)
-    ///   edge_document (str): the property name to be used as document for edges (optional)
-    ///   verbose (bool): whether or not to print logs reporting the progress
-    ///   
-    /// Returns:
-    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]
-    fn vectorise(
-        &self,
-        embedding: &PyFunction,
-        cache: Option<String>,
-        overwrite_cache: bool,
-        node_document: Option<String>,
-        edge_document: Option<String>,
-        verbose: bool,
-    ) -> DynamicVectorisedGraph {
-        let embedding: Py<PyFunction> = embedding.into();
-        let graph = self.graph.clone();
-        let cache = cache.map(PathBuf::from);
-        let template = PyDocumentTemplate::new(node_document, edge_document);
-        execute_async_task(move || async move {
-            graph
-                .vectorise_with_template(
-                    Box::new(embedding.clone()),
-                    cache,
-                    overwrite_cache,
-                    template,
-                    verbose,
-                )
-                .await
-        })
-    }
-
     /// Get bincode encoded graph
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = self.graph.materialize()?.bincode()?;
@@ -370,16 +316,16 @@ impl Repr for PyGraphView {
             .map(|(k, v)| format!("{}: {}", k.deref(), v))
             .join(", ");
         if properties.is_empty() {
-            return format!(
+            format!(
                 "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
                 num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time
-            );
+            )
         } else {
             let property_string: String = format!("{{{properties}}}");
-            return format!(
+            format!(
                 "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
                 num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time, property_string
-            );
+            )
         }
     }
 }
