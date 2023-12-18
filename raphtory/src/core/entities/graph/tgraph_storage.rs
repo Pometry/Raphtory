@@ -1,7 +1,7 @@
 use crate::core::{
     entities::{
         edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-        vertices::vertex_store::VertexStore,
+        nodes::node_store::NodeStore,
         LayerIds, EID, VID,
     },
     storage::{self, ArcEntry, Entry, EntryMut, PairEntryMut},
@@ -17,7 +17,7 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    pub(crate) nodes: storage::RawStorage<VertexStore, N>,
+    pub(crate) nodes: storage::RawStorage<NodeStore, N>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
     pub(crate) edges: storage::RawStorage<EdgeStore, N>,
@@ -31,7 +31,7 @@ impl<const N: usize> GraphStorage<N> {
         }
     }
 
-    pub(crate) fn push_node(&self, node: VertexStore) -> VID {
+    pub(crate) fn push_node(&self, node: NodeStore) -> VID {
         self.nodes
             .push(node, |vid, node| node.vid = vid.into())
             .into()
@@ -44,7 +44,7 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     #[inline]
-    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, VertexStore> {
+    pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
         self.nodes.entry_mut(id.into())
     }
 
@@ -54,11 +54,11 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     #[inline]
-    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, VertexStore, N> {
+    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore, N> {
         self.nodes.entry(id.into())
     }
 
-    pub(crate) fn get_node_arc(&self, id: VID) -> ArcEntry<VertexStore> {
+    pub(crate) fn get_node_arc(&self, id: VID) -> ArcEntry<NodeStore> {
         self.nodes.entry_arc(id.into())
     }
 
@@ -71,7 +71,7 @@ impl<const N: usize> GraphStorage<N> {
         self.edges.entry(id.into())
     }
 
-    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, VertexStore> {
+    pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
         self.nodes.pair_entry_mut(i.into(), j.into())
     }
 
@@ -79,7 +79,7 @@ impl<const N: usize> GraphStorage<N> {
         LockedGraphStorage::new(self)
     }
 
-    pub(crate) fn locked_nodes(&self) -> LockedIter<N, VertexStore> {
+    pub(crate) fn locked_nodes(&self) -> LockedIter<N, NodeStore> {
         LockedIter {
             from: 0,
             to: self.nodes.len(),
@@ -107,8 +107,8 @@ pub(crate) struct LockedIter<const N: usize, T> {
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<const N: usize> Iterator for LockedIter<N, VertexStore> {
-    type Item = GraphEntry<VertexStore, N>;
+impl<const N: usize> Iterator for LockedIter<N, NodeStore> {
+    type Item = GraphEntry<NodeStore, N>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.from < self.to {
@@ -168,8 +168,8 @@ impl<'a, const N: usize, T> GraphEntry<T, N> {
     }
 }
 
-impl<'a, const N: usize> Deref for GraphEntry<VertexStore, N> {
-    type Target = VertexStore;
+impl<'a, const N: usize> Deref for GraphEntry<NodeStore, N> {
+    type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
         self.locked_gs.get_node(self.i)
@@ -186,7 +186,7 @@ impl<'a, const N: usize> Deref for GraphEntry<EdgeStore, N> {
 
 #[derive(Debug)]
 pub(crate) struct LockedGraphStorage<const N: usize> {
-    nodes: storage::ReadLockedStorage<VertexStore, N>,
+    nodes: storage::ReadLockedStorage<NodeStore, N>,
     edges: storage::ReadLockedStorage<EdgeStore, N>,
 }
 
@@ -198,7 +198,7 @@ impl<const N: usize> LockedGraphStorage<N> {
         }
     }
 
-    pub(crate) fn get_node(&self, id: usize) -> &VertexStore {
+    pub(crate) fn get_node(&self, id: usize) -> &NodeStore {
         self.nodes.get(id)
     }
 

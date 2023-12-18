@@ -1,28 +1,28 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            graph::tgraph::InnerTemporalGraph,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, TimeSemantics},
+        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
+
+static WINDOW_FILTER: Lazy<EdgeWindowFilter> =
+    Lazy::new(|| Arc::new(move |e, layer_ids, w| e.active(layer_ids, w)));
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
-    fn vertex_earliest_time(&self, v: VID) -> Option<i64> {
+    fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.inner().node_entry(v).value().timestamps().first_t()
     }
 
-    fn vertex_latest_time(&self, v: VID) -> Option<i64> {
+    fn node_latest_time(&self, v: VID) -> Option<i64> {
         self.inner().node_entry(v).value().timestamps().last_t()
     }
 
@@ -62,7 +62,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .max()
     }
 
-    fn vertex_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
@@ -71,7 +71,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .first_t()
     }
 
-    fn vertex_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
+    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner()
             .node_entry(v)
             .value()
@@ -81,7 +81,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn include_vertex_window(
+    fn include_node_window(
         &self,
         v: VID,
         w: Range<i64>,
@@ -92,20 +92,16 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn include_edge_window(&self, e: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
-        e.active(layer_ids, w)
+    fn include_edge_window(&self) -> &EdgeWindowFilter {
+        &WINDOW_FILTER
     }
 
-    fn vertex_history(&self, v: VID) -> Vec<i64> {
-        self.vertex_additions(v).iter_t().copied().collect()
+    fn node_history(&self, v: VID) -> Vec<i64> {
+        self.node_additions(v).iter_t().copied().collect()
     }
 
-    fn vertex_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.vertex_additions(v)
-            .range(w)
-            .iter_t()
-            .copied()
-            .collect()
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
+        self.node_additions(v).range(w).iter_t().copied().collect()
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
@@ -243,19 +239,19 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .unwrap_or_default()
     }
 
-    fn has_temporal_vertex_prop(&self, v: VID, prop_id: usize) -> bool {
+    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
         let entry = self.inner().storage.get_node(v);
         entry.temporal_property(prop_id).is_some()
     }
 
-    fn temporal_vertex_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
+    fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
         self.inner()
-            .vertex(v)
+            .node(v)
             .temporal_properties(prop_id, None)
             .collect()
     }
 
-    fn has_temporal_vertex_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
         let entry = self.inner().storage.get_node(v);
         entry
             .temporal_property(prop_id)
@@ -263,7 +259,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .is_some()
     }
 
-    fn temporal_vertex_prop_vec_window(
+    fn temporal_node_prop_vec_window(
         &self,
         v: VID,
         prop_id: usize,
@@ -271,7 +267,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         end: i64,
     ) -> Vec<(i64, Prop)> {
         self.inner()
-            .vertex(v)
+            .node(v)
             .temporal_properties(prop_id, Some(start..end))
             .collect()
     }

@@ -1,10 +1,7 @@
 use crate::model::schema::{layer_schema::LayerSchema, node_schema::NodeSchema};
 use dynamic_graphql::SimpleObject;
 use itertools::Itertools;
-use raphtory::{
-    db::api::view::internal::DynamicGraph,
-    prelude::{GraphViewOps, LayerOps, VertexViewOps},
-};
+use raphtory::{db::api::view::DynamicGraph, prelude::*};
 
 #[derive(SimpleObject)]
 pub(crate) struct GraphSchema {
@@ -15,9 +12,9 @@ pub(crate) struct GraphSchema {
 impl GraphSchema {
     pub fn new(graph: &DynamicGraph) -> Self {
         let nodes = graph
-            .vertices()
+            .nodes()
             .iter()
-            .filter_map(|vertex| vertex.properties().get("type").map(|p| p.to_string()))
+            .filter_map(|node| node.properties().get("type").map(|p| p.to_string()))
             .unique()
             .map(|node_type| NodeSchema::new(node_type, graph.clone()))
             .collect_vec();

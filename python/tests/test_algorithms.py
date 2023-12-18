@@ -167,16 +167,16 @@ def test_algo_result():
     assert actual.get("1") == 1
     assert actual.get("not a node") == None
     expected_array = [
-        (g.vertex("1"), 1),
-        (g.vertex("2"), 1),
-        (g.vertex("3"), 1),
-        (g.vertex("4"), 1),
-        (g.vertex("5"), 1),
-        (g.vertex("6"), 1),
-        (g.vertex("7"), 1),
-        (g.vertex("8"), 1),
+        (g.node("1"), 1),
+        (g.node("2"), 1),
+        (g.node("3"), 1),
+        (g.node("4"), 1),
+        (g.node("5"), 1),
+        (g.node("6"), 1),
+        (g.node("7"), 1),
+        (g.node("8"), 1),
     ]
-    assert actual.sort_by_vertex_name(False) == expected_array
+    assert actual.sort_by_node_name(False) == expected_array
     assert sorted(actual.top_k(8)) == expected_array
     assert len(actual.group_by()[1]) == 8
     assert type(actual.to_df()) == pandas.core.frame.DataFrame
@@ -311,7 +311,6 @@ def test_single_source_shortest_path():
     assert res_one.get_all_with_names() == {
         "1": ["1"],
         "2": ["1", "2"],
-        "3": None,
         "4": ["1", "4"],
     }
     assert (
@@ -347,7 +346,7 @@ def test_dijsktra_shortest_paths():
 
     with pytest.raises(ValueError) as excinfo:
         dijkstra_single_source_shortest_paths(g, "HH", ["F"])
-    assert "Source vertex not found" in str(excinfo.value)
+    assert "Source node not found" in str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
         dijkstra_single_source_shortest_paths(g, "A", ["F"], weight="NO")
@@ -453,11 +452,29 @@ def test_label_propagation_algorithm():
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
     seed = [5] * 32
-    result_vertex = algorithms.label_propagation(g, seed)
+    result_node = algorithms.label_propagation(g, seed)
     result = []
-    for group in result_vertex:
+    for group in result_node:
         result.append({n.name for n in group})
     expected = [{"R2", "R3", "R1"}, {"G", "B4", "B3", "B2", "B1", "B5"}]
     assert len(result) == len(expected)
     for group in expected:
         assert group in result
+
+
+def test_temporal_SEIR():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 2, 3)
+    g.add_edge(3, 3, 4)
+    g.add_edge(4, 4, 5)
+    # Should be seeded with 2 vertices
+    res = algorithms.temporal_SEIR(g, 2, 1.0, 0, rng_seed=1)
+    seeded = [v for v in res.get_all_values() if v.infected == 0]
+    assert len(seeded) == 2
+
+    res = algorithms.temporal_SEIR(g, [1], 1.0, 0, rng_seed=1).sort_by_value(reverse=False)
+    for i, (n, v) in enumerate(res):
+        assert n == g.node(i+1)
+        assert v.infected == i
+

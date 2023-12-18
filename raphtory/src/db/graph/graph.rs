@@ -1,6 +1,6 @@
 //! Defines the `Graph` struct, which represents a raphtory graph in memory.
 //!
-//! This is the base class used to create a temporal graph, add vertices and edges,
+//! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //!
@@ -9,8 +9,8 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! let graph = Graph::new();
-//! graph.add_vertex(0, "Alice", NO_PROPS).unwrap();
-//! graph.add_vertex(1, "Bob", NO_PROPS).unwrap();
+//! graph.add_node(0, "Alice", NO_PROPS).unwrap();
+//! graph.add_node(1, "Bob", NO_PROPS).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", NO_PROPS, None).unwrap();
 //! graph.count_edges();
 //! ```
@@ -41,9 +41,12 @@ pub struct Graph(pub Arc<InternalGraph>);
 
 impl Static for Graph {}
 
-pub fn graph_equal<G1: GraphViewOps, G2: GraphViewOps>(g1: &G1, g2: &G2) -> bool {
-    if g1.count_vertices() == g2.count_vertices() && g1.count_edges() == g2.count_edges() {
-        g1.vertices().id().all(|v| g2.has_vertex(v)) && // all vertices exist in other 
+pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
+    g1: &G1,
+    g2: &G2,
+) -> bool {
+    if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
+        g1.nodes().id().all(|v| g2.has_node(v)) && // all nodes exist in other
             g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
             g1.edges().explode().all(|e| { // all exploded edges exist in other
                 g2
@@ -68,7 +71,10 @@ impl From<InternalGraph> for Graph {
     }
 }
 
-impl<G: GraphViewOps> PartialEq<G> for Graph {
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
+where
+    Self: 'graph,
+{
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
     }
@@ -149,15 +155,14 @@ impl IntoDynamic for Graph {
 mod db_tests {
     use super::*;
     use crate::{
+        algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, Prop,
         },
         db::{
-            api::view::{
-                EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps, VertexViewOps,
-            },
-            graph::{edge::EdgeView, path::PathFromVertex},
+            api::view::{EdgeListOps, EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
+            graph::{edge::EdgeView, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -182,34 +187,34 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn add_vertex_grows_graph_len(vs: Vec<(i64, u64)>) {
+    fn add_node_grows_graph_len(vs: Vec<(i64, u64)>) {
         let g = Graph::new();
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_vertex(t, v, NO_PROPS)
+            g.add_node(t, v, NO_PROPS)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
 
-        assert_eq!(g.count_vertices(), expected_len)
+        assert_eq!(g.count_nodes(), expected_len)
     }
 
     #[quickcheck]
-    fn add_vertex_gets_names(vs: Vec<String>) -> bool {
+    fn add_node_gets_names(vs: Vec<String>) -> bool {
         let g = Graph::new();
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
-            g.add_vertex(t as i64, name.clone(), NO_PROPS)
+            g.add_node(t as i64, name.clone(), NO_PROPS)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
 
-        assert_eq!(g.count_vertices(), expected_len);
+        assert_eq!(g.count_nodes(), expected_len);
 
         vs.iter().all(|name| {
-            let v = g.vertex(name.clone()).unwrap();
+            let v = g.node(name.clone()).unwrap();
             v.name() == name.clone()
         })
     }
@@ -218,7 +223,7 @@ mod db_tests {
     fn add_edge_grows_graph_edge_len(edges: Vec<(i64, u64, u64)>) {
         let g = Graph::new();
 
-        let unique_vertices_count = edges
+        let unique_nodes_count = edges
             .iter()
             .flat_map(|(_, src, dst)| vec![src, dst])
             .sorted()
@@ -235,7 +240,7 @@ mod db_tests {
             g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        assert_eq!(g.count_vertices(), unique_vertices_count);
+        assert_eq!(g.count_nodes(), unique_nodes_count);
         assert_eq!(g.count_edges(), unique_edge_count);
     }
 
@@ -357,7 +362,7 @@ mod db_tests {
         let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let v = g.vertex(i).unwrap();
+                let v = g.node(i).unwrap();
                 (
                     v.window(-1, 7).in_degree(),
                     v.window(1, 7).out_degree(),
@@ -389,7 +394,7 @@ mod db_tests {
         let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
-                let v = g.vertex(i).unwrap();
+                let v = g.node(i).unwrap();
                 (
                     v.window(-1, 7).in_edges().collect::<Vec<_>>().len(),
                     v.window(1, 7).out_edges().collect::<Vec<_>>().len(),
@@ -408,7 +413,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
-        g.add_vertex(5, 1, NO_PROPS)
+        g.add_node(5, 1, NO_PROPS)
             .map_err(|err| println!("{:?}", err))
             .ok();
 
@@ -421,7 +426,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(10));
 
-        g.add_vertex(5, 1, NO_PROPS)
+        g.add_node(5, 1, NO_PROPS)
             .map_err(|err| println!("{:?}", err))
             .ok();
         assert_eq!(g.latest_time(), Some(10));
@@ -450,14 +455,14 @@ mod db_tests {
         .unwrap();
         g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
-        g.add_vertex(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
+        g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
             .unwrap();
         g.add_edge(0, 44, 55, NO_PROPS, None).unwrap();
-        let v11 = g.vertex(11).unwrap();
-        let v22 = g.vertex(22).unwrap();
-        let v33 = g.vertex(33).unwrap();
-        let v44 = g.vertex(44).unwrap();
-        let v55 = g.vertex(55).unwrap();
+        let v11 = g.node(11).unwrap();
+        let v22 = g.node(22).unwrap();
+        let v33 = g.node(33).unwrap();
+        let v44 = g.node(44).unwrap();
+        let v55 = g.node(55).unwrap();
         let edge1111 = g.edge(&v11, &v11).unwrap();
         let edge2233 = g.edge(&v22, &v33).unwrap();
         let edge3311 = g.edge(&v33, &v11).unwrap();
@@ -511,23 +516,23 @@ mod db_tests {
     }
 
     #[test]
-    fn temporal_props_vertex() {
+    fn temporal_props_node() {
         let g = Graph::new();
 
-        g.add_vertex(0, 1, [("cool".to_string(), Prop::Bool(true))])
+        g.add_node(0, 1, [("cool".to_string(), Prop::Bool(true))])
             .unwrap();
 
-        let v = g.vertex(1).unwrap();
+        let v = g.node(1).unwrap();
 
         let actual = v.properties().get("cool");
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
-        g.add_vertex(3, 1, [("cool".to_string(), Prop::Bool(false))])
+        g.add_node(3, 1, [("cool".to_string(), Prop::Bool(false))])
             .unwrap();
 
         let wg = g.window(3, 15);
-        let v = wg.vertex(1).unwrap();
+        let v = wg.node(1).unwrap();
 
         let actual = v.properties().get("cool");
         assert_eq!(actual, Some(Prop::Bool(false)));
@@ -541,7 +546,7 @@ mod db_tests {
             .collect();
         assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
-        let v = g.vertex(1).unwrap();
+        let v = g.node(1).unwrap();
 
         let hist: Vec<_> = v
             .properties()
@@ -590,7 +595,7 @@ mod db_tests {
         ];
         let actual = (1..=3)
             .map(|i| {
-                let v = g.vertex(i).unwrap();
+                let v = g.node(i).unwrap();
                 (
                     v.window(-1, 7).in_neighbours().id().collect::<Vec<_>>(),
                     v.window(1, 7).out_neighbours().id().collect::<Vec<_>>(),
@@ -614,18 +619,18 @@ mod db_tests {
     }
 
     #[test]
-    fn test_add_vertex_with_strings() {
+    fn test_add_node_with_strings() {
         let g = Graph::new();
 
-        g.add_vertex(0, "haaroon", NO_PROPS).unwrap();
-        g.add_vertex(1, "hamza", NO_PROPS).unwrap();
-        g.add_vertex(1, 831, NO_PROPS).unwrap();
+        g.add_node(0, "haaroon", NO_PROPS).unwrap();
+        g.add_node(1, "hamza", NO_PROPS).unwrap();
+        g.add_node(1, 831, NO_PROPS).unwrap();
 
-        assert!(g.has_vertex(831));
-        assert!(g.has_vertex("haaroon"));
-        assert!(g.has_vertex("hamza"));
+        assert!(g.has_node(831));
+        assert!(g.has_node("haaroon"));
+        assert!(g.has_node("hamza"));
 
-        assert_eq!(g.count_vertices(), 3);
+        assert_eq!(g.count_nodes(), 3);
     }
 
     #[test]
@@ -654,33 +659,38 @@ mod db_tests {
         let layer2 = g.layer("layer2").expect("layer2");
         assert!(g.layer("missing layer").is_none());
 
-        assert_eq!(g.count_vertices(), 4);
+        assert_eq!(g.count_nodes(), 4);
         assert_eq!(g.count_edges(), 4);
         assert_eq!(dft_layer.count_edges(), 3);
         assert_eq!(layer1.count_edges(), 1);
         assert_eq!(layer2.count_edges(), 2);
 
-        let vertex = g.vertex(11).unwrap();
-        let vertex_dft = dft_layer.vertex(11).unwrap();
-        let vertex1 = layer1.vertex(11).unwrap();
-        let vertex2 = layer2.vertex(11).unwrap();
+        let node = g.node(11).unwrap();
+        let node_dft = dft_layer.node(11).unwrap();
+        let node1 = layer1.node(11).unwrap();
+        let node2 = layer2.node(11).unwrap();
 
-        assert_eq!(vertex.degree(), 3);
-        assert_eq!(vertex_dft.degree(), 2);
-        assert_eq!(vertex1.degree(), 1);
-        assert_eq!(vertex2.degree(), 2);
+        assert_eq!(node.degree(), 3);
+        assert_eq!(node_dft.degree(), 2);
+        assert_eq!(node1.degree(), 1);
+        assert_eq!(node2.degree(), 2);
 
-        assert_eq!(vertex.out_degree(), 3);
-        assert_eq!(vertex_dft.out_degree(), 2);
-        assert_eq!(vertex1.out_degree(), 1);
-        assert_eq!(vertex2.out_degree(), 2);
+        assert_eq!(node.out_degree(), 3);
+        assert_eq!(node_dft.out_degree(), 2);
+        assert_eq!(node1.out_degree(), 1);
+        assert_eq!(node2.out_degree(), 2);
 
-        assert_eq!(vertex.in_degree(), 1);
-        assert_eq!(vertex_dft.in_degree(), 1);
-        assert_eq!(vertex1.in_degree(), 0);
-        assert_eq!(vertex2.in_degree(), 0);
+        assert_eq!(node.in_degree(), 1);
+        assert_eq!(node_dft.in_degree(), 1);
+        assert_eq!(node1.in_degree(), 0);
+        assert_eq!(node2.in_degree(), 0);
 
-        fn to_tuples<G: GraphViewOps, I: Iterator<Item = EdgeView<G>>>(
+        fn to_tuples<
+            'graph,
+            G: GraphViewOps<'graph>,
+            GH: GraphViewOps<'graph>,
+            I: Iterator<Item = EdgeView<G, GH>>,
+        >(
             edges: I,
         ) -> Vec<(u64, u64)> {
             edges
@@ -690,47 +700,49 @@ mod db_tests {
         }
 
         assert_eq!(
-            to_tuples(vertex.edges()),
+            to_tuples(node.edges()),
             vec![(11, 22), (11, 33), (11, 44), (33, 11)]
         );
         assert_eq!(
-            to_tuples(vertex_dft.edges()),
+            to_tuples(node_dft.edges()),
             vec![(11, 22), (11, 33), (33, 11)]
         );
-        assert_eq!(to_tuples(vertex1.edges()), vec![(11, 22)]);
-        assert_eq!(to_tuples(vertex2.edges()), vec![(11, 33), (11, 44)]);
+        assert_eq!(to_tuples(node1.edges()), vec![(11, 22)]);
+        assert_eq!(to_tuples(node2.edges()), vec![(11, 33), (11, 44)]);
 
-        assert_eq!(to_tuples(vertex.in_edges()), vec![(33, 11)]);
-        assert_eq!(to_tuples(vertex_dft.in_edges()), vec![(33, 11)]);
-        assert_eq!(to_tuples(vertex1.in_edges()), vec![]);
-        assert_eq!(to_tuples(vertex2.in_edges()), vec![]);
+        assert_eq!(to_tuples(node.in_edges()), vec![(33, 11)]);
+        assert_eq!(to_tuples(node_dft.in_edges()), vec![(33, 11)]);
+        assert_eq!(to_tuples(node1.in_edges()), vec![]);
+        assert_eq!(to_tuples(node2.in_edges()), vec![]);
 
         assert_eq!(
-            to_tuples(vertex.out_edges()),
+            to_tuples(node.out_edges()),
             vec![(11, 22), (11, 33), (11, 44)]
         );
-        assert_eq!(to_tuples(vertex_dft.out_edges()), vec![(11, 22), (11, 33)]);
-        assert_eq!(to_tuples(vertex1.out_edges()), vec![(11, 22)]);
-        assert_eq!(to_tuples(vertex2.out_edges()), vec![(11, 33), (11, 44)]);
+        assert_eq!(to_tuples(node_dft.out_edges()), vec![(11, 22), (11, 33)]);
+        assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
+        assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<G: GraphViewOps>(neighbours: PathFromVertex<G>) -> Vec<u64> {
+        fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+            neighbours: PathFromNode<'graph, G, GH>,
+        ) -> Vec<u64> {
             neighbours.iter().map(|n| n.id()).sorted().collect_vec()
         }
 
-        assert_eq!(to_ids(vertex.neighbours()), vec![22, 33, 44]);
-        assert_eq!(to_ids(vertex_dft.neighbours()), vec![22, 33]);
-        assert_eq!(to_ids(vertex1.neighbours()), vec![22]);
-        assert_eq!(to_ids(vertex2.neighbours()), vec![33, 44]);
+        assert_eq!(to_ids(node.neighbours()), vec![22, 33, 44]);
+        assert_eq!(to_ids(node_dft.neighbours()), vec![22, 33]);
+        assert_eq!(to_ids(node1.neighbours()), vec![22]);
+        assert_eq!(to_ids(node2.neighbours()), vec![33, 44]);
 
-        assert_eq!(to_ids(vertex.out_neighbours()), vec![22, 33, 44]);
-        assert_eq!(to_ids(vertex_dft.out_neighbours()), vec![22, 33]);
-        assert_eq!(to_ids(vertex1.out_neighbours()), vec![22]);
-        assert_eq!(to_ids(vertex2.out_neighbours()), vec![33, 44]);
+        assert_eq!(to_ids(node.out_neighbours()), vec![22, 33, 44]);
+        assert_eq!(to_ids(node_dft.out_neighbours()), vec![22, 33]);
+        assert_eq!(to_ids(node1.out_neighbours()), vec![22]);
+        assert_eq!(to_ids(node2.out_neighbours()), vec![33, 44]);
 
-        assert_eq!(to_ids(vertex.in_neighbours()), vec![33]);
-        assert_eq!(to_ids(vertex_dft.in_neighbours()), vec![33]);
-        assert!(to_ids(vertex1.in_neighbours()).is_empty());
-        assert!(to_ids(vertex2.in_neighbours()).is_empty());
+        assert_eq!(to_ids(node.in_neighbours()), vec![33]);
+        assert_eq!(to_ids(node_dft.in_neighbours()), vec![33]);
+        assert!(to_ids(node1.in_neighbours()).is_empty());
+        assert!(to_ids(node2.in_neighbours()).is_empty());
         Ok(())
     }
 
@@ -756,7 +768,7 @@ mod db_tests {
         assert_eq!(res, expected);
 
         let e = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .edges()
             .explode()
@@ -800,7 +812,7 @@ mod db_tests {
         assert_eq!(res, 2);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .edges()
             .earliest_time()
@@ -808,17 +820,11 @@ mod db_tests {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = g
-            .vertex(1)
-            .unwrap()
-            .edges()
-            .latest_time()
-            .flatten()
-            .collect();
+        let res_list: Vec<i64> = g.node(1).unwrap().edges().latest_time().flatten().collect();
         assert_eq!(res_list, vec![2, 2]);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .at(1)
             .edges()
@@ -828,7 +834,7 @@ mod db_tests {
         assert_eq!(res_list, vec![1, 1]);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .before(1)
             .edges()
@@ -838,7 +844,7 @@ mod db_tests {
         assert_eq!(res_list, vec![0, 0]);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .after(1)
             .edges()
@@ -848,7 +854,7 @@ mod db_tests {
         assert_eq!(res_list, vec![2, 2]);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .at(1)
             .edges()
@@ -858,7 +864,7 @@ mod db_tests {
         assert_eq!(res_list, vec![1, 1]);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .before(1)
             .edges()
@@ -868,7 +874,7 @@ mod db_tests {
         assert_eq!(res_list, vec![0, 0]);
 
         let res_list: Vec<i64> = g
-            .vertex(1)
+            .node(1)
             .unwrap()
             .after(1)
             .edges()
@@ -879,30 +885,30 @@ mod db_tests {
     }
 
     #[test]
-    fn check_vertex_history() {
+    fn check_node_history() {
         let g = Graph::new();
 
-        g.add_vertex(1, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, NO_PROPS).unwrap();
-        g.add_vertex(3, 1, NO_PROPS).unwrap();
-        g.add_vertex(4, 1, NO_PROPS).unwrap();
-        g.add_vertex(8, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS).unwrap();
+        g.add_node(2, 1, NO_PROPS).unwrap();
+        g.add_node(3, 1, NO_PROPS).unwrap();
+        g.add_node(4, 1, NO_PROPS).unwrap();
+        g.add_node(8, 1, NO_PROPS).unwrap();
 
-        g.add_vertex(4, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_vertex(6, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_vertex(7, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_vertex(8, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(4, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(6, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(7, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(8, "Lord Farquaad", NO_PROPS).unwrap();
 
-        let times_of_one = g.vertex(1).unwrap().history();
-        let times_of_farquaad = g.vertex("Lord Farquaad").unwrap().history();
+        let times_of_one = g.node(1).unwrap().history();
+        let times_of_farquaad = g.node("Lord Farquaad").unwrap().history();
 
         assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
         assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
         let view = g.window(1, 8);
 
-        let windowed_times_of_one = view.vertex(1).unwrap().history();
-        let windowed_times_of_farquaad = view.vertex("Lord Farquaad").unwrap().history();
+        let windowed_times_of_one = view.node(1).unwrap().history();
+        let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
         assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
     }
@@ -959,37 +965,37 @@ mod db_tests {
     }
 
     #[test]
-    fn check_vertex_history_multiple_shards() {
+    fn check_node_history_multiple_shards() {
         let g = Graph::new();
 
-        g.add_vertex(1, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, NO_PROPS).unwrap();
-        g.add_vertex(3, 1, NO_PROPS).unwrap();
-        g.add_vertex(4, 1, NO_PROPS).unwrap();
-        g.add_vertex(5, 2, NO_PROPS).unwrap();
-        g.add_vertex(6, 2, NO_PROPS).unwrap();
-        g.add_vertex(7, 2, NO_PROPS).unwrap();
-        g.add_vertex(8, 1, NO_PROPS).unwrap();
-        g.add_vertex(9, 2, NO_PROPS).unwrap();
-        g.add_vertex(10, 2, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS).unwrap();
+        g.add_node(2, 1, NO_PROPS).unwrap();
+        g.add_node(3, 1, NO_PROPS).unwrap();
+        g.add_node(4, 1, NO_PROPS).unwrap();
+        g.add_node(5, 2, NO_PROPS).unwrap();
+        g.add_node(6, 2, NO_PROPS).unwrap();
+        g.add_node(7, 2, NO_PROPS).unwrap();
+        g.add_node(8, 1, NO_PROPS).unwrap();
+        g.add_node(9, 2, NO_PROPS).unwrap();
+        g.add_node(10, 2, NO_PROPS).unwrap();
 
-        g.add_vertex(4, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_vertex(6, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_vertex(7, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_vertex(8, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(4, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(6, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(7, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(8, "Lord Farquaad", NO_PROPS).unwrap();
 
-        let times_of_one = g.vertex(1).unwrap().history();
-        let times_of_farquaad = g.vertex("Lord Farquaad").unwrap().history();
-        let times_of_upper = g.vertex(2).unwrap().history();
+        let times_of_one = g.node(1).unwrap().history();
+        let times_of_farquaad = g.node("Lord Farquaad").unwrap().history();
+        let times_of_upper = g.node(2).unwrap().history();
 
         assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
         assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
         assert_eq!(times_of_upper, [5, 6, 7, 9, 10]);
 
         let view = g.window(1, 8);
-        let windowed_times_of_one = view.vertex(1).unwrap().history();
-        let windowed_times_of_two = view.vertex(2).unwrap().history();
-        let windowed_times_of_farquaad = view.vertex("Lord Farquaad").unwrap().history();
+        let windowed_times_of_one = view.node(1).unwrap().history();
+        let windowed_times_of_two = view.node(2).unwrap().history();
+        let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
 
         assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
@@ -1014,8 +1020,7 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_vertex("2022-06-06T12:34:00.000", 0, NO_PROPS)
-            .unwrap();
+        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS).unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
@@ -1024,7 +1029,7 @@ mod db_tests {
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
 
-        g.add_vertex(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS)
+        g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS)
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
@@ -1183,7 +1188,7 @@ mod db_tests {
         g.add_edge(3, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
             .unwrap();
 
-        let e = g.vertex(1).unwrap().out_edges().next().unwrap();
+        let e = g.node(1).unwrap().out_edges().next().unwrap();
         let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
             .window(1, 3)
             .properties()
@@ -1201,36 +1206,36 @@ mod db_tests {
     }
 
     #[test]
-    fn test_vertex_early_late_times() {
+    fn test_node_early_late_times() {
         let g = Graph::new();
-        g.add_vertex(1, 1, NO_PROPS).unwrap();
-        g.add_vertex(2, 1, NO_PROPS).unwrap();
-        g.add_vertex(3, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS).unwrap();
+        g.add_node(2, 1, NO_PROPS).unwrap();
+        g.add_node(3, 1, NO_PROPS).unwrap();
 
-        assert_eq!(g.vertex(1).unwrap().earliest_time(), Some(1));
-        assert_eq!(g.vertex(1).unwrap().latest_time(), Some(3));
+        assert_eq!(g.node(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.node(1).unwrap().latest_time(), Some(3));
 
-        assert_eq!(g.at(2).vertex(1).unwrap().earliest_time(), Some(2));
-        assert_eq!(g.at(2).vertex(1).unwrap().latest_time(), Some(2));
+        assert_eq!(g.at(2).node(1).unwrap().earliest_time(), Some(2));
+        assert_eq!(g.at(2).node(1).unwrap().latest_time(), Some(2));
 
-        assert_eq!(g.before(2).vertex(1).unwrap().earliest_time(), Some(1));
-        assert_eq!(g.before(2).vertex(1).unwrap().latest_time(), Some(1));
+        assert_eq!(g.before(2).node(1).unwrap().earliest_time(), Some(1));
+        assert_eq!(g.before(2).node(1).unwrap().latest_time(), Some(1));
 
-        assert_eq!(g.after(2).vertex(1).unwrap().earliest_time(), Some(3));
-        assert_eq!(g.after(2).vertex(1).unwrap().latest_time(), Some(3));
+        assert_eq!(g.after(2).node(1).unwrap().earliest_time(), Some(3));
+        assert_eq!(g.after(2).node(1).unwrap().latest_time(), Some(3));
     }
 
     #[test]
-    fn test_vertex_ids() {
+    fn test_node_ids() {
         let g = Graph::new();
-        g.add_vertex(1, 1, NO_PROPS).unwrap();
-        g.add_vertex(1, 2, NO_PROPS).unwrap();
-        g.add_vertex(2, 3, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS).unwrap();
+        g.add_node(1, 2, NO_PROPS).unwrap();
+        g.add_node(2, 3, NO_PROPS).unwrap();
 
-        assert_eq!(g.vertices().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
+        assert_eq!(g.nodes().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
 
         let g_at = g.at(1);
-        assert_eq!(g_at.vertices().id().collect::<Vec<u64>>(), vec![1, 2]);
+        assert_eq!(g_at.nodes().id().collect::<Vec<u64>>(), vec![1, 2]);
     }
 
     #[test]
@@ -1282,7 +1287,7 @@ mod db_tests {
 
         assert!(g_layers.edge(1, 4).is_none());
 
-        let one = g_layers.vertex(1).expect("vertex");
+        let one = g_layers.node(1).expect("node");
         let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
         assert_eq!(ns, vec![2, 3]);
 
@@ -1295,7 +1300,7 @@ mod db_tests {
 
         assert!(g_layers2.edge(1, 4).is_none());
 
-        let one = g_layers2.vertex(1).expect("vertex");
+        let one = g_layers2.node(1).expect("node");
         let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
         assert_eq!(ns, vec![2]);
     }
@@ -1311,10 +1316,10 @@ mod db_tests {
         }
 
         let windowed_graph = g.window(0, 5);
-        let one = windowed_graph.vertex(1).expect("vertex");
+        let one = windowed_graph.node(1).expect("node");
         let ns_win = one.neighbours().id().collect::<Vec<_>>();
 
-        let one = g.vertex(1).expect("vertex");
+        let one = g.node(1).expect("node");
         let ns = one.neighbours().id().collect::<Vec<_>>();
         assert_eq!(ns, vec![2, 3]);
         assert_eq!(ns_win, ns);
@@ -1516,16 +1521,16 @@ mod db_tests {
             vec!["layer2"]
         )
     }
-    //TODO this needs to be fixed as part of the algorithm result switch to returning vertexrefs
+    //TODO this needs to be fixed as part of the algorithm result switch to returning noderefs
     // #[quickcheck]
-    // fn vertex_from_id_is_consistent(vertices: Vec<u64>) -> bool {
+    // fn node_from_id_is_consistent(nodes: Vec<u64>) -> bool {
     //     let g = Graph::new();
-    //     for v in vertices.iter() {
-    //         g.add_vertex(0, *v, NO_PROPS).unwrap();
+    //     for v in nodes.iter() {
+    //         g.add_node(0, *v, NO_PROPS).unwrap();
     //     }
-    //     g.vertices()
+    //     g.nodes()
     //         .name()
-    //         .map(|name| g.vertex(name))
+    //         .map(|name| g.node(name))
     //         .all(|v| v.is_some())
     // }
 
@@ -1617,6 +1622,116 @@ mod db_tests {
             ),
         );
         correct
+    }
+
+    #[test]
+    fn test_one_hop_filter_reset() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
+
+        let v = g.node(1).unwrap();
+
+        // filtering resets on neighbours
+        let out_out: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect();
+        assert_eq!(out_out, [3]);
+
+        let out_out: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_edges()
+            .properties()
+            .flat_map(|p| p.get("layer").into_i32())
+            .collect();
+        assert_eq!(out_out, [2]);
+
+        let out_out: Vec<_> = v
+            .at(0)
+            .out_neighbours()
+            .after(1)
+            .out_neighbours()
+            .id()
+            .collect();
+        assert_eq!(out_out, [4]);
+
+        let earliest_time = v
+            .at(0)
+            .out_neighbours()
+            .after(1)
+            .out_edges()
+            .earliest_time()
+            .flatten()
+            .min();
+        assert_eq!(earliest_time, Some(2));
+
+        // filter applies to edges
+        let layers: Vec<_> = v
+            .layer("1")
+            .unwrap()
+            .edges()
+            .layer_names()
+            .flatten()
+            .dedup()
+            .collect();
+        assert_eq!(layers, ["1"]);
+
+        // dst and src on edge reset the filter
+        let degrees: Vec<_> = v
+            .at(0)
+            .layer("1")
+            .unwrap()
+            .edges()
+            .dst()
+            .out_degree()
+            .collect();
+        assert_eq!(degrees, [1]);
+
+        // graph level filter is preserved
+        let out_out_2: Vec<_> = g
+            .at(0)
+            .node(1)
+            .unwrap()
+            .layer("1")
+            .unwrap()
+            .out_neighbours()
+            .layer("2")
+            .unwrap()
+            .out_neighbours()
+            .id()
+            .collect();
+        assert!(out_out_2.is_empty());
+    }
+
+    #[test]
+    fn can_apply_algorithm_on_filtered_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
+        g.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
+        g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
+
+        let wl = g.window(0, 3).layer(vec!["1", "2"]).unwrap();
+        assert_eq!(
+            weakly_connected_components(&wl, 10, None).get_all_values(),
+            [1, 1, 1, 1]
+        );
     }
 
     // non overlaping time intervals

@@ -5,9 +5,10 @@ sys.modules["raphtory.algorithms"] = algorithms
 sys.modules["raphtory.graph_gen"] = graph_gen
 sys.modules["raphtory.graph_loader"] = graph_loader
 sys.modules["raphtory.vectors"] = vectors
-# sys.modules["raphtory.graphql"] = graphql
+sys.modules["raphtory.graphql"] = graphql
 
 from .nullmodels import *
+from .plottingutils import *
 
 __doc__ = raphtory.__doc__
 if hasattr(raphtory, "__all__"):

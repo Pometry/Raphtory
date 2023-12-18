@@ -1,11 +1,11 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::vertices::vertex_ref::VertexRef,
+        entities::nodes::node_ref::NodeRef,
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
             task::{ATask, Job, Step},
@@ -24,9 +24,9 @@ struct PageRankState {
 }
 
 impl PageRankState {
-    fn new(num_vertices: usize) -> Self {
+    fn new(num_nodes: usize) -> Self {
         Self {
-            score: 1f64 / num_vertices as f64,
+            score: 1f64 / num_nodes as f64,
             out_degree: 0,
         }
     }
@@ -37,7 +37,7 @@ impl PageRankState {
 }
 
 /// PageRank Algorithm:
-/// PageRank shows how important a vertex is in a graph.
+/// PageRank shows how important a node is in a graph.
 ///
 /// Arguments:
 ///
@@ -49,18 +49,16 @@ impl PageRankState {
 ///
 /// Result:
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to the PageRank score of the vertex
+/// * An AlgorithmResult object containing the mapping from node ID to the PageRank score of the node
 ///
-#[allow(unused_variables)]
-pub fn unweighted_page_rank<G: GraphViewOps>(
+pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
     tol: Option<f64>,
     use_l2_norm: bool,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
-    let n = g.count_vertices();
-    let total_edges = g.count_edges();
+    let n = g.count_nodes();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
@@ -156,12 +154,12 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let num_vertices = g.count_vertices();
+    let num_nodes = g.count_nodes();
 
     let out: HashMap<usize, f64> = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
-        Some(vec![PageRankState::new(num_vertices); num_vertices]),
+        Some(vec![PageRankState::new(num_nodes); num_nodes]),
         |_, _, _, local| {
             let layers = g.layer_ids();
             let edge_filter = g.edge_filter();
@@ -169,7 +167,7 @@ pub fn unweighted_page_rank<G: GraphViewOps>(
                 .iter()
                 .enumerate()
                 .filter_map(|(v_ref, score)| {
-                    g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter)
+                    g.has_node_ref(NodeRef::Internal(v_ref.into()), &layers, edge_filter)
                         .then_some((v_ref, score.score))
                 })
                 .collect::<HashMap<usize, f64>>()

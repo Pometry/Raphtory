@@ -1,8 +1,15 @@
-use crate::core::utils::time::{error::ParseTimeError, Interval, IntoTime};
+use crate::{
+    core::utils::time::{error::ParseTimeError, Interval, IntoTime},
+    db::{
+        api::view::internal::{OneHopFilter, TimeSemantics},
+        graph::views::window_graph::WindowedGraph,
+    },
+};
+use std::marker::PhantomData;
 
 /// Trait defining time query operations
-pub trait TimeOps {
-    type WindowedViewType: TimeOps;
+pub trait TimeOps<'graph> {
+    type WindowedViewType: TimeOps<'graph> + 'graph;
 
     /// Return the timestamp of the default start for perspectives of the view (if any).
     fn start(&self) -> Option<i64>;
@@ -53,7 +60,7 @@ pub trait TimeOps {
     /// using an expanding window. The last window may fall partially outside the range of the data/view.
     ///
     /// An expanding window is a window that grows by `step` size at each iteration.
-    fn expanding<I>(&self, step: I) -> Result<WindowSet<Self>, ParseTimeError>
+    fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'static,
         I: TryInto<Interval, Error = ParseTimeError>,
@@ -73,7 +80,11 @@ pub trait TimeOps {
     /// using a rolling window. The last window may fall partially outside the range of the data/view.
     ///
     /// A rolling window is a window that moves forward by `step` size at each iteration.
-    fn rolling<I>(&self, window: I, step: Option<I>) -> Result<WindowSet<Self>, ParseTimeError>
+    fn rolling<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
     where
         Self: Sized + Clone + 'static,
         I: TryInto<Interval, Error = ParseTimeError>,
@@ -93,25 +104,38 @@ pub trait TimeOps {
     }
 }
 
+impl<'graph, V: OneHopFilter<'graph> + 'graph> TimeOps<'graph> for V {
+    type WindowedViewType = V::Filtered<WindowedGraph<V::Graph>>;
+
+    fn start(&self) -> Option<i64> {
+        self.current_filter().view_start()
+    }
+
+    fn end(&self) -> Option<i64> {
+        self.current_filter().view_end()
+    }
+
+    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
+        self.one_hop_filtered(WindowedGraph::new(
+            self.current_filter().clone(),
+            start,
+            end,
+        ))
+    }
+}
+
 #[derive(Clone)]
-pub struct WindowSet<T: TimeOps + Clone> {
+pub struct WindowSet<'graph, T> {
     view: T,
     cursor: i64,
     end: i64,
     step: Interval,
     window: Option<Interval>,
+    _marker: PhantomData<&'graph T>,
 }
 
-impl<T: TimeOps + Clone + 'static> WindowSet<T> {
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
     fn new(view: T, start: i64, end: i64, step: Interval, window: Option<Interval>) -> Self {
-        // let cursor_start = if step.epoch_alignment {
-        //     let step = step.to_millis().unwrap() as i64;
-        //     let prev_perspective_exclusive_end = (timeline_start / step) * step; // timeline.start 5 step 3 -> 3, timeline.start 6 step 3 -> 6, timeline.start 7 step 3 -> 6
-        //     let prev_perspective_inclusive_end = prev_perspective_exclusive_end - 1;
-        //     prev_perspective_inclusive_end + step
-        // } else {
-        //     timeline_start + step - 1
-        // };
         let cursor_start = start + step;
         Self {
             view,
@@ -119,6 +143,7 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
             end,
             step,
             window,
+            _marker: PhantomData,
         }
     }
 
@@ -137,7 +162,7 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
     }
 
     /// Returns the time index of this window set
-    pub fn time_index(&self, center: bool) -> TimeIndex<T> {
+    pub fn time_index(&self, center: bool) -> TimeIndex<'graph, T> {
         TimeIndex {
             windowset: self.clone(),
             center,
@@ -145,17 +170,18 @@ impl<T: TimeOps + Clone + 'static> WindowSet<T> {
     }
 }
 
-pub struct TimeIndex<T: TimeOps + Clone> {
-    windowset: WindowSet<T>,
+pub struct TimeIndex<'graph, T> {
+    windowset: WindowSet<'graph, T>,
     center: bool,
 }
 
-impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for TimeIndex<'graph, T> {
     type Item = i64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.windowset.next().map(|view| {
-            if self.center {
+        let center = self.center;
+        self.windowset.next().map(move |view| {
+            if center {
                 view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
             } else {
                 view.end().unwrap() - 1
@@ -164,7 +190,7 @@ impl<T: TimeOps + Clone> Iterator for TimeIndex<T> {
     }
 }
 
-impl<T: TimeOps + Clone> Iterator for WindowSet<T> {
+impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph, T> {
     type Item = T::WindowedViewType;
     fn next(&mut self) -> Option<Self::Item> {
         if self.cursor < self.end + self.step {
@@ -189,27 +215,27 @@ mod time_tests {
         db::{
             api::{
                 mutation::AdditionOps,
-                view::{time::WindowSet, GraphViewOps, TimeOps},
+                view::{time::WindowSet, TimeOps},
             },
             graph::graph::Graph,
         },
-        prelude::NO_PROPS,
+        prelude::{GraphViewOps, NO_PROPS},
     };
     use itertools::Itertools;
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {
         let g = Graph::new();
-        g.add_vertex(start, 0, NO_PROPS).unwrap();
-        g.add_vertex(end - 1, 0, NO_PROPS).unwrap();
+        g.add_node(start, 0, NO_PROPS).unwrap();
+        g.add_node(end - 1, 0, NO_PROPS).unwrap();
         assert_eq!(g.start().unwrap(), start);
         assert_eq!(g.end().unwrap(), end);
         g
     }
 
-    fn assert_bounds<G>(windows: WindowSet<G>, expected: Vec<(i64, i64)>)
+    fn assert_bounds<'graph, G>(windows: WindowSet<'graph, G>, expected: Vec<(i64, i64)>)
     where
-        G: GraphViewOps,
+        G: GraphViewOps<'graph>,
     {
         let window_bounds = windows
             .map(|w| (w.start().unwrap(), w.end().unwrap()))

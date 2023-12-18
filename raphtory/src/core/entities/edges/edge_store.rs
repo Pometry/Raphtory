@@ -13,12 +13,15 @@ use crate::{
         utils::errors::{GraphError, MutateGraphError},
         Prop,
     },
+    db::api::view::{BoxedLIter, IntoDynBoxed},
     prelude::TimeOps,
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut, Range};
-use tantivy::HasLen;
+use std::{
+    iter,
+    ops::{Deref, DerefMut, Range},
+};
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
@@ -146,6 +149,21 @@ impl EdgeStore {
     pub fn layer_iter(&self) -> impl Iterator<Item = &EdgeLayer> + '_ {
         self.layers.iter()
     }
+
+    pub fn additions_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
+        match layers {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => self.additions.iter().into_dyn_boxed(),
+            LayerIds::One(id) => self.additions.get(*id).into_iter().into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.additions.get(*id))
+                .into_dyn_boxed(),
+        }
+    }
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
         let layer_ids = self
             .additions
@@ -253,7 +271,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+    pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self.deletions().iter().flat_map(|d| d.last()).max(),
@@ -265,7 +283,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<&TimeIndexEntry> {
+    pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self.additions().iter().flat_map(|d| d.last()).max(),
@@ -283,18 +301,18 @@ impl EdgeStore {
             LayerIds::All => self
                 .deletions()
                 .iter()
-                .flat_map(|dels| dels.range(i64::MIN..t).last().copied())
+                .flat_map(|dels| dels.range(i64::MIN..t).last())
                 .max(),
             LayerIds::One(id) => {
                 let layer = self.deletions.get(*id)?;
-                layer.range(i64::MIN..t).last().copied()
+                layer.range(i64::MIN..t).last()
             }
             LayerIds::Multiple(ids) => ids
                 .iter()
                 .flat_map(|id| {
                     self.deletions
                         .get(*id)
-                        .and_then(|t_index| t_index.range(i64::MIN..t).last().copied())
+                        .and_then(|t_index| t_index.range(i64::MIN..t).last())
                 })
                 .max(),
         }

@@ -7,10 +7,9 @@
 
 use chrono::NaiveDateTime;
 
-use super::views::layer_graph::LayeredGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
@@ -25,9 +24,12 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            view::{internal::Static, BoxedIter, EdgeViewInternalOps, LayerOps},
+            view::{
+                internal::{InternalLayerOps, OneHopFilter, Static},
+                BoxedIter, BoxedLIter, EdgeViewInternalOps, StaticGraphViewOps,
+            },
         },
-        graph::{vertex::VertexView, views::window_graph::WindowedGraph},
+        graph::{node::NodeView, views::window_graph::WindowedGraph},
     },
     prelude::*,
 };
@@ -38,27 +40,43 @@ use std::{
 
 /// A view of an edge in the graph.
 #[derive(Clone)]
-pub struct EdgeView<G: GraphViewOps> {
+pub struct EdgeView<G, GH = G> {
+    pub base_graph: G,
     /// A view of an edge in the graph.
-    pub graph: G,
+    pub graph: GH,
     /// A reference to the edge.
     pub edge: EdgeRef,
 }
 
-impl<G: GraphViewOps> Static for EdgeView<G> {}
+impl<G, GH> Static for EdgeView<G, GH> {}
 
-impl<G: GraphViewOps> EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
-        Self { graph, edge }
-    }
-
-    pub(crate) fn layer_ids(&self) -> LayerIds {
-        self.graph.layer_ids().constrain_from_edge(self.edge)
+        let base_graph = graph.clone();
+        Self {
+            base_graph,
+            graph,
+            edge,
+        }
     }
 }
 
-impl<G: GraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalDeletionOps>
-    EdgeView<G>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> {
+    pub fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
+        Self {
+            base_graph,
+            graph,
+            edge,
+        }
+    }
+}
+
+impl<
+        G: StaticGraphViewOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + InternalDeletionOps,
+    > EdgeView<G, G>
 {
     pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, t)?;
@@ -68,34 +86,76 @@ impl<G: GraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + Inter
     }
 }
 
-impl<G: GraphViewOps> PartialEq for EdgeView<G> {
-    fn eq(&self, other: &Self) -> bool {
+impl<
+        'graph_1,
+        'graph_2,
+        G1: GraphViewOps<'graph_1>,
+        GH1: GraphViewOps<'graph_1>,
+        G2: GraphViewOps<'graph_2>,
+        GH2: GraphViewOps<'graph_2>,
+    > PartialEq<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
+{
+    fn eq(&self, other: &EdgeView<G2, GH2>) -> bool {
         self.id() == other.id()
     }
 }
 
-impl<G: GraphViewOps> EdgeViewInternalOps<G, VertexView<G>> for EdgeView<G> {
-    fn graph(&self) -> G {
-        self.graph.clone()
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeViewInternalOps<'graph>
+    for EdgeView<G, GH>
+{
+    type BaseGraph = G;
+    type Graph = GH;
+    type EList = BoxedLIter<'graph, Self>;
+    type Neighbour = NodeView<G, G>;
+
+    fn graph(&self) -> &GH {
+        &self.graph
     }
 
     fn eref(&self) -> EdgeRef {
         self.edge
     }
 
-    fn new_vertex(&self, v: VID) -> VertexView<G> {
-        VertexView::new_internal(self.graph(), v)
+    fn new_node(&self, v: VID) -> NodeView<G, G> {
+        NodeView::new_internal(self.base_graph.clone(), v)
     }
 
     fn new_edge(&self, e: EdgeRef) -> Self {
         Self {
-            graph: self.graph(),
+            graph: self.graph.clone(),
+            base_graph: self.base_graph.clone(),
             edge: e,
+        }
+    }
+
+    fn internal_explode(&self) -> Self::EList {
+        let ev = self.clone();
+        match self.edge.time() {
+            Some(_) => Box::new(iter::once(ev)),
+            None => {
+                let layer_ids = self.layer_ids();
+                let e = self.edge;
+                let ex_iter = self.graph.edge_exploded(e, layer_ids);
+                // FIXME: use duration
+                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
+            }
+        }
+    }
+
+    fn internal_explode_layers(&self) -> Self::EList {
+        let ev = self.clone();
+        match self.edge.layer() {
+            Some(_) => Box::new(iter::once(ev)),
+            None => {
+                let e = self.edge;
+                let ex_iter = self.graph.edge_layers(e, self.graph.layer_ids());
+                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
+            }
         }
     }
 }
 
-impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G> {
+impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G, G> {
     fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
         match layer {
             Some(name) => match self.edge.layer() {
@@ -177,7 +237,9 @@ impl<G: GraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeVi
     }
 }
 
-impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesOps
+    for EdgeView<G, GH>
+{
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.edge_meta().const_prop_meta().get_id(name)
     }
@@ -202,7 +264,9 @@ impl<G: GraphViewOps> ConstPropertiesOps for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertyViewOps
+    for EdgeView<G, GH>
+{
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
             .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
@@ -221,7 +285,9 @@ impl<G: GraphViewOps> TemporalPropertyViewOps for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertiesOps
+    for EdgeView<G, GH>
+{
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .edge_meta()
@@ -257,129 +323,62 @@ impl<G: GraphViewOps> TemporalPropertiesOps for EdgeView<G> {
     }
 }
 
-impl<G: GraphViewOps> EdgeViewOps for EdgeView<G> {
-    type Graph = G;
-    type Vertex = VertexView<G>;
-    type EList = BoxedIter<Self>;
-
-    fn explode(&self) -> Self::EList {
-        let ev = self.clone();
-        match self.edge.time() {
-            Some(_) => Box::new(iter::once(ev)),
-            None => {
-                let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
-                let e = self.edge;
-                let ex_iter = self.graph.edge_exploded(e, layer_ids);
-                // FIXME: use duration
-                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
-            }
-        }
-    }
-
-    fn explode_layers(&self) -> Self::EList {
-        let ev = self.clone();
-        match self.edge.layer() {
-            Some(_) => Box::new(iter::once(ev)),
-            None => {
-                let e = self.edge;
-                let ex_iter = self.graph.edge_layers(e, self.graph.layer_ids());
-                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
-            }
-        }
-    }
-}
-
-impl<G: GraphViewOps> Debug for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "EdgeView({}, {})",
-            self.graph.vertex(self.edge.src()).unwrap().id(),
-            self.graph.vertex(self.edge.dst()).unwrap().id()
-        )
+        write!(f, "EdgeView({}, {})", self.src().id(), self.dst().id())
     }
 }
 
-impl<G: GraphViewOps> From<EdgeView<G>> for EdgeRef {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G, GH> From<EdgeView<G, GH>> for EdgeRef {
+    fn from(value: EdgeView<G, GH>) -> Self {
         value.edge
     }
 }
 
-impl<G: GraphViewOps> TimeOps for EdgeView<G> {
-    type WindowedViewType = EdgeView<WindowedGraph<G>>;
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
+    for EdgeView<G, GH>
+{
+    type Graph = GH;
+    type Filtered<GHH: GraphViewOps<'graph>> = EdgeView<G, GHH>;
 
-    fn start(&self) -> Option<i64> {
-        self.graph.start()
+    fn current_filter(&self) -> &Self::Graph {
+        &self.graph
     }
 
-    fn end(&self) -> Option<i64> {
-        self.graph.end()
-    }
-
-    fn window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        EdgeView {
-            graph: self.graph.window(start, end),
-            edge: self.edge,
-        }
-    }
-}
-
-impl<G: GraphViewOps> LayerOps for EdgeView<G> {
-    type LayeredViewType = EdgeView<LayeredGraph<G>>;
-
-    fn default_layer(&self) -> Self::LayeredViewType {
-        EdgeView {
-            graph: self.graph.default_layer(),
-            edge: self.edge,
-        }
-    }
-
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType> {
-        let layer_ids = self
-            .graph
-            .layer_ids_from_names(name.into())
-            .constrain_from_edge(self.edge);
-        self.graph
-            .has_edge_ref(
-                self.edge.src(),
-                self.edge.dst(),
-                &layer_ids,
-                self.graph.edge_filter(),
-            )
-            .then(|| EdgeView {
-                graph: LayeredGraph::new(self.graph.clone(), layer_ids),
-                edge: self.edge,
-            })
+    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        EdgeView::new_filtered(self.base_graph.clone(), filtered_graph, self.edge)
     }
 }
 
 /// Implement `EdgeListOps` trait for an iterator of `EdgeView` objects.
 ///
-/// This implementation enables the use of the `src` and `dst` methods to retrieve the vertices
+/// This implementation enables the use of the `src` and `dst` methods to retrieve the nodes
 /// connected to the edges inside the iterator.
-impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
-    type Graph = G;
-    type Vertex = VertexView<G>;
-    type Edge = EdgeView<G>;
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'graph>
+    for BoxedLIter<'graph, EdgeView<G, GH>>
+{
+    type Edge = EdgeView<G, GH>;
     type ValueType<T> = T;
 
-    /// Specifies the associated type for an iterator over vertices.
-    type VList = Box<dyn Iterator<Item = VertexView<G>> + Send>;
+    /// Specifies the associated type for an iterator over nodes.
+    type VList = BoxedLIter<'graph, NodeView<G, G>>;
 
     /// Specifies the associated type for the iterator over edges.
-    type IterType<T> = Box<dyn Iterator<Item = T> + Send>;
+    type IterType<T> = BoxedLIter<'graph, T>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |e| e.properties()))
     }
 
-    /// Returns an iterator over the source vertices of the edges in the iterator.
+    /// Returns an iterator over the source nodes of the edges in the iterator.
     fn src(self) -> Self::VList {
         Box::new(self.map(|e| e.src()))
     }
 
-    /// Returns an iterator over the destination vertices of the edges in the iterator.
+    /// Returns an iterator over the destination nodes of the edges in the iterator.
     fn dst(self) -> Self::VList {
         Box::new(self.map(|e| e.dst()))
     }
@@ -447,25 +446,29 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<EdgeView<G>> {
         Box::new(self.map(|e| e.end_date_time()))
     }
 
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
         let new_time = time.into_time();
         Box::new(self.map(move |e| e.at(new_time)))
     }
 
-    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+    fn window<T: IntoTime>(
+        self,
+        start: T,
+        end: T,
+    ) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
     }
 }
 
-impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
-    type Graph = G;
-    type Vertex = VertexView<G>;
-    type Edge = EdgeView<G>;
-    type ValueType<T> = Box<dyn Iterator<Item = T> + Send>;
-    type VList = Box<dyn Iterator<Item = Box<dyn Iterator<Item = VertexView<G>> + Send>> + Send>;
-    type IterType<T> = Box<dyn Iterator<Item = Box<dyn Iterator<Item = T> + Send>> + Send>;
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'graph>
+    for BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G, GH>>>
+{
+    type Edge = EdgeView<G, GH>;
+    type ValueType<T> = BoxedLIter<'graph, T>;
+    type VList = BoxedLIter<'graph, BoxedLIter<'graph, NodeView<G, G>>>;
+    type IterType<T> = BoxedLIter<'graph, BoxedLIter<'graph, T>>;
 
     fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
         Box::new(self.map(move |it| it.properties()))
@@ -541,19 +544,21 @@ impl<G: GraphViewOps> EdgeListOps for BoxedIter<BoxedIter<EdgeView<G>>> {
         Box::new(self.map(|it| it.date_time()))
     }
 
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
         let new_time = time.into_time();
         Box::new(self.map(move |e| e.at(new_time)))
     }
 
-    fn window<T: IntoTime>(self, start: T, end: T) -> Self::IterType<EdgeView<WindowedGraph<G>>> {
+    fn window<T: IntoTime>(
+        self,
+        start: T,
+        end: T,
+    ) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
     }
 }
-
-pub type EdgeList<G> = Box<dyn Iterator<Item = EdgeView<G>> + Send>;
 
 #[cfg(test)]
 mod test_edge {

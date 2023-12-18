@@ -7,7 +7,7 @@ use crate::{
             shuffle_state::ShuffleComputeState, StateType,
         },
     },
-    db::{api::view::GraphViewOps, graph::vertex::VertexView},
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
 };
 use std::{fmt::Debug, sync::Arc};
 
@@ -16,7 +16,7 @@ type MergeFn<CS> =
 
 pub struct Context<G, CS>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
     CS: ComputeState,
 {
     ss: usize,
@@ -27,17 +27,17 @@ where
 
 impl<G, CS> Context<G, CS>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    pub fn new_local_state<O: Debug + Default, F: Fn(VertexView<G>) -> O>(
+    pub fn new_local_state<O: Debug + Default, F: Fn(NodeView<G, G>) -> O>(
         &self,
         init_f: F,
     ) -> Vec<O> {
-        let n = self.g.unfiltered_num_vertices();
+        let n = self.g.unfiltered_num_nodes();
         let mut new_state = Vec::with_capacity(n);
         for i in 0..n {
-            match self.g.vertex(VID(i)) {
+            match self.g.node(VID(i)) {
                 Some(v) => new_state.push(init_f(v)),
                 None => new_state.push(O::default()),
             }
@@ -144,7 +144,7 @@ where
     }
 }
 
-impl<G: GraphViewOps, CS: ComputeState> From<&G> for Context<G, CS> {
+impl<G: StaticGraphViewOps, CS: ComputeState> From<&G> for Context<G, CS> {
     fn from(g: &G) -> Self {
         Self {
             ss: 0,

@@ -9,6 +9,7 @@ Algorithms
    centrality
    community_detection
    cores
+   dynamics
    metrics
    motifs
    pathing

@@ -1,24 +1,24 @@
-use crate::model::schema::{edge_schema::EdgeSchema, get_vertex_type};
+use crate::model::schema::{edge_schema::EdgeSchema, get_node_type};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::graph::views::layer_graph::LayeredGraph,
-    prelude::{EdgeViewOps, GraphViewOps},
+    db::{api::view::StaticGraphViewOps, graph::views::layer_graph::LayeredGraph},
+    prelude::*,
 };
 
 #[derive(ResolvedObject)]
-pub(crate) struct LayerSchema<G: GraphViewOps> {
+pub(crate) struct LayerSchema<G: StaticGraphViewOps> {
     graph: LayeredGraph<G>,
 }
 
-impl<G: GraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
+impl<G: StaticGraphViewOps> From<LayeredGraph<G>> for LayerSchema<G> {
     fn from(value: LayeredGraph<G>) -> Self {
         Self { graph: value }
     }
 }
 
 #[ResolvedObjectFields]
-impl<G: GraphViewOps> LayerSchema<G> {
+impl<G: StaticGraphViewOps> LayerSchema<G> {
     /// Returns the name of the layer with this schema
     async fn name(&self) -> String {
         let mut layers = self.graph.unique_layers();
@@ -35,8 +35,8 @@ impl<G: GraphViewOps> LayerSchema<G> {
             .edges()
             .into_iter()
             .map(|edge| {
-                let src_type = get_vertex_type(edge.src());
-                let dst_type = get_vertex_type(edge.dst());
+                let src_type = get_node_type(edge.src());
+                let dst_type = get_node_type(edge.dst());
                 (src_type, dst_type)
             })
             .unique()

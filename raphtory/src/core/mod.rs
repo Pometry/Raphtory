@@ -24,7 +24,7 @@
 //!    * `macOS`
 //!
 
-use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
+use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -45,7 +45,7 @@ pub mod state;
 pub(crate) mod storage;
 pub mod utils;
 
-/// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
+// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
 #[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct ArcStr(pub(crate) Arc<str>);
 
@@ -484,8 +484,8 @@ impl fmt::Display for Prop {
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::Graph(value) => write!(
                 f,
-                "Graph(num_vertices={}, num_edges={})",
-                value.count_vertices(),
+                "Graph(num_nodes={}, num_edges={})",
+                value.count_nodes(),
                 value.count_edges()
             ),
             Prop::List(value) => {

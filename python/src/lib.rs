@@ -10,8 +10,8 @@ use raphtory_core::python::{
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
+        node::{PyMutableNode, PyNode, PyNodes},
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
-        vertex::{PyVertex, PyVertices},
     },
     packages::{
         algorithms::*,
@@ -45,8 +45,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m,
         PyGraph,
         PyGraphWithDeletions,
-        PyVertex,
-        PyVertices,
+        PyNode,
+        PyNodes,
+        PyMutableNode,
         PyEdge,
         PyEdges,
         PyProperties,
@@ -59,15 +60,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     );
 
     //GRAPHQL
-    let graphql_module = PyModule::new(py, "internal_graphql")?;
-    add_functions!(
-        graphql_module,
-        from_map,
-        from_directory,
-        from_map_and_directory,
-        encode_graph,
-        decode_graph
-    );
+    let graphql_module = PyModule::new(py, "graphql")?;
+    graphql_module.add_class::<PyRaphtoryServer>()?;
+    graphql_module.add_class::<PyRunningRaphtoryServer>()?;
+    graphql_module.add_class::<PyRaphtoryClient>()?;
     m.add_submodule(graphql_module)?;
 
     //ALGORITHMS
@@ -104,12 +100,13 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         hits,
         balance,
         label_propagation,
+        temporal_SEIR,
     );
     m.add_submodule(algorithm_module)?;
 
-    let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
-    add_functions!(usecase_algorithm_module, one_path_vertex);
-    m.add_submodule(usecase_algorithm_module)?;
+    // let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
+    // add_functions!(usecase_algorithm_module, one_path_node);
+    // m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER
     let graph_loader_module = PyModule::new(py, "graph_loader")?;

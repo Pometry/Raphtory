@@ -4,38 +4,39 @@
 //! These functions are not part of the public API and are not exported to the Python module.
 use crate::{
     core::{
-        entities::vertices::{input_vertex::InputVertex, vertex_ref::VertexRef},
+        entities::nodes::{input_node::InputNode, node_ref::NodeRef},
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
     db::api::view::*,
-    python::graph::vertex::PyVertex,
+    python::graph::node::PyNode,
 };
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
+use std::{future::Future, thread};
 
 pub mod errors;
 
-/// Extract a `VertexRef` from a Python object.
-/// The object can be a `str`, `u64` or `PyVertex`.
-/// If the object is a `PyVertex`, the `VertexRef` is extracted from the `PyVertex`.
-/// If the object is a `str`, the `VertexRef` is created from the `str`.
-/// If the object is a `int`, the `VertexRef` is created from the `int`.
+/// Extract a `NodeRef` from a Python object.
+/// The object can be a `str`, `u64` or `PyNode`.
+/// If the object is a `PyNode`, the `NodeRef` is extracted from the `PyNode`.
+/// If the object is a `str`, the `NodeRef` is created from the `str`.
+/// If the object is a `int`, the `NodeRef` is created from the `int`.
 ///
 /// Arguments
-///     vref: The Python object to extract the `VertexRef` from.
+///     vref: The Python object to extract the `NodeRef` from.
 ///
 /// Returns
-///    A `VertexRef` extracted from the Python object.
-impl<'source> FromPyObject<'source> for VertexRef {
+///    A `NodeRef` extracted from the Python object.
+impl<'source> FromPyObject<'source> for NodeRef {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
         if let Ok(s) = vref.extract::<String>() {
             Ok(s.into())
         } else if let Ok(gid) = vref.extract::<u64>() {
             Ok(gid.into())
-        } else if let Ok(v) = vref.extract::<PyVertex>() {
+        } else if let Ok(v) = vref.extract::<PyNode>() {
             Ok(v.into())
         } else {
-            Err(PyTypeError::new_err("Not a valid vertex"))
+            Err(PyTypeError::new_err("Not a valid node"))
         }
     }
 }
@@ -132,50 +133,50 @@ impl TryFrom<PyInterval> for Interval {
     }
 }
 
-/// A trait for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
+/// A trait for nodes that can be used as input for the graph.
+/// This allows us to add nodes with different types of ids, either strings or ints.
 #[derive(Clone, Debug)]
-pub struct PyInputVertex {
+pub struct PyInputNode {
     id: u64,
     name: Option<String>,
 }
 
-impl<'source> FromPyObject<'source> for PyInputVertex {
+impl<'source> FromPyObject<'source> for PyInputNode {
     fn extract(id: &'source PyAny) -> PyResult<Self> {
         match id.extract::<String>() {
-            Ok(string) => Ok(PyInputVertex::new(string)),
+            Ok(string) => Ok(PyInputNode::new(string)),
             Err(_) => {
                 let msg = "IDs need to be strings or an unsigned integers";
                 let number = id.extract::<u64>().map_err(|_| PyTypeError::new_err(msg))?;
-                Ok(PyInputVertex::new(number))
+                Ok(PyInputNode::new(number))
             }
         }
     }
 }
 
-/// Implementation for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-impl PyInputVertex {
-    pub(crate) fn new<T>(vertex: T) -> PyInputVertex
+/// Implementation for nodes that can be used as input for the graph.
+/// This allows us to add nodes with different types of ids, either strings or ints.
+impl PyInputNode {
+    pub(crate) fn new<T>(node: T) -> PyInputNode
     where
-        T: InputVertex,
+        T: InputNode,
     {
-        PyInputVertex {
-            id: vertex.id(),
-            name: vertex.id_str().map(|s| s.into()),
+        PyInputNode {
+            id: node.id(),
+            name: node.id_str().map(|s| s.into()),
         }
     }
 }
 
-/// Implementation for vertices that can be used as input for the graph.
-/// This allows us to add vertices with different types of ids, either strings or ints.
-impl InputVertex for PyInputVertex {
-    /// Returns the id of the vertex.
+/// Implementation for nodes that can be used as input for the graph.
+/// This allows us to add nodes with different types of ids, either strings or ints.
+impl InputNode for PyInputNode {
+    /// Returns the id of the node.
     fn id(&self) -> u64 {
         self.id
     }
 
-    /// Returns the name property of the vertex.
+    /// Returns the name property of the node.
     fn id_str(&self) -> Option<&str> {
         match &self.name {
             Some(n) => Some(n),
@@ -189,10 +190,10 @@ pub trait WindowSetOps {
     fn time_index(&self, center: bool) -> PyGenericIterable;
 }
 
-impl<T> WindowSetOps for WindowSet<T>
+impl<T> WindowSetOps for WindowSet<'static, T>
 where
-    T: TimeOps + Clone + Sync + 'static + Send,
-    T::WindowedViewType: IntoPy<PyObject> + Send,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
+    T::WindowedViewType: IntoPy<PyObject> + Send + 'static,
 {
     fn build_iter(&self) -> PyGenericIterator {
         self.clone().into()
@@ -228,21 +229,21 @@ pub struct PyWindowSet {
     window_set: Box<dyn WindowSetOps + Send>,
 }
 
-impl<T> From<WindowSet<T>> for PyWindowSet
+impl<T> From<WindowSet<'static, T>> for PyWindowSet
 where
-    T: TimeOps + Clone + Sync + Send + 'static,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
     T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
-    fn from(value: WindowSet<T>) -> Self {
+    fn from(value: WindowSet<'static, T>) -> Self {
         Self {
             window_set: Box::new(value),
         }
     }
 }
 
-impl<T> IntoPy<PyObject> for WindowSet<T>
+impl<T> IntoPy<PyObject> for WindowSet<'static, T>
 where
-    T: TimeOps + Clone + Sync + Send + 'static,
+    T: TimeOps<'static> + Clone + Sync + Send + 'static,
     T::WindowedViewType: IntoPy<PyObject> + Send + Sync,
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -315,6 +316,16 @@ where
     }
 }
 
+impl IntoIterator for PyGenericIterator {
+    type Item = PyObject;
+
+    type IntoIter = BoxedIter<PyObject>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter
+    }
+}
+
 #[pymethods]
 impl PyGenericIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -350,4 +361,29 @@ impl PyNestedGenericIterator {
     fn __next__(&mut self) -> Option<PyGenericIterator> {
         self.iter.next()
     }
+}
+
+// This function takes a function that returns a future instead of taking just a future because
+// a task might return an unsendable future but what we can do is making a function returning that
+// future which is sendable itself
+pub fn execute_async_task<T, F, O>(task: T) -> O
+where
+    T: FnOnce() -> F + Send + 'static,
+    F: Future<Output = O> + 'static,
+    O: Send + 'static,
+{
+    Python::with_gil(|py| {
+        py.allow_threads(move || {
+            // we call `allow_threads` because the task might need to grab the GIL
+            thread::spawn(move || {
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(task())
+            })
+            .join()
+            .expect("error when waiting for async task to complete")
+        })
+    })
 }

@@ -17,8 +17,8 @@ use crate::algorithms::algorithm_result::AlgorithmResult;
 ///
 ///  ### Two node motifs
 ///
-///  Also included are two node motifs, of which there are 8 when counted from the perspective of each vertex. These are characterised by the direction of each edge, enumerated
-///  in the above order. Note that for the global graph counts, each motif is counted in both directions (a single III motif for one vertex is an OOO motif for the other vertex).
+///  Also included are two node motifs, of which there are 8 when counted from the perspective of each node. These are characterised by the direction of each edge, enumerated
+///  in the above order. Note that for the global graph counts, each motif is counted in both directions (a single III motif for one node is an OOO motif for the other node).
 ///
 ///  ### Triangles
 ///
@@ -36,16 +36,16 @@ use crate::algorithms::algorithm_result::AlgorithmResult;
 use crate::{algorithms::motifs::three_node_motifs::*, db::api::view::*};
 use std::collections::HashMap;
 
-fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
-    if let Some(vertex) = graph.vertex(v) {
-        let neigh_map: HashMap<u64, usize> = vertex
+fn star_motif_count<'graph, G: GraphViewOps<'graph>>(graph: &G, v: u64, delta: i64) -> [usize; 24] {
+    if let Some(node) = graph.node(v) {
+        let neigh_map: HashMap<u64, usize> = node
             .neighbours()
             .iter()
             .enumerate()
             .map(|(num, nb)| (nb.id(), num))
             .into_iter()
             .collect();
-        let mut exploded_edges = vertex
+        let mut exploded_edges = node
             .edges()
             .explode()
             .map(|edge| {
@@ -65,13 +65,17 @@ fn star_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 2
     }
 }
 
-fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize; 8] {
+fn twonode_motif_count<'graph, G: GraphViewOps<'graph>>(
+    graph: &G,
+    v: u64,
+    delta: i64,
+) -> [usize; 8] {
     let mut counts = [0; 8];
-    if let Some(vertex) = graph.vertex(v) {
-        for nb in vertex.neighbours().iter() {
+    if let Some(node) = graph.node(v) {
+        for nb in node.neighbours().iter() {
             let nb_id = nb.id();
-            let out = graph.edge(vertex.id(), nb_id);
-            let inc = graph.edge(nb_id, vertex.id());
+            let out = graph.edge(node.id(), nb_id);
+            let inc = graph.edge(nb_id, node.id());
             let mut all_exploded = match (out, inc) {
                 (Some(o), Some(i)) => o
                     .explode()
@@ -102,15 +106,15 @@ fn twonode_motif_count<G: GraphViewOps>(graph: &G, v: u64, delta: i64) -> [usize
     counts
 }
 
-fn triangle_motif_count<G: GraphViewOps>(
+fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
     graph: &G,
     delta: i64,
 ) -> AlgorithmResult<G, Vec<usize>, Vec<usize>> {
     let mut counts: HashMap<u64, Vec<usize>> = HashMap::new();
-    for u in graph.vertices() {
+    for u in graph.nodes() {
         counts.insert(u.id(), vec![0; 8]);
     }
-    for u in graph.vertices() {
+    for u in graph.nodes() {
         let uid = u.id();
         for v in u.neighbours().iter().filter(|x| x.id() > uid) {
             for nb in u.neighbours().iter().filter(|x| x.id() > v.id()) {
@@ -239,7 +243,7 @@ fn triangle_motif_count<G: GraphViewOps>(
     // Made this as i did not want to modify/damage the above working algorithm
     let new_counts: HashMap<usize, Vec<usize>> = counts
         .iter()
-        .map(|(uid, val)| (graph.vertex(*uid).unwrap().vertex.0, val.to_owned()))
+        .map(|(uid, val)| (graph.node(*uid).unwrap().node.0, val.to_owned()))
         .collect();
 
     let results_type = std::any::type_name::<Vec<usize>>();
@@ -262,7 +266,7 @@ fn triangle_motif_count<G: GraphViewOps>(
 ///
 /// Returns:
 ///
-/// A dictionary with vertex ids (u64) as keys and a 40 dimensional array of motif counts as a value. The first 24 elements are star counts,
+/// A dictionary with node ids (u64) as keys and a 40 dimensional array of motif counts as a value. The first 24 elements are star counts,
 ///   the next 8 are two-node motif counts and the final 8 are triangle counts.
 ///
 /// # Notes
@@ -271,13 +275,13 @@ fn triangle_motif_count<G: GraphViewOps>(
 ///    the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
 ///
 ///
-pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
+pub fn local_temporal_three_node_motifs<'graph, G: GraphViewOps<'graph>>(
     graph: &G,
     delta: i64,
 ) -> AlgorithmResult<G, Vec<usize>, Vec<usize>> {
     let mut counts = triangle_motif_count(graph, delta);
 
-    for v in graph.vertices() {
+    for v in graph.nodes() {
         let vid = v.id();
         let two_nodes = twonode_motif_count(graph, vid, delta).to_vec();
         let tmp_stars = star_motif_count(graph, vid, delta);
@@ -290,7 +294,7 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
         final_cts.extend(stars.into_iter());
         final_cts.extend(two_nodes.into_iter());
         final_cts.extend(counts.get(v.clone()).unwrap().into_iter());
-        counts.result.insert(v.vertex.0, final_cts);
+        counts.result.insert(v.node.0, final_cts);
     }
 
     let results_type = std::any::type_name::<Vec<usize>>();
@@ -320,7 +324,10 @@ pub fn local_temporal_three_node_motifs<G: GraphViewOps>(
 /// This is achieved by calling the local motif counting algorithm, summing the resulting arrays and dealing with overcounted motifs: the triangles (by dividing each motif count by three) and two-node motifs (dividing by two).
 ///
 ///
-pub fn global_temporal_three_node_motifs<G: GraphViewOps>(graph: &G, delta: i64) -> Vec<usize> {
+pub fn global_temporal_three_node_motifs<'graph, G: GraphViewOps<'graph>>(
+    graph: &G,
+    delta: i64,
+) -> Vec<usize> {
     let counts = local_temporal_three_node_motifs(graph, delta)
         .get_all_values()
         .to_owned();

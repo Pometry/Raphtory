@@ -1,4 +1,5 @@
 mod constant_props;
+pub mod dyn_props;
 pub mod internal;
 mod props;
 mod temporal_props;

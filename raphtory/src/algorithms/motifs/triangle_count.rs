@@ -3,12 +3,12 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::view::*,
-        graph::views::vertex_subgraph::VertexSubgraph,
+        graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -58,10 +58,10 @@ use rustc_hash::FxHashSet;
 /// let actual_tri_count = triangle_count(&graph, None);
 /// ```
 ///
-pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
-    let vertex_set = k_core_set(graph, 2, usize::MAX, None);
-    let g = graph.subgraph(vertex_set);
-    let mut ctx: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
+pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) -> usize {
+    let node_set = k_core_set(graph, 2, usize::MAX, None);
+    let g = graph.subgraph(node_set);
+    let mut ctx: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
     // let mut ctx: Context<G, ComputeStateVec> = graph.into();
     let neighbours_set = accumulators::hash_set::<u64>(0);
@@ -70,16 +70,14 @@ pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usi
     ctx.agg(neighbours_set);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(
-        move |s: &mut EvalVertexView<'_, VertexSubgraph<G>, ComputeStateVec, ()>| {
-            for t in s.neighbours() {
-                if s.id() > t.id() {
-                    t.update(&neighbours_set, s.id());
-                }
+    let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+        for t in s.neighbours() {
+            if s.id() > t.id() {
+                t.update(&neighbours_set, s.id());
             }
-            Step::Continue
-        },
-    );
+        }
+        Step::Continue
+    });
 
     let step2 = ATask::new(move |s| {
         for t in s.neighbours() {
@@ -111,7 +109,7 @@ pub fn triangle_count<G: GraphViewOps>(graph: &G, threads: Option<usize>) -> usi
     let init_tasks = vec![Job::new(step1)];
     let tasks = vec![Job::new(step2)];
 
-    let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx);
+    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx);
 
     runner.run(
         init_tasks,

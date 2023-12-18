@@ -1,7 +1,7 @@
-use crate::{db::graph::vertex::VertexView, prelude::*};
+use crate::{db::graph::node::NodeView, prelude::*};
 use std::collections::HashSet;
 
-pub fn modularity<G>(
+pub fn modularity<'graph, G>(
     graph: &G,
     communities: &Vec<HashSet<u64>>,
     weight: Option<&str>,
@@ -9,7 +9,7 @@ pub fn modularity<G>(
     is_directed: bool,
 ) -> f64
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     if !is_partition(graph, &communities) {
         println!("Not a partition");
@@ -21,12 +21,12 @@ where
 
     if is_directed {
         let out_degree_weight_sum: f64 = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| degree_sum(&v, weight, Direction::Out))
             .sum::<f64>();
         // let in_degree_weight_sum: f64 = graph
-        //     .vertices()
+        //     .nodes()
         //     .iter()
         //     .map(|v| degree_sum(&v, weight, Direction::In))
         //     .sum::<f64>();
@@ -34,7 +34,7 @@ where
         norm = 1.0 / out_degree_weight_sum.powf(2.0);
     } else {
         let degree_weight_sum: f64 = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| degree_sum(&v, weight, Direction::Both))
             .sum::<f64>();
@@ -47,17 +47,17 @@ where
         .sum::<f64>()
 }
 
-fn is_partition<G>(graph: &G, communities: &Vec<HashSet<u64>>) -> bool
+fn is_partition<'graph, G>(graph: &G, communities: &Vec<HashSet<u64>>) -> bool
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     let nodes: HashSet<u64> = communities
         .iter()
-        .flat_map(|community| community.iter().filter(|&node| graph.has_vertex(*node)))
+        .flat_map(|community| community.iter().filter(|&node| graph.has_node(*node)))
         .cloned()
         .collect();
 
-    let total_nodes: usize = graph.count_vertices();
+    let total_nodes: usize = graph.count_nodes();
     let sum_communities: usize = communities.iter().map(|c| c.len()).sum();
 
     total_nodes == nodes.len() && nodes.len() == sum_communities
@@ -69,9 +69,9 @@ enum Direction {
     Both,
 }
 
-fn degree_sum<G>(v: &VertexView<G>, weight: Option<&str>, direction: Direction) -> f64
+fn degree_sum<'graph, G>(v: &NodeView<G>, weight: Option<&str>, direction: Direction) -> f64
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     let weight_key = weight.unwrap_or("");
     match direction {
@@ -105,7 +105,7 @@ where
     }
 }
 
-pub fn community_contribution<G>(
+pub fn community_contribution<'graph, G>(
     community: &HashSet<u64>,
     graph: &G,
     directed: bool,
@@ -115,12 +115,12 @@ pub fn community_contribution<G>(
     resolution: f64,
 ) -> f64
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     let weight_key = weight.unwrap_or("");
-    let comm: HashSet<VertexView<G>> = community
+    let comm: HashSet<NodeView<G>> = community
         .iter()
-        .map(|vid| graph.vertex(*vid).unwrap())
+        .map(|vid| graph.node(*vid).unwrap())
         .collect();
     let l_c: f64 = comm
         .iter()
@@ -177,49 +177,22 @@ mod modularity_test {
         }
         let communities = vec![
             HashSet::from([
-                graph.vertex("1").unwrap().id(),
-                graph.vertex("2").unwrap().id(),
-                graph.vertex("3").unwrap().id(),
+                graph.node("1").unwrap().id(),
+                graph.node("2").unwrap().id(),
+                graph.node("3").unwrap().id(),
             ]),
-            HashSet::from([
-                graph.vertex("4").unwrap().id(),
-                graph.vertex("5").unwrap().id(),
-            ]),
+            HashSet::from([graph.node("4").unwrap().id(), graph.node("5").unwrap().id()]),
         ];
-        let results = modularity(
-            &graph,
-            &communities,
-            None,
-            1.0f64,
-            false,
-        );
+        let results = modularity(&graph, &communities, None, 1.0f64, false);
         assert_eq!(results, 0.22f64);
 
-        let results = modularity(
-            &graph,
-            &communities,
-            None,
-            1.0f64,
-            true,
-        );
+        let results = modularity(&graph, &communities, None, 1.0f64, true);
         assert_eq!(results, 0.24f64);
 
-        let results = modularity(
-            &graph,
-            &communities,
-            Some("weight"),
-            1.0f64,
-            false,
-        );
+        let results = modularity(&graph, &communities, Some("weight"), 1.0f64, false);
         assert_eq!(results, 0.15625f64);
 
-        let results = modularity(
-            &graph,
-            &communities,
-            Some("weight"),
-            1.0f64,
-            true,
-        );
+        let results = modularity(&graph, &communities, Some("weight"), 1.0f64, true);
         assert_eq!(results, 0.158203125f64)
     }
 }

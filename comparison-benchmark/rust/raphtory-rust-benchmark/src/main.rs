@@ -4,11 +4,10 @@ use csv::StringRecord;
 use flate2::read::GzDecoder;
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        community_detection::connected_components::weakly_connected_components,
+        centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
     graph_loader::{fetch_file, source::csv_loader::CsvLoader},
-    prelude::{AdditionOps, Graph, GraphViewOps, VertexViewOps, NO_PROPS},
+    prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use std::{
     fs::File,
@@ -175,21 +174,21 @@ fn main() {
 
     if debug {
         println!(
-            "Graph has {} vertices and {} edges",
-            g.count_vertices(),
+            "Graph has {} nodes and {} edges",
+            g.count_nodes(),
             g.count_edges()
         )
     }
 
     // Degree of all nodes
     now = Instant::now();
-    let _degree = g.vertices().iter().map(|v| v.degree()).collect::<Vec<_>>();
+    let _degree = g.nodes().iter().map(|v| v.degree()).collect::<Vec<_>>();
     println!("Degree: {} seconds", now.elapsed().as_secs_f64());
 
     // Out neighbours of all nodes with time
     now = Instant::now();
     let _out_neighbours = g
-        .vertices()
+        .nodes()
         .iter()
         .map(|v| v.out_neighbours())
         .collect::<Vec<_>>();

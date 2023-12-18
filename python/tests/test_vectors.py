@@ -30,10 +30,10 @@ def floats_are_equals(float1: float, float2: float) -> bool:
 def create_graph() -> VectorisedGraph:
     g = Graph()
 
-    g.add_vertex(1, "node1", {"doc": "node1"})
-    g.add_vertex(2, "node2", {"doc": "node2"})
-    g.add_vertex(3, "node3", {"doc": "node3"})
-    g.add_vertex(4, "node4", {"doc": "node4"})
+    g.add_node(1, "node1", {"doc": "node1"})
+    g.add_node(2, "node2", {"doc": "node2"})
+    g.add_node(3, "node3", {"doc": "node3"})
+    g.add_node(4, "node4", {"doc": "node4"})
 
     g.add_edge(2, "node1", "node2", {"doc": "edge1"})
     g.add_edge(3, "node1", "node3", {"doc": "edge2"})

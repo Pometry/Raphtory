@@ -1,11 +1,11 @@
-use crate::vectors::{entity_id::EntityId, Embedding};
+use crate::vectors::Embedding;
 use parking_lot::RwLock;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     fs::{create_dir_all, File},
     hash::{Hash, Hasher},
     io::{BufReader, BufWriter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 type CacheStore = HashMap<u64, Embedding>;
@@ -16,6 +16,11 @@ pub(crate) struct EmbeddingCache {
 }
 
 impl EmbeddingCache {
+    pub(crate) fn new(path: PathBuf) -> Self {
+        let cache = RwLock::new(CacheStore::new());
+        Self { cache, path }
+    }
+
     pub(crate) fn from_path(path: PathBuf) -> Self {
         let inner_cache = Self::try_reading_from_disk(&path).unwrap_or(HashMap::new());
         let cache = RwLock::new(inner_cache);

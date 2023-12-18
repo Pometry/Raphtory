@@ -1,7 +1,10 @@
 use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::{db::graph::vertex::VertexView, prelude::*};
+use crate::{
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
+    prelude::*,
+};
 
 /// Computes components using a label propagation algorithm
 ///
@@ -12,22 +15,22 @@ use crate::{db::graph::vertex::VertexView, prelude::*};
 ///
 /// Returns:
 ///
-/// A vector of hashsets each containing vertices
+/// A vector of hashsets each containing nodes
 ///
 pub fn label_propagation<G>(
     graph: &G,
     seed: Option<[u8; 32]>,
-) -> Result<Vec<HashSet<VertexView<G>>>, &'static str>
+) -> Result<Vec<HashSet<NodeView<G>>>, &'static str>
 where
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
-    let mut labels: HashMap<VertexView<G>, u64> = HashMap::new();
-    for vertex in graph.vertices() {
-        labels.insert(vertex.clone(), vertex.id());
+    let mut labels: HashMap<NodeView<G>, u64> = HashMap::new();
+    for node in graph.nodes() {
+        labels.insert(node.clone(), node.id());
     }
 
-    let vertices = graph.vertices();
-    let mut shuffled_nodes: Vec<VertexView<G>> = vertices.iter().collect();
+    let nodes = graph.nodes();
+    let mut shuffled_nodes: Vec<NodeView<G>> = nodes.iter().collect();
     if let Some(seed_value) = seed {
         let mut rng = StdRng::from_seed(seed_value);
         shuffled_nodes.shuffle(&mut rng);
@@ -38,8 +41,8 @@ where
     let mut changed = true;
     while changed {
         changed = false;
-        for vertex in &shuffled_nodes {
-            let neighbors = vertex.neighbours();
+        for node in &shuffled_nodes {
+            let neighbors = node.neighbours();
             let mut label_count: BTreeMap<u64, f64> = BTreeMap::new();
 
             for neighbour in neighbors {
@@ -47,8 +50,8 @@ where
             }
 
             if let Some(max_label) = find_max_label(&label_count) {
-                if max_label != labels[&vertex] {
-                    labels.insert(vertex.clone(), max_label);
+                if max_label != labels[&node] {
+                    labels.insert(node.clone(), max_label);
                     changed = true;
                 }
             }
@@ -56,12 +59,12 @@ where
     }
 
     // Group nodes by their labels to form communities
-    let mut communities: HashMap<u64, HashSet<VertexView<G>>> = HashMap::new();
-    for (vertex, label) in labels {
+    let mut communities: HashMap<u64, HashSet<NodeView<G>>> = HashMap::new();
+    for (node, label) in labels {
         communities
             .entry(label)
             .or_insert_with(HashSet::new)
-            .insert(vertex.clone());
+            .insert(node.clone());
     }
 
     Ok(communities.values().cloned().collect())
@@ -101,17 +104,17 @@ mod lpa_tests {
         let result = label_propagation(&graph, seed).unwrap();
         let expected = vec![
             HashSet::from([
-                graph.vertex("R1").unwrap(),
-                graph.vertex("R2").unwrap(),
-                graph.vertex("R3").unwrap(),
+                graph.node("R1").unwrap(),
+                graph.node("R2").unwrap(),
+                graph.node("R3").unwrap(),
             ]),
             HashSet::from([
-                graph.vertex("G").unwrap(),
-                graph.vertex("B1").unwrap(),
-                graph.vertex("B2").unwrap(),
-                graph.vertex("B3").unwrap(),
-                graph.vertex("B4").unwrap(),
-                graph.vertex("B5").unwrap(),
+                graph.node("G").unwrap(),
+                graph.node("B1").unwrap(),
+                graph.node("B2").unwrap(),
+                graph.node("B3").unwrap(),
+                graph.node("B4").unwrap(),
+                graph.node("B5").unwrap(),
             ]),
         ];
         for hashset in expected {

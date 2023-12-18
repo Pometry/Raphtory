@@ -1,20 +1,10 @@
 use crate::{
-    algorithms::community_detection::modularity::modularity,
-    db::{api::view::internal::CoreGraphOps, graph::vertex::VertexView},
-    prelude::*,
-    vectors::graph_entity::GraphEntity,
+    algorithms::community_detection::modularity::modularity, db::graph::node::NodeView, prelude::*,
 };
-use itertools::{partition, Itertools};
-use num_traits::Pow;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::{Add, Sub},
-};
+use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
 
-fn weight_sum<G>(graph: &G, weight: Option<&str>) -> f64
-where
-    G: GraphViewOps,
-{
+fn weight_sum<'graph, G: GraphViewOps<'graph>>(graph: &G, weight: Option<&str>) -> f64 {
     match weight {
         None => graph.count_edges() as f64,
         Some(weight_attr) => graph
@@ -33,25 +23,22 @@ where
 type GID = u64;
 type COMM_ID = usize;
 
-pub fn louvain<G>(
+pub fn louvain<'graph, G: GraphViewOps<'graph>>(
     og_graph: &G,
     weight: Option<&str>,
     resolution: Option<f64>,
     threshold: Option<f64>,
     seed: Option<bool>,
     is_directed: bool,
-) -> Vec<HashSet<GID>>
-where
-    G: GraphViewOps,
-{
-    let mut graph = og_graph.clone();
-    let mut nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
+) -> Vec<HashSet<GID>> {
+    let graph = og_graph.clone();
+    let nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     let resolution_val = resolution.unwrap_or(1.0f64);
     let threshold_val = threshold.unwrap_or(0.0000002f64);
-    let mut partition: Vec<HashSet<GID>> = graph
-        .vertices()
+    let partition: Vec<HashSet<GID>> = graph
+        .nodes()
         .iter()
-        .map((|v| HashSet::from([v.id()])))
+        .map(|v| HashSet::from([v.id()]))
         .collect_vec();
     // TODO MODULARITY RESULT IS UNUSED? WHY?
     let mut mod_val = modularity(&graph, &partition, weight, resolution_val, is_directed);
@@ -69,7 +56,13 @@ where
     let mut improvement = true;
     while improvement {
         // TODO THE YIELD IN PYTHON
-        let new_mod = modularity(&graph, &inner_partition, weight, resolution_val, is_directed);
+        let new_mod = modularity(
+            &graph,
+            &inner_partition,
+            weight,
+            resolution_val,
+            is_directed,
+        );
         if new_mod - mod_val <= threshold_val {
             break;
         }
@@ -91,26 +84,26 @@ where
     partition.iter().cloned().collect_vec()
 }
 
-fn gen_graph<G>(
+fn gen_graph<'graph, G: GraphViewOps<'graph>>(
     graph: &G,
     partition: &Vec<HashSet<u64>>,
     nodes_data: &HashMap<GID, HashSet<GID>>,
     weight: Option<&str>,
-) -> (Graph, HashMap<GID, HashSet<GID>>)
-where
-    G: GraphViewOps,
-{
-    let mut new_g = Graph::new();
+) -> (Graph, HashMap<GID, HashSet<GID>>) {
+    let new_g = Graph::new();
     let mut node2com: HashMap<GID, COMM_ID> = HashMap::new(); // VID => COMMUNITY_ID
     let mut new_nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     for (i, part) in partition.iter().enumerate() {
         for node in part {
             node2com.insert(node.clone(), i);
-            let data = nodes_data.get(&node.clone()).unwrap_or(&HashSet::from([node.clone()])).clone();
+            let data = nodes_data
+                .get(&node.clone())
+                .unwrap_or(&HashSet::from([node.clone()]))
+                .clone();
             new_nodes_data.insert(node.clone(), data);
         }
         new_g
-            .add_vertex(graph.latest_time().unwrap(), i as u64, NO_PROPS)
+            .add_node(graph.latest_time().unwrap(), i as u64, NO_PROPS)
             .expect("Error adding node");
     }
 
@@ -123,13 +116,22 @@ where
         }
         let temp = {
             if new_g.has_edge(com1 as u64, com2 as u64, Layer::All) {
-                new_g.edge(com1 as u64, com2 as u64).unwrap().properties().get(weight_name).unwrap_or(Prop::F64(0.0f64))
-            }
-            else {
+                new_g
+                    .edge(com1 as u64, com2 as u64)
+                    .unwrap()
+                    .properties()
+                    .get(weight_name)
+                    .unwrap_or(Prop::F64(0.0f64))
+            } else {
                 Prop::F64(0.0f64)
             }
         };
-        let wt = e.properties().get(weight_name).unwrap_or(Prop::F64(0.0f64)).add(temp).unwrap();
+        let wt = e
+            .properties()
+            .get(weight_name)
+            .unwrap_or(Prop::F64(0.0f64))
+            .add(temp)
+            .unwrap();
         new_g
             .add_edge(
                 graph.latest_time().unwrap(),
@@ -150,10 +152,11 @@ enum Direction {
     Both,
 }
 
-fn degree_sum<G>(v: &VertexView<G>, weight: Option<&str>, direction: Direction) -> f64
-where
-    G: GraphViewOps,
-{
+fn degree_sum<'graph, G: GraphViewOps<'graph>>(
+    v: &NodeView<G>,
+    weight: Option<&str>,
+    direction: Direction,
+) -> f64 {
     let weight_key = weight.unwrap_or("");
     match direction {
         Direction::In => v
@@ -186,7 +189,7 @@ where
     }
 }
 
-fn one_level<G>(
+fn one_level<'graph, G>(
     graph: &G,
     m: f64,
     mut partition: Vec<HashSet<GID>>,
@@ -197,23 +200,23 @@ fn one_level<G>(
     nodes_data: &HashMap<GID, HashSet<GID>>,
 ) -> (Vec<HashSet<GID>>, Vec<HashSet<GID>>, bool)
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     let mut node2com: HashMap<GID, COMM_ID> = HashMap::new();
     let mut inner_partition: Vec<HashSet<GID>> = vec![];
 
-    for (i, v) in graph.vertices().iter().enumerate() {
+    for (i, v) in graph.nodes().iter().enumerate() {
         node2com.insert(v.id().clone(), i);
         inner_partition.push(HashSet::from([v.id().clone()]));
     }
 
-    let mut in_degrees: HashMap<VertexView<G>, f64> = HashMap::new();
-    let mut out_degrees: HashMap<VertexView<G>, f64> = HashMap::new();
+    let mut in_degrees: HashMap<NodeView<G>, f64> = HashMap::new();
+    let mut out_degrees: HashMap<NodeView<G>, f64> = HashMap::new();
     let mut stot_in: Vec<f64> = vec![];
     let mut stot_out: Vec<f64> = vec![];
-    let mut degrees: HashMap<VertexView<G>, f64> = HashMap::new();
+    let mut degrees: HashMap<NodeView<G>, f64> = HashMap::new();
     let mut stot: Vec<f64> = vec![];
-    let mut nbrs: HashMap<VertexView<G>, HashMap<VertexView<G>, f64>> = HashMap::new();
+    let mut nbrs: HashMap<NodeView<G>, HashMap<NodeView<G>, f64>> = HashMap::new();
     let mut remove_cost: f64 = 0.0f64;
     let mut gain: f64 = 0.0f64;
     let mut in_degree: f64 = 0.0f64;
@@ -222,18 +225,18 @@ where
     let mut best_com: COMM_ID = 0usize;
     if is_directed {
         in_degrees = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| (v.clone(), degree_sum(&v, weight_key, Direction::In)))
             .collect();
         out_degrees = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| (v.clone(), degree_sum(&v, weight_key, Direction::Out)))
             .collect();
         stot_in = in_degrees.values().map(|&x| x.clone()).collect();
         stot_out = out_degrees.values().map(|&x| x.clone()).collect();
-        for u in graph.vertices() {
+        for u in graph.nodes() {
             let mut neighbors = HashMap::new();
             for out_edge in u.out_edges() {
                 let n = out_edge.dst();
@@ -257,13 +260,13 @@ where
         }
     } else {
         degrees = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| (v.clone(), degree_sum(&v, weight_key, Direction::Both)))
             .collect();
         stot = degrees.values().map(|&x| x.clone()).collect();
         nbrs = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|u| {
                 let neighbour_vals = u
@@ -271,19 +274,19 @@ where
                     .filter(|e| e.src() != e.dst())
                     .map(|e| {
                         (
-                            if e.dst() != u { e.dst() } else {e.src()},
+                            if e.dst() != u { e.dst() } else { e.src() },
                             e.properties()
                                 .get(weight_key.unwrap_or(""))
                                 .unwrap_or(Prop::F64(0.0f64))
                                 .unwrap_f64(),
                         )
                     })
-                    .collect::<HashMap<VertexView<G>, f64>>();
+                    .collect::<HashMap<NodeView<G>, f64>>();
                 (u, neighbour_vals)
             })
             .collect();
     }
-    let rand_nodes = graph.vertices().iter().collect_vec();
+    let rand_nodes = graph.nodes().iter().collect_vec();
     let mut nb_moves = 1;
     let mut improvement = false;
 
@@ -323,15 +326,15 @@ where
             }
             for (nbr_com, wt) in weights2com.iter() {
                 if is_directed {
-                    gain = (remove_cost + wt / m
+                    gain = remove_cost + wt / m
                         - resolution
                             * (out_degree * stot_in.get(*nbr_com as usize).unwrap_or(&0.0f64)
                                 + in_degree * stot_out.get(*nbr_com as usize).unwrap_or(&0.0f64))
-                            / m.powf(2.0f64))
+                            / m.powf(2.0f64)
                 } else {
-                    gain = (remove_cost + wt / m
+                    gain = remove_cost + wt / m
                         - resolution * (stot.get(*nbr_com as usize).unwrap_or(&0.0f64) * degree)
-                            / (2.0f64 * m.powf(2.0f64)))
+                            / (2.0f64 * m.powf(2.0f64))
                 }
                 if gain > best_mod {
                     best_mod = gain;
@@ -383,12 +386,12 @@ where
     (new_partition, inner_partition, improvement)
 }
 
-fn neighbor_weights<G>(
-    nbrs: &HashMap<VertexView<G>, f64>,
+fn neighbor_weights<'graph, G>(
+    nbrs: &HashMap<NodeView<G>, f64>,
     node2com: &HashMap<GID, COMM_ID>,
 ) -> HashMap<COMM_ID, f64>
 where
-    G: GraphViewOps,
+    G: GraphViewOps<'graph>,
 {
     let mut weights = HashMap::new();
     for (nbr, &wt) in nbrs.iter() {
@@ -402,8 +405,8 @@ where
 
 #[cfg(test)]
 mod louvain_test {
-    use std::collections::HashMap;
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn test_neighbor_weights() {
@@ -416,15 +419,13 @@ mod louvain_test {
             (1, "4", "5", 1.5f64),
         ];
         for (ts, src, dst, wt) in edges {
-            g
-                .add_edge(ts, src, dst, [("weight", wt)], None)
-                .unwrap();
+            g.add_edge(ts, src, dst, [("weight", wt)], None).unwrap();
         }
 
         let nbrs = {
             let mut h = HashMap::new();
-            h.insert(g.vertex("1").unwrap(), 5.0);
-            h.insert(g.vertex("2").unwrap(), 10.0);
+            h.insert(g.node("1").unwrap(), 5.0);
+            h.insert(g.node("2").unwrap(), 10.0);
             h
         };
 
@@ -443,7 +444,7 @@ mod louvain_test {
         };
         assert_eq!(result, expected);
     }
-    
+
     #[test]
     fn test_weight_sum() {
         let g = Graph::new();
@@ -455,9 +456,7 @@ mod louvain_test {
             (1, "4", "5", 1.5f64),
         ];
         for (ts, src, dst, wt) in edges {
-            g
-                .add_edge(ts, src, dst, [("weight", wt)], None)
-                .unwrap();
+            g.add_edge(ts, src, dst, [("weight", wt)], None).unwrap();
         }
 
         let results = weight_sum(&g, None);
@@ -468,7 +467,6 @@ mod louvain_test {
 
         let results = weight_sum(&g, Some("weight"));
         assert_eq!(results, 16.0);
-
     }
 
     #[test]
@@ -485,14 +483,11 @@ mod louvain_test {
             (1, "100", "600", 1.5f64),
         ];
         for (ts, src, dst, wt) in edges {
-            g
-                .add_edge(ts, src, dst, [("weight", wt)], None)
-                .unwrap();
+            g.add_edge(ts, src, dst, [("weight", wt)], None).unwrap();
         }
 
         let results = louvain(&g, Some("weight"), None, None, None, false);
         println!("{:?}", results);
         // [{80, 60}, {10, 20, 30}, {40, 50}, {90, 70}]
     }
-
 }

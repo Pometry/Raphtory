@@ -1,5 +1,6 @@
 use crate::{
-    prelude::{GraphViewOps, Layer, VertexViewOps},
+    db::api::view::StaticGraphViewOps,
+    prelude::{Layer, NodeViewOps},
     vectors::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },
@@ -53,7 +54,7 @@ impl DocumentRef {
     // TODO: review -> does window really need to be an Option
     pub fn exists_on_window<G>(&self, graph: &G, window: Option<(i64, i64)>) -> bool
     where
-        G: GraphViewOps,
+        G: StaticGraphViewOps,
     {
         match self.life {
             Lifespan::Event { time } => {
@@ -75,9 +76,9 @@ impl DocumentRef {
         }
     }
 
-    fn entity_exists_in_graph<G: GraphViewOps>(&self, graph: &G) -> bool {
+    fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: &G) -> bool {
         match self.entity_id {
-            EntityId::Node { id } => graph.has_vertex(id),
+            EntityId::Node { id } => graph.has_node(id),
             EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
             // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
@@ -85,7 +86,7 @@ impl DocumentRef {
 
     pub fn regenerate<G, T>(&self, original_graph: &G, template: &T) -> Document
     where
-        G: GraphViewOps,
+        G: StaticGraphViewOps,
         T: DocumentTemplate<G>,
     {
         // FIXME: there is a problem here. We need to use the original graph so the number of
@@ -93,16 +94,16 @@ impl DocumentRef {
         // the document using the windowed values for the properties of the entities
         match self.entity_id {
             EntityId::Node { id } => Document::Node {
-                name: original_graph.vertex(id).unwrap().name(),
+                name: original_graph.node(id).unwrap().name(),
                 content: template
-                    .node(&original_graph.vertex(id).unwrap())
+                    .node(&original_graph.node(id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
             },
             EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.vertex(src).unwrap().name(),
-                dst: original_graph.vertex(dst).unwrap().name(),
+                src: original_graph.node(src).unwrap().name(),
+                dst: original_graph.node(dst).unwrap().name(),
                 content: template
                     .edge(&original_graph.edge(src, dst).unwrap())
                     .nth(self.index)

@@ -1,0 +1,17 @@
+[package]
+name = "netflow_algorithm"
+version.workspace = true
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+raphtory = {path = "../../raphtory", features = ["python"]}
+pyo3 = "0.19.2"
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[build-dependencies]
+pyo3-build-config = "0.19.2"
