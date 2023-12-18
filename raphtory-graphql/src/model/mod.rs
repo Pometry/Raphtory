@@ -21,15 +21,14 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
     io::BufReader,
+    path::Path,
 };
-use utils::path_prefix;
 use uuid::Uuid;
 
 pub mod algorithms;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
-pub(crate) mod utils;
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -192,7 +191,11 @@ impl Mut {
                     .get("path")
                     .ok_or("Path is missing")?
                     .to_string();
-                path_prefix(base_path)? + "/" + &Uuid::new_v4().hyphenated().to_string()
+                let path: &Path = Path::new(base_path.as_str());
+                path.with_file_name(Uuid::new_v4().hyphenated().to_string())
+                    .to_str()
+                    .ok_or("Invalid path")?
+                    .to_string()
             }
         };
         println!("Saving graph to path {path}");
