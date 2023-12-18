@@ -177,16 +177,25 @@ impl Mut {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
-        let mut path = subgraph
-            .properties()
-            .constant()
-            .get("path")
-            .ok_or("Path is missing")?
-            .to_string();
 
-        if new_graph_name.ne(&graph_name) {
-            path = path_prefix(path)? + "/" + &Uuid::new_v4().hyphenated().to_string();
-        }
+        let path = match data.get(&new_graph_name) {
+            Some(new_graph) => new_graph
+                .properties()
+                .constant()
+                .get("path")
+                .ok_or("Path is missing")?
+                .to_string(),
+            None => {
+                let base_path = subgraph
+                    .properties()
+                    .constant()
+                    .get("path")
+                    .ok_or("Path is missing")?
+                    .to_string();
+                path_prefix(base_path)? + "/" + &Uuid::new_v4().hyphenated().to_string()
+            }
+        };
+        println!("Saving graph to path {path}");
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
 
