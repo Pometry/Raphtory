@@ -394,16 +394,19 @@ mod graphql_test {
 
         // test save graph
         let req = Request::new(save_graph("g0", r#"["2"]"#));
-        let _ = schema.execute(req).await;
+        let res = schema.execute(req).await;
+        println!("{:?}", res.errors);
+        assert!(res.errors.is_empty());
         let req = Request::new(list_nodes("g2"));
         let res = schema.execute(req).await;
-
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "2"}]}}));
 
         // test save graph overwrite
         let req = Request::new(save_graph("g1", r#"["1"]"#));
-        let _ = schema.execute(req).await;
+        let res = schema.execute(req).await;
+        println!("{:?}", res.errors);
+        assert!(res.errors.is_empty());
         let req = Request::new(list_nodes("g2"));
         let res = schema.execute(req).await;
         println!("{:?}", res);
