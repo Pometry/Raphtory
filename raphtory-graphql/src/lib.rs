@@ -325,6 +325,21 @@ mod graphql_test {
             test_dir_path
         );
 
+        let save_graph = |parent_name: &str, nodes: &str| {
+            format!(
+                r#"mutation {{
+                  saveGraph(
+                    parentGraphName: "{parent_name}",
+                    graphName: "{parent_name}",
+                    newGraphName: "g2",
+                    props: "{{}}",
+                    isArchive: 0,
+                    graphNodes: {nodes},
+                  )
+              }}"#
+            )
+        };
+
         // only g0 which is empty
         let req = Request::new(load_all);
         let res = schema.execute(req).await;
@@ -374,6 +389,34 @@ mod graphql_test {
         // g1 still has node 1
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+
+        // test save graph
+        let req = Request::new(save_graph("g0", r#"["2"]"#));
+        let _ = schema.execute(req).await;
+        let req = Request::new(list_nodes("g2"));
+        let res = schema.execute(req).await;
+
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "2"}]}}));
+
+        // test save graph overwrite
+        let req = Request::new(save_graph("g1", r#"["1"]"#));
+        let _ = schema.execute(req).await;
+        let req = Request::new(list_nodes("g2"));
+        let res = schema.execute(req).await;
+        println!("{:?}", res);
+        let res_json = res.data.into_json().unwrap();
+        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+
+        // reload all graphs from folder
+        let req = Request::new(load_all);
+        schema.execute(req).await;
+        // g2 is still the last version
+        let req = Request::new(list_nodes("g2"));
+        let res = schema.execute(req).await;
+        println!("{:?}", res);
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
     }
