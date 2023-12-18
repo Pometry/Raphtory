@@ -21,15 +21,14 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
     io::BufReader,
+    path::Path,
 };
-use utils::path_prefix;
 use uuid::Uuid;
 
 pub mod algorithms;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
-pub(crate) mod utils;
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -177,16 +176,29 @@ impl Mut {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
-        let mut path = subgraph
-            .properties()
-            .constant()
-            .get("path")
-            .ok_or("Path is missing")?
-            .to_string();
 
-        if new_graph_name.ne(&graph_name) {
-            path = path_prefix(path)? + "/" + &Uuid::new_v4().hyphenated().to_string();
-        }
+        let path = match data.get(&new_graph_name) {
+            Some(new_graph) => new_graph
+                .properties()
+                .constant()
+                .get("path")
+                .ok_or("Path is missing")?
+                .to_string(),
+            None => {
+                let base_path = subgraph
+                    .properties()
+                    .constant()
+                    .get("path")
+                    .ok_or("Path is missing")?
+                    .to_string();
+                let path: &Path = Path::new(base_path.as_str());
+                path.with_file_name(Uuid::new_v4().hyphenated().to_string())
+                    .to_str()
+                    .ok_or("Invalid path")?
+                    .to_string()
+            }
+        };
+        println!("Saving graph to path {path}");
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
 

@@ -2,7 +2,7 @@ use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, PropertyAdditionOps},
+    prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
 };
@@ -70,58 +70,40 @@ impl Data {
     }
 
     pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<MaterializedGraph>> {
-        let mut valid_paths = HashSet::<String>::new();
+        let valid_entries = WalkDir::new(path).into_iter().filter_map(|e| {
+            let entry = e.ok()?;
+            let path = entry.path();
+            let filename = path.file_name().and_then(|name| name.to_str())?;
+            (path.is_file() && !filename.starts_with('.')).then_some(entry)
+        });
 
-        for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+        let mut graphs: HashMap<String, IndexedGraph<MaterializedGraph>> = HashMap::default();
+
+        for entry in valid_entries {
             let path = entry.path();
             let path_string = path.display().to_string();
-            let filename = path.file_name().and_then(|name| name.to_str());
-            if let Some(filename) = filename {
-                if path.is_file() && !filename.starts_with('.') {
-                    valid_paths.insert(path_string);
-                }
+            println!("loading graph from {path_string}");
+            let graph = MaterializedGraph::load_from_file(path).expect("Unable to load from graph");
+            let graph_name = graph
+                .properties()
+                .get("name")
+                .into_str()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| path.file_name().unwrap().to_str().unwrap().to_owned());
+            graph
+                .update_constant_properties([("path".to_string(), Prop::str(path_string.clone()))])
+                .expect("Failed to add static property");
+
+            if let Some(old_graph) = graphs.insert(
+                graph_name,
+                IndexedGraph::from_graph(&graph).expect("Unable to index graph"),
+            ) {
+                // insertion returns the old value if the entry already existed
+                let old_path = old_graph.properties().get("path").unwrap_str();
+                let name = old_graph.properties().get("name").unwrap_str();
+                panic!("Graph with name {name} defined multiple times, first file: {old_path}, second file: {path_string}")
             }
         }
-
-        let mut graphs_loaded: Vec<String> = vec![];
-        let mut is_graph_already_loaded = |graph_name: String| {
-            if graphs_loaded.contains(&graph_name) {
-                panic!("Graph by name {} is already loaded", graph_name);
-            } else {
-                graphs_loaded.push(graph_name);
-            }
-        };
-
-        let graphs: HashMap<String, IndexedGraph<MaterializedGraph>> = valid_paths
-            .into_iter()
-            .map(|path| {
-                println!("loading graph from {path}");
-                let graph =
-                    MaterializedGraph::load_from_file(&path).expect("Unable to load from graph");
-                graph
-                    .update_constant_properties([("path".to_string(), Prop::str(path.clone()))])
-                    .expect("Failed to add static property");
-                let maybe_graph_name = graph.properties().get("name");
-
-                return match maybe_graph_name {
-                    None => {
-                        let graph_name = Path::new(&path).file_name().unwrap().to_str().unwrap();
-                        is_graph_already_loaded(graph_name.to_string());
-                        (graph_name.to_string(), graph)
-                    }
-                    Some(graph_name) => {
-                        is_graph_already_loaded(graph_name.to_string());
-                        (graph_name.to_string(), graph)
-                    }
-                };
-            })
-            .map(|(name, g)| {
-                (
-                    name,
-                    IndexedGraph::from_graph(&g).expect("Unable to index graph"),
-                )
-            })
-            .collect();
         graphs
     }
 }
