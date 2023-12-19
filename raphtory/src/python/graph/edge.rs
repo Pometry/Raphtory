@@ -202,10 +202,19 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     A list of timestamps.
+    ///     A list of unix timestamps.
     ///
     pub fn history(&self) -> Vec<i64> {
         self.edge.history()
+    }
+
+    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///     A list of timestamps.
+    ///
+    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+        self.edge.history_date_time()
     }
 
     /// Returns a view of the properties of the edge.

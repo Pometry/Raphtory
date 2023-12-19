@@ -150,8 +150,7 @@ impl PyNode {
     ///     The earliest datetime that the node exists as an integer.
     #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        let earliest_time = self.node.earliest_time()?;
-        NaiveDateTime::from_timestamp_millis(earliest_time)
+       self.node.earliest_date_time()
     }
 
     /// Returns the latest time that the node exists.
@@ -172,8 +171,7 @@ impl PyNode {
     ///     The latest datetime that the node exists as an integer.
     #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
-        let latest_time = self.node.latest_time()?;
-        NaiveDateTime::from_timestamp_millis(latest_time)
+        self.node.latest_date_time()
     }
 
     /// The properties of the node
@@ -293,9 +291,18 @@ impl PyNode {
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     A list of timestamps of the event history of node.
+    ///     A list of unix timestamps of the event history of node.
     pub fn history(&self) -> Vec<i64> {
         self.node.history()
+    }
+
+    /// Returns the history of a node, including node additions and changes made to node.
+    ///
+    /// Returns:
+    ///     A list of timestamps of the event history of node.
+    ///
+    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+        self.node.history_date_time()
     }
 
     //******  Python  ******//

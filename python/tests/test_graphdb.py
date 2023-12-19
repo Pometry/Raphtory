@@ -246,6 +246,31 @@ def test_getitem():
         == g.node(1).properties.temporal["cost"]
     )
 
+def test_entity_history_date_time():
+    import datetime
+
+    g = Graph()
+    g.add_node(0, 1)
+    g.add_node(1, 1)
+    g.add_node(2, 1)
+    v = g.add_node(3, 1)
+    g.add_edge(0, 1, 2)
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 2)
+    e = g.add_edge(3, 1, 2)
+
+    full_history = [datetime.datetime(1970, 1, 1, 0, 0),
+                    datetime.datetime(1970, 1, 1, 0, 0, 0, 1000),
+                    datetime.datetime(1970, 1, 1, 0, 0, 0, 2000),
+                    datetime.datetime(1970, 1, 1, 0, 0, 0, 3000)]
+
+    windowed_history = [datetime.datetime(1970, 1, 1, 0, 0),
+                        datetime.datetime(1970, 1, 1, 0, 0, 0, 1000)]
+
+    assert v.history_date_time() == full_history
+    assert v.window(0,2).history_date_time() == windowed_history
+    assert e.history_date_time() == full_history
+    assert e.window(0,2).history_date_time() == windowed_history
 
 def test_graph_properties():
     g = create_graph()
