@@ -317,13 +317,13 @@ impl Repr for PyGraphView {
             .join(", ");
         if properties.is_empty() {
             format!(
-                "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
+                "Graph(number_of_nodes={:?}, number_of_edges={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
                 num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time
             )
         } else {
             let property_string: String = format!("{{{properties}}}");
             format!(
-                "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
+                "Graph(number_of_nodes={:?}, number_of_edges={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
                 num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time, property_string
             )
         }

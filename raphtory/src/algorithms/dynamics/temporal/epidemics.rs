@@ -162,6 +162,7 @@ struct Infection {
 /// * `seeds` - Specify how to choose seeds, can be either a list of nodes, `Number(n: usize)` for
 ///             sampling a fixed number `n` of seed nodes, or `Probability(p: f64)` in which case a node is initially infected with probability `p`.
 /// * `rng` - The random number generator to use
+#[allow(non_snake_case)]
 pub fn temporal_SEIR<
     G: StaticGraphViewOps,
     P: TryInto<Probability>,

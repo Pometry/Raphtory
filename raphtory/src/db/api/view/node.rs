@@ -82,12 +82,12 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
-    #[inline]
+
     fn earliest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>>;
 
     /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
-    #[inline]
+
     fn latest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)

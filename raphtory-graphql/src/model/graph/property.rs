@@ -73,6 +73,7 @@ pub(crate) struct GqlProperties {
     props: DynProperties,
 }
 impl GqlProperties {
+    #[allow(dead_code)]
     pub(crate) fn new(props: DynProperties) -> Self {
         Self { props }
     }

@@ -1,6 +1,6 @@
-Edge
-************
-.. autoclass:: raphtory.Edge
+Node
+*****************
+.. autoclass:: raphtory.Node
    :autosummary:
    :members:
    :undoc-members:
@@ -8,7 +8,7 @@ Edge
    :private-members:
    :inherited-members:
 
-.. autoclass:: raphtory.Edges
+.. autoclass:: raphtory.Nodes
    :autosummary:
    :members:
    :undoc-members:
@@ -16,7 +16,7 @@ Edge
    :private-members:
    :inherited-members:
 
-.. autoclass:: raphtory.MutableEdge
+.. autoclass:: raphtory.MutableNode
    :autosummary:
    :members:
    :undoc-members:

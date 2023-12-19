@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -637,7 +638,8 @@ pub fn label_propagation(
 ///     `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
 ///
 ///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
-///              
+///
+
 #[pyfunction(name = "temporal_SEIR")]
 pub fn temporal_SEIR(
     graph: &PyGraphView,

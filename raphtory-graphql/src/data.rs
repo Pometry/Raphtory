@@ -7,8 +7,7 @@ use raphtory::{
     vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
 };
 use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
+    collections::{HashMap},
     sync::Arc,
 };
 use walkdir::WalkDir;
