@@ -31,8 +31,10 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
     seed: Option<bool>,
     is_directed: bool,
 ) -> Vec<HashSet<GID>> {
-    let graph = og_graph.clone();
-    let nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
+    let all_nodes_debug: HashSet<u64> = og_graph.nodes().id().collect();
+
+    let mut graph = og_graph.clone();
+    let mut nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     let resolution_val = resolution.unwrap_or(1.0f64);
     let threshold_val = threshold.unwrap_or(0.0000002f64);
     let partition: Vec<HashSet<GID>> = graph
@@ -43,7 +45,7 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
     // TODO MODULARITY RESULT IS UNUSED? WHY?
     let mut mod_val = modularity(&graph, &partition, weight, resolution_val, is_directed);
     let m = weight_sum(&graph, weight);
-    let (mut partition, mut inner_partition, improvement) = one_level(
+    let (mut partition, mut inner_partition, mut improvement) = one_level(
         &graph,
         m,
         partition,
@@ -53,8 +55,28 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
         weight,
         &nodes_data,
     );
-    let mut improvement = true;
+    let (mut graph, mut nodes_data) = gen_graph(&graph, &inner_partition, &nodes_data, weight);
+    assert_eq!(
+        partition.iter().flatten().copied().collect::<HashSet<_>>(),
+        all_nodes_debug
+    );
+
     while improvement {
+        (partition, inner_partition, improvement) = one_level(
+            &graph,
+            m,
+            partition.clone(),
+            resolution_val,
+            is_directed,
+            seed,
+            weight,
+            &nodes_data,
+        );
+        assert_eq!(
+            partition.iter().flatten().copied().collect::<HashSet<_>>(),
+            all_nodes_debug
+        );
+
         // TODO THE YIELD IN PYTHON
         let new_mod = modularity(
             &graph,
@@ -67,21 +89,9 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
             break;
         }
         mod_val = new_mod;
-        let (graph, nodes_data): (Graph, HashMap<GID, HashSet<GID>>) =
-            gen_graph(&graph, &inner_partition, &nodes_data, weight);
-        (partition, inner_partition, improvement) = one_level(
-            &graph,
-            m,
-            partition.clone(),
-            resolution_val,
-            is_directed,
-            seed,
-            weight,
-            &nodes_data,
-        );
     }
-    // partition.last().cloned()
-    partition.iter().cloned().collect_vec()
+    // don't listen to IntelliJ, no reason to clone
+    partition
 }
 
 fn gen_graph<'graph, G: GraphViewOps<'graph>>(
@@ -111,9 +121,6 @@ fn gen_graph<'graph, G: GraphViewOps<'graph>>(
         let weight_name = weight.unwrap_or("weight");
         let com1: COMM_ID = node2com.get(&e.src().id()).unwrap().clone();
         let com2: COMM_ID = node2com.get(&e.dst().id()).unwrap().clone();
-        if (com1 <= 10) || (com2 <= 10) {
-            println!("hi");
-        }
         let temp = {
             if new_g.has_edge(com1 as u64, com2 as u64, Layer::All) {
                 new_g
@@ -294,11 +301,9 @@ where
         nb_moves = 0;
         println!("START");
         for u in &rand_nodes {
-            println!("{:?} {:?}", u.name(), u.id());
             let mut best_mod = 0.0;
             best_com = *node2com.get(&u.id()).unwrap();
             let weights2com = neighbor_weights(&nbrs.get(u).unwrap(), &node2com);
-            println!("{:?}", weights2com);
             if is_directed {
                 in_degree = *in_degrees.get(u).unwrap_or(&0.0f64);
                 out_degree = *out_degrees.get(u).unwrap_or(&0.0f64);
@@ -355,14 +360,10 @@ where
             }
             if best_com != *node2com.get(&u.id()).unwrap() {
                 let temp_gid: GID = u.id();
-                if temp_gid == 1 {
-                    println!("{}", u.name());
-                    println!("HI")
-                }
-                let com: HashSet<GID> = nodes_data
-                    .get(&temp_gid)
-                    .unwrap_or(&HashSet::from([temp_gid]))
-                    .clone();
+                let com: HashSet<GID> = match nodes_data.get(&temp_gid) {
+                    Some(com) => com.clone(),
+                    None => HashSet::from([temp_gid]), // should this be possible?
+                };
                 partition[*node2com.get(&temp_gid).unwrap()].retain(|x| !com.contains(x));
                 inner_partition[node2com[&temp_gid].clone()].remove(&temp_gid);
                 partition[best_com].extend(com);
