@@ -329,6 +329,8 @@ pub trait EdgeListOps<'graph>:
 
     fn history(self) -> Self::IterType<Vec<i64>>;
 
+    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
+
     fn start(self) -> Self::IterType<Option<i64>>;
 
     fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
