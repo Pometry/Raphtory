@@ -100,7 +100,7 @@ fn gen_graph<'graph, G: GraphViewOps<'graph>>(
                 .get(&node.clone())
                 .unwrap_or(&HashSet::from([node.clone()]))
                 .clone();
-            new_nodes_data.insert(node.clone(), data);
+            new_nodes_data.insert(i as u64, data);
         }
         new_g
             .add_node(graph.latest_time().unwrap(), i as u64, NO_PROPS)
