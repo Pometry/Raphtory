@@ -150,7 +150,7 @@ impl PyNode {
     ///     The earliest datetime that the node exists as an integer.
     #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-       self.node.earliest_date_time()
+        self.node.earliest_date_time()
     }
 
     /// Returns the latest time that the node exists.
