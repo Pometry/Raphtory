@@ -32,21 +32,24 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
     is_directed: bool,
 ) -> Vec<HashSet<GID>> {
     let all_nodes_debug: HashSet<u64> = og_graph.nodes().id().collect();
+    let nodes_data: HashMap<GID, HashSet<GID>> = og_graph
+        .nodes()
+        .id()
+        .map(|n| (n, HashSet::from([n])))
+        .collect();
 
-    let mut graph = og_graph.clone();
-    let mut nodes_data: HashMap<GID, HashSet<GID>> = HashMap::new();
     let resolution_val = resolution.unwrap_or(1.0f64);
     let threshold_val = threshold.unwrap_or(0.0000002f64);
-    let partition: Vec<HashSet<GID>> = graph
+    let partition: Vec<HashSet<GID>> = og_graph
         .nodes()
         .iter()
         .map(|v| HashSet::from([v.id()]))
         .collect_vec();
     // TODO MODULARITY RESULT IS UNUSED? WHY?
-    let mut mod_val = modularity(&graph, &partition, weight, resolution_val, is_directed);
-    let m = weight_sum(&graph, weight);
+    let mut mod_val = modularity(og_graph, &partition, weight, resolution_val, is_directed);
+    let m = weight_sum(og_graph, weight);
     let (mut partition, mut inner_partition, mut improvement) = one_level(
-        &graph,
+        og_graph,
         m,
         partition,
         resolution_val,
@@ -55,7 +58,7 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
         weight,
         &nodes_data,
     );
-    let (mut graph, mut nodes_data) = gen_graph(&graph, &inner_partition, &nodes_data, weight);
+    let (mut graph, mut nodes_data) = gen_graph(og_graph, &inner_partition, &nodes_data, weight);
     assert_eq!(
         partition.iter().flatten().copied().collect::<HashSet<_>>(),
         all_nodes_debug
@@ -360,10 +363,7 @@ where
             }
             if best_com != *node2com.get(&u.id()).unwrap() {
                 let temp_gid: GID = u.id();
-                let com: HashSet<GID> = match nodes_data.get(&temp_gid) {
-                    Some(com) => com.clone(),
-                    None => HashSet::from([temp_gid]), // should this be possible?
-                };
+                let com = nodes_data.get(&temp_gid).unwrap();
                 partition[*node2com.get(&temp_gid).unwrap()].retain(|x| !com.contains(x));
                 inner_partition[node2com[&temp_gid].clone()].remove(&temp_gid);
                 partition[best_com].extend(com);
