@@ -259,10 +259,6 @@ def test_entity_history_date_time():
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 2)
     e = g.add_edge(3, 1, 2)
-    g.add_edge(4, 1, 3)
-    g.add_edge(5, 1, 3)
-    g.add_edge(6, 1, 3)
-    g.add_edge(7, 1, 3)
 
     full_history_1 = [
         datetime.datetime(1970, 1, 1, 0, 0),
@@ -287,6 +283,11 @@ def test_entity_history_date_time():
     assert v.window(0, 2).history_date_time() == windowed_history
     assert e.history_date_time() == full_history_1
     assert e.window(0, 2).history_date_time() == windowed_history
+
+    g.add_edge(4, 1, 3)
+    g.add_edge(5, 1, 3)
+    g.add_edge(6, 1, 3)
+    g.add_edge(7, 1, 3)
 
     assert g.edges.history_date_time() == [full_history_1, full_history_2]
     assert g.nodes.in_edges.history_date_time() == [
