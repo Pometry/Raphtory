@@ -406,6 +406,7 @@ where
 #[cfg(test)]
 mod louvain_test {
     use super::*;
+    use proptest::prelude::*;
     use std::collections::HashMap;
 
     #[test]
@@ -473,21 +474,67 @@ mod louvain_test {
     fn test_louvain() {
         let g = Graph::new();
         let edges = vec![
-            (1, "100", "200", 2.0f64),
-            (1, "100", "300", 3.0f64),
-            (1, "200", "300", 8.5f64),
-            (1, "300", "400", 1.0f64),
-            (1, "400", "500", 1.5f64),
-            (1, "600", "800", 0.5f64),
-            (1, "700", "900", 3.5f64),
-            (1, "100", "600", 1.5f64),
+            (100, 200, 2.0f64),
+            (100, 300, 3.0f64),
+            (200, 300, 8.5f64),
+            (300, 400, 1.0f64),
+            (400, 500, 1.5f64),
+            (600, 800, 0.5f64),
+            (700, 900, 3.5f64),
+            (100, 600, 1.5f64),
         ];
-        for (ts, src, dst, wt) in edges {
-            g.add_edge(ts, src, dst, [("weight", wt)], None).unwrap();
+        // for _ in 0..100 {
+        assert!(test_all_nodes_assigned_inner(edges.clone()))
+        // }
+    }
+
+    fn test_all_nodes_assigned_inner(edges: Vec<(u64, u64, f64)>) -> bool {
+        let g = Graph::new();
+        let all_nodes: HashSet<_> = edges
+            .iter()
+            .flat_map(|(src, dst, _)| [*src, *dst])
+            .collect();
+        for (src, dst, weight) in edges {
+            g.add_edge(1, src, dst, [("weight", weight)], None).unwrap();
+        }
+        let result = louvain(&g, Some("weight"), None, None, None, false);
+        let all_assigned_nodes: HashSet<_> = result.iter().flatten().copied().collect();
+        let valid = all_nodes == all_assigned_nodes;
+        if !valid {
+            let missing_nodes: Vec<_> = all_nodes.difference(&all_assigned_nodes).collect();
+            let extra_nodes: Vec<_> = all_assigned_nodes.difference(&all_nodes).collect();
+            println!("Invalid community assignment {result:?}, missing nodes: {missing_nodes:?}, extra nodes: {extra_nodes:?}")
+        }
+        println!("Result: {result:?}");
+        valid
+    }
+
+    fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) -> bool {
+        let g = Graph::new();
+        let all_nodes: HashSet<_> = edges.iter().flat_map(|(src, dst)| [*src, *dst]).collect();
+        for (src, dst) in edges {
+            g.add_edge(1, src, dst, NO_PROPS, None).unwrap();
+        }
+        let result = louvain(&g, None, None, None, None, false);
+        let all_assigned_nodes: HashSet<_> = result.iter().flatten().copied().collect();
+        let valid = all_nodes == all_assigned_nodes;
+        if !valid {
+            let missing_nodes: Vec<_> = all_nodes.difference(&all_assigned_nodes).collect();
+            let extra_nodes: Vec<_> = all_assigned_nodes.difference(&all_nodes).collect();
+            println!("Invalid community assignment {result:?}, missing nodes: {missing_nodes:?}, extra nodes: {extra_nodes:?}")
+        }
+        valid
+    }
+
+    proptest! {
+        #[test]
+        fn test_all_nodes_assigned_unweighted(edges in any::<Vec<(u8, u8)>>().prop_map(|v| v.into_iter().map(|(s, d)|  (s as u64, d as u64)).collect::<Vec<_>>())) {
+            prop_assert!(test_all_nodes_assigned_inner_unweighted(edges))
         }
 
-        let results = louvain(&g, Some("weight"), None, None, None, false);
-        println!("{:?}", results);
-        // [{80, 60}, {10, 20, 30}, {40, 50}, {90, 70}]
+        // #[test]
+        // fn test_all_nodes_in_communities(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
+        //     prop_assert!(test_all_nodes_assigned_inner(edges))
+        // }
     }
 }
