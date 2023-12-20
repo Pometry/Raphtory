@@ -18,6 +18,7 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
+use chrono::NaiveDateTime;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -82,11 +83,18 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
+    fn earliest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>>;
+
     /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
+    fn latest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>>;
+
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<Vec<i64>>;
+
+    /// Gets the history of the node (time that the node was added and times when changes were made to the node) as NaiveDateTime objects if parseable
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<NaiveDateTime>>>;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -181,13 +189,34 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(|g, v| g.node_earliest_time(v))
     }
     #[inline]
+    fn earliest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>> {
+        self.map(|g, v| NaiveDateTime::from_timestamp_millis(g.node_earliest_time(v)?))
+    }
+
+    #[inline]
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
         self.map(|g, v| g.node_latest_time(v))
     }
+
+    #[inline]
+    fn latest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>> {
+        self.map(|g, v| NaiveDateTime::from_timestamp_millis(g.node_latest_time(v)?))
+    }
+
     #[inline]
     fn history(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, v| g.node_history(v))
     }
+    #[inline]
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<NaiveDateTime>>> {
+        self.map(|g, v| {
+            g.node_history(v)
+                .iter()
+                .map(|t| NaiveDateTime::from_timestamp_millis(*t))
+                .collect::<Option<Vec<NaiveDateTime>>>()
+        })
+    }
+
     #[inline]
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()

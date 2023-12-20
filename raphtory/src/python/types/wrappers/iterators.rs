@@ -156,3 +156,16 @@ py_iterable_comp!(
     OptionNaiveDateTimeIterableCmp,
     NestedNaiveDateTimeIterableCmp
 );
+
+py_iterable!(OptionVecNaiveDateTimeIterable, Option<Vec<NaiveDateTime>>);
+py_iterable_comp!(
+    OptionVecNaiveDateTimeIterable,
+    Option<Vec<NaiveDateTime>>,
+    OptionVecNaiveDateTimeIterableCmp
+);
+py_nested_iterable!(NestedVecNaiveDateTimeIterable, Option<Vec<NaiveDateTime>>);
+py_iterable_comp!(
+    NestedVecNaiveDateTimeIterable,
+    OptionVecNaiveDateTimeIterableCmp,
+    NestedVecNaiveDateTimeIterableCmp
+);

@@ -214,9 +214,7 @@ def test_load_from_pandas_with_types():
     ]
 
     g = Graph()
-    g.load_nodes_from_pandas(
-        nodes_df, "id", "time", ["name"], const_props=["type"]
-    )
+    g.load_nodes_from_pandas(nodes_df, "id", "time", ["name"], const_props=["type"])
     assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
@@ -236,7 +234,7 @@ def test_load_from_pandas_with_types():
         const_props=["marbles_const"],
         shared_const_props={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
-        layer_in_df=False
+        layer_in_df=False,
     )
 
     assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
@@ -387,6 +385,7 @@ def test_load_from_pandas_with_types():
         {"layer 5": "test_tag"},
     ]
 
+
 def test_missing_columns():
     edges_df = pd.DataFrame(
         {
@@ -406,7 +405,12 @@ def test_missing_columns():
         }
     )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_src, not_dst, not_time')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_src, not_dst, not_time"
+        ),
+    ):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="not_src",
@@ -414,7 +418,12 @@ def test_missing_columns():
             edge_time="not_time",
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_weight, bleep_bloop')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_weight, bleep_bloop"
+        ),
+    ):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -428,7 +437,12 @@ def test_missing_columns():
             node_props=["name"],
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_id, not_time, not_name')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_id, not_time, not_name"
+        ),
+    ):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -441,7 +455,12 @@ def test_missing_columns():
             node_props=["not_name"],
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: sauce, dist, wait, marples')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, dist, wait, marples"
+        ),
+    ):
         g = Graph()
         g.load_edge_props_from_pandas(
             edges_df,
@@ -450,7 +469,12 @@ def test_missing_columns():
             const_props=["wait", "marples"],
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: sauce, wait, marples')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, wait, marples"
+        ),
+    ):
         g = Graph()
         g.load_node_props_from_pandas(
             nodes_df,
@@ -461,46 +485,29 @@ def test_missing_columns():
 
 def test_none_columns_edges():
     edges_df = pd.DataFrame(
-        {
-            "src": [1, None, 3, 4, 5],
-            "dst": [2, 3, 4, 5, 6],
-            "time": [1, 2, 3, 4, 5]}
+        {"src": [1, None, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, 3, 4, 5]}
     )
-    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
-        Graph.load_from_pandas(
-            edges_df,
-            "src",
-            "dst",
-            "time"
-        )
+    with pytest.raises(
+        Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
+    ):
+        Graph.load_from_pandas(edges_df, "src", "dst", "time")
 
     edges_df = pd.DataFrame(
-        {
-            "src": [1, 2, 3, 4, 5],
-            "dst": [2, 3, 4, None, 6],
-            "time": [1, 2, 3, 4, 5]}
+        {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, None, 6], "time": [1, 2, 3, 4, 5]}
     )
-    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
-        Graph.load_from_pandas(
-            edges_df,
-            "src",
-            "dst",
-            "time"
-        )
+    with pytest.raises(
+        Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
+    ):
+        Graph.load_from_pandas(edges_df, "src", "dst", "time")
 
     edges_df = pd.DataFrame(
-        {
-            "src": [1, 2, 3, 4, 5],
-            "dst": [2, 3, 4, 5, 6],
-            "time": [1, 2, None, 4, 5]}
+        {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, None, 4, 5]}
     )
-    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
-        Graph.load_from_pandas(
-            edges_df,
-            "src",
-            "dst",
-            "time"
-        )
+    with pytest.raises(
+        Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
+    ):
+        Graph.load_from_pandas(edges_df, "src", "dst", "time")
+
 
 def test_unparsable_props():
     edges_df = pd.DataFrame(
@@ -513,7 +520,12 @@ def test_unparsable_props():
         }
     )
 
-    with pytest.raises(Exception, match=re.escape(""""Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'""")):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
+        ),
+    ):
         Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -522,7 +534,12 @@ def test_unparsable_props():
             edge_props=["weight"],
         )
 
-    with pytest.raises(Exception, match=re.escape('Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values.')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values."
+        ),
+    ):
         Graph.load_from_pandas(
             edges_df,
             edge_src="src",

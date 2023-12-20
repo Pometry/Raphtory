@@ -184,9 +184,9 @@ def test_windows_and_layers():
 
     g_lotr = graph_loader.lotr_graph()
     g_layers = Graph()
-    g_layers.add_edge(1,1,2,layer="layer1")
-    g_layers.add_edge(1,2,3,layer="layer2")
-    hm = {"lotr":g_lotr,"layers":g_layers}
+    g_layers.add_edge(1, 1, 2, layer="layer1")
+    g_layers.add_edge(1, 2, 3, layer="layer2")
+    hm = {"lotr": g_lotr, "layers": g_layers}
     server = RaphtoryServer(hm).start()
     server.wait_for_online()
     q = """
@@ -299,4 +299,3 @@ def test_windows_and_layers():
     assert json_a == json_ra
     server.stop()
     server.wait()
-

@@ -6,11 +6,7 @@ use raphtory::{
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
 };
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 use walkdir::WalkDir;
 
 pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
