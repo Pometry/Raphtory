@@ -60,6 +60,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use chrono::NaiveDateTime;
 use std::{
     cmp::{max, min},
     fmt::{Debug, Formatter},
@@ -123,6 +124,13 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .into_iter()
             .map(|(t, _)| t)
             .collect()
+    }
+
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.temporal_prop_vec(id)
+            .into_iter()
+            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
+            .collect::<Option<Vec<NaiveDateTime>>>()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
