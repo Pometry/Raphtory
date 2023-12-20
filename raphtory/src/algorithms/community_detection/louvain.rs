@@ -64,5 +64,5 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_on_components() {}
+    fn test_on_lfr() {}
 }
