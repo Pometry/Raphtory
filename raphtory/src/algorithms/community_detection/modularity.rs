@@ -2,7 +2,6 @@ use crate::{
     core::entities::VID,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
 };
-use reqwest::multipart::Part;
 use std::collections::{hash_map::Entry, HashMap, HashSet};
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Hash)]
@@ -107,6 +106,7 @@ pub trait ModularityFunction {
         graph: G,
         weight_prop: Option<&str>,
         resolution: f64,
+        partition: Partition,
     ) -> Self;
 
     /// Compute modularity delta for moving a node to new community
@@ -119,17 +119,19 @@ pub trait ModularityFunction {
     fn candidate_moves(&self, node: &VID) -> Box<dyn Iterator<Item = ComID> + '_>;
 
     /// Aggregate the modularity function (coarse-grained to communities in partition)
-    fn aggregate(self) -> (Self, Partition)
-    where
-        Self: Sized;
+    /// and return the partition
+    fn aggregate(&mut self) -> Partition;
 
     /// Return modularity value for partition
     fn value(&self) -> f64;
 
     /// Get the partition
     fn partition(&self) -> &Partition;
+
+    fn nodes(&self) -> Box<dyn Iterator<Item = VID>>;
 }
 
+/// Undirected modularity function (assumes edges are all present in both directions in the graph)
 pub struct ModularityUnDir {
     resolution: f64,
     partition: Partition,
@@ -145,6 +147,7 @@ impl ModularityFunction for ModularityUnDir {
         graph: G,
         weight_prop: Option<&str>,
         resolution: f64,
+        partition: Partition,
     ) -> Self {
         let n = graph.count_nodes();
         let local_id_map: HashMap<_, _> = graph
@@ -153,7 +156,6 @@ impl ModularityFunction for ModularityUnDir {
             .enumerate()
             .map(|(i, n)| (n, VID(i)))
             .collect();
-        let partition = Partition::new_singletons(n);
         let adj: Vec<_> = graph
             .nodes()
             .iter()
@@ -251,7 +253,7 @@ impl ModularityFunction for ModularityUnDir {
         Box::new(self.adj_com[node.index()].iter().map(|(c, _)| *c))
     }
 
-    fn aggregate(self) -> (Self, Partition) {
+    fn aggregate(&mut self) -> Partition {
         let (new_partition, new_to_old, old_to_new) = self.partition.compact();
         let adj_com: Vec<_> = new_partition
             .coms()
@@ -280,17 +282,11 @@ impl ModularityFunction for ModularityUnDir {
             .collect();
         let k_com = k.clone();
         let partition = Partition::new_singletons(new_partition.num_coms());
-        (
-            Self {
-                adj,
-                k,
-                adj_com,
-                k_com,
-                partition,
-                ..self
-            },
-            new_partition,
-        )
+        self.adj = adj;
+        self.k = k;
+        self.k_com = k_com;
+        self.partition = partition;
+        new_partition
     }
 
     fn value(&self) -> f64 {
@@ -309,6 +305,10 @@ impl ModularityFunction for ModularityUnDir {
 
     fn partition(&self) -> &Partition {
         &self.partition
+    }
+
+    fn nodes(&self) -> Box<dyn Iterator<Item = VID>> {
+        Box::new((0..self.partition.num_nodes()).map(VID))
     }
 }
 
@@ -333,7 +333,7 @@ mod test {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
-        let mut m = ModularityUnDir::new(&g, None, 1.0);
+        let mut m = ModularityUnDir::new(&g, None, 1.0, Partition::new_singletons(g.count_nodes()));
         let old_value = m.value();
         assert_eq!(old_value, -0.5);
         let delta = m.move_delta(&VID(0), ComID(1));
