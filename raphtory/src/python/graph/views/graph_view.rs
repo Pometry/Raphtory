@@ -25,14 +25,13 @@ use crate::{
     prelude::*,
     python::{
         graph::{edge::PyEdges, node::PyNodes},
-        types::repr::Repr,
+        types::repr::{Repr, StructReprBuilder},
         utils::{PyInterval, PyTime},
     },
     *,
 };
 use chrono::prelude::*;
 use pyo3::{prelude::*, types::PyBytes};
-use crate::python::types::repr::StructReprBuilder;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -307,7 +306,10 @@ impl Repr for PyGraphView {
             StructReprBuilder::new("Graph")
                 .add_field("number_of_nodes", self.graph.count_nodes())
                 .add_field("number_of_edges", self.graph.count_edges())
-                .add_field("number_of_temporal_edges", self.graph.count_temporal_edges())
+                .add_field(
+                    "number_of_temporal_edges",
+                    self.graph.count_temporal_edges(),
+                )
                 .add_field("earliest_time", self.earliest_time())
                 .add_field("latest_time", self.latest_time())
                 .finish()
@@ -315,7 +317,10 @@ impl Repr for PyGraphView {
             StructReprBuilder::new("Graph")
                 .add_field("number_of_nodes", self.graph.count_nodes())
                 .add_field("number_of_edges", self.graph.count_edges())
-                .add_field("number_of_temporal_edges", self.graph.count_temporal_edges())
+                .add_field(
+                    "number_of_temporal_edges",
+                    self.graph.count_temporal_edges(),
+                )
                 .add_field("earliest_time", self.earliest_time())
                 .add_field("latest_time", self.latest_time())
                 .add_field("properties", self.properties())
