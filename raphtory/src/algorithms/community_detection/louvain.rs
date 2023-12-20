@@ -92,7 +92,9 @@ pub fn louvain<'graph, G: GraphViewOps<'graph>>(
             break;
         }
         mod_val = new_mod;
+        (graph, nodes_data) = gen_graph(&graph, &inner_partition, &nodes_data, weight);
     }
+
     // don't listen to IntelliJ, no reason to clone
     partition
 }
@@ -119,7 +121,7 @@ fn gen_graph<'graph, G: GraphViewOps<'graph>>(
             .add_node(graph.latest_time().unwrap(), i as u64, NO_PROPS)
             .expect("Error adding node");
     }
-
+    assert_eq!(new_g.count_nodes(), partition.len());
     for e in graph.edges().into_iter() {
         let weight_name = weight.unwrap_or("weight");
         let com1: COMM_ID = node2com.get(&e.src().id()).unwrap().clone();
@@ -153,6 +155,7 @@ fn gen_graph<'graph, G: GraphViewOps<'graph>>(
             .expect("Error adding edge");
     }
 
+    assert_eq!(new_g.count_nodes(), partition.len());
     (new_g, new_nodes_data)
 }
 
@@ -174,7 +177,7 @@ fn degree_sum<'graph, G: GraphViewOps<'graph>>(
             .map(|e| {
                 e.properties()
                     .get(weight_key)
-                    .unwrap_or(Prop::F64(0.0f64))
+                    .unwrap_or(Prop::F64(1.0f64))
                     .unwrap_f64()
             })
             .sum::<f64>(),
@@ -183,7 +186,7 @@ fn degree_sum<'graph, G: GraphViewOps<'graph>>(
             .map(|e| {
                 e.properties()
                     .get(weight_key)
-                    .unwrap_or(Prop::F64(0.0f64))
+                    .unwrap_or(Prop::F64(1.0f64))
                     .unwrap_f64()
             })
             .sum::<f64>(),
@@ -192,7 +195,7 @@ fn degree_sum<'graph, G: GraphViewOps<'graph>>(
             .map(|e| {
                 e.properties()
                     .get(weight_key)
-                    .unwrap_or(Prop::F64(0.0f64))
+                    .unwrap_or(Prop::F64(1.0f64))
                     .unwrap_f64()
             })
             .sum::<f64>(),
@@ -214,6 +217,7 @@ where
 {
     let mut node2com: HashMap<GID, COMM_ID> = HashMap::new();
     let mut inner_partition: Vec<HashSet<GID>> = vec![];
+    assert_eq!(partition.len(), graph.count_nodes());
 
     for (i, v) in graph.nodes().iter().enumerate() {
         node2com.insert(v.id().clone(), i);
@@ -363,6 +367,18 @@ where
             }
             if best_com != *node2com.get(&u.id()).unwrap() {
                 let temp_gid: GID = u.id();
+                if best_com >= partition.len() {
+                    println!("it is broken")
+                }
+
+                if *node2com.get(&temp_gid).unwrap() >= partition.len() {
+                    println!("this is even more weird")
+                }
+
+                println!(
+                    "moving {temp_gid} from {} to {best_com}",
+                    node2com.get(&u.id()).unwrap()
+                );
                 let com = nodes_data.get(&temp_gid).unwrap();
                 partition[*node2com.get(&temp_gid).unwrap()].retain(|x| !com.contains(x));
                 inner_partition[node2com[&temp_gid].clone()].remove(&temp_gid);
@@ -374,7 +390,7 @@ where
             }
         }
     }
-    let new_partition = partition
+    let new_partition: Vec<_> = partition
         .iter()
         .filter(|v| !v.is_empty())
         .cloned()
@@ -384,6 +400,7 @@ where
         .filter(|v| !v.is_empty())
         .collect();
     println!("Done");
+    assert_eq!(new_partition.len(), inner_partition.len());
     (new_partition, inner_partition, improvement)
 }
 
@@ -408,7 +425,8 @@ where
 mod louvain_test {
     use super::*;
     use proptest::prelude::*;
-    use std::collections::HashMap;
+    use serde::{Deserialize, Serialize};
+    use std::{collections::HashMap, path::PathBuf};
 
     #[test]
     fn test_neighbor_weights() {
@@ -537,5 +555,31 @@ mod louvain_test {
         // fn test_all_nodes_in_communities(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
         //     prop_assert!(test_all_nodes_assigned_inner(edges))
         // }
+    }
+
+    #[cfg(feature = "io")]
+    #[test]
+    fn lfr_test() {
+        use crate::graph_loader::source::csv_loader::CsvLoader;
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("resources/test");
+        let loader = CsvLoader::new(d.join("test.csv")).set_delimiter(",");
+        let g = Graph::new();
+
+        #[derive(Deserialize, Serialize, Debug)]
+        struct CsvEdge {
+            src: u64,
+            dst: u64,
+        }
+
+        loader
+            .load_into_graph(&g, |e: CsvEdge, g| {
+                g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
+                g.add_edge(1, e.dst, e.src, NO_PROPS, None).unwrap();
+            })
+            .unwrap();
+
+        let res = louvain(&g, None, None, None, None, true);
+        println!("{res:?}")
     }
 }

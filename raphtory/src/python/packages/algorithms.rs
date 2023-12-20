@@ -1,13 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    algorithms::dynamics::temporal::epidemics::{
-        temporal_SEIR as temporal_SEIR_rs, Infected, SeedError,
-    },
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    python::{graph::edge::PyDirection, utils::PyTime},
-};
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
 /// To run an algorithm simply import the module and call the function with the graph as the argument
@@ -49,6 +41,15 @@ use crate::{
     },
     core::entities::nodes::node_ref::NodeRef,
     python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
+};
+use crate::{
+    algorithms::{
+        community_detection::louvain::louvain,
+        dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
+    },
+    core::Prop,
+    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    python::{graph::edge::PyDirection, utils::PyTime},
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -660,5 +661,24 @@ pub fn temporal_SEIR(
         initial_infection,
         seeds,
         &mut rng,
+    )
+}
+
+#[pyfunction(name = "louvain")]
+#[pyo3(signature=(graph, is_directed=true, weight=None, resolution=None, threshold=None))]
+pub fn py_louvain(
+    graph: &PyGraphView,
+    is_directed: bool,
+    weight: Option<&str>,
+    resolution: Option<f64>,
+    threshold: Option<f64>,
+) -> Vec<HashSet<u64>> {
+    louvain(
+        &graph.graph,
+        weight,
+        resolution,
+        threshold,
+        None,
+        is_directed,
     )
 }
