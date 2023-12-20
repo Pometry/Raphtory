@@ -2,7 +2,10 @@ use crate::{
     core::entities::VID,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
 };
-use std::collections::{hash_map::Entry, HashMap, HashSet};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    mem,
+};
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Hash)]
 #[repr(transparent)]
@@ -223,25 +226,21 @@ impl ModularityFunction for ModularityUnDir {
         let old_com = self.partition.com(node);
         if old_com != new_com {
             for (n, w) in &self.adj[node.index()] {
-                if self.partition.com(n) == old_com {
-                    match self.adj_com[n.index()]
-                        .entry(old_com)
-                        .and_modify(|v| *v -= w)
-                    {
-                        Entry::Occupied(v) => {
-                            if *v.get() < 1e-8 {
-                                v.remove();
-                            }
-                        }
-                        _ => {
-                            // should only be possible for small values due to tolerance above
-                            debug_assert!(*w < 1e-8)
+                match self.adj_com[n.index()]
+                    .entry(old_com)
+                    .and_modify(|v| *v -= w)
+                {
+                    Entry::Occupied(v) => {
+                        if *v.get() < 1e-8 {
+                            v.remove();
                         }
                     }
+                    _ => {
+                        // should only be possible for small values due to tolerance above
+                        debug_assert!(*w < 1e-8)
+                    }
                 }
-                if self.partition.com(n) == new_com {
-                    *self.adj_com[n.index()].entry(new_com).or_insert(0.0) += w;
-                }
+                *self.adj_com[n.index()].entry(new_com).or_insert(0.0) += w;
             }
             self.k_com[old_com.index()] -= self.k[node.index()];
             self.k_com[new_com.index()] += self.k[node.index()];
@@ -254,7 +253,8 @@ impl ModularityFunction for ModularityUnDir {
     }
 
     fn aggregate(&mut self) -> Partition {
-        let (new_partition, new_to_old, old_to_new) = self.partition.compact();
+        let old_partition = mem::take(&mut self.partition);
+        let (new_partition, new_to_old, old_to_new) = old_partition.compact();
         let adj_com: Vec<_> = new_partition
             .coms()
             .map(|(c_new, com)| {
