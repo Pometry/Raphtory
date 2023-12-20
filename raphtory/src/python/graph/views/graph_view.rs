@@ -31,9 +31,8 @@ use crate::{
     *,
 };
 use chrono::prelude::*;
-use itertools::Itertools;
 use pyo3::{prelude::*, types::PyBytes};
-use std::ops::Deref;
+use crate::python::types::repr::StructReprBuilder;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -304,28 +303,23 @@ impl_timeops!(PyGraphView, graph, DynamicGraph, "graph");
 
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
-        let num_edges = self.graph.count_edges();
-        let num_nodes = self.graph.count_nodes();
-        let num_temporal_edges: usize = self.graph.count_temporal_edges();
-        let earliest_time = self.graph.earliest_time().repr();
-        let latest_time = self.graph.latest_time().repr();
-        let properties: String = self
-            .graph
-            .properties()
-            .iter()
-            .map(|(k, v)| format!("{}: {}", k.deref(), v))
-            .join(", ");
-        if properties.is_empty() {
-            format!(
-                "Graph(number_of_nodes={:?}, number_of_edges={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
-                num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time
-            )
+        if self.properties().is_empty() {
+            StructReprBuilder::new("Graph")
+                .add_field("number_of_nodes", self.graph.count_nodes())
+                .add_field("number_of_edges", self.graph.count_edges())
+                .add_field("number_of_temporal_edges", self.graph.count_temporal_edges())
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .finish()
         } else {
-            let property_string: String = format!("{{{properties}}}");
-            format!(
-                "Graph(number_of_nodes={:?}, number_of_edges={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
-                num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time, property_string
-            )
+            StructReprBuilder::new("Graph")
+                .add_field("number_of_nodes", self.graph.count_nodes())
+                .add_field("number_of_edges", self.graph.count_edges())
+                .add_field("number_of_temporal_edges", self.graph.count_temporal_edges())
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .add_field("properties", self.properties())
+                .finish()
         }
     }
 }

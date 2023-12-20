@@ -639,7 +639,6 @@ pub fn label_propagation(
 ///
 ///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
 ///
-
 #[pyfunction(name = "temporal_SEIR")]
 pub fn temporal_SEIR(
     graph: &PyGraphView,

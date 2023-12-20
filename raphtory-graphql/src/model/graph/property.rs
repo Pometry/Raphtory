@@ -73,7 +73,7 @@ pub(crate) struct GqlProperties {
     props: DynProperties,
 }
 impl GqlProperties {
-    #[allow(dead_code)]
+    #[allow(dead_code)] //This is actually being used, but for some reason cargo complains
     pub(crate) fn new(props: DynProperties) -> Self {
         Self { props }
     }
