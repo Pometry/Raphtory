@@ -36,8 +36,9 @@ use crate::{
             wrappers::iterators::{
                 ArcStringVecIterable, I64VecIterable, NestedArcStringVecIterable,
                 NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionArcStringIterable,
-                NestedOptionI64Iterable, NestedU64U64Iterable, OptionArcStringIterable,
-                OptionI64Iterable, OptionNaiveDateTimeIterable, U64U64Iterable,
+                NestedOptionI64Iterable, NestedU64U64Iterable, NestedVecNaiveDateTimeIterable,
+                OptionArcStringIterable, OptionI64Iterable, OptionNaiveDateTimeIterable,
+                OptionVecNaiveDateTimeIterable, U64U64Iterable,
             },
         },
         utils::{PyGenericIterator, PyInterval, PyTime},
@@ -202,10 +203,19 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     A list of timestamps.
+    ///     A list of unix timestamps.
     ///
     pub fn history(&self) -> Vec<i64> {
         self.edge.history()
+    }
+
+    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///     A list of timestamps.
+    ///
+    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+        self.edge.history_date_time()
     }
 
     /// Returns a view of the properties of the edge.
@@ -600,12 +610,22 @@ impl PyEdges {
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    A list of timestamps.
+    ///    A list of unix timestamps.
     ///
 
     fn history(&self) -> I64VecIterable {
         let edges = self.builder.clone();
         (move || edges().history()).into()
+    }
+
+    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    ///
+    /// Returns:
+    ///    An  list of timestamps.
+    ///
+    fn history_date_time(&self) -> OptionVecNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().history_date_time()).into()
     }
 
     /// Get the start time of all edges
@@ -964,6 +984,12 @@ impl PyNestedEdges {
     fn history(&self) -> NestedI64VecIterable {
         let edges = self.builder.clone();
         (move || edges().history()).into()
+    }
+
+    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    fn history_date_time(&self) -> NestedVecNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().history_date_time()).into()
     }
 
     /// Get the start time of all edges

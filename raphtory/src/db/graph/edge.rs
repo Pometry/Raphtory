@@ -429,6 +429,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|e| e.history()))
     }
+    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|e| e.history_date_time()))
+    }
 
     fn start(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.start()))
@@ -522,6 +525,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
 
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|it| it.history()))
+    }
+    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|it| it.history_date_time()))
     }
 
     fn start(self) -> Self::IterType<Option<i64>> {

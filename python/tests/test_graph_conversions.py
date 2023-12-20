@@ -40,110 +40,115 @@ def test_py_vis():
     g = build_graph()
     pyvis_g = export.to_pyvis(g, directed=True)
 
-    compare_list_of_dicts(pyvis_g.nodes, [
-        {
-            "color": "#97c2fc",
-            "id": 7678824742430955432,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerA",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 7718004695861170879,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerB",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 17918514325589227856,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerC",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 14902018402467198225,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerD",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 11577954539736240602,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerE",
-            "shape": "dot",
-        },
-    ])
+    compare_list_of_dicts(
+        pyvis_g.nodes,
+        [
+            {
+                "color": "#97c2fc",
+                "id": 7678824742430955432,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerA",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 7718004695861170879,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerB",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 17918514325589227856,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerC",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 14902018402467198225,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerD",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 11577954539736240602,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerE",
+                "shape": "dot",
+            },
+        ],
+    )
 
-
-    compare_list_of_dicts(pyvis_g.edges, [
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7678824742430955432,
-            "title": "",
-            "to": 7718004695861170879,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7678824742430955432,
-            "title": "",
-            "to": 17918514325589227856,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7718004695861170879,
-            "title": "",
-            "to": 14902018402467198225,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 17918514325589227856,
-            "title": "",
-            "to": 7678824742430955432,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 14902018402467198225,
-            "title": "",
-            "to": 17918514325589227856,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 14902018402467198225,
-            "title": "",
-            "to": 11577954539736240602,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 11577954539736240602,
-            "title": "",
-            "to": 7718004695861170879,
-            "value": 1,
-        },
-    ])
+    compare_list_of_dicts(
+        pyvis_g.edges,
+        [
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7678824742430955432,
+                "title": "",
+                "to": 7718004695861170879,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7678824742430955432,
+                "title": "",
+                "to": 17918514325589227856,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7718004695861170879,
+                "title": "",
+                "to": 14902018402467198225,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 17918514325589227856,
+                "title": "",
+                "to": 7678824742430955432,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 14902018402467198225,
+                "title": "",
+                "to": 17918514325589227856,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 14902018402467198225,
+                "title": "",
+                "to": 11577954539736240602,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 11577954539736240602,
+                "title": "",
+                "to": 7718004695861170879,
+                "value": 1,
+            },
+        ],
+    )
 
 
 def test_networkx_full_history():
@@ -959,8 +964,9 @@ def normalise_dict(d):
 
 
 def compare_list_of_dicts(list1, list2):
-    assert sorted(normalise_dict(v) for v in list1) == sorted(normalise_dict(v) for v in list2)
-
+    assert sorted(normalise_dict(v) for v in list1) == sorted(
+        normalise_dict(v) for v in list2
+    )
 
 
 def test_to_df():
@@ -1025,7 +1031,5 @@ def test_to_df():
     )
     compare_df(
         export.to_node_df(g, include_property_histories=False),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"
-        ),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"),
     )

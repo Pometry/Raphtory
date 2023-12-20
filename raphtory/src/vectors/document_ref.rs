@@ -47,6 +47,7 @@ impl DocumentRef {
             life,
         }
     }
+    #[allow(dead_code)]
     pub fn id(&self) -> (EntityId, usize) {
         (self.entity_id, self.index)
     }
