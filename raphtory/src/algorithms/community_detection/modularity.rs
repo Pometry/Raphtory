@@ -137,6 +137,7 @@ pub trait ModularityFunction {
         weight_prop: Option<&str>,
         resolution: f64,
         partition: Partition,
+        tol: f64,
     ) -> Self;
 
     /// Compute modularity delta for moving a node to new community
@@ -171,6 +172,7 @@ pub struct ModularityUnDir {
     adj_com: Vec<HashMap<ComID, f64>>,
     k_com: Vec<f64>,
     m2: f64,
+    tol: f64,
 }
 
 impl ModularityFunction for ModularityUnDir {
@@ -179,6 +181,7 @@ impl ModularityFunction for ModularityUnDir {
         weight_prop: Option<&str>,
         resolution: f64,
         partition: Partition,
+        tol: f64,
     ) -> Self {
         let n = graph.count_nodes();
         let local_id_map: HashMap<_, _> = graph
@@ -200,6 +203,7 @@ impl ModularityFunction for ModularityUnDir {
                         let dst_id = local_id_map[&e.nbr()];
                         (dst_id, w)
                     })
+                    .filter(|(_, w)| w >= &tol)
                     .collect::<Vec<_>>()
             })
             .collect();
@@ -214,6 +218,7 @@ impl ModularityFunction for ModularityUnDir {
                             .map(|w| e.properties().get(w).unwrap_f64())
                             .unwrap_or(1.0)
                     })
+                    .filter(|w| w >= &tol)
                     .unwrap_or(0.0)
             })
             .collect();
@@ -254,6 +259,7 @@ impl ModularityFunction for ModularityUnDir {
             k_com,
             resolution,
             m2,
+            tol,
         }
     }
 
@@ -431,7 +437,13 @@ mod test {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
-        let mut m = ModularityUnDir::new(&g, None, 1.0, Partition::new_singletons(g.count_nodes()));
+        let mut m = ModularityUnDir::new(
+            &g,
+            None,
+            1.0,
+            Partition::new_singletons(g.count_nodes()),
+            1e-8,
+        );
         let old_value = m.value();
         assert_eq!(old_value, -0.5);
         let delta = m.move_delta(&VID(0), ComID(1));
@@ -450,7 +462,7 @@ mod test {
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
         g.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
         g.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
-        let mut m = ModularityUnDir::new(&g, None, 1.0, partition);
+        let mut m = ModularityUnDir::new(&g, None, 1.0, partition, 1e-8);
         let value_before = m.value();
         let _ = m.aggregate();
         let value_after = m.value();

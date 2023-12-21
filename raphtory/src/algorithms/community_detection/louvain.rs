@@ -23,6 +23,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
         weight_prop,
         resolution,
         Partition::new_singletons(graph.count_nodes()),
+        tol,
     );
     let mut global_partition: HashMap<_, _> = graph
         .nodes()
@@ -108,7 +109,6 @@ mod test {
             g.add_edge(1, dst, src, [("weight", weight)], None).unwrap();
         }
         let result = louvain::<ModularityUnDir, _>(&g, 1.0, Some("weight"), None);
-        println!("Result: {result:?}");
         g.nodes().iter().all(|n| result.get(n).is_some())
     }
 
@@ -119,20 +119,19 @@ mod test {
             g.add_edge(1, dst, src, NO_PROPS, None).unwrap();
         }
         let result = louvain::<ModularityUnDir, _>(&g, 1.0, None, None);
-        println!("Result: {result:?}");
         g.nodes().iter().all(|n| result.get(n).is_some())
     }
 
     proptest! {
         #[test]
+        fn test_all_nodes_in_communities(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
+            prop_assert!(test_all_nodes_assigned_inner(edges))
+        }
+
+        #[test]
         fn test_all_nodes_assigned_unweighted(edges in any::<Vec<(u8, u8)>>().prop_map(|v| v.into_iter().map(|(s, d)|  (s as u64, d as u64)).collect::<Vec<_>>())) {
             prop_assert!(test_all_nodes_assigned_inner_unweighted(edges))
         }
-
-        // #[test]
-        // fn test_all_nodes_in_communities(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
-        //     prop_assert!(test_all_nodes_assigned_inner(edges))
-        // }
     }
 
     #[cfg(feature = "io")]
