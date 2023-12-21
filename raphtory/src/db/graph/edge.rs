@@ -274,6 +274,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .map(|(t, _)| t)
             .collect()
     }
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.graph
+            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
+            .into_iter()
+            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
+            .collect::<Option<Vec<NaiveDateTime>>>()
+    }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);

@@ -178,6 +178,10 @@ impl<
         self.edge.temporal_history(id)
     }
 
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.edge.temporal_history_date_time(id)
+    }
+
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.edge.temporal_values(id)
     }

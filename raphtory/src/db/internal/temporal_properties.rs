@@ -2,6 +2,7 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, ArcStr, Prop},
     db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
 };
+use chrono::NaiveDateTime;
 
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
@@ -14,6 +15,17 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
         self.inner()
             .get_temporal_prop(id)
             .map(|prop| prop.iter().map(|(t, _)| t).collect())
+            .unwrap_or_default()
+    }
+
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.inner()
+            .get_temporal_prop(id)
+            .map(|prop| {
+                prop.iter()
+                    .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
+                    .collect::<Option<Vec<NaiveDateTime>>>()
+            })
             .unwrap_or_default()
     }
 
