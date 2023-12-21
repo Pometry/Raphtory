@@ -191,13 +191,13 @@ impl ModularityFunction for ModularityUnDir {
             .nodes()
             .iter()
             .map(|node| {
-                node.out_edges()
+                node.edges()
                     .filter(|e| e.dst() != e.src())
                     .map(|e| {
                         let w = weight_prop
                             .map(|w| e.properties().get(w).unwrap_f64())
                             .unwrap_or(1.0);
-                        let dst_id = local_id_map[&e.dst()];
+                        let dst_id = local_id_map[&e.nbr()];
                         (dst_id, w)
                     })
                     .collect::<Vec<_>>()

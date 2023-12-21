@@ -156,7 +156,6 @@ mod test {
                     println!("self loop")
                 } else {
                     g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
-                    g.add_edge(1, e.dst, e.src, NO_PROPS, None).unwrap();
                 }
             })
             .unwrap();
