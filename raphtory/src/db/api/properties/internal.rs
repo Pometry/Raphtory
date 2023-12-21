@@ -2,6 +2,7 @@ use crate::{
     core::{ArcStr, Prop},
     db::api::view::internal::Base,
 };
+use chrono::NaiveDateTime;
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch]
@@ -10,6 +11,12 @@ pub trait TemporalPropertyViewOps {
         self.temporal_values(id).last().cloned()
     }
     fn temporal_history(&self, id: usize) -> Vec<i64>;
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.temporal_history(id)
+            .iter()
+            .map(|t| NaiveDateTime::from_timestamp_millis(*t))
+            .collect::<Option<Vec<NaiveDateTime>>>()
+    }
     fn temporal_values(&self, id: usize) -> Vec<Prop>;
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
         let history = self.temporal_history(id);
@@ -81,6 +88,10 @@ where
     #[inline]
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.base().temporal_history(id)
+    }
+    #[inline]
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.base().temporal_history_date_time(id)
     }
 
     #[inline]
