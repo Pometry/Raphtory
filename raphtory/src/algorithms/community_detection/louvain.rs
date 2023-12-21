@@ -56,11 +56,6 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
             }
         }
         let partition = modularity_state.aggregate();
-        println!(
-            "Finished outer iteration, num_coms={}, modularity={}",
-            partition.num_coms(),
-            modularity_state.value()
-        );
         for c in global_partition.values_mut() {
             *c = partition.com(&VID(*c)).index();
         }
