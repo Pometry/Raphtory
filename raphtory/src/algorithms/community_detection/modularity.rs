@@ -17,10 +17,37 @@ impl ComID {
     }
 }
 
+impl From<usize> for ComID {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl<'a> From<&'a usize> for ComID {
+    fn from(value: &'a usize) -> Self {
+        Self(*value)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Partition {
     node_to_com: Vec<ComID>,
     com_to_nodes: Vec<HashSet<VID>>,
+}
+
+impl<C: Into<ComID>> FromIterator<C> for Partition {
+    fn from_iter<T: IntoIterator<Item = C>>(iter: T) -> Self {
+        let node_to_com: Vec<_> = iter.into_iter().map(|c| c.into()).collect();
+        let num_coms = node_to_com.iter().max().map(|n| n.index() + 1).unwrap_or(0);
+        let mut com_to_nodes: Vec<HashSet<VID>> = (0..num_coms).map(|_| HashSet::new()).collect();
+        for (i, c) in node_to_com.iter().enumerate() {
+            com_to_nodes[c.index()].insert(VID(i));
+        }
+        Self {
+            node_to_com,
+            com_to_nodes,
+        }
+    }
 }
 
 impl Partition {
@@ -139,6 +166,7 @@ pub struct ModularityUnDir {
     resolution: f64,
     partition: Partition,
     adj: Vec<Vec<(VID, f64)>>,
+    self_loops: Vec<f64>,
     k: Vec<f64>,
     adj_com: Vec<HashMap<ComID, f64>>,
     k_com: Vec<f64>,
@@ -164,6 +192,7 @@ impl ModularityFunction for ModularityUnDir {
             .iter()
             .map(|node| {
                 node.out_edges()
+                    .filter(|e| e.dst() != e.src())
                     .map(|e| {
                         let w = weight_prop
                             .map(|w| e.properties().get(w).unwrap_f64())
@@ -174,19 +203,39 @@ impl ModularityFunction for ModularityUnDir {
                     .collect::<Vec<_>>()
             })
             .collect();
+        let self_loops: Vec<_> = graph
+            .nodes()
+            .iter()
+            .map(|node| {
+                graph
+                    .edge(node.node, node.node)
+                    .map(|e| {
+                        weight_prop
+                            .map(|w| e.properties().get(w).unwrap_f64())
+                            .unwrap_or(1.0)
+                    })
+                    .unwrap_or(0.0)
+            })
+            .collect();
         let k: Vec<f64> = adj
             .iter()
             .map(|neighbours| neighbours.iter().map(|(_, w)| w).sum())
             .collect();
         let adj_com: Vec<_> = adj
             .iter()
-            .map(|neighbours| {
+            .enumerate()
+            .map(|(index, neighbours)| {
                 let mut com_neighbours = HashMap::new();
                 for (n, w) in neighbours {
                     com_neighbours
                         .entry(partition.com(n))
                         .and_modify(|old_w| *old_w += *w)
                         .or_insert(*w);
+                }
+                if self_loops[index] != 0.0 {
+                    *com_neighbours
+                        .entry(partition.com(&VID(index)))
+                        .or_insert(0.0) += self_loops[index];
                 }
                 com_neighbours
             })
@@ -199,6 +248,7 @@ impl ModularityFunction for ModularityUnDir {
         Self {
             partition,
             adj,
+            self_loops,
             k,
             adj_com,
             k_com,
@@ -212,19 +262,41 @@ impl ModularityFunction for ModularityUnDir {
         if old_com == new_com {
             0.0
         } else {
-            (self.adj_com[node.index()].get(&new_com).unwrap_or(&0.0)
-                - self.adj_com[node.index()].get(&old_com).unwrap_or(&0.0)
-                + self.resolution
-                    * self.k[node.index()]
-                    * (self.k_com[old_com.index()] - self.k_com[new_com.index()])
-                    / self.m2)
-                / self.m2
+            let a = 2.0
+                * (self.adj_com[node.index()].get(&new_com).unwrap_or(&0.0)
+                    - self.adj_com[node.index()].get(&old_com).unwrap_or(&0.0)
+                    + self.self_loops[node.index()]);
+            let p = 2.0
+                * (self.k[node.index()]
+                    * (self.k_com[new_com.index()] - self.k_com[old_com.index()])
+                    + self.k[node.index()].powi(2));
+
+            (a - self.resolution * p / self.m2) / self.m2
         }
     }
 
     fn move_node(&mut self, node: &VID, new_com: ComID) {
         let old_com = self.partition.com(node);
         if old_com != new_com {
+            let w_self = self.self_loops[node.index()];
+            match self.adj_com[node.index()]
+                .entry(old_com)
+                .and_modify(|v| *v -= w_self)
+            {
+                Entry::Occupied(v) => {
+                    if *v.get() < 1e-8 {
+                        v.remove();
+                    }
+                }
+                _ => {
+                    // should only be possible for small values due to tolerance above
+                    debug_assert!(w_self < 1e-8)
+                }
+            }
+            if w_self != 0.0 {
+                *self.adj_com[node.index()].entry(new_com).or_insert(0.0) += w_self;
+            }
+
             for (n, w) in &self.adj[node.index()] {
                 match self.adj_com[n.index()]
                     .entry(old_com)
@@ -240,7 +312,24 @@ impl ModularityFunction for ModularityUnDir {
                         debug_assert!(*w < 1e-8)
                     }
                 }
+                match self.adj_com[node.index()]
+                    .entry(self.partition.com(n))
+                    .and_modify(|v| *v -= w)
+                {
+                    Entry::Occupied(v) => {
+                        if *v.get() < 1e-8 {
+                            v.remove();
+                        }
+                    }
+                    _ => {
+                        // should only be possible for small values due to tolerance above
+                        debug_assert!(*w < 1e-8)
+                    }
+                }
                 *self.adj_com[n.index()].entry(new_com).or_insert(0.0) += w;
+                *self.adj_com[node.index()]
+                    .entry(self.partition.com(n))
+                    .or_insert(0.0) += w;
             }
             self.k_com[old_com.index()] -= self.k[node.index()];
             self.k_com[new_com.index()] += self.k[node.index()];
@@ -269,12 +358,19 @@ impl ModularityFunction for ModularityUnDir {
             .collect();
         let adj: Vec<_> = adj_com
             .iter()
-            .map(|neighbours| {
+            .enumerate()
+            .map(|(index, neighbours)| {
                 neighbours
                     .iter()
+                    .filter(|(ComID(c), _)| c != &index)
                     .map(|(ComID(index), w)| (VID(*index), *w))
                     .collect::<Vec<_>>()
             })
+            .collect();
+        let self_loops: Vec<_> = adj_com
+            .iter()
+            .enumerate()
+            .map(|(index, neighbours)| neighbours.get(&ComID(index)).copied().unwrap_or(0.0))
             .collect();
         let k: Vec<_> = new_to_old
             .into_iter()
@@ -283,6 +379,8 @@ impl ModularityFunction for ModularityUnDir {
         let k_com = k.clone();
         let partition = Partition::new_singletons(new_partition.num_coms());
         self.adj = adj;
+        self.adj_com = adj_com;
+        self.self_loops = self_loops;
         self.k = k;
         self.k_com = k_com;
         self.partition = partition;
@@ -340,5 +438,28 @@ mod test {
         println!("delta: {delta}");
         m.move_node(&VID(0), ComID(1));
         assert_eq!(m.value(), old_value + delta)
+    }
+
+    #[test]
+    fn test_aggregation() {
+        let partition = Partition::from_iter([0usize, 0, 1, 1]);
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 0, NO_PROPS, None).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
+        g.add_edge(0, 0, 3, NO_PROPS, None).unwrap();
+        g.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
+        let mut m = ModularityUnDir::new(&g, None, 1.0, partition);
+        let value_before = m.value();
+        let _ = m.aggregate();
+        let value_after = m.value();
+        println!("before: {value_before}, after: {value_after}");
+        assert_eq!(value_after, value_before);
+        let delta = m.move_delta(&VID(0), ComID(1));
+        m.move_node(&VID(0), ComID(1));
+        let value_merged = m.value();
+        assert_eq!(value_merged, 0.0);
+        assert!((value_merged - (value_after + delta)).abs() < 1e-8);
     }
 }

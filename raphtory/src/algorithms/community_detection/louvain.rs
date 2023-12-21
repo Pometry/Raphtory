@@ -6,6 +6,8 @@ use crate::{
     core::entities::VID,
     prelude::GraphViewOps,
 };
+use itertools::Itertools;
+use rand::prelude::SliceRandom;
 use std::collections::HashMap;
 
 pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
@@ -15,6 +17,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     tol: Option<f64>,
 ) -> AlgorithmResult<G, usize> {
     let tol = tol.unwrap_or(1e-8);
+    let mut rng = rand::thread_rng();
     let mut modularity_state = M::new(
         graph,
         weight_prop,
@@ -32,30 +35,39 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
     while outer_moved {
         outer_moved = false;
         let mut inner_moved = true;
+        let mut nodes: Vec<_> = modularity_state.nodes().collect();
         while inner_moved {
             inner_moved = false;
-            for v in modularity_state.nodes() {
+            nodes.shuffle(&mut rng);
+            for v in nodes.iter() {
                 if let Some((best_c, delta)) = modularity_state
-                    .candidate_moves(&v)
-                    .map(|c| (c, modularity_state.move_delta(&v, c)))
+                    .candidate_moves(v)
+                    .map(|c| (c, modularity_state.move_delta(v, c)))
                     .max_by(|(_, delta1), (_, delta2)| delta1.total_cmp(delta2))
                 {
                     let old_c = modularity_state.partition().com(&v);
                     if best_c != old_c && delta > tol {
+                        let old_m = modularity_state.value();
                         inner_moved = true;
-                        modularity_state.move_node(&v, best_c);
+                        outer_moved = true;
+                        modularity_state.move_node(v, best_c);
+                        let new_m = modularity_state.value();
+                        let error = old_m + delta - new_m;
+                        if error.abs() >= tol {
+                            panic!("delta broken, {new_m}, {old_m}, {delta}, {error}")
+                        }
                     }
                 }
             }
-            let partition = modularity_state.aggregate();
-            println!(
-                "Finished outer iteration, num_coms={}, modularity={}",
-                partition.num_coms(),
-                modularity_state.value()
-            );
-            for c in global_partition.values_mut() {
-                *c = partition.com(&VID(*c)).index();
-            }
+        }
+        let partition = modularity_state.aggregate();
+        println!(
+            "Finished outer iteration, num_coms={}, modularity={}",
+            partition.num_coms(),
+            modularity_state.value()
+        );
+        for c in global_partition.values_mut() {
+            *c = partition.com(&VID(*c)).index();
         }
     }
     AlgorithmResult::new(graph.clone(), "louvain", "usize", global_partition)
@@ -85,7 +97,7 @@ mod test {
             (100, 600, 1.5f64),
         ];
         // for _ in 0..100 {
-        assert!(test_all_nodes_assigned_inner(edges.clone()))
+        assert!(test_all_nodes_assigned_inner(edges))
         // }
     }
 
@@ -140,8 +152,12 @@ mod test {
 
         loader
             .load_into_graph(&g, |e: CsvEdge, g| {
-                g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
-                g.add_edge(1, e.dst, e.src, NO_PROPS, None).unwrap();
+                if e.src == e.dst {
+                    println!("self loop")
+                } else {
+                    g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
+                    g.add_edge(1, e.dst, e.src, NO_PROPS, None).unwrap();
+                }
             })
             .unwrap();
 
