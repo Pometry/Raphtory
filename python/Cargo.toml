@@ -19,8 +19,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 =  {version= "0.19.2", features=["multiple-pymethods", "chrono"]}
-raphtory_core = {path = "../raphtory", version = "0.6.1", features=["python", "search", "vectors"], package="raphtory" }
-raphtory-graphql = {path = "../raphtory-graphql", version = "0.6.1" }
+raphtory_core = {path = "../raphtory", version = "0.7.0", features=["python", "search", "vectors"], package="raphtory" }
+raphtory-graphql = {path = "../raphtory-graphql", version = "0.7.0" }
 openssl = { version = "0.10", features = ["vendored"] } # DO NOT REMOVE IT BREAKS PYTHON RELEASE
 serde_json = "1.0.108"
 reqwest = "0.11.22"
