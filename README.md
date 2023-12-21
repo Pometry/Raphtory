@@ -207,7 +207,7 @@ To get you up and running with Raphtory we provide a full set of tutorials on th
 * [Basic Graph Queries](https://www.raphtory.com/user-guide/querying/1_intro/)
 * [Time Travelling and Graph views](https://www.raphtory.com/user-guide/views/1_intro/)
 * [Running algorithms](https://www.raphtory.com/user-guide/algorithms/1_intro/)
-* [Integrating with other tools](https://www.raphtory.com/user-guide/algorithms/1_intro/)
+* [Integrating with other tools](https://www.raphtory.com/user-guide/export/1_intro/)
 
 If API documentation is more your thing, you can dive straight in [here](https://docs.raphtory.com/)!
 
