@@ -274,6 +274,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .map(|(t, _)| t)
             .collect()
     }
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+        self.graph
+            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
+            .into_iter()
+            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
+            .collect::<Option<Vec<NaiveDateTime>>>()
+    }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
@@ -429,6 +436,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|e| e.history()))
     }
+    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|e| e.history_date_time()))
+    }
 
     fn start(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.start()))
@@ -522,6 +532,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
 
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|it| it.history()))
+    }
+    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|it| it.history_date_time()))
     }
 
     fn start(self) -> Self::IterType<Option<i64>> {

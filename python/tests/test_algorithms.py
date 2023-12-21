@@ -473,8 +473,9 @@ def test_temporal_SEIR():
     seeded = [v for v in res.get_all_values() if v.infected == 0]
     assert len(seeded) == 2
 
-    res = algorithms.temporal_SEIR(g, [1], 1.0, 0, rng_seed=1).sort_by_value(reverse=False)
+    res = algorithms.temporal_SEIR(g, [1], 1.0, 0, rng_seed=1).sort_by_value(
+        reverse=False
+    )
     for i, (n, v) in enumerate(res):
-        assert n == g.node(i+1)
+        assert n == g.node(i + 1)
         assert v.infected == i
-

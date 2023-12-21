@@ -71,6 +71,9 @@ pub trait EdgeViewOps<'graph>:
     /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64>;
 
+    /// list the activation timestamps for the edge as NaiveDateTime objects if parseable
+    fn history_date_time(&self) -> Option<Vec<NaiveDateTime>>;
+
     /// Return a view of the properties of the edge
     fn properties(&self) -> Properties<Self>;
     /// Returns the source node of the edge.
@@ -136,6 +139,14 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
             .edge_exploded(self.eref(), layer_ids)
             .map(|e| *e.time().expect("exploded").t())
             .collect()
+    }
+
+    fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        self.graph()
+            .edge_exploded(self.eref(), layer_ids)
+            .map(|e| NaiveDateTime::from_timestamp_millis(*e.time().expect("exploded").t()))
+            .collect::<Option<Vec<NaiveDateTime>>>()
     }
 
     /// Return a view of the properties of the edge
@@ -325,6 +336,8 @@ pub trait EdgeListOps<'graph>:
     fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>>;
 
     fn history(self) -> Self::IterType<Vec<i64>>;
+
+    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
 
     fn start(self) -> Self::IterType<Option<i64>>;
 
