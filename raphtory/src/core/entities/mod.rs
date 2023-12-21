@@ -22,6 +22,12 @@ pub mod properties;
 )]
 pub struct VID(pub usize);
 
+impl VID {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LocalID {
     pub(crate) bucket: usize,
