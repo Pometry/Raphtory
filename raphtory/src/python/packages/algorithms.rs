@@ -1,17 +1,3 @@
-use std::collections::{HashMap, HashSet};
-
-use crate::{
-    algorithms::dynamics::temporal::epidemics::{
-        temporal_SEIR as temporal_SEIR_rs, Infected, SeedError,
-    },
-    core::Prop,
-    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    python::{graph::edge::PyDirection, utils::PyTime},
-};
-/// Implementations of various graph algorithms that can be run on a graph.
-///
-/// To run an algorithm simply import the module and call the function with the graph as the argument
-///
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -20,39 +6,60 @@ use crate::{
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
-        community_detection::label_propagation::label_propagation as label_propagation_rs,
+        community_detection::{
+            label_propagation::label_propagation as label_propagation_rs,
+            louvain::louvain as louvain_rs, modularity::ModularityUnDir,
+        },
         components,
-        metrics::balance::balance as balance_rs,
-        metrics::degree::{
-            average_degree as average_degree_rs, max_degree as max_degree_rs,
-            max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
-            min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
-            min_out_degree as min_out_degree_rs,
+        dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
+        metrics::{
+            balance::balance as balance_rs,
+            degree::{
+                average_degree as average_degree_rs, max_degree as max_degree_rs,
+                max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
+                min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
+                min_out_degree as min_out_degree_rs,
+            },
+            directed_graph_density::directed_graph_density as directed_graph_density_rs,
+            local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+            reciprocity::{
+                all_local_reciprocity as all_local_reciprocity_rs,
+                global_reciprocity as global_reciprocity_rs,
+            },
         },
-        metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
-        metrics::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
-        metrics::reciprocity::{
-            all_local_reciprocity as all_local_reciprocity_rs,
-            global_reciprocity as global_reciprocity_rs,
+        motifs::{
+            global_temporal_three_node_motifs::{
+                global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+                temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
+            },
+            local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
+            local_triangle_count::local_triangle_count as local_triangle_count_rs,
         },
-        motifs::global_temporal_three_node_motifs::{
-            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
-            temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
-        },
-        motifs::local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
-        motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
     },
-    core::entities::nodes::node_ref::NodeRef,
-    python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
+    core::{entities::nodes::node_ref::NodeRef, Prop},
+    db::{
+        api::view::internal::{DelegateCoreOps, DynamicGraph},
+        graph::node::NodeView,
+    },
+    python::{
+        graph::{edge::PyDirection, views::graph_view::PyGraphView},
+        utils::{PyInputNode, PyTime},
+    },
 };
 use ordered_float::OrderedFloat;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyGeneratorExit, prelude::*};
 use rand::{prelude::StdRng, SeedableRng};
+use std::collections::{HashMap, HashSet};
+
+/// Implementations of various graph algorithms that can be run on a graph.
+///
+/// To run an algorithm simply import the module and call the function with the graph as the argument
+///
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
@@ -661,4 +668,22 @@ pub fn temporal_SEIR(
         seeds,
         &mut rng,
     )
+}
+
+/// Louvain algorithm for community detection
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     resolution (float): the resolution paramter for modularity
+///     weight_prop (str | None): the edge property to use for weights (has to be float)
+///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+#[pyfunction]
+#[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None)]]
+pub fn louvain(
+    graph: &PyGraphView,
+    resolution: f64,
+    weight_prop: Option<&str>,
+    tol: Option<f64>,
+) -> AlgorithmResult<DynamicGraph, usize> {
+    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
 }
