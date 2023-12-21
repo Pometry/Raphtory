@@ -48,15 +48,9 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
                 {
                     let old_c = modularity_state.partition().com(&v);
                     if best_c != old_c && delta > tol {
-                        let old_m = modularity_state.value();
                         inner_moved = true;
                         outer_moved = true;
                         modularity_state.move_node(v, best_c);
-                        let new_m = modularity_state.value();
-                        let error = old_m + delta - new_m;
-                        if error.abs() >= tol {
-                            panic!("delta broken, {new_m}, {old_m}, {delta}, {error}")
-                        }
                     }
                 }
             }
@@ -151,11 +145,7 @@ mod test {
 
         loader
             .load_into_graph(&g, |e: CsvEdge, g| {
-                if e.src == e.dst {
-                    println!("self loop")
-                } else {
-                    g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
-                }
+                g.add_edge(1, e.src, e.dst, NO_PROPS, None).unwrap();
             })
             .unwrap();
 

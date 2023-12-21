@@ -427,11 +427,6 @@ mod test {
     };
 
     #[test]
-    fn test() {
-        let p = Partition::default();
-    }
-
-    #[test]
     fn test_delta() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
