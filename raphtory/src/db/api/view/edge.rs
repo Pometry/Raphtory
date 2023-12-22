@@ -82,6 +82,9 @@ pub trait EdgeViewOps<'graph>:
     /// Returns the destination node of the edge.
     fn dst(&self) -> Self::Node;
 
+    /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+    fn nbr(&self) -> Self::Node;
+
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool;
 
@@ -160,6 +163,11 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
     /// Returns the destination node of the edge.
     fn dst(&self) -> Self::Node {
         let node = self.eref().dst();
+        self.new_node(node)
+    }
+
+    fn nbr(&self) -> Self::Node {
+        let node = self.eref().remote();
         self.new_node(node)
     }
 
