@@ -31,14 +31,17 @@ jobs:
     strategy:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
         include:
           - os: macos-latest
             sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
+            arch: [ x86_64, aarch64 ]
           - os: ubuntu-latest
             sccache-path: /home/runner/.cache/sccache
+            arch: [ x86_64, aarch64 ]
           - os: windows-latest
             sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
+            arch: [ x64 ]
     runs-on: '${{ matrix.os }}'
     env:
       RUSTC_WRAPPER: sccache
