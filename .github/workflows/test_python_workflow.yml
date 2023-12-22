@@ -43,12 +43,14 @@ jobs:
             sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
             arch: [ x64 ]
     runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        target: '${{ matrix.arch }}'
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ matrix.sccache-path }}
       SCCACHE_PATH: ${{ matrix.sccache-path }}
-      TARGET_ARCH: ${{ matrix.arch }}
     steps:
       - name: Setting sccache-path
         run: echo "SCCACHE_PATH=${{ matrix.sccache-path }}"
@@ -115,7 +117,7 @@ jobs:
         with:
           working-directory: ./python
           command: build
-          target: ${{ matrix.arch }}
+          target: ${{ matrix.target }}
           args: --release
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
