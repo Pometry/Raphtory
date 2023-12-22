@@ -48,7 +48,6 @@ jobs:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ matrix.sccache-path }}
       SCCACHE_PATH: ${{ matrix.sccache-path }}
-      TARGET_ARCH: ${{ matrix.arch }}
     steps:
       - name: Setting sccache-path
         run: echo "SCCACHE_PATH=${{ matrix.sccache-path }}"
