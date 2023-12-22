@@ -48,6 +48,7 @@ jobs:
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_DIR: ${{ matrix.sccache-path }}
       SCCACHE_PATH: ${{ matrix.sccache-path }}
+      TARGET_ARCH: ${{ matrix.arch }}
     steps:
       - name: Setting sccache-path
         run: echo "SCCACHE_PATH=${{ matrix.sccache-path }}"
@@ -114,7 +115,7 @@ jobs:
         with:
           working-directory: ./python
           command: build
-          target: ${{ matrix.target }}
+          target: ${{ matrix.arch }}
           args: --release
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
