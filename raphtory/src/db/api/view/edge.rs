@@ -135,17 +135,13 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
     /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        self.graph()
-            .edge_exploded(self.eref(), layer_ids)
-            .map(|e| *e.time().expect("exploded").t())
-            .collect()
+        self.graph().edge_history(self.eref(), layer_ids)
     }
 
     fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        self.graph()
-            .edge_exploded(self.eref(), layer_ids)
-            .map(|e| NaiveDateTime::from_timestamp_millis(*e.time().expect("exploded").t()))
+        self.history()
+            .into_iter()
+            .map(|t| NaiveDateTime::from_timestamp_millis(t))
             .collect::<Option<Vec<NaiveDateTime>>>()
     }
 
