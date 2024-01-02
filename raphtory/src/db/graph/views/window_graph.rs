@@ -243,6 +243,19 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
             .node_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
     }
 
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        self.graph
+            .edge_history_window(e, layer_ids, self.start..self.end)
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        self.graph.edge_history_window(
+            e,
+            layer_ids,
+            self.actual_start(w.start)..self.actual_end(w.end),
+        )
+    }
+
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
             .edge_window_exploded(e, self.start..self.end, layer_ids)

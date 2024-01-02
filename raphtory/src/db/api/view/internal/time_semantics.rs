@@ -6,7 +6,7 @@ use crate::{
     },
     db::api::view::{
         internal::{Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter},
-        BoxedIter,
+        BoxedIter, MaterializedGraph,
     },
 };
 use enum_dispatch::enum_dispatch;
@@ -84,8 +84,9 @@ pub trait TimeSemantics: CoreGraphOps {
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
-                .map(|index| index.iter_t().copied()),
+                .map(|index| index.iter()),
         )
+        .map(|te| *te.t())
         .collect()
     }
 
@@ -94,8 +95,9 @@ pub trait TimeSemantics: CoreGraphOps {
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
-                .map(move |index| index.range_iter(w).map(|ti| *ti.t())),
+                .map(move |index| index.range_iter(w.clone())),
         )
+        .map(|ti| *ti.t())
         .collect()
     }
 
