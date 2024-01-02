@@ -70,6 +70,7 @@ num = {version="0.4.0", optional=true}
 display-error-chain = {version= "0.2.0", optional=true}
 arrow2 = {version="0.17", optional=true}
 kdam = { version="0.5.0", features = ["notebook"], optional = true}
+rustls = "0.22.1"
 
 
 [dev-dependencies]
