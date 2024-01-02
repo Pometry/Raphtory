@@ -20,12 +20,12 @@ jobs:
       matrix:
         target: [x86_64, aarch64]
     steps:
-      - name: "Check if user has write access"
-        uses: "lannonbr/repo-permission-check-action@2.0.0"
-        with:
-          permission: "write"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: "Check if user has write access"
+#        uses: "lannonbr/repo-permission-check-action@2.0.0"
+#        with:
+#          permission: "write"
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -54,7 +54,7 @@ jobs:
           command: build
           target: ${{ matrix.target }}
           args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11
-          manylinux: 2014
+          manylinux: auto
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
               . /etc/os-release
@@ -62,21 +62,21 @@ jobs:
                 ubuntu)
                   echo "Installing openssl-dev on Ubuntu..."
                   apt update -y
-                  apt install -y pkg-config libssl-dev libc6 build-essential
+                  apt install -y pkg-config libssl-dev libc6 build-essential musl-tools
                   ;;
                 arch)
                   echo "Installing openssl-dev on Arch Linux..."
-                  pacman -Syu --noconfirm pkg-config openssl
+                  pacman -Syu --noconfirm pkg-config openssl musl
                   ;;
                 fedora)
                   echo "Installing openssl-dev on Fedora..."
                   dnf update -y
-                  dnf install -y pkg-config openssl-devel
+                  dnf install -y pkg-config openssl-devel musl
                   ;;
                 alpine)
                   echo "Installing openssl-dev on Alpine Linux..."
                   apk update -y
-                  apk add pkgconfig openssl-dev
+                  apk add pkgconfig openssl-dev musl-dev
                   ;;
                 centos)
                     echo "Installing openssl-dev on CentOS..."
