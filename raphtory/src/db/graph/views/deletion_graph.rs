@@ -58,62 +58,46 @@ impl Display for GraphWithDeletions {
     }
 }
 
-fn edge_alive_at(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
-    let range = i64::MIN..t.saturating_add(1);
-    let (first_addition, first_deletion, last_addition_before_start, last_deletion_before_start) =
-        match layer_ids {
-            LayerIds::None => return false,
-            LayerIds::All => (
-                e.additions_iter().flat_map(|v| v.first()).min(),
-                e.deletions_iter().flat_map(|v| v.first()).min(),
-                e.additions_iter()
-                    .flat_map(|v| v.range(range.clone()).last())
-                    .max(),
-                e.deletions_iter()
-                    .flat_map(|v| v.range(range.clone()).last())
-                    .max(),
-            ),
-            LayerIds::One(l_id) => (
-                e.additions(*l_id).and_then(|v| v.first()),
-                e.deletions(*l_id).and_then(|v| v.first()),
-                e.additions(*l_id)
-                    .and_then(|v| v.range(range.clone()).last()),
-                e.deletions(*l_id)
-                    .and_then(|v| v.range(range.clone()).last()),
-            ),
-            LayerIds::Multiple(ids) => (
-                ids.iter()
-                    .flat_map(|l_id| e.additions(*l_id).and_then(|v| v.first()))
-                    .min(),
-                ids.iter()
-                    .flat_map(|l_id| e.deletions(*l_id).and_then(|v| v.first()))
-                    .min(),
-                ids.iter()
-                    .flat_map(|l_id| {
-                        e.additions(*l_id)
-                            .and_then(|v| v.range(range.clone()).last())
-                    })
-                    .max(),
-                ids.iter()
-                    .flat_map(|l_id| {
-                        e.deletions(*l_id)
-                            .and_then(|v| v.range(range.clone()).last())
-                    })
-                    .max(),
-            ),
-        };
+fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
+    e.additions_iter(&layer_ids)
+        .zip(e.deletions_iter(&layer_ids))
+        .any(|(additions, deletions)| {
+            let first_addition = additions.first();
+            let first_deletion = deletions.first();
+            let last_addition_before_start = additions.range(i64::MIN..t).last();
+            let last_deletion_before_start = deletions.range(i64::MIN..t).last();
 
-    // None is less than any value (see test below)
-    (first_deletion < first_addition
-        && first_deletion
-            .filter(|&v| v >= TimeIndexEntry::start(t))
-            .is_some())
-        || last_addition_before_start > last_deletion_before_start
+            // None is less than any value (see test below)
+            (first_deletion < first_addition
+                && first_deletion
+                    .filter(|&v| v >= TimeIndexEntry::start(t))
+                    .is_some())
+                || last_addition_before_start > last_deletion_before_start
+        })
+}
+
+fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
+    // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
+    let alive_at_end = edge_alive_at_end(e, t, layer_ids);
+    let not_deleted_at_start = !e
+        .additions_iter(&layer_ids)
+        .zip(e.deletions_iter(&layer_ids))
+        .all(|(additions, deletions)| {
+            match (
+                deletions.range(t..t.saturating_add(1)).first(),
+                additions.range(t..t.saturating_add(1)).first(),
+            ) {
+                (Some(d), Some(a)) => d < a,
+                (Some(d), None) => true,
+                _ => false,
+            }
+        });
+    alive_at_end && not_deleted_at_start
 }
 
 static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
     Arc::new(|e, layer_ids, w| {
-        e.active(layer_ids, w.clone()) || edge_alive_at(e, w.start, layer_ids)
+        e.active(layer_ids, w.clone()) || edge_alive_at_start(e, w.start, layer_ids)
     })
 });
 
@@ -295,7 +279,7 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         //Fixme: Need support for duration on exploded edges
-        if edge_alive_at(self.core_edge(e.pid()).deref(), i64::MIN, &layer_ids) {
+        if edge_alive_at_start(self.core_edge(e.pid()).deref(), i64::MIN, &layer_ids) {
             Box::new(
                 iter::once(e.at(i64::MIN.into())).chain(self.graph.edge_window_exploded(
                     e,
@@ -318,15 +302,15 @@ impl TimeSemantics for GraphWithDeletions {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
+        if w.end <= w.start {
+            return Box::new(iter::empty());
+        }
         // FIXME: Need better iterators on LockedView that capture the guard
         let entry = self.core_edge(e.pid());
-        if edge_alive_at(entry.deref(), w.start, &layer_ids) {
+        if edge_alive_at_start(entry.deref(), w.start, &layer_ids) {
             Box::new(
-                iter::once(e.at(w.start.into())).chain(self.graph.edge_window_exploded(
-                    e,
-                    w.start.saturating_add(1)..w.end,
-                    layer_ids,
-                )),
+                iter::once(e.at(w.start.into()))
+                    .chain(self.graph.edge_window_exploded(e, w, layer_ids)),
             )
         } else {
             self.graph.edge_window_exploded(e, w, layer_ids)
@@ -358,7 +342,7 @@ impl TimeSemantics for GraphWithDeletions {
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         e.time().map(|ti| *ti.t()).or_else(|| {
             let entry = self.core_edge(e.pid());
-            if edge_alive_at(entry.deref(), i64::MIN, &layer_ids) {
+            if edge_alive_at_start(entry.deref(), i64::MIN, &layer_ids) {
                 Some(i64::MIN)
             } else {
                 self.edge_additions(e, layer_ids).first().map(|ti| *ti.t())
@@ -373,7 +357,7 @@ impl TimeSemantics for GraphWithDeletions {
         layer_ids: LayerIds,
     ) -> Option<i64> {
         let entry = self.core_edge(e.pid());
-        if edge_alive_at(entry.deref(), w.start, &layer_ids) {
+        if edge_alive_at_start(entry.deref(), w.start, &layer_ids) {
             Some(w.start)
         } else {
             self.edge_additions(e, layer_ids).range(w).first_t()
@@ -394,7 +378,7 @@ impl TimeSemantics for GraphWithDeletions {
             )),
             None => {
                 let entry = self.core_edge(e.pid());
-                if edge_alive_at(entry.deref(), i64::MAX, &layer_ids) {
+                if edge_alive_at_end(entry.deref(), i64::MAX, &layer_ids) {
                     Some(i64::MAX)
                 } else {
                     self.edge_deletions(e, layer_ids).last_t()
@@ -422,7 +406,7 @@ impl TimeSemantics for GraphWithDeletions {
             )),
             None => {
                 let entry = self.core_edge(e.pid());
-                if edge_alive_at(entry.deref(), w.end - 1, &layer_ids) {
+                if edge_alive_at_end(entry.deref(), w.end, &layer_ids) {
                     Some(w.end - 1)
                 } else {
                     self.edge_deletions(e, layer_ids).range(w).last_t()
@@ -449,6 +433,20 @@ impl TimeSemantics for GraphWithDeletions {
             .iter_t()
             .copied()
             .collect()
+    }
+
+    fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
+        let edge = self.graph.core_edge(e.pid());
+        let res = edge
+            .additions_iter(&layer_ids)
+            .zip(edge.deletions_iter(&layer_ids))
+            .any(|(a, d)| a.last() > d.last());
+        res
+    }
+
+    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, end: i64) -> bool {
+        let edge = self.graph.core_edge(e.pid());
+        edge_alive_at_end(edge.deref(), end, &layer_ids)
     }
 
     #[inline]
@@ -558,7 +556,7 @@ impl TimeSemantics for GraphWithDeletions {
         match prop {
             Some(p) => {
                 let entry = self.core_edge(e.pid());
-                if edge_alive_at(entry.deref(), start, &layer_ids) {
+                if edge_alive_at_start(entry.deref(), start, &layer_ids) {
                     p.last_before(start.saturating_add(1))
                         .into_iter()
                         .map(|(_, v)| (start, v))

@@ -74,6 +74,14 @@ pub trait EdgeViewOps<'graph>:
     /// list the activation timestamps for the edge as NaiveDateTime objects if parseable
     fn history_date_time(&self) -> Option<Vec<NaiveDateTime>>;
 
+    /// list the deletion timestamps for the edge
+    fn deletions(&self) -> Vec<i64>;
+
+    /// list the deletion timestamps for the edge as NaiveDateTime objects if parseable
+    fn deletions_date_time(&self) -> Option<Vec<NaiveDateTime>>;
+
+    fn is_valid(&self) -> bool;
+
     /// Return a view of the properties of the edge
     fn properties(&self) -> Properties<Self>;
     /// Returns the source node of the edge.
@@ -134,12 +142,24 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Vec<i64> {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
+        let layer_ids = self.layer_ids();
         self.graph().edge_history(self.eref(), layer_ids)
     }
 
     fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
         self.history()
+            .into_iter()
+            .map(|t| NaiveDateTime::from_timestamp_millis(t))
+            .collect::<Option<Vec<NaiveDateTime>>>()
+    }
+
+    fn deletions(&self) -> Vec<i64> {
+        let layer_ids = self.layer_ids();
+        self.graph().edge_deletion_history(self.eref(), layer_ids)
+    }
+
+    fn deletions_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+        self.deletions()
             .into_iter()
             .map(|t| NaiveDateTime::from_timestamp_millis(t))
             .collect::<Option<Vec<NaiveDateTime>>>()
@@ -181,6 +201,10 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
                 )
             }
         }
+    }
+
+    fn is_valid(&self) -> bool {
+        self.graph().edge_is_valid(self.eref(), self.layer_ids())
     }
 
     /// Returns the id of the edge.

@@ -26,11 +26,11 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
     pub(crate) eid: EID,
-    src: VID,
-    dst: VID,
-    layers: Vec<EdgeLayer>, // each layer has its own set of properties
-    additions: Vec<TimeIndex<TimeIndexEntry>>,
-    deletions: Vec<TimeIndex<TimeIndexEntry>>,
+    pub(crate) src: VID,
+    pub(crate) dst: VID,
+    pub(crate) layers: Vec<EdgeLayer>, // each layer has its own set of properties
+    pub(crate) additions: Vec<TimeIndex<TimeIndexEntry>>,
+    pub(crate) deletions: Vec<TimeIndex<TimeIndexEntry>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]

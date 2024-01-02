@@ -3,10 +3,10 @@ use crate::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
         storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
     },
-    db::api::view::internal::Base,
+    db::api::view::{internal::Base, IntoDynBoxed},
 };
 use enum_dispatch::enum_dispatch;
-use std::{ops::Range, sync::Arc};
+use std::{iter, ops::Range, sync::Arc};
 
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),
@@ -64,8 +64,14 @@ pub trait EdgeLike {
     fn src(&self) -> VID;
     fn dst(&self) -> VID;
 
-    fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_>;
-    fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_>;
+    fn additions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
+    fn deletions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
@@ -88,20 +94,48 @@ impl EdgeLike for EdgeStore {
         self.dst()
     }
 
-    fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(
-            self.additions()
-                .into_iter()
-                .map(|x| TimeIndexLike::TimeIndex(x)),
-        )
+    fn additions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
+        match layer_ids {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => self
+                .additions
+                .iter()
+                .map(TimeIndexLike::TimeIndex)
+                .into_dyn_boxed(),
+            LayerIds::One(id) => Box::new(iter::once(TimeIndexLike::TimeIndex(
+                self.additions.get(*id).unwrap_or(&TimeIndex::Empty),
+            ))),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .map(|id| self.additions.get(*id).unwrap_or(&TimeIndex::Empty))
+                .map(TimeIndexLike::TimeIndex)
+                .into_dyn_boxed(),
+        }
     }
 
-    fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(
-            self.deletions()
-                .into_iter()
-                .map(|x| TimeIndexLike::TimeIndex(x)),
-        )
+    fn deletions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
+        match layer_ids {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => self
+                .deletions
+                .iter()
+                .map(TimeIndexLike::TimeIndex)
+                .into_dyn_boxed(),
+            LayerIds::One(id) => Box::new(iter::once(TimeIndexLike::TimeIndex(
+                self.deletions.get(*id).unwrap_or(&TimeIndex::Empty),
+            ))),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .map(|id| self.deletions.get(*id).unwrap_or(&TimeIndex::Empty))
+                .map(TimeIndexLike::TimeIndex)
+                .into_dyn_boxed(),
+        }
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
