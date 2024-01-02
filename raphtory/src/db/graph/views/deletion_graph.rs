@@ -210,6 +210,14 @@ impl InheritLayerOps for GraphWithDeletions {}
 impl InheritEdgeFilterOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
+    fn node_earliest_time(&self, v: VID) -> Option<i64> {
+        self.graph.node_earliest_time(v)
+    }
+
+    fn node_latest_time(&self, _v: VID) -> Option<i64> {
+        Some(i64::MAX)
+    }
+
     fn view_start(&self) -> Option<i64> {
         self.graph.view_start()
     }
@@ -234,26 +242,6 @@ impl TimeSemantics for GraphWithDeletions {
         self.graph.latest_time_window(start, end)
     }
 
-    fn include_node_window(
-        &self,
-        v: VID,
-        w: Range<i64>,
-        _layer_ids: &LayerIds,
-        _edge_filter: Option<&EdgeFilter>,
-    ) -> bool {
-        // FIXME: Think about node deletions
-        let v = self.graph.inner().storage.get_node(v);
-        v.timestamps().first_t().filter(|&t| t <= w.end).is_some()
-    }
-
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_earliest_time(v)
-    }
-
-    fn node_latest_time(&self, _v: VID) -> Option<i64> {
-        Some(i64::MAX)
-    }
-
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         let v = self.core_node(v);
         if v.timestamps().first_t()? <= start {
@@ -272,6 +260,18 @@ impl TimeSemantics for GraphWithDeletions {
         }
     }
 
+    fn include_node_window(
+        &self,
+        v: VID,
+        w: Range<i64>,
+        _layer_ids: &LayerIds,
+        _edge_filter: Option<&EdgeFilter>,
+    ) -> bool {
+        // FIXME: Think about node deletions
+        let v = self.graph.inner().storage.get_node(v);
+        v.timestamps().first_t().filter(|&t| t <= w.end).is_some()
+    }
+
     fn include_edge_window(&self) -> &EdgeWindowFilter {
         // includes edge if it is alive at the start of the window or added during the window
         &WINDOW_FILTER
@@ -283,6 +283,14 @@ impl TimeSemantics for GraphWithDeletions {
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.graph.node_history_window(v, w)
+    }
+
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        self.graph.edge_history(e, layer_ids)
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        self.graph.edge_history_window(e, layer_ids, w)
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {

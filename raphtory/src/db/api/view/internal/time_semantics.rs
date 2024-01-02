@@ -15,28 +15,20 @@ use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
 #[enum_dispatch]
-pub trait TimeSemantics: CoreGraphOps {
+pub trait TimeSemantics {
     /// Return the earliest time for a node
-    fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.node_additions(v).first_t()
-    }
+    fn node_earliest_time(&self, v: VID) -> Option<i64>;
 
     /// Return the latest time for a node
-    fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.node_additions(v).last_t()
-    }
+    fn node_latest_time(&self, v: VID) -> Option<i64>;
 
     /// Returns the default start time for perspectives over the view
     #[inline]
-    fn view_start(&self) -> Option<i64> {
-        self.earliest_time_global()
-    }
+    fn view_start(&self) -> Option<i64>;
 
     /// Returns the default end time for perspectives over the view
     #[inline]
-    fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|v| v.saturating_add(1))
-    }
+    fn view_end(&self) -> Option<i64>;
 
     /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
@@ -49,14 +41,10 @@ pub trait TimeSemantics: CoreGraphOps {
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64>;
 
     /// Return the earliest time for a node in a window
-    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.node_additions(v).range(start..end).first_t()
-    }
+    fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64>;
 
     /// Return the latest time for a node in a window
-    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.node_additions(v).range(start..end).last_t()
-    }
+    fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64>;
     /// check if node `v` should be included in window `w`
     fn include_node_window(
         &self,
@@ -70,36 +58,14 @@ pub trait TimeSemantics: CoreGraphOps {
     fn include_edge_window(&self) -> &EdgeWindowFilter;
 
     /// Get the timestamps at which a node `v` is active (i.e has an edge addition)
-    fn node_history(&self, v: VID) -> Vec<i64> {
-        self.node_additions(v).iter_t().copied().collect()
-    }
+    fn node_history(&self, v: VID) -> Vec<i64>;
 
     /// Get the timestamps at which a node `v` is active in window `w` (i.e has an edge addition)
-    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.node_additions(v).range(w).iter_t().copied().collect()
-    }
+    fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64>;
 
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
-        kmerge(
-            core_edge
-                .additions_iter(&layer_ids)
-                .map(|index| index.iter()),
-        )
-        .map(|te| *te.t())
-        .collect()
-    }
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64>;
 
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
-        kmerge(
-            core_edge
-                .additions_iter(&layer_ids)
-                .map(move |index| index.range_iter(w.clone())),
-        )
-        .map(|ti| *ti.t())
-        .collect()
-    }
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64>;
 
     /// Exploded edge iterator for edge `e`
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef>;
@@ -340,7 +306,7 @@ pub trait DelegateTimeSemantics {
     fn graph(&self) -> &Self::Internal;
 }
 
-impl<G: DelegateTimeSemantics + CoreGraphOps + ?Sized> TimeSemantics for G {
+impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
     #[inline]
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph().node_earliest_time(v)
@@ -408,6 +374,16 @@ impl<G: DelegateTimeSemantics + CoreGraphOps + ?Sized> TimeSemantics for G {
     #[inline]
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.graph().node_history_window(v, w)
+    }
+
+    #[inline]
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        self.graph().edge_history(e, layer_ids)
+    }
+
+    #[inline]
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        self.graph().edge_history_window(e, layer_ids, w)
     }
 
     #[inline]

@@ -1148,4 +1148,72 @@ mod views_test {
         let res = degree_centrality(&w, None);
         println!("{:?}", res)
     }
+
+    #[test]
+    fn test_entity_history() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS).unwrap();
+        g.add_node(2, 1, NO_PROPS).unwrap();
+        let v = g.add_node(3, 1, NO_PROPS).unwrap();
+        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
+        let e = g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+
+        let full_history_1 = vec![0i64, 1, 2, 3];
+
+        let full_history_2 = vec![4i64, 5, 6, 7];
+
+        let windowed_history = vec![0i64, 1];
+
+        assert_eq!(v.history(), full_history_1);
+
+        assert_eq!(v.window(0, 2).history(), windowed_history);
+        assert_eq!(e.history(), full_history_1);
+        assert_eq!(e.window(0, 2).history(), windowed_history);
+
+        g.add_edge(4, 1, 3, NO_PROPS, None).unwrap();
+        g.add_edge(5, 1, 3, NO_PROPS, None).unwrap();
+        g.add_edge(6, 1, 3, NO_PROPS, None).unwrap();
+        g.add_edge(7, 1, 3, NO_PROPS, None).unwrap();
+
+        assert_eq!(
+            g.edges().history().collect_vec(),
+            [full_history_1.clone(), full_history_2.clone()]
+        );
+        assert_eq!(
+            g.nodes()
+                .in_edges()
+                .history()
+                .map(|it| it.collect_vec())
+                .collect_vec(),
+            [vec![], vec![full_history_1], vec![full_history_2],]
+        );
+
+        assert_eq!(
+            g.nodes().earliest_time().flatten().collect_vec(),
+            [0, 0, 4,]
+        );
+
+        assert_eq!(g.nodes().latest_time().flatten().collect_vec(), [7, 3, 7]);
+
+        assert_eq!(
+            g.nodes()
+                .neighbours()
+                .latest_time()
+                .map(|it| it.flatten().collect_vec())
+                .collect_vec(),
+            [vec![3, 7], vec![7], vec![7],]
+        );
+
+        assert_eq!(
+            g.nodes()
+                .neighbours()
+                .earliest_time()
+                .map(|it| it.flatten().collect_vec())
+                .collect_vec(),
+            [vec![0, 4,], vec![0], vec![0],]
+        );
+    }
 }
