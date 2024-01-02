@@ -83,6 +83,12 @@ jobs:
                     yum update -y
                     yum install -y pkgconfig openssl-devel
                     ;;  
+                almalinux)
+                    echo "Installing openssl-dev on almalinux..."
+                    dnf update -y
+                    dnf group install -y 'Development Tools'
+                    dnf install -y pkg-config openssl-devel
+                    ;;
                 *)
                     echo "Unsupported distribution: $ID"
                     exit 1
