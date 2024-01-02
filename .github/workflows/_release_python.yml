@@ -92,6 +92,13 @@ jobs:
               echo "Could not determine distribution."
               exit 1
             fi
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "aarch64" ]; then
+              echo "Running on aarch64 architecture"
+              rustup override set stable-msvc
+            else
+              echo "Running on non-aarch64 architecture"
+            fi
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
