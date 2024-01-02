@@ -10,6 +10,7 @@ use crate::{
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use itertools::kmerge;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
@@ -191,6 +192,28 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     ) -> Option<i64> {
         e.time_t()
             .or_else(|| self.edge_additions(e, layer_ids).range(w).last_t())
+    }
+
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(|index| index.iter()),
+        )
+        .map(|te| *te.t())
+        .collect()
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(move |index| index.range_iter(w.clone())),
+        )
+        .map(|ti| *ti.t())
+        .collect()
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
