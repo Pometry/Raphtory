@@ -62,7 +62,7 @@ jobs:
                 ubuntu)
                   echo "Installing openssl-dev on Ubuntu..."
                   apt update -y
-                  apt install -y pkg-config libssl-dev libc6 build-essential musl-tools
+                  apt install -y pkg-config libssl-dev libc6 build-essential musl-tools gcc
                   ;;
                 arch)
                   echo "Installing openssl-dev on Arch Linux..."
