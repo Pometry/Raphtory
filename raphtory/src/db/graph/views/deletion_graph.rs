@@ -768,6 +768,26 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_edge_history() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        e.delete(5, None).unwrap();
+        e.add_updates(10, NO_PROPS, None).unwrap();
+        assert_eq!(e.history(), [0, 10]);
+        assert_eq!(e.after(1).history(), [10]);
+        assert!(e.window(1, 4).history().is_empty());
+
+        // exploded edge still exists
+        assert_eq!(
+            e.window(1, 4)
+                .explode()
+                .flat_map(|e| e.earliest_time())
+                .collect_vec(),
+            [1]
+        );
+    }
+
+    #[test]
     fn test_ordering_of_addition_and_deletion() {
         let g = GraphWithDeletions::new();
 
