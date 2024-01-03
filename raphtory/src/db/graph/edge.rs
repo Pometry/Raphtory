@@ -440,6 +440,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.history_date_time()))
     }
 
+    fn deletions(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.deletions()))
+    }
+
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|e| e.deletions_date_time()))
+    }
+
+    fn is_valid(self) -> Self::IterType<bool> {
+        Box::new(self.map(|e| e.is_valid()))
+    }
+
     fn start(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.start()))
     }
@@ -570,6 +582,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         let start = start.into_time();
         let end = end.into_time();
         Box::new(self.map(move |e| e.window(start, end)))
+    }
+
+    fn deletions(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|it| it.deletions()))
+    }
+
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|it| it.deletions_date_time()))
+    }
+
+    fn is_valid(self) -> Self::IterType<bool> {
+        Box::new(self.map(|it| it.is_valid()))
     }
 }
 

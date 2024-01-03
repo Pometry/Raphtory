@@ -165,6 +165,10 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
             .collect::<Option<Vec<NaiveDateTime>>>()
     }
 
+    fn is_valid(&self) -> bool {
+        self.graph().edge_is_valid(self.eref(), self.layer_ids())
+    }
+
     /// Return a view of the properties of the edge
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
@@ -201,10 +205,6 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
                 )
             }
         }
-    }
-
-    fn is_valid(&self) -> bool {
-        self.graph().edge_is_valid(self.eref(), self.layer_ids())
     }
 
     /// Returns the id of the edge.
@@ -358,6 +358,12 @@ pub trait EdgeListOps<'graph>:
     fn history(self) -> Self::IterType<Vec<i64>>;
 
     fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
+
+    fn deletions(self) -> Self::IterType<Vec<i64>>;
+
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
+
+    fn is_valid(self) -> Self::IterType<bool>;
 
     fn start(self) -> Self::IterType<Option<i64>>;
 

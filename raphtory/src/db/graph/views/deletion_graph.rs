@@ -79,7 +79,7 @@ fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
 fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
     let alive_at_end = edge_alive_at_end(e, t, layer_ids);
-    let not_deleted_at_start = !e
+    let deleted_at_start = e
         .additions_iter(&layer_ids)
         .zip(e.deletions_iter(&layer_ids))
         .all(|(additions, deletions)| {
@@ -88,11 +88,11 @@ fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
                 additions.range(t..t.saturating_add(1)).first(),
             ) {
                 (Some(d), Some(a)) => d < a,
-                (Some(d), None) => true,
+                (Some(_), None) => true,
                 _ => false,
             }
         });
-    alive_at_end && not_deleted_at_start
+    alive_at_end && !deleted_at_start
 }
 
 static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {

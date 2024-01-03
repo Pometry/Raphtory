@@ -331,6 +331,18 @@ impl<
         Box::new(self.map(|e| e.history_date_time()))
     }
 
+    fn deletions(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.deletions()))
+    }
+
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|e| e.deletions_date_time()))
+    }
+
+    fn is_valid(self) -> Self::IterType<bool> {
+        Box::new(self.map(|e| e.is_valid()))
+    }
+
     fn start(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.earliest_time()))
     }
