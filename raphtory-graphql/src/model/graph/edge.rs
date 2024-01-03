@@ -57,13 +57,16 @@ impl Edge {
     async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
     }
-    async fn first_update(&self) -> Option<i64> {self.vv.history().first()}
+    async fn first_update(&self) -> Option<i64> {
+        self.ee.history().first().cloned()
+    }
 
     async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
     }
-    async fn last_update(&self) -> Option<i64> {self.vv.history().last()}
-
+    async fn last_update(&self) -> Option<i64> {
+        self.ee.history().last().cloned()
+    }
 
     async fn time(&self) -> Option<i64> {
         self.ee.time()
