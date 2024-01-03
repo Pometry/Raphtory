@@ -191,4 +191,9 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     fn edge_filter(&self) -> Option<&EdgeFilter> {
         self.graph().edge_filter()
     }
+
+    #[inline]
+    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
+        self.graph().edge_filter_window()
+    }
 }

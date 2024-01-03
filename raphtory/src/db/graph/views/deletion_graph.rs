@@ -15,12 +15,14 @@ use crate::{
     },
     prelude::*,
 };
+use itertools::{EitherOrBoth, Itertools};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
+    iter::Peekable,
     ops::{Deref, Range},
     path::Path,
     sync::Arc,
@@ -60,19 +62,25 @@ impl Display for GraphWithDeletions {
 
 fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     e.additions_iter(&layer_ids)
-        .zip(e.deletions_iter(&layer_ids))
-        .any(|(additions, deletions)| {
-            let first_addition = additions.first();
-            let first_deletion = deletions.first();
-            let last_addition_before_start = additions.range(i64::MIN..t).last();
-            let last_deletion_before_start = deletions.range(i64::MIN..t).last();
+        .zip_longest(e.deletions_iter(&layer_ids))
+        .any(|zipped| {
+            match zipped {
+                EitherOrBoth::Both(additions, deletions) => {
+                    let first_addition = additions.first();
+                    let first_deletion = deletions.first();
+                    let last_addition_before_start = additions.range(i64::MIN..t).last();
+                    let last_deletion_before_start = deletions.range(i64::MIN..t).last();
 
-            // None is less than any value (see test below)
-            (first_deletion < first_addition
-                && first_deletion
-                    .filter(|&v| v >= TimeIndexEntry::start(t))
-                    .is_some())
-                || last_addition_before_start > last_deletion_before_start
+                    // None is less than any value (see test below)
+                    (first_deletion < first_addition
+                        && first_deletion
+                            .filter(|&v| v >= TimeIndexEntry::start(t))
+                            .is_some())
+                        || last_addition_before_start > last_deletion_before_start
+                }
+                EitherOrBoth::Left(additions) => additions.active(i64::MIN..t),
+                EitherOrBoth::Right(deletions) => deletions.active(t..i64::MAX),
+            }
         })
 }
 
@@ -81,16 +89,20 @@ fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     let alive_at_end = edge_alive_at_end(e, t, layer_ids);
     let deleted_at_start = e
         .additions_iter(&layer_ids)
-        .zip(e.deletions_iter(&layer_ids))
-        .all(|(additions, deletions)| {
-            match (
-                deletions.range(t..t.saturating_add(1)).first(),
-                additions.range(t..t.saturating_add(1)).first(),
-            ) {
-                (Some(d), Some(a)) => d < a,
-                (Some(_), None) => true,
-                _ => false,
+        .zip_longest(e.deletions_iter(&layer_ids))
+        .all(|zipped| match zipped {
+            EitherOrBoth::Both(additions, deletions) => {
+                match (
+                    deletions.range(t..t.saturating_add(1)).first(),
+                    additions.range(t..t.saturating_add(1)).first(),
+                ) {
+                    (Some(d), Some(a)) => d < a,
+                    (Some(_), None) => true,
+                    _ => false,
+                }
             }
+            EitherOrBoth::Left(_) => false,
+            EitherOrBoth::Right(deletions) => deletions.active(t..t.saturating_add(1)),
         });
     alive_at_end && !deleted_at_start
 }
@@ -818,6 +830,39 @@ mod test_deletions {
         assert!(g.window(1, 2).has_edge(1, 2, Layer::Default));
         assert!(g.window(2, 3).has_edge(3, 4, Layer::Default));
         assert!(!g.window(3, 4).has_edge(3, 4, Layer::Default));
+    }
+
+    #[test]
+    fn test_deletions() {
+        let edges = [
+            (1, 1, 2),
+            (2, 1, 3),
+            (-1, 2, 1),
+            (0, 1, 1),
+            (7, 3, 2),
+            (1, 1, 1),
+        ];
+        let g = GraphWithDeletions::new();
+        for (t, s, d) in edges.iter() {
+            g.add_edge(*t, *s, *d, NO_PROPS, None).unwrap();
+        }
+        g.delete_edge(10, edges[0].1, edges[0].2, None).unwrap();
+
+        for (t, s, d) in &edges {
+            assert!(g.at(*t).has_edge(*s, *d, Layer::All));
+        }
+        assert!(!g.after(10).has_edge(edges[0].1, edges[0].2, Layer::All));
+        for (_, s, d) in &edges[1..] {
+            assert!(g.after(10).has_edge(*s, *d, Layer::All));
+        }
+        assert_eq!(
+            g.edge(edges[0].1, edges[0].2)
+                .unwrap()
+                .explode()
+                .latest_time()
+                .collect_vec(),
+            [Some(10)]
+        );
     }
 
     #[test]
