@@ -1,5 +1,3 @@
-use crate::arrow::edge::Edge;
-#[cfg(feature = "arrow")]
 use crate::{
     core::{
         entities::{
@@ -22,14 +20,6 @@ use crate::{
     db::api::view::{internal::Base, BoxedIter},
 };
 use enum_dispatch::enum_dispatch;
-
-pub enum CoreEdgeView<'a> {
-    Mem(&'a EdgeStore),
-    #[cfg(feature = "arrow")]
-    Arrow(Edge<'a>),
-}
-
-impl<'a> CoreEdgeView<'a> {}
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
