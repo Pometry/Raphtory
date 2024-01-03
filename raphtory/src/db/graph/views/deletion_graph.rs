@@ -352,7 +352,7 @@ impl TimeSemantics for GraphWithDeletions {
         alive_layers
             .into_iter()
             .map(move |l| e.at(i64::MIN.into()).at_layer(l))
-            .chain(self.graph.edge_exploded(e, layer_ids))
+            .chain(self.graph.edge_window_exploded(e, w, layer_ids))
             .into_dyn_boxed()
     }
 
