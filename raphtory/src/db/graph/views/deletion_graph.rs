@@ -823,6 +823,25 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_deletion_multiple_layers() {
+        let g = GraphWithDeletions::new();
+
+        g.add_edge(1, 1, 2, NO_PROPS, Some("1")).unwrap();
+        g.delete_edge(2, 1, 2, Some("2")).unwrap();
+        g.delete_edge(10, 1, 2, Some("1")).unwrap();
+        g.add_edge(10, 1, 2, NO_PROPS, Some("2")).unwrap();
+
+        let e = g.edge(1, 2).unwrap();
+        let e_layer_1 = e.layer("1").unwrap();
+        let e_layer_2 = e.layer("2").unwrap();
+
+        for t in 0..11 {
+            assert!(g.at(t).has_edge(1, 2, Layer::All));
+        }
+
+    }
+
+    #[test]
     fn test_edge_latest_time() {
         let g = GraphWithDeletions::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
