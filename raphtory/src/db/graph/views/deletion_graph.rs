@@ -60,27 +60,36 @@ impl Display for GraphWithDeletions {
     }
 }
 
+fn alive_before<
+    A: TimeIndexOps<IndexType = TimeIndexEntry>,
+    D: TimeIndexOps<IndexType = TimeIndexEntry>,
+>(
+    additions: &A,
+    deletions: &D,
+    t: i64,
+) -> bool {
+    let first_addition = additions.first();
+    let first_deletion = deletions.first();
+    let last_addition_before_start = additions.range(i64::MIN..t).last();
+    let last_deletion_before_start = deletions.range(i64::MIN..t).last();
+
+    let only_deleted = match (first_addition, first_deletion) {
+        (Some(a), Some(d)) => d < a && d >= t.into(),
+        (None, Some(d)) => d >= t.into(),
+        (Some(_), None) => false,
+        (None, None) => false,
+    };
+    // None is less than any value (see test below)
+    only_deleted || last_addition_before_start > last_deletion_before_start
+}
+
 fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     e.additions_iter(&layer_ids)
         .zip_longest(e.deletions_iter(&layer_ids))
-        .any(|zipped| {
-            match zipped {
-                EitherOrBoth::Both(additions, deletions) => {
-                    let first_addition = additions.first();
-                    let first_deletion = deletions.first();
-                    let last_addition_before_start = additions.range(i64::MIN..t).last();
-                    let last_deletion_before_start = deletions.range(i64::MIN..t).last();
-
-                    // None is less than any value (see test below)
-                    (first_deletion < first_addition
-                        && first_deletion
-                            .filter(|&v| v >= TimeIndexEntry::start(t))
-                            .is_some())
-                        || last_addition_before_start > last_deletion_before_start
-                }
-                EitherOrBoth::Left(additions) => additions.active(i64::MIN..t),
-                EitherOrBoth::Right(deletions) => deletions.active(t..i64::MAX),
-            }
+        .any(|zipped| match zipped {
+            EitherOrBoth::Both(additions, deletions) => alive_before(&additions, &deletions, t),
+            EitherOrBoth::Left(additions) => additions.active(i64::MIN..t),
+            EitherOrBoth::Right(deletions) => deletions.active(t..i64::MAX),
         })
 }
 
@@ -322,16 +331,29 @@ impl TimeSemantics for GraphWithDeletions {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
-        // FIXME: Need better iterators on LockedView that capture the guard
-        let entry = self.core_edge(e.pid());
-        if edge_alive_at_start(entry.deref(), w.start, &layer_ids) {
-            Box::new(
-                iter::once(e.at(w.start.into()))
-                    .chain(self.graph.edge_window_exploded(e, w, layer_ids)),
-            )
-        } else {
-            self.graph.edge_window_exploded(e, w, layer_ids)
-        }
+        let edge = self.graph.core_edge(e.pid());
+
+        let alive_layers: Vec<_> = edge
+            .updates_iter(&layer_ids)
+            .filter_map(|(l, additions, deletions)| {
+                let alive_before_start = alive_before(additions, deletions, w.start);
+                let deleted_at_start = match (
+                    additions.range(w.start..w.start.saturating_add(1)).first(),
+                    deletions.range(w.start..w.start.saturating_add(1)).first(),
+                ) {
+                    (Some(a), Some(d)) => d < a,
+                    (None, Some(_)) => true,
+                    (Some(_), None) => false,
+                    (None, None) => false,
+                };
+                (alive_before_start && !deleted_at_start).then_some(l)
+            })
+            .collect();
+        alive_layers
+            .into_iter()
+            .map(move |l| e.at(i64::MIN.into()).at_layer(l))
+            .chain(self.graph.edge_exploded(e, layer_ids))
+            .into_dyn_boxed()
     }
 
     fn edge_window_layers(
@@ -905,6 +927,8 @@ mod test_deletions {
 
         let e = g.edge(1, 2).unwrap();
         assert_eq!(e.explode().count(), 3);
+        assert_eq!(e.before(4).explode().count(), 3);
+        assert_eq!(e.window(2, 3).explode().count(), 1);
     }
 
     #[test]
