@@ -837,6 +837,13 @@ mod test_deletions {
             assert!(g.at(t).has_edge(1, 2, Layer::All));
         }
 
+        assert!(e.is_valid());
+        assert!(!e_layer_1.is_valid());
+        assert!(e_layer_2.is_valid());
+        assert!(!e_layer_1.at(10).is_valid());
+        for t in 0..11 {
+            assert!(e.at(t).is_valid());
+        }
     }
 
     #[test]
