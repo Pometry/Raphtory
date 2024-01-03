@@ -1,16 +1,16 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{nodes::node_ref::NodeRef, VID},
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -21,7 +21,7 @@ struct OutState {
     out_components: Vec<u64>,
 }
 
-/// Computes the out components of each vertex in the graph
+/// Computes the out components of each node in the graph
 ///
 /// # Arguments
 ///
@@ -30,7 +30,7 @@ struct OutState {
 ///
 /// Returns:
 ///
-/// An AlgorithmResult containing the mapping from vertex to a vector of vertex ids (the nodes out component)
+/// An AlgorithmResult containing the mapping from node to a vector of node ids (the nodes out component)
 ///
 pub fn out_components<G>(
     graph: &G,
@@ -40,7 +40,7 @@ where
     G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = graph.into();
-    let step1 = ATask::new(move |vv: &mut EvalVertexView<G, OutState>| {
+    let step1 = ATask::new(move |vv: &mut EvalNodeView<G, OutState>| {
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.out_neighbours().id().for_each(|id| {
@@ -48,7 +48,7 @@ where
             to_check_stack.push(id);
         });
         while let Some(neighbour_id) = to_check_stack.pop() {
-            if let Some(neighbour) = vv.graph().vertex(neighbour_id) {
+            if let Some(neighbour) = vv.graph().node(neighbour_id) {
                 neighbour.out_neighbours().id().for_each(|id| {
                     if !out_components.contains(&id) {
                         out_components.insert(id);
@@ -79,7 +79,7 @@ where
                 .filter_map(|(v_ref_id, state)| {
                     let v_ref = VID(v_ref_id);
                     graph
-                        .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
+                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
                         .then_some((v_ref_id, state.out_components.clone()))
                 })
                 .collect::<HashMap<_, _>>()

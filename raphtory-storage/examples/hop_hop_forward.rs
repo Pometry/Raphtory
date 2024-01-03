@@ -191,7 +191,7 @@ fn query1_v7(
 
                                 let login1_ts = login1.timestamps();
 
-                                let min_login1 = login1_ts.iter().flatten().next().unwrap();
+                                let min_login1 = login1_ts.iter().next().unwrap();
                                 if min_login1 > max_prog1 {
                                     skip = true;
                                 }
@@ -268,27 +268,28 @@ fn main() {
         .nth(1)
         .expect("please supply a graph directory");
 
-    let netflow_dir = std::env::args()
-        .nth(2)
-        .expect("please supply a wls directory");
-
-    let v1_dir = std::env::args()
-        .nth(3)
-        .expect("please supply a v1 directory");
-
-    let v2_dir = std::env::args()
-        .nth(4)
-        .expect("please supply a v2 directory");
-
     println!("graph_dir: {:?}", graph_dir);
-    println!("netflow_dir: {:?}", netflow_dir);
-    println!("v1_dir: {:?}", v1_dir);
-    println!("v2_dir: {:?}", v2_dir);
 
     let now = Instant::now();
     let graph = if std::fs::read_dir(&graph_dir).is_ok() {
         TemporalGraph::new(&graph_dir).expect("failed to load graph")
     } else {
+        let netflow_dir = std::env::args()
+            .nth(2)
+            .expect("please supply a wls directory");
+
+        let v1_dir = std::env::args()
+            .nth(3)
+            .expect("please supply a v1 directory");
+
+        let v2_dir = std::env::args()
+            .nth(4)
+            .expect("please supply a v2 directory");
+
+        println!("netflow_dir: {:?}", netflow_dir);
+        println!("v1_dir: {:?}", v1_dir);
+        println!("v2_dir: {:?}", v2_dir);
+
         let layered_edge_list = [
             ExternalEdgeList::new(
                 "netflow",

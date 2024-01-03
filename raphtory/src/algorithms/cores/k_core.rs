@@ -1,16 +1,16 @@
 use crate::{
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{nodes::node_ref::NodeRef, VID},
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
-        graph::views::vertex_subgraph::VertexSubgraph,
+        api::view::{NodeViewOps, StaticGraphViewOps},
+        graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -32,13 +32,13 @@ impl Default for KCoreState {
 /// # Arguments
 ///
 /// * `g` - A reference to the graph
-/// * `k` - Value of k such that the returned vertices have degree > k (recursively)
+/// * `k` - Value of k such that the returned nodes have degree > k (recursively)
 /// * `iter_count` - The number of iterations to run
 /// * `threads` - number of threads to run on
 ///
 /// Returns:
 ///
-/// A hash set of vertices in the k core
+/// A hash set of nodes in the k core
 ///
 pub fn k_core_set<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> HashSet<VID>
 where
@@ -53,7 +53,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalVertexView<G, KCoreState>| {
+    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, KCoreState>| {
         let prev: bool = vv.prev().alive;
         if prev == true {
             let current = vv
@@ -88,8 +88,8 @@ where
                 .enumerate()
                 .filter(|(v_ref, state)| {
                     state.alive
-                        && graph.has_vertex_ref(
-                            VertexRef::Internal((*v_ref).into()),
+                        && graph.has_node_ref(
+                            NodeRef::Internal((*v_ref).into()),
                             &layers,
                             edge_filter,
                         )
@@ -104,12 +104,7 @@ where
     )
 }
 
-pub fn k_core<G>(
-    graph: &G,
-    k: usize,
-    iter_count: usize,
-    threads: Option<usize>,
-) -> VertexSubgraph<G>
+pub fn k_core<G>(graph: &G, k: usize, iter_count: usize, threads: Option<usize>) -> NodeSubgraph<G>
 where
     G: StaticGraphViewOps,
 {
@@ -164,9 +159,6 @@ mod k_core_test {
             .map(|k| k.to_string())
             .collect::<HashSet<String>>();
 
-        assert_eq!(
-            actual,
-            subgraph.vertices().name().collect::<HashSet<String>>()
-        );
+        assert_eq!(actual, subgraph.nodes().name().collect::<HashSet<String>>());
     }
 }

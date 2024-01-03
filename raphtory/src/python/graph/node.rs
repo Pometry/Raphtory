@@ -1,10 +1,10 @@
-//! Defines the `Vertex`, which represents a vertex in the graph.
-//! A vertex is a node in the graph, and can have properties and edges.
+//! Defines the `Node`, which represents a node in the graph.
+//! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
-use crate::db::graph::path::{PathFromGraph, PathFromVertex};
+use crate::db::graph::path::{PathFromGraph, PathFromNode};
 use crate::{
     core::{
-        entities::vertices::vertex_ref::VertexRef,
+        entities::nodes::node_ref::NodeRef,
         utils::{errors::GraphError, time::error::ParseTimeError},
         Prop,
     },
@@ -17,9 +17,9 @@ use crate::{
             },
         },
         graph::{
-            // path::{PathFromGraph, PathFromVertex},
-            vertex::VertexView,
-            vertices::Vertices,
+            // path::{PathFromGraph, PathFromNode},
+            node::NodeView,
+            nodes::Nodes,
             views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
         },
     },
@@ -46,227 +46,227 @@ use pyo3::{
 use python::types::repr::{iterator_repr, Repr};
 use std::{collections::HashMap, ops::Deref};
 
-/// A vertex (or node) in the graph.
-#[pyclass(name = "Vertex", subclass)]
+/// A node (or node) in the graph.
+#[pyclass(name = "Node", subclass)]
 #[derive(Clone)]
-pub struct PyVertex {
-    vertex: VertexView<DynamicGraph, DynamicGraph>,
+pub struct PyNode {
+    node: NodeView<DynamicGraph, DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<VertexView<G, GH>> for PyVertex
+    From<NodeView<G, GH>> for PyNode
 {
-    fn from(value: VertexView<G, GH>) -> Self {
+    fn from(value: NodeView<G, GH>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
         let graph = value.graph.into_dynamic();
-        let vertex = VertexView {
+        let node = NodeView {
             base_graph,
             graph,
-            vertex: value.vertex,
+            node: value.node,
         };
-        Self { vertex }
+        Self { node }
     }
 }
 
-/// Converts a python vertex into a rust vertex.
-impl From<PyVertex> for VertexRef {
-    fn from(value: PyVertex) -> Self {
-        value.vertex.into()
+/// Converts a python node into a rust node.
+impl From<PyNode> for NodeRef {
+    fn from(value: PyNode) -> Self {
+        value.node.into()
     }
 }
 
-/// Defines the `Vertex`, which represents a vertex in the graph.
-/// A vertex is a node in the graph, and can have properties and edges.
+/// Defines the `Node`, which represents a node in the graph.
+/// A node is a node in the graph, and can have properties and edges.
 /// It can also be used to navigate the graph.
 #[pymethods]
-impl PyVertex {
-    /// Rich Comparison for Vertex objects
-    pub fn __richcmp__(&self, other: PyRef<PyVertex>, op: CompareOp) -> Py<PyAny> {
+impl PyNode {
+    /// Rich Comparison for Node objects
+    pub fn __richcmp__(&self, other: PyRef<PyNode>, op: CompareOp) -> Py<PyAny> {
         let py = other.py();
         match op {
-            CompareOp::Eq => (self.vertex.id() == other.id()).into_py(py),
-            CompareOp::Ne => (self.vertex.id() != other.id()).into_py(py),
-            CompareOp::Lt => (self.vertex.id() < other.id()).into_py(py),
-            CompareOp::Le => (self.vertex.id() <= other.id()).into_py(py),
-            CompareOp::Gt => (self.vertex.id() > other.id()).into_py(py),
-            CompareOp::Ge => (self.vertex.id() >= other.id()).into_py(py),
+            CompareOp::Eq => (self.node.id() == other.id()).into_py(py),
+            CompareOp::Ne => (self.node.id() != other.id()).into_py(py),
+            CompareOp::Lt => (self.node.id() < other.id()).into_py(py),
+            CompareOp::Le => (self.node.id() <= other.id()).into_py(py),
+            CompareOp::Gt => (self.node.id() > other.id()).into_py(py),
+            CompareOp::Ge => (self.node.id() >= other.id()).into_py(py),
         }
     }
 
     /// TODO: uncomment when we update to py03 0.2
-    /// checks if a vertex is equal to another by their id (ids are unqiue)
+    /// checks if a node is equal to another by their id (ids are unqiue)
     ///
     /// Arguments:
-    ///    other: The other vertex to compare to.
+    ///    other: The other node to compare to.
     ///
     /// Returns:
-    ///   True if the vertices are equal, false otherwise.
-    // pub fn __eq__(&self, other: &PyVertex) -> bool {
-    //     self.vertex.id() == other.vertex.id()
+    ///   True if the nodes are equal, false otherwise.
+    // pub fn __eq__(&self, other: &PyNode) -> bool {
+    //     self.node.id() == other.node.id()
     // }
 
-    /// Returns the hash of the vertex.
+    /// Returns the hash of the node.
     ///
     /// Returns:
-    ///   The vertex id.
+    ///   The node id.
     pub fn __hash__(&self) -> u64 {
-        self.vertex.id()
+        self.node.id()
     }
 
-    /// Returns the id of the vertex.
-    /// This is a unique identifier for the vertex.
+    /// Returns the id of the node.
+    /// This is a unique identifier for the node.
     ///
     /// Returns:
-    ///    The id of the vertex as an integer.
+    ///    The id of the node as an integer.
     #[getter]
     pub fn id(&self) -> u64 {
-        self.vertex.id()
+        self.node.id()
     }
 
-    /// Returns the name of the vertex.
+    /// Returns the name of the node.
     ///
     /// Returns:
-    ///     The name of the vertex as a string.
+    ///     The name of the node as a string.
     #[getter]
     pub fn name(&self) -> String {
-        self.vertex.name()
+        self.node.name()
     }
 
-    /// Returns the earliest time that the vertex exists.
+    /// Returns the earliest time that the node exists.
     ///
     /// Returns:
-    ///     The earliest time that the vertex exists as an integer.
+    ///     The earliest time that the node exists as an integer.
     #[getter]
     pub fn earliest_time(&self) -> Option<i64> {
-        self.vertex.earliest_time()
+        self.node.earliest_time()
     }
 
-    /// Returns the earliest datetime that the vertex exists.
+    /// Returns the earliest datetime that the node exists.
     ///
     /// Returns:
-    ///     The earliest datetime that the vertex exists as an integer.
+    ///     The earliest datetime that the node exists as an integer.
     #[getter]
     pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        let earliest_time = self.vertex.earliest_time()?;
+        let earliest_time = self.node.earliest_time()?;
         NaiveDateTime::from_timestamp_millis(earliest_time)
     }
 
-    /// Returns the latest time that the vertex exists.
+    /// Returns the latest time that the node exists.
     ///
     /// Returns:
-    ///     The latest time that the vertex exists as an integer.
+    ///     The latest time that the node exists as an integer.
     #[getter]
     pub fn latest_time(&self) -> Option<i64> {
-        self.vertex.latest_time()
+        self.node.latest_time()
     }
 
-    /// Returns the latest datetime that the vertex exists.
+    /// Returns the latest datetime that the node exists.
     ///
     /// Arguments:
     ///    None
     ///
     /// Returns:
-    ///     The latest datetime that the vertex exists as an integer.
+    ///     The latest datetime that the node exists as an integer.
     #[getter]
     pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
-        let latest_time = self.vertex.latest_time()?;
+        let latest_time = self.node.latest_time()?;
         NaiveDateTime::from_timestamp_millis(latest_time)
     }
 
-    /// The properties of the vertex
+    /// The properties of the node
     ///
     /// Returns:
     ///     A list of properties.
     #[getter]
-    pub fn properties(&self) -> Properties<VertexView<DynamicGraph, DynamicGraph>> {
-        self.vertex.properties()
+    pub fn properties(&self) -> Properties<NodeView<DynamicGraph, DynamicGraph>> {
+        self.node.properties()
     }
 
-    /// Get the degree of this vertex (i.e., the number of edges that are incident to it).
+    /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
     /// Returns
-    ///     The degree of this vertex.
+    ///     The degree of this node.
     pub fn degree(&self) -> usize {
-        self.vertex.degree()
+        self.node.degree()
     }
 
-    /// Get the in-degree of this vertex (i.e., the number of edges that are incident to it from other vertices).
+    /// Get the in-degree of this node (i.e., the number of edges that are incident to it from other nodes).
     ///
     /// Returns:
-    ///    The in-degree of this vertex.
+    ///    The in-degree of this node.
     pub fn in_degree(&self) -> usize {
-        self.vertex.in_degree()
+        self.node.in_degree()
     }
 
-    /// Get the out-degree of this vertex (i.e., the number of edges that are incident to it from this vertex).
+    /// Get the out-degree of this node (i.e., the number of edges that are incident to it from this node).
     ///
     /// Returns:
-    ///   The out-degree of this vertex.
+    ///   The out-degree of this node.
     pub fn out_degree(&self) -> usize {
-        self.vertex.out_degree()
+        self.node.out_degree()
     }
 
-    /// Get the edges that are pointing to or from this vertex.
+    /// Get the edges that are pointing to or from this node.
     ///
     /// Returns:
     ///     A list of `Edge` objects.
     #[getter]
     pub fn edges(&self) -> PyEdges {
-        let vertex = self.vertex.clone();
-        (move || vertex.edges()).into()
+        let node = self.node.clone();
+        (move || node.edges()).into()
     }
 
-    /// Get the edges that are pointing to this vertex.
+    /// Get the edges that are pointing to this node.
     ///
     /// Returns:
     ///     A list of `Edge` objects.
     #[getter]
     pub fn in_edges(&self) -> PyEdges {
-        let vertex = self.vertex.clone();
-        (move || vertex.in_edges()).into()
+        let node = self.node.clone();
+        (move || node.in_edges()).into()
     }
 
-    /// Get the edges that are pointing from this vertex.
+    /// Get the edges that are pointing from this node.
     ///
     /// Returns:
     ///    A list of `Edge` objects.
     #[getter]
     pub fn out_edges(&self) -> PyEdges {
-        let vertex = self.vertex.clone();
-        (move || vertex.out_edges()).into()
+        let node = self.node.clone();
+        (move || node.out_edges()).into()
     }
 
-    /// Get the neighbours of this vertex.
+    /// Get the neighbours of this node.
     ///
     /// Returns:
     ///
-    ///    A list of `Vertex` objects.
+    ///    A list of `Node` objects.
     #[getter]
-    pub fn neighbours(&self) -> PyPathFromVertex {
-        self.vertex.neighbours().into()
+    pub fn neighbours(&self) -> PyPathFromNode {
+        self.node.neighbours().into()
     }
 
-    /// Get the neighbours of this vertex that are pointing to it.
+    /// Get the neighbours of this node that are pointing to it.
     ///
     /// Returns:
-    ///   A list of `Vertex` objects.
+    ///   A list of `Node` objects.
     #[getter]
-    pub fn in_neighbours(&self) -> PyPathFromVertex {
-        self.vertex.in_neighbours().into()
+    pub fn in_neighbours(&self) -> PyPathFromNode {
+        self.node.in_neighbours().into()
     }
 
-    /// Get the neighbours of this vertex that are pointing from it.
+    /// Get the neighbours of this node that are pointing from it.
     ///
     /// Returns:
-    ///   A list of `Vertex` objects.
+    ///   A list of `Node` objects.
     #[getter]
-    pub fn out_neighbours(&self) -> PyPathFromVertex {
-        self.vertex.out_neighbours().into()
+    pub fn out_neighbours(&self) -> PyPathFromNode {
+        self.node.out_neighbours().into()
     }
 
     #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> PyVertex {
-        self.vertex.default_layer().into()
+    pub fn default_layer(&self) -> PyNode {
+        self.node.default_layer().into()
     }
 
     #[doc = layers_doc_string!()]
@@ -274,8 +274,8 @@ impl PyVertex {
     pub fn layers(
         &self,
         names: Vec<String>,
-    ) -> Option<VertexView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.vertex.layer(names)
+    ) -> Option<NodeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
+        self.node.layer(names)
     }
 
     #[doc = layers_name_doc_string!()]
@@ -283,41 +283,41 @@ impl PyVertex {
     pub fn layer(
         &self,
         name: String,
-    ) -> Option<VertexView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.vertex.layer(name)
+    ) -> Option<NodeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
+        self.node.layer(name)
     }
 
-    /// Returns the history of a vertex, including vertex additions and changes made to vertex.
+    /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     A list of timestamps of the event history of vertex.
+    ///     A list of timestamps of the event history of node.
     pub fn history(&self) -> Vec<i64> {
-        self.vertex.history()
+        self.node.history()
     }
 
     //******  Python  ******//
     pub fn __getitem__(&self, name: &str) -> PyResult<Prop> {
-        self.vertex
+        self.node
             .properties()
             .get(name)
             .ok_or(PyKeyError::new_err(format!("Unknown property {}", name)))
     }
 
-    /// Display the vertex as a string.
+    /// Display the node as a string.
     pub fn __repr__(&self) -> String {
         self.repr()
     }
 }
 
-impl_timeops!(PyVertex, vertex, VertexView<DynamicGraph, DynamicGraph>, "vertex");
+impl_timeops!(PyNode, node, NodeView<DynamicGraph, DynamicGraph>, "node");
 
-impl Repr for PyVertex {
+impl Repr for PyNode {
     fn repr(&self) -> String {
-        self.vertex.repr()
+        self.node.repr()
     }
 }
 
-impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for VertexView<G, GH> {
+impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for NodeView<G, GH> {
     fn repr(&self) -> String {
         let earliest_time = self.earliest_time().repr();
         let latest_time = self.latest_time().repr();
@@ -328,14 +328,14 @@ impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for VertexView<G, GH> {
             .join(", ");
         if properties.is_empty() {
             format!(
-                "Vertex(name={}, earliest_time={:?}, latest_time={:?})",
+                "Node(name={}, earliest_time={:?}, latest_time={:?})",
                 self.name().trim_matches('"'),
                 earliest_time,
                 latest_time
             )
         } else {
             format!(
-                "Vertex(name={}, earliest_time={:?}, latest_time={:?}, properties={})",
+                "Node(name={}, earliest_time={:?}, latest_time={:?}, properties={})",
                 self.name().trim_matches('"'),
                 earliest_time,
                 latest_time,
@@ -345,74 +345,71 @@ impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for VertexView<G, GH> {
     }
 }
 
-#[pyclass(name = "MutableVertex", extends=PyVertex)]
-pub struct PyMutableVertex {
-    vertex: VertexView<MaterializedGraph, MaterializedGraph>,
+#[pyclass(name = "MutableNode", extends=PyNode)]
+pub struct PyMutableNode {
+    node: NodeView<MaterializedGraph, MaterializedGraph>,
 }
 
-impl Repr for PyMutableVertex {
+impl Repr for PyMutableNode {
     fn repr(&self) -> String {
-        self.vertex.repr()
+        self.node.repr()
     }
 }
 
-impl From<VertexView<MaterializedGraph, MaterializedGraph>> for PyMutableVertex {
-    fn from(vertex: VertexView<MaterializedGraph, MaterializedGraph>) -> Self {
-        Self { vertex }
+impl From<NodeView<MaterializedGraph, MaterializedGraph>> for PyMutableNode {
+    fn from(node: NodeView<MaterializedGraph, MaterializedGraph>) -> Self {
+        Self { node }
     }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Immutable>
-    IntoPy<PyObject> for VertexView<G, GH>
+    IntoPy<PyObject> for NodeView<G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyVertex::from(self).into_py(py)
+        PyNode::from(self).into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for VertexView<Graph, Graph> {
+impl IntoPy<PyObject> for NodeView<Graph, Graph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph = graph.clone();
-        let vertex = self.vertex;
-        let vertex = VertexView {
+        let node = self.node;
+        let node = NodeView {
             base_graph,
             graph,
-            vertex,
+            node,
         };
-        vertex.into_py(py)
+        node.into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for VertexView<GraphWithDeletions, GraphWithDeletions> {
+impl IntoPy<PyObject> for NodeView<GraphWithDeletions, GraphWithDeletions> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph = graph.clone();
-        let vertex = self.vertex;
-        let vertex = VertexView {
+        let node = self.node;
+        let node = NodeView {
             base_graph,
             graph,
-            vertex,
+            node,
         };
-        vertex.into_py(py)
+        node.into_py(py)
     }
 }
 
-impl IntoPy<PyObject> for VertexView<MaterializedGraph, MaterializedGraph> {
+impl IntoPy<PyObject> for NodeView<MaterializedGraph, MaterializedGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        Py::new(
-            py,
-            (PyMutableVertex::from(self.clone()), PyVertex::from(self)),
-        )
-        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
-        .into_py(py)
+        Py::new(py, (PyMutableNode::from(self.clone()), PyNode::from(self)))
+            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable!
+            .into_py(py)
     }
 }
 
 #[pymethods]
-impl PyMutableVertex {
-    /// Add updates to a vertex in the graph at a specified time.
-    /// This function allows for the addition of property updates to a vertex within the graph. The updates are time-stamped, meaning they are applied at the specified time.
+impl PyMutableNode {
+    /// Add updates to a node in the graph at a specified time.
+    /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
     ///     t (PyTime): The timestamp at which the updates should be applied.
@@ -427,15 +424,15 @@ impl PyMutableVertex {
         t: PyTime,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        self.vertex.add_updates(t, properties.unwrap_or_default())
+        self.node.add_updates(t, properties.unwrap_or_default())
     }
 
-    /// Add constant properties to a vertex in the graph.
-    /// This function is used to add properties to a vertex that remain constant and do not
-    /// change over time. These properties are fundamental attributes of the vertex.
+    /// Add constant properties to a node in the graph.
+    /// This function is used to add properties to a node that remain constant and do not
+    /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the vertex.
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
     ///     Each key is a string representing the property name, and each value is of type Prop
     ///     representing the property value.
     ///
@@ -445,59 +442,59 @@ impl PyMutableVertex {
         &self,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
-        self.vertex.add_constant_properties(properties)
+        self.node.add_constant_properties(properties)
     }
 
-    /// Return a string representation of the vertex.
-    /// This method provides a human-readable representation of the vertex, which is useful for
+    /// Return a string representation of the node.
+    /// This method provides a human-readable representation of the node, which is useful for
     /// debugging and logging purposes.
     ///
     /// Returns:
-    ///     str: A string representation of the vertex.
+    ///     str: A string representation of the node.
     fn __repr__(&self) -> String {
         self.repr()
     }
 }
 
-/// A list of vertices that can be iterated over.
-#[pyclass(name = "Vertices")]
-pub struct PyVertices {
-    pub(crate) vertices: Vertices<'static, DynamicGraph, DynamicGraph>,
+/// A list of nodes that can be iterated over.
+#[pyclass(name = "Nodes")]
+pub struct PyNodes {
+    pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<Vertices<'static, G, GH>> for PyVertices
+    From<Nodes<'static, G, GH>> for PyNodes
 {
-    fn from(value: Vertices<'static, G, GH>) -> Self {
+    fn from(value: Nodes<'static, G, GH>) -> Self {
         let graph = value.graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
-            vertices: Vertices::new_filtered(base_graph, graph),
+            nodes: Nodes::new_filtered(base_graph, graph),
         }
     }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for Vertices<'static, G, GH>
+    for Nodes<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyVertices::from(self).into_py(py)
+        PyNodes::from(self).into_py(py)
     }
 }
 
-/// Operations on a list of vertices.
-/// These use all the same functions as a normal vertex except it returns a list of results.
+/// Operations on a list of nodes.
+/// These use all the same functions as a normal node except it returns a list of results.
 #[pymethods]
-impl PyVertices {
-    /// checks if a list of vertices is equal to another list by their idd (ids are unique)
+impl PyNodes {
+    /// checks if a list of nodes is equal to another list by their idd (ids are unique)
     ///
     /// Arguments:
-    ///    other: The other vertices to compare to.
+    ///    other: The other nodes to compare to.
     ///
     /// Returns:
-    ///   True if the vertices are equal, false otherwise.
-    fn __eq__(&self, other: &PyVertices) -> bool {
-        for (v1, v2) in self.vertices.iter().zip(other.vertices.iter()) {
+    ///   True if the nodes are equal, false otherwise.
+    fn __eq__(&self, other: &PyNodes) -> bool {
+        for (v1, v2) in self.nodes.iter().zip(other.nodes.iter()) {
             if v1.id() != v2.id() {
                 return false;
             }
@@ -505,135 +502,135 @@ impl PyVertices {
         true
     }
 
-    /// Returns an iterator over the vertices ids
+    /// Returns an iterator over the nodes ids
     #[getter]
     fn id(&self) -> U64Iterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.id()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.id()).into()
     }
 
-    /// Returns an iterator over the vertices name
+    /// Returns an iterator over the nodes name
     #[getter]
     fn name(&self) -> StringIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.name()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.name()).into()
     }
 
-    /// Returns an iterator over the vertices earliest time
+    /// Returns an iterator over the nodes earliest time
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.earliest_time()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.earliest_time()).into()
     }
 
-    /// Returns an iterator over the vertices latest time
+    /// Returns an iterator over the nodes latest time
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.latest_time()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.latest_time()).into()
     }
 
-    /// The properties of the vertex
+    /// The properties of the node
     ///
     /// Returns:
     ///     A List of properties
     #[getter]
     fn properties(&self) -> PyPropsList {
-        let vertices = self.vertices.clone();
-        (move || vertices.properties()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.properties()).into()
     }
 
-    /// Returns the number of edges of the vertices
+    /// Returns the number of edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of edges of the vertices
+    ///     An iterator of the number of edges of the nodes
     fn degree(&self) -> UsizeIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.degree()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.degree()).into()
     }
 
-    /// Returns the number of in edges of the vertices
+    /// Returns the number of in edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of in edges of the vertices
+    ///     An iterator of the number of in edges of the nodes
     fn in_degree(&self) -> UsizeIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.in_degree()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.in_degree()).into()
     }
 
-    /// Returns the number of out edges of the vertices
+    /// Returns the number of out edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of the number of out edges of the vertices
+    ///     An iterator of the number of out edges of the nodes
     fn out_degree(&self) -> UsizeIterable {
-        let vertices = self.vertices.clone();
-        (move || vertices.out_degree()).into()
+        let nodes = self.nodes.clone();
+        (move || nodes.out_degree()).into()
     }
 
-    /// Returns the edges of the vertices
+    /// Returns the edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of edges of the vertices
+    ///     An iterator of edges of the nodes
     #[getter]
     fn edges(&self) -> PyNestedEdges {
-        let clone = self.vertices.clone();
+        let clone = self.nodes.clone();
         (move || clone.edges()).into()
     }
 
-    /// Returns the in edges of the vertices
+    /// Returns the in edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of in edges of the vertices
+    ///     An iterator of in edges of the nodes
     #[getter]
     fn in_edges(&self) -> PyNestedEdges {
-        let clone = self.vertices.clone();
+        let clone = self.nodes.clone();
         (move || clone.in_edges()).into()
     }
 
-    /// Returns the out edges of the vertices
+    /// Returns the out edges of the nodes
     ///
     /// Returns:
-    ///     An iterator of out edges of the vertices
+    ///     An iterator of out edges of the nodes
     #[getter]
     fn out_edges(&self) -> PyNestedEdges {
-        let clone = self.vertices.clone();
+        let clone = self.nodes.clone();
         (move || clone.out_edges()).into()
     }
 
-    /// Get the neighbours of the vertices
+    /// Get the neighbours of the nodes
     ///
     /// Returns:
-    ///     An iterator of the neighbours of the vertices
+    ///     An iterator of the neighbours of the nodes
     #[getter]
     fn neighbours(&self) -> PyPathFromGraph {
-        self.vertices.neighbours().into()
+        self.nodes.neighbours().into()
     }
 
-    /// Get the in neighbours of the vertices
+    /// Get the in neighbours of the nodes
     ///
     /// Returns:
-    ///     An iterator of the in neighbours of the vertices
+    ///     An iterator of the in neighbours of the nodes
     #[getter]
     fn in_neighbours(&self) -> PyPathFromGraph {
-        self.vertices.in_neighbours().into()
+        self.nodes.in_neighbours().into()
     }
 
-    /// Get the out neighbours of the vertices
+    /// Get the out neighbours of the nodes
     ///
     /// Returns:
-    ///     An iterator of the out neighbours of the vertices
+    ///     An iterator of the out neighbours of the nodes
     #[getter]
     fn out_neighbours(&self) -> PyPathFromGraph {
-        self.vertices.out_neighbours().into()
+        self.nodes.out_neighbours().into()
     }
 
-    /// Collects all vertices into a list
-    fn collect(&self) -> Vec<PyVertex> {
+    /// Collects all nodes into a list
+    fn collect(&self) -> Vec<PyNode> {
         self.__iter__().into_iter().collect()
     }
     #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> PyVertices {
-        self.vertices.default_layer().into()
+    pub fn default_layer(&self) -> PyNodes {
+        self.nodes.default_layer().into()
     }
 
     #[doc = layers_doc_string!()]
@@ -641,30 +638,27 @@ impl PyVertices {
     pub fn layer(
         &self,
         name: &str,
-    ) -> Option<Vertices<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.vertices.layer(name)
+    ) -> Option<Nodes<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
+        self.nodes.layer(name)
     }
 
     //****** Python *******
-    pub fn __iter__(&self) -> PyVertexIterator {
-        self.vertices.iter().into()
+    pub fn __iter__(&self) -> PyNodeIterator {
+        self.nodes.iter().into()
     }
 
     pub fn __len__(&self) -> usize {
-        self.vertices.len()
+        self.nodes.len()
     }
 
     pub fn __bool__(&self) -> bool {
-        self.vertices.is_empty()
+        self.nodes.is_empty()
     }
 
-    pub fn __getitem__(
-        &self,
-        vertex: VertexRef,
-    ) -> PyResult<VertexView<DynamicGraph, DynamicGraph>> {
-        self.vertices
-            .get(vertex)
-            .ok_or_else(|| PyIndexError::new_err("Vertex does not exist"))
+    pub fn __getitem__(&self, node: NodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
+        self.nodes
+            .get(node)
+            .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
     }
 
     pub fn __repr__(&self) -> String {
@@ -673,15 +667,15 @@ impl PyVertices {
 }
 
 impl_timeops!(
-    PyVertices,
-    vertices,
-    Vertices<'static, DynamicGraph, DynamicGraph>,
-    "vertices"
+    PyNodes,
+    nodes,
+    Nodes<'static, DynamicGraph, DynamicGraph>,
+    "nodes"
 );
 
-impl Repr for PyVertices {
+impl Repr for PyNodes {
     fn repr(&self) -> String {
-        format!("Vertices({})", iterator_repr(self.__iter__().into_iter()))
+        format!("Nodes({})", iterator_repr(self.__iter__().into_iter()))
     }
 }
 
@@ -696,7 +690,7 @@ impl PyPathFromGraph {
         self.path.iter().into()
     }
 
-    fn collect(&self) -> Vec<Vec<PyVertex>> {
+    fn collect(&self) -> Vec<Vec<PyNode>> {
         self.__iter__().into_iter().map(|it| it.collect()).collect()
     }
     #[getter]
@@ -834,20 +828,20 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
     }
 }
 
-#[pyclass(name = "PathFromVertex")]
-pub struct PyPathFromVertex {
-    path: PathFromVertex<'static, DynamicGraph, DynamicGraph>,
+#[pyclass(name = "PathFromNode")]
+pub struct PyPathFromNode {
+    path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<PathFromVertex<'static, G, GH>> for PyPathFromVertex
+    From<PathFromNode<'static, G, GH>> for PyPathFromNode
 {
-    fn from(value: PathFromVertex<'static, G, GH>) -> Self {
+    fn from(value: PathFromNode<'static, G, GH>) -> Self {
         Self {
-            path: PathFromVertex {
+            path: PathFromNode {
                 graph: value.graph.clone().into_dynamic(),
                 base_graph: value.base_graph.clone().into_dynamic(),
-                vertex: value.vertex,
+                node: value.node,
                 op: value.op.clone(),
             },
         }
@@ -855,20 +849,20 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-    for PathFromVertex<'static, G, GH>
+    for PathFromNode<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
-        PyPathFromVertex::from(self).into_py(py)
+        PyPathFromNode::from(self).into_py(py)
     }
 }
 
 #[pymethods]
-impl PyPathFromVertex {
-    fn __iter__(&self) -> PyVertexIterator {
+impl PyPathFromNode {
+    fn __iter__(&self) -> PyNodeIterator {
         self.path.iter().into()
     }
 
-    fn collect(&self) -> Vec<PyVertex> {
+    fn collect(&self) -> Vec<PyNode> {
         self.__iter__().into_iter().collect()
     }
 
@@ -959,7 +953,7 @@ impl PyPathFromVertex {
     pub fn layer(
         &self,
         name: &str,
-    ) -> Option<PathFromVertex<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
+    ) -> Option<PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
         self.path.layer(name)
     }
 
@@ -969,28 +963,28 @@ impl PyPathFromVertex {
 }
 
 impl_timeops!(
-    PyPathFromVertex,
+    PyPathFromNode,
     path,
-    PathFromVertex<'static, DynamicGraph, DynamicGraph>,
+    PathFromNode<'static, DynamicGraph, DynamicGraph>,
     "path"
 );
 
-impl Repr for PyPathFromVertex {
+impl Repr for PyPathFromNode {
     fn repr(&self) -> String {
         format!(
-            "PathFromVertex({})",
+            "PathFromNode({})",
             iterator_repr(self.__iter__().into_iter())
         )
     }
 }
 
-#[pyclass(name = "VertexIterator")]
-pub struct PyVertexIterator {
-    iter: Box<dyn Iterator<Item = PyVertex> + Send>,
+#[pyclass(name = "NodeIterator")]
+pub struct PyNodeIterator {
+    iter: Box<dyn Iterator<Item = PyNode> + Send>,
 }
 
-impl<I: Iterator<Item = VertexView<DynamicGraph, DynamicGraph>> + Send + 'static> From<I>
-    for PyVertexIterator
+impl<I: Iterator<Item = NodeView<DynamicGraph, DynamicGraph>> + Send + 'static> From<I>
+    for PyNodeIterator
 {
     fn from(value: I) -> Self {
         Self {
@@ -999,9 +993,9 @@ impl<I: Iterator<Item = VertexView<DynamicGraph, DynamicGraph>> + Send + 'static
     }
 }
 
-impl IntoIterator for PyVertexIterator {
-    type Item = PyVertex;
-    type IntoIter = Box<dyn Iterator<Item = PyVertex> + Send>;
+impl IntoIterator for PyNodeIterator {
+    type Item = PyNode;
+    type IntoIter = Box<dyn Iterator<Item = PyNode> + Send>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter
@@ -1009,30 +1003,30 @@ impl IntoIterator for PyVertexIterator {
 }
 
 #[pymethods]
-impl PyVertexIterator {
+impl PyNodeIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyVertex> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyNode> {
         slf.iter.next()
     }
 }
 
 #[pyclass]
 pub struct PathIterator {
-    pub(crate) iter: Box<dyn Iterator<Item = PyPathFromVertex> + Send>,
+    pub(crate) iter: Box<dyn Iterator<Item = PyPathFromNode> + Send>,
 }
 
 impl IntoIterator for PathIterator {
-    type Item = PyPathFromVertex;
-    type IntoIter = Box<dyn Iterator<Item = PyPathFromVertex> + Send>;
+    type Item = PyPathFromNode;
+    type IntoIter = Box<dyn Iterator<Item = PyPathFromNode> + Send>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter
     }
 }
 
-impl<I: Iterator<Item = P> + Send + 'static, P: Into<PyPathFromVertex>> From<I> for PathIterator {
+impl<I: Iterator<Item = P> + Send + 'static, P: Into<PyPathFromNode>> From<I> for PathIterator {
     fn from(value: I) -> Self {
         Self {
             iter: Box::new(value.map(|path| path.into())),
@@ -1045,15 +1039,15 @@ impl PathIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyPathFromVertex> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyPathFromNode> {
         slf.iter.next()
     }
 }
 
-py_iterable!(PyVertexIterable, VertexView<DynamicGraph, DynamicGraph>, PyVertex);
+py_iterable!(PyNodeIterable, NodeView<DynamicGraph, DynamicGraph>, PyNode);
 
 #[pymethods]
-impl PyVertexIterable {
+impl PyNodeIterable {
     #[getter]
     fn id(&self) -> U64Iterable {
         let builder = self.builder.clone();
@@ -1062,41 +1056,41 @@ impl PyVertexIterable {
 
     #[getter]
     fn name(&self) -> StringIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().name()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().name()).into()
     }
 
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
-        let vertices = self.builder.clone();
-        (move || vertices().earliest_time()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().earliest_time()).into()
     }
 
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
-        let vertices = self.builder.clone();
-        (move || vertices().latest_time()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().latest_time()).into()
     }
 
     #[getter]
     fn properties(&self) -> PyPropsList {
-        let vertices = self.builder.clone();
-        (move || vertices().properties()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().properties()).into()
     }
 
     fn degree(&self) -> UsizeIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().degree()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().degree()).into()
     }
 
     fn in_degree(&self) -> UsizeIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().in_degree()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().in_degree()).into()
     }
 
     fn out_degree(&self) -> UsizeIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().out_degree()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().out_degree()).into()
     }
 
     #[getter]
@@ -1136,10 +1130,10 @@ impl PyVertexIterable {
     }
 }
 
-py_nested_iterable!(PyNestedVertexIterable, VertexView<DynamicGraph, DynamicGraph>);
+py_nested_iterable!(PyNestedNodeIterable, NodeView<DynamicGraph, DynamicGraph>);
 
 #[pymethods]
-impl PyNestedVertexIterable {
+impl PyNestedNodeIterable {
     #[getter]
     fn id(&self) -> NestedU64Iterable {
         let builder = self.builder.clone();
@@ -1148,41 +1142,41 @@ impl PyNestedVertexIterable {
 
     #[getter]
     fn name(&self) -> NestedStringIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().name()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().name()).into()
     }
 
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
-        let vertices = self.builder.clone();
-        (move || vertices().earliest_time()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().earliest_time()).into()
     }
 
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
-        let vertices = self.builder.clone();
-        (move || vertices().latest_time()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().latest_time()).into()
     }
 
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().properties()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().properties()).into()
     }
 
     fn degree(&self) -> NestedUsizeIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().degree()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().degree()).into()
     }
 
     fn in_degree(&self) -> NestedUsizeIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().in_degree()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().in_degree()).into()
     }
 
     fn out_degree(&self) -> NestedUsizeIterable {
-        let vertices = self.builder.clone();
-        (move || vertices().out_degree()).into()
+        let nodes = self.builder.clone();
+        (move || nodes().out_degree()).into()
     }
 
     #[getter]

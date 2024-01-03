@@ -35,12 +35,12 @@
 use crate::{
     core::state::{accumulator_id::accumulators::sum, compute_state::ComputeStateVec},
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -91,7 +91,7 @@ pub fn triplet_count<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) -> us
     let count = sum::<usize>(0);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |evv: &mut EvalVertexView<G, ()>| {
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, ()>| {
         let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
         let c2 = count_two_combinations(c1);
         evv.global_update(&count, c2);

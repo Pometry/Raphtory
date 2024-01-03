@@ -1,16 +1,16 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{vertices::vertex_ref::VertexRef, VID},
+        entities::{nodes::node_ref::NodeRef, VID},
         state::compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{StaticGraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -31,7 +31,7 @@ struct WccState {
 ///
 /// Returns:
 ///
-/// An AlgorithmResult containing the mapping from the vertex to its component ID
+/// An AlgorithmResult containing the mapping from the node to its component ID
 ///
 pub fn weakly_connected_components<G>(
     graph: &G,
@@ -50,7 +50,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalVertexView<G, WccState>| {
+    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, WccState>| {
         let prev: u64 = vv.prev().component;
         let current = vv
             .neighbours()
@@ -83,7 +83,7 @@ where
                 .filter_map(|(v_ref_id, state)| {
                     let v_ref = VID(v_ref_id);
                     graph
-                        .has_vertex_ref(VertexRef::Internal(v_ref), &layers, edge_filter)
+                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
                         .then_some((v_ref_id, state.component))
                 })
                 .collect::<HashMap<_, _>>()
@@ -257,7 +257,7 @@ mod cc_test {
             let _smallest = vs.iter().min().unwrap();
 
             let first = vs[0];
-            // pairs of vertices from vs one after the next
+            // pairs of nodes from vs one after the next
             let edges = vs
                 .iter()
                 .zip(chain!(vs.iter().skip(1), once(&first)))
@@ -280,7 +280,7 @@ mod cc_test {
 
             let first = vs[0];
 
-            // pairs of vertices from vs one after the next
+            // pairs of nodes from vs one after the next
             let edges = vs
                 .iter()
                 .zip(chain!(vs.iter().skip(1), once(&first)))

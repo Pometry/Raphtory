@@ -29,9 +29,9 @@ impl Algorithm for DummyAlgorithm {
     ) -> FieldResult<Option<FieldValue<'a>>> {
         let mandatory_arg = ctx.args.try_get("mandatoryArg")?.u64()?;
         let optional_arg = ctx.args.get("optionalArg").map(|v| v.u64()).transpose()?;
-        let num_vertices = graph.count_vertices();
+        let num_nodes = graph.count_nodes();
         let output = Self {
-            number_of_nodes: num_vertices,
+            number_of_nodes: num_nodes,
             message: format!("mandatory arg: '{mandatory_arg}', optional arg: '{optional_arg:?}'"),
         };
         Ok(Some(FieldValue::owned_any(output)))

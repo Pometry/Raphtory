@@ -22,7 +22,7 @@ use crate::{
         },
         graph::edge::EdgeView,
     },
-    prelude::{GraphViewOps, Layer, LayerOps, TimeOps, VertexListOps, VertexViewOps},
+    prelude::{GraphViewOps, Layer, LayerOps, NodeListOps, NodeViewOps, TimeOps},
 };
 
 pub trait EdgeViewInternalOps<'graph>:
@@ -39,12 +39,12 @@ pub trait EdgeViewInternalOps<'graph>:
 
     type EList: EdgeListOps<'graph, Edge = Self>;
 
-    type Neighbour: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+    type Neighbour: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
     fn graph(&self) -> &Self::Graph;
 
     fn eref(&self) -> EdgeRef;
 
-    fn new_vertex(&self, v: VID) -> Self::Neighbour;
+    fn new_node(&self, v: VID) -> Self::Neighbour;
 
     fn new_edge(&self, e: EdgeRef) -> Self;
 
@@ -65,7 +65,7 @@ pub trait EdgeViewOps<'graph>:
 {
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
-    type Vertex: VertexViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+    type Node: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
     type EList: EdgeListOps<'graph, Edge = Self>;
 
     /// list the activation timestamps for the edge
@@ -73,11 +73,11 @@ pub trait EdgeViewOps<'graph>:
 
     /// Return a view of the properties of the edge
     fn properties(&self) -> Properties<Self>;
-    /// Returns the source vertex of the edge.
-    fn src(&self) -> Self::Vertex;
+    /// Returns the source node of the edge.
+    fn src(&self) -> Self::Node;
 
-    /// Returns the destination vertex of the edge.
-    fn dst(&self) -> Self::Vertex;
+    /// Returns the destination node of the edge.
+    fn dst(&self) -> Self::Node;
 
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> bool;
@@ -86,8 +86,8 @@ pub trait EdgeViewOps<'graph>:
     fn id(
         &self,
     ) -> (
-        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
-        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
+        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
+        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
     );
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
@@ -123,7 +123,7 @@ pub trait EdgeViewOps<'graph>:
 impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
     type Graph = E::Graph;
     type BaseGraph = E::BaseGraph;
-    type Vertex = E::Neighbour;
+    type Node = E::Neighbour;
     type EList = E::EList;
 
     /// list the activation timestamps for the edge
@@ -140,16 +140,16 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
         Properties::new(self.clone())
     }
 
-    /// Returns the source vertex of the edge.
-    fn src(&self) -> Self::Vertex {
-        let vertex = self.eref().src();
-        self.new_vertex(vertex)
+    /// Returns the source node of the edge.
+    fn src(&self) -> Self::Node {
+        let node = self.eref().src();
+        self.new_node(node)
     }
 
-    /// Returns the destination vertex of the edge.
-    fn dst(&self) -> Self::Vertex {
-        let vertex = self.eref().dst();
-        self.new_vertex(vertex)
+    /// Returns the destination node of the edge.
+    fn dst(&self) -> Self::Node {
+        let node = self.eref().dst();
+        self.new_node(node)
     }
 
     /// Check if edge is active at a given time point
@@ -172,8 +172,8 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
     fn id(
         &self,
     ) -> (
-        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
-        <Self::Vertex as VertexViewOps<'graph>>::ValueType<u64>,
+        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
+        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
     ) {
         (self.src().id(), self.dst().id())
     }
@@ -278,17 +278,17 @@ pub trait EdgeListOps<'graph>:
     type Edge: EdgeViewOps<'graph>;
     type ValueType<T>;
 
-    /// the type of list of vertices
-    type VList: VertexListOps<'graph, Vertex = <Self::Edge as EdgeViewOps<'graph>>::Vertex>;
+    /// the type of list of nodes
+    type VList: NodeListOps<'graph, Node = <Self::Edge as EdgeViewOps<'graph>>::Node>;
 
     /// the type of iterator
     type IterType<T>: Iterator<Item = Self::ValueType<T>>;
     fn properties(self) -> Self::IterType<Properties<Self::Edge>>;
 
-    /// gets the source vertices of the edges in the list
+    /// gets the source nodes of the edges in the list
     fn src(self) -> Self::VList;
 
-    /// gets the destination vertices of the edges in the list
+    /// gets the destination nodes of the edges in the list
     fn dst(self) -> Self::VList;
 
     fn id(self) -> Self::IterType<(u64, u64)>;

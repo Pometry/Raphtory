@@ -1,7 +1,7 @@
 use super::context::GlobalState;
 use crate::{
     core::state::compute_state::ComputeState,
-    db::{api::view::StaticGraphViewOps, task::vertex::eval_vertex::EvalVertexView},
+    db::{api::view::StaticGraphViewOps, task::node::eval_node::EvalNodeView},
 };
 use std::marker::PhantomData;
 
@@ -12,7 +12,7 @@ where
 {
     fn run<'graph, 'a, 'b>(
         &'b self,
-        vv: &'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>,
+        vv: &'b mut EvalNodeView<'graph, 'a, G, S, &'graph G, CS>,
     ) -> Step;
 }
 
@@ -44,7 +44,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState, S: 'static, F: Clone> Clone for AT
     }
 }
 
-// determines if the task is executed for all vertices or only for updated vertices (vertices that had a state change since last sync)
+// determines if the task is executed for all nodes or only for updated nodes (nodes that had a state change since last sync)
 pub enum Job<G, CS: ComputeState, S> {
     Read(Box<dyn Task<G, CS, S> + Sync + Send>),
     Write(Box<dyn Task<G, CS, S> + Sync + Send>),
@@ -65,7 +65,7 @@ impl<G, CS, S, F> ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'graph, 'a, 'b> Fn(&'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
+    F: for<'graph, 'a, 'b> Fn(&'b mut EvalNodeView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
@@ -81,11 +81,11 @@ impl<G, CS, S, F> Task<G, CS, S> for ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'graph, 'a, 'b> Fn(&'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
+    F: for<'graph, 'a, 'b> Fn(&'b mut EvalNodeView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
 {
     fn run<'graph, 'a, 'b>(
         &'b self,
-        vv: &'b mut EvalVertexView<'graph, 'a, G, S, &'graph G, CS>,
+        vv: &'b mut EvalNodeView<'graph, 'a, G, S, &'graph G, CS>,
     ) -> Step {
         (self.f)(vv)
     }

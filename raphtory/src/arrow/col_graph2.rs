@@ -136,20 +136,21 @@ impl TempColGraphFragment {
     }
 
     pub fn load_from_edge_list<G: GlobalOrder, I: IntoIterator<Item = StructArray>>(
-        test_dir: &Path,
+        graph_dir: &Path,
         num_threads: NonZeroUsize,
         vertex_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
-        go: G,
+        go: Arc<G>,
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
         edge_list: I,
     ) -> Result<Self, Error> {
-        let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, Arc::new(go), test_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, test_dir);
-        let edge_props_builder = EdgePropsBuilder::new(test_dir, 0, 1, 0);
+        prepare_graph_dir(graph_dir)?;
+        let mut vf_builder = VertexFrameBuilder::new(vertex_chunk_size, go, graph_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
+        let edge_props_builder = EdgePropsBuilder::new(graph_dir, 0, 1, 0);
 
         let (edges, props): (Vec<_>, Vec<_>) = edge_list
             .into_iter()
@@ -175,7 +176,7 @@ impl TempColGraphFragment {
             adj_out_chunks: vf_builder.adj_out_chunks,
             adj_in_chunks: Vec::default(),
             edges,
-            graph_dir: test_dir.into(),
+            graph_dir: graph_dir.into(),
         })
     }
 
@@ -397,7 +398,7 @@ impl TempColGraphFragment {
         &self,
         vertex_id: VID,
         dir: Direction,
-    ) -> Option<impl Iterator<Item = (EID, VID)> + Send + '_> {
+    ) -> Option<impl DoubleEndedIterator<Item = (EID, VID)> + Send + '_> {
         let (v_slice, edge_slice) = match dir {
             Direction::OUT => {
                 let out_slice = self.out_slice(vertex_id)?;
@@ -423,8 +424,12 @@ impl TempColGraphFragment {
         self.edges.edge(e_id)
     }
 
-    pub fn all_edges(&self) -> impl Iterator<Item = Edge> + '_ {
+    pub fn all_edges_iter(&self) -> impl Iterator<Item = Edge> + '_ {
         self.edges.iter()
+    }
+
+    pub fn all_edges(&self) -> &Edges {
+        &self.edges
     }
 
     pub fn all_edges_par(&self) -> impl ParallelIterator<Item = Edge> + '_ {
@@ -501,12 +506,16 @@ impl TempColGraphFragment {
         Some(neighbours.into_value(idx))
     }
 
-    pub(crate) fn outbound(&self) -> &Vec<VertexChunk> {
+    pub fn outbound(&self) -> &[VertexChunk] {
         &self.adj_out_chunks
     }
 
-    pub(crate) fn inbound(&self) -> &Vec<VertexChunk> {
+    pub fn inbound(&self) -> &[VertexChunk] {
         &self.adj_in_chunks
+    }
+
+    pub fn vertex_chunk_size(&self) -> usize {
+        self.vertex_chunk_size
     }
 
     pub fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
@@ -805,7 +814,7 @@ mod test {
             vertex_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
-            go,
+            go.into(),
             0,
             1,
             2,
@@ -815,11 +824,7 @@ mod test {
         Ok(graph)
     }
 
-    fn check_graph_sanity(
-        edges: &[(u64, u64, i64)],
-        vertices: &[u64],
-        graph: &TempColGraphFragment,
-    ) {
+    fn check_graph_sanity(edges: &[(u64, u64, i64)], nodes: &[u64], graph: &TempColGraphFragment) {
         let expected_graph = Graph::new();
         for (src, dst, t) in edges {
             expected_graph
@@ -827,11 +832,11 @@ mod test {
                 .unwrap();
         }
 
-        let actual_num_verts = vertices.len();
+        let actual_num_verts = nodes.len();
         let g_num_verts = graph.num_vertices();
         assert_eq!(actual_num_verts, g_num_verts);
         assert!(graph
-            .all_edges()
+            .all_edges_iter()
             .all(|e| e.src().0 < g_num_verts && e.dst().0 < g_num_verts));
 
         for v in 0..g_num_verts {
@@ -850,19 +855,19 @@ mod test {
 
         let exploded_edges: Vec<_> = graph
             .exploded_edges()
-            .map(|e| (vertices[e.src().0], vertices[e.dst().0], e.timestamp()))
+            .map(|e| (nodes[e.src().0], nodes[e.dst().0], e.timestamp()))
             .collect();
         assert_eq!(exploded_edges, edges);
 
         // check incoming edges
-        for (v_id, g_id) in vertices.iter().enumerate() {
-            let vertex = expected_graph.vertex(*g_id).unwrap();
-            let mut expected_inbound = vertex.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
+        for (v_id, g_id) in nodes.iter().enumerate() {
+            let node = expected_graph.node(*g_id).unwrap();
+            let mut expected_inbound = node.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
             expected_inbound.sort();
 
             let actual_inbound = graph
                 .edges(VID(v_id), Direction::IN)
-                .map(|(_, v)| vertices[v.0])
+                .map(|(_, v)| nodes[v.0])
                 .collect::<Vec<_>>();
 
             assert_eq!(expected_inbound, actual_inbound);
@@ -875,8 +880,8 @@ mod test {
             let VID(src_id) = edge.src();
             let VID(dst_id) = edge.dst();
 
-            assert_eq!(vertices[src_id], src);
-            assert_eq!(vertices[dst_id], dst);
+            assert_eq!(nodes[src_id], src);
+            assert_eq!(nodes[dst_id], dst);
         }
     }
 
@@ -1027,7 +1032,7 @@ mod test {
         let v1_out_deg = g.edges(VID(1), Direction::OUT).count();
         assert_eq!(v1_out_deg, 3);
         assert_eq!(g.exploded_edges().count(), 24);
-        assert_eq!(g.all_edges().count(), 24);
+        assert_eq!(g.all_edges_iter().count(), 24);
     }
 
     fn schema() -> Schema {
@@ -1076,7 +1081,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]),
+            GlobalMap::from(vec![1u64, 2u64]).into(),
             0,
             1,
             2,
@@ -1090,7 +1095,7 @@ mod test {
 
         // check edges
         let actual = graph
-            .all_edges()
+            .all_edges_iter()
             .map(|e| (e.src(), e.dst()))
             .collect::<Vec<_>>();
         let expected = vec![(VID(0), VID(1))];
@@ -1117,7 +1122,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(vec![1u64, 2u64]),
+            GlobalMap::from(vec![1u64, 2u64]).into(),
             0,
             1,
             2,
@@ -1131,7 +1136,7 @@ mod test {
 
         // check edges
         let actual = graph
-            .all_edges()
+            .all_edges_iter()
             .map(|e| (e.src(), e.dst()))
             .collect::<Vec<_>>();
         let expected = vec![(VID(0), VID(1))];
@@ -1171,7 +1176,7 @@ mod test {
             4,
             2,
             100,
-            GlobalMap::from(1u64..=7u64),
+            GlobalMap::from(1u64..=7u64).into(),
             0,
             1,
             2,
@@ -1185,7 +1190,7 @@ mod test {
 
         // check edges
         let actual = graph
-            .all_edges()
+            .all_edges_iter()
             .map(|e| (e.src(), e.dst()))
             .collect::<Vec<_>>();
         let expected = vec![
@@ -1205,10 +1210,10 @@ mod test {
         assert_eq!(actual, expected);
 
         let e0 = graph.edge(0.into());
-        assert_eq!(e0.timestamps().into_iter().next().unwrap(), Some(0i64));
+        assert_eq!(e0.timestamps().into_iter().next().unwrap(), 0i64);
 
         let e5 = graph.edge(5.into());
-        assert_eq!(e5.timestamps().into_iter().next().unwrap(), Some(5i64));
+        assert_eq!(e5.timestamps().into_iter().next().unwrap(), 5i64);
     }
 
     #[test]
@@ -1234,7 +1239,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             0,
             1,
             2,
@@ -1253,7 +1258,7 @@ mod test {
 
         // check edges
         let actual = graph
-            .all_edges()
+            .all_edges_iter()
             .map(|e| (e.src(), e.dst()))
             .collect::<Vec<_>>();
         let expected = vec![
@@ -1297,7 +1302,7 @@ mod test {
             100,
             100,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             0,
             1,
             2,
@@ -1348,7 +1353,7 @@ mod test {
             1,
             1,
             100,
-            GlobalMap::from(1u64..=4u64),
+            GlobalMap::from(1u64..=4u64).into(),
             0,
             1,
             2,
@@ -1362,7 +1367,7 @@ mod test {
 
         // check edges
         let actual = graph
-            .all_edges()
+            .all_edges_iter()
             .map(|e| (e.src(), e.dst()))
             .collect::<Vec<_>>();
         let expected = vec![
@@ -1411,7 +1416,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..=7u64),
+            GlobalMap::from(1u64..=7u64).into(),
             0,
             1,
             2,
@@ -1425,7 +1430,7 @@ mod test {
 
         // check edges
         let actual = graph
-            .all_edges()
+            .all_edges_iter()
             .map(|e| (e.src(), e.dst()))
             .collect::<Vec<_>>();
         let expected = vec![
@@ -1482,7 +1487,7 @@ mod test {
             2,
             2,
             100,
-            GlobalMap::from(1u64..12u64),
+            GlobalMap::from(1u64..12u64).into(),
             0,
             1,
             2,
@@ -1512,7 +1517,7 @@ mod test {
             2,
             2,
             5,
-            GlobalMap::from([0u64, 1u64]),
+            GlobalMap::from([0u64, 1u64]).into(),
             0,
             1,
             2,
@@ -1548,7 +1553,7 @@ mod test {
             2,
             2,
             1,
-            GlobalMap::from([0u64, 1u64, 2u64]),
+            GlobalMap::from([0u64, 1u64, 2u64]).into(),
             0,
             1,
             2,

@@ -85,12 +85,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T> {
-        let nodes = self.vertices().iter().flat_map(|vertex| {
+        let nodes = self.nodes().iter().flat_map(|node| {
             template
-                .node(&vertex)
+                .node(&node)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_node(&vertex),
+                    entity_id: EntityId::from_node(&node),
                     content: doc.content,
                     index,
                     life: doc.life,

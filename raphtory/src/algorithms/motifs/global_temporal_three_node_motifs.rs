@@ -7,13 +7,13 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps, *},
-        graph::views::vertex_subgraph::VertexSubgraph,
+        api::view::{GraphViewOps, NodeViewOps, *},
+        graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -25,7 +25,7 @@ use std::collections::HashMap;
 
 pub fn star_motif_count<G>(
     graph: &G,
-    evv: &EvalVertexView<G, ()>,
+    evv: &EvalNodeView<G, ()>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 32]>
 where
@@ -76,7 +76,7 @@ where
 
 pub fn twonode_motif_count<G>(
     graph: &G,
-    evv: &EvalVertexView<G, ()>,
+    evv: &EvalNodeView<G, ()>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
@@ -118,9 +118,9 @@ pub fn triangle_motifs<G>(graph: &G, deltas: Vec<i64>, threads: Option<usize>) -
 where
     G: StaticGraphViewOps,
 {
-    let vertex_set = k_core_set(graph, 2, usize::MAX, None);
-    let g: VertexSubgraph<G> = graph.subgraph(vertex_set);
-    let mut ctx_sub: Context<VertexSubgraph<G>, ComputeStateVec> = Context::from(&g);
+    let node_set = k_core_set(graph, 2, usize::MAX, None);
+    let g: NodeSubgraph<G> = graph.subgraph(node_set);
+    let mut ctx_sub: Context<NodeSubgraph<G>, ComputeStateVec> = Context::from(&g);
 
     let neighbours_set = accumulators::hash_set::<u64>(0);
 
@@ -138,7 +138,7 @@ where
 
     ctx_sub.agg(neighbours_set);
 
-    let step1 = ATask::new(move |u: &mut EvalVertexView<VertexSubgraph<G>, ()>| {
+    let step1 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
             if u.id() > v.id() {
                 v.update(&neighbours_set, u.id());
@@ -147,7 +147,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |u: &mut EvalVertexView<VertexSubgraph<G>, ()>| {
+    let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
         for v in u.neighbours() {
             // Find triangles on the UV edge
             if u.id() > v.id() {
@@ -225,7 +225,7 @@ where
         Step::Continue
     });
 
-    let mut runner: TaskRunner<VertexSubgraph<G>, _> = TaskRunner::new(ctx_sub);
+    let mut runner: TaskRunner<NodeSubgraph<G>, _> = TaskRunner::new(ctx_sub);
 
     runner.run(
         vec![Job::new(step1)],
@@ -263,7 +263,7 @@ where
 
     let out1 = triangle_motifs(g, deltas.clone(), threads);
 
-    let step1 = ATask::new(move |evv: &mut EvalVertexView<G, _>| {
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
         let g = evv.graph();
         let star_nodes = star_motif_count(g, evv, deltas.clone());
         for (i, star) in star_nodes.iter().enumerate() {

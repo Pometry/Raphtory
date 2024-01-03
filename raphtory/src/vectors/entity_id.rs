@@ -1,9 +1,9 @@
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, NodeViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -15,7 +15,7 @@ pub(crate) enum EntityId {
 }
 
 impl EntityId {
-    pub(crate) fn from_node<G: StaticGraphViewOps>(node: &VertexView<G>) -> Self {
+    pub(crate) fn from_node<G: StaticGraphViewOps>(node: &NodeView<G>) -> Self {
         Self::Node { id: node.id() }
     }
 

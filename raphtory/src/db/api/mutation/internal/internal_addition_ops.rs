@@ -17,15 +17,15 @@ pub trait InternalAdditionOps {
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> usize;
 
-    /// map external vertex id to internal id, allocating a new empty vertex if needed
-    fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID;
+    /// map external node id to internal id, allocating a new empty node if needed
+    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID;
 
     /// map property key to internal id, allocating new property if needed
     fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize;
 
     /// map property key to internal id, allocating new property if needed and checking property type.
     /// returns `None` if the type does not match
-    fn resolve_vertex_property(
+    fn resolve_node_property(
         &self,
         prop: &str,
         dtype: PropType,
@@ -41,8 +41,8 @@ pub trait InternalAdditionOps {
 
     fn process_prop_value(&self, prop: Prop) -> Prop;
 
-    /// add vertex update
-    fn internal_add_vertex(
+    /// add node update
+    fn internal_add_node(
         &self,
         t: TimeIndexEntry,
         v: VID,
@@ -90,8 +90,8 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_vertex(&self, id: u64, name: Option<&str>) -> VID {
-        self.graph().resolve_vertex(id, name)
+    fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
+        self.graph().resolve_node(id, name)
     }
 
     #[inline]
@@ -100,13 +100,13 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline]
-    fn resolve_vertex_property(
+    fn resolve_node_property(
         &self,
         prop: &str,
         dtype: PropType,
         is_static: bool,
     ) -> Result<usize, GraphError> {
-        self.graph().resolve_vertex_property(prop, dtype, is_static)
+        self.graph().resolve_node_property(prop, dtype, is_static)
     }
 
     #[inline]
@@ -125,13 +125,13 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
     }
 
     #[inline(always)]
-    fn internal_add_vertex(
+    fn internal_add_node(
         &self,
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
-        self.graph().internal_add_vertex(t, v, props)
+        self.graph().internal_add_node(t, v, props)
     }
 
     #[inline(always)]

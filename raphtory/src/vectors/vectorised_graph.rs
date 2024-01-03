@@ -1,8 +1,8 @@
 use crate::{
-    core::entities::vertices::vertex_ref::VertexRef,
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
     vectors::{
@@ -83,11 +83,11 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     }
 
     /// Return the nodes present in the current selection
-    pub fn nodes(&self) -> Vec<VertexView<G>> {
+    pub fn nodes(&self) -> Vec<NodeView<G>> {
         self.selected_docs
             .iter()
             .filter_map(|(doc, _)| match doc.entity_id {
-                EntityId::Node { id } => self.source_graph.vertex(id),
+                EntityId::Node { id } => self.source_graph.node(id),
                 EntityId::Edge { .. } => None,
             })
             .collect_vec()
@@ -130,15 +130,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     /// Documents added by this call are assumed to have a score of 0.
     ///
     /// # Arguments
-    ///   * nodes - a list of the vertex ids or vertices to add
+    ///   * nodes - a list of the node ids or nodes to add
     ///   * edges - a list of the edge ids or edges to add
     ///
     /// # Returns
     ///   A new vectorised graph containing the updated selection
-    pub fn append<V: Into<VertexRef>>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
+    pub fn append<V: Into<NodeRef>>(&self, nodes: Vec<V>, edges: Vec<(V, V)>) -> Self {
         let node_docs = nodes.into_iter().flat_map(|id| {
-            let vertex = self.source_graph.vertex(id);
-            let opt = vertex.map(|vertex| self.node_documents.get(&EntityId::from_node(&vertex)));
+            let node = self.source_graph.node(id);
+            let opt = node.map(|node| self.node_documents.get(&EntityId::from_node(&node)));
             opt.flatten().unwrap_or(&self.empty_vec)
         });
         let edge_docs = edges.into_iter().flat_map(|(src, dst)| {
@@ -438,10 +438,10 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         match document.entity_id {
             EntityId::Node { id } => {
                 let self_docs = self.node_documents.get(&document.entity_id).unwrap();
-                match windowed_graph.vertex(id) {
+                match windowed_graph.node(id) {
                     None => Box::new(std::iter::empty()),
-                    Some(vertex) => {
-                        let edges = vertex.edges();
+                    Some(node) => {
+                        let edges = node.edges();
                         let edge_docs = edges.flat_map(|edge| {
                             let edge_id = EntityId::from_edge(&edge);
                             self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)

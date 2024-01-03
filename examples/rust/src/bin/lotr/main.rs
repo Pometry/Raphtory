@@ -41,9 +41,9 @@ fn main() {
             .expect("Failed to load graph from encoded data files");
 
         println!(
-            "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -55,19 +55,19 @@ fn main() {
 
         CsvLoader::new(data_dir)
             .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-                g.add_vertex(
+                g.add_node(
                     lotr.time,
                     lotr.src_id.clone(),
                     [("type", Prop::str("Character"))],
                 )
-                .expect("Failed to add vertex");
+                .expect("Failed to add node");
 
-                g.add_vertex(
+                g.add_node(
                     lotr.time,
                     lotr.dst_id.clone(),
                     [("type", Prop::str("Character"))],
                 )
-                .expect("Failed to add vertex");
+                .expect("Failed to add node");
 
                 g.add_edge(
                     lotr.time,
@@ -81,9 +81,9 @@ fn main() {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -94,14 +94,14 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.count_vertices(), 139);
+    assert_eq!(graph.count_nodes(), 139);
     assert_eq!(graph.count_edges(), 701);
 
     let gandalf = hashing::calculate_hash(&"Gandalf");
 
     assert_eq!(gandalf, 2760374808085341115);
-    assert!(graph.has_vertex(gandalf));
-    assert_eq!(graph.vertex(gandalf).unwrap().name(), "Gandalf");
+    assert!(graph.has_node(gandalf));
+    assert_eq!(graph.node(gandalf).unwrap().name(), "Gandalf");
 
     let r: Vec<String> = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None)
         .get_all_values()

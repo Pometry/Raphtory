@@ -1,19 +1,20 @@
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::time::IntoTime},
+    core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime},
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
             view::{internal::DynamicGraph, StaticGraphViewOps},
         },
-        graph::{edge::EdgeView, vertex::VertexView},
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
-        graph::{edge::PyEdge, vertex::PyVertex},
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
+        vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
@@ -25,7 +26,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{future::Future, thread};
+use std::{future::Future, path::PathBuf, thread};
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -103,10 +104,10 @@ impl PyDocumentTemplate {
 }
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
-    fn node(&self, vertex: &VertexView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn node(&self, node: &NodeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
-            Some(node_document) => get_documents_from_prop(vertex.properties(), node_document),
-            None => self.default_template.node(vertex),
+            Some(node_document) => get_documents_from_prop(node.properties(), node_document),
+            None => self.default_template.node(node),
         }
     }
 
@@ -141,6 +142,48 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
 
 pub(crate) type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
 
+#[pymethods]
+impl PyGraphView {
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// Args:
+    ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
+    ///   cache (str): the file to be used as a cache to avoid calling the embedding function (optional)
+    ///   overwrite_cache (bool): whether or not to overwrite the cache if there are new embeddings (optional)
+    ///   node_document (str): the property name to be used as document for nodes (optional)
+    ///   edge_document (str): the property name to be used as document for edges (optional)
+    ///   verbose (bool): whether or not to print logs reporting the progress
+    ///   
+    /// Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]
+    fn vectorise(
+        &self,
+        embedding: &PyFunction,
+        cache: Option<String>,
+        overwrite_cache: bool,
+        node_document: Option<String>,
+        edge_document: Option<String>,
+        verbose: bool,
+    ) -> DynamicVectorisedGraph {
+        let embedding: Py<PyFunction> = embedding.into();
+        let graph = self.graph.clone();
+        let cache = cache.map(PathBuf::from);
+        let template = PyDocumentTemplate::new(node_document, edge_document);
+        execute_async_task(move || async move {
+            graph
+                .vectorise_with_template(
+                    Box::new(embedding.clone()),
+                    cache,
+                    overwrite_cache,
+                    template,
+                    verbose,
+                )
+                .await
+        })
+    }
+}
+
 #[pyclass(name = "VectorisedGraph", frozen)]
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
@@ -166,11 +209,11 @@ impl PyVectorisedGraph {
     }
 
     /// Return the nodes present in the current selection
-    fn nodes(&self) -> Vec<PyVertex> {
+    fn nodes(&self) -> Vec<PyNode> {
         self.0
             .nodes()
             .into_iter()
-            .map(|vertex| vertex.into())
+            .map(|node| node.into())
             .collect_vec()
     }
 
@@ -198,11 +241,11 @@ impl PyVectorisedGraph {
         docs.into_iter()
             .map(|(doc, score)| match doc {
                 Document::Node { name, content } => {
-                    let vertex = self.0.source_graph.vertex(name).unwrap();
+                    let node = self.0.source_graph.node(name).unwrap();
                     (
                         PyGraphDocument {
                             content,
-                            entity: vertex.into_py(py),
+                            entity: node.into_py(py),
                         },
                         score,
                     )
@@ -226,15 +269,15 @@ impl PyVectorisedGraph {
     /// Documents added by this call are assumed to have a score of 0.
     ///
     /// Args:
-    ///   nodes (list): a list of the vertex ids or vertices to add
+    ///   nodes (list): a list of the node ids or nodes to add
     ///   edges (list):  a list of the edge ids or edges to add
     ///
     /// Returns:
     ///   A new vectorised graph containing the updated selection
     fn append(
         &self,
-        nodes: Vec<VertexRef>,
-        edges: Vec<(VertexRef, VertexRef)>,
+        nodes: Vec<NodeRef>,
+        edges: Vec<(NodeRef, NodeRef)>,
     ) -> DynamicVectorisedGraph {
         self.0.append(nodes, edges)
     }
@@ -244,11 +287,11 @@ impl PyVectorisedGraph {
     /// Documents added by this call are assumed to have a score of 0.
     ///
     /// Args:
-    ///   nodes (list): a list of the vertex ids or vertices to add
+    ///   nodes (list): a list of the node ids or nodes to add
     ///
     /// Returns:
     ///   A new vectorised graph containing the updated selection
-    fn append_nodes(&self, nodes: Vec<VertexRef>) -> DynamicVectorisedGraph {
+    fn append_nodes(&self, nodes: Vec<NodeRef>) -> DynamicVectorisedGraph {
         self.append(nodes, vec![])
     }
 
@@ -261,7 +304,7 @@ impl PyVectorisedGraph {
     ///
     /// Returns:
     ///   A new vectorised graph containing the updated selection
-    fn append_edges(&self, edges: Vec<(VertexRef, VertexRef)>) -> DynamicVectorisedGraph {
+    fn append_edges(&self, edges: Vec<(NodeRef, NodeRef)>) -> DynamicVectorisedGraph {
         self.append(vec![], edges)
     }
 

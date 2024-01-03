@@ -1,4 +1,4 @@
-use crate::{core::entities::vertices::vertex_ref::VertexRef, prelude::VertexViewOps};
+use crate::{core::entities::nodes::node_ref::NodeRef, prelude::NodeViewOps};
 use num_traits::Float;
 use ordered_float::OrderedFloat;
 use std::{
@@ -37,7 +37,7 @@ impl<T: Float> AsOrd<(OrderedFloat<T>, OrderedFloat<T>)> for (T, T) {
 
 /// An 'AlgorithmRepr' struct that represents the string output in the terminal after running an algorithm.
 ///
-/// It returns the algorithm name, number of vertices in the graph, and the result type.
+/// It returns the algorithm name, number of nodes in the graph, and the result type.
 ///
 pub struct AlgorithmRepr {
     pub algo_name: String,
@@ -91,7 +91,7 @@ where
     /// Returns a formatted string representation of the algorithm.
     pub fn repr(&self) -> String {
         let algo_info_str = format!(
-            "Algorithm Name: {}, Number of Vertices: {}, Result Type: {}",
+            "Algorithm Name: {}, Number of Nodes: {}, Result Type: {}",
             &self.algo_repr.algo_name,
             &self.result.len(),
             &self.algo_repr.result_type
@@ -107,46 +107,46 @@ where
     /// Returns the value corresponding to the provided key in the `result` hashmap.
     ///
     /// Arguments:
-    ///     `key`: The key of the vertex, can be the vertex object, or namraphtory/src/algorithms/motifs/three_node_local_single_thread.rse.
-    pub fn get<T: Into<VertexRef>>(&self, name: T) -> Option<&V> {
+    ///     `key`: The key of the node, can be the node object, or namraphtory/src/algorithms/motifs/three_node_local_single_thread.rse.
+    pub fn get<T: Into<NodeRef>>(&self, name: T) -> Option<&V> {
         let v = name.into();
-        if self.graph.has_vertex(v) {
-            let internal_id = self.graph.vertex(v).unwrap().vertex.0;
+        if self.graph.has_node(v) {
+            let internal_id = self.graph.node(v).unwrap().node.0;
             self.result.get(&internal_id)
         } else {
             None
         }
     }
 
-    /// Returns a hashmap with vertex names and values
+    /// Returns a hashmap with node names and values
     ///
     /// Returns:
-    ///     a hashmap with vertex names and values
+    ///     a hashmap with node names and values
     pub fn get_all_with_names(&self) -> HashMap<String, Option<V>> {
         self.graph
-            .vertices()
+            .nodes()
             .iter()
-            .map(|vertex| {
-                let name = vertex.name();
-                let value = self.result.get(&vertex.vertex.0).cloned();
+            .map(|node| {
+                let name = node.name();
+                let value = self.result.get(&node.node.0).cloned();
                 (name.to_string(), value)
             })
             .collect()
     }
 
-    /// Returns a `HashMap` containing `VertexView<G>` keys and `Option<V>` values.
+    /// Returns a `HashMap` containing `NodeView<G>` keys and `Option<V>` values.
     ///
     /// Returns:
-    ///     a `HashMap` containing `VertexView<G>` keys and `Option<V>` values.
-    pub fn get_all(&self) -> HashMap<VertexView<G, G>, Option<V>> {
+    ///     a `HashMap` containing `NodeView<G>` keys and `Option<V>` values.
+    pub fn get_all(&self) -> HashMap<NodeView<G, G>, Option<V>> {
         self.graph
-            .vertices()
+            .nodes()
             .iter()
-            .map(|vertex| (vertex.clone(), self.result.get(&vertex.vertex.0).cloned()))
+            .map(|node| (node.clone(), self.result.get(&node.node.0).cloned()))
             .collect()
     }
 
-    /// Sorts the `AlgorithmResult` by its vertex id in ascending or descending order.
+    /// Sorts the `AlgorithmResult` by its node id in ascending or descending order.
     ///
     /// Arguments:
     ///
@@ -154,14 +154,14 @@ where
     ///
     /// Returns:
     ///
-    /// A sorted vector of tuples containing vertex names and values.
-    pub fn sort_by_vertex(&self, reverse: bool) -> Vec<(VertexView<G, G>, Option<V>)> {
-        let mut sorted: Vec<(VertexView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
+    /// A sorted vector of tuples containing node names and values.
+    pub fn sort_by_node(&self, reverse: bool) -> Vec<(NodeView<G, G>, Option<V>)> {
+        let mut sorted: Vec<(NodeView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| if reverse { b.cmp(a) } else { a.cmp(b) });
         sorted
     }
 
-    /// Sorts a collection of vertex views by their names in either ascending or descending order.
+    /// Sorts a collection of node views by their names in either ascending or descending order.
     ///
     /// Arguments:
     ///
@@ -171,10 +171,10 @@ where
     ///
     /// Returns:
     ///
-    /// The function `sort_by_vertex_name` returns a vector of tuples, where each tuple contains a
-    /// `VertexView<G>` and an optional `V` value.
-    pub fn sort_by_vertex_name(&self, reverse: bool) -> Vec<(VertexView<G, G>, Option<V>)> {
-        let mut sorted: Vec<(VertexView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
+    /// The function `sort_by_node_name` returns a vector of tuples, where each tuple contains a
+    /// `NodeView<G>` and an optional `V` value.
+    pub fn sort_by_node_name(&self, reverse: bool) -> Vec<(NodeView<G, G>, Option<V>)> {
+        let mut sorted: Vec<(NodeView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
         sorted.sort_by(|(a, _), (b, _)| {
             if reverse {
                 b.name().cmp(&a.name())
@@ -203,14 +203,13 @@ where
     ///
     /// Returns:
     ///
-    /// A sorted vector of tuples containing vertex names and values.
+    /// A sorted vector of tuples containing node names and values.
     pub fn sort_by_values<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
         reverse: bool,
-    ) -> Vec<(VertexView<G, G>, Option<V>)> {
-        let mut all_as_vec: Vec<(VertexView<G, G>, Option<V>)> =
-            self.get_all().into_iter().collect();
+    ) -> Vec<(NodeView<G, G>, Option<V>)> {
+        let mut all_as_vec: Vec<(NodeView<G, G>, Option<V>)> = self.get_all().into_iter().collect();
         all_as_vec.sort_by(|a, b| {
             let order = match (&a.1, &b.1) {
                 (Some(a_value), Some(b_value)) => cmp(a_value, b_value),
@@ -249,7 +248,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(VertexView<G, G>, Option<V>)> {
+    ) -> Vec<(NodeView<G, G>, Option<V>)> {
         let k = if percentage {
             let total_count = self.result.len();
             (total_count as f64 * (k as f64 / 100.0)) as usize
@@ -265,7 +264,7 @@ where
     pub fn min_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(VertexView<G, G>, Option<V>)> {
+    ) -> Option<(NodeView<G, G>, Option<V>)> {
         let min_element = self
             .get_all()
             .into_iter()
@@ -279,7 +278,7 @@ where
     pub fn max_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(VertexView<G, G>, Option<V>)> {
+    ) -> Option<(NodeView<G, G>, Option<V>)> {
         let max_element = self
             .get_all()
             .into_iter()
@@ -293,9 +292,9 @@ where
     pub fn median_by<F: FnMut(&V, &V) -> std::cmp::Ordering>(
         &self,
         mut cmp: F,
-    ) -> Option<(VertexView<G, G>, Option<V>)> {
+    ) -> Option<(NodeView<G, G>, Option<V>)> {
         // Assuming self.result is Vec<(String, Option<V>)>
-        let mut items: Vec<(VertexView<G, G>, V)> = self
+        let mut items: Vec<(NodeView<G, G>, V)> = self
             .get_all()
             .into_iter()
             .filter_map(|(k, v)| v.map(|v| (k, v)))
@@ -328,10 +327,10 @@ where
     {
         let mut groups: HashMap<V, Vec<String>> = HashMap::new();
 
-        for vertex in self.graph.vertices().iter() {
-            if let Some(value) = self.result.get(&vertex.vertex.0) {
+        for node in self.graph.nodes().iter() {
+            if let Some(value) = self.result.get(&node.node.0) {
                 let entry = groups.entry(value.clone()).or_insert_with(Vec::new);
-                entry.push(vertex.name().to_string());
+                entry.push(node.name().to_string());
             }
         }
         groups
@@ -346,7 +345,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    pub fn sort_by_value(&self, reverse: bool) -> Vec<(VertexView<G, G>, Option<V>)> {
+    pub fn sort_by_value(&self, reverse: bool) -> Vec<(NodeView<G, G>, Option<V>)> {
         self.sort_by_values(|a, b| O::cmp(a.as_ord(), b.as_ord()), reverse)
     }
 
@@ -369,7 +368,7 @@ where
         k: usize,
         percentage: bool,
         reverse: bool,
-    ) -> Vec<(VertexView<G, G>, Option<V>)> {
+    ) -> Vec<(NodeView<G, G>, Option<V>)> {
         self.top_k_by(
             |a, b| O::cmp(a.as_ord(), b.as_ord()),
             k,
@@ -379,22 +378,22 @@ where
     }
 
     /// Returns a tuple of the min result with its key
-    pub fn min(&self) -> Option<(VertexView<G, G>, Option<V>)> {
+    pub fn min(&self) -> Option<(NodeView<G, G>, Option<V>)> {
         self.min_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the max result with its key
-    pub fn max(&self) -> Option<(VertexView<G, G>, Option<V>)> {
+    pub fn max(&self) -> Option<(NodeView<G, G>, Option<V>)> {
         self.max_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 
     /// Returns a tuple of the median result with its key
-    pub fn median(&self) -> Option<(VertexView<G, G>, Option<V>)> {
+    pub fn median(&self) -> Option<(NodeView<G, G>, Option<V>)> {
         self.median_by(|a, b| O::cmp(a.as_ord(), b.as_ord()))
     }
 }
 
-use crate::{db::graph::vertex::VertexView, prelude::GraphViewOps};
+use crate::{db::graph::node::NodeView, prelude::GraphViewOps};
 use std::fmt;
 
 impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for AlgorithmResult<G, V, O> {
@@ -402,12 +401,12 @@ impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Display for Algorit
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {}", self.algo_repr.algo_name)?;
         writeln!(f, "  Result Type: {}", self.algo_repr.result_type)?;
-        writeln!(f, "  Number of Vertices: {}", self.result.len())?;
+        writeln!(f, "  Number of Nodes: {}", self.result.len())?;
         writeln!(f, "  Results: [")?;
 
-        for vertex in self.graph.vertices().iter() {
-            let value = self.result.get(&vertex.vertex.0);
-            writeln!(f, "    {}: {:?}", vertex.name(), value)?;
+        for node in self.graph.nodes().iter() {
+            let value = self.result.get(&node.node.0);
+            writeln!(f, "    {}: {:?}", node.name(), value)?;
         }
 
         writeln!(f, "  ]")?;
@@ -420,12 +419,12 @@ impl<'graph, G: GraphViewOps<'graph>, V: fmt::Debug, O> fmt::Debug for Algorithm
         writeln!(f, "AlgorithmResultNew {{")?;
         writeln!(f, "  Algorithm Name: {:?}", self.algo_repr.algo_name)?;
         writeln!(f, "  Result Type: {:?}", self.algo_repr.result_type)?;
-        writeln!(f, "  Number of Vertices: {:?}", self.result.len())?;
+        writeln!(f, "  Number of Nodes: {:?}", self.result.len())?;
         writeln!(f, "  Results: [")?;
 
-        for vertex in self.graph.vertices().iter() {
-            let value = self.result.get(&vertex.vertex.0);
-            writeln!(f, "    {:?}: {:?}", vertex.name(), value)?;
+        for node in self.graph.nodes().iter() {
+            let value = self.result.get(&node.node.0);
+            writeln!(f, "    {:?}: {:?}", node.name(), value)?;
         }
 
         writeln!(f, "  ]")?;
@@ -447,51 +446,51 @@ mod algorithm_result_test {
     fn create_algo_result_u64() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
         let mut map: HashMap<usize, u64> = HashMap::new();
-        map.insert(g.vertex("A").unwrap().vertex.0, 10);
-        map.insert(g.vertex("B").unwrap().vertex.0, 20);
-        map.insert(g.vertex("C").unwrap().vertex.0, 30);
+        map.insert(g.node("A").unwrap().node.0, 10);
+        map.insert(g.node("B").unwrap().node.0, 20);
+        map.insert(g.node("C").unwrap().node.0, 30);
         let results_type = std::any::type_name::<u64>();
         AlgorithmResult::new(g, "create_algo_result_u64_test", results_type, map)
     }
 
     fn create_graph() -> Graph {
         let g = Graph::new();
-        g.add_vertex(0, "A", NO_PROPS)
-            .expect("Could not add vertex to graph");
-        g.add_vertex(0, "B", NO_PROPS)
-            .expect("Could not add vertex to graph");
-        g.add_vertex(0, "C", NO_PROPS)
-            .expect("Could not add vertex to graph");
-        g.add_vertex(0, "D", NO_PROPS)
-            .expect("Could not add vertex to graph");
+        g.add_node(0, "A", NO_PROPS)
+            .expect("Could not add node to graph");
+        g.add_node(0, "B", NO_PROPS)
+            .expect("Could not add node to graph");
+        g.add_node(0, "C", NO_PROPS)
+            .expect("Could not add node to graph");
+        g.add_node(0, "D", NO_PROPS)
+            .expect("Could not add node to graph");
         g
     }
 
     fn group_by_test() -> AlgorithmResult<Graph, u64> {
         let g = create_graph();
         let mut map: HashMap<usize, u64> = HashMap::new();
-        map.insert(g.vertex("A").unwrap().vertex.0, 10);
-        map.insert(g.vertex("B").unwrap().vertex.0, 20);
-        map.insert(g.vertex("C").unwrap().vertex.0, 30);
-        map.insert(g.vertex("D").unwrap().vertex.0, 10);
+        map.insert(g.node("A").unwrap().node.0, 10);
+        map.insert(g.node("B").unwrap().node.0, 20);
+        map.insert(g.node("C").unwrap().node.0, 30);
+        map.insert(g.node("D").unwrap().node.0, 10);
         let results_type = std::any::type_name::<u64>();
         AlgorithmResult::new(g, "group_by_test", results_type, map)
     }
 
     fn create_algo_result_f64() -> AlgorithmResult<Graph, f64, OrderedFloat<f64>> {
         let g = Graph::new();
-        g.add_vertex(0, "A", NO_PROPS)
-            .expect("Could not add vertex to graph");
-        g.add_vertex(0, "B", NO_PROPS)
-            .expect("Could not add vertex to graph");
-        g.add_vertex(0, "C", NO_PROPS)
-            .expect("Could not add vertex to graph");
-        g.add_vertex(0, "D", NO_PROPS)
-            .expect("Could not add vertex to graph");
+        g.add_node(0, "A", NO_PROPS)
+            .expect("Could not add node to graph");
+        g.add_node(0, "B", NO_PROPS)
+            .expect("Could not add node to graph");
+        g.add_node(0, "C", NO_PROPS)
+            .expect("Could not add node to graph");
+        g.add_node(0, "D", NO_PROPS)
+            .expect("Could not add node to graph");
         let mut map: HashMap<usize, f64> = HashMap::new();
-        map.insert(g.vertex("A").unwrap().vertex.0, 10.0);
-        map.insert(g.vertex("B").unwrap().vertex.0, 20.0);
-        map.insert(g.vertex("C").unwrap().vertex.0, 30.0);
+        map.insert(g.node("A").unwrap().node.0, 10.0);
+        map.insert(g.node("B").unwrap().node.0, 20.0);
+        map.insert(g.node("C").unwrap().node.0, 30.0);
         let results_type = std::any::type_name::<f64>();
         AlgorithmResult::new(g, "create_algo_result_u64_test", results_type, map)
     }
@@ -500,9 +499,9 @@ mod algorithm_result_test {
     ) -> AlgorithmResult<Graph, (f32, f32), (OrderedFloat<f32>, OrderedFloat<f32>)> {
         let g = create_graph();
         let mut res: HashMap<usize, (f32, f32)> = HashMap::new();
-        res.insert(g.vertex("A").unwrap().vertex.0, (10.0, 20.0));
-        res.insert(g.vertex("B").unwrap().vertex.0, (20.0, 30.0));
-        res.insert(g.vertex("C").unwrap().vertex.0, (30.0, 40.0));
+        res.insert(g.node("A").unwrap().node.0, (10.0, 20.0));
+        res.insert(g.node("B").unwrap().node.0, (20.0, 30.0));
+        res.insert(g.node("C").unwrap().node.0, (30.0, 40.0));
         let results_type = std::any::type_name::<(f32, f32)>();
         AlgorithmResult::new(g, "create_algo_result_tuple", results_type, res)
     }
@@ -510,10 +509,10 @@ mod algorithm_result_test {
     fn create_algo_result_hashmap_vec() -> AlgorithmResult<Graph, Vec<(i32, String)>> {
         let g = create_graph();
         let mut res: HashMap<usize, Vec<(i32, String)>> = HashMap::new();
-        res.insert(g.vertex("A").unwrap().vertex.0, vec![(11, "H".to_string())]);
-        res.insert(g.vertex("B").unwrap().vertex.0, vec![]);
+        res.insert(g.node("A").unwrap().node.0, vec![(11, "H".to_string())]);
+        res.insert(g.node("B").unwrap().node.0, vec![]);
         res.insert(
-            g.vertex("C").unwrap().vertex.0,
+            g.node("C").unwrap().node.0,
             vec![(22, "E".to_string()), (33, "F".to_string())],
         );
         let results_type = std::any::type_name::<(i32, String)>();
@@ -523,9 +522,9 @@ mod algorithm_result_test {
     #[test]
     fn test_min_max_value() {
         let algo_result = create_algo_result_u64();
-        let v_a = algo_result.graph.vertex("A".to_string()).unwrap();
-        let v_b = algo_result.graph.vertex("B".to_string()).unwrap();
-        let v_c = algo_result.graph.vertex("C".to_string()).unwrap();
+        let v_a = algo_result.graph.node("A".to_string()).unwrap();
+        let v_b = algo_result.graph.node("B".to_string()).unwrap();
+        let v_c = algo_result.graph.node("C".to_string()).unwrap();
         assert_eq!(algo_result.min(), Some((v_a.clone(), Some(10u64))));
         assert_eq!(algo_result.max(), Some((v_c.clone(), Some(30u64))));
         assert_eq!(algo_result.median(), Some((v_b.clone(), Some(20u64))));
@@ -538,16 +537,16 @@ mod algorithm_result_test {
     #[test]
     fn test_get() {
         let algo_result = create_algo_result_u64();
-        let vertex_c = algo_result.graph.vertex("C").unwrap();
-        let vertex_d = algo_result.graph.vertex("D").unwrap();
-        assert_eq!(algo_result.get(vertex_c.clone()), Some(&30u64));
-        assert_eq!(algo_result.get(vertex_d.clone()), None);
+        let node_c = algo_result.graph.node("C").unwrap();
+        let node_d = algo_result.graph.node("D").unwrap();
+        assert_eq!(algo_result.get(node_c.clone()), Some(&30u64));
+        assert_eq!(algo_result.get(node_d.clone()), None);
         let algo_result = create_algo_result_f64();
-        assert_eq!(algo_result.get(vertex_c.clone()), Some(&30.0f64));
+        assert_eq!(algo_result.get(node_c.clone()), Some(&30.0f64));
         let algo_result = create_algo_result_tuple();
-        assert_eq!(algo_result.get(vertex_c.clone()).unwrap().0, 30.0f32);
+        assert_eq!(algo_result.get(node_c.clone()).unwrap().0, 30.0f32);
         let algo_result = create_algo_result_hashmap_vec();
-        let answer = algo_result.get(vertex_c.clone()).unwrap().get(0).unwrap().0;
+        let answer = algo_result.get(node_c.clone()).unwrap().get(0).unwrap().0;
         assert_eq!(answer, 22i32);
     }
 
@@ -555,9 +554,9 @@ mod algorithm_result_test {
     fn test_sort() {
         let algo_result = create_algo_result_u64();
         let sorted = algo_result.sort_by_value(true);
-        let v_c = algo_result.graph.vertex("C").unwrap();
-        let v_d = algo_result.graph.vertex("D").unwrap();
-        let v_a = algo_result.graph.vertex("A").unwrap();
+        let v_c = algo_result.graph.node("C").unwrap();
+        let v_d = algo_result.graph.node("D").unwrap();
+        let v_a = algo_result.graph.node("A").unwrap();
         assert_eq!(sorted[0].0, v_c.clone());
         let sorted = algo_result.sort_by_value(false);
         assert_eq!(sorted[0].0, v_d.clone());
@@ -579,10 +578,10 @@ mod algorithm_result_test {
     #[test]
     fn test_top_k() {
         let algo_result = create_algo_result_u64();
-        let v_c = algo_result.graph.vertex("C").unwrap();
-        let v_d = algo_result.graph.vertex("D").unwrap();
-        let v_a = algo_result.graph.vertex("A").unwrap();
-        let v_b = algo_result.graph.vertex("B").unwrap();
+        let v_c = algo_result.graph.node("C").unwrap();
+        let v_d = algo_result.graph.node("D").unwrap();
+        let v_a = algo_result.graph.node("A").unwrap();
+        let v_b = algo_result.graph.node("B").unwrap();
 
         let top_k = algo_result.top_k(2, false, false);
         assert_eq!(top_k[0].0, v_d.clone());
@@ -648,14 +647,14 @@ mod algorithm_result_test {
     }
 
     #[test]
-    fn test_sort_by_vertex() {
+    fn test_sort_by_node() {
         let algo_result = create_algo_result_u64();
-        let v_c = algo_result.graph.vertex("C").unwrap();
-        let v_d = algo_result.graph.vertex("D").unwrap();
-        let v_a = algo_result.graph.vertex("A").unwrap();
-        let v_b = algo_result.graph.vertex("B").unwrap();
-        let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(VertexView<Graph, Graph>, Option<u64>)> = vec![
+        let v_c = algo_result.graph.node("C").unwrap();
+        let v_d = algo_result.graph.node("D").unwrap();
+        let v_a = algo_result.graph.node("A").unwrap();
+        let v_b = algo_result.graph.node("B").unwrap();
+        let sorted = algo_result.sort_by_node(true);
+        let my_array: Vec<(NodeView<Graph, Graph>, Option<u64>)> = vec![
             (v_d, None),
             (v_c, Some(30u64)),
             (v_b, Some(20u64)),
@@ -664,12 +663,12 @@ mod algorithm_result_test {
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_f64();
-        let v_c = algo_result.graph.vertex("C").unwrap();
-        let v_d = algo_result.graph.vertex("D").unwrap();
-        let v_a = algo_result.graph.vertex("A").unwrap();
-        let v_b = algo_result.graph.vertex("B").unwrap();
-        let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(VertexView<Graph, Graph>, Option<f64>)> = vec![
+        let v_c = algo_result.graph.node("C").unwrap();
+        let v_d = algo_result.graph.node("D").unwrap();
+        let v_a = algo_result.graph.node("A").unwrap();
+        let v_b = algo_result.graph.node("B").unwrap();
+        let sorted = algo_result.sort_by_node(true);
+        let my_array: Vec<(NodeView<Graph, Graph>, Option<f64>)> = vec![
             (v_d, None),
             (v_c, Some(30.0)),
             (v_b, Some(20.0)),
@@ -678,13 +677,13 @@ mod algorithm_result_test {
         assert_eq!(my_array, sorted);
 
         let algo_result = create_algo_result_tuple();
-        let v_c = algo_result.graph.vertex("C").unwrap();
-        let v_d = algo_result.graph.vertex("D").unwrap();
-        let v_a = algo_result.graph.vertex("A").unwrap();
-        let v_b = algo_result.graph.vertex("B").unwrap();
+        let v_c = algo_result.graph.node("C").unwrap();
+        let v_d = algo_result.graph.node("D").unwrap();
+        let v_a = algo_result.graph.node("A").unwrap();
+        let v_b = algo_result.graph.node("B").unwrap();
 
-        let sorted = algo_result.sort_by_vertex(true);
-        let my_array: Vec<(VertexView<Graph, Graph>, Option<(f32, f32)>)> = vec![
+        let sorted = algo_result.sort_by_node(true);
+        let my_array: Vec<(NodeView<Graph, Graph>, Option<(f32, f32)>)> = vec![
             (v_d, None),
             (v_c, Some((30.0, 40.0))),
             (v_b, Some((20.0, 30.0))),
@@ -693,16 +692,16 @@ mod algorithm_result_test {
         assert_eq!(my_array, sorted);
         //
         let algo_result = create_algo_result_hashmap_vec();
-        let v_c = algo_result.graph.vertex("C").unwrap();
-        let v_d = algo_result.graph.vertex("D").unwrap();
-        let v_a = algo_result.graph.vertex("A").unwrap();
-        let v_b = algo_result.graph.vertex("B").unwrap();
+        let v_c = algo_result.graph.node("C").unwrap();
+        let v_d = algo_result.graph.node("D").unwrap();
+        let v_a = algo_result.graph.node("A").unwrap();
+        let v_b = algo_result.graph.node("B").unwrap();
 
-        let sorted = algo_result.sort_by_vertex(true);
+        let sorted = algo_result.sort_by_node(true);
         let vec_c = vec![(22, "E".to_string()), (33, "F".to_string())];
         let vec_b = vec![];
         let vec_a = vec![(11, "H".to_string())];
-        let my_array: Vec<(VertexView<Graph, Graph>, Option<Vec<(i32, String)>>)> = vec![
+        let my_array: Vec<(NodeView<Graph, Graph>, Option<Vec<(i32, String)>>)> = vec![
             (v_d, None),
             (v_c, Some(vec_c)),
             (v_b, Some(vec_b)),

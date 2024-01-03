@@ -6,7 +6,7 @@ use crate::model::{
     graph::edge::Edge,
 };
 use dynamic_graphql::InputObject;
-use raphtory::db::api::view::{EdgeViewOps, VertexViewOps};
+use raphtory::db::api::view::{EdgeViewOps, NodeViewOps};
 
 #[derive(InputObject, Clone)]
 pub struct EdgeFilter {
