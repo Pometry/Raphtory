@@ -34,11 +34,11 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                ArcStringVecIterable, I64VecIterable, NestedArcStringVecIterable,
-                NestedI64VecIterable, NestedNaiveDateTimeIterable, NestedOptionArcStringIterable,
-                NestedOptionI64Iterable, NestedU64U64Iterable, NestedVecNaiveDateTimeIterable,
-                OptionArcStringIterable, OptionI64Iterable, OptionNaiveDateTimeIterable,
-                OptionVecNaiveDateTimeIterable, U64U64Iterable,
+                ArcStringVecIterable, BoolIterable, I64VecIterable, NestedArcStringVecIterable,
+                NestedBoolIterable, NestedI64VecIterable, NestedNaiveDateTimeIterable,
+                NestedOptionArcStringIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
+                NestedVecNaiveDateTimeIterable, OptionArcStringIterable, OptionI64Iterable,
+                OptionNaiveDateTimeIterable, OptionVecNaiveDateTimeIterable, U64U64Iterable,
             },
         },
         utils::{PyGenericIterator, PyInterval, PyTime},
@@ -216,6 +216,27 @@ impl PyEdge {
     ///
     pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
         self.edge.history_date_time()
+    }
+
+    /// Returns a list of timestamps of when an edge is deleted
+    ///
+    /// Returns:
+    ///     A list of unix timestamps
+    pub fn deletions(&self) -> Vec<i64> {
+        self.edge.deletions()
+    }
+
+    /// Returns a list of timestamps of when an edge is deleted
+    ///
+    /// Returns:
+    ///     A list of DateTime objects
+    pub fn deletions_data_time(&self) -> Option<Vec<NaiveDateTime>> {
+        self.edge.deletions_date_time()
+    }
+
+    /// Check if the edge is currently valid (i.e., not deleted)
+    pub fn is_valid(&self) -> bool {
+        self.edge.is_valid()
     }
 
     /// Returns a view of the properties of the edge.
@@ -621,11 +642,35 @@ impl PyEdges {
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    An  list of timestamps.
+    ///    An  list of lists of timestamps.
     ///
     fn history_date_time(&self) -> OptionVecNaiveDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().history_date_time()).into()
+    }
+
+    /// Returns all timestamps of edges where an edge is deleted
+    ///
+    /// Returns:
+    ///     A list of lists of unix timestamps
+    fn deletions(&self) -> I64VecIterable {
+        let edges = self.builder.clone();
+        (move || edges().deletions()).into()
+    }
+
+    /// Returns all timestamps of edges where an edge is deleted
+    ///
+    /// Returns:
+    ///     A list of lists of DateTime objects
+    fn deletions_date_time(&self) -> OptionVecNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().deletions_date_time()).into()
+    }
+
+    /// Check if the edges are valid (i.e. not deleted)
+    fn is_valid(&self) -> BoolIterable {
+        let edges = self.builder.clone();
+        (move || edges().is_valid()).into()
     }
 
     /// Get the start time of all edges
@@ -990,6 +1035,30 @@ impl PyNestedEdges {
     fn history_date_time(&self) -> NestedVecNaiveDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().history_date_time()).into()
+    }
+
+    /// Returns all timestamps of edges, where an edge is deleted
+    ///
+    /// Returns:
+    ///     A list of lists of lists of unix timestamps
+    fn deletions(&self) -> NestedI64VecIterable {
+        let edges = self.builder.clone();
+        (move || edges().deletions()).into()
+    }
+
+    /// Returns all timestamps of edges, where an edge is deleted
+    ///
+    /// Returns:
+    ///     A list of lists of lists of DateTime objects
+    fn deletions_date_time(&self) -> NestedVecNaiveDateTimeIterable {
+        let edges = self.builder.clone();
+        (move || edges().deletions_date_time()).into()
+    }
+
+    /// Check if edges are valid (i.e., not deleted)
+    fn is_valid(&self) -> NestedBoolIterable {
+        let edges = self.builder.clone();
+        (move || edges().is_valid()).into()
     }
 
     /// Get the start time of all edges
