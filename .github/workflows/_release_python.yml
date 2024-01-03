@@ -7,8 +7,7 @@ on:
         type: 'string'
         default: 'master'
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
-        However it will still make a PR and a branch to show you what it changed'
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. However it will still make a PR and a branch to show you what it changed'
         type: boolean
         default: false
         required: false
@@ -20,12 +19,12 @@ jobs:
       matrix:
         target: [x86_64, aarch64]
     steps:
-#      - name: "Check if user has write access"
-#        uses: "lannonbr/repo-permission-check-action@2.0.0"
-#        with:
-#          permission: "write"
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: "Check if user has write access"
+        uses: "lannonbr/repo-permission-check-action@2.0.0"
+        with:
+          permission: "write"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
@@ -54,7 +53,7 @@ jobs:
           command: build
           target: ${{ matrix.target }}
           args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11
-          manylinux: auto
+          manylinux: 2_28
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
               . /etc/os-release
@@ -83,6 +82,12 @@ jobs:
                     yum update -y
                     yum install -y pkgconfig openssl-devel
                     ;;  
+                almalinux)
+                    echo "Installing openssl-dev on almalinux..."
+                    dnf update -y
+                    dnf group install -y 'Development Tools'
+                    dnf install -y pkg-config openssl-devel
+                    ;;
                 *)
                     echo "Unsupported distribution: $ID"
                     exit 1
