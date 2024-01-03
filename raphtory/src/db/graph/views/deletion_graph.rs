@@ -9,7 +9,7 @@ use crate::{
         api::{
             mutation::internal::InheritMutationOps,
             properties::internal::InheritPropertiesOps,
-            view::{internal::*, BoxedIter},
+            view::{internal::*, BoxedIter, IntoDynBoxed},
         },
         graph::graph::{graph_equal, InternalGraph},
     },
@@ -86,7 +86,7 @@ fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
 
 fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
-    let alive_at_end = edge_alive_at_end(e, t, layer_ids);
+    let alive_before_start = edge_alive_at_end(e, t, layer_ids);
     let deleted_at_start = e
         .additions_iter(&layer_ids)
         .zip_longest(e.deletions_iter(&layer_ids))
@@ -104,7 +104,7 @@ fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
             EitherOrBoth::Left(_) => false,
             EitherOrBoth::Right(deletions) => deletions.active(t..t.saturating_add(1)),
         });
-    alive_at_end && !deleted_at_start
+    alive_before_start && !deleted_at_start
 }
 
 static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
@@ -290,18 +290,23 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        //Fixme: Need support for duration on exploded edges
-        if edge_alive_at_start(self.core_edge(e.pid()).deref(), i64::MIN, &layer_ids) {
-            Box::new(
-                iter::once(e.at(i64::MIN.into())).chain(self.graph.edge_window_exploded(
-                    e,
-                    (i64::MIN + 1)..i64::MAX,
-                    layer_ids,
-                )),
+        let edge = self.graph.core_edge(e.pid());
+
+        let alive_layers: Vec<_> = edge
+            .updates_iter(&layer_ids)
+            .filter_map(
+                |(l, additions, deletions)| match (additions.first(), deletions.first()) {
+                    (Some(a), Some(d)) => (d < a).then_some(l),
+                    (None, Some(_)) => Some(l),
+                    _ => None,
+                },
             )
-        } else {
-            self.graph.edge_exploded(e, layer_ids)
-        }
+            .collect();
+        alive_layers
+            .into_iter()
+            .map(move |l| e.at(i64::MIN.into()).at_layer(l))
+            .chain(self.graph.edge_exploded(e, layer_ids))
+            .into_dyn_boxed()
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
@@ -721,7 +726,7 @@ mod test_deletions {
 
         g.delete_edge(10, 3, 4, None).unwrap();
         let e = g.edge(3, 4).unwrap();
-        assert_eq!(e.earliest_time(), None);
+        assert_eq!(e.earliest_time(), Some(i64::MIN));
         assert_eq!(e.latest_time().unwrap(), 10);
         g.add_edge(1, 3, 4, [("test", "test")], None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10);
@@ -889,6 +894,17 @@ mod test_deletions {
         for t in 0..11 {
             assert!(e.at(t).is_valid());
         }
+    }
+
+    #[test]
+    fn test_explode_multiple_layers() {
+        let g = GraphWithDeletions::new();
+        g.delete_edge(1, 1, 2, Some("1")).unwrap();
+        g.delete_edge(2, 1, 2, Some("2")).unwrap();
+        g.delete_edge(3, 1, 2, Some("3")).unwrap();
+
+        let e = g.edge(1, 2).unwrap();
+        assert_eq!(e.explode().count(), 3);
     }
 
     #[test]

@@ -98,54 +98,24 @@ impl EdgeLike for EdgeStore {
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        match layer_ids {
-            LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => self
-                .additions
-                .iter()
-                .map(TimeIndexLike::TimeIndex)
-                .into_dyn_boxed(),
-            LayerIds::One(id) => Box::new(iter::once(TimeIndexLike::TimeIndex(
-                self.additions.get(*id).unwrap_or(&TimeIndex::Empty),
-            ))),
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .map(|id| self.additions.get(*id).unwrap_or(&TimeIndex::Empty))
-                .map(TimeIndexLike::TimeIndex)
-                .into_dyn_boxed(),
-        }
+        Box::new(self.additions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
     }
 
     fn deletions_iter<'a>(
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        match layer_ids {
-            LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => self
-                .deletions
-                .iter()
-                .map(TimeIndexLike::TimeIndex)
-                .into_dyn_boxed(),
-            LayerIds::One(id) => Box::new(iter::once(TimeIndexLike::TimeIndex(
-                self.deletions.get(*id).unwrap_or(&TimeIndex::Empty),
-            ))),
-            LayerIds::Multiple(ids) => ids
-                .iter()
-                .map(|id| self.deletions.get(*id).unwrap_or(&TimeIndex::Empty))
-                .map(TimeIndexLike::TimeIndex)
-                .into_dyn_boxed(),
-        }
+        Box::new(self.deletions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions()
+        self.additions
             .get(layer_id)
             .map(|x| TimeIndexLike::TimeIndex(x))
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions()
+        self.deletions
             .get(layer_id)
             .map(|x| TimeIndexLike::TimeIndex(x))
     }
