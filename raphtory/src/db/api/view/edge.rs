@@ -68,19 +68,25 @@ pub trait EdgeViewOps<'graph>:
     type Node: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
     type EList: EdgeListOps<'graph, Edge = Self>;
 
-    /// list the activation timestamps for the edge
+    /// List the activation timestamps for the edge
     fn history(&self) -> Vec<i64>;
 
-    /// list the activation timestamps for the edge as NaiveDateTime objects if parseable
+    /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
     fn history_date_time(&self) -> Option<Vec<NaiveDateTime>>;
 
-    /// list the deletion timestamps for the edge
+    /// List the deletion timestamps for the edge
     fn deletions(&self) -> Vec<i64>;
 
-    /// list the deletion timestamps for the edge as NaiveDateTime objects if parseable
+    /// List the deletion timestamps for the edge as NaiveDateTime objects if parseable
     fn deletions_date_time(&self) -> Option<Vec<NaiveDateTime>>;
 
+    /// Check that the latest status of the edge is valid (i.e., not deleted)
     fn is_valid(&self) -> bool;
+
+    /// Check that the latest status of the edge is deleted (i.e., not valid)
+    fn is_deleted(&self) -> bool {
+        !self.is_valid()
+    }
 
     /// Return a view of the properties of the edge
     fn properties(&self) -> Properties<Self>;
@@ -364,6 +370,8 @@ pub trait EdgeListOps<'graph>:
     fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
 
     fn is_valid(self) -> Self::IterType<bool>;
+
+    fn is_deleted(self) -> Self::IterType<bool>;
 
     fn start(self) -> Self::IterType<Option<i64>>;
 
