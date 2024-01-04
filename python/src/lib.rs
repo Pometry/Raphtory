@@ -103,6 +103,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         label_propagation,
         temporal_SEIR,
         louvain,
+        fruchterman_reingold,
     );
     m.add_submodule(algorithm_module)?;
 
