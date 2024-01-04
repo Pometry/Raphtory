@@ -37,23 +37,15 @@ pub trait TimeOps<'graph> {
     /// Create a view that only includes events after `start` (exclusive)
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
         let start = start.into_time().saturating_add(1);
-        let end = self.end().unwrap_or(start.saturating_add(1));
-        if end < start {
-            self.window(start, start)
-        } else {
-            self.window(start, end)
-        }
+        let end = i64::MAX;
+        self.window(start, end)
     }
 
     /// Create a view that only includes events before `end` (exclusive)
     fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
         let end = end.into_time();
-        let start = self.start().unwrap_or(end);
-        if end < start {
-            self.window(end, end)
-        } else {
-            self.window(start, end)
-        }
+        let start = i64::MIN;
+        self.window(start, end)
     }
 
     /// Creates a `WindowSet` with the given `step` size    

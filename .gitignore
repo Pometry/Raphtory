@@ -8,7 +8,6 @@ massif.*
 comparison-benchmark/python/data/*
 .vscode
 .DS_Store
-docs/logs/*
 .python-version
 .ipynb_checkpoints
 _autosummary

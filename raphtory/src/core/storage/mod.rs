@@ -283,6 +283,16 @@ impl<T> Deref for ArcEntry<T> {
     }
 }
 
+impl<T, S> AsRef<T> for ArcEntry<S>
+where
+    T: ?Sized,
+    S: AsRef<T>,
+{
+    fn as_ref(&self) -> &T {
+        self.deref().as_ref()
+    }
+}
+
 impl<'a, T, const N: usize> Entry<'a, T, N> {
     pub fn value(&self) -> &T {
         let (_, offset) = resolve::<N>(self.offset);

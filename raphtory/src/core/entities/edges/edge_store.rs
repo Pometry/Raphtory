@@ -13,10 +13,10 @@ use crate::{
         utils::errors::{GraphError, MutateGraphError},
         Prop,
     },
-    db::api::view::{BoxedLIter, IntoDynBoxed},
+    db::api::view::{internal::EdgeLike, BoxedLIter, IntoDynBoxed},
     prelude::TimeOps,
 };
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
@@ -26,11 +26,11 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
     pub(crate) eid: EID,
-    src: VID,
-    dst: VID,
-    layers: Vec<EdgeLayer>, // each layer has its own set of properties
-    additions: Vec<TimeIndex<TimeIndexEntry>>,
-    deletions: Vec<TimeIndex<TimeIndexEntry>>,
+    pub(crate) src: VID,
+    pub(crate) dst: VID,
+    pub(crate) layers: Vec<EdgeLayer>, // each layer has its own set of properties
+    pub(crate) additions: Vec<TimeIndex<TimeIndexEntry>>,
+    pub(crate) deletions: Vec<TimeIndex<TimeIndexEntry>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -150,6 +150,44 @@ impl EdgeStore {
         self.layers.iter()
     }
 
+    /// Iterate over (layer_id, additions, deletions) triplets for edge
+    pub fn updates_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            &'a TimeIndex<TimeIndexEntry>,
+            &'a TimeIndex<TimeIndexEntry>,
+        ),
+    > + 'a {
+        match layers {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => self
+                .additions_iter(layers)
+                .zip_longest(self.deletions_iter(layers))
+                .enumerate()
+                .map(|(l, zipped)| match zipped {
+                    EitherOrBoth::Both(additions, deletions) => (l, additions, deletions),
+                    EitherOrBoth::Left(additions) => (l, additions, &TimeIndex::Empty),
+                    EitherOrBoth::Right(deletions) => (l, &TimeIndex::Empty, deletions),
+                })
+                .into_dyn_boxed(),
+            LayerIds::One(id) => Box::new(iter::once((
+                *id,
+                self.additions.get(*id).unwrap_or(&TimeIndex::Empty),
+                self.deletions.get(*id).unwrap_or(&TimeIndex::Empty),
+            ))),
+            LayerIds::Multiple(ids) => Box::new(ids.iter().map(|id| {
+                (
+                    *id,
+                    self.additions.get(*id).unwrap_or(&TimeIndex::Empty),
+                    self.deletions.get(*id).unwrap_or(&TimeIndex::Empty),
+                )
+            })),
+        }
+    }
+
     pub fn additions_iter<'a>(
         &'a self,
         layers: &'a LayerIds,
@@ -164,6 +202,22 @@ impl EdgeStore {
                 .into_dyn_boxed(),
         }
     }
+
+    pub fn deletions_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
+        match layers {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => self.deletions.iter().into_dyn_boxed(),
+            LayerIds::One(id) => self.deletions.get(*id).into_iter().into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.deletions.get(*id))
+                .into_dyn_boxed(),
+        }
+    }
+
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
         let layer_ids = self
             .additions
@@ -244,24 +298,16 @@ impl EdgeStore {
         self.layers.get(layer_id)
     }
 
-    pub fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
-        &self.additions
-    }
-
-    pub fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
-        &self.deletions
-    }
-
     /// an edge is active in a window if it has an addition event in any of the layers
     pub fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self
-                .additions()
+                .additions
                 .iter()
                 .any(|t_index| t_index.contains(w.clone())),
             LayerIds::One(l_id) => self
-                .additions()
+                .additions
                 .get(*l_id)
                 .map(|t_index| t_index.contains(w))
                 .unwrap_or(false),
@@ -274,7 +320,7 @@ impl EdgeStore {
     pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => self.deletions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::All => self.deletions.iter().flat_map(|d| d.last()).max(),
             LayerIds::One(id) => self.deletions.get(*id).and_then(|t| t.last()),
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -286,7 +332,7 @@ impl EdgeStore {
     pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => self.additions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::All => self.additions.iter().flat_map(|d| d.last()).max(),
             LayerIds::One(id) => self.additions.get(*id).and_then(|t| t.last()),
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -299,7 +345,7 @@ impl EdgeStore {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self
-                .deletions()
+                .deletions
                 .iter()
                 .flat_map(|dels| dels.range(i64::MIN..t).last())
                 .max(),

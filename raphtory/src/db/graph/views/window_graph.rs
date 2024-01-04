@@ -346,6 +346,15 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         )
     }
 
+    fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
+        self.graph.edge_is_valid_at_end(e, layer_ids, self.end)
+    }
+
+    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, t: i64) -> bool {
+        // Note, window nesting is already handled, weird behaviour outside window should not matter
+        self.graph.edge_is_valid_at_end(e, layer_ids, t)
+    }
+
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
         self.graph
             .has_temporal_prop_window(prop_id, self.start..self.end)

@@ -1,16 +1,14 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexOps},
         Prop,
     },
     db::api::view::{
-        internal::{Base, CoreGraphOps, EdgeFilter, EdgeWindowFilter},
+        internal::{Base, EdgeFilter, EdgeWindowFilter},
         BoxedIter, MaterializedGraph,
     },
 };
 use enum_dispatch::enum_dispatch;
-use itertools::kmerge;
 use std::ops::Range;
 
 /// Methods for defining time windowing semantics for a graph
@@ -23,11 +21,9 @@ pub trait TimeSemantics {
     fn node_latest_time(&self, v: VID) -> Option<i64>;
 
     /// Returns the default start time for perspectives over the view
-    #[inline]
     fn view_start(&self) -> Option<i64>;
 
     /// Returns the default end time for perspectives over the view
-    #[inline]
     fn view_end(&self) -> Option<i64>;
 
     /// Returns the timestamp for the earliest activity
@@ -121,6 +117,12 @@ pub trait TimeSemantics {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Vec<i64>;
+
+    /// Check if  edge `e` is currently valid in any layer included in `layer_ids`
+    fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool;
+
+    /// Check if edge `e` is valid at the end of a window with exclusive end time `t` in all layers included in `layer_ids`
+    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, t: i64) -> bool;
 
     /// Check if graph has temporal property with the given id
     ///
@@ -459,6 +461,16 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         layer_ids: LayerIds,
     ) -> Vec<i64> {
         self.graph().edge_deletion_history_window(e, w, layer_ids)
+    }
+
+    #[inline]
+    fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
+        self.graph().edge_is_valid(e, layer_ids)
+    }
+
+    #[inline]
+    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, t: i64) -> bool {
+        self.graph().edge_is_valid_at_end(e, layer_ids, t)
     }
 
     #[inline]
