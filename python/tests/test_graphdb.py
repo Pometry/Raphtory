@@ -1994,8 +1994,8 @@ def test_search_in_python():
 
     # Property tests
     assert len(index.search_nodes("value:<120 OR value_f:>30")) == 3
-    assert len(index.search_nodes("value: [0 TO 60]")) == 2
-    assert len(index.search_nodes("value: [0 TO 60}")) == 1  # } == exclusive
+    assert len(index.search_nodes("value:[0 TO 60]")) == 2
+    assert len(index.search_nodes("value:[0 TO 60}")) == 1  # } == exclusive
     assert len(index.search_nodes("value:>59 AND value_str:abc123")) == 1
 
     # edge tests
@@ -2006,8 +2006,8 @@ def test_search_in_python():
 
     # edge prop tests
     assert len(index.search_edges("value:<120 OR value_f:>30")) == 3
-    assert len(index.search_edges("value: [0 TO 60]")) == 2
-    assert len(index.search_edges("value: [0 TO 60}")) == 1  # } == exclusive
+    assert len(index.search_edges("value:[0 TO 60]")) == 2
+    assert len(index.search_edges("value:[0 TO 60}")) == 1  # } == exclusive
     assert len(index.search_edges("value:>59 AND value_str:abc123")) == 1
 
     # Multiple history points test
