@@ -7,5 +7,6 @@ pub mod document;
 pub mod graph_algorithms;
 pub mod similarity_search;
 pub mod vector_algorithms;
+pub mod layout_algorithm;
 
 type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
