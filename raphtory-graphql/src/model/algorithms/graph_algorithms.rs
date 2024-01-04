@@ -32,7 +32,7 @@ impl<'a> AlgorithmEntryPoint<'a> for GraphAlgorithms {
         HashMap::from(
             [
                 ("pagerank", Pagerank::register_algo as RegisterFunction),
-                ("layout", Layout::register_algo as RegisterFunction),
+                ("layout_rs", Layout::register_algo as RegisterFunction),
             ]
         )
 
