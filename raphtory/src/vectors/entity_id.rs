@@ -8,8 +8,9 @@ use crate::{
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
+    Graph { name: String },
     Node { id: u64 },
     Edge { src: u64, dst: u64 },
 }
@@ -26,8 +27,17 @@ impl EntityId {
         }
     }
 
+    pub(crate) fn is_graph(&self) -> bool {
+        match self {
+            EntityId::Graph { .. } => true,
+            EntityId::Node { .. } => false,
+            EntityId::Edge { .. } => false,
+        }
+    }
+
     pub(crate) fn is_node(&self) -> bool {
         match self {
+            EntityId::Graph { .. } => false,
             EntityId::Node { .. } => true,
             EntityId::Edge { .. } => false,
         }
@@ -35,6 +45,7 @@ impl EntityId {
 
     pub(crate) fn is_edge(&self) -> bool {
         match self {
+            EntityId::Graph { .. } => false,
             EntityId::Node { .. } => false,
             EntityId::Edge { .. } => true,
         }
@@ -44,6 +55,7 @@ impl EntityId {
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            EntityId::Graph { name } => f.write_str(&format!("graph:{name}")), // TODO: review, Im not sure what Im using this for smth
             EntityId::Node { id } => f.serialize_u64(*id),
             EntityId::Edge { src, dst } => {
                 f.serialize_u64(*src)

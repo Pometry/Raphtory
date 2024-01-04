@@ -1,6 +1,9 @@
 use crate::{
     data::Data,
-    model::graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
+    model::{
+        algorithms::global_plugins::GlobalPlugins,
+        graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
+    },
 };
 use async_graphql::Context;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -71,6 +74,14 @@ impl QueryRoot {
             .iter()
             .map(|(name, g)| GqlGraph::new(name.clone(), g.clone()))
             .collect_vec()
+    }
+
+    async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
+        let data = ctx.data_unchecked::<Data>();
+        GlobalPlugins {
+            graphs: &data.graphs,
+            vectorised_graphs: &data.vector_stores,
+        }
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, name: &str) -> Result<String> {

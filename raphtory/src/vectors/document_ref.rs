@@ -5,11 +5,12 @@ use crate::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },
 };
+use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
 /// this struct contains the minimum amount of information need to regenerate a document using a
 /// template and to quickly apply windows over them
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct DocumentRef {
     pub(crate) entity_id: EntityId,
     index: usize,

@@ -1,4 +1,4 @@
-use crate::vectors::Embedding;
+use crate::vectors::{entity_id::EntityId, Embedding};
 use parking_lot::RwLock;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-type CacheStore = HashMap<u64, Embedding>;
+type CacheStore = HashMap<(EntityId, u64), Embedding>;
 
 pub(crate) struct EmbeddingCache {
     cache: RwLock<CacheStore>, // TODO: double check that we really need a RwLock !!

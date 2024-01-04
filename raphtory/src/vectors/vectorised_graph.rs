@@ -7,14 +7,15 @@ use crate::{
     prelude::*,
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate,
-        embedding_cache::EmbeddingCache, entity_id::EntityId, Document, DocumentOps, Embedding,
-        EmbeddingFunction,
+        embedding_cache::EmbeddingCache, embedding_store::EmbeddingStore, entity_id::EntityId,
+        Document, DocumentOps, Embedding, EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
+    ops::Deref,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -27,12 +28,12 @@ enum ExpansionPath {
 
 pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) source_graph: G,
-    template: Arc<T>,
+    pub(crate) template: Arc<T>,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
+    pub(crate) graph_documents: Arc<Vec<DocumentRef>>,
     node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
     edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
-    // selected_docs: Vec<ScoredDocument>,
     selected_docs: Vec<(DocumentRef, f32)>,
     empty_vec: Vec<DocumentRef>,
 }
@@ -43,6 +44,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G,
             self.source_graph.clone(),
             self.template.clone(),
             self.embedding.clone(),
+            self.graph_documents.clone(),
             self.node_documents.clone(),
             self.edge_documents.clone(),
             self.selected_docs.clone(),
@@ -55,6 +57,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         graph: G,
         template: Arc<T>,
         embedding: Arc<dyn EmbeddingFunction>,
+        graph_documents: Arc<Vec<DocumentRef>>,
         node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
         edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
         selected_docs: Vec<(DocumentRef, f32)>,
@@ -63,11 +66,41 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             source_graph: graph,
             template,
             embedding,
+            graph_documents,
             node_documents,
             edge_documents,
             selected_docs,
             empty_vec: vec![],
         }
+    }
+
+    fn load_from_embedding_store(
+        file: &Path,
+        graph: G,
+        template: Arc<T>,
+        embedding: Arc<dyn EmbeddingFunction>,
+    ) -> Option<Self> {
+        let store = EmbeddingStore::load_from_path(file)?;
+
+        Some(Self {
+            source_graph: graph,
+            template,
+            embedding,
+            graph_documents: Arc::new(store.graph_document),
+            node_documents: Arc::new(store.node_documents),
+            edge_documents: Arc::new(store.edge_documents),
+            selected_docs: vec![],
+            empty_vec: vec![],
+        })
+    }
+
+    fn save_embedding_store(&self, file: &Path) {
+        let store = EmbeddingStore {
+            graph_document: self.graph_documents.deref().clone(),
+            node_documents: self.node_documents.deref().clone(),
+            edge_documents: self.edge_documents.deref().clone(),
+        };
+        store.save_to_path(file);
     }
 
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
@@ -88,7 +121,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             .iter()
             .filter_map(|(doc, _)| match doc.entity_id {
                 EntityId::Node { id } => self.source_graph.node(id),
-                EntityId::Edge { .. } => None,
+                _ => None,
             })
             .collect_vec()
     }
@@ -98,8 +131,8 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         self.selected_docs
             .iter()
             .filter_map(|(doc, _)| match doc.entity_id {
-                EntityId::Node { .. } => None,
                 EntityId::Edge { src, dst } => self.source_graph.edge(src, dst),
+                _ => None,
             })
             .collect_vec()
     }
@@ -149,6 +182,28 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         let new_selected = chain!(node_docs, edge_docs).map(|doc| (doc.clone(), 0.0));
         Self {
             selected_docs: extend_selection(self.selected_docs.clone(), new_selected, usize::MAX),
+            ..self.clone()
+        }
+    }
+
+    /// Add all the documents from `nodes` and `edges` to the current selection
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
+    ///
+    /// # Arguments
+    ///   * nodes - a list of the node ids or nodes to add
+    ///   * edges - a list of the edge ids or edges to add
+    ///
+    /// # Returns
+    ///   A new vectorised graph containing the updated selection
+    pub fn append_graph_documents(&self) -> Self {
+        let graph_documents = self.graph_documents.iter().map(|doc| (doc.clone(), 0.0));
+        Self {
+            selected_docs: extend_selection(
+                self.selected_docs.clone(),
+                graph_documents,
+                usize::MAX,
+            ),
             ..self.clone()
         }
     }
@@ -436,6 +491,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         window: Option<(i64, i64)>,
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
         match document.entity_id {
+            EntityId::Graph => Box::new(std::iter::empty()),
             EntityId::Node { id } => {
                 let self_docs = self.node_documents.get(&document.entity_id).unwrap();
                 match windowed_graph.node(id) {
@@ -497,7 +553,7 @@ where
         .collect_vec()
 }
 
-fn score_documents<'a, I>(
+pub(crate) fn score_documents<'a, I>(
     query: &'a Embedding,
     documents: I,
 ) -> impl Iterator<Item = (DocumentRef, f32)> + 'a
@@ -511,7 +567,10 @@ where
 }
 
 /// Returns the top k nodes in descending order
-fn find_top_k<'a, I>(elements: I, k: usize) -> impl Iterator<Item = (DocumentRef, f32)> + 'a
+pub(crate) fn find_top_k<'a, I>(
+    elements: I,
+    k: usize,
+) -> impl Iterator<Item = (DocumentRef, f32)> + 'a
 where
     I: Iterator<Item = (DocumentRef, f32)> + 'a,
 {

@@ -4,17 +4,22 @@ use std::future::Future;
 mod document_ref;
 pub mod document_template;
 mod embedding_cache;
+mod embedding_store;
 pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
 pub mod splitting;
 pub mod vectorisable;
+pub mod vectorised_cluster;
 pub mod vectorised_graph;
 
 pub type Embedding = Vec<f32>;
 
 #[derive(Debug)]
 pub enum Document {
+    Graph {
+        content: String,
+    },
     Node {
         name: String,
         content: String,
@@ -35,12 +40,14 @@ pub trait DocumentOps {
 impl DocumentOps for Document {
     fn content(&self) -> &str {
         match self {
+            Document::Graph { content } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
     }
     fn into_content(self) -> String {
         match self {
+            Document::Graph { content } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
