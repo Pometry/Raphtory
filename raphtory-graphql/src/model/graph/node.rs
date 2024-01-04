@@ -72,8 +72,16 @@ impl Node {
         self.vv.earliest_time()
     }
 
+    async fn first_update(&self) -> Option<i64> {
+        self.vv.history().first().cloned()
+    }
+
     async fn latest_time(&self) -> Option<i64> {
         self.vv.latest_time()
+    }
+
+    async fn last_update(&self) -> Option<i64> {
+        self.vv.history().last().cloned()
     }
 
     async fn start(&self) -> Option<i64> {
