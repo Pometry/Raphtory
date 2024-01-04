@@ -756,6 +756,7 @@ mod views_test {
     };
     use itertools::Itertools;
     use quickcheck::TestResult;
+    use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use rayon::prelude::*;
 
