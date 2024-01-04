@@ -57,9 +57,15 @@ impl Edge {
     async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
     }
+    async fn first_update(&self) -> Option<i64> {
+        self.ee.history().first().cloned()
+    }
 
     async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
+    }
+    async fn last_update(&self) -> Option<i64> {
+        self.ee.history().last().cloned()
     }
 
     async fn time(&self) -> Option<i64> {
@@ -111,5 +117,17 @@ impl Edge {
 
     async fn history(&self) -> Vec<i64> {
         self.ee.history()
+    }
+
+    async fn deletions(&self) -> Vec<i64> {
+        self.ee.deletions()
+    }
+
+    async fn is_valid(&self) -> bool {
+        self.ee.is_valid()
+    }
+
+    async fn is_deleted(&self) -> bool {
+        self.ee.is_deleted()
     }
 }

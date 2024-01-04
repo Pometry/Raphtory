@@ -64,8 +64,14 @@ pub trait EdgeLike {
     fn src(&self) -> VID;
     fn dst(&self) -> VID;
 
-    fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_>;
-    fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_>;
+    fn additions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
+    fn deletions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
@@ -88,30 +94,28 @@ impl EdgeLike for EdgeStore {
         self.dst()
     }
 
-    fn additions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(
-            self.additions()
-                .into_iter()
-                .map(|x| TimeIndexLike::TimeIndex(x)),
-        )
+    fn additions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
+        Box::new(self.additions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
     }
 
-    fn deletions_iter(&self) -> Box<dyn Iterator<Item = TimeIndexLike<'_>> + '_> {
-        Box::new(
-            self.deletions()
-                .into_iter()
-                .map(|x| TimeIndexLike::TimeIndex(x)),
-        )
+    fn deletions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
+        Box::new(self.deletions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions()
+        self.additions
             .get(layer_id)
             .map(|x| TimeIndexLike::TimeIndex(x))
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions()
+        self.deletions
             .get(layer_id)
             .map(|x| TimeIndexLike::TimeIndex(x))
     }
@@ -156,5 +160,10 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
     fn edge_filter(&self) -> Option<&EdgeFilter> {
         self.graph().edge_filter()
+    }
+
+    #[inline]
+    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
+        self.graph().edge_filter_window()
     }
 }
