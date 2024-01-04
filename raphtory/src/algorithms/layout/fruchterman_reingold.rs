@@ -1,36 +1,22 @@
-use std::collections::HashMap;
-use num_traits::Pow;
 use crate::db::api::view::*;
+use num_traits::Pow;
 use rand::distributions::{Distribution, Uniform};
+use std::collections::HashMap;
 
-fn repulsive_force(
-    repulsion: f64,
-    k: i64,
-    d: f64,
-) -> f64 {
-  repulsion * k as f64 * k as f64 / d
+fn repulsive_force(repulsion: f64, k: i64, d: f64) -> f64 {
+    repulsion * k as f64 * k as f64 / d
 }
 
-fn attractive_force(
-    attraction: f64,
-    k: i64,
-    d: f64,
-) -> f64 {
+fn attractive_force(attraction: f64, k: i64, d: f64) -> f64 {
     d * d / (attraction * k as f64)
 }
 
-fn calculate_distance(
-    delta: &[f64; 2],
-) -> f64 {
+fn calculate_distance(delta: &[f64; 2]) -> f64 {
     let new_sum: f64 = delta.get(0).unwrap().clone().pow(2) + delta.get(1).unwrap().clone().pow(2);
     new_sum.sqrt()
 }
 
-fn limit_position(
-    value: f64,
-    min_value: f64,
-    max_value: f64,
-) -> f64 {
+fn limit_position(value: f64, min_value: f64, max_value: f64) -> f64 {
     min_value.max(max_value.min(value))
 }
 
@@ -55,18 +41,26 @@ pub fn fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
             let node_v_id = node_v.id();
             if !node_pos.contains_key(&node_v_id) {
                 node_disp.insert(node_v_id, [0.0f64, 0.0f64]);
-                node_pos.insert(node_v_id, [uni_sample.sample(&mut rng), uni_sample.sample(&mut rng)]);
+                node_pos.insert(
+                    node_v_id,
+                    [uni_sample.sample(&mut rng), uni_sample.sample(&mut rng)],
+                );
             }
             for node_u in graph.nodes() {
                 if node_v != node_u {
                     let node_u_id = node_u.id();
                     if !node_pos.contains_key(&node_u_id) {
                         node_disp.insert(node_u_id, [0.0f64, 0.0f64]);
-                        node_pos.insert(node_u_id, [uni_sample.sample(&mut rng), uni_sample.sample(&mut rng)]);
+                        node_pos.insert(
+                            node_u_id,
+                            [uni_sample.sample(&mut rng), uni_sample.sample(&mut rng)],
+                        );
                     }
                     let delta = [
-                        node_pos.get(&node_v_id).unwrap().get(0).unwrap() - node_pos.get(&node_u_id).unwrap().get(0).unwrap(),
-                        node_pos.get(&node_v_id).unwrap().get(1).unwrap() - node_pos.get(&node_u_id).unwrap().get(1).unwrap(),
+                        node_pos.get(&node_v_id).unwrap().get(0).unwrap()
+                            - node_pos.get(&node_u_id).unwrap().get(0).unwrap(),
+                        node_pos.get(&node_v_id).unwrap().get(1).unwrap()
+                            - node_pos.get(&node_u_id).unwrap().get(1).unwrap(),
                     ];
                     let distance = calculate_distance(&delta);
                     if distance > 0.0f64 {
@@ -87,8 +81,10 @@ pub fn fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
             let node_u_id = u.id();
             let node_v_id = v.id();
             let delta = [
-                node_pos.get(&node_u_id).unwrap().get(0).unwrap() - node_pos.get(&node_v_id).unwrap().get(0).unwrap(),
-                node_pos.get(&node_u_id).unwrap().get(1).unwrap() - node_pos.get(&node_v_id).unwrap().get(1).unwrap(),
+                node_pos.get(&node_u_id).unwrap().get(0).unwrap()
+                    - node_pos.get(&node_v_id).unwrap().get(0).unwrap(),
+                node_pos.get(&node_u_id).unwrap().get(1).unwrap()
+                    - node_pos.get(&node_v_id).unwrap().get(1).unwrap(),
             ];
             let distance = calculate_distance(&delta);
             let attractive_f = attractive_force(attraction, k, distance);
@@ -160,14 +156,7 @@ mod cc_test {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = fruchterman_reingold(
-            &graph,
-            100,
-            100f64,
-            100f64,
-            2f64,
-            2f64,
-        );
+        let results = fruchterman_reingold(&graph, 100, 100f64, 100f64, 2f64, 2f64);
         println!("{:?}", results);
     }
 }

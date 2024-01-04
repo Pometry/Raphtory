@@ -1,21 +1,22 @@
-use async_graphql::dynamic::{FieldValue, ResolverContext, TypeRef};
+use crate::model::algorithms::{algorithm::Algorithm, graph_algorithms::GraphAlgorithms};
+use async_graphql::{
+    dynamic::{FieldValue, ResolverContext, TypeRef},
+    futures_util::future::BoxFuture,
+    FieldResult,
+};
+use dynamic_graphql::{internal::TypeName, SimpleObject};
 use itertools::Itertools;
-use async_graphql::FieldResult;
-use dynamic_graphql::SimpleObject;
-use async_graphql::futures_util::future::BoxFuture;
-use dynamic_graphql::internal::TypeName;
-use raphtory::algorithms::layout::fruchterman_reingold::fruchterman_reingold;
-use raphtory::prelude::{GraphViewOps, NodeViewOps};
-use crate::model::algorithms::algorithm::Algorithm;
-use crate::model::algorithms::graph_algorithms::GraphAlgorithms;
-
+use raphtory::{
+    algorithms::layout::fruchterman_reingold::fruchterman_reingold,
+    prelude::{GraphViewOps, NodeViewOps},
+};
 
 #[derive(SimpleObject)]
 pub(crate) struct NodeLocation {
     pub(crate) id: String,
     pub(crate) name: String,
     pub(crate) x: f64,
-    pub(crate) y: f64
+    pub(crate) y: f64,
 }
 
 pub(crate) struct Layout;
@@ -44,20 +45,25 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Layout {
             ctx.args.try_get("width").unwrap().f64().unwrap(),
             ctx.args.try_get("height").unwrap().f64().unwrap(),
             ctx.args.try_get("repulsion").unwrap().f64().unwrap(),
-            ctx.args.try_get("attraction").unwrap().f64().unwrap()
+            ctx.args.try_get("attraction").unwrap().f64().unwrap(),
         );
 
-        let complete_loc = entry_point.graph.nodes().iter().filter_map(
-            |node| Option::from({
-                let pos = algo_res.get(&node.id()).unwrap();
-                FieldValue::owned_any(NodeLocation {
-                    id: node.id().to_string(),
-                    name: node.name().clone(),
-                    x: *pos.get(0).unwrap(),
-                    y: *pos.get(1).unwrap()
+        let complete_loc = entry_point
+            .graph
+            .nodes()
+            .iter()
+            .filter_map(|node| {
+                Option::from({
+                    let pos = algo_res.get(&node.id()).unwrap();
+                    FieldValue::owned_any(NodeLocation {
+                        id: node.id().to_string(),
+                        name: node.name().clone(),
+                        x: *pos.get(0).unwrap(),
+                        y: *pos.get(1).unwrap(),
+                    })
                 })
             })
-        ).collect_vec();
+            .collect_vec();
 
         // let node_locations = algo_res.iter().map(
         //     |(nodeid, position)| {
@@ -72,8 +78,6 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for Layout {
         //         })
         //     })
         //     .collect_vec();
-        Box::pin(async move {
-            Ok(Some(FieldValue::list(complete_loc)))
-        })
+        Box::pin(async move { Ok(Some(FieldValue::list(complete_loc))) })
     }
 }
