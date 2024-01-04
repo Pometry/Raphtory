@@ -4,7 +4,6 @@ use async_graphql::FieldResult;
 use dynamic_graphql::SimpleObject;
 use async_graphql::futures_util::future::BoxFuture;
 use dynamic_graphql::internal::TypeName;
-use tracing::field::Field;
 use raphtory::algorithms::layout::fruchterman_reingold::fruchterman_reingold;
 use raphtory::prelude::{GraphViewOps, NodeViewOps};
 use crate::model::algorithms::algorithm::Algorithm;
