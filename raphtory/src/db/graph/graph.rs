@@ -170,6 +170,7 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck::Arbitrary;
+    use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;

@@ -104,6 +104,7 @@ mod cc_test {
     use super::*;
     use crate::db::api::mutation::AdditionOps;
     use itertools::*;
+    use quickcheck_macros::quickcheck;
     use std::iter::once;
 
     #[test]
