@@ -1163,7 +1163,7 @@ mod test {
         // ensure time is part of the index
         schema.add_u64_field("time", INDEXED | STORED);
         // ensure we add node_id as stored to get back the node id after the search
-        schema.add_text_field("node_id", FAST | STORED);
+        schema.add_u64_field("node_id", FAST | STORED);
 
         let index = Index::create_in_ram(schema.build());
 
