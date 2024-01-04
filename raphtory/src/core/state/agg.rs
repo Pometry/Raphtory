@@ -284,7 +284,6 @@ impl<A: 'static, IN: 'static, OUT: 'static, ACC: Accumulator<A, IN, OUT>, I: Ini
 pub mod set {
     use super::*;
     use crate::core::state::StateType;
-    use roaring::{RoaringBitmap, RoaringTreemap};
     use rustc_hash::FxHashSet;
     use std::hash::Hash;
 
@@ -309,49 +308,6 @@ pub mod set {
         }
 
         fn finish(a: &FxHashSet<A>) -> FxHashSet<A> {
-            a.clone()
-        }
-    }
-
-    pub trait BitSetSupport {}
-    impl BitSetSupport for u32 {}
-    impl BitSetSupport for u64 {}
-    pub struct BitSet<A: StateType + Hash + Eq + BitSetSupport> {
-        _marker: PhantomData<A>,
-    }
-
-    impl Accumulator<RoaringBitmap, u32, RoaringBitmap> for BitSet<u32> {
-        fn zero() -> RoaringBitmap {
-            RoaringBitmap::new()
-        }
-
-        fn add0(a1: &mut RoaringBitmap, a: u32) {
-            a1.insert(a);
-        }
-
-        fn combine(a1: &mut RoaringBitmap, a2: &RoaringBitmap) {
-            a1.extend(a2.iter());
-        }
-
-        fn finish(a: &RoaringBitmap) -> RoaringBitmap {
-            a.clone()
-        }
-    }
-
-    impl Accumulator<RoaringTreemap, u64, RoaringTreemap> for BitSet<u64> {
-        fn zero() -> RoaringTreemap {
-            RoaringTreemap::new()
-        }
-
-        fn add0(a1: &mut RoaringTreemap, a: u64) {
-            a1.insert(a);
-        }
-
-        fn combine(a1: &mut RoaringTreemap, a2: &RoaringTreemap) {
-            a1.extend(a2.iter());
-        }
-
-        fn finish(a: &RoaringTreemap) -> RoaringTreemap {
             a.clone()
         }
     }

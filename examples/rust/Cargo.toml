@@ -13,7 +13,7 @@ regex = "1"
 serde = { version = "1", features = ["derive", "rc"] }
 rayon = "1"
 rand = "0.8.5"
-itertools = "0.10"
+itertools = "0.12.0"
 
 [[bin]]
 name = "btc"

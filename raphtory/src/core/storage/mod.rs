@@ -436,6 +436,7 @@ mod test {
     }
 
     use pretty_assertions::assert_eq;
+    use quickcheck_macros::quickcheck;
 
     #[quickcheck]
     fn concurrent_push(v: Vec<usize>) -> bool {

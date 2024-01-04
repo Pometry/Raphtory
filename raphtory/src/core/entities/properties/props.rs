@@ -374,6 +374,7 @@ impl PropMapper {
 #[cfg(test)]
 mod test {
     use super::*;
+    use quickcheck_macros::quickcheck;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
     use std::{collections::HashMap, sync::Arc, thread};
