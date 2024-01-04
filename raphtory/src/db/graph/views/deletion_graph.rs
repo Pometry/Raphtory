@@ -22,7 +22,6 @@ use std::{
     cmp::min,
     fmt::{Display, Formatter},
     iter,
-    iter::Peekable,
     ops::{Deref, Range},
     path::Path,
     sync::Arc,

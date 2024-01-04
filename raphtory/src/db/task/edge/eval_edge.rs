@@ -343,6 +343,10 @@ impl<
         Box::new(self.map(|e| e.is_valid()))
     }
 
+    fn is_deleted(self) -> Self::IterType<bool> {
+        Box::new(self.map(|e| e.is_deleted()))
+    }
+
     fn start(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.earliest_time()))
     }

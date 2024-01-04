@@ -3,10 +3,10 @@ use crate::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
         storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
     },
-    db::api::view::{internal::Base, IntoDynBoxed},
+    db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
-use std::{iter, ops::Range, sync::Arc};
+use std::{ops::Range, sync::Arc};
 
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),

@@ -1,7 +1,6 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexOps},
         Prop,
     },
     db::api::view::{
