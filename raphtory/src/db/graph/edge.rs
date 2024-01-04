@@ -440,6 +440,22 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.history_date_time()))
     }
 
+    fn deletions(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|e| e.deletions()))
+    }
+
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|e| e.deletions_date_time()))
+    }
+
+    fn is_valid(self) -> Self::IterType<bool> {
+        Box::new(self.map(|e| e.is_valid()))
+    }
+
+    fn is_deleted(self) -> Self::IterType<bool> {
+        Box::new(self.map(|e| e.is_deleted()))
+    }
+
     fn start(self) -> Self::IterType<Option<i64>> {
         Box::new(self.map(|e| e.start()))
     }
@@ -509,13 +525,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.earliest_date_time()))
     }
 
+    /// Gets the latest times of a list of edges
+    fn latest_time(self) -> Self::IterType<Option<i64>> {
+        Box::new(self.map(|e| e.latest_time()))
+    }
+
     fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
         Box::new(self.map(|e| e.latest_date_time()))
     }
 
-    /// Gets the latest times of a list of edges
-    fn latest_time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.latest_time()))
+    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+        Box::new(self.map(|it| it.date_time()))
     }
 
     fn time(self) -> Self::IterType<Option<i64>> {
@@ -529,12 +549,28 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
     fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
         Box::new(self.map(|it| it.layer_names()))
     }
-
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|it| it.history()))
     }
+
     fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
         Box::new(self.map(|it| it.history_date_time()))
+    }
+
+    fn deletions(self) -> Self::IterType<Vec<i64>> {
+        Box::new(self.map(|it| it.deletions()))
+    }
+
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+        Box::new(self.map(|it| it.deletions_date_time()))
+    }
+
+    fn is_valid(self) -> Self::IterType<bool> {
+        Box::new(self.map(|it| it.is_valid()))
+    }
+
+    fn is_deleted(self) -> Self::IterType<bool> {
+        Box::new(self.map(|it| it.is_deleted()))
     }
 
     fn start(self) -> Self::IterType<Option<i64>> {
@@ -551,10 +587,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
 
     fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
         Box::new(self.map(|it| it.end_date_time()))
-    }
-
-    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
-        Box::new(self.map(|it| it.date_time()))
     }
 
     fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {

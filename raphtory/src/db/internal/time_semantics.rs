@@ -346,4 +346,12 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             })
             .unwrap_or_default()
     }
+
+    fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: LayerIds) -> bool {
+        true
+    }
+
+    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_ids: LayerIds, _t: i64) -> bool {
+        true
+    }
 }

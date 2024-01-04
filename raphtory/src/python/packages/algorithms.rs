@@ -43,17 +43,14 @@ use crate::{
         },
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
-    db::{
-        api::view::internal::{DelegateCoreOps, DynamicGraph},
-        graph::node::NodeView,
-    },
+    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
         graph::{edge::PyDirection, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
     },
 };
 use ordered_float::OrderedFloat;
-use pyo3::{exceptions::PyGeneratorExit, prelude::*};
+use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 

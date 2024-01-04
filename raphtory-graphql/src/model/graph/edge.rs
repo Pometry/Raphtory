@@ -118,4 +118,16 @@ impl Edge {
     async fn history(&self) -> Vec<i64> {
         self.ee.history()
     }
+
+    async fn deletions(&self) -> Vec<i64> {
+        self.ee.deletions()
+    }
+
+    async fn is_valid(&self) -> bool {
+        self.ee.is_valid()
+    }
+
+    async fn is_deleted(&self) -> bool {
+        self.ee.is_deleted()
+    }
 }
