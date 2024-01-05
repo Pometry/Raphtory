@@ -7,7 +7,7 @@ use crate::{
     prelude::*,
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate,
-        embedding_cache::EmbeddingCache, embedding_store::EmbeddingStore, entity_id::EntityId,
+        embedding_cache::EmbeddingCache, entity_id::EntityId, graph_embeddings::GraphEmbeddings,
         Document, DocumentOps, Embedding, EmbeddingFunction,
     },
 };
@@ -80,7 +80,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         template: Arc<T>,
         embedding: Arc<dyn EmbeddingFunction>,
     ) -> Option<Self> {
-        let store = EmbeddingStore::load_from_path(file)?;
+        let store = GraphEmbeddings::load_from_path(file)?;
 
         Some(Self {
             source_graph: graph,
@@ -95,7 +95,14 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     }
 
     fn save_embedding_store(&self, file: &Path) {
-        let store = EmbeddingStore {
+        let name = self
+            .source_graph
+            .properties()
+            .get("name")
+            .map(|prop| prop.to_string())
+            .unwrap_or("".to_owned());
+        let store = GraphEmbeddings {
+            name,
             graph_document: self.graph_documents.deref().clone(),
             node_documents: self.node_documents.deref().clone(),
             edge_documents: self.edge_documents.deref().clone(),
@@ -103,6 +110,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         store.save_to_path(file);
     }
 
+    // TODO: rename so that is is clear that if refers to the cache
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
     pub fn save_embeddings(&self, file: PathBuf) {
         let cache = EmbeddingCache::new(file);
@@ -553,6 +561,7 @@ where
         .collect_vec()
 }
 
+// TODO: move this and find_top_k to common place
 pub(crate) fn score_documents<'a, I>(
     query: &'a Embedding,
     documents: I,

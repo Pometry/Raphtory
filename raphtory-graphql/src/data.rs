@@ -69,6 +69,27 @@ impl Data {
             .collect()
     }
 
+    // TODO: use this for regular graphs as well?
+    pub fn load_from_directory<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
+    where
+        F: Fn(&Path) -> T + 'static,
+    {
+        WalkDir::new(path)
+            .into_iter()
+            .filter_map(|e| {
+                let entry = e.ok()?;
+                let path = entry.path();
+                let filename = path.file_name().and_then(|name| name.to_str())?;
+                (path.is_file() && !filename.starts_with('.')).then_some(entry)
+            })
+            .map(move |entry| {
+                let path = entry.path();
+                let path_string = path.display().to_string();
+                println!("loading from {path_string}");
+                loader(path)
+            })
+    }
+
     pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<MaterializedGraph>> {
         let valid_entries = WalkDir::new(path).into_iter().filter_map(|e| {
             let entry = e.ok()?;
