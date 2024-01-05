@@ -101,8 +101,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
     type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
-    type Edge = EdgeView<G, GH>;
-    type EList = BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G, GH>>>;
+    type Edges = EdgeView<G, GH>;
 
     fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,

@@ -270,8 +270,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type ValueType<T> = T where T: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G, G>;
-    type Edge = EdgeView<G, GH>;
-    type EList = BoxedLIter<'graph, EdgeView<G, GH>>;
+    type Edges = EdgeView<G, GH>;
 
     fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O>(
         &self,

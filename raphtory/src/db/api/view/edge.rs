@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{iter, ops::Deref};
 
 use chrono::{DateTime, Utc};
 
@@ -12,271 +12,289 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{
+                    ConstPropertiesOps, PropertiesOps, TemporalPropertiesOps,
+                    TemporalPropertyViewOps,
+                },
                 Properties,
             },
             view::{
-                internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+                internal::{CoreGraphOps, DelegateTimeSemantics, InternalLayerOps, TimeSemantics},
                 BoxedIter,
             },
         },
         graph::edge::EdgeView,
     },
-    prelude::{GraphViewOps, Layer, LayerOps, NodeListOps, NodeViewOps, TimeOps},
+    prelude::{GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
 };
 
-pub trait EdgeViewInternalOps<'graph>:
-    InternalLayerOps
-    + ConstPropertiesOps
-    + TemporalPropertiesOps
-    + TemporalPropertyViewOps
-    + TimeOps<'graph>
-    + LayerOps<'graph>
-    + Clone
+pub trait BaseEdgeViewOps<'graph>:
+    Clone + TimeOps<'graph> + LayerOps<'graph> + InternalLayerOps
 {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
+    type ValueType<T>: 'graph
+    where
+        T: 'graph;
 
-    type EList: EdgeListOps<'graph, Edge = Self>;
+    type PropType: PropertiesOps + Clone + 'graph;
+    type Nodes: NodeViewOps<'graph, Graph = Self::BaseGraph, BaseGraph = Self::BaseGraph> + 'graph;
+    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
-    type Neighbour: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
-    fn graph(&self) -> &Self::Graph;
+    fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
+        &self,
+        op: F,
+    ) -> Self::ValueType<O>;
 
-    fn eref(&self) -> EdgeRef;
+    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
-    fn new_node(&self, v: VID) -> Self::Neighbour;
+    fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+        &self,
+        op: F,
+    ) -> Self::Nodes;
 
-    fn new_edge(&self, e: EdgeRef) -> Self;
-
-    /// Explodes an edge and returns all instances it had been updated as seperate edges
-    fn internal_explode(&self) -> Self::EList;
-
-    fn internal_explode_layers(&self) -> Self::EList;
+    fn map_exploded<
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+    >(
+        &self,
+        op: F,
+    ) -> Self::Exploded;
 }
 
-pub trait EdgeViewOps<'graph>:
-    ConstPropertiesOps
-    + TemporalPropertiesOps
-    + TemporalPropertyViewOps
-    + TimeOps<'graph>
-    + LayerOps<'graph>
-    + Sized
-    + Clone
-{
+pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
+    type ValueType<T>: 'graph
+    where
+        T: 'graph;
+    type PropType: PropertiesOps + Clone + 'graph;
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
-    type Node: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
-    type EList: EdgeListOps<'graph, Edge = Self>;
+    type Nodes: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+
+    type Exploded: EdgeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::Graph>;
 
     /// List the activation timestamps for the edge
-    fn history(&self) -> Vec<i64>;
+    fn history(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// List the activation timestamps for the edge as DateTime<Utc> objects if parseable
-    fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>>;
+    /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>;
 
     /// List the deletion timestamps for the edge
-    fn deletions(&self) -> Vec<i64>;
+    fn deletions(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// List the deletion timestamps for the edge as DateTime<Utc> objects if parseable
-    fn deletions_date_time(&self) -> Option<Vec<DateTime<Utc>>>;
+    /// List the deletion timestamps for the edge as NaiveDateTime objects if parseable
+    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>;
 
     /// Check that the latest status of the edge is valid (i.e., not deleted)
-    fn is_valid(&self) -> bool;
+    fn is_valid(&self) -> Self::ValueType<bool>;
 
     /// Check that the latest status of the edge is deleted (i.e., not valid)
-    fn is_deleted(&self) -> bool {
-        !self.is_valid()
-    }
+    fn is_deleted(&self) -> Self::ValueType<bool>;
 
     /// Return a view of the properties of the edge
-    fn properties(&self) -> Properties<Self>;
+    fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
     /// Returns the source node of the edge.
-    fn src(&self) -> Self::Node;
+    fn src(&self) -> Self::Nodes;
 
     /// Returns the destination node of the edge.
-    fn dst(&self) -> Self::Node;
+    fn dst(&self) -> Self::Nodes;
 
     /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
-    fn nbr(&self) -> Self::Node;
+    fn nbr(&self) -> Self::Nodes;
 
     /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> bool;
+    fn active(&self, t: i64) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
-    fn id(
-        &self,
-    ) -> (
-        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
-        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
-    );
+    fn id(&self) -> Self::ValueType<(u64, u64)>;
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
-    fn explode(&self) -> Self::EList;
+    fn explode(&self) -> Self::Exploded;
 
-    fn explode_layers(&self) -> Self::EList;
+    fn explode_layers(&self) -> Self::Exploded;
 
     /// Gets the first time an edge was seen
-    fn earliest_time(&self) -> Option<i64>;
+    fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    fn earliest_date_time(&self) -> Option<DateTime<Utc>>;
-    fn latest_date_time(&self) -> Option<DateTime<Utc>>;
+    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>;
+    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>;
     /// Gets the latest time an edge was updated
-    fn latest_time(&self) -> Option<i64>;
+    fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Option<i64>;
-    fn date_time(&self) -> Option<DateTime<Utc>>;
+    fn time(&self) -> Self::ValueType<Option<i64>>;
+    fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Option<ArcStr>;
+    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Option<TimeIndexEntry>;
+    fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> BoxedIter<ArcStr>;
+    fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>>;
 }
 
-impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
+impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
+    type ValueType<T> = E::ValueType<T>;
+    type PropType = E::PropType;
     type Graph = E::Graph;
     type BaseGraph = E::BaseGraph;
-    type Node = E::Neighbour;
-    type EList = E::EList;
+    type Nodes = E::Nodes;
+
+    type Exploded = E::Exploded;
 
     /// list the activation timestamps for the edge
-    fn history(&self) -> Vec<i64> {
+    fn history(&self) -> Self::ValueType<Vec<i64>> {
         let layer_ids = self.layer_ids();
-        self.graph().edge_history(self.eref(), layer_ids)
+        self.map(move |g, e| g.edge_history(e, layer_ids.clone().constrain_from_edge(e)))
     }
 
-    fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.history()
-            .into_iter()
-            .map(|t| t.dt())
-            .collect::<Option<Vec<_>>>()
-    }
-
-    fn deletions(&self) -> Vec<i64> {
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>> {
         let layer_ids = self.layer_ids();
-        self.graph().edge_deletion_history(self.eref(), layer_ids)
+        self.map(move |g, e| {
+            g.edge_history(self.eref(), layer_ids.clone().constrain_from_edge(e))
+                .into_iter()
+                .map(|t| t.dt())
+                .collect()
+        })
     }
 
-    fn deletions_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.deletions()
-            .into_iter()
-            .map(|t| t.dt())
-            .collect::<Option<Vec<_>>>()
+    fn deletions(&self) -> Self::ValueType<Vec<i64>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| g.edge_deletion_history(e, layer_ids.clone().constrain_from_edge(e)))
     }
 
-    fn is_valid(&self) -> bool {
-        self.graph().edge_is_valid(self.eref(), self.layer_ids())
+    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| {
+            g.edge_deletion_history(e, layer_ids.clone().constrain_from_edge(e))
+                .into_iter()
+                .map(|t| t.dt())
+                .collect()
+        })
+    }
+
+    fn is_valid(&self) -> Self::ValueType<bool> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| g.edge_is_valid(e, layer_ids.clone().constrain_from_edge(e)))
+    }
+
+    fn is_deleted(&self) -> Self::ValueType<bool> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| !g.edge_is_valid(e, layer_ids.clone().constrain_from_edge(e)))
     }
 
     /// Return a view of the properties of the edge
-    fn properties(&self) -> Properties<Self> {
-        Properties::new(self.clone())
+    fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
+        self.as_props()
     }
 
     /// Returns the source node of the edge.
-    fn src(&self) -> Self::Node {
-        let node = self.eref().src();
-        self.new_node(node)
+    fn src(&self) -> Self::Nodes {
+        self.map_nodes(|_, e| e.src())
     }
 
     /// Returns the destination node of the edge.
-    fn dst(&self) -> Self::Node {
-        let node = self.eref().dst();
-        self.new_node(node)
+    fn dst(&self) -> Self::Nodes {
+        self.map_nodes(|_, e| e.dst())
     }
 
-    fn nbr(&self) -> Self::Node {
-        let node = self.eref().remote();
-        self.new_node(node)
+    fn nbr(&self) -> Self::Nodes {
+        self.map_nodes(|_, e| e.remote())
     }
 
     /// Check if edge is active at a given time point
-    fn active(&self, t: i64) -> bool {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        match self.eref().time() {
-            Some(tt) => *tt.t() <= t && t <= self.latest_time().unwrap_or(*tt.t()),
+    fn active(&self, t: i64) -> Self::ValueType<bool> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| match e.time() {
+            Some(tt) => {
+                *tt.t() <= t
+                    && t <= g
+                        .edge_latest_time(e, layer_ids.clone().constrain_from_edge(e))
+                        .unwrap_or(*tt.t())
+            }
             None => {
-                let window_filter = self.graph().include_edge_window();
+                let window_filter = g.include_edge_window();
                 window_filter(
-                    self.graph().core_edge(self.eref().pid()).deref(),
+                    g.core_edge(e.pid()).deref(),
                     &layer_ids,
                     t..t.saturating_add(1),
                 )
             }
-        }
+        })
     }
 
-    /// Returns the id of the edge.
-    fn id(
-        &self,
-    ) -> (
-        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
-        <Self::Node as NodeViewOps<'graph>>::ValueType<u64>,
-    ) {
-        (self.src().id(), self.dst().id())
+    fn id(&self) -> Self::ValueType<(u64, u64)> {
+        self.map(|g, e| (g.node_id(e.src()), g.node_id(e.dst())))
     }
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
-    fn explode(&self) -> Self::EList {
-        self.internal_explode()
+    fn explode(&self) -> Self::Exploded {
+        let layer_ids = self.layer_ids();
+        self.map_exploded(move |g, e| match e.time() {
+            Some(_) => Box::new(iter::once(e)),
+            None => g.edge_exploded(e, layer_ids.clone().constrain_from_edge(e)),
+        })
     }
 
-    fn explode_layers(&self) -> Self::EList {
-        self.internal_explode_layers()
+    fn explode_layers(&self) -> Self::Exploded {
+        let layer_ids = self.layer_ids();
+        self.map_exploded(move |g, e| match e.layer() {
+            Some(_) => Box::new(iter::once(e)),
+            None => g.edge_layers(e, layer_ids.clone()),
+        })
     }
 
     /// Gets the first time an edge was seen
-    fn earliest_time(&self) -> Option<i64> {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        self.graph().edge_earliest_time(self.eref(), layer_ids)
+    fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| g.edge_earliest_time(e, layer_ids.clone().constrain_from_edge(e)))
     }
 
-    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        let earliest_time = self.graph().edge_earliest_time(self.eref(), layer_ids);
-        earliest_time?.dt()
+    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| {
+            g.edge_earliest_time(e, layer_ids.clone().constrain_from_edge(e))?.dt()
+        })
     }
 
-    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        let latest_time = self.graph().edge_latest_time(self.eref(), layer_ids);
-        latest_time?.dt()
+    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| {
+            g.edge_latest_time(e, layer_ids.clone().constrain_from_edge(e))?.dt()
+        })
     }
 
     /// Gets the latest time an edge was updated
-    fn latest_time(&self) -> Option<i64> {
-        let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
-        self.graph().edge_latest_time(self.eref(), layer_ids)
+    fn latest_time(&self) -> Self::ValueType<Option<i64>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| g.edge_latest_time(e, layer_ids.clone().constrain_from_edge(e)))
     }
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Option<i64> {
-        self.eref().time().map(|ti| *ti.t())
+    fn time(&self) -> Self::ValueType<Option<i64>> {
+        self.map(|_, e| e.time_t())
     }
 
-    fn date_time(&self) -> Option<DateTime<Utc>> {
-        self.eref().time().and_then(|t| t.dt())
+    fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
+        self.map(|_, e| e.time_t()?.dt())
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Option<ArcStr> {
-        self.eref()
-            .layer()
-            .map(|l_id| self.graph().get_layer_name(*l_id))
+    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>> {
+        self.map(|g, e| e.layer().map(|l_id| g.get_layer_name(*l_id)))
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
-    fn time_and_index(&self) -> Option<TimeIndexEntry> {
-        self.eref().time()
+    fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>> {
+        self.map(|_, e| e.time())
     }
 
     /// Gets the name of the layer this edge belongs to
-    fn layer_names(&self) -> BoxedIter<ArcStr> {
-        self.graph().get_layer_names_from_ids(self.layer_ids())
+    fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>> {
+        let layer_ids = self.layer_ids();
+        self.map(move |g, e| g.get_layer_names_from_ids(layer_ids.clone().constrain_from_edge(e)))
     }
 }
 
@@ -296,84 +314,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
             .layer_ids_from_names(key)
             .intersect(&self.layer_ids())
     }
-}
-
-/// This trait defines the operations that can be
-/// performed on a list of edges in a temporal graph view.
-pub trait EdgeListOps<'graph>:
-    IntoIterator<Item = Self::ValueType<Self::Edge>, IntoIter = Self::IterType<Self::Edge>> + Sized
-{
-    type Edge: EdgeViewOps<'graph>;
-    type ValueType<T>;
-
-    /// the type of list of nodes
-    type VList: NodeListOps<'graph, Node = <Self::Edge as EdgeViewOps<'graph>>::Node>;
-
-    /// the type of iterator
-    type IterType<T>: Iterator<Item = Self::ValueType<T>>;
-    fn properties(self) -> Self::IterType<Properties<Self::Edge>>;
-
-    /// gets the source nodes of the edges in the list
-    fn src(self) -> Self::VList;
-
-    /// gets the destination nodes of the edges in the list
-    fn dst(self) -> Self::VList;
-
-    fn id(self) -> Self::IterType<(u64, u64)>;
-
-    /// returns a list of exploded edges that include an edge at each point in time
-    fn explode(self) -> Self::IterType<Self::Edge>;
-
-    /// Get the timestamp for the earliest activity of the edge
-    fn earliest_time(self) -> Self::IterType<Option<i64>>;
-
-    fn earliest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
-
-    /// Get the timestamp for the latest activity of the edge
-    fn latest_time(self) -> Self::IterType<Option<i64>>;
-
-    fn latest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
-
-    fn date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
-
-    /// Get the timestamps of the edges if they are  exploded
-    fn time(self) -> Self::IterType<Option<i64>>;
-
-    /// Get the layer name for each edge if it is restricted to a single layer
-    fn layer_name(self) -> Self::IterType<Option<ArcStr>>;
-
-    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>>;
-
-    fn history(self) -> Self::IterType<Vec<i64>>;
-
-    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>>;
-
-    fn deletions(self) -> Self::IterType<Vec<i64>>;
-
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>>;
-
-    fn is_valid(self) -> Self::IterType<bool>;
-
-    fn is_deleted(self) -> Self::IterType<bool>;
-
-    fn start(self) -> Self::IterType<Option<i64>>;
-
-    fn start_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
-
-    fn end(self) -> Self::IterType<Option<i64>>;
-
-    fn end_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
-
-    fn at<T: IntoTime>(
-        self,
-        t: T,
-    ) -> Self::IterType<<Self::Edge as TimeOps<'graph>>::WindowedViewType>;
-
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<<Self::Edge as TimeOps<'graph>>::WindowedViewType>;
 }
 
 #[cfg(test)]

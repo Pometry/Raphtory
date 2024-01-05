@@ -23,7 +23,7 @@ use crate::{
             mutation::internal::InternalAdditionOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic},
-                EdgeViewInternalOps, StaticGraphViewOps,
+                StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
