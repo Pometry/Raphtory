@@ -59,7 +59,7 @@ For python you must be using version 3.8 or higher and can install via pip:
 ```bash
 pip install raphtory
 ``` 
-For Rust, Raphtory is hosted on [crates](https://crates.io/crates/raphtory) and can be included in your project via `cargo add`:
+For Rust, Raphtory is hosted on [crates](https://crates.io/crates/raphtory) for Rust version 1.75 or higher and can be included in your project via `cargo add`:
 ```bash
 cargo add raphtory
 ```
