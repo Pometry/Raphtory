@@ -10,6 +10,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 import sphinx_autosummary_accessors
+from raphtory import __version__
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -17,7 +18,7 @@ import sphinx_autosummary_accessors
 project = 'Raphtory'
 copyright = '2023, Pometry'
 author = 'Pometry'
-release = '2021'
+release = __version__
 git_ref = "master"
 
 # -- General configuration ---------------------------------------------------
