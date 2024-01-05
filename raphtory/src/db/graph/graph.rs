@@ -47,8 +47,8 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
         g1.nodes().id().all(|v| g2.has_node(v)) && // all nodes exist in other
-            g1.edges().explode().count() == g2.edges().explode().count() && // same number of exploded edges
-            g1.edges().explode().all(|e| { // all exploded edges exist in other
+            g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
+            g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
                     .filter(|ee| ee.active(e.time().expect("exploded")))
@@ -208,8 +208,8 @@ mod db_tests {
             ArcStr, Prop,
         },
         db::{
-            api::view::{EdgeListOps, EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
-            graph::{edge::EdgeView, path::PathFromNode},
+            api::view::{EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
+            graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -228,10 +228,7 @@ mod db_tests {
         edges.par_iter().enumerate().for_each(|(t, (i, j))| {
             g.add_edge(t as i64, *i, *j, NO_PROPS, None).unwrap();
         });
-        edges
-            .iter()
-            .all(|(i, j)| g.has_edge(*i, *j, Layer::Default))
-            && g.count_temporal_edges() == edges.len()
+        edges.iter().all(|(i, j)| g.has_edge(*i, *j)) && g.count_temporal_edges() == edges.len()
     }
 
     #[quickcheck]
@@ -299,9 +296,7 @@ mod db_tests {
             g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        edges
-            .iter()
-            .all(|&(_, src, dst)| g.has_edge(src, dst, Layer::All))
+        edges.iter().all(|&(_, src, dst)| g.has_edge(src, dst))
     }
 
     #[quickcheck]
@@ -352,17 +347,17 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(1, 7, 8, NO_PROPS, None).unwrap();
 
-        assert!(!g.has_edge(8, 7, Layer::All));
-        assert!(g.has_edge(7, 8, Layer::All));
+        assert!(!g.has_edge(8, 7));
+        assert!(g.has_edge(7, 8));
 
         g.add_edge(1, 7, 9, NO_PROPS, None).unwrap();
 
-        assert!(!g.has_edge(9, 7, Layer::All));
-        assert!(g.has_edge(7, 9, Layer::All));
+        assert!(!g.has_edge(9, 7));
+        assert!(g.has_edge(7, 9));
 
         g.add_edge(2, "haaroon", "northLondon", NO_PROPS, None)
             .unwrap();
-        assert!(g.has_edge("haaroon", "northLondon", Layer::All));
+        assert!(g.has_edge("haaroon", "northLondon"));
     }
 
     #[test]
@@ -444,9 +439,9 @@ mod db_tests {
             .map(|i| {
                 let v = g.node(i).unwrap();
                 (
-                    v.window(-1, 7).in_edges().collect::<Vec<_>>().len(),
-                    v.window(1, 7).out_edges().collect::<Vec<_>>().len(),
-                    v.window(0, 1).edges().collect::<Vec<_>>().len(),
+                    v.window(-1, 7).in_edges().iter().count(),
+                    v.window(1, 7).out_edges().iter().count(),
+                    v.window(0, 1).edges().iter().count(),
                 )
             })
             .collect::<Vec<_>>();
@@ -691,21 +686,21 @@ mod db_tests {
         g.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
         g.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
-        assert!(g.has_edge(11, 22, Layer::All));
-        assert!(g.has_edge(11, 22, Layer::Default));
-        assert!(!g.has_edge(11, 44, Layer::Default));
-        assert!(!g.has_edge(11, 22, "layer2"));
-        assert!(g.has_edge(11, 44, "layer2"));
+        assert!(g.has_edge(11, 22));
+        assert!(g.default_layer().has_edge(11, 22));
+        assert!(!g.default_layer().has_edge(11, 44));
+        assert!(!g.layer("layer2").unwrap().has_edge(11, 22));
+        assert!(g.layer("layer2").unwrap().has_edge(11, 44));
 
         assert!(g.edge(11, 22).is_some());
         assert!(g.layer(Layer::Default).unwrap().edge(11, 44).is_none());
-        assert!(g.edge(11, 22).unwrap().layer("layer2").is_none());
-        assert!(g.edge(11, 44).unwrap().layer("layer2").is_some());
+        assert!(g.layer("layer2").unwrap().edge(11, 22).is_none());
+        assert!(g.layer("layer2").unwrap().edge(11, 44).is_some());
 
         let dft_layer = g.default_layer();
         let layer1 = g.layer("layer1").expect("layer1");
         let layer2 = g.layer("layer2").expect("layer2");
-        assert!(g.layer("missing layer").is_none());
+        assert!(g.layer("missing layer").is_err());
 
         assert_eq!(g.count_nodes(), 4);
         assert_eq!(g.count_edges(), 4);
@@ -733,18 +728,10 @@ mod db_tests {
         assert_eq!(node1.in_degree(), 0);
         assert_eq!(node2.in_degree(), 0);
 
-        fn to_tuples<
-            'graph,
-            G: GraphViewOps<'graph>,
-            GH: GraphViewOps<'graph>,
-            I: Iterator<Item = EdgeView<G, GH>>,
-        >(
-            edges: I,
+        fn to_tuples<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+            edges: Edges<'graph, G, GH>,
         ) -> Vec<(u64, u64)> {
-            edges
-                .map(|e| (e.src().id(), e.dst().id()))
-                .sorted()
-                .collect_vec()
+            edges.id().sorted().collect_vec()
         }
 
         assert_eq!(
@@ -806,7 +793,7 @@ mod db_tests {
 
         let exploded = g.edge(1, 2).unwrap().explode();
 
-        let res = exploded.map(|e| e.properties().as_vec()).collect_vec();
+        let res = exploded.properties().map(|p| p.as_vec()).collect_vec();
 
         let mut expected = Vec::new();
         for i in 1..4 {
@@ -820,7 +807,8 @@ mod db_tests {
             .unwrap()
             .edges()
             .explode()
-            .map(|e| e.properties().as_vec())
+            .properties()
+            .map(|p| p.as_vec())
             .collect_vec();
         assert_eq!(e, expected);
     }
@@ -1236,7 +1224,7 @@ mod db_tests {
         g.add_edge(3, 1, 2, vec![("weight".to_string(), Prop::I64(3))], None)
             .unwrap();
 
-        let e = g.node(1).unwrap().out_edges().next().unwrap();
+        let e = g.node(1).unwrap().out_edges().iter().next().unwrap();
         let res: HashMap<ArcStr, Vec<(i64, Prop)>> = e
             .window(1, 3)
             .properties()
@@ -1292,17 +1280,10 @@ mod db_tests {
         g.add_edge(0, 0, 1, NO_PROPS, None)?;
         g.add_edge(0, 0, 1, NO_PROPS, Some("awesome name"))?;
 
-        let what = g
-            .edges()
-            .map(|e| (e.src().id(), e.dst().id()))
-            .collect_vec();
+        let what = g.edges().id().collect_vec();
         assert_eq!(what, vec![(0, 1)]);
 
-        let layer_names = g
-            .edges()
-            .flat_map(|e| e.layer_names())
-            .sorted()
-            .collect_vec();
+        let layer_names = g.edges().layer_names().flatten().sorted().collect_vec();
         assert_eq!(layer_names, vec!["_default", "awesome name"]);
         Ok(())
     }
@@ -1328,8 +1309,8 @@ mod db_tests {
 
         let g_layers = g.layer(vec!["layer1", "layer3"]).expect("layer");
 
-        assert!(g_layers.edge(1, 2).unwrap().layer("layer1").is_some());
-        assert!(g_layers.edge(1, 3).unwrap().layer("layer3").is_some());
+        assert!(g_layers.layer("layer1").unwrap().edge(1, 2).is_some());
+        assert!(g_layers.layer("layer3").unwrap().edge(1, 3).is_some());
         assert!(g_layers.edge(1, 2).is_some());
         assert!(g_layers.edge(1, 3).is_some());
 
@@ -1341,7 +1322,7 @@ mod db_tests {
 
         let g_layers2 = g_layers.layer(vec!["layer1"]).expect("layer");
 
-        assert!(g_layers2.edge(1, 2).unwrap().layer("layer1").is_some());
+        assert!(g_layers2.layer("layer1").unwrap().edge(1, 2).is_some());
         assert!(g_layers2.edge(1, 2).is_some());
 
         assert!(g_layers2.edge(1, 3).is_none());
@@ -1385,6 +1366,7 @@ mod db_tests {
 
         let layer_exploded = e
             .explode_layers()
+            .iter()
             .filter_map(|e| {
                 e.edge
                     .layer()
@@ -1409,6 +1391,7 @@ mod db_tests {
 
         let layer_exploded = e
             .explode_layers()
+            .iter()
             .filter_map(|e| {
                 e.edge
                     .layer()
@@ -1432,8 +1415,9 @@ mod db_tests {
 
         let layer_exploded = e
             .explode_layers()
+            .iter()
             .flat_map(|e| {
-                e.explode().filter_map(|e| {
+                e.explode().iter().filter_map(|e| {
                     e.edge
                         .layer()
                         .zip(e.time())
@@ -1461,8 +1445,9 @@ mod db_tests {
 
         let layer_exploded = e
             .explode_layers()
+            .iter()
             .flat_map(|e| {
-                e.explode().filter_map(|e| {
+                e.explode().iter().filter_map(|e| {
                     e.edge
                         .layer()
                         .zip(e.time())
@@ -1625,11 +1610,13 @@ mod db_tests {
 
         let mut actual_edges: Vec<(u64, u64, Vec<i64>)> = g
             .edges()
+            .iter()
             .map(|e| {
                 (
                     e.src().id(),
                     e.dst().id(),
                     e.explode()
+                        .iter()
                         .map(|ee| {
                             check(
                                 ee.earliest_time() == ee.latest_time(),

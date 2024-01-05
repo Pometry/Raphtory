@@ -26,7 +26,7 @@ use crate::{
             },
             view::{
                 internal::{InternalLayerOps, OneHopFilter, Static},
-                BaseEdgeViewOps, StaticGraphViewOps,
+                BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView},
@@ -137,10 +137,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         &self,
         op: F,
     ) -> Self::Exploded {
+        let graph1 = self.graph.clone();
         let graph = self.graph.clone();
         let base_graph = self.base_graph.clone();
         let edge = self.edge;
-        let edges = Arc::new(move |g| op(g, edge));
+        let edges = Arc::new(move || op(&graph1, edge).into_dyn_boxed());
         Edges {
             graph,
             base_graph,
@@ -290,14 +291,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
             .edge_meta()
             .temporal_prop_meta()
             .get_id(name)
-            .filter(|id| {
-                self.graph
-                    .has_temporal_edge_prop(self.edge, *id, self.layer_ids())
-            })
+            .filter(move |id| self.graph.has_temporal_edge_prop(self.edge, *id, layer_ids))
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
@@ -305,12 +304,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         Box::new(
             self.graph
-                .temporal_edge_prop_ids(self.edge, self.layer_ids())
-                .filter(|id| {
+                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
+                .filter(move |id| {
                     self.graph
-                        .has_temporal_edge_prop(self.edge, *id, self.layer_ids())
+                        .has_temporal_edge_prop(self.edge, *id, layer_ids.clone())
                 }),
         )
     }
@@ -428,7 +428,7 @@ mod test_edge {
         assert!(e1.add_updates(2, props, Some("test2")).is_err()); // different layer is error
         let e = g.edge(1, 2).unwrap();
         e.add_updates(2, props, Some("test2")).unwrap(); // non-restricted edge view can create new layers
-        let layered_views = e.explode_layers().collect_vec();
+        let layered_views = e.explode_layers().into_iter().collect_vec();
         for ev in layered_views {
             let layer = ev.layer_name().unwrap();
             assert!(ev.add_updates(1, props, Some("test")).is_err()); // restricted edge view cannot create updates in different layer

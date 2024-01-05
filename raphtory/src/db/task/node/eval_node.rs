@@ -22,17 +22,18 @@ use crate::{
     prelude::{GraphViewOps, Layer},
 };
 
+use crate::db::task::edge::eval_edges::EvalEdges;
 use std::{
     cell::{Ref, RefCell},
     rc::Rc,
 };
 
 pub struct EvalNodeView<'graph, 'a: 'graph, G, S, GH = &'graph G, CS: Clone = ComputeStateVec> {
-    ss: usize,
-    node: NodeView<&'graph G, GH>,
-    local_state: Option<&'graph mut S>,
-    local_state_prev: &'graph Local2<'a, S>,
-    node_state: Rc<RefCell<EVState<'a, CS>>>,
+    pub(crate) ss: usize,
+    pub(crate) node: NodeView<&'graph G, GH>,
+    pub(crate) local_state: Option<&'graph mut S>,
+    pub(crate) local_state_prev: &'graph Local2<'a, S>,
+    pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
 }
 
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, CS: ComputeState + 'a, S>
@@ -267,10 +268,10 @@ pub struct EvalPathFromNode<
     CS: ComputeState,
     S,
 > {
-    path: PathFromNode<'graph, &'graph G, GH>,
-    ss: usize,
-    node_state: Rc<RefCell<EVState<'a, CS>>>,
-    local_state_prev: &'graph Local2<'a, S>,
+    pub(crate) path: PathFromNode<'graph, &'graph G, GH>,
+    pub(crate) ss: usize,
+    pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
+    pub(crate) local_state_prev: &'graph Local2<'a, S>,
 }
 
 impl<
@@ -335,24 +336,6 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > InternalLayerOps for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
-{
-    fn layer_ids(&self) -> LayerIds {
-        self.path.layer_ids()
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.path.layer_ids_from_names(key)
-    }
-}
-
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-        GH: GraphViewOps<'graph>,
     > BaseNodeViewOps<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
     type BaseGraph = &'graph G;
@@ -360,8 +343,7 @@ impl<
     type ValueType<T: 'graph> = Box<dyn Iterator<Item = T> + 'graph>;
     type PropType = NodeView<GH, GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
-    type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
-    type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
+    type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -380,15 +362,17 @@ impl<
     >(
         &self,
         op: F,
-    ) -> Self::EList {
+    ) -> Self::Edges {
         let local_state_prev = self.local_state_prev;
         let node_state = self.node_state.clone();
         let ss = self.ss;
-        Box::new(
-            self.path
-                .map_edges(op)
-                .map(move |e| EvalEdgeView::new(ss, e, node_state.clone(), local_state_prev)),
-        )
+        let edges = self.path.map_edges(op);
+        EvalEdges {
+            ss,
+            edges,
+            node_state,
+            local_state_prev,
+        }
     }
 
     fn hop<
@@ -486,33 +470,14 @@ impl<
         S,
         CS: ComputeState + 'a,
         GH: GraphViewOps<'graph>,
-    > InternalLayerOps for EvalNodeView<'graph, 'a, G, S, GH, CS>
-{
-    fn layer_ids(&self) -> LayerIds {
-        self.node.layer_ids()
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.node.layer_ids_from_names(key)
-    }
-}
-
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-        GH: GraphViewOps<'graph>,
     > BaseNodeViewOps<'graph> for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
     type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T>  = T where T: 'graph;
-    type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type PropType = NodeView<&'graph G, GH>;
-    type Edge = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
-    type EList = Box<dyn Iterator<Item = Self::Edge> + 'graph>;
+    type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
+    type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -531,15 +496,17 @@ impl<
     >(
         &self,
         op: F,
-    ) -> Self::EList {
+    ) -> Self::Edges {
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
         let node_state = self.node_state.clone();
-        Box::new(
-            self.node
-                .map_edges(op)
-                .map(move |e| EvalEdgeView::new(ss, e, node_state.clone(), local_state_prev)),
-        )
+        let edges = self.node.map_edges(op);
+        EvalEdges {
+            ss,
+            edges,
+            node_state,
+            local_state_prev,
+        }
     }
 
     fn hop<

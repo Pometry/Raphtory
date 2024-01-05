@@ -27,11 +27,13 @@ use crate::{
     prelude::*,
 };
 
+use crate::db::graph::edges::Edges;
 use crate::core::storage::timeindex::AsTime;
 use chrono::{DateTime, Utc};
 use std::{
     fmt,
     hash::{Hash, Hasher},
+    sync::Arc,
 };
 
 /// View of a Node in a Graph
@@ -40,18 +42,6 @@ pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
     pub node: VID,
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
-    for NodeView<G, GH>
-{
-    fn layer_ids(&self) -> LayerIds {
-        self.graph.layer_ids()
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.graph.layer_ids_from_names(key)
-    }
 }
 
 impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
@@ -270,7 +260,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type ValueType<T> = T where T: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G, G>;
-    type Edges = EdgeView<G, GH>;
+    type Edges = Edges<'graph, G, GH>;
 
     fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O>(
         &self,
@@ -289,12 +279,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     >(
         &self,
         op: F,
-    ) -> Self::EList {
+    ) -> Self::Edges {
+        let graph = self.graph.clone();
+        let node = self.node;
+        let edges = Arc::new(move || op(&graph, node).into_dyn_boxed());
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
-        op(&self.graph, self.node)
-            .map(move |edge| EdgeView::new_filtered(base_graph.clone(), graph.clone(), edge))
-            .into_dyn_boxed()
+        Edges {
+            base_graph,
+            graph,
+            edges,
+        }
     }
 
     fn hop<
@@ -305,8 +300,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         op: F,
     ) -> Self::PathType {
         let graph = self.graph.clone();
-        PathFromNode::new(self.base_graph.clone(), self.node, move |vid| {
-            op(&graph, vid).into_dyn_boxed()
+        let node = self.node;
+        PathFromNode::new(self.base_graph.clone(), move || {
+            op(&graph, node).into_dyn_boxed()
         })
     }
 }
@@ -347,90 +343,6 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |prop| self.graph.process_prop_value(prop),
         )?;
         self.graph.internal_add_node(t, self.node, properties)
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeListOps<'graph>
-    for BoxedLIter<'graph, NodeView<G, GH>>
-{
-    type Node = NodeView<G, GH>;
-
-    type Neighbour = NodeView<G, G>;
-    type Edge = EdgeView<G, GH>;
-    type IterType<T> = BoxedLIter<'graph, T> where T: 'graph;
-    type ValueType<T> = T where T: 'graph;
-    fn earliest_time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|v| v.earliest_time()))
-    }
-
-    fn latest_time(self) -> Self::IterType<Option<i64>> {
-        self.map(|v| v.latest_time()).into_dyn_boxed()
-    }
-
-    fn window(
-        self,
-        start: i64,
-        end: i64,
-    ) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
-        self.map(move |v| v.window(start, end)).into_dyn_boxed()
-    }
-
-    fn at(self, end: i64) -> Self::IterType<<Self::Node as TimeOps<'graph>>::WindowedViewType> {
-        self.map(move |v| v.at(end)).into_dyn_boxed()
-    }
-
-    fn id(self) -> Self::IterType<u64> {
-        self.map(|v| v.id()).into_dyn_boxed()
-    }
-
-    fn name(self) -> Self::IterType<String> {
-        self.map(|v| v.name()).into_dyn_boxed()
-    }
-
-    fn properties(
-        self,
-    ) -> Self::IterType<Properties<<Self::Node as NodeViewOps<'graph>>::PropType>> {
-        self.map(|v| v.properties()).into_dyn_boxed()
-    }
-
-    fn history(self) -> Self::IterType<Vec<i64>> {
-        self.map(|v| v.history()).into_dyn_boxed()
-    }
-
-    fn degree(self) -> Self::IterType<usize> {
-        self.map(|v| v.degree()).into_dyn_boxed()
-    }
-
-    fn in_degree(self) -> Self::IterType<usize> {
-        self.map(|v| v.in_degree()).into_dyn_boxed()
-    }
-
-    fn out_degree(self) -> Self::IterType<usize> {
-        self.map(|v| v.out_degree()).into_dyn_boxed()
-    }
-
-    fn edges(self) -> Self::IterType<Self::Edge> {
-        self.flat_map(|v| v.edges()).into_dyn_boxed()
-    }
-
-    fn in_edges(self) -> Self::IterType<Self::Edge> {
-        self.flat_map(|v| v.in_edges()).into_dyn_boxed()
-    }
-
-    fn out_edges(self) -> Self::IterType<Self::Edge> {
-        self.flat_map(|v| v.out_edges()).into_dyn_boxed()
-    }
-
-    fn neighbours(self) -> Self::IterType<Self::Neighbour> {
-        self.flat_map(|v| v.neighbours()).into_dyn_boxed()
-    }
-
-    fn in_neighbours(self) -> Self::IterType<Self::Neighbour> {
-        self.flat_map(|v| v.in_neighbours()).into_dyn_boxed()
-    }
-
-    fn out_neighbours(self) -> Self::IterType<Self::Neighbour> {
-        self.flat_map(|v| v.out_neighbours()).into_dyn_boxed()
     }
 }
 

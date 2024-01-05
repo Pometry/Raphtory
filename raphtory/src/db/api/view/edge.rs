@@ -28,9 +28,7 @@ use crate::{
     prelude::{GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
 };
 
-pub trait BaseEdgeViewOps<'graph>:
-    Clone + TimeOps<'graph> + LayerOps<'graph> + InternalLayerOps
-{
+pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
@@ -136,7 +134,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
 }
 
 impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
-    type ValueType<T> = E::ValueType<T>;
+    type ValueType<T> = E::ValueType<T> where T: 'graph;
     type PropType = E::PropType;
     type Graph = E::Graph;
     type BaseGraph = E::BaseGraph;
@@ -146,14 +144,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// list the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| g.edge_history(e, layer_ids.clone().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_history(e, g.layer_ids().constrain_from_edge(e)))
     }
 
-    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>> {
-        let layer_ids = self.layer_ids();
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(move |g, e| {
-            g.edge_history(self.eref(), layer_ids.clone().constrain_from_edge(e))
+            g.edge_history(e, g.layer_ids().constrain_from_edge(e))
                 .into_iter()
                 .map(|t| t.dt())
                 .collect()
@@ -161,14 +157,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| g.edge_deletion_history(e, layer_ids.clone().constrain_from_edge(e)))
+        self.map(move |g, e| g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e)))
     }
 
-    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| {
-            g.edge_deletion_history(e, layer_ids.clone().constrain_from_edge(e))
+    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
+        self.map(|g, e| {
+            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
                 .into_iter()
                 .map(|t| t.dt())
                 .collect()
@@ -176,13 +170,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn is_valid(&self) -> Self::ValueType<bool> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| g.edge_is_valid(e, layer_ids.clone().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     fn is_deleted(&self) -> Self::ValueType<bool> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| !g.edge_is_valid(e, layer_ids.clone().constrain_from_edge(e)))
+        self.map(|g, e| !g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     /// Return a view of the properties of the edge
@@ -206,19 +198,18 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// Check if edge is active at a given time point
     fn active(&self, t: i64) -> Self::ValueType<bool> {
-        let layer_ids = self.layer_ids();
         self.map(move |g, e| match e.time() {
             Some(tt) => {
                 *tt.t() <= t
                     && t <= g
-                        .edge_latest_time(e, layer_ids.clone().constrain_from_edge(e))
+                        .edge_latest_time(e, g.layer_ids().constrain_from_edge(e))
                         .unwrap_or(*tt.t())
             }
             None => {
                 let window_filter = g.include_edge_window();
                 window_filter(
                     g.core_edge(e.pid()).deref(),
-                    &layer_ids,
+                    &g.layer_ids(),
                     t..t.saturating_add(1),
                 )
             }
@@ -231,45 +222,39 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::Exploded {
-        let layer_ids = self.layer_ids();
-        self.map_exploded(move |g, e| match e.time() {
+        self.map_exploded(|g, e| match e.time() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_exploded(e, layer_ids.clone().constrain_from_edge(e)),
+            None => g.edge_exploded(e, g.layer_ids().constrain_from_edge(e)),
         })
     }
 
     fn explode_layers(&self) -> Self::Exploded {
-        let layer_ids = self.layer_ids();
-        self.map_exploded(move |g, e| match e.layer() {
+        self.map_exploded(|g, e| match e.layer() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_layers(e, layer_ids.clone()),
+            None => g.edge_layers(e, g.layer_ids()),
         })
     }
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| g.edge_earliest_time(e, layer_ids.clone().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| {
-            g.edge_earliest_time(e, layer_ids.clone().constrain_from_edge(e))?.dt()
+        self.map(|g, e| {
+            g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e))?.dt()
         })
     }
 
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| {
-            g.edge_latest_time(e, layer_ids.clone().constrain_from_edge(e))?.dt()
+        self.map(|g, e| {
+            g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e))?.dt()
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| g.edge_latest_time(e, layer_ids.clone().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e)))
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -293,26 +278,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>> {
-        let layer_ids = self.layer_ids();
-        self.map(move |g, e| g.get_layer_names_from_ids(layer_ids.clone().constrain_from_edge(e)))
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalLayerOps
-    for EdgeView<G, GH>
-{
-    fn layer_ids(&self) -> LayerIds {
-        self.graph
-            .core_edge(self.edge.pid())
-            .layer_ids()
-            .intersect(&self.graph.layer_ids())
-            .constrain_from_edge(self.edge)
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.graph
-            .layer_ids_from_names(key)
-            .intersect(&self.layer_ids())
+        self.map(|g, e| g.get_layer_names_from_ids(g.layer_ids().constrain_from_edge(e)))
     }
 }
 
@@ -332,7 +298,8 @@ mod test_edge_view {
             .edge(1, 2)
             .unwrap()
             .explode()
-            .flat_map(|e| e.properties().get("test").into_i32())
+            .properties()
+            .flat_map(|p| p.get("test").into_i32())
             .collect();
         assert_eq!(prop_values, actual_prop_values)
     }
@@ -350,13 +317,15 @@ mod test_edge_view {
             .edge(1, 2)
             .unwrap()
             .explode()
-            .flat_map(|e| e.properties().get("test").into_i32())
+            .properties()
+            .flat_map(|p| p.get("test").into_i32())
             .collect();
         let actual_layers: Vec<_> = g
             .edge(1, 2)
             .unwrap()
             .explode()
-            .map(|e| e.layer_names().into_iter().next().unwrap())
+            .layer_name()
+            .flatten()
             .collect();
         let expected_layers: Vec<_> = expected_prop_values
             .iter()
@@ -374,7 +343,7 @@ mod test_edge_view {
         g.add_edge(0, 1, 2, [("second", true)], None).unwrap();
         g.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
-        let mut exploded_edges: Vec<_> = g.edges().explode().collect();
+        let mut exploded_edges: Vec<_> = g.edges().explode().iter().collect();
         exploded_edges.sort_by_key(|a| a.time_and_index());
 
         let res: Vec<_> = exploded_edges

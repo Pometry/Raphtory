@@ -856,7 +856,8 @@ mod test_deletions {
         assert_eq!(
             e.window(1, 4)
                 .explode()
-                .flat_map(|e| e.earliest_time())
+                .earliest_time()
+                .flatten()
                 .collect_vec(),
             [1]
         );
@@ -882,11 +883,11 @@ mod test_deletions {
         assert_eq!(e_3_4.at(2).properties().get("test").unwrap_str(), "test");
         assert_eq!(e_3_4.at(3).properties().get("test"), None);
 
-        assert!(g.window(0, 1).has_edge(1, 2, Layer::Default));
-        assert!(!g.window(0, 2).has_edge(3, 4, Layer::Default));
-        assert!(g.window(1, 2).has_edge(1, 2, Layer::Default));
-        assert!(g.window(2, 3).has_edge(3, 4, Layer::Default));
-        assert!(!g.window(3, 4).has_edge(3, 4, Layer::Default));
+        assert!(g.window(0, 1).has_edge(1, 2));
+        assert!(!g.window(0, 2).has_edge(3, 4));
+        assert!(g.window(1, 2).has_edge(1, 2));
+        assert!(g.window(2, 3).has_edge(3, 4));
+        assert!(!g.window(3, 4).has_edge(3, 4));
     }
 
     #[test]
@@ -906,11 +907,11 @@ mod test_deletions {
         g.delete_edge(10, edges[0].1, edges[0].2, None).unwrap();
 
         for (t, s, d) in &edges {
-            assert!(g.at(*t).has_edge(*s, *d, Layer::All));
+            assert!(g.at(*t).has_edge(*s, *d));
         }
-        assert!(!g.after(10).has_edge(edges[0].1, edges[0].2, Layer::All));
+        assert!(!g.after(10).has_edge(edges[0].1, edges[0].2));
         for (_, s, d) in &edges[1..] {
-            assert!(g.after(10).has_edge(*s, *d, Layer::All));
+            assert!(g.after(10).has_edge(*s, *d));
         }
         assert_eq!(
             g.edge(edges[0].1, edges[0].2)
@@ -936,7 +937,7 @@ mod test_deletions {
         let e_layer_2 = e.layer("2").unwrap();
 
         for t in 0..11 {
-            assert!(g.at(t).has_edge(1, 2, Layer::All));
+            assert!(g.at(t).has_edge(1, 2));
         }
 
         assert!(e.is_valid());
@@ -956,9 +957,9 @@ mod test_deletions {
         g.delete_edge(3, 1, 2, Some("3")).unwrap();
 
         let e = g.edge(1, 2).unwrap();
-        assert_eq!(e.explode().count(), 3);
-        assert_eq!(e.before(4).explode().count(), 3);
-        assert_eq!(e.window(2, 3).explode().count(), 1);
+        assert_eq!(e.explode().iter().count(), 3);
+        assert_eq!(e.before(4).explode().iter().count(), 3);
+        assert_eq!(e.window(2, 3).explode().iter().count(), 1);
     }
 
     #[test]
@@ -988,8 +989,8 @@ mod test_deletions {
         assert_eq!(g.timeline_start(), Some(0));
         assert_eq!(g.timeline_end(), Some(3));
         let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
-        assert!(g.has_edge(1, 2, Layer::All));
-        assert!(w.has_edge(1, 2, Layer::All));
+        assert!(g.has_edge(1, 2));
+        assert!(w.has_edge(1, 2));
         assert_eq!(w.start(), Some(0));
         assert_eq!(w.timeline_start(), Some(0));
         assert_eq!(w.end(), Some(3));

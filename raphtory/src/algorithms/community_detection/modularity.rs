@@ -195,6 +195,7 @@ impl ModularityFunction for ModularityUnDir {
             .iter()
             .map(|node| {
                 node.edges()
+                    .iter()
                     .filter(|e| e.dst() != e.src())
                     .map(|e| {
                         let w = weight_prop
