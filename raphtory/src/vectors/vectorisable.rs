@@ -125,7 +125,11 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         }
         let graph_ref_map =
             compute_embedding_groups(graph_docs, embedding.as_ref(), &cache_storage).await;
-        let (_, graph_refs) = graph_ref_map.into_iter().next().unwrap(); // there should be one and only one value, otherwise the code is not correct
+        let graph_refs = graph_ref_map
+            .into_iter()
+            .next()
+            .map(|(_, graph_refs)| graph_refs)
+            .unwrap_or_else(|| vec![]); // there should be only one value here, TODO: check that's true
 
         if verbose {
             println!("computing embeddings for nodes");
