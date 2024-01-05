@@ -13,6 +13,7 @@ use crate::{
 use chrono::NaiveDateTime;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::{future::Future, thread};
+use pyo3::types::PyDateTime;
 
 pub mod errors;
 
@@ -71,7 +72,11 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
             return Ok(PyTime::new(parsed_datetime.try_into_time()?));
         }
-        let message = format!("time '{time}' must be a str, dt or an integer");
+        if let Ok(parsed_datetime) = time.extract::<PyDateTime>() {
+            
+        }
+
+        let message = format!("time '{time}' must be a str, datetime or an integer");
         Err(PyTypeError::new_err(message))
     }
 }
