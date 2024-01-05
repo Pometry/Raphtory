@@ -85,6 +85,16 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T> {
+        let graph_docs =
+            template
+                .graph(self)
+                .enumerate()
+                .map(move |(index, doc)| IndexedDocumentInput {
+                    entity_id: EntityId::from_graph(self),
+                    content: doc.content,
+                    index,
+                    life: doc.life,
+                });
         let nodes = self.nodes().iter().flat_map(|node| {
             template
                 .node(&node)
@@ -111,6 +121,13 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         let cache_storage = cache.map(EmbeddingCache::from_path);
 
         if verbose {
+            println!("computing embeddings for graph");
+        }
+        let graph_ref_map =
+            compute_embedding_groups(graph_docs, embedding.as_ref(), &cache_storage).await;
+        let (_, graph_refs) = graph_ref_map.into_iter().next().unwrap(); // there should be one and only one value, otherwise the code is not correct
+
+        if verbose {
             println!("computing embeddings for nodes");
         }
         let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache_storage).await;
@@ -128,6 +145,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
             self.clone(),
             template.into(),
             embedding.into(),
+            graph_refs.into(),
             node_refs.into(),
             edge_refs.into(),
             vec![],
@@ -150,7 +168,7 @@ where
             match embedding_groups.get_mut(&doc.entity_id) {
                 Some(group) => group.push(doc),
                 None => {
-                    embedding_groups.insert(doc.entity_id, vec![doc]);
+                    embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
                 }
             }
         }

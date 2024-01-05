@@ -14,8 +14,8 @@ pub struct VectorisedCluster<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> 
     graphs: &'a HashMap<String, VectorisedGraph<G, T>>,
 }
 
-impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<G, T> {
-    pub fn new(graphs: &HashMap<String, VectorisedGraph<G, T>>) -> Self {
+impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G, T> {
+    pub fn new(graphs: &'a HashMap<String, VectorisedGraph<G, T>>) -> Self {
         Self { graphs }
     }
 
@@ -41,15 +41,15 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<G, T> {
         let documents = self
             .graphs
             .iter()
-            .flat_map(|(name, graph)| graph.graph_documents.into_iter())
+            .flat_map(|(name, graph)| graph.graph_documents.iter().cloned())
             .collect_vec();
         let scored_documents = score_documents(query, documents);
         let top_k = find_top_k(scored_documents, limit);
 
         top_k
             .map(|(doc, score)| match doc.entity_id {
-                EntityId::Graph { name } => {
-                    let graph = self.graphs.get(&name).unwrap();
+                EntityId::Graph { ref name } => {
+                    let graph = self.graphs.get(name).unwrap();
                     (
                         doc.regenerate(&graph.source_graph, graph.template.as_ref()),
                         score,

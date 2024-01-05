@@ -1,4 +1,5 @@
 use futures_util::future::BoxFuture;
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 
 mod document_ref;
@@ -18,6 +19,7 @@ pub type Embedding = Vec<f32>;
 #[derive(Debug)]
 pub enum Document {
     Graph {
+        name: String,
         content: String,
     },
     Node {
@@ -40,14 +42,14 @@ pub trait DocumentOps {
 impl DocumentOps for Document {
     fn content(&self) -> &str {
         match self {
-            Document::Graph { content } => content,
+            Document::Graph { content, .. } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
     }
     fn into_content(self) -> String {
         match self {
-            Document::Graph { content } => content,
+            Document::Graph { content, .. } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
@@ -62,7 +64,7 @@ pub struct DocumentInput {
     pub life: Lifespan,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },

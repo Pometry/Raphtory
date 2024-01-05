@@ -21,6 +21,7 @@ pub(crate) struct DocumentRef {
 impl Hash for DocumentRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self.entity_id {
+            EntityId::Graph { .. } => (),
             EntityId::Node { id } => state.write_u64(id),
             EntityId::Edge { src, dst } => {
                 state.write_u64(src);
@@ -49,7 +50,7 @@ impl DocumentRef {
         }
     }
     pub fn id(&self) -> (EntityId, usize) {
-        (self.entity_id, self.index)
+        (self.entity_id.clone(), self.index)
     }
 
     // TODO: review -> does window really need to be an Option
@@ -79,6 +80,7 @@ impl DocumentRef {
 
     fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: &G) -> bool {
         match self.entity_id {
+            EntityId::Graph { .. } => true, // TODO: review this
             EntityId::Node { id } => graph.has_node(id),
             EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
             // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
@@ -93,20 +95,28 @@ impl DocumentRef {
         // FIXME: there is a problem here. We need to use the original graph so the number of
         // documents is the same and the index is therefore consistent. However, we want to return
         // the document using the windowed values for the properties of the entities
-        match self.entity_id {
-            EntityId::Node { id } => Document::Node {
-                name: original_graph.node(id).unwrap().name(),
+        match &self.entity_id {
+            EntityId::Graph { name } => Document::Graph {
+                name: name.clone(),
                 content: template
-                    .node(&original_graph.node(id).unwrap())
+                    .graph(original_graph)
+                    .nth(self.index)
+                    .unwrap()
+                    .content,
+            },
+            EntityId::Node { id } => Document::Node {
+                name: original_graph.node(*id).unwrap().name(),
+                content: template
+                    .node(&original_graph.node(*id).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,
             },
             EntityId::Edge { src, dst } => Document::Edge {
-                src: original_graph.node(src).unwrap().name(),
-                dst: original_graph.node(dst).unwrap().name(),
+                src: original_graph.node(*src).unwrap().name(),
+                dst: original_graph.node(*dst).unwrap().name(),
                 content: template
-                    .edge(&original_graph.edge(src, dst).unwrap())
+                    .edge(&original_graph.edge(*src, *dst).unwrap())
                     .nth(self.index)
                     .unwrap()
                     .content,

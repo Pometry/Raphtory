@@ -1,39 +1,38 @@
-use crate::model::algorithms::{
-    algorithm::{Algorithm, Pagerank},
-    algorithm_entry_point::AlgorithmEntryPoint,
-    RegisterFunction,
+use crate::{
+    data::DynamicVectorisedGraph,
+    model::algorithms::{
+        algorithm::{Algorithm, Pagerank},
+        algorithm_entry_point::AlgorithmEntryPoint,
+        global_search::GlobalSearch,
+        RegisterFunction,
+    },
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use raphtory::db::api::view::{DynamicGraph, MaterializedGraph};
+use parking_lot::RwLock;
+use raphtory::{db::api::view::MaterializedGraph, search::IndexedGraph};
 use std::{
     borrow::Cow,
     collections::HashMap,
-    sync::{Mutex, MutexGuard},
+    sync::{Arc, Mutex, MutexGuard},
 };
-use parking_lot::RwLock;
-use raphtory::search::IndexedGraph;
-use crate::data::DynamicVectorisedGraph;
 
 pub static GLOBAL_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-pub struct GlobalPlugins<'a> {
-    pub graphs: &'a RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
-    pub vectorised_graphs: &'a RwLock<HashMap<String, DynamicVectorisedGraph>>,
-}
-
-impl From<DynamicGraph> for crate::model::algorithms::graph_algorithms::GraphAlgorithms {
-    fn from(graph: DynamicGraph) -> Self {
-        Self { graph }
-    }
+pub struct GlobalPlugins {
+    pub graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
+    pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
 }
 
 impl<'a> AlgorithmEntryPoint<'a> for GlobalPlugins {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
         // HashMap::from([("pagerank", Pagerank::register_algo as RegisterFunction)])
-        HashMap::from([]) // TODO: add at least one
+        HashMap::from([(
+            "globalSearch",
+            GlobalSearch::register_algo as RegisterFunction,
+        )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         crate::model::algorithms::graph_algorithms::GRAPH_ALGO_PLUGINS

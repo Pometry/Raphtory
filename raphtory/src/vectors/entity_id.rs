@@ -3,7 +3,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -16,6 +16,15 @@ pub(crate) enum EntityId {
 }
 
 impl EntityId {
+    pub(crate) fn from_graph<G: StaticGraphViewOps>(graph: &G) -> Self {
+        Self::Graph {
+            name: graph
+                .properties()
+                .get("name")
+                .expect("A graph should have a 'name' property in order to make a document for it").to_string(),
+        }
+    }
+
     pub(crate) fn from_node<G: StaticGraphViewOps>(node: &NodeView<G>) -> Self {
         Self::Node { id: node.id() }
     }

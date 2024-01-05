@@ -418,7 +418,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             let candidates = selected_docs
                 .iter()
                 .flat_map(|(doc, _)| self.get_context(doc, windowed_graph, window))
-                .flat_map(|doc| match (path, doc.entity_id) {
+                .flat_map(|doc| match (path, doc.entity_id.clone()) {
                     (ExpansionPath::Nodes, EntityId::Edge { .. })
                     | (ExpansionPath::Edges, EntityId::Node { .. }) => {
                         self.get_context(doc, windowed_graph, window)
@@ -491,7 +491,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         window: Option<(i64, i64)>,
     ) -> Box<dyn Iterator<Item = &DocumentRef> + '_> {
         match document.entity_id {
-            EntityId::Graph => Box::new(std::iter::empty()),
+            EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => {
                 let self_docs = self.node_documents.get(&document.entity_id).unwrap();
                 match windowed_graph.node(id) {

@@ -18,14 +18,14 @@ pub(crate) type DynamicVectorisedGraph = VectorisedGraph<MaterializedGraph, Dyna
 
 #[derive(Default)]
 pub struct Data {
-    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, DynamicVectorisedGraph>>,
+    pub(crate) graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
+    pub(crate) vector_stores: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
 }
 
 impl Data {
     pub fn from_map<G: Into<MaterializedGraph>>(graphs: HashMap<String, G>) -> Self {
-        let graphs = RwLock::new(Self::convert_graphs(graphs));
-        let vector_stores = RwLock::new(HashMap::new());
+        let graphs = Arc::new(RwLock::new(Self::convert_graphs(graphs)));
+        let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
             vector_stores,
@@ -33,8 +33,8 @@ impl Data {
     }
 
     pub fn from_directory(directory_path: &str) -> Self {
-        let graphs = RwLock::new(Self::load_from_file(directory_path));
-        let vector_stores = RwLock::new(HashMap::new());
+        let graphs = Arc::new(RwLock::new(Self::load_from_file(directory_path)));
+        let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
             vector_stores,
@@ -47,8 +47,8 @@ impl Data {
     ) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
         graphs.extend(Self::load_from_file(directory_path));
-        let graphs = RwLock::new(graphs);
-        let vector_stores = RwLock::new(HashMap::new());
+        let graphs = Arc::new(RwLock::new(graphs));
+        let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
             vector_stores,

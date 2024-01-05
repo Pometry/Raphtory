@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-type CacheStore = HashMap<(EntityId, u64), Embedding>;
+type CacheStore = HashMap<u64, Embedding>;
 
 pub(crate) struct EmbeddingCache {
     cache: RwLock<CacheStore>, // TODO: double check that we really need a RwLock !!
