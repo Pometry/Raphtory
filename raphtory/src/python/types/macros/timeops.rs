@@ -59,7 +59,7 @@ macro_rules! impl_timeops {
             /// An expanding window is a window that grows by `step` size at each iteration.
             ///
             /// Arguments:
-            ///     step (int): The step size of the window.
+            ///     step (int | str): The step size of the window.
             ///
             /// Returns:
             ///     A `WindowSet` object.
@@ -72,8 +72,8 @@ macro_rules! impl_timeops {
             /// A rolling window is a window that moves forward by `step` size at each iteration.
             ///
             /// Arguments:
-            ///     window: The size of the window.
-            ///     step: The step size of the window. Defaults to the window size.
+            ///     window (int | str): The size of the window.
+            ///     step (int | str | None): The step size of the window. Defaults to `window`.
             ///
             /// Returns:
             ///     A `WindowSet` object.
@@ -88,25 +88,24 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Create a view of the ", $name, r" including all events between `start` (inclusive) and `end` (exclusive)")]
             ///
             /// Arguments:
-            #[doc = concat!(r"     start: The start time of the window. Defaults to the start time of the ", $name, r".")]
-            #[doc = concat!(r"     end: The end time of the window. Defaults to the end time of the ", $name, r".")]
+            ///     start (int | DateTime | str): The start time of the window.
+            ///     end (int | DateTime | str): The end time of the window.
             ///
             /// Returns:
             #[doc = concat!("r    A ", $name, " object.")]
-            #[pyo3(signature = (start = None, end = None))]
             pub fn window(
                 &self,
-                start: Option<PyTime>,
-                end: Option<PyTime>,
+                start: PyTime,
+                end: PyTime,
             ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field
-                    .window(start.unwrap_or(PyTime::MIN), end.unwrap_or(PyTime::MAX))
+                    .window(start, end)
             }
 
             #[doc = concat!(r" Create a view of the ", $name, r" including all events at `time`.")]
             ///
             /// Arguments:
-            ///     time: The time of the window.
+            ///     time (int | DateTime | str): The time of the window.
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
@@ -117,7 +116,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Create a view of the ", $name, r" including all events before `end` (exclusive).")]
             ///
             /// Arguments:
-            ///     end: The end time of the window.
+            ///     end (int | DateTime | str): The end time of the window.
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
@@ -128,12 +127,41 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Create a view of the ", $name, r" including all events after `start` (exclusive).")]
             ///
             /// Arguments:
-            ///     start: The start time of the window.
+            ///     start (int | DateTime | str): The start time of the window.
             ///
             /// Returns:
             #[doc = concat!(r"     A ", $name, r" object.")]
             pub fn after(&self, start: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
+            }
+
+            /// Set the start of the window to the larger of `start` and `self.start()`
+            ///
+            /// Arguments:
+            ///    start (int | DateTime | str): the new start time of the window
+            ///
+            /// Returns:
+            #[doc = concat!(r"     A ", $name, r" object.")]
+            pub fn shrink_start(&self, start: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.shrink_start(start)
+            }
+
+            /// Set the end of the window to the smaller of `end` and `self.end()`
+            ///
+            /// Arguments:
+            ///     end (int | DateTime | str): the new end time of the window
+            /// Returns:
+            #[doc = concat!(r"     A ", $name, r" object.")]
+            fn shrink_end(&self, end: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                    self.$field.shrink_end(end)
+            }
+
+            /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
+            ///
+            /// Arguments:
+            ///
+            fn shrink_window(&self, start: PyTime, end: PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.shrink_window(start, end)
             }
         }
     };

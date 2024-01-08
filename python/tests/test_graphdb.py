@@ -1026,14 +1026,14 @@ def test_all_degrees_window():
     view = g.before(5)
     v = view.node(2)
     assert v.window(0, 4).in_degree() == 3
-    assert v.window(start=2).in_degree() == 2
-    assert v.window(end=3).in_degree() == 2
+    assert v.after(1).in_degree() == 2
+    assert v.before(3).in_degree() == 2
     assert v.window(0, 4).out_degree() == 1
-    assert v.window(start=2).out_degree() == 1
-    assert v.window(end=3).out_degree() == 1
+    assert v.after(1).out_degree() == 1
+    assert v.before(end=3).out_degree() == 1
     assert v.window(0, 4).degree() == 3
-    assert v.window(start=2).degree() == 2
-    assert v.window(end=3).degree() == 2
+    assert v.after(1).degree() == 2
+    assert v.before(end=3).degree() == 2
 
 
 def test_all_edge_window():
@@ -1049,24 +1049,24 @@ def test_all_edge_window():
     view = g.before(5)
     v = view.node(2)
     assert sorted(v.window(0, 4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.window(end=4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.window(start=2).in_edges.src.id) == [3, 4]
+    assert sorted(v.before(end=4).in_edges.src.id) == [1, 3, 4]
+    assert sorted(v.after(start=1).in_edges.src.id) == [3, 4]
     assert sorted(v.window(0, 4).out_edges.dst.id) == [3]
-    assert sorted(v.window(end=3).out_edges.dst.id) == [3]
-    assert sorted(v.window(start=2).out_edges.dst.id) == [4]
+    assert sorted(v.before(end=3).out_edges.dst.id) == [3]
+    assert sorted(v.after(start=1).out_edges.dst.id) == [4]
     assert sorted((e.src.id, e.dst.id) for e in v.window(0, 4).edges) == [
         (1, 2),
         (2, 3),
         (3, 2),
         (4, 2),
     ]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(end=4).edges) == [
+    assert sorted((e.src.id, e.dst.id) for e in v.before(end=4).edges) == [
         (1, 2),
         (2, 3),
         (3, 2),
         (4, 2),
     ]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(start=1).edges) == [
+    assert sorted((e.src.id, e.dst.id) for e in v.after(start=0).edges) == [
         (1, 2),
         (2, 3),
         (2, 4),
@@ -1620,9 +1620,9 @@ def test_deletions():
     for e in edges:
         assert g.at(e[0]).has_edge(e[1], e[2])
 
-    assert not g.window(start=11).has_edge(edges[0][1], edges[0][2])
+    assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
     for e in edges[1:]:
-        assert g.window(start=11).has_edge(e[1], e[2])
+        assert g.after(start=10).has_edge(e[1], e[2])
 
     assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time) == [10]
 
