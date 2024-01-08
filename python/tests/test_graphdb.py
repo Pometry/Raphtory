@@ -1524,6 +1524,38 @@ def test_datetime_add_node():
     assert view.node(2).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
 
 
+def test_datetime_with_timezone():
+    from datetime import datetime
+    from raphtory import Graph
+    import pytz
+
+    g = Graph()
+    # testing zones east and west of UK
+    timezones = [
+        "Asia/Kolkata",
+        "America/New_York",
+        "US/Central",
+        "Europe/London",
+        "Australia/Sydney",
+        "Africa/Johannesburg",
+    ]
+    results = [
+        datetime(2024, 1, 5, 1, 0),
+        datetime(2024, 1, 5, 6, 30),
+        datetime(2024, 1, 5, 10, 0),
+        datetime(2024, 1, 5, 12, 0),
+        datetime(2024, 1, 5, 17, 0),
+        datetime(2024, 1, 5, 18, 0),
+    ]
+
+    for tz in timezones:
+        timezone = pytz.timezone(tz)
+        naive_datetime = datetime(2024, 1, 5, 12, 0, 0)
+        localized_datetime = timezone.localize(naive_datetime)
+        g.add_node(localized_datetime, 1)
+    assert g.node(1).history_date_time() == results
+
+
 def test_equivalent_nodes_edges_and_sets():
     g = Graph()
     g.add_node(1, 1)

@@ -67,8 +67,8 @@ pub fn fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
                         let repulsive_f = repulsive_force(repulsion, k, distance);
                         // Modify the first value of the array for key 1
                         if let Some(arr) = node_disp.get_mut(&node_v_id) {
-                            arr[0] += (delta.get(0).unwrap() / distance * repulsive_f);
-                            arr[1] += (delta.get(1).unwrap() / distance * repulsive_f);
+                            arr[0] += delta.get(0).unwrap() / distance * repulsive_f;
+                            arr[1] += delta.get(1).unwrap() / distance * repulsive_f;
                         }
                     }
                 }
@@ -89,12 +89,12 @@ pub fn fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
             let distance = calculate_distance(&delta);
             let attractive_f = attractive_force(attraction, k, distance);
             if let Some(arr) = node_disp.get_mut(&node_v_id) {
-                arr[0] -= (delta.get(0).unwrap() / distance * attractive_f);
-                arr[1] -= (delta.get(1).unwrap() / distance * attractive_f);
+                arr[0] -= delta.get(0).unwrap() / distance * attractive_f;
+                arr[1] -= delta.get(1).unwrap() / distance * attractive_f;
             }
             if let Some(arr) = node_disp.get_mut(&node_u_id) {
-                arr[0] += (delta.get(0).unwrap() / distance * attractive_f);
-                arr[1] += (delta.get(1).unwrap() / distance * attractive_f);
+                arr[0] += delta.get(0).unwrap() / distance * attractive_f;
+                arr[1] += delta.get(1).unwrap() / distance * attractive_f;
             }
         }
         // Limit maximum displacement and prevent being displaced outside frame
