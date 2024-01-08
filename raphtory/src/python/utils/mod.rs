@@ -10,7 +10,7 @@ use crate::{
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
@@ -72,42 +72,9 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(number) = time.extract::<i64>() {
             return Ok(PyTime::new(number.try_into_time()?));
         }
-        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
-            return Ok(PyTime::new(parsed_datetime.try_into_time()?));
-        }
         if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
-            let naive_date = NaiveDate::from_ymd_opt(
-                py_datetime.get_year(),
-                py_datetime.get_month() as u32,
-                py_datetime.get_day() as u32,
-            );
-            let naive_time = NaiveTime::from_hms_micro_opt(
-                py_datetime.get_hour() as u32,
-                py_datetime.get_minute() as u32,
-                py_datetime.get_second() as u32,
-                py_datetime.get_microsecond(),
-            );
-
-            if let (Some(naive_date), Some(naive_time)) = (naive_date, naive_time) {
-                let naive_datetime = NaiveDateTime::new(naive_date, naive_time);
-                // Handle timezone
-                let tz_offset = if let Some(tz) = py_datetime.get_tzinfo() {
-                    let offset = tz
-                        .call_method1("utcoffset", (py_datetime,))?
-                        .extract::<&PyDelta>()?;
-                    let offset_seconds =
-                        offset.call_method0("total_seconds")?.extract::<f64>()? as i32;
-                    FixedOffset::east_opt(offset_seconds)
-                        .ok_or(PyTypeError::new_err("Could not pass timezone"))
-                } else {
-                    FixedOffset::east_opt(0).ok_or(PyTypeError::new_err("Could not pass timezone"))
-                    // No timezone information, assume UTC
-                }?;
-
-                let utc_datetime = tz_offset.from_local_datetime(&naive_datetime).unwrap();
-                let timestamp = utc_datetime.timestamp() * 1000;
-                return Ok(PyTime::new(timestamp.try_into_time()?));
-            }
+            let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
+            return Ok(PyTime::new(time));
         }
 
         let message = format!("time '{time}' must be a str, datetime or an integer");
