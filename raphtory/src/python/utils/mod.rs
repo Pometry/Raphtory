@@ -10,7 +10,7 @@ use crate::{
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
+use chrono::{FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, TimeZone};
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
@@ -71,6 +71,9 @@ impl<'source> FromPyObject<'source> for PyTime {
         }
         if let Ok(number) = time.extract::<i64>() {
             return Ok(PyTime::new(number.try_into_time()?));
+        }
+        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
+            return Ok(PyTime::new(parsed_datetime.try_into_time()?));
         }
         if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
