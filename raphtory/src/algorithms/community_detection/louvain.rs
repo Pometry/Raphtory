@@ -1,12 +1,11 @@
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
-        community_detection::modularity::{ComID, ModularityFunction, Partition},
+        community_detection::modularity::{ModularityFunction, Partition},
     },
     core::entities::VID,
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
 use rand::prelude::SliceRandom;
 use std::collections::HashMap;
 
