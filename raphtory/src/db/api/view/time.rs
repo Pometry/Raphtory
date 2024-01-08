@@ -5,7 +5,10 @@ use crate::{
         graph::views::window_graph::WindowedGraph,
     },
 };
-use std::marker::PhantomData;
+use std::{
+    cmp::{max, min},
+    marker::PhantomData,
+};
 
 /// Trait defining time query operations
 pub trait TimeOps<'graph> {
@@ -16,6 +19,27 @@ pub trait TimeOps<'graph> {
 
     /// Return the timestamp of the default for perspectives of the view (if any).
     fn end(&self) -> Option<i64>;
+
+    /// set the start of the window to the larger of `start` and `self.start()`
+    fn shrink_start(&self, start: i64) -> Self::WindowedViewType {
+        let start = max(start, self.start().unwrap_or(i64::MIN));
+        let end = self.end().unwrap_or(start);
+        self.window(start, end)
+    }
+
+    /// set the end of the winodw to the smaller of `end` and `self.end()`
+    fn shrink_end(&self, end: i64) -> Self::WindowedViewType {
+        let end = min(end, self.end().unwrap_or(i64::MAX));
+        let start = self.start().unwrap_or(end);
+        self.window(start, end)
+    }
+
+    /// shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
+    fn shrink_window(&self, start: i64, end: i64) -> Self::WindowedViewType {
+        let start = max(start, self.start().unwrap_or(i64::MIN));
+        let end = min(end, self.end().unwrap_or(i64::MAX));
+        self.window(start, end)
+    }
 
     /// Return the size of the window covered by this view
     fn window_size(&self) -> Option<u64> {
