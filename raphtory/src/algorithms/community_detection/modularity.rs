@@ -183,7 +183,7 @@ impl ModularityFunction for ModularityUnDir {
         partition: Partition,
         tol: f64,
     ) -> Self {
-        let n = graph.count_nodes();
+        let _n = graph.count_nodes();
         let local_id_map: HashMap<_, _> = graph
             .nodes()
             .iter()
@@ -352,7 +352,7 @@ impl ModularityFunction for ModularityUnDir {
         let (new_partition, new_to_old, old_to_new) = old_partition.compact();
         let adj_com: Vec<_> = new_partition
             .coms()
-            .map(|(c_new, com)| {
+            .map(|(_c_new, com)| {
                 let mut neighbours = HashMap::new();
                 for n in com {
                     for (c_old, w) in &self.adj_com[n.index()] {

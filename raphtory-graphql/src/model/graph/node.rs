@@ -158,7 +158,7 @@ impl Node {
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.edges().map(|ee| ee.into()).collect(),
+            None => self.vv.out_edges().map(|ee| ee.into()).collect(),
         }
     }
 
@@ -166,7 +166,7 @@ impl Node {
         match filter {
             Some(filter) => self
                 .vv
-                .edges()
+                .in_edges()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
