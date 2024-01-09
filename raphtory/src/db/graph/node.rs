@@ -28,7 +28,7 @@ use crate::{
 };
 
 use crate::core::storage::timeindex::AsTime;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use std::{
     fmt,
     hash::{Hash, Hasher},

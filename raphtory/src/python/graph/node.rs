@@ -37,7 +37,7 @@ use crate::{
     db::graph::path::{PathFromGraph, PathFromNode},
     python::types::repr::StructReprBuilder,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,

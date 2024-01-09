@@ -2,7 +2,7 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, storage::timeindex::AsTime, ArcStr, Prop},
     db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {

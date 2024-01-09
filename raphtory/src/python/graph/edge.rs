@@ -44,7 +44,7 @@ use crate::{
         utils::{PyGenericIterator, PyInterval, PyTime},
     },
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{

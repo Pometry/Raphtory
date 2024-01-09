@@ -61,7 +61,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use std::{
     cmp::{max, min},
     fmt::{Debug, Formatter},
