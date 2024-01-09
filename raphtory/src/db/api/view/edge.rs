@@ -123,9 +123,6 @@ pub trait EdgeViewOps<'graph>:
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64>;
 
-    fn start_date_time(&self) -> Option<DateTime<Utc>>;
-    fn end_date_time(&self) -> Option<DateTime<Utc>>;
-
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Option<i64>;
     fn date_time(&self) -> Option<DateTime<Utc>>;
@@ -254,14 +251,6 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
     fn latest_time(&self) -> Option<i64> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         self.graph().edge_latest_time(self.eref(), layer_ids)
-    }
-
-    fn start_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph().start().and_then(|t| t.dt())
-    }
-
-    fn end_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph().end().and_then(|t| t.dt())
     }
 
     /// Gets the time stamp of the edge if it is exploded

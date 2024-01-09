@@ -213,7 +213,7 @@ where
                     window_set
                         .clone()
                         .time_index(center)
-                        .map(|epoch| epoch.dt()),
+                        .flat_map(|epoch| epoch.dt()),
                 );
                 iter
             };

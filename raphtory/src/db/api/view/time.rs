@@ -1,10 +1,14 @@
 use crate::{
-    core::utils::time::{error::ParseTimeError, Interval, IntoTime},
+    core::{
+        storage::timeindex::AsTime,
+        utils::time::{error::ParseTimeError, Interval, IntoTime},
+    },
     db::{
         api::view::internal::{OneHopFilter, TimeSemantics},
         graph::views::window_graph::WindowedGraph,
     },
 };
+use chrono::{DateTime, Utc};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -17,8 +21,16 @@ pub trait TimeOps<'graph> {
     /// Return the timestamp of the default start for perspectives of the view (if any).
     fn start(&self) -> Option<i64>;
 
+    fn start_date_time(&self) -> Option<DateTime<Utc>> {
+        self.start()?.dt()
+    }
+
     /// Return the timestamp of the default for perspectives of the view (if any).
     fn end(&self) -> Option<i64>;
+
+    fn end_date_time(&self) -> Option<DateTime<Utc>> {
+        self.end()?.dt()
+    }
 
     /// set the start of the window to the larger of `start` and `self.start()`
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
