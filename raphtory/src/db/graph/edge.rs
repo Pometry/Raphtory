@@ -5,12 +5,12 @@
 //! and can have properties associated with them.
 //!
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::{AsTime, TimeIndexEntry},
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
     },
@@ -274,12 +274,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .map(|(t, _)| t)
             .collect()
     }
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
             .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
             .into_iter()
-            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|(t, _)| t.dt())
+            .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
@@ -404,7 +404,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.earliest_time()))
     }
 
-    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn earliest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.earliest_date_time()))
     }
 
@@ -413,11 +413,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.latest_time()))
     }
 
-    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn latest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.latest_date_time()))
     }
 
-    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.date_time()))
     }
 
@@ -436,7 +436,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
     fn history(self) -> Self::IterType<Vec<i64>> {
         Box::new(self.map(|e| e.history()))
     }
-    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
         Box::new(self.map(|e| e.history_date_time()))
     }
 
@@ -444,7 +444,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.deletions()))
     }
 
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
         Box::new(self.map(|e| e.deletions_date_time()))
     }
 
@@ -460,7 +460,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.start()))
     }
 
-    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn start_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.start_date_time()))
     }
 
@@ -468,7 +468,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.end()))
     }
 
-    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn end_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.end_date_time()))
     }
 
@@ -521,7 +521,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.earliest_time()))
     }
 
-    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn earliest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.earliest_date_time()))
     }
 
@@ -530,11 +530,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|e| e.latest_time()))
     }
 
-    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn latest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|e| e.latest_date_time()))
     }
 
-    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|it| it.date_time()))
     }
 
@@ -553,7 +553,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|it| it.history()))
     }
 
-    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
         Box::new(self.map(|it| it.history_date_time()))
     }
 
@@ -561,7 +561,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|it| it.deletions()))
     }
 
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
         Box::new(self.map(|it| it.deletions_date_time()))
     }
 
@@ -577,7 +577,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|it| it.start()))
     }
 
-    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn start_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|it| it.start_date_time()))
     }
 
@@ -585,7 +585,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'gra
         Box::new(self.map(|it| it.end()))
     }
 
-    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>> {
+    fn end_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
         Box::new(self.map(|it| it.end_date_time()))
     }
 

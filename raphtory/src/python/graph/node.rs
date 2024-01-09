@@ -37,8 +37,7 @@ use crate::{
     db::graph::path::{PathFromGraph, PathFromNode},
     python::types::repr::StructReprBuilder,
 };
-use chrono::NaiveDateTime;
-
+use chrono::{DateTime, NaiveDateTime, Utc};
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -149,7 +148,7 @@ impl PyNode {
     /// Returns:
     ///     The earliest datetime that the node exists as an integer.
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.earliest_date_time()
     }
 
@@ -170,7 +169,7 @@ impl PyNode {
     /// Returns:
     ///     The latest datetime that the node exists as an integer.
     #[getter]
-    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
+    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         self.node.latest_date_time()
     }
 
@@ -301,7 +300,7 @@ impl PyNode {
     /// Returns:
     ///     A list of timestamps of the event history of node.
     ///
-    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.node.history_date_time()
     }
 
@@ -529,7 +528,7 @@ impl PyNodes {
     /// Returns:
     /// Earliest time of the nodes.
     #[getter]
-    fn earliest_date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
         let nodes = self.nodes.clone();
         (move || nodes.earliest_date_time()).into()
     }
@@ -546,7 +545,7 @@ impl PyNodes {
     /// Returns:
     ///   Latest date time of the nodes.
     #[getter]
-    fn latest_date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
         let nodes = self.nodes.clone();
         (move || nodes.latest_date_time()).into()
     }
@@ -567,7 +566,7 @@ impl PyNodes {
     /// Returns:
     ///    An  list of timestamps.
     ///
-    fn history_date_time(&self) -> OptionVecNaiveDateTimeIterable {
+    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
         let nodes = self.nodes.clone();
         (move || nodes.history_date_time()).into()
     }
@@ -755,7 +754,7 @@ impl PyPathFromGraph {
 
     /// Returns the earliest date time of the nodes.
     #[getter]
-    fn earliest_date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
         let path = self.path.clone();
         (move || path.earliest_date_time()).into()
     }
@@ -768,7 +767,7 @@ impl PyPathFromGraph {
 
     /// Returns the latest date time of the nodes.
     #[getter]
-    fn latest_date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
         let path = self.path.clone();
         (move || path.latest_date_time()).into()
     }
@@ -780,7 +779,7 @@ impl PyPathFromGraph {
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
-    fn history_date_time(&self) -> NestedVecNaiveDateTimeIterable {
+    fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let path = self.path.clone();
         (move || path.history_date_time()).into()
     }

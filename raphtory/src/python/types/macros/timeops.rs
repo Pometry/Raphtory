@@ -24,9 +24,8 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"     The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn start_date_time(&self) -> Option<NaiveDateTime> {
-                let start_time = self.$field.start()?;
-                NaiveDateTime::from_timestamp_millis(start_time)
+            pub fn start_date_time(&self) -> Option<DateTime<Utc>> {
+                self.$field.start_date_time()
             }
 
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
@@ -43,9 +42,8 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"     The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn end_date_time(&self) -> Option<NaiveDateTime> {
-                let end_time = self.$field.end()?;
-                NaiveDateTime::from_timestamp_millis(end_time)
+            pub fn end_date_time(&self) -> Option<DateTime<Utc>> {
+                self.$field.end_date_time()
             }
 
             #[doc = concat!(r" Get the window size (difference between start and end) for this ", $name)]

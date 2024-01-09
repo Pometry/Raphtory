@@ -40,6 +40,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
+        storage::timeindex::AsTime,
         utils::time::IntoTime,
         ArcStr, Direction, Prop,
     },
@@ -60,7 +61,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::{
     cmp::{max, min},
     fmt::{Debug, Formatter},
@@ -126,11 +127,11 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.temporal_prop_vec(id)
             .into_iter()
-            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|(t, _)| t.dt())
+            .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

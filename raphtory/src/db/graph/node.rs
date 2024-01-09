@@ -27,7 +27,8 @@ use crate::{
     prelude::*,
 };
 
-use chrono::NaiveDateTime;
+use crate::core::storage::timeindex::AsTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -211,12 +212,12 @@ impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
             .temporal_node_prop_vec(self.node, id)
             .into_iter()
-            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|(t, _)| t.dt())
+            .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

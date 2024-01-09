@@ -5,12 +5,13 @@
 use crate::{
     core::{
         entities::nodes::{input_node::InputNode, node_ref::NodeRef},
+        storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::{future::Future, thread};
 
@@ -204,11 +205,11 @@ where
 
         if window_set.temporal() {
             let iterable = move || {
-                let iter: Box<dyn Iterator<Item = NaiveDateTime> + Send> = Box::new(
+                let iter: Box<dyn Iterator<Item = DateTime<Utc>> + Send> = Box::new(
                     window_set
                         .clone()
                         .time_index(center)
-                        .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
+                        .map(|epoch| epoch.dt()),
                 );
                 iter
             };

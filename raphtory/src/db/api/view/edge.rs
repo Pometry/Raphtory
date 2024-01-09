@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 use crate::{
     core::{
@@ -71,14 +71,14 @@ pub trait EdgeViewOps<'graph>:
     /// List the activation timestamps for the edge
     fn history(&self) -> Vec<i64>;
 
-    /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
-    fn history_date_time(&self) -> Option<Vec<NaiveDateTime>>;
+    /// List the activation timestamps for the edge as DateTime<Utc> objects if parseable
+    fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>>;
 
     /// List the deletion timestamps for the edge
     fn deletions(&self) -> Vec<i64>;
 
-    /// List the deletion timestamps for the edge as NaiveDateTime objects if parseable
-    fn deletions_date_time(&self) -> Option<Vec<NaiveDateTime>>;
+    /// List the deletion timestamps for the edge as DateTime<Utc> objects if parseable
+    fn deletions_date_time(&self) -> Option<Vec<DateTime<Utc>>>;
 
     /// Check that the latest status of the edge is valid (i.e., not deleted)
     fn is_valid(&self) -> bool;
@@ -118,17 +118,17 @@ pub trait EdgeViewOps<'graph>:
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Option<i64>;
 
-    fn earliest_date_time(&self) -> Option<NaiveDateTime>;
-    fn latest_date_time(&self) -> Option<NaiveDateTime>;
+    fn earliest_date_time(&self) -> Option<DateTime<Utc>>;
+    fn latest_date_time(&self) -> Option<DateTime<Utc>>;
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Option<i64>;
 
-    fn start_date_time(&self) -> Option<NaiveDateTime>;
-    fn end_date_time(&self) -> Option<NaiveDateTime>;
+    fn start_date_time(&self) -> Option<DateTime<Utc>>;
+    fn end_date_time(&self) -> Option<DateTime<Utc>>;
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Option<i64>;
-    fn date_time(&self) -> Option<NaiveDateTime>;
+    fn date_time(&self) -> Option<DateTime<Utc>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
     fn layer_name(&self) -> Option<ArcStr>;
@@ -152,11 +152,11 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
         self.graph().edge_history(self.eref(), layer_ids)
     }
 
-    fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+    fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.history()
             .into_iter()
-            .map(|t| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|t| t.dt())
+            .collect::<Option<Vec<_>>>()
     }
 
     fn deletions(&self) -> Vec<i64> {
@@ -164,11 +164,11 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
         self.graph().edge_deletion_history(self.eref(), layer_ids)
     }
 
-    fn deletions_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+    fn deletions_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.deletions()
             .into_iter()
-            .map(|t| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|t| t.dt())
+            .collect::<Option<Vec<_>>>()
     }
 
     fn is_valid(&self) -> bool {
@@ -238,16 +238,16 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
         self.graph().edge_earliest_time(self.eref(), layer_ids)
     }
 
-    fn earliest_date_time(&self) -> Option<NaiveDateTime> {
+    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         let earliest_time = self.graph().edge_earliest_time(self.eref(), layer_ids);
-        NaiveDateTime::from_timestamp_millis(earliest_time?)
+        earliest_time?.dt()
     }
 
-    fn latest_date_time(&self) -> Option<NaiveDateTime> {
+    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
         let layer_ids = self.graph().layer_ids().constrain_from_edge(self.eref());
         let latest_time = self.graph().edge_latest_time(self.eref(), layer_ids);
-        NaiveDateTime::from_timestamp_millis(latest_time?)
+        latest_time?.dt()
     }
 
     /// Gets the latest time an edge was updated
@@ -256,16 +256,12 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
         self.graph().edge_latest_time(self.eref(), layer_ids)
     }
 
-    fn start_date_time(&self) -> Option<NaiveDateTime> {
-        self.graph()
-            .start()
-            .map(|t| NaiveDateTime::from_timestamp_millis(t).unwrap())
+    fn start_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph().start().and_then(|t| t.dt())
     }
 
-    fn end_date_time(&self) -> Option<NaiveDateTime> {
-        self.graph()
-            .end()
-            .map(|t| NaiveDateTime::from_timestamp_millis(t).unwrap())
+    fn end_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph().end().and_then(|t| t.dt())
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -273,10 +269,8 @@ impl<'graph, E: EdgeViewInternalOps<'graph>> EdgeViewOps<'graph> for E {
         self.eref().time().map(|ti| *ti.t())
     }
 
-    fn date_time(&self) -> Option<NaiveDateTime> {
-        self.eref()
-            .time()
-            .map(|ti| NaiveDateTime::from_timestamp_millis(*ti.t()).unwrap())
+    fn date_time(&self) -> Option<DateTime<Utc>> {
+        self.eref().time().and_then(|t| t.dt())
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
@@ -344,14 +338,14 @@ pub trait EdgeListOps<'graph>:
     /// Get the timestamp for the earliest activity of the edge
     fn earliest_time(self) -> Self::IterType<Option<i64>>;
 
-    fn earliest_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+    fn earliest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
 
     /// Get the timestamp for the latest activity of the edge
     fn latest_time(self) -> Self::IterType<Option<i64>>;
 
-    fn latest_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+    fn latest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
 
-    fn date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+    fn date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
 
     /// Get the timestamps of the edges if they are  exploded
     fn time(self) -> Self::IterType<Option<i64>>;
@@ -363,11 +357,11 @@ pub trait EdgeListOps<'graph>:
 
     fn history(self) -> Self::IterType<Vec<i64>>;
 
-    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
+    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>>;
 
     fn deletions(self) -> Self::IterType<Vec<i64>>;
 
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>>;
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>>;
 
     fn is_valid(self) -> Self::IterType<bool>;
 
@@ -375,11 +369,11 @@ pub trait EdgeListOps<'graph>:
 
     fn start(self) -> Self::IterType<Option<i64>>;
 
-    fn start_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+    fn start_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
 
     fn end(self) -> Self::IterType<Option<i64>>;
 
-    fn end_date_time(self) -> Self::IterType<Option<NaiveDateTime>>;
+    fn end_date_time(self) -> Self::IterType<Option<DateTime<Utc>>>;
 
     fn at<T: IntoTime>(
         self,
