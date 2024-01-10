@@ -1408,7 +1408,9 @@ def test_window_size():
     g.add_node(1, 1)
     g.add_node(4, 4)
 
-    assert g.window_size == 4
+    assert g.window_size is None
+    assert g.window(1, 5).window_size == 4
+
 
 
 def test_time_index():
@@ -1459,7 +1461,7 @@ def test_date_time():
     exploded_edges = []
     for edge in e.explode():
         exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime(2014, 2, 3)]
+    assert exploded_edges == [datetime(2014, 2, 3, tzinfo=utc)]
     assert g.edge(1, 2).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
     assert g.edge(1, 2).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 

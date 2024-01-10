@@ -86,16 +86,18 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Create a view of the ", $name, r" including all events between `start` (inclusive) and `end` (exclusive)")]
             ///
             /// Arguments:
-            ///     start (int | DateTime | str): The start time of the window.
-            ///     end (int | DateTime | str): The end time of the window.
+            ///     start (int | DateTime | str | None): The start time of the window (unbounded if `None`).
+            ///     end (int | DateTime | str | None): The end time of the window (unbounded if `None`).
             ///
             /// Returns:
             #[doc = concat!("r    A ", $name, " object.")]
             pub fn window(
                 &self,
-                start: PyTime,
-                end: PyTime,
+                start: Option<PyTime>,
+                end: Option<PyTime>,
             ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                let start = start.map(|t| t.into_time());
+                let end = end.map(|t| t.into_time());
                 self.$field
                     .window(start, end)
             }
