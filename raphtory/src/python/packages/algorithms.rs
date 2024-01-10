@@ -13,7 +13,10 @@ use crate::{
         },
         components,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
-        layout::fruchterman_reingold::fruchterman_reingold as fruchterman_reingold_rs,
+        layout::{
+            cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
+            fruchterman_reingold_unbounded::fruchterman_reingold_unbounded as fruchterman_reingold_rs,
+        },
         metrics::{
             balance::balance as balance_rs,
             degree::{
@@ -688,21 +691,31 @@ pub fn louvain(
 }
 
 #[pyfunction]
-#[pyo3[signature=(graph, iterations=100, width=100.0, height=100.0,repulsion=2.0,attraction=2.0)]]
+#[pyo3[signature=(graph, iterations=100, scale=1.0, cooloff_factor=0.95, dt=0.1)]]
 pub fn fruchterman_reingold(
     graph: &PyGraphView,
     iterations: u64,
-    width: f64,
-    height: f64,
-    repulsion: f64,
-    attraction: f64,
-) -> HashMap<u64, [f64; 2]> {
-    fruchterman_reingold_rs(
-        &graph.graph,
-        iterations,
-        width,
-        height,
-        repulsion,
-        attraction,
-    )
+    scale: f32,
+    cooloff_factor: f32,
+    dt: f32,
+) -> HashMap<u64, [f32; 2]> {
+    fruchterman_reingold_rs(&graph.graph, iterations, scale, cooloff_factor, dt)
+        .into_iter()
+        .map(|(id, vector)| (id, [vector.x, vector.y]))
+        .collect()
+}
+
+#[pyfunction]
+#[pyo3[signature=(graph, iterations=100, scale=1.0, cooloff_factor=0.95, dt=0.1)]]
+pub fn cohesive_fruchterman_reingold(
+    graph: &PyGraphView,
+    iterations: u64,
+    scale: f32,
+    cooloff_factor: f32,
+    dt: f32,
+) -> HashMap<u64, [f32; 2]> {
+    cohesive_fruchterman_reingold_rs(&graph.graph, iterations, scale, cooloff_factor, dt)
+        .into_iter()
+        .map(|(id, vector)| (id, [vector.x, vector.y]))
+        .collect()
 }

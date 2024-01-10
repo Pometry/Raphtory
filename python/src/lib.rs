@@ -104,6 +104,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         temporal_SEIR,
         louvain,
         fruchterman_reingold,
+        cohesive_fruchterman_reingold,
     );
     m.add_submodule(algorithm_module)?;
 
