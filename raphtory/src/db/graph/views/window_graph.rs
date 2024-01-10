@@ -714,7 +714,8 @@ mod views_test {
 
     use super::*;
     use crate::{
-        algorithms::centrality::degree_centrality::degree_centrality, db::api::view::Layer,
+        algorithms::centrality::degree_centrality::degree_centrality,
+        db::{api::view::Layer, graph::graph::assert_graph_equal},
         prelude::*,
     };
     use itertools::Itertools;
@@ -1120,6 +1121,33 @@ mod views_test {
 
         let res = degree_centrality(&w, None);
         println!("{:?}", res)
+    }
+
+    #[test]
+    fn test_view_resetting() {
+        let g = Graph::new();
+        for t in 0..10 {
+            let t1 = t * 3;
+            let t2 = t * 3 + 1;
+            let t3 = t * 3 + 2;
+            g.add_edge(t1, 1, 2, NO_PROPS, None).unwrap();
+            g.add_edge(t2, 2, 3, NO_PROPS, None).unwrap();
+            g.add_edge(t3, 3, 1, NO_PROPS, None).unwrap();
+        }
+        assert_graph_equal(&g.before(9).after(2), &g.window(3, 9));
+        let res = g
+            .window(3, 9)
+            .nodes()
+            .before(6)
+            .edges()
+            .window(1, 9)
+            .earliest_time()
+            .map(|it| it.collect_vec())
+            .collect_vec();
+        assert_eq!(
+            res,
+            [[Some(3), Some(5)], [Some(3), Some(4)], [Some(5), Some(4)]]
+        );
     }
 
     #[test]
