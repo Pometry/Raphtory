@@ -3,7 +3,7 @@ use crate::{
     core::{entities::LayerIds, utils::time::error::ParseTimeError},
     db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::{Itertools, KMerge};
 use num_traits::Saturating;
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,8 @@ pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync {
     fn t(&self) -> &i64;
 
     fn dt(&self) -> Option<DateTime<Utc>> {
-        <DateTime<Utc>>::from_timestamp(*self.t(), 0)
+        let t = *self.t();
+        NaiveDateTime::from_timestamp_millis(t).map(|dt| dt.and_utc())
     }
 
     fn range(w: Range<i64>) -> Range<Self>;

@@ -9,11 +9,11 @@ from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
 from math import isclose
-import datetime
+from datetime import datetime, timezone
 import string
 
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
-
+utc = timezone.utc
 
 def create_graph():
     g = Graph()
@@ -248,8 +248,6 @@ def test_getitem():
 
 
 def test_entity_history_date_time():
-    import datetime
-
     g = Graph()
     g.add_node(0, 1)
     g.add_node(1, 1)
@@ -261,22 +259,22 @@ def test_entity_history_date_time():
     e = g.add_edge(3, 1, 2)
 
     full_history_1 = [
-        datetime.datetime(1970, 1, 1, 0, 0),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 1000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 2000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 3000),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 2000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
     ]
 
     full_history_2 = [
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 4000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 5000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 6000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 7000),
+        datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 5000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 6000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
     ]
 
     windowed_history = [
-        datetime.datetime(1970, 1, 1, 0, 0),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 1000),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
     ]
 
     assert v.history_date_time() == full_history_1
@@ -297,32 +295,32 @@ def test_entity_history_date_time():
     ]
 
     assert g.nodes.earliest_date_time == [
-        datetime.datetime(1970, 1, 1, 0, 0),
-        datetime.datetime(1970, 1, 1, 0, 0),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 4000),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
     ]
     assert g.nodes.latest_date_time == [
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 7000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 3000),
-        datetime.datetime(1970, 1, 1, 0, 0, 0, 7000),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
     ]
 
     assert g.nodes.neighbours.latest_date_time.collect() == [
         [
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 3000),
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 7000),
+            datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
         ],
-        [datetime.datetime(1970, 1, 1, 0, 0, 0, 7000)],
-        [datetime.datetime(1970, 1, 1, 0, 0, 0, 7000)],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
     ]
 
     assert g.nodes.neighbours.earliest_date_time.collect() == [
         [
-            datetime.datetime(1970, 1, 1, 0, 0),
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 4000),
+            datetime(1970, 1, 1, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
         ],
-        [datetime.datetime(1970, 1, 1, 0, 0)],
-        [datetime.datetime(1970, 1, 1, 0, 0)],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+        [datetime(1970, 1, 1, tzinfo=utc)],
     ]
 
 
@@ -1420,8 +1418,8 @@ def test_time_index():
     rolling = w.rolling("1 day")
     time_index = rolling.time_index()
     assert list(time_index) == [
-        datetime.datetime(2020, 1, 1, 23, 59, 59, 999000),
-        datetime.datetime(2020, 1, 2, 23, 59, 59, 999000),
+        datetime(2020, 1, 1, 23, 59, 59, 999000, tzinfo=utc),
+        datetime(2020, 1, 2, 23, 59, 59, 999000, tzinfo=utc),
     ]
 
     w = g.window(1, 3)
@@ -1437,11 +1435,11 @@ def test_time_index():
 
 def test_datetime_props():
     g = Graph()
-    dt1 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999000)
+    dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
     g.add_node(0, 0, {"time": dt1})
     assert g.node(0).properties.get("time") == dt1
 
-    dt2 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999999)
+    dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
     g.add_node(0, 1, {"time": dt2})
     assert g.node(1).properties.get("time") == dt2
 
@@ -1454,19 +1452,19 @@ def test_date_time():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    assert g.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert g.latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
     e = g.edge(1, 3)
     exploded_edges = []
     for edge in e.explode():
         exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime.datetime(2014, 2, 3)]
-    assert g.edge(1, 2).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.edge(1, 2).latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert exploded_edges == [datetime(2014, 2, 3)]
+    assert g.edge(1, 2).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert g.edge(1, 2).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert g.node(1).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.node(1).latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
 
 def test_date_time_window():
@@ -1481,51 +1479,50 @@ def test_date_time_window():
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.end_date_time == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-    assert view2.edge(1, 2).start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.edge(1, 2).end_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.edge(1, 2).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.edge(1, 2).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert view.node(1).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.node(1).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.node(1).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
     e = view.edge(1, 2)
     exploded_edges = []
     for edge in e.explode():
         exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime.datetime(2014, 2, 2)]
+    assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
 
 
 def test_datetime_add_node():
     g = Graph()
-    g.add_node(datetime.datetime(2014, 2, 2), 1)
-    g.add_node(datetime.datetime(2014, 2, 3), 2)
-    g.add_node(datetime.datetime(2014, 2, 4), 2)
-    g.add_node(datetime.datetime(2014, 2, 5), 4)
-    g.add_node(datetime.datetime(2014, 2, 6), 5)
+    g.add_node(datetime(2014, 2, 2), 1)
+    g.add_node(datetime(2014, 2, 3), 2)
+    g.add_node(datetime(2014, 2, 4), 2)
+    g.add_node(datetime(2014, 2, 5), 4)
+    g.add_node(datetime(2014, 2, 6), 5)
 
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.end_date_time == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view2.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.latest_date_time == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view2.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.latest_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view2.node(1).start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.node(1).end_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.node(1).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.node(1).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert view.node(2).earliest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
-    assert view.node(2).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.node(2).earliest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+    assert view.node(2).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
 
 def test_datetime_with_timezone():
-    from datetime import datetime
     from raphtory import Graph
     import pytz
 
@@ -1540,12 +1537,12 @@ def test_datetime_with_timezone():
         "Africa/Johannesburg",
     ]
     results = [
-        datetime(2024, 1, 5, 1, 0),
-        datetime(2024, 1, 5, 6, 30),
-        datetime(2024, 1, 5, 10, 0),
-        datetime(2024, 1, 5, 12, 0),
-        datetime(2024, 1, 5, 17, 0),
-        datetime(2024, 1, 5, 18, 0),
+        datetime(2024, 1, 5, 1, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 6, 30, tzinfo=utc),
+        datetime(2024, 1, 5, 10, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 12, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 17, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 18, 0, tzinfo=utc),
     ]
 
     for tz in timezones:
