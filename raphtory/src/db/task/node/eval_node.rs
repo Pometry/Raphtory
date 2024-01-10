@@ -420,11 +420,16 @@ impl<
         GH: GraphViewOps<'graph>,
     > OneHopFilter<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
 {
-    type Graph = GH;
+    type BaseGraph = &'graph G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph>> = EvalPathFromNode<'graph, 'a, G, GHH, CS, S>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         self.path.current_filter()
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.path.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
@@ -453,11 +458,16 @@ impl<
         GH: GraphViewOps<'graph>,
     > OneHopFilter<'graph> for EvalNodeView<'graph, 'a, G, S, GH, CS>
 {
-    type Graph = GH;
+    type BaseGraph = &'graph G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph>> = EvalNodeView<'graph, 'a, G, S, GHH, CS>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         &self.node.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.node.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(

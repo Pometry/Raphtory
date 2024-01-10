@@ -235,12 +235,18 @@ impl<
         CS: ComputeState + 'a,
     > OneHopFilter<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
-    type Graph = GH;
+    type BaseGraph = &'graph G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, G, GHH, CS, S>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         &self.edge.graph
     }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.edge.base_graph
+    }
+
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,

@@ -239,10 +239,15 @@ pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
 impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
-    type Graph = G;
+    type BaseGraph = G;
+    type FilteredGraph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self
     }
 
