@@ -93,11 +93,9 @@ macro_rules! impl_timeops {
             #[doc = concat!("r    A ", $name, " object.")]
             pub fn window(
                 &self,
-                start: Option<PyTime>,
-                end: Option<PyTime>,
+                start: PyTime,
+                end: PyTime,
             ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                let start = start.map(|t| t.into_time());
-                let end = end.map(|t| t.into_time());
                 self.$field
                     .window(start, end)
             }

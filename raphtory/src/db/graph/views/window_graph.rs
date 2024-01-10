@@ -41,7 +41,6 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
         storage::timeindex::AsTime,
-        utils::time::{IntoOptTime, IntoTime},
         ArcStr, Direction, Prop,
     },
     db::{
@@ -63,7 +62,6 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use std::{
-    cmp::{max, min},
     fmt::{Debug, Formatter},
     ops::Range,
     sync::Arc,
@@ -688,10 +686,8 @@ impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
     /// Returns:
     ///
     /// A new windowed graph
-    pub fn new<T: IntoOptTime>(graph: G, start: T, end: T) -> Self {
-        let start = start.into_opt_time();
+    pub(crate) fn new(graph: G, start: Option<i64>, end: Option<i64>) -> Self {
         let start_bound = start.unwrap_or(i64::MIN);
-        let end = end.into_opt_time();
         let end_bound = end.unwrap_or(i64::MAX);
         let base_filter = graph.edge_filter_window().cloned();
         let base_window_filter = graph.include_edge_window().clone();
@@ -744,7 +740,7 @@ mod views_test {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = WindowedGraph::new(g, -1, 1);
+        let wg = g.window(-1, 1);
 
         let actual = wg
             .nodes()
@@ -796,7 +792,7 @@ mod views_test {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = WindowedGraph::new(g, -1, 1);
+        let wg = g.window(-1, 1);
 
         assert_eq!(wg.node(1).unwrap().id(), 1);
     }
@@ -819,7 +815,7 @@ mod views_test {
                 .ok();
         }
 
-        let wg = WindowedGraph::new(g, 1, 2);
+        let wg = g.window(1, 2);
         assert!(!wg.has_node(262))
     }
 
@@ -847,7 +843,7 @@ mod views_test {
         let start = vs.get(rand_start_index).expect("start index in range").0;
         let end = vs.get(rand_end_index).expect("end index in range").0;
 
-        let wg = WindowedGraph::new(g, start, end);
+        let wg = g.window(start, end);
 
         let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
 
@@ -891,7 +887,7 @@ mod views_test {
         let start = edges.get(rand_start_index).expect("start index in range").0;
         let end = edges.get(rand_end_index).expect("end index in range").0;
 
-        let wg = WindowedGraph::new(g, start, end);
+        let wg = g.window(start, end);
 
         let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
 
@@ -933,7 +929,7 @@ mod views_test {
                 .unwrap();
         }
 
-        let wg = WindowedGraph::new(g, window.start, window.end);
+        let wg = g.window(window.start, window.end);
         if wg.count_edges() != true_edge_count {
             println!(
                 "failed, g.num_edges() = {}, true count = {}",
@@ -1109,9 +1105,9 @@ mod views_test {
     fn test_reference() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        let mut w = WindowedGraph::new(&g, 0, 1);
+        let mut w = WindowedGraph::new(&g, Some(0), Some(1));
         assert_eq!(w, g);
-        w = WindowedGraph::new(&g, 1, 2);
+        w = WindowedGraph::new(&g, Some(1), Some(2));
 
         assert_eq!(w, Graph::new());
     }
@@ -1120,7 +1116,7 @@ mod views_test {
     fn test_algorithm_on_windowed_graph() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        let w = WindowedGraph::new(g, 0, 1);
+        let w = WindowedGraph::new(g, Some(0), Some(1));
 
         let res = degree_centrality(&w, None);
         println!("{:?}", res)

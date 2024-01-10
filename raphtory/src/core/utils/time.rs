@@ -34,22 +34,6 @@ pub trait IntoTime {
     fn into_time(self) -> i64;
 }
 
-pub trait IntoOptTime {
-    fn into_opt_time(self) -> Option<i64>;
-}
-
-impl<T: IntoTime> IntoOptTime for T {
-    fn into_opt_time(self) -> Option<i64> {
-        Some(self.into_time())
-    }
-}
-
-impl IntoOptTime for Option<i64> {
-    fn into_opt_time(self) -> Option<i64> {
-        self
-    }
-}
-
 impl IntoTime for i64 {
     fn into_time(self) -> i64 {
         self

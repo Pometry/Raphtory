@@ -5,7 +5,7 @@ mod graph;
 pub(crate) mod internal;
 mod layer;
 mod node;
-mod time;
+pub(crate) mod time;
 
 pub(crate) use edge::EdgeViewInternalOps;
 pub use edge::{EdgeListOps, EdgeViewOps};

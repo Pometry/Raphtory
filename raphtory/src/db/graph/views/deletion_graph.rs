@@ -625,7 +625,10 @@ impl TimeSemantics for GraphWithDeletions {
 #[cfg(test)]
 mod test_deletions {
     use crate::{
-        db::graph::{graph::assert_graph_equal, views::deletion_graph::GraphWithDeletions},
+        db::{
+            api::view::time::internal::InternalTimeOps,
+            graph::{graph::assert_graph_equal, views::deletion_graph::GraphWithDeletions},
+        },
         prelude::*,
     };
     use itertools::Itertools;
@@ -797,7 +800,7 @@ mod test_deletions {
             e.add_updates(t, NO_PROPS, None).unwrap();
         }
         assert_eq!(
-            e.window(3, None)
+            e.after(2)
                 .explode()
                 .map(|ee| ee.time().unwrap())
                 .collect_vec(),
