@@ -41,11 +41,13 @@ def test_graphql():
     map_dir_server.wait_for_online()
 
     query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
+    query_g1_window = """{graph(name: "g1") {nodes {before(time: 2) {list {name}}}}}"""
     query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
     query_g3 = """{graph(name: "g3") {nodes {list {name}}}}"""
     query_g4 = """{graph(name: "g4") {nodes {list {name}}}}"""
 
     assert map_server.query(query_g1) == {'graph': {'nodes': {"list": [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}
+    assert map_server.query(query_g1_window) == {'graph': {'nodes': {"before": {"list": [{'name': 'ben'}, {'name': 'hamza'}]}}}}
     assert map_server.query(query_g2) == {'graph': {'nodes': {"list": [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}
     assert dir_server.query(query_g3) == {'graph': {'nodes': {"list": [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}
     assert dir_server.query(query_g4) == {'graph': {'nodes': {"list": [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}
