@@ -5,6 +5,7 @@ use crate::{
 use glam::Vec2;
 use quad_rand::RandomRange;
 
+/// Return the position of the nodes after running Fruchterman Reingold algorithm on the `graph`
 pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     graph: &'graph G,
     iterations: u64,

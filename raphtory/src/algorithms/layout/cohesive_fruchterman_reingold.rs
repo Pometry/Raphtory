@@ -4,6 +4,7 @@ use crate::{
 };
 use itertools::Itertools;
 
+/// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
 pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
     graph: &'graph G,
     iterations: u64,

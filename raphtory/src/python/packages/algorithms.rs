@@ -690,6 +690,18 @@ pub fn louvain(
     louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
 }
 
+/// Fruchterman Reingold layout algorithm
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     iterations (int | None): the number of iterations to run (default: 100)
+///     scale (float | None): the scale to apply (default: 1.0)
+///     node_start_size (float | None): the start node size to assign random positions (default: 1.0)
+///     cooloff_factor (float | None): the cool off factor for the algorithm (default: 0.95)
+///     dt (float | None): the time increment between iterations (default: 0.1)
+///
+/// Returns:
+///     a dict with the position for each node as a list with two numbers [x, y]
 #[pyfunction]
 #[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
 pub fn fruchterman_reingold(
@@ -713,6 +725,7 @@ pub fn fruchterman_reingold(
     .collect()
 }
 
+/// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
 #[pyfunction]
 #[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
 pub fn cohesive_fruchterman_reingold(
