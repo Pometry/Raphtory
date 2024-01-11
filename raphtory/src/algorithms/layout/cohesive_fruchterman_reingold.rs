@@ -10,6 +10,7 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
     graph: &'graph G,
     iterations: u64,
     scale: f32,
+    node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
 ) -> NodeVectors {
@@ -48,5 +49,12 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    fruchterman_reingold_unbounded(&virtual_graph, iterations, scale, cooloff_factor, dt)
+    fruchterman_reingold_unbounded(
+        &virtual_graph,
+        iterations,
+        scale,
+        node_start_size,
+        cooloff_factor,
+        dt,
+    )
 }
