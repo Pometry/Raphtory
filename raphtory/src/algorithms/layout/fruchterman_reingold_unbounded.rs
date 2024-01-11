@@ -15,8 +15,11 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     let mut positions = init_node_vectors(graph);
     let mut velocities = init_node_vectors(graph);
 
+    println!("{positions:?}");
+
     for index in 0..iterations {
         println!("iteration {index}");
+
         positions = update_positions(
             &positions,
             &mut velocities,
@@ -26,6 +29,8 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
             dt,
         );
     }
+
+    println!("{positions:?}");
 
     positions
 }
