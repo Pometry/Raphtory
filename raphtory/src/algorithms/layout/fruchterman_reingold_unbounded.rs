@@ -13,15 +13,10 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     cooloff_factor: f32,
     dt: f32,
 ) -> NodeVectors {
-    println!("fruchterman_reingold_unbounded");
     let mut positions = init_positions(graph, node_start_size);
     let mut velocities = init_velocities(graph);
 
-    println!("{positions:?}");
-
     for index in 0..iterations {
-        println!("iteration {index}");
-
         positions = update_positions(
             &positions,
             &mut velocities,
@@ -31,8 +26,6 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
             dt,
         );
     }
-
-    println!("{positions:?}");
 
     positions
 }
@@ -52,22 +45,14 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
         let mut force = Vec2::ZERO;
 
         force += compute_repulsion(id, scale, old_positions);
-        dbg!(&force);
         force += compute_attraction(id, scale, old_positions, graph);
-        dbg!(&force);
 
         let mut velocity = velocities.get_mut(&id).unwrap();
 
         *velocity += force * dt;
-        dbg!(&velocity);
         *velocity *= cooloff_factor;
-        dbg!(&velocity);
 
         let new_position = *old_position + *velocity * dt;
-        dbg!(&new_position);
-        if (new_position.x.is_nan()) {
-            panic!("NaN!!!")
-        }
         new_positions.insert(id, new_position);
     }
     new_positions
