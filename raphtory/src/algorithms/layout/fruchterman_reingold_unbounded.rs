@@ -50,15 +50,23 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
         let mut force = Vec2::ZERO;
 
         force += compute_repulsion(id, scale, old_positions);
+        dbg!(&force);
         force += compute_attraction(id, scale, old_positions, graph);
+        dbg!(&force);
 
         let mut velocity = velocities.get_mut(&id).unwrap();
 
         *velocity += force * dt;
+        dbg!(&velocity);
         *velocity *= cooloff_factor;
+        dbg!(&velocity);
 
-        // node.location += node.velocity * dt;
-        new_positions.insert(id, *old_position + *velocity * dt);
+        let new_position = *old_position + *velocity * dt;
+        dbg!(&new_position);
+        if (new_position.x.is_nan()) {
+            panic!("NaN!!!")
+        }
+        new_positions.insert(id, new_position);
     }
     new_positions
 }
