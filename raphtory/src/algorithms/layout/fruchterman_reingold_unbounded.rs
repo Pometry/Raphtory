@@ -11,6 +11,7 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     cooloff_factor: f32,
     dt: f32,
 ) -> NodeVectors {
+    println!("fruchterman_reingold_unbounded");
     let mut positions = init_node_vectors(graph);
     let mut velocities = init_node_vectors(graph);
 

@@ -13,6 +13,7 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
     cooloff_factor: f32,
     dt: f32,
 ) -> NodeVectors {
+    println!("cohesive_fruchterman_reingold");
     let virtual_graph = graph.materialize().unwrap();
 
     let isolated_nodes = virtual_graph
