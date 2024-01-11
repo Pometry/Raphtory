@@ -36,6 +36,7 @@ dashmap = {version ="5", features = ["serde"] }
 enum_dispatch = "0.3"
 ordered-float = "4.1.1"
 glam = "0.25.0"
+quad-rand = "0.2.1"
 
 # io optional dependencies
 csv = {version="1.1.6", optional=true}

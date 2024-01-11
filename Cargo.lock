@@ -2693,6 +2693,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quad-rand"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "658fa1faf7a4cc5f057c9ee5ef560f717ad9d8dc66d975267f709624d6e1ab88"
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2891,6 +2897,7 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-asyncio",
+ "quad-rand",
  "quickcheck 1.0.3",
  "quickcheck_macros",
  "rand 0.8.5",
