@@ -23,7 +23,7 @@ use crate::{
         utils::{PyGenericIterator, PyTime},
     },
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
@@ -126,18 +126,10 @@ impl PyTemporalProperties {
     ///
     /// Returns:
     ///     dict[str, list[(datetime, Any)]]: the mapping of property keys to histories
-    fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(NaiveDateTime, Prop)>>> {
+    fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
         self.props
             .iter()
-            .map(|(k, v)| {
-                (
-                    k.clone(),
-                    match v.histories_date_time() {
-                        None => None,
-                        Some(history) => Some(history.collect()),
-                    },
-                )
-            })
+            .map(|(k, v)| (k, v.histories_date_time().map(|h| h.collect())))
             .collect()
     }
 
@@ -234,7 +226,7 @@ impl PyTemporalProp {
     }
 
     /// Get the timestamps at which the property was updated
-    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.prop.history_date_time()
     }
 
@@ -249,7 +241,7 @@ impl PyTemporalProp {
     }
 
     /// List update timestamps and corresponding property values
-    pub fn items_date_time(&self) -> Option<Vec<(NaiveDateTime, Prop)>> {
+    pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
         Some(self.prop.histories_date_time()?.collect())
     }
 

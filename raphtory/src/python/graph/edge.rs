@@ -35,16 +35,16 @@ use crate::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
                 ArcStringVecIterable, BoolIterable, I64VecIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedI64VecIterable, NestedNaiveDateTimeIterable,
-                NestedOptionArcStringIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
-                NestedVecNaiveDateTimeIterable, OptionArcStringIterable, OptionI64Iterable,
-                OptionNaiveDateTimeIterable, OptionVecNaiveDateTimeIterable, U64U64Iterable,
+                NestedBoolIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
+                NestedOptionI64Iterable, NestedU64U64Iterable, NestedUtcDateTimeIterable,
+                NestedVecUtcDateTimeIterable, OptionArcStringIterable, OptionI64Iterable,
+                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
             },
         },
         utils::{PyGenericIterator, PyInterval, PyTime},
     },
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{prelude::*, pyclass::CompareOp};
 use std::{
@@ -214,7 +214,7 @@ impl PyEdge {
     /// Returns:
     ///     A list of timestamps.
     ///
-    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.history_date_time()
     }
 
@@ -230,7 +230,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     A list of DateTime objects
-    pub fn deletions_data_time(&self) -> Option<Vec<NaiveDateTime>> {
+    pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.deletions_date_time()
     }
 
@@ -345,8 +345,8 @@ impl PyEdge {
     /// Returns:
     ///     the earliest datetime of an edge
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        NaiveDateTime::from_timestamp_millis(self.edge.earliest_time()?)
+    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.edge.earliest_date_time()
     }
 
     /// Gets the latest time of an edge.
@@ -363,9 +363,8 @@ impl PyEdge {
     /// Returns:
     ///     (datetime) the latest datetime of an edge
     #[getter]
-    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
-        let latest_time = self.edge.latest_time()?;
-        NaiveDateTime::from_timestamp_millis(latest_time)
+    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.edge.latest_date_time()
     }
 
     /// Gets the time of an exploded edge.
@@ -400,9 +399,8 @@ impl PyEdge {
     /// Returns:
     ///     (datetime) the datetime of an exploded edge
     #[getter]
-    pub fn date_time(&self) -> Option<NaiveDateTime> {
-        let date_time = self.edge.time()?;
-        NaiveDateTime::from_timestamp_millis(date_time)
+    pub fn date_time(&self) -> Option<DateTime<Utc>> {
+        self.edge.date_time()
     }
 
     /// Displays the Edge as a string.
@@ -574,7 +572,7 @@ impl PyEdges {
     /// Returns:
     ///  Earliest date time of the edges.
     #[getter]
-    fn earliest_date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().earliest_date_time()).into()
     }
@@ -594,7 +592,7 @@ impl PyEdges {
     /// Returns:
     ///   Latest date time of the edges.
     #[getter]
-    fn latest_date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().latest_date_time()).into()
     }
@@ -604,7 +602,7 @@ impl PyEdges {
     /// Returns:
     ///    A list of date times.
     #[getter]
-    fn date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn date_time(&self) -> OptionUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().date_time()).into()
     }
@@ -648,7 +646,7 @@ impl PyEdges {
     /// Returns:
     ///    A list of lists of timestamps.
     ///
-    fn history_date_time(&self) -> OptionVecNaiveDateTimeIterable {
+    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().history_date_time()).into()
     }
@@ -666,7 +664,7 @@ impl PyEdges {
     ///
     /// Returns:
     ///     A list of lists of DateTime objects
-    fn deletions_date_time(&self) -> OptionVecNaiveDateTimeIterable {
+    fn deletions_date_time(&self) -> OptionVecUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().deletions_date_time()).into()
     }
@@ -698,7 +696,7 @@ impl PyEdges {
     /// Returns:
     ///     The start date time of all edges
     #[getter]
-    fn start_date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn start_date_time(&self) -> OptionUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().start_date_time()).into()
     }
@@ -718,7 +716,7 @@ impl PyEdges {
     /// Returns:
     ///  The end date time of all edges
     #[getter]
-    fn end_date_time(&self) -> OptionNaiveDateTimeIterable {
+    fn end_date_time(&self) -> OptionUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().end_date_time()).into()
     }
@@ -943,7 +941,7 @@ impl PyNestedEdges {
 
     /// Returns the earliest date time of the edges.
     #[getter]
-    fn earliest_date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().earliest_date_time()).into()
     }
@@ -957,7 +955,7 @@ impl PyNestedEdges {
 
     /// Returns the latest date time of the edges.
     #[getter]
-    fn latest_date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().latest_date_time()).into()
     }
@@ -1042,7 +1040,7 @@ impl PyNestedEdges {
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history_date_time(&self) -> NestedVecNaiveDateTimeIterable {
+    fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().history_date_time()).into()
     }
@@ -1060,7 +1058,7 @@ impl PyNestedEdges {
     ///
     /// Returns:
     ///     A list of lists of lists of DateTime objects
-    fn deletions_date_time(&self) -> NestedVecNaiveDateTimeIterable {
+    fn deletions_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().deletions_date_time()).into()
     }
@@ -1086,7 +1084,7 @@ impl PyNestedEdges {
 
     /// Get the start date time of all edges
     #[getter]
-    fn start_date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn start_date_time(&self) -> NestedUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().start_date_time()).into()
     }
@@ -1100,14 +1098,14 @@ impl PyNestedEdges {
 
     /// Get the end date time of all edges
     #[getter]
-    fn end_date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn end_date_time(&self) -> NestedUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().end_date_time()).into()
     }
 
     /// Get the date times of exploded edges
     #[getter]
-    fn date_time(&self) -> NestedNaiveDateTimeIterable {
+    fn date_time(&self) -> NestedUtcDateTimeIterable {
         let edges = self.builder.clone();
         (move || edges().date_time()).into()
     }

@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
+        storage::timeindex::AsTime,
         Direction,
     },
     db::{
@@ -18,7 +19,7 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -83,18 +84,18 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    fn earliest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>>;
+    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    fn latest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>>;
+    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// Gets the history of the node (time that the node was added and times when changes were made to the node) as NaiveDateTime objects if parseable
-    fn history_date_time(&self) -> Self::ValueType<Option<Vec<NaiveDateTime>>>;
+    /// Gets the history of the node (time that the node was added and times when changes were made to the node) as DateTime<Utc> objects if parseable
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -189,8 +190,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(|g, v| g.node_earliest_time(v))
     }
     #[inline]
-    fn earliest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>> {
-        self.map(|g, v| NaiveDateTime::from_timestamp_millis(g.node_earliest_time(v)?))
+    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
+        self.map(|g, v| g.node_earliest_time(v)?.dt())
     }
 
     #[inline]
@@ -199,8 +200,8 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn latest_date_time(&self) -> Self::ValueType<Option<NaiveDateTime>> {
-        self.map(|g, v| NaiveDateTime::from_timestamp_millis(g.node_latest_time(v)?))
+    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
+        self.map(|g, v| g.node_latest_time(v)?.dt())
     }
 
     #[inline]
@@ -208,12 +209,12 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(|g, v| g.node_history(v))
     }
     #[inline]
-    fn history_date_time(&self) -> Self::ValueType<Option<Vec<NaiveDateTime>>> {
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, v| {
             g.node_history(v)
                 .iter()
-                .map(|t| NaiveDateTime::from_timestamp_millis(*t))
-                .collect::<Option<Vec<NaiveDateTime>>>()
+                .map(|t| t.dt())
+                .collect::<Option<Vec<_>>>()
         })
     }
 

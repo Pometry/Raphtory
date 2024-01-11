@@ -1,5 +1,5 @@
 use crate::{core::ArcStr, db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
@@ -144,28 +144,28 @@ py_iterable_comp!(
     NestedI64VecIterableCmp
 );
 
-py_iterable!(OptionNaiveDateTimeIterable, Option<NaiveDateTime>);
+py_iterable!(OptionUtcDateTimeIterable, Option<DateTime<Utc>>);
 py_iterable_comp!(
-    OptionNaiveDateTimeIterable,
-    Option<NaiveDateTime>,
-    OptionNaiveDateTimeIterableCmp
+    OptionUtcDateTimeIterable,
+    Option<DateTime<Utc>>,
+    OptionUtcDateTimeIterableCmp
 );
-py_nested_iterable!(NestedNaiveDateTimeIterable, Option<NaiveDateTime>);
+py_nested_iterable!(NestedUtcDateTimeIterable, Option<DateTime<Utc>>);
 py_iterable_comp!(
-    NestedNaiveDateTimeIterable,
-    OptionNaiveDateTimeIterableCmp,
-    NestedNaiveDateTimeIterableCmp
+    NestedUtcDateTimeIterable,
+    OptionUtcDateTimeIterableCmp,
+    NestedUtcDateTimeIterableCmp
 );
 
-py_iterable!(OptionVecNaiveDateTimeIterable, Option<Vec<NaiveDateTime>>);
+py_iterable!(OptionVecUtcDateTimeIterable, Option<Vec<DateTime<Utc>>>);
 py_iterable_comp!(
-    OptionVecNaiveDateTimeIterable,
-    Option<Vec<NaiveDateTime>>,
-    OptionVecNaiveDateTimeIterableCmp
+    OptionVecUtcDateTimeIterable,
+    Option<Vec<DateTime<Utc>>>,
+    OptionVecUtcDateTimeIterableCmp
 );
-py_nested_iterable!(NestedVecNaiveDateTimeIterable, Option<Vec<NaiveDateTime>>);
+py_nested_iterable!(NestedVecUtcDateTimeIterable, Option<Vec<DateTime<Utc>>>);
 py_iterable_comp!(
-    NestedVecNaiveDateTimeIterable,
-    OptionVecNaiveDateTimeIterableCmp,
-    NestedVecNaiveDateTimeIterableCmp
+    NestedVecUtcDateTimeIterable,
+    OptionVecUtcDateTimeIterableCmp,
+    NestedVecUtcDateTimeIterableCmp
 );

@@ -64,6 +64,18 @@ impl Node {
         self.vv.after(time).into()
     }
 
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        self.vv.shrink_window(start, end).into()
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        self.vv.shrink_start(start).into()
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        self.vv.shrink_end(end).into()
+    }
+
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////

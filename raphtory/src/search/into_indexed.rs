@@ -7,6 +7,7 @@ use crate::{
             },
             view::{
                 internal::{DynamicGraph, IntoDynamic, OneHopFilter},
+                time::internal::InternalTimeOps,
                 StaticGraphViewOps,
             },
         },
@@ -14,7 +15,7 @@ use crate::{
             layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
         },
     },
-    prelude::{GraphViewOps, TimeOps},
+    prelude::GraphViewOps,
     search::IndexedGraph,
 };
 use std::sync::Arc;
@@ -25,7 +26,11 @@ pub trait DynamicIndexedGraph {
 impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for WindowedGraph<IndexedGraph<G>> {
     fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         IndexedGraph {
-            graph: self.graph.graph.window(self.start, self.end).into_dynamic(),
+            graph: self
+                .graph
+                .graph
+                .internal_window(self.start, self.end)
+                .into_dynamic(),
             node_index: self.graph.node_index,
             edge_index: self.graph.edge_index,
             reader: self.graph.reader,

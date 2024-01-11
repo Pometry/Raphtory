@@ -155,11 +155,16 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for Nodes<'graph, G, GH>
 {
-    type Graph = GH;
+    type BaseGraph = G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph>> = Nodes<'graph, G, GHH>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         &self.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(

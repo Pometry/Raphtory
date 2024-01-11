@@ -1,5 +1,5 @@
 use crate::core::{storage::locked_view::LockedView, ArcStr};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
 use std::{collections::HashMap, ops::Deref};
 
@@ -141,6 +141,12 @@ impl Repr for &str {
 impl Repr for NaiveDateTime {
     fn repr(&self) -> String {
         self.to_string()
+    }
+}
+
+impl<T: TimeZone> Repr for DateTime<T> {
+    fn repr(&self) -> String {
+        self.to_rfc2822()
     }
 }
 

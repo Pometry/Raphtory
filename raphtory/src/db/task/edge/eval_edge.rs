@@ -23,8 +23,7 @@ use crate::{
         },
     },
 };
-
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
@@ -178,7 +177,7 @@ impl<
         self.edge.temporal_history(id)
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.edge.temporal_history_date_time(id)
     }
 
@@ -236,12 +235,18 @@ impl<
         CS: ComputeState + 'a,
     > OneHopFilter<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
-    type Graph = GH;
+    type BaseGraph = &'graph G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, G, GHH, CS, S>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         &self.edge.graph
     }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.edge.base_graph
+    }
+
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
         &self,
         filtered_graph: GHH,
@@ -295,7 +300,7 @@ impl<
         Box::new(self.map(|e| e.earliest_time()))
     }
 
-    fn earliest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+    fn earliest_date_time(self) -> Self::IterType<Option<chrono::DateTime<Utc>>> {
         Box::new(self.map(|e| e.earliest_date_time()))
     }
 
@@ -303,11 +308,11 @@ impl<
         Box::new(self.map(|e| e.latest_time()))
     }
 
-    fn latest_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+    fn latest_date_time(self) -> Self::IterType<Option<chrono::DateTime<Utc>>> {
         Box::new(self.map(|e| e.latest_date_time()))
     }
 
-    fn date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+    fn date_time(self) -> Self::IterType<Option<chrono::DateTime<Utc>>> {
         Box::new(self.map(|e| e.date_time()))
     }
 
@@ -327,7 +332,7 @@ impl<
         Box::new(self.map(|e| e.history()))
     }
 
-    fn history_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
         Box::new(self.map(|e| e.history_date_time()))
     }
 
@@ -335,7 +340,7 @@ impl<
         Box::new(self.map(|e| e.deletions()))
     }
 
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<NaiveDateTime>>> {
+    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
         Box::new(self.map(|e| e.deletions_date_time()))
     }
 
@@ -351,7 +356,7 @@ impl<
         Box::new(self.map(|e| e.earliest_time()))
     }
 
-    fn start_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+    fn start_date_time(self) -> Self::IterType<Option<chrono::DateTime<Utc>>> {
         Box::new(self.map(|e| e.start_date_time()))
     }
 
@@ -359,7 +364,7 @@ impl<
         Box::new(self.map(|e| e.latest_time()))
     }
 
-    fn end_date_time(self) -> Self::IterType<Option<chrono::NaiveDateTime>> {
+    fn end_date_time(self) -> Self::IterType<Option<chrono::DateTime<Utc>>> {
         Box::new(self.map(|e| e.end_date_time()))
     }
 
