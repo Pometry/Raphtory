@@ -1,10 +1,10 @@
 use crate::{
-    algorithms::layout::NodeVectors,
-    db::api::view::internal::GraphOps,
+    algorithms::layout::{
+        fruchterman_reingold_unbounded::fruchterman_reingold_unbounded, NodeVectors,
+    },
     prelude::{AdditionOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use itertools::Itertools;
-use std::any::Any;
 
 pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
     graph: &'graph G,
@@ -48,5 +48,5 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    cohesive_fruchterman_reingold(&virtual_graph, iterations, scale, cooloff_factor, dt)
+    fruchterman_reingold_unbounded(&virtual_graph, iterations, scale, cooloff_factor, dt)
 }
