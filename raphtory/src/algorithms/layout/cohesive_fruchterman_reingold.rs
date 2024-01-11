@@ -1,7 +1,5 @@
 use crate::{
-    algorithms::layout::{
-        fruchterman_reingold_unbounded::fruchterman_reingold_unbounded, NodeVectors,
-    },
+    algorithms::layout::{fruchterman_reingold::fruchterman_reingold_unbounded, NodeVectors},
     prelude::{AdditionOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use itertools::Itertools;
