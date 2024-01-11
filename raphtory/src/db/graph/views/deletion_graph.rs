@@ -350,7 +350,7 @@ impl TimeSemantics for GraphWithDeletions {
             .collect();
         alive_layers
             .into_iter()
-            .map(move |l| e.at(i64::MIN.into()).at_layer(l))
+            .map(move |l| e.at(w.start.into()).at_layer(l))
             .chain(self.graph.edge_window_exploded(e, w, layer_ids))
             .into_dyn_boxed()
     }
@@ -445,10 +445,19 @@ impl TimeSemantics for GraphWithDeletions {
             None => {
                 let entry = self.core_edge(e.pid());
                 if edge_alive_at_end(entry.deref(), w.end, &layer_ids) {
-                    Some(w.end - 1)
-                } else {
-                    self.edge_deletions(e, layer_ids).range(w).last_t()
+                    return Some(w.end - 1);
                 }
+                entry
+                    .updates_iter(&layer_ids)
+                    .flat_map(|(_, additions, deletions)| {
+                        let last_deletion = deletions.range(w.clone()).last()?;
+                        if last_deletion.t() > &w.start || additions.active(w.clone()) {
+                            Some(*last_deletion.t())
+                        } else {
+                            None
+                        }
+                    })
+                    .max()
             }
         }
     }
@@ -624,7 +633,13 @@ impl TimeSemantics for GraphWithDeletions {
 
 #[cfg(test)]
 mod test_deletions {
-    use crate::{db::graph::views::deletion_graph::GraphWithDeletions, prelude::*};
+    use crate::{
+        db::{
+            api::view::time::internal::InternalTimeOps,
+            graph::{graph::assert_graph_equal, views::deletion_graph::GraphWithDeletions},
+        },
+        prelude::*,
+    };
     use itertools::Itertools;
 
     #[test]
@@ -774,7 +789,7 @@ mod test_deletions {
             .unwrap()
             .into_persistent()
             .unwrap();
-        assert_eq!(gm, g.window(3, 5))
+        assert_graph_equal(&gm, &g.window(3, 5))
     }
 
     #[test]
@@ -784,6 +799,22 @@ mod test_deletions {
         g.delete_edge(10, 1, 2, None).unwrap();
         assert_eq!(e.latest_time(), Some(10));
         assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
+    }
+
+    #[test]
+    fn test_exploded_window() {
+        let g = GraphWithDeletions::new();
+        let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        for t in [5, 10, 15] {
+            e.add_updates(t, NO_PROPS, None).unwrap();
+        }
+        assert_eq!(
+            e.after(2)
+                .explode()
+                .map(|ee| ee.time().unwrap())
+                .collect_vec(),
+            [3, 5, 10, 15]
+        );
     }
 
     #[test]
@@ -935,6 +966,9 @@ mod test_deletions {
         let g = GraphWithDeletions::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         e.delete(2, None).unwrap();
+        assert_eq!(e.at(2).earliest_time(), None);
+        assert_eq!(e.at(2).latest_time(), None);
+        assert!(e.at(2).is_deleted());
         assert_eq!(e.latest_time(), Some(2));
         e.add_updates(4, NO_PROPS, None).unwrap();
         assert_eq!(e.latest_time(), Some(i64::MAX));
@@ -946,20 +980,24 @@ mod test_deletions {
     fn test_view_start_end() {
         let g = GraphWithDeletions::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        assert_eq!(g.start(), Some(0));
-        assert_eq!(g.end(), Some(1));
+        assert_eq!(g.start(), None);
+        assert_eq!(g.timeline_start(), Some(0));
+        assert_eq!(g.end(), None);
+        assert_eq!(g.timeline_end(), Some(1));
         e.delete(2, None).unwrap();
-        assert_eq!(g.start(), Some(0));
-        assert_eq!(g.end(), Some(3));
-        let w = g.window(g.start().unwrap(), g.end().unwrap());
+        assert_eq!(g.timeline_start(), Some(0));
+        assert_eq!(g.timeline_end(), Some(3));
+        let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
         assert!(g.has_edge(1, 2, Layer::All));
         assert!(w.has_edge(1, 2, Layer::All));
         assert_eq!(w.start(), Some(0));
+        assert_eq!(w.timeline_start(), Some(0));
         assert_eq!(w.end(), Some(3));
+        assert_eq!(w.timeline_end(), Some(3));
 
         e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(g.start(), Some(0));
-        assert_eq!(g.end(), Some(5));
+        assert_eq!(g.timeline_start(), Some(0));
+        assert_eq!(g.timeline_end(), Some(5));
     }
 
     #[test]

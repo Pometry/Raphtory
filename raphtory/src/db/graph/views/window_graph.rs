@@ -40,7 +40,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
-        utils::time::IntoTime,
+        storage::timeindex::AsTime,
         ArcStr, Direction, Prop,
     },
     db::{
@@ -60,9 +60,8 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use std::{
-    cmp::{max, min},
     fmt::{Debug, Formatter},
     ops::Range,
     sync::Arc,
@@ -74,11 +73,10 @@ pub struct WindowedGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The inclusive start time of the window.
-    pub start: i64,
+    pub start: Option<i64>,
     /// The exclusive end time of the window.
-    pub end: i64,
+    pub end: Option<i64>,
     filter: EdgeFilter,
-    window_filter: EdgeWindowFilter,
 }
 
 impl<G> Static for WindowedGraph<G> {}
@@ -87,8 +85,8 @@ impl<'graph, G: Debug + 'graph> Debug for WindowedGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "WindowedGraph({:?}, {}..{})",
-            self.graph, self.start, self.end
+            "WindowedGraph(start={:?}, end={:?}, graph={:?})",
+            self.start, self.end, self.graph,
         )
     }
 }
@@ -109,6 +107,16 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
     }
 }
 
+impl<G> WindowedGraph<G> {
+    fn start_bound(&self) -> i64 {
+        self.start.unwrap_or(i64::MIN)
+    }
+
+    fn end_bound(&self) -> i64 {
+        self.end.unwrap_or(i64::MAX)
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> Immutable for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for WindowedGraph<G> {}
 
@@ -126,11 +134,11 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.temporal_prop_vec(id)
             .into_iter()
-            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|(t, _)| t.dt())
+            .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
@@ -164,53 +172,52 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G>
 impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.graph
-            .node_earliest_time_window(v, self.start, self.end)
+            .node_earliest_time_window(v, self.start_bound(), self.end_bound())
     }
 
     fn node_latest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_latest_time_window(v, self.start, self.end)
+        self.graph
+            .node_latest_time_window(v, self.start_bound(), self.end_bound())
     }
 
     fn view_start(&self) -> Option<i64> {
-        Some(self.start)
+        self.start
     }
 
     fn view_end(&self) -> Option<i64> {
-        Some(self.end)
+        self.end
     }
 
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
-        self.graph.earliest_time_window(self.start, self.end)
+        self.graph
+            .earliest_time_window(self.start_bound(), self.end_bound())
     }
 
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
-        self.graph.latest_time_window(self.start, self.end)
+        self.graph
+            .latest_time_window(self.start_bound(), self.end_bound())
     }
 
     #[inline]
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph
-            .earliest_time_window(self.actual_start(start), self.actual_end(end))
+        self.graph.earliest_time_window(start, end)
     }
 
     #[inline]
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph
-            .latest_time_window(self.actual_start(start), self.actual_end(end))
+        self.graph.latest_time_window(start, end)
     }
 
     #[inline]
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph
-            .node_earliest_time_window(v, self.actual_start(start), self.actual_end(end))
+        self.graph.node_earliest_time_window(v, start, end)
     }
 
     #[inline]
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        self.graph
-            .node_latest_time_window(v, self.actual_start(start), self.actual_end(end))
+        self.graph.node_latest_time_window(v, start, end)
     }
 
     #[inline]
@@ -221,49 +228,41 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         layer_ids: &LayerIds,
         edge_filter: Option<&EdgeFilter>,
     ) -> bool {
-        self.graph.include_node_window(
-            v,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-            edge_filter,
-        )
+        self.graph
+            .include_node_window(v, w.start..w.end, layer_ids, edge_filter)
     }
 
     #[inline]
     fn include_edge_window(&self) -> &EdgeWindowFilter {
-        &self.window_filter
+        self.graph.include_edge_window()
     }
 
     fn node_history(&self, v: VID) -> Vec<i64> {
-        self.graph.node_history_window(v, self.start..self.end)
+        self.graph
+            .node_history_window(v, self.start_bound()..self.end_bound())
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.graph
-            .node_history_window(v, self.actual_start(w.start)..self.actual_end(w.end))
+        self.graph.node_history_window(v, w.start..w.end)
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
         self.graph
-            .edge_history_window(e, layer_ids, self.start..self.end)
+            .edge_history_window(e, layer_ids, self.start_bound()..self.end_bound())
     }
 
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        self.graph.edge_history_window(
-            e,
-            layer_ids,
-            self.actual_start(w.start)..self.actual_end(w.end),
-        )
+        self.graph.edge_history_window(e, layer_ids, w.start..w.end)
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_window_exploded(e, self.start..self.end, layer_ids)
+            .edge_window_exploded(e, self.start_bound()..self.end_bound(), layer_ids)
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         self.graph
-            .edge_window_layers(e, self.start..self.end, layer_ids)
+            .edge_window_layers(e, self.start_bound()..self.end_bound(), layer_ids)
     }
 
     fn edge_window_exploded(
@@ -272,11 +271,8 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_exploded(
-            e,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+        self.graph
+            .edge_window_exploded(e, w.start..w.end, layer_ids)
     }
 
     fn edge_window_layers(
@@ -285,16 +281,12 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
-        self.graph.edge_window_layers(
-            e,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+        self.graph.edge_window_layers(e, w.start..w.end, layer_ids)
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         self.graph
-            .edge_earliest_time_window(e, self.start..self.end, layer_ids)
+            .edge_earliest_time_window(e, self.start_bound()..self.end_bound(), layer_ids)
     }
 
     fn edge_earliest_time_window(
@@ -303,16 +295,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        self.graph.edge_earliest_time_window(
-            e,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+        self.graph
+            .edge_earliest_time_window(e, w.start..w.end, layer_ids)
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
         self.graph
-            .edge_latest_time_window(e, self.start..self.end, layer_ids)
+            .edge_latest_time_window(e, self.start_bound()..self.end_bound(), layer_ids)
     }
 
     fn edge_latest_time_window(
@@ -321,16 +310,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        self.graph.edge_latest_time_window(
-            e,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+        self.graph
+            .edge_latest_time_window(e, w.start..w.end, layer_ids)
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
         self.graph
-            .edge_deletion_history_window(e, self.start..self.end, layer_ids)
+            .edge_deletion_history_window(e, self.start_bound()..self.end_bound(), layer_ids)
     }
 
     fn edge_deletion_history_window(
@@ -339,15 +325,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Vec<i64> {
-        self.graph.edge_deletion_history_window(
-            e,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+        self.graph
+            .edge_deletion_history_window(e, w.start..w.end, layer_ids)
     }
 
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
-        self.graph.edge_is_valid_at_end(e, layer_ids, self.end)
+        self.graph
+            .edge_is_valid_at_end(e, layer_ids, self.end_bound())
     }
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, t: i64) -> bool {
@@ -357,40 +341,35 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
         self.graph
-            .has_temporal_prop_window(prop_id, self.start..self.end)
+            .has_temporal_prop_window(prop_id, self.start_bound()..self.end_bound())
     }
 
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
         self.graph
-            .temporal_prop_vec_window(prop_id, self.start, self.end)
+            .temporal_prop_vec_window(prop_id, self.start_bound(), self.end_bound())
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph
-            .has_temporal_prop_window(prop_id, self.actual_start(w.start)..self.actual_end(w.end))
+        self.graph.has_temporal_prop_window(prop_id, w.start..w.end)
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_prop_vec_window(prop_id, self.actual_start(start), self.actual_end(end))
+        self.graph.temporal_prop_vec_window(prop_id, start, end)
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
         self.graph
-            .has_temporal_node_prop_window(v, prop_id, self.start..self.end)
+            .has_temporal_node_prop_window(v, prop_id, self.start_bound()..self.end_bound())
     }
 
     fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
         self.graph
-            .temporal_node_prop_vec_window(v, prop_id, self.start, self.end)
+            .temporal_node_prop_vec_window(v, prop_id, self.start_bound(), self.end_bound())
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph.has_temporal_node_prop_window(
-            v,
-            prop_id,
-            self.actual_start(w.start)..self.actual_end(w.end),
-        )
+        self.graph
+            .has_temporal_node_prop_window(v, prop_id, w.start..w.end)
     }
 
     fn temporal_node_prop_vec_window(
@@ -400,12 +379,8 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         start: i64,
         end: i64,
     ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_node_prop_vec_window(
-            v,
-            prop_id,
-            self.actual_start(start),
-            self.actual_end(end),
-        )
+        self.graph
+            .temporal_node_prop_vec_window(v, prop_id, start, end)
     }
 
     fn has_temporal_edge_prop_window(
@@ -415,12 +390,8 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> bool {
-        self.graph.has_temporal_edge_prop_window(
-            e,
-            prop_id,
-            self.actual_start(w.start)..self.actual_end(w.end),
-            layer_ids,
-        )
+        self.graph
+            .has_temporal_edge_prop_window(e, prop_id, w.start..w.end, layer_ids)
     }
 
     fn temporal_edge_prop_vec_window(
@@ -431,18 +402,17 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_edge_prop_vec_window(
-            e,
-            prop_id,
-            self.actual_start(start),
-            self.actual_end(end),
-            layer_ids,
-        )
+        self.graph
+            .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
-        self.graph
-            .has_temporal_edge_prop_window(e, prop_id, self.start..self.end, layer_ids)
+        self.graph.has_temporal_edge_prop_window(
+            e,
+            prop_id,
+            self.start_bound()..self.end_bound(),
+            layer_ids,
+        )
     }
 
     fn temporal_edge_prop_vec(
@@ -451,8 +421,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.graph
-            .temporal_edge_prop_vec_window(e, prop_id, self.start, self.end, layer_ids)
+        self.graph.temporal_edge_prop_vec_window(
+            e,
+            prop_id,
+            self.start_bound(),
+            self.end_bound(),
+            layer_ids,
+        )
     }
 }
 
@@ -477,7 +452,12 @@ impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
             self.graph
                 .node_refs(layers.clone(), filter)
                 .filter(move |v| {
-                    g.include_node_window(*v, g.start..g.end, &layers, filter_cloned.as_ref())
+                    g.include_node_window(
+                        *v,
+                        g.start_bound()..g.end_bound(),
+                        &layers,
+                        filter_cloned.as_ref(),
+                    )
                 }),
         )
     }
@@ -535,9 +515,9 @@ impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
-        self.graph
-            .internal_node_ref(v, layers, filter)
-            .filter(|v| self.include_node_window(*v, self.start..self.end, layers, filter))
+        self.graph.internal_node_ref(v, layers, filter).filter(|v| {
+            self.include_node_window(*v, self.start_bound()..self.end_bound(), layers, filter)
+        })
     }
 
     #[inline]
@@ -706,43 +686,26 @@ impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
     /// Returns:
     ///
     /// A new windowed graph
-    pub fn new<T: IntoTime>(graph: G, start: T, end: T) -> Self {
-        let start = start.into_time();
-        let end = end.into_time();
+    pub(crate) fn new(graph: G, start: Option<i64>, end: Option<i64>) -> Self {
+        let start_bound = start.unwrap_or(i64::MIN);
+        let end_bound = end.unwrap_or(i64::MAX);
         let base_filter = graph.edge_filter_window().cloned();
         let base_window_filter = graph.include_edge_window().clone();
         let filter: EdgeFilter = match base_filter {
-            Some(f) => {
-                Arc::new(move |e, layers| f(e, layers) && base_window_filter(e, layers, start..end))
+            Some(f) => Arc::new(move |e, layers| {
+                f(e, layers) && base_window_filter(e, layers, start_bound..end_bound)
+            }),
+            None => {
+                Arc::new(move |e, layers| base_window_filter(e, layers, start_bound..end_bound))
             }
-            None => Arc::new(move |e, layers| base_window_filter(e, layers, start..end)),
         };
 
-        let base_window_filter = graph.include_edge_window().clone();
-        let window_filter: EdgeWindowFilter = Arc::new(move |e, layers, w| {
-            let start = max(w.start, start);
-            let end = max(start, min(w.end, end));
-            base_window_filter(e, layers, start..end)
-        });
         WindowedGraph {
             graph,
             start,
             end,
             filter,
-            window_filter,
         }
-    }
-
-    /// the larger of `start` and `self.start()` (useful for creating nested windows)
-    #[inline]
-    fn actual_start(&self, start: i64) -> i64 {
-        max(start, self.start)
-    }
-
-    /// the smaller of `end` and `self.end()` (useful for creating nested windows)
-    #[inline]
-    fn actual_end(&self, end: i64) -> i64 {
-        min(end, self.end)
     }
 }
 
@@ -751,7 +714,8 @@ mod views_test {
 
     use super::*;
     use crate::{
-        algorithms::centrality::degree_centrality::degree_centrality, db::api::view::Layer,
+        algorithms::centrality::degree_centrality::degree_centrality,
+        db::{api::view::Layer, graph::graph::assert_graph_equal},
         prelude::*,
     };
     use itertools::Itertools;
@@ -777,7 +741,7 @@ mod views_test {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = WindowedGraph::new(g, -1, 1);
+        let wg = g.window(-1, 1);
 
         let actual = wg
             .nodes()
@@ -829,7 +793,7 @@ mod views_test {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let wg = WindowedGraph::new(g, -1, 1);
+        let wg = g.window(-1, 1);
 
         assert_eq!(wg.node(1).unwrap().id(), 1);
     }
@@ -852,7 +816,7 @@ mod views_test {
                 .ok();
         }
 
-        let wg = WindowedGraph::new(g, 1, 2);
+        let wg = g.window(1, 2);
         assert!(!wg.has_node(262))
     }
 
@@ -880,7 +844,7 @@ mod views_test {
         let start = vs.get(rand_start_index).expect("start index in range").0;
         let end = vs.get(rand_end_index).expect("end index in range").0;
 
-        let wg = WindowedGraph::new(g, start, end);
+        let wg = g.window(start, end);
 
         let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
 
@@ -924,7 +888,7 @@ mod views_test {
         let start = edges.get(rand_start_index).expect("start index in range").0;
         let end = edges.get(rand_end_index).expect("end index in range").0;
 
-        let wg = WindowedGraph::new(g, start, end);
+        let wg = g.window(start, end);
 
         let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
 
@@ -966,7 +930,7 @@ mod views_test {
                 .unwrap();
         }
 
-        let wg = WindowedGraph::new(g, window.start, window.end);
+        let wg = g.window(window.start, window.end);
         if wg.count_edges() != true_edge_count {
             println!(
                 "failed, g.num_edges() = {}, true count = {}",
@@ -1142,9 +1106,9 @@ mod views_test {
     fn test_reference() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        let mut w = WindowedGraph::new(&g, 0, 1);
+        let mut w = WindowedGraph::new(&g, Some(0), Some(1));
         assert_eq!(w, g);
-        w = WindowedGraph::new(&g, 1, 2);
+        w = WindowedGraph::new(&g, Some(1), Some(2));
 
         assert_eq!(w, Graph::new());
     }
@@ -1153,10 +1117,37 @@ mod views_test {
     fn test_algorithm_on_windowed_graph() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        let w = WindowedGraph::new(g, 0, 1);
+        let w = WindowedGraph::new(g, Some(0), Some(1));
 
         let res = degree_centrality(&w, None);
         println!("{:?}", res)
+    }
+
+    #[test]
+    fn test_view_resetting() {
+        let g = Graph::new();
+        for t in 0..10 {
+            let t1 = t * 3;
+            let t2 = t * 3 + 1;
+            let t3 = t * 3 + 2;
+            g.add_edge(t1, 1, 2, NO_PROPS, None).unwrap();
+            g.add_edge(t2, 2, 3, NO_PROPS, None).unwrap();
+            g.add_edge(t3, 3, 1, NO_PROPS, None).unwrap();
+        }
+        assert_graph_equal(&g.before(9).after(2), &g.window(3, 9));
+        let res = g
+            .window(3, 9)
+            .nodes()
+            .before(6)
+            .edges()
+            .window(1, 9)
+            .earliest_time()
+            .map(|it| it.collect_vec())
+            .collect_vec();
+        assert_eq!(
+            res,
+            [[Some(3), Some(5)], [Some(3), Some(4)], [Some(5), Some(4)]]
+        );
     }
 
     #[test]

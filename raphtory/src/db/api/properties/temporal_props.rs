@@ -3,7 +3,7 @@ use crate::{
     db::api::properties::internal::PropertiesOps,
     prelude::Graph,
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::{collections::HashMap, iter::Zip, sync::Arc};
 
 pub struct TemporalPropertyView<P: PropertiesOps> {
@@ -18,7 +18,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn history(&self) -> Vec<i64> {
         self.props.temporal_history(self.id)
     }
-    pub fn history_date_time(&self) -> Option<Vec<NaiveDateTime>> {
+    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }
     pub fn values(&self) -> Vec<Prop> {
@@ -32,7 +32,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         self.iter()
     }
 
-    pub fn histories_date_time(&self) -> Option<impl Iterator<Item = (NaiveDateTime, Prop)>> {
+    pub fn histories_date_time(&self) -> Option<impl Iterator<Item = (DateTime<Utc>, Prop)>> {
         let hist = self.history_date_time()?;
         let vals = self.values();
         Some(hist.into_iter().zip(vals))

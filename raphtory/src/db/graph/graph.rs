@@ -59,6 +59,53 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     }
 }
 
+pub fn assert_graph_equal<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+>(
+    g1: &G1,
+    g2: &G2,
+) {
+    assert_eq!(
+        g1.count_nodes(),
+        g2.count_nodes(),
+        "mismatched number of nodes: left {}, right {}",
+        g1.count_nodes(),
+        g2.count_nodes()
+    );
+    assert_eq!(
+        g1.count_edges(),
+        g2.count_edges(),
+        "mismatched number of edges: left {}, right {}",
+        g1.count_edges(),
+        g2.count_edges()
+    );
+    assert_eq!(
+        g1.count_temporal_edges(),
+        g2.count_temporal_edges(),
+        "mismatched number of temporal edges: left {}, right {}",
+        g1.count_temporal_edges(),
+        g2.count_temporal_edges()
+    );
+    for n_id in g1.nodes().id() {
+        assert!(g2.has_node(n_id), "missing node {n_id}");
+    }
+    for e in g1.edges().explode() {
+        // all exploded edges exist in other
+        let e2 = g2
+            .edge(e.src().id(), e.dst().id())
+            .expect(&format!("missing edge {:?}", e.id()));
+        assert!(
+            e2.active(e.time().unwrap()),
+            "exploded edge {:?} not active as expected at time {}",
+            e2.id(),
+            e.time().unwrap()
+        )
+    }
+}
+
 impl Display for Graph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
