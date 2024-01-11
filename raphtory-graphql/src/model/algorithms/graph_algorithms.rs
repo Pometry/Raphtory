@@ -1,7 +1,6 @@
 use crate::model::algorithms::{
     algorithm::{Algorithm, Pagerank},
     algorithm_entry_point::AlgorithmEntryPoint,
-    layout_algorithm::Layout,
     RegisterFunction,
 };
 use async_graphql::{dynamic::FieldValue, Context};
@@ -29,10 +28,7 @@ impl From<DynamicGraph> for GraphAlgorithms {
 
 impl<'a> AlgorithmEntryPoint<'a> for GraphAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::from([
-            ("pagerank", Pagerank::register_algo as RegisterFunction),
-            ("layout_rs", Layout::register_algo as RegisterFunction),
-        ])
+        HashMap::from([("pagerank", Pagerank::register_algo as RegisterFunction)])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         GRAPH_ALGO_PLUGINS.lock().unwrap()

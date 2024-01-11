@@ -1374,6 +1374,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
+name = "glam"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "151665d9be52f9bb40fc7966565d39666f2d1e69233571b71b87791c7e0528b3"
+
+[[package]]
 name = "glob"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2687,6 +2693,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quad-rand"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "658fa1faf7a4cc5f057c9ee5ef560f717ad9d8dc66d975267f709624d6e1ab88"
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2871,6 +2883,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "genawaiter",
+ "glam",
  "itertools 0.12.0",
  "kdam",
  "lock_api",
@@ -2884,6 +2897,7 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-asyncio",
+ "quad-rand",
  "quickcheck 1.0.3",
  "quickcheck_macros",
  "rand 0.8.5",
