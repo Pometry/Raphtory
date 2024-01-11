@@ -95,6 +95,18 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.after(time))
     }
 
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_window(start, end))
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_start(start))
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_end(end))
+    }
+
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////

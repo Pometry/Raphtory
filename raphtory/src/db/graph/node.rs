@@ -27,7 +27,8 @@ use crate::{
     prelude::*,
 };
 
-use chrono::NaiveDateTime;
+use crate::core::storage::timeindex::AsTime;
+use chrono::{DateTime, Utc};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -142,11 +143,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeView<G, GH> 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
     for NodeView<G, GH>
 {
-    type Graph = GH;
+    type BaseGraph = G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph>> = NodeView<G, GHH>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         &self.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
@@ -211,12 +217,12 @@ impl<G, GH: TimeSemantics> TemporalPropertyViewOps for NodeView<G, GH> {
             .collect()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<NaiveDateTime>> {
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
             .temporal_node_prop_vec(self.node, id)
             .into_iter()
-            .map(|(t, _)| NaiveDateTime::from_timestamp_millis(t))
-            .collect::<Option<Vec<NaiveDateTime>>>()
+            .map(|(t, _)| t.dt())
+            .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

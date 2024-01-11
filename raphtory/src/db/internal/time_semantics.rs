@@ -28,11 +28,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn view_start(&self) -> Option<i64> {
-        self.earliest_time_global()
+        None
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|t| t.saturating_add(1)) // so it is exclusive
+        None
     }
 
     fn earliest_time_global(&self) -> Option<i64> {

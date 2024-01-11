@@ -121,9 +121,8 @@ impl PyGraphView {
     /// Returns:
     ///     the datetime of the earliest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        let earliest_time = self.graph.earliest_time()?;
-        NaiveDateTime::from_timestamp_millis(earliest_time)
+    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph.earliest_date_time()
     }
 
     /// Timestamp of latest activity in the graph
@@ -140,9 +139,8 @@ impl PyGraphView {
     /// Returns:
     ///     the datetime of the latest activity in the graph
     #[getter]
-    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
-        let latest_time = self.graph.latest_time()?;
-        NaiveDateTime::from_timestamp_millis(latest_time)
+    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph.latest_date_time()
     }
 
     /// Number of edges in the graph

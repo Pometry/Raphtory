@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
+        storage::timeindex::AsTime,
         utils::errors::GraphError,
         ArcStr,
     },
@@ -14,6 +15,7 @@ use crate::{
     },
     prelude::{DeletionOps, NO_PROPS},
 };
+use chrono::{DateTime, Utc};
 use rustc_hash::FxHashSet;
 
 /// This trait GraphViewOps defines operations for accessing
@@ -41,8 +43,18 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of earliest activity in the graph
+    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.earliest_time()?.dt()
+    }
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of latest activity in the graph
+    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.latest_time()?.dt()
+    }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -227,10 +239,15 @@ pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
 impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
-    type Graph = G;
+    type BaseGraph = G;
+    type FilteredGraph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self
     }
 
