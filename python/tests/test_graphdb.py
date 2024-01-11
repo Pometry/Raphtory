@@ -1648,14 +1648,48 @@ def test_materialize_graph():
 
 def test_deletions():
     g = create_graph_with_deletions()
+    deleted_edge = g.edge(edges[0][1], edges[0][2])
     for e in edges:
         assert g.at(e[0]).has_edge(e[1], e[2])
+        assert g.after(e[0]).has_edge(e[1], e[2])
 
+    for e in edges[:-1]:
+        # last update is an existing edge
+        assert not g.before(e[0]).has_edge(e[1], e[2])
+
+    # deleted at window start
+    assert deleted_edge.window(10, 20).is_deleted()
+    assert not deleted_edge.window(10, 20).is_valid()
+    assert deleted_edge.window(10, 20).earliest_time is None
+    assert deleted_edge.window(10, 20).latest_time is None
+
+    # deleted before window start
+    assert deleted_edge.window(15, 20).is_deleted()
+    assert not deleted_edge.window(15, 20).is_valid()
+    assert deleted_edge.window(15, 20).earliest_time is None
+    assert deleted_edge.window(15, 20).latest_time is None
+
+    # deleted in window
+    assert deleted_edge.window(5, 20).is_deleted()
+    assert not deleted_edge.window(5, 20).is_valid()
+    assert deleted_edge.window(5, 20).earliest_time == 5
+    assert deleted_edge.window(5, 20).latest_time == 10
+
+    # check deleted edge is gone at 10
     assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
+    assert not g.at(10).has_edge(edges[0][1], edges[0][2])
+    assert g.before(10).has_edge(edges[0][1], edges[0][2])
+
+    # check not deleted edges are still there
     for e in edges[1:]:
         assert g.after(start=10).has_edge(e[1], e[2])
 
-    assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time) == [10]
+    assert list(deleted_edge.explode().latest_time) == [10]
+    assert list(deleted_edge.explode().earliest_time) == [edges[0][0]]
+
+    # check rolling and expanding behaviour
+    assert not list(g.before(1).node(1).after(1).rolling(1))
+    assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
 
 
 def test_edge_layer():
