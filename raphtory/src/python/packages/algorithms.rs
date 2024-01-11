@@ -13,7 +13,10 @@ use crate::{
         },
         components,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
-        layout::fruchterman_reingold::fruchterman_reingold as fruchterman_reingold_rs,
+        layout::{
+            cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
+            fruchterman_reingold::fruchterman_reingold_unbounded as fruchterman_reingold_rs,
+        },
         metrics::{
             balance::balance as balance_rs,
             degree::{
@@ -687,22 +690,61 @@ pub fn louvain(
     louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
 }
 
+/// Fruchterman Reingold layout algorithm
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     iterations (int | None): the number of iterations to run (default: 100)
+///     scale (float | None): the scale to apply (default: 1.0)
+///     node_start_size (float | None): the start node size to assign random positions (default: 1.0)
+///     cooloff_factor (float | None): the cool off factor for the algorithm (default: 0.95)
+///     dt (float | None): the time increment between iterations (default: 0.1)
+///
+/// Returns:
+///     a dict with the position for each node as a list with two numbers [x, y]
 #[pyfunction]
-#[pyo3[signature=(graph, iterations=100, width=100.0, height=100.0,repulsion=2.0,attraction=2.0)]]
+#[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
 pub fn fruchterman_reingold(
     graph: &PyGraphView,
     iterations: u64,
-    width: f64,
-    height: f64,
-    repulsion: f64,
-    attraction: f64,
-) -> HashMap<u64, [f64; 2]> {
+    scale: f32,
+    node_start_size: f32,
+    cooloff_factor: f32,
+    dt: f32,
+) -> HashMap<u64, [f32; 2]> {
     fruchterman_reingold_rs(
         &graph.graph,
         iterations,
-        width,
-        height,
-        repulsion,
-        attraction,
+        scale,
+        node_start_size,
+        cooloff_factor,
+        dt,
     )
+    .into_iter()
+    .map(|(id, vector)| (id, [vector.x, vector.y]))
+    .collect()
+}
+
+/// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
+#[pyfunction]
+#[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
+pub fn cohesive_fruchterman_reingold(
+    graph: &PyGraphView,
+    iterations: u64,
+    scale: f32,
+    node_start_size: f32,
+    cooloff_factor: f32,
+    dt: f32,
+) -> HashMap<u64, [f32; 2]> {
+    cohesive_fruchterman_reingold_rs(
+        &graph.graph,
+        iterations,
+        scale,
+        node_start_size,
+        cooloff_factor,
+        dt,
+    )
+    .into_iter()
+    .map(|(id, vector)| (id, [vector.x, vector.y]))
+    .collect()
 }
