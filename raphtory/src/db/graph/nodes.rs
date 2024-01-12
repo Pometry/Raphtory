@@ -9,6 +9,17 @@ use crate::{
     },
     prelude::*,
 };
+use crate::{
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+    db::{
+        api::view::{
+            internal::{InternalLayerOps, OneHopFilter, Static},
+            BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+        },
+        graph::path::PathFromGraph,
+    },
+};
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -16,6 +27,17 @@ pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph> + IntoDynamic,
+        GH: GraphViewOps<'graph> + IntoDynamic + Static,
+    > From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
+{
+    fn from(value: Nodes<'graph, G, GH>) -> Self {
+        Nodes::new_filtered(value.base_graph.into_dynamic(), value.graph.into_dynamic())
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Nodes<'graph, G, G> {

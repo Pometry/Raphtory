@@ -47,12 +47,6 @@ impl From<InternalGraph> for GraphWithDeletions {
     }
 }
 
-impl IntoDynamic for GraphWithDeletions {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
-    }
-}
-
 impl Display for GraphWithDeletions {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.graph, f)
