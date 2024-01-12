@@ -4,28 +4,24 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::time::IntoTime,
         ArcStr,
     },
-    db::{
-        api::{
-            properties::{
-                internal::{
-                    ConstPropertiesOps, PropertiesOps, TemporalPropertiesOps,
-                    TemporalPropertyViewOps,
-                },
-                Properties,
+    db::api::{
+        properties::{
+            internal::{
+                ConstPropertiesOps, PropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{
-                internal::{CoreGraphOps, DelegateTimeSemantics, InternalLayerOps, TimeSemantics},
-                BoxedIter,
-            },
+            Properties,
         },
-        graph::edge::EdgeView,
+        view::{
+            internal::{CoreGraphOps, DelegateTimeSemantics, InternalLayerOps, TimeSemantics},
+            BoxedIter,
+        },
     },
-    prelude::{GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
+    prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {

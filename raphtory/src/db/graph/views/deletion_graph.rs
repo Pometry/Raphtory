@@ -773,8 +773,20 @@ mod test_deletions {
     fn test_materialize_only_deletion() {
         let g = GraphWithDeletions::new();
         g.delete_edge(1, 1, 2, None).unwrap();
-
-        assert_eq!(g.materialize().unwrap().into_persistent().unwrap(), g);
+        g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
+        g.delete_edge(5, 1, 2, None).unwrap();
+        g.delete_edge(10, 1, 2, None).unwrap();
+        println!(
+            "actual count for temporal edges: {}",
+            g.edges().explode().iter().count()
+        );
+        println!(
+            "num_nodes = {}, num_edges = {}, num_temporal_edges = {}",
+            g.count_nodes(),
+            g.count_edges(),
+            g.count_temporal_edges()
+        );
+        assert_graph_equal(&g.materialize().unwrap(), &g)
     }
 
     #[test]
