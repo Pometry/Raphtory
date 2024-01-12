@@ -776,17 +776,11 @@ mod test_deletions {
         g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(5, 1, 2, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        println!(
-            "actual count for temporal edges: {}",
-            g.edges().explode().iter().count()
-        );
-        println!(
-            "num_nodes = {}, num_edges = {}, num_temporal_edges = {}",
-            g.count_nodes(),
-            g.count_edges(),
+        assert_eq!(
+            g.window(0, 11).count_temporal_edges(),
             g.count_temporal_edges()
         );
-        assert_graph_equal(&g.materialize().unwrap(), &g)
+        assert_graph_equal(&g.materialize().unwrap(), &g);
     }
 
     #[test]
