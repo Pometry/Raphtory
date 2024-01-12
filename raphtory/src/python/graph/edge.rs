@@ -6,10 +6,7 @@
 //!
 use crate::{
     core::{
-        utils::{
-            errors::GraphError,
-            time::{error::ParseTimeError, IntoTime},
-        },
+        utils::{errors::GraphError, time::error::ParseTimeError},
         ArcStr, Direction,
     },
     db::{
@@ -20,28 +17,20 @@ use crate::{
                 BoxedIter, StaticGraphViewOps, WindowSet,
             },
         },
-        graph::{
-            edge::EdgeView,
-            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
-        },
+        graph::{edge::EdgeView, edges::NestedEdges, views::deletion_graph::GraphWithDeletions},
     },
     prelude::*,
     python::{
-        graph::{
-            node::{PyNestedNodeIterable, PyNode, PyNodeIterable},
-            properties::{PyNestedPropsIterable, PyPropsList},
-        },
+        graph::properties::PyNestedPropsIterable,
         types::{
-            repr::{iterator_repr, Repr},
+            repr::Repr,
             wrappers::iterators::{
-                ArcStringVecIterable, BoolIterable, I64VecIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
-                NestedOptionI64Iterable, NestedU64U64Iterable, NestedUtcDateTimeIterable,
-                NestedVecUtcDateTimeIterable, OptionArcStringIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
+                NestedArcStringVecIterable, NestedBoolIterable, NestedI64VecIterable,
+                NestedOptionArcStringIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
             },
         },
-        utils::{PyGenericIterator, PyInterval, PyTime},
+        utils::{PyInterval, PyTime},
     },
 };
 use chrono::{DateTime, Utc};
@@ -51,7 +40,6 @@ use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     ops::Deref,
-    sync::Arc,
 };
 
 /// PyEdge is a Python class that represents an edge in the graph.
@@ -165,6 +153,7 @@ impl<'source> FromPyObject<'source> for ArcStr {
         ob.extract::<String>().map(|v| v.into())
     }
 }
+impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two nodes.
@@ -253,84 +242,6 @@ impl PyEdge {
         self.edge.properties()
     }
 
-    /// Get the source node of the Edge.
-    ///
-    /// Returns:
-    ///   The source node of the Edge.
-    #[getter]
-    fn src(&self) -> PyNode {
-        self.edge.src().into()
-    }
-
-    /// Get the destination node of the Edge.
-    ///
-    /// Returns:
-    ///   The destination node of the Edge.
-    #[getter]
-    fn dst(&self) -> PyNode {
-        self.edge.dst().into()
-    }
-
-    #[pyo3(signature = (name))]
-    pub fn layer(
-        &self,
-        name: String,
-    ) -> PyResult<EdgeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        if let Some(edge) = self.edge.layer(name.clone()) {
-            Ok(edge)
-        } else {
-            let available_layers = self.edge.layer_names().collect_vec();
-            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!(
-                    "Layer {name:?} not available for edge, available layers: {available_layers:?}"
-                ),
-            ))
-        }
-    }
-
-    /// Get a new Edge with the properties of this Edge within the specified layers.
-    ///
-    /// Arguments:
-    ///   layer_names (List<str>): Layers to be included in the new edge.
-    ///
-    /// Returns:
-    ///   A new Edge with the properties of this Edge within the specified time window.
-    #[pyo3(signature = (layer_names))]
-    pub fn layers(
-        &self,
-        layer_names: Vec<String>,
-    ) -> PyResult<EdgeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        if let Some(edge) = self.edge.layer(layer_names.clone()) {
-            Ok(edge)
-        } else {
-            let available_layers: Vec<_> = self.edge.layer_names().collect();
-            Err(PyErr::new::<pyo3::exceptions::PyAttributeError, _>(
-                format!("Layers {layer_names:?} not available for edge, available layers: {available_layers:?}"),
-            ))
-        }
-    }
-
-    /// Explodes an Edge into a list of PyEdges. This is useful when you want to iterate over
-    /// the properties of an Edge at every single point in time. This will return a seperate edge
-    /// each time a property had been changed.
-    ///
-    /// Returns:
-    ///     A list of PyEdges
-    pub fn explode(&self) -> PyEdges {
-        let edge = self.edge.clone();
-        (move || edge.explode()).into()
-    }
-
-    /// Explodes an Edge into a list of PyEdges, one for each layer the edge is part of. This is useful when you want to iterate over
-    /// the properties of an Edge for every layer.
-    ///
-    /// Returns:
-    ///     A list of PyEdges
-    pub fn explode_layers(&self) -> PyEdges {
-        let edge = self.edge.clone();
-        (move || edge.explode_layers()).into()
-    }
-
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
@@ -409,8 +320,6 @@ impl PyEdge {
     }
 }
 
-impl_timeops!(PyEdge, edge, EdgeView<DynamicGraph, DynamicGraph>, "edge");
-
 impl Repr for PyEdge {
     fn repr(&self) -> String {
         self.edge.repr()
@@ -480,510 +389,81 @@ impl PyMutableEdge {
     }
 }
 
-/// A list of edges that can be iterated over.
-#[pyclass(name = "Edges")]
-pub struct PyEdges {
-    builder:
-        Arc<dyn Fn() -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> + Send + Sync + 'static>,
+#[pyclass(name = "NestedEdges")]
+pub struct PyNestedEdges {
+    edges: NestedEdges<'static, DynamicGraph>,
 }
 
-impl PyEdges {
-    /// an iterable that can be used in rust
-    fn iter(&self) -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> {
-        (self.builder)()
-    }
+impl_edgeviewops!(
+    PyNestedEdges,
+    edges,
+    NestedEdges<'static, DynamicGraph>,
+    "NestedEdges"
+);
 
-    /// returns an iterable used in python
-    fn py_iter(&self) -> BoxedIter<PyEdge> {
-        Box::new(self.iter().map(|e| e.into()))
-    }
-}
-
-#[pymethods]
-impl PyEdges {
-    fn __iter__(&self) -> PyGenericIterator {
-        self.py_iter().into()
-    }
-
-    /// Returns all source nodes of the Edges as an iterable.
-    ///
-    /// Returns:
-    ///   The source nodes of the Edges as an iterable.
-    #[getter]
-    fn src(&self) -> PyNodeIterable {
-        let builder = self.builder.clone();
-        (move || builder().src()).into()
-    }
-
-    /// Returns all destination nodes as an iterable
-    #[getter]
-    fn dst(&self) -> PyNodeIterable {
-        let builder = self.builder.clone();
-        (move || builder().dst()).into()
-    }
-
-    /// Returns all edges as a list
-    fn collect(&self) -> Vec<PyEdge> {
-        self.py_iter().collect()
-    }
-
-    /// Returns the number of edges
-    fn count(&self) -> usize {
-        self.py_iter().count()
-    }
-
-    /// Explodes the edges into a list of edges. This is useful when you want to iterate over
-    /// the properties of an Edge at every single point in time. This will return a seperate edge
-    /// each time a property had been changed.
-    fn explode(&self) -> PyEdges {
-        let builder = self.builder.clone();
-        (move || {
-            let iter: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
-                Box::new(builder().flat_map(|e| e.explode()));
-            iter
-        })
-        .into()
-    }
-
-    /// Explodes each edge into a list of edges, one for each layer the edge is part of. This is useful when you want to iterate over
-    /// the properties of an Edge for every layer.
-    fn explode_layers(&self) -> PyEdges {
-        let builder = self.builder.clone();
-        (move || {
-            let iter: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
-                Box::new(builder().flat_map(|e| e.explode_layers()));
-            iter
-        })
-        .into()
-    }
-
-    /// Returns the earliest time of the edges.
-    ///
-    /// Returns:
-    /// Earliest time of the edges.
-    #[getter]
-    fn earliest_time(&self) -> OptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().earliest_time()).into()
-    }
-
-    /// Returns the earliest date time of the edges.
-    ///
-    /// Returns:
-    ///  Earliest date time of the edges.
-    #[getter]
-    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().earliest_date_time()).into()
-    }
-
-    /// Returns the latest time of the edges.
-    ///
-    /// Returns:
-    ///  Latest time of the edges.
-    #[getter]
-    fn latest_time(&self) -> OptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().latest_time()).into()
-    }
-
-    /// Returns the latest date time of the edges.
-    ///
-    /// Returns:
-    ///   Latest date time of the edges.
-    #[getter]
-    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().latest_date_time()).into()
-    }
-
-    /// Returns the date times of exploded edges
-    ///
-    /// Returns:
-    ///    A list of date times.
-    #[getter]
-    fn date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().date_time()).into()
-    }
-
-    /// Returns the times of exploded edges
-    ///
-    /// Returns:
-    ///   Time of edge
-    #[getter]
-    fn time(&self) -> OptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().time()).into()
-    }
-
-    /// Returns all properties of the edges
-    #[getter]
-    fn properties(&self) -> PyPropsList {
-        let builder = self.builder.clone();
-        (move || builder().properties()).into()
-    }
-
-    /// Returns all ids of the edges.
-    #[getter]
-    fn id(&self) -> U64U64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().id()).into()
-    }
-
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///    A list of lists unix timestamps.
-    ///
-    fn history(&self) -> I64VecIterable {
-        let edges = self.builder.clone();
-        (move || edges().history()).into()
-    }
-
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///    A list of lists of timestamps.
-    ///
-    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().history_date_time()).into()
-    }
-
-    /// Returns all timestamps of edges where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of unix timestamps
-    fn deletions(&self) -> I64VecIterable {
-        let edges = self.builder.clone();
-        (move || edges().deletions()).into()
-    }
-
-    /// Returns all timestamps of edges where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of DateTime objects
-    fn deletions_date_time(&self) -> OptionVecUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().deletions_date_time()).into()
-    }
-
-    /// Check if the edges are valid (i.e. not deleted)
-    fn is_valid(&self) -> BoolIterable {
-        let edges = self.builder.clone();
-        (move || edges().is_valid()).into()
-    }
-
-    /// Check if the edges are deleted
-    fn is_deleted(&self) -> BoolIterable {
-        let edges = self.builder.clone();
-        (move || edges().is_deleted()).into()
-    }
-
-    /// Get the start time of all edges
-    ///
-    /// Returns:
-    ///     The start time of all edges
-    #[getter]
-    fn start(&self) -> OptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().start()).into()
-    }
-
-    /// Get the start date time of all edges
-    ///
-    /// Returns:
-    ///     The start date time of all edges
-    #[getter]
-    fn start_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().start_date_time()).into()
-    }
-
-    /// Get the end time of all edges
-    ///
-    /// Returns:
-    /// The end time of all edges
-    #[getter]
-    fn end(&self) -> OptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().end()).into()
-    }
-
-    /// Get the end date time of all edges
-    ///
-    /// Returns:
-    ///  The end date time of all edges
-    #[getter]
-    fn end_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().end_date_time()).into()
-    }
-
-    /// Get the layer name that all edges belong to - assuming they only belong to one layer
-    ///
-    /// Returns:
-    ///  The name of the layer
-    #[getter]
-    fn layer_name(&self) -> OptionArcStringIterable {
-        let edges = self.builder.clone();
-        (move || edges().layer_name()).into()
-    }
-
-    /// Get the layer names that all edges belong to - assuming they only belong to one layer
-    ///
-    /// Returns:
-    ///   A list of layer names
-    #[getter]
-    fn layer_names(&self) -> ArcStringVecIterable {
-        let edges = self.builder.clone();
-        (move || edges().layer_names().map(|e| e.collect_vec())).into()
-    }
-
-    /// Get edges with the properties of these edges within the specified layer.
-    ///
-    /// Arguments:
-    ///     name (str): The name of the layer.
-    ///
-    /// Returns:
-    ///    A list of edges with the properties of these edges within the specified layer.
-    #[pyo3(signature = (name))]
-    fn layer(&self, name: String) -> PyEdges {
-        let builder = self.builder.clone();
-        let layers: Layer = name.into();
-        (move || {
-            let layers = layers.clone();
-            let box_builder: Box<
-                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
-            > = Box::new(builder().flat_map(move |e| {
-                e.layer(layers.clone())
-                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e))
-            }));
-            box_builder
-        })
-        .into()
-    }
-
-    /// Get edges with the properties of these edges within the specified layers.
-    ///
-    /// Arguments:
-    ///    layer_names ([str]): The names of the layers.
-    ///
-    /// Returns:
-    ///   A list of edges with the properties of these edges within the specified layers.
-    #[pyo3(signature = (layer_names))]
-    fn layers(&self, layer_names: Vec<String>) -> PyEdges {
-        let builder = self.builder.clone();
-        let layers: Layer = layer_names.into();
-
-        (move || {
-            let layers = layers.clone();
-            let box_builder: Box<
-                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
-            > = Box::new(builder().flat_map(move |e| {
-                e.layer(layers.clone())
-                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e))
-            }));
-            box_builder
-        })
-        .into()
-    }
-
-    /// Get edges with the properties of these edges within the specific time window.
-    ///
-    /// Arguments:
-    ///    start (int | str): The start time of the window (optional).
-    ///    end (int | str): The end time of the window (optional).
-    ///
-    /// Returns:
-    ///  A list of edges with the properties of these edges within the specified time window.
-    #[pyo3(signature = (start = None, end = None))]
-    fn window(&self, start: Option<PyTime>, end: Option<PyTime>) -> PyEdges {
-        let builder = self.builder.clone();
-
-        (move || {
-            let start = start.clone().unwrap_or(PyTime::MIN);
-            let end = end.clone().unwrap_or(PyTime::MAX);
-            let box_builder: Box<
-                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
-            > = Box::new(
-                builder()
-                    .map(move |e| e.window(start.clone(), end.clone()))
-                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
-            );
-            box_builder
-        })
-        .into()
-    }
-
-    /// Get edges with the properties of these edges at a specific time.
-    ///
-    /// Arguments:
-    ///     end(int): The time to get the properties at.
-    ///
-    /// Returns:
-    ///    A list of edges with the properties of these edges at a specific time.
-    #[pyo3(signature = (end))]
-    fn at(&self, end: PyTime) -> PyEdges {
-        let builder = self.builder.clone();
-
-        (move || {
-            let end = end.clone();
-            let box_builder: Box<
-                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
-            > = Box::new(
-                builder()
-                    .map(move |e| e.at(end.clone()))
-                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
-            );
-            box_builder
-        })
-        .into()
-    }
-
-    /// Filter edges to only include events before `end`.
-    ///
-    /// Arguments:
-    ///     end(int): The end time of the window (exclusive).
-    ///
-    /// Returns:
-    ///    A list of edges with the window filter applied.
-    fn before(&self, end: PyTime) -> PyEdges {
-        let builder = self.builder.clone();
-        let end = end.into_time();
-
-        (move || {
-            let box_builder: Box<
-                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
-            > = Box::new(
-                builder()
-                    .map(move |e| e.before(end))
-                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
-            );
-            box_builder
-        })
-        .into()
-    }
-
-    /// Filter edges to only include events after `start`.
-    ///
-    /// Arguments:
-    ///     start(int): The start time of the window (exclusive).
-    ///
-    /// Returns:
-    ///    A list of edges with the window filter applied.
-    fn after(&self, start: PyTime) -> PyEdges {
-        let builder = self.builder.clone();
-        let start = start.into_time();
-
-        (move || {
-            let box_builder: Box<
-                (dyn Iterator<Item = EdgeView<DynamicGraph, DynamicGraph>> + Send + 'static),
-            > = Box::new(
-                builder()
-                    .map(move |e| e.after(start))
-                    .map(|e| <EdgeView<DynamicGraph, DynamicGraph>>::from(e)),
-            );
-            box_builder
-        })
-        .into()
-    }
-
-    fn __repr__(&self) -> String {
-        self.repr()
-    }
-
-    fn __len__(&self) -> usize {
-        self.count()
-    }
-}
-
-impl Repr for PyEdges {
-    fn repr(&self) -> String {
-        format!("Edges({})", iterator_repr(self.iter()))
-    }
-}
-
-impl<F: Fn() -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> + Send + Sync + 'static> From<F>
-    for PyEdges
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
+    for NestedEdges<'static, G, GH>
 {
-    fn from(value: F) -> Self {
-        Self {
-            builder: Arc::new(value),
-        }
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        let edges = NestedEdges {
+            graph: self.graph.into_dynamic(),
+            nodes: self.nodes,
+            base_graph: self.base_graph.into_dynamic(),
+            edges: self.edges,
+        };
+        PyNestedEdges { edges }.into_py(py)
     }
 }
-
-py_nested_iterable!(PyNestedEdges, EdgeView<DynamicGraph, DynamicGraph>);
-
 #[pymethods]
 impl PyNestedEdges {
-    /// Returns all source nodes of the Edges as an iterable.
-    ///
-    /// Returns:
-    ///   The source verticeÍs of the Edges as an iterable.
-    #[getter]
-    fn src(&self) -> PyNestedNodeIterable {
-        let builder = self.builder.clone();
-        (move || builder().src()).into()
-    }
-
-    /// Returns all destination nodes as an iterable
-    #[getter]
-    fn dst(&self) -> PyNestedNodeIterable {
-        let builder = self.builder.clone();
-        (move || builder().dst()).into()
-    }
-
     /// Returns the earliest time of the edges.
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().earliest_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.earliest_time()).into()
     }
 
     /// Returns the earliest date time of the edges.
     #[getter]
     fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().earliest_date_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.earliest_date_time()).into()
     }
 
     /// Returns the latest time of the edges.
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().latest_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.latest_time()).into()
     }
 
     /// Returns the latest date time of the edges.
     #[getter]
     fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().latest_date_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.latest_date_time()).into()
     }
 
     /// Returns the times of exploded edges
     #[getter]
     fn time(&self) -> NestedOptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().time()).into()
+        let edges = self.edges.clone();
+        (move || edges.time()).into()
     }
 
     /// Returns the name of the layer the edges belong to - assuming they only belong to one layer
     #[getter]
     fn layer_name(&self) -> NestedOptionArcStringIterable {
-        let edges = self.builder.clone();
-        (move || edges().layer_name()).into()
+        let edges = self.edges.clone();
+        (move || edges.layer_name()).into()
     }
 
     /// Returns the names of the layers the edges belong to
     #[getter]
     fn layer_names(&self) -> NestedArcStringVecIterable {
-        let edges = self.builder.clone();
+        let edges = self.edges.clone();
         (move || {
-            edges().layer_names().map(
+            edges.layer_names().map(
                 |e: Box<dyn Iterator<Item = Box<dyn Iterator<Item = ArcStr> + Send>> + Send>| {
                     e.map(|e| e.collect_vec())
                 },
@@ -996,57 +476,27 @@ impl PyNestedEdges {
     /// Returns all properties of the edges
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
-        let builder = self.builder.clone();
-        (move || builder().properties()).into()
+        let edges = self.edges.clone();
+        (move || edges.properties()).into()
     }
 
     /// Returns all ids of the edges.
     #[getter]
     fn id(&self) -> NestedU64U64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().id()).into()
-    }
-
-    /// Explode each edge, creating a separate edge instance for each edge event
-    fn explode(&self) -> PyNestedEdges {
-        let builder = self.builder.clone();
-        (move || {
-            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph, DynamicGraph>>> =
-                Box::new(builder().map(|e| {
-                    let inner_box: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
-                        Box::new(e.flat_map(|e| e.explode()));
-                    inner_box
-                }));
-            iter
-        })
-        .into()
-    }
-
-    /// Explode each edge over layers, creating a separate edge instance for each layer the edge is part of
-    fn explode_layers(&self) -> PyNestedEdges {
-        let builder = self.builder.clone();
-        (move || {
-            let iter: BoxedIter<BoxedIter<EdgeView<DynamicGraph, DynamicGraph>>> =
-                Box::new(builder().map(|e| {
-                    let inner_box: BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> =
-                        Box::new(e.flat_map(|e| e.explode_layers()));
-                    inner_box
-                }));
-            iter
-        })
-        .into()
+        let edges = self.edges.clone();
+        (move || edges.id()).into()
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
     fn history(&self) -> NestedI64VecIterable {
-        let edges = self.builder.clone();
-        (move || edges().history()).into()
+        let edges = self.edges.clone();
+        (move || edges.history()).into()
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
     fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().history_date_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.history_date_time()).into()
     }
 
     /// Returns all timestamps of edges, where an edge is deleted
@@ -1054,8 +504,8 @@ impl PyNestedEdges {
     /// Returns:
     ///     A list of lists of lists of unix timestamps
     fn deletions(&self) -> NestedI64VecIterable {
-        let edges = self.builder.clone();
-        (move || edges().deletions()).into()
+        let edges = self.edges.clone();
+        (move || edges.deletions()).into()
     }
 
     /// Returns all timestamps of edges, where an edge is deleted
@@ -1063,55 +513,27 @@ impl PyNestedEdges {
     /// Returns:
     ///     A list of lists of lists of DateTime objects
     fn deletions_date_time(&self) -> NestedVecUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().deletions_date_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.deletions_date_time()).into()
     }
 
     /// Check if edges are valid (i.e., not deleted)
     fn is_valid(&self) -> NestedBoolIterable {
-        let edges = self.builder.clone();
-        (move || edges().is_valid()).into()
+        let edges = self.edges.clone();
+        (move || edges.is_valid()).into()
     }
 
     /// Check if edges are deleted
     fn is_deleted(&self) -> NestedBoolIterable {
-        let edges = self.builder.clone();
-        (move || edges().is_deleted()).into()
-    }
-
-    /// Get the start time of all edges
-    #[getter]
-    fn start(&self) -> NestedOptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().start()).into()
-    }
-
-    /// Get the start date time of all edges
-    #[getter]
-    fn start_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().start_date_time()).into()
-    }
-
-    /// Get the end time of all edges
-    #[getter]
-    fn end(&self) -> NestedOptionI64Iterable {
-        let edges = self.builder.clone();
-        (move || edges().end()).into()
-    }
-
-    /// Get the end date time of all edges
-    #[getter]
-    fn end_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().end_date_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.is_deleted()).into()
     }
 
     /// Get the date times of exploded edges
     #[getter]
     fn date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.builder.clone();
-        (move || edges().date_time()).into()
+        let edges = self.edges.clone();
+        (move || edges.date_time()).into()
     }
 }
 

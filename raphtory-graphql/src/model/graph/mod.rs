@@ -70,6 +70,7 @@ fn get_expanded_edges(
             let mut r = e
                 .dst()
                 .edges()
+                .iter()
                 .filter(|e| {
                     (node_found_in_first_hop_nodes(e.src().name())
                         && node_found_in_first_hop_nodes(e.dst().name()))
@@ -83,6 +84,7 @@ fn get_expanded_edges(
             let mut r = e
                 .src()
                 .edges()
+                .iter()
                 .filter(|e| {
                     (node_found_in_first_hop_nodes(e.src().name())
                         && node_found_in_first_hop_nodes(e.dst().name()))

@@ -16,7 +16,9 @@ use crate::{
         },
         graph::{
             edge::EdgeView,
+            edges::Edges,
             node::NodeView,
+            nodes::Nodes,
             views::{
                 layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
             },
@@ -24,7 +26,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, node::PyNodes},
+        graph::node::PyNodes,
         types::repr::{Repr, StructReprBuilder},
         utils::{PyInterval, PyTime},
     },
@@ -68,6 +70,9 @@ impl<'source> FromPyObject<'source> for DynamicGraph {
 pub struct PyGraphView {
     pub graph: DynamicGraph,
 }
+
+impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -183,13 +188,12 @@ impl PyGraphView {
     /// Arguments:
     ///   src (str or int): the source node id
     ///   dst (str or int): the destination node id
-    ///   layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
-    #[pyo3(signature = (src, dst, layer=None))]
-    pub fn has_edge(&self, src: NodeRef, dst: NodeRef, layer: Option<&str>) -> bool {
-        self.graph.has_edge(src, dst, layer)
+    #[pyo3(signature = (src, dst))]
+    pub fn has_edge(&self, src: NodeRef, dst: NodeRef) -> bool {
+        self.graph.has_edge(src, dst)
     }
 
     //******  Getter APIs ******//
@@ -210,8 +214,8 @@ impl PyGraphView {
     /// Returns:
     ///  the nodes in the graph
     #[getter]
-    pub fn nodes(&self) -> PyNodes {
-        self.graph.nodes().into()
+    pub fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+        self.graph.nodes()
     }
 
     /// Gets the edge with the specified source and destination nodes
@@ -233,26 +237,8 @@ impl PyGraphView {
     /// Returns:
     ///  the edges in the graph
     #[getter]
-    pub fn edges(&self) -> PyEdges {
-        let clone = self.graph.clone();
-        (move || clone.edges()).into()
-    }
-
-    #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> LayeredGraph<DynamicGraph> {
-        self.graph.default_layer()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (names))]
-    pub fn layers(&self, names: Vec<String>) -> Option<LayeredGraph<DynamicGraph>> {
-        self.graph.layer(names)
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(&self, name: String) -> Option<LayeredGraph<DynamicGraph>> {
-        self.graph.layer(name)
+    pub fn edges(&self) -> Edges<'static, DynamicGraph> {
+        self.graph.edges()
     }
 
     /// Get all graph properties
@@ -295,8 +281,6 @@ impl PyGraphView {
         self.repr()
     }
 }
-
-impl_timeops!(PyGraphView, graph, DynamicGraph, "graph");
 
 impl Repr for PyGraphView {
     fn repr(&self) -> String {

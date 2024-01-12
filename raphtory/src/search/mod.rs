@@ -416,7 +416,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         destination_field: Field,
         edge_id_field: Field,
     ) -> tantivy::Result<()> {
-        let edge_ref = e_ref.eref();
+        let edge_ref = e_ref.edge;
 
         let src = e_ref.src();
         let dst = e_ref.dst();

@@ -123,6 +123,9 @@ mod test {
     #[test]
     fn lfr_test() {
         use crate::graph_loader::source::csv_loader::CsvLoader;
+        use serde::{Deserialize, Serialize};
+        use std::path::PathBuf;
+
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("resources/test");
         let loader = CsvLoader::new(d.join("test.csv")).set_delimiter(",");

@@ -442,7 +442,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                     None => Box::new(std::iter::empty()),
                     Some(node) => {
                         let edges = node.edges();
-                        let edge_docs = edges.flat_map(|edge| {
+                        let edge_docs = edges.iter().flat_map(|edge| {
                             let edge_id = EntityId::from_edge(&edge);
                             self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
                         });

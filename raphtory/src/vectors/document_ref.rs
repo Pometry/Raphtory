@@ -80,7 +80,7 @@ impl DocumentRef {
     fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: &G) -> bool {
         match self.entity_id {
             EntityId::Node { id } => graph.has_node(id),
-            EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
+            EntityId::Edge { src, dst } => graph.has_edge(src, dst),
             // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
     }

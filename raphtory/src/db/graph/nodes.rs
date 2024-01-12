@@ -12,7 +12,7 @@ use crate::{
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Nodes<'graph, G, GH> {
+pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
