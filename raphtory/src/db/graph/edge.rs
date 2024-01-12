@@ -25,7 +25,7 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{InternalLayerOps, OneHopFilter, Static},
+                internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
             },
         },

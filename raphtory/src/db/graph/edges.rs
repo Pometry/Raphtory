@@ -1,18 +1,16 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+    core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
             properties::Properties,
-            view::{
-                internal::OneHopFilter, BaseEdgeViewOps, BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
-            },
+            view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, Layer},
+    prelude::GraphViewOps,
 };
 use std::sync::Arc;
 

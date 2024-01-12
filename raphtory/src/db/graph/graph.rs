@@ -209,7 +209,7 @@ mod db_tests {
         },
         db::{
             api::view::{EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
-            graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
+            graph::{edges::Edges, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},

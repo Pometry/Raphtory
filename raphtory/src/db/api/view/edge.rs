@@ -6,18 +6,12 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::time::IntoTime,
         ArcStr,
     },
     db::api::{
-        properties::{
-            internal::{
-                ConstPropertiesOps, PropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-            },
-            Properties,
-        },
+        properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{CoreGraphOps, DelegateTimeSemantics, InternalLayerOps, TimeSemantics},
+            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
             BoxedIter,
         },
     },

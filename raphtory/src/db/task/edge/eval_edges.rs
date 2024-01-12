@@ -2,21 +2,20 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         state::compute_state::ComputeState,
-        utils::{errors::GraphError, time::IntoTime},
     },
     db::{
         api::{
             properties::Properties,
             view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
         },
-        graph::{edge::EdgeView, edges::Edges},
+        graph::edges::Edges,
         task::{
             edge::eval_edge::EvalEdgeView,
             node::{eval_node::EvalPathFromNode, eval_node_state::EVState},
             task_state::Local2,
         },
     },
-    prelude::{GraphViewOps, Layer, LayerOps, TimeOps},
+    prelude::GraphViewOps,
 };
 use std::{cell::RefCell, rc::Rc};
 

@@ -1,15 +1,11 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+    core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
             properties::Properties,
-            view::{
-                internal::{InternalLayerOps, OneHopFilter},
-                BaseNodeViewOps, BoxedLIter, IntoDynBoxed, Layer,
-            },
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
-            edge::EdgeView,
             edges::{Edges, NestedEdges},
             node::NodeView,
         },
@@ -18,7 +14,6 @@ use crate::{
 };
 use std::sync::Arc;
 
-pub(crate) type Operation<'a> = Arc<dyn Fn(VID) -> BoxedLIter<'a, VID> + Send + Sync + 'a>;
 #[derive(Clone)]
 pub struct PathFromGraph<'graph, G, GH> {
     pub(crate) graph: GH,

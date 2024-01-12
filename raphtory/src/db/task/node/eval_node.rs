@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         state::{
             accumulator_id::AccId,
             agg::Accumulator,
@@ -11,15 +11,12 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{
-                internal::{InternalLayerOps, OneHopFilter},
-                BaseNodeViewOps,
-            },
+            view::{internal::OneHopFilter, BaseNodeViewOps},
         },
         graph::{node::NodeView, path::PathFromNode},
-        task::{edge::eval_edge::EvalEdgeView, node::eval_node_state::EVState, task_state::Local2},
+        task::{node::eval_node_state::EVState, task_state::Local2},
     },
-    prelude::{GraphViewOps, Layer},
+    prelude::GraphViewOps,
 };
 
 use crate::db::task::edge::eval_edges::EvalEdges;

@@ -4,17 +4,12 @@ use crate::{
         storage::timeindex::AsTime,
         Direction,
     },
-    db::{
-        api::{
-            properties::{internal::PropertiesOps, Properties},
-            view::{
-                internal::{
-                    CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, TimeSemantics,
-                },
-                BoxedLIter, IntoDynBoxed, TimeOps,
-            },
+    db::api::{
+        properties::{internal::PropertiesOps, Properties},
+        view::{
+            internal::{CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, TimeSemantics},
+            TimeOps,
         },
-        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };

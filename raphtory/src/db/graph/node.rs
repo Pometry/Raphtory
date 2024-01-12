@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
         ArcStr,
@@ -18,11 +18,11 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{CoreGraphOps, InternalLayerOps, OneHopFilter, Static, TimeSemantics},
-                BaseNodeViewOps, BoxedLIter, IntoDynBoxed, Layer, StaticGraphViewOps,
+                internal::{CoreGraphOps, OneHopFilter, Static, TimeSemantics},
+                BaseNodeViewOps, IntoDynBoxed, StaticGraphViewOps,
             },
         },
-        graph::{edge::EdgeView, path::PathFromNode},
+        graph::path::PathFromNode,
     },
     prelude::*,
 };

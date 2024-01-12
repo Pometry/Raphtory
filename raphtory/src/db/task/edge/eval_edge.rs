@@ -1,22 +1,14 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, VID},
         state::compute_state::ComputeState,
-        utils::time::IntoTime,
-        ArcStr, Prop,
     },
     db::{
         api::{
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-                Properties,
-            },
-            view::{
-                internal::{InternalLayerOps, OneHopFilter},
-                *,
-            },
+            properties::Properties,
+            view::{internal::OneHopFilter, *},
         },
-        graph::{edge::EdgeView, views::window_graph::WindowedGraph},
+        graph::edge::EdgeView,
         task::{
             node::{eval_node::EvalNodeView, eval_node_state::EVState},
             task_state::Local2,
@@ -24,8 +16,8 @@ use crate::{
     },
 };
 
-use crate::db::task::{edge::eval_edges::EvalEdges, node::eval_node::EvalPathFromNode};
-use chrono::{DateTime, Utc};
+use crate::db::task::edge::eval_edges::EvalEdges;
+
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
@@ -56,15 +48,6 @@ impl<
             node_state,
             local_state_prev,
         }
-    }
-
-    pub(crate) fn new_edge(&self, edge: EdgeView<&'graph G, GH>) -> Self {
-        Self::new(
-            self.ss,
-            edge,
-            self.node_state.clone(),
-            self.local_state_prev,
-        )
     }
 }
 

@@ -715,8 +715,7 @@ mod views_test {
     use super::*;
     use crate::{
         algorithms::centrality::degree_centrality::degree_centrality,
-        db::{api::view::Layer, graph::graph::assert_graph_equal},
-        prelude::*,
+        db::graph::graph::assert_graph_equal, prelude::*,
     };
     use itertools::Itertools;
     use quickcheck::TestResult;

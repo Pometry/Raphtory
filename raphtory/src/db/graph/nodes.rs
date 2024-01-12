@@ -1,29 +1,15 @@
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
-        api::{properties::Properties, view::Layer},
-        graph::{
-            edge::EdgeView,
-            // path::{Operations, PathFromGraph},
-            node::NodeView,
+        api::{
+            properties::Properties,
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
+        graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
     },
     prelude::*,
 };
-use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-    db::{
-        api::view::{
-            internal::{EdgeFilterOps, GraphOps, InternalLayerOps, OneHopFilter},
-            BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
-        },
-        graph::{
-            edges::{Edges, NestedEdges},
-            path::PathFromGraph,
-        },
-    },
-};
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH> {

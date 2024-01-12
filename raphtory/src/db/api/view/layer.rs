@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError, ArcStr},
+    core::{utils::errors::GraphError, ArcStr},
     db::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,

@@ -69,12 +69,9 @@ mod test {
         prelude::*,
     };
     use proptest::prelude::*;
-    use serde::{Deserialize, Serialize};
-    use std::path::PathBuf;
 
     #[test]
     fn test_louvain() {
-        let g = Graph::new();
         let edges = vec![
             (100, 200, 2.0f64),
             (100, 300, 3.0f64),
