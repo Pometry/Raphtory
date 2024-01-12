@@ -1,6 +1,7 @@
 use crate::model::{filters::node_filter::NodeFilter, graph::node::Node};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
+    core::utils::errors::GraphError,
     db::{api::view::DynamicGraph, graph::nodes::Nodes},
     prelude::*,
 };
@@ -35,11 +36,11 @@ impl GqlNodes {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Option<Self> {
+    async fn layers(&self, names: Vec<String>) -> Result<Self, GraphError> {
         self.nn.layer(names).map(|v| self.update(v))
     }
 
-    async fn layer(&self, name: String) -> Option<Self> {
+    async fn layer(&self, name: String) -> Result<Self, GraphError> {
         self.nn.layer(name).map(|v| self.update(v))
     }
 

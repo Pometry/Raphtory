@@ -2,11 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef,
-        utils::{errors::GraphError, time::error::ParseTimeError},
-        Prop,
-    },
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
     db::{
         api::{
             properties::Properties,
@@ -16,21 +12,17 @@ use crate::{
             },
         },
         graph::{
-            edges::Edges,
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
+            views::deletion_graph::GraphWithDeletions,
         },
     },
     prelude::Graph,
     python::{
-        graph::{
-            edge::PyNestedEdges,
-            properties::{PyNestedPropsIterable, PyPropsList},
-        },
+        graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{repr::StructReprBuilder, wrappers::iterators::*},
-        utils::{PyGenericIterator, PyInterval, PyTime},
+        utils::{PyGenericIterator, PyTime},
     },
     *,
 };
@@ -40,7 +32,7 @@ use pyo3::{
     prelude::*,
     pyclass,
     pyclass::CompareOp,
-    pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python,
+    pymethods, PyAny, PyObject, PyRef, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
 use std::collections::HashMap;

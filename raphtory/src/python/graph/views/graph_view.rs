@@ -1,17 +1,13 @@
 //! The API for querying a view of the graph in a read-only state
 
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef,
-        utils::{errors::GraphError, time::error::ParseTimeError},
-        ArcStr,
-    },
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
     db::{
         api::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-                LayerOps, StaticGraphViewOps, WindowSet,
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
@@ -26,11 +22,9 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::node::PyNodes,
         types::repr::{Repr, StructReprBuilder},
-        utils::{PyInterval, PyTime},
+        utils::PyTime,
     },
-    *,
 };
 use chrono::prelude::*;
 use pyo3::{prelude::*, types::PyBytes};

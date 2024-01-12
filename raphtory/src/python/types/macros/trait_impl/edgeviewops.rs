@@ -1,13 +1,3 @@
-use crate::{
-    core::{storage::timeindex::TimeIndexEntry, ArcStr},
-    db::api::{
-        properties::{internal::PropertiesOps, Properties},
-        view::BoxedIter,
-    },
-    prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
-};
-use chrono::{DateTime, Utc};
-
 /// Macro for implementing all the LayerOps methods on a python wrapper
 ///
 /// # Arguments

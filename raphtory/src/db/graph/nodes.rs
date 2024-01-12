@@ -3,23 +3,15 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{
+                internal::{OneHopFilter, Static},
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+            },
         },
         graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
     },
     prelude::*,
 };
-use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-    db::{
-        api::view::{
-            internal::{InternalLayerOps, OneHopFilter, Static},
-            BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-        },
-        graph::path::PathFromGraph,
-    },
-};
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Clone)]

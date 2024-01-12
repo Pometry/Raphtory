@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    prelude::{Layer, NodeViewOps},
+    prelude::NodeViewOps,
     vectors::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },

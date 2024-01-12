@@ -19,7 +19,6 @@ use crate::{
 };
 use itertools::Itertools;
 use pyo3::{pyclass, pymethods, IntoPy, PyObject, Python};
-use std::sync::Arc;
 
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
@@ -27,7 +26,7 @@ pub struct PyEdges {
     edges: Edges<'static, DynamicGraph>,
 }
 
-impl_timeops!(PyEdges, edges, Edges<'static, DynamicGraph>, "Edges");
+impl_edgeviewops!(PyEdges, edges, Edges<'static, DynamicGraph>, "Edges");
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for Edges<'static, G, GH>

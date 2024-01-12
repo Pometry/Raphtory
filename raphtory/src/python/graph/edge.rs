@@ -5,16 +5,13 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::{
-        utils::{errors::GraphError, time::error::ParseTimeError},
-        ArcStr, Direction,
-    },
+    core::{utils::errors::GraphError, ArcStr, Direction},
     db::{
         api::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
-                BoxedIter, StaticGraphViewOps, WindowSet,
+                StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, edges::NestedEdges, views::deletion_graph::GraphWithDeletions},
@@ -30,7 +27,7 @@ use crate::{
                 NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
             },
         },
-        utils::{PyInterval, PyTime},
+        utils::PyTime,
     },
 };
 use chrono::{DateTime, Utc};

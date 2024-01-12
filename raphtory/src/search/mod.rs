@@ -22,7 +22,7 @@ use crate::{
         api::{
             mutation::internal::InternalAdditionOps,
             view::{
-                internal::{DynamicGraph, InheritViewOps, IntoDynamic},
+                internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 StaticGraphViewOps,
             },
         },
