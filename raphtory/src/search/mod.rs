@@ -22,7 +22,7 @@ use crate::{
         api::{
             mutation::internal::InternalAdditionOps,
             view::{
-                internal::{DynamicGraph, InheritViewOps, IntoDynamic},
+                internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 EdgeViewInternalOps, StaticGraphViewOps,
             },
         },
@@ -48,11 +48,7 @@ impl<G> Deref for IndexedGraph<G> {
     }
 }
 
-impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
-    }
-}
+impl<G: StaticGraphViewOps> Static for IndexedGraph<G> {}
 
 impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
 

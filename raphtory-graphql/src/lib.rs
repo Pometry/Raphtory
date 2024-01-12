@@ -58,7 +58,7 @@ mod graphql_test {
             .expect("Could not add node!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = data::Data::from_map(graphs);
+        let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -104,7 +104,9 @@ mod graphql_test {
         {
           graph(name: "lotr") {
             nodes {
-              id
+              list {
+                id
+              }
             }
           }
         }
@@ -115,13 +117,15 @@ mod graphql_test {
 
         assert_eq!(
             data,
-            serde_json::json!({
+            json!({
                 "graph": {
-                    "nodes": [
-                        {
-                            "id": "11"
-                        }
-                    ]
+                    "nodes": {
+                        "list": [
+                            {
+                                "id": "11"
+                            }
+                        ]
+                    }
                 }
             }),
         );
@@ -149,7 +153,9 @@ mod graphql_test {
         {
           graph(name: "lotr") {
             nodes(filter: { name: { eq: "gandalf" } }) {
-              name
+              list {
+                name
+              }
             }
           }
         }
@@ -163,11 +169,11 @@ mod graphql_test {
             data,
             json!({
                 "graph": {
-                    "nodes": [
-                        {
-                            "name": "gandalf"
-                        }
-                    ]
+                    "nodes": {
+                        "list": [
+                            {"name": "gandalf"}
+                        ]
+                    }
                 }
             }),
         );
@@ -176,7 +182,9 @@ mod graphql_test {
         {
           graph(name: "lotr") {
             nodes(filter: { name: { ne: "gandalf" } }) {
-              name
+              list {
+                name
+              }
             }
           }
         }
@@ -190,10 +198,12 @@ mod graphql_test {
             data,
             json!({
                 "graph": {
-                    "nodes": [
-                        { "name": "bilbo" },
-                        { "name": "frodo" }
-                    ]
+                    "nodes": {
+                        "list": [
+                            { "name": "bilbo" },
+                            { "name": "frodo" }
+                        ]
+                    }
                 }
             }),
         );
@@ -223,7 +233,9 @@ mod graphql_test {
             nodes(filter: { propertyHas: {
                             key: "food"
                           }}) {
-              name
+              list {
+                name
+              }
             }
           }
         }
@@ -237,10 +249,12 @@ mod graphql_test {
             data,
             json!({
                 "graph": {
-                    "nodes": [
-                        { "name": "bilbo" },
-                        { "name": "frodo" },
-                    ]
+                    "nodes": {
+                        "list": [
+                            { "name": "bilbo" },
+                            { "name": "frodo" },
+                        ]
+                    }
                 }
             }),
         );
@@ -251,7 +265,9 @@ mod graphql_test {
             nodes(filter: { propertyHas: {
                             valueStr: "lots"
                           }}) {
-              name
+              list {
+                name
+              }
             }
           }
         }
@@ -265,9 +281,11 @@ mod graphql_test {
             data,
             json!({
                 "graph": {
-                    "nodes": [
-                        { "name": "bilbo" },
-                    ]
+                    "nodes": {
+                        "list": [
+                            { "name": "bilbo" },
+                        ]
+                    }
                 }
             }),
         );
@@ -303,7 +321,9 @@ mod graphql_test {
                 r#"{{
                   graph(name: "{}") {{
                     nodes {{
-                      id
+                      list {{
+                        id
+                      }}
                     }}
                   }}
                 }}"#,
@@ -354,7 +374,7 @@ mod graphql_test {
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": []}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": []}}}));
 
         // add g1 to folder and replace g0 with g2 and load new graphs
         g1.save_to_file(f1).unwrap();
@@ -368,13 +388,16 @@ mod graphql_test {
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": []}}));
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": []}}}));
 
         // g1 has node 1
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+        );
 
         // reload all graphs from folder
         let req = Request::new(load_all);
@@ -384,13 +407,19 @@ mod graphql_test {
         let req = Request::new(list_nodes("g0"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "2"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "2"}]}}})
+        );
 
         // g1 still has node 1
         let req = Request::new(list_nodes("g1"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+        );
 
         // test save graph
         let req = Request::new(save_graph("g0", r#"["2"]"#));
@@ -400,7 +429,10 @@ mod graphql_test {
         let req = Request::new(list_nodes("g2"));
         let res = schema.execute(req).await;
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "2"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "2"}]}}})
+        );
 
         // test save graph overwrite
         let req = Request::new(save_graph("g1", r#"["1"]"#));
@@ -411,7 +443,10 @@ mod graphql_test {
         let res = schema.execute(req).await;
         println!("{:?}", res);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+        );
 
         // reload all graphs from folder
         let req = Request::new(load_all);
@@ -421,7 +456,10 @@ mod graphql_test {
         let res = schema.execute(req).await;
         println!("{:?}", res);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+        );
     }
 
     #[tokio::test]
@@ -461,7 +499,9 @@ mod graphql_test {
         query {
             graph(name: "test") {
                 nodes {
+                  list {
                     id
+                  }
                 }
             }
         }
@@ -471,7 +511,10 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+        );
     }
 
     #[tokio::test]
@@ -501,7 +544,9 @@ mod graphql_test {
         query {
             graph(name: "test") {
                 nodes {
+                  list {
                     id
+                  }
                 }
             }
         }
@@ -511,7 +556,10 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(res_json, json!({"graph": {"nodes": [{"id": "1"}]}}));
+        assert_eq!(
+            res_json,
+            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+        );
 
         let receive_graph = r#"
         query {
