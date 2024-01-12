@@ -38,11 +38,16 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: 
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: Clone, S>
     OneHopFilter<'graph> for EvalEdges<'graph, 'a, G, GH, CS, S>
 {
-    type Graph = GH;
+    type BaseGraph = &'graph G;
+    type FilteredGraph = GH;
     type Filtered<GHH: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, G, GHH, CS, S>;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
         &self.edges.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.edges.base_graph
     }
 
     fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(

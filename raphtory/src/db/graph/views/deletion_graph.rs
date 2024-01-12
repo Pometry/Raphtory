@@ -809,10 +809,7 @@ mod test_deletions {
             e.add_updates(t, NO_PROPS, None).unwrap();
         }
         assert_eq!(
-            e.after(2)
-                .explode()
-                .map(|ee| ee.time().unwrap())
-                .collect_vec(),
+            e.after(2).explode().time().flatten().collect_vec(),
             [3, 5, 10, 15]
         );
     }

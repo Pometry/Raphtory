@@ -27,8 +27,7 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::graph::edges::Edges;
-use crate::core::storage::timeindex::AsTime;
+use crate::{core::storage::timeindex::AsTime, db::graph::edges::Edges};
 use chrono::{DateTime, Utc};
 use std::{
     fmt,

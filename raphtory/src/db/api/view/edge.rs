@@ -75,13 +75,13 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
     /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
-    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>;
+    fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
 
     /// List the deletion timestamps for the edge
     fn deletions(&self) -> Self::ValueType<Vec<i64>>;
 
     /// List the deletion timestamps for the edge as NaiveDateTime objects if parseable
-    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>;
+    fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>>;
 
     /// Check that the latest status of the edge is valid (i.e., not deleted)
     fn is_valid(&self) -> Self::ValueType<bool>;
@@ -114,14 +114,14 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>;
-    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>;
+    fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+    fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Self::ValueType<Option<i64>>;
-    fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>;
+    fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
     fn layer_name(&self) -> Self::ValueType<Option<ArcStr>>;
@@ -242,13 +242,15 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e))?.dt()
+            g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e))?
+                .dt()
         })
     }
 
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e))?.dt()
+            g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e))?
+                .dt()
         })
     }
 
