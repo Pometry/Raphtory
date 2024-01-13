@@ -57,6 +57,7 @@ use std::{
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two nodes.
 #[pyclass(name = "Edge", subclass)]
+#[derive(Clone)]
 pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph, DynamicGraph>,
 }
@@ -258,7 +259,7 @@ impl PyEdge {
     /// Returns:
     ///   The source node of the Edge.
     #[getter]
-    fn src(&self) -> PyNode {
+    pub fn src(&self) -> PyNode {
         self.edge.src().into()
     }
 
@@ -267,7 +268,7 @@ impl PyEdge {
     /// Returns:
     ///   The destination node of the Edge.
     #[getter]
-    fn dst(&self) -> PyNode {
+    pub fn dst(&self) -> PyNode {
         self.edge.dst().into()
     }
 

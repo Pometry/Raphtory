@@ -27,11 +27,11 @@ enum ExpansionPath {
 
 pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) source_graph: G,
-    template: Arc<T>,
+    pub(crate) template: Arc<T>,
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
-    node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
-    edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+    pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
+    pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
     // selected_docs: Vec<ScoredDocument>,
     selected_docs: Vec<(DocumentRef, f32)>,
     empty_vec: Vec<DocumentRef>,

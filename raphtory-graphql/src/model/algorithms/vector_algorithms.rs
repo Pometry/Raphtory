@@ -31,7 +31,7 @@ impl<'a> AlgorithmEntryPoint<'a> for VectorAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "similaritySearch",
-            SimilaritySearch::register_algo as RegisterFunction,
+            Box::new(SimilaritySearch::register_algo) as RegisterFunction,
         )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {

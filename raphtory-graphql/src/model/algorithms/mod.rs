@@ -8,4 +8,4 @@ pub mod graph_algorithms;
 pub mod similarity_search;
 pub mod vector_algorithms;
 
-type RegisterFunction = fn(&str, Registry, Object) -> (Registry, Object);
+type RegisterFunction = Box<dyn FnOnce(&str, Registry, Object) -> (Registry, Object) + Send>;

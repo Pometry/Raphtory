@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            view::{internal::DynamicGraph, StaticGraphViewOps},
+            view::{internal::DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -22,11 +22,11 @@ use crate::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::PyTypeError,
+    exceptions::{PyException, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -56,10 +56,34 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
+#[derive(Clone)]
 #[pyclass(name = "GraphDocument", frozen, get_all)]
 pub struct PyGraphDocument {
     content: String,
     entity: PyObject,
+}
+
+impl PyGraphDocument {
+    pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
+        let node = self.entity.extract::<PyNode>(py);
+        let edge = self.entity.extract::<PyEdge>(py);
+        if let Ok(node) = node {
+            Ok(Document::Node {
+                name: node.name(),
+                content: self.content.clone(),
+            })
+        } else if let Ok(edge) = edge {
+            Ok(Document::Edge {
+                src: edge.src().name(),
+                dst: edge.dst().name(),
+                content: self.content.clone(),
+            })
+        } else {
+            Err(PyException::new_err(
+                "document entity is not a node nor an edge",
+            ))
+        }
+    }
 }
 
 #[pymethods]
@@ -192,6 +216,25 @@ impl IntoPy<PyObject> for DynamicVectorisedGraph {
         Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
     }
 }
+
+// impl IntoPy<PyObject>
+//     for VectorisedGraph<MaterializedGraph, Arc<dyn DocumentTemplate<MaterializedGraph>>>
+// {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         let graph = self.source_graph.into_dynamic();
+//         let template = self.template;
+//
+//         let vectorised = VectorisedGraph::new(
+//             graph,
+//             template,
+//             self.embedding,
+//             self.node_documents,
+//             self.edge_documents,
+//             vec![],
+//         );
+//         vectorised.into_py(py)
+//     }
+// }
 
 type Window = Option<(PyTime, PyTime)>;
 

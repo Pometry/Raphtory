@@ -106,11 +106,15 @@ impl RaphtoryServer {
         self
     }
 
-    pub fn register_algorithm<'a, E: AlgorithmEntryPoint<'a> + 'static, A: Algorithm<'a, E>>(
+    pub fn register_algorithm<
+        'a,
+        E: AlgorithmEntryPoint<'a> + 'static,
+        A: Algorithm<'a, E> + 'static,
+    >(
         self,
         name: &str,
     ) -> Self {
-        E::lock_plugins().insert(name.to_string(), A::register_algo);
+        E::lock_plugins().insert(name.to_string(), Box::new(A::register_algo));
         self
     }
 

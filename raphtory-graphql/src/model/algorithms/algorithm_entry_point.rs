@@ -1,6 +1,7 @@
 use crate::model::algorithms::RegisterFunction;
 use async_graphql::dynamic::Object;
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
+use itertools::Itertools;
 use std::{collections::HashMap, sync::MutexGuard};
 
 pub trait AlgorithmEntryPoint<'a>:
@@ -16,8 +17,11 @@ pub trait AlgorithmEntryPoint<'a>:
             (registry, object) = register_algo(name, registry, object);
         }
 
-        for (name, register_algo) in Self::lock_plugins().iter() {
-            (registry, object) = register_algo(name, registry, object);
+        let mut plugins = Self::lock_plugins();
+        let plugin_names = plugins.keys().cloned().collect_vec();
+        for name in plugin_names {
+            let register_algo = plugins.remove(&name).unwrap();
+            (registry, object) = register_algo(&name, registry, object);
         }
 
         registry.register_type(object)
