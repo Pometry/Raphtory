@@ -479,9 +479,8 @@ impl TimeSemantics for GraphWithDeletions {
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
         let edge = self.graph.core_edge(e.pid());
         let res = edge
-            .additions_iter(&layer_ids)
-            .zip(edge.deletions_iter(&layer_ids))
-            .any(|(a, d)| a.last() > d.last());
+            .updates_iter(&layer_ids)
+            .any(|(_, additions, deletions)| additions.last() > deletions.last());
         res
     }
 
