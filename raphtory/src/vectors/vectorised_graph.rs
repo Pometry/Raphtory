@@ -7,8 +7,9 @@ use crate::{
     prelude::*,
     vectors::{
         document_ref::DocumentRef, document_template::DocumentTemplate,
-        embedding_cache::EmbeddingCache, entity_id::EntityId, graph_embeddings::GraphEmbeddings,
-        Document, DocumentOps, Embedding, EmbeddingFunction,
+        embedding_cache::EmbeddingCache, entity_id::EntityId,
+        graph_embeddings::StoredVectorisedGraph, Document, DocumentOps, Embedding,
+        EmbeddingFunction,
     },
 };
 use itertools::{chain, Itertools};
@@ -32,8 +33,8 @@ pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) embedding: Arc<dyn EmbeddingFunction>,
     // it is not the end of the world but we are storing the entity id twice
     pub(crate) graph_documents: Arc<Vec<DocumentRef>>,
-    node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
-    edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+    pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
+    pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
     selected_docs: Vec<(DocumentRef, f32)>,
     empty_vec: Vec<DocumentRef>,
 }
@@ -74,19 +75,14 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    fn load_from_embedding_store(
-        file: &Path,
-        graph: G,
-        template: Arc<T>,
-        embedding: Arc<dyn EmbeddingFunction>,
-    ) -> Option<Self> {
-        let store = GraphEmbeddings::load_from_path(file)?;
+    fn load_from_embedding_store(file: &Path, graph: G) -> Option<Self> {
+        let store = StoredVectorisedGraph::load_from_path(file)?;
 
         Some(Self {
             source_graph: graph,
             template,
             embedding,
-            graph_documents: Arc::new(store.graph_document),
+            graph_documents: Arc::new(store.graph_documents),
             node_documents: Arc::new(store.node_documents),
             edge_documents: Arc::new(store.edge_documents),
             selected_docs: vec![],
@@ -101,9 +97,9 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             .get("name")
             .map(|prop| prop.to_string())
             .unwrap_or("".to_owned());
-        let store = GraphEmbeddings {
+        let store = StoredVectorisedGraph {
             name,
-            graph_document: self.graph_documents.deref().clone(),
+            graph_documents: self.graph_documents.deref().clone(),
             node_documents: self.node_documents.deref().clone(),
             edge_documents: self.edge_documents.deref().clone(),
         };

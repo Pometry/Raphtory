@@ -64,7 +64,7 @@ pub struct DocumentInput {
     pub life: Lifespan,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },

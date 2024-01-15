@@ -15,7 +15,7 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
-        graph_embeddings::GraphEmbeddings,
+        graph_embeddings::StoredVectorisedGraph,
         vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
         EmbeddingFunction,

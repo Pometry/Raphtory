@@ -15,7 +15,7 @@ pub(crate) struct DocumentRef {
     pub(crate) entity_id: EntityId,
     index: usize,
     pub(crate) embedding: Embedding,
-    life: Lifespan,
+    pub(crate) life: Lifespan,
 }
 
 impl Hash for DocumentRef {

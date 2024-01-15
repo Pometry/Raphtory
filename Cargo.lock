@@ -3001,6 +3001,7 @@ dependencies = [
  "raphtory",
  "raphtory-graphql",
  "reqwest",
+ "serde",
  "serde_json",
  "tokio",
 ]

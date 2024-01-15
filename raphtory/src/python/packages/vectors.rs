@@ -104,6 +104,11 @@ impl PyDocumentTemplate {
 }
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
+    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+        // TODO: finish this
+        Box::new(std::iter::empty())
+    }
+
     fn node(&self, node: &NodeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
             Some(node_document) => get_documents_from_prop(node.properties(), node_document),
@@ -228,6 +233,12 @@ impl PyVectorisedGraph {
 
     /// Return the documents present in the current selection
     fn get_documents(&self, py: Python) -> Vec<PyGraphDocument> {
+        let path = PathBuf::from("/tmp/graph");
+        // TODO: remove all of this
+        let f = std::fs::File::open(path).unwrap();
+        let mut reader = std::io::BufReader::new(f);
+        let test: PyFunction = bincode::deserialize_from(&mut reader).unwrap();
+
         self.get_documents_with_scores(py)
             .into_iter()
             .map(|(doc, _)| doc)
@@ -240,6 +251,13 @@ impl PyVectorisedGraph {
 
         docs.into_iter()
             .map(|(doc, score)| match doc {
+                Document::Graph { name, content } => (
+                    PyGraphDocument {
+                        content,
+                        entity: self.0.source_graph.clone().into_py(py),
+                    },
+                    score,
+                ),
                 Document::Node { name, content } => {
                     let node = self.0.source_graph.node(name).unwrap();
                     (
