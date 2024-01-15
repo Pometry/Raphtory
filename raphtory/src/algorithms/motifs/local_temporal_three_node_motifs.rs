@@ -103,6 +103,7 @@ where
     let events = evv
         .edges()
         .explode()
+        .iter()
         .sorted_by_key(|e| e.time_and_index())
         .map(|edge| {
             if edge.src().id() == evv.id() {

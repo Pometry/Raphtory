@@ -3,6 +3,7 @@ pub mod edge;
 pub mod graph;
 pub mod graph_with_deletions;
 
+pub mod edges;
 #[cfg(feature = "search")]
 pub mod index;
 pub mod node;

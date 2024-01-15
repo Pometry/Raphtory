@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::LayerIds,
+    core::{entities::LayerIds, utils::errors::GraphError},
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
@@ -111,8 +111,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
         self.layers.clone()
     }
 
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.constrain(self.graph.layer_ids_from_names(key))
+    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
+        Ok(self.constrain(self.graph.layer_ids_from_names(key)?))
     }
 }
 

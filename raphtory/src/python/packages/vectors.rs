@@ -74,8 +74,8 @@ impl PyGraphDocument {
             })
         } else if let Ok(edge) = edge {
             Ok(Document::Edge {
-                src: edge.src().name(),
-                dst: edge.dst().name(),
+                src: edge.edge.src().name(),
+                dst: edge.edge.dst().name(),
                 content: self.content.clone(),
             })
         } else {
