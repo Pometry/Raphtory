@@ -146,11 +146,20 @@ impl PyRaphtoryServer {
         }
     }
 
-    // // TODO: this is doable!!!
-    // pub fn register_algorithm(self, name: String, algorithm: &PyFunction) -> RaphtoryServer {
-    //     self.0.register_algorithm(???)
-    // }
-
+    /// Register a function in the GraphQL schema for document search.
+    ///
+    /// The function needs to take a `VectorisedGraph` as the first argument followed by a
+    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
+    /// They have to be specified using the `input` parameter as a dict where the keys are the
+    /// names of the parameters and the values are the types, expressed as strings.
+    ///
+    /// Arguments:
+    ///   * `name` (`str`): the name of the function in the GraphQL schema.
+    ///   * `input` (`dict`): the keyword arguments expected by the function.
+    ///   * `function` (`function`): the function to run.
+    ///
+    /// Returns:
+    ///    A new server object containing the vectorised graphs.
     pub fn with_document_search_function(
         slf: PyRefMut<Self>,
         name: String,
