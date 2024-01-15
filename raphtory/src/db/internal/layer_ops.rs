@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::LayerIds,
+    core::{entities::LayerIds, utils::errors::GraphError},
     db::{api::view::internal::InternalLayerOps, graph::graph::InternalGraph},
     prelude::Layer,
 };
@@ -9,7 +9,7 @@ impl InternalLayerOps for InternalGraph {
         LayerIds::All
     }
 
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
         self.inner().layer_id(key)
     }
 }

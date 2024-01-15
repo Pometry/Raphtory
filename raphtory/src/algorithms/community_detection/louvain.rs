@@ -69,12 +69,9 @@ mod test {
         prelude::*,
     };
     use proptest::prelude::*;
-    use serde::{Deserialize, Serialize};
-    use std::path::PathBuf;
 
     #[test]
     fn test_louvain() {
-        let g = Graph::new();
         let edges = vec![
             (100, 200, 2.0f64),
             (100, 300, 3.0f64),
@@ -126,6 +123,9 @@ mod test {
     #[test]
     fn lfr_test() {
         use crate::graph_loader::source::csv_loader::CsvLoader;
+        use serde::{Deserialize, Serialize};
+        use std::path::PathBuf;
+
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("resources/test");
         let loader = CsvLoader::new(d.join("test.csv")).set_delimiter(",");

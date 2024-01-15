@@ -81,19 +81,29 @@ impl Node {
 
     #[wasm_bindgen(js_name = edges)]
     pub fn edges(&self) -> js_sys::Array {
-        self.0.edges().map(Edge).map(JsValue::from).collect()
+        self.0.edges().iter().map(Edge).map(JsValue::from).collect()
     }
 
     // out_edges
     #[wasm_bindgen(js_name = outEdges)]
     pub fn out_edges(&self) -> js_sys::Array {
-        self.0.out_edges().map(Edge).map(JsValue::from).collect()
+        self.0
+            .out_edges()
+            .iter()
+            .map(Edge)
+            .map(JsValue::from)
+            .collect()
     }
 
     // in_edges
     #[wasm_bindgen(js_name = inEdges)]
     pub fn in_edges(&self) -> js_sys::Array {
-        self.0.in_edges().map(Edge).map(JsValue::from).collect()
+        self.0
+            .in_edges()
+            .iter()
+            .map(Edge)
+            .map(JsValue::from)
+            .collect()
     }
 
     #[wasm_bindgen(js_name = properties)]

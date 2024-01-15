@@ -4,9 +4,12 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::db::{
-    api::{properties::dyn_props::DynProperties, view::*},
-    graph::node::NodeView,
+use raphtory::{
+    core::utils::errors::GraphError,
+    db::{
+        api::{properties::dyn_props::DynProperties, view::*},
+        graph::node::NodeView,
+    },
 };
 use std::collections::HashSet;
 
@@ -43,10 +46,10 @@ impl Node {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Option<Node> {
+    async fn layers(&self, names: Vec<String>) -> Result<Node, GraphError> {
         self.vv.layer(names).map(|v| v.into())
     }
-    async fn layer(&self, name: String) -> Option<Node> {
+    async fn layer(&self, name: String) -> Result<Node, GraphError> {
         self.vv.layer(name).map(|v| v.into())
     }
     async fn window(&self, start: i64, end: i64) -> Node {
@@ -144,10 +147,11 @@ impl Node {
             Some(filter) => self
                 .vv
                 .edges()
+                .iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.edges().map(|ee| ee.into()).collect(),
+            None => self.vv.edges().iter().map(|ee| ee.into()).collect(),
         }
     }
     async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
@@ -155,10 +159,11 @@ impl Node {
             Some(filter) => self
                 .vv
                 .out_edges()
+                .iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.out_edges().map(|ee| ee.into()).collect(),
+            None => self.vv.out_edges().iter().map(|ee| ee.into()).collect(),
         }
     }
 
@@ -167,10 +172,11 @@ impl Node {
             Some(filter) => self
                 .vv
                 .in_edges()
+                .iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.in_edges().map(|ee| ee.into()).collect(),
+            None => self.vv.in_edges().iter().map(|ee| ee.into()).collect(),
         }
     }
 
