@@ -349,8 +349,9 @@ impl PyRunningRaphtoryServer {
     }
 
     /// Wait until server completion.
-    pub(crate) fn wait(mut slf: PyRefMut<Self>) -> PyResult<()> {
-        wait_server(&mut slf.0)
+    pub(crate) fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
+        let server = &mut slf.0;
+        py.allow_threads(|| wait_server(server))
     }
 
     /// Wait for the server to be online.
