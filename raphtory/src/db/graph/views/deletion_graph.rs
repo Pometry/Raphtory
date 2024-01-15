@@ -88,25 +88,29 @@ fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
 
 fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     // The semantics are tricky here, an edge is not alive at the start of the window if the first event at time t is a deletion
-    let alive_before_start = edge_alive_at_end(e, t, layer_ids);
-    let deleted_at_start = e
-        .additions_iter(&layer_ids)
-        .zip_longest(e.deletions_iter(&layer_ids))
-        .all(|zipped| match zipped {
+    let alive = e
+        .additions_iter(layer_ids)
+        .zip_longest(e.deletions_iter(layer_ids))
+        .any(|zipped| match zipped {
             EitherOrBoth::Both(additions, deletions) => {
-                match (
+                let alive_before_start = alive_before(&additions, &deletions, t);
+                let deleted_at_start = match (
                     deletions.range(t..t.saturating_add(1)).first(),
                     additions.range(t..t.saturating_add(1)).first(),
                 ) {
                     (Some(d), Some(a)) => d < a,
                     (Some(_), None) => true,
                     _ => false,
-                }
+                };
+                alive_before_start && !deleted_at_start
             }
-            EitherOrBoth::Left(_) => false,
-            EitherOrBoth::Right(deletions) => deletions.active(t..t.saturating_add(1)),
+            EitherOrBoth::Left(additions) => additions
+                .first_t()
+                .map(|first_t| first_t <= t)
+                .unwrap_or(false),
+            EitherOrBoth::Right(deletions) => deletions.first_t() > Some(t),
         });
-    alive_before_start && !deleted_at_start
+    alive
 }
 
 static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
@@ -629,7 +633,10 @@ mod test_deletions {
     use crate::{
         db::{
             api::view::time::internal::InternalTimeOps,
-            graph::{graph::assert_graph_equal, views::deletion_graph::GraphWithDeletions},
+            graph::{
+                edge::EdgeView, graph::assert_graph_equal,
+                views::deletion_graph::GraphWithDeletions,
+            },
         },
         prelude::*,
     };
@@ -939,6 +946,56 @@ mod test_deletions {
         for t in 0..11 {
             assert!(e.at(t).is_valid());
         }
+    }
+
+    fn check_valid<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(e: &EdgeView<G, GH>) {
+        assert!(e.is_valid());
+        assert!(!e.is_deleted());
+        assert!(e.graph.has_edge(e.src(), e.dst(), Layer::All));
+        assert!(e.graph.edge(e.src(), e.dst()).is_some());
+    }
+
+    fn check_deleted<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+        e: &EdgeView<G, GH>,
+    ) {
+        assert!(!e.is_valid());
+        assert!(e.is_deleted());
+        let t = e.latest_time().unwrap_or(i64::MAX);
+        let g = e.graph.at(e.latest_time().unwrap_or(i64::MAX)); // latest view of the graph
+        assert!(!g.has_edge(e.src(), e.dst(), Layer::All));
+        assert!(g.edge(e.src(), e.dst()).is_none());
+    }
+
+    #[test]
+    fn test_edge_is_valid() {
+        let g = GraphWithDeletions::new();
+
+        g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
+        let e = g.edge(1, 2).unwrap();
+        check_deleted(&e.before(1));
+        check_valid(&e.after(1));
+        check_valid(&e);
+
+        g.add_edge(2, 1, 2, NO_PROPS, Some("1")).unwrap();
+        check_valid(&e);
+
+        g.delete_edge(3, 1, 2, Some("1")).unwrap();
+        check_valid(&e);
+        check_deleted(&e.layer("1").unwrap());
+        check_deleted(&e.layer("1").unwrap().at(3));
+        check_deleted(&e.layer("1").unwrap().after(3));
+        check_valid(&e.layer("1").unwrap().before(3));
+        check_valid(&e.default_layer());
+
+        g.delete_edge(4, 1, 2, None).unwrap();
+        check_deleted(&e);
+        check_deleted(&e.layer("1").unwrap());
+        check_deleted(&e.default_layer());
+
+        g.add_edge(5, 1, 2, NO_PROPS, None).unwrap();
+        check_valid(&e);
+        check_valid(&e.default_layer());
+        check_deleted(&e.layer("1").unwrap());
     }
 
     #[test]
