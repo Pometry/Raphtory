@@ -165,21 +165,14 @@ impl PyRaphtoryServer {
             let mut field = Field::new(name, output_type, move |ctx| {
                 let algos: &VectorAlgorithms = ctx.parent_value.downcast_ref().unwrap();
                 let documents = Python::with_gil(|py| {
-                    let graph: VectorisedGraph<
-                        MaterializedGraph,
-                        Arc<dyn DocumentTemplate<MaterializedGraph>>,
-                    > = algos.graph.clone();
-
-                    // let graph: VectorisedGraph<DynamicGraph, PyDocumentTemplate> = ???;
-                    // let graph = graph.clone().into_py(py);
+                    let graph = algos.graph.clone().into_py(py);
                     let kw_args: HashMap<&str, PyObject> = ctx
                         .args
                         .iter()
                         .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
                         .collect();
                     let py_kw_args = kw_args.into_py_dict(py);
-                    // let result = function.call(py, (graph,), Some(py_kw_args)).unwrap();
-                    let result = function.call(py, (), Some(py_kw_args)).unwrap();
+                    let result = function.call(py, (graph,), Some(py_kw_args)).unwrap();
                     let list = result.downcast::<PyList>(py).unwrap();
                     let py_documents = list
                         .iter()
@@ -198,9 +191,10 @@ impl PyRaphtoryServer {
             for (name, type_name) in input {
                 let ty = match type_name.as_str() {
                     // TODO: try to use PyType here!!
-                    "str" => TypeRef::named_nn(TypeRef::INT),
-                    "int" => TypeRef::named_nn(TypeRef::STRING),
-                    _ => panic!("type allowed are only: 'str' and 'int'"),
+                    "str" => TypeRef::named_nn(TypeRef::STRING),
+                    "int" => TypeRef::named_nn(TypeRef::INT),
+                    "float" => TypeRef::named_nn(TypeRef::FLOAT),
+                    _ => panic!("type allowed are only: 'str', 'int' and 'float'"),
                 };
                 field = field.argument(InputValue::new(name, ty));
             }

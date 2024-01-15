@@ -15,7 +15,7 @@ use crate::{
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        vectorised_graph::{DynamicTemplate, DynamicVectorisedGraph, VectorisedGraph},
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -164,8 +164,6 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     }
 }
 
-pub(crate) type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
-
 #[pymethods]
 impl PyGraphView {
     /// Create a VectorisedGraph from the current graph
@@ -200,7 +198,7 @@ impl PyGraphView {
                     Box::new(embedding.clone()),
                     cache,
                     overwrite_cache,
-                    template,
+                    Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>,
                     verbose,
                 )
                 .await
@@ -216,6 +214,34 @@ impl IntoPy<PyObject> for DynamicVectorisedGraph {
         Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
     }
 }
+
+// impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> From<T> for DynamicTemplate {
+//     fn from(value: DocumentTemplate<G>) -> Self {}
+// }
+//
+// struct DynamicTemplateWrapper<G: StaticGraphViewOps, T: DocumentTemplate<G>>(T);
+//
+// impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> DocumentTemplate<DynamicGraph>
+//     for DynamicTemplateWrapper<G, T>
+// {
+//     fn node(&self, node: &NodeView<DynamicGraph>) -> Box<dyn Iterator<Item = DocumentInput>> {}
+//
+//     fn edge(
+//         &self,
+//         edge: &EdgeView<DynamicGraph, DynamicGraph>,
+//     ) -> Box<dyn Iterator<Item = DocumentInput>> {
+//         todo!()
+//     }
+// }
+//
+// // TODO: this would be nice to have!!!!!!!!!!!!!
+// impl<G: StaticGraphViewOps + IntoDynamic, T: DocumentTemplate<G>> From<VectorisedGraph<G, T>>
+//     for PyVectorisedGraph
+// {
+//     fn from(value: VectorisedGraph<G, T>) -> Self {
+//         let source_graph = value.source_graph.into_dynamic();
+//     }
+// }
 
 // impl IntoPy<PyObject>
 //     for VectorisedGraph<MaterializedGraph, Arc<dyn DocumentTemplate<MaterializedGraph>>>

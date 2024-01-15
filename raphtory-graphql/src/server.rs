@@ -12,7 +12,7 @@ use crate::{
 use async_graphql_poem::GraphQL;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
-    db::api::view::MaterializedGraph,
+    db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph},
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
@@ -77,13 +77,13 @@ impl RaphtoryServer {
     ) -> Self
     where
         F: EmbeddingFunction + Clone + 'static,
-        T: DocumentTemplate<MaterializedGraph> + 'static,
+        T: DocumentTemplate<DynamicGraph> + 'static,
     {
         let graphs = &self.data.graphs;
         let stores = &self.data.vector_stores;
 
         let template = template
-            .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<MaterializedGraph>>)
+            .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>)
             .unwrap_or(Arc::new(DefaultTemplate));
 
         for graph_name in graph_names {
@@ -91,6 +91,7 @@ impl RaphtoryServer {
             let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
+                .into_dynamic()
                 .vectorise_with_template(
                     Box::new(embedding.clone()),
                     Some(graph_cache),
