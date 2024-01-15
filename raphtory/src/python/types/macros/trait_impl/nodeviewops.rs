@@ -2,6 +2,7 @@ macro_rules! impl_nodeviewops {
     ($obj:ty, $field:ident, $base_type:ty, $name:literal) => {
         impl_timeops!($obj, $field, $base_type, $name);
         impl_layerops!($obj, $field, $base_type, $name);
+        impl_repr!($obj, $field);
 
         #[pyo3::pymethods]
         impl $obj {

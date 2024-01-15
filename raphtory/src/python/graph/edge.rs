@@ -20,7 +20,7 @@ use crate::{
     python::{
         graph::properties::PyNestedPropsIterable,
         types::{
-            repr::Repr,
+            repr::{iterator_repr, Repr},
             wrappers::iterators::{
                 NestedArcStringVecIterable, NestedBoolIterable, NestedI64VecIterable,
                 NestedOptionArcStringIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
@@ -310,11 +310,6 @@ impl PyEdge {
     pub fn date_time(&self) -> Option<DateTime<Utc>> {
         self.edge.date_time()
     }
-
-    /// Displays the Edge as a string.
-    pub fn __repr__(&self) -> String {
-        self.repr()
-    }
 }
 
 impl Repr for PyEdge {
@@ -323,7 +318,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for EdgeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeView<G, GH> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()
@@ -397,6 +392,13 @@ impl_edgeviewops!(
     NestedEdges<'static, DynamicGraph>,
     "NestedEdges"
 );
+impl_iterable_mixin!(
+    PyNestedEdges,
+    edges,
+    Vec<Vec<EdgeView<DynamicGraph>>>,
+    "list[list[Edges]]",
+    "edge"
+);
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for NestedEdges<'static, G, GH>
@@ -409,6 +411,14 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
             edges: self.edges,
         };
         PyNestedEdges { edges }.into_py(py)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
+    for NestedEdges<'graph, G, GH>
+{
+    fn repr(&self) -> String {
+        format!("NestedEdges({})", iterator_repr(self.iter()))
     }
 }
 #[pymethods]

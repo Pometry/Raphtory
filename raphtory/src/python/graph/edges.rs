@@ -3,9 +3,9 @@ use crate::{
         api::view::{BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{edge::EdgeView, edges::Edges},
     },
-    prelude::{EdgeViewOps, LayerOps, TimeOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, TimeOps},
     python::{
-        graph::{edge::PyEdge, properties::PyPropsList},
+        graph::properties::PyPropsList,
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
@@ -14,7 +14,7 @@ use crate::{
                 U64U64Iterable,
             },
         },
-        utils::{PyGenericIterator, PyTime},
+        utils::PyTime,
     },
 };
 use itertools::Itertools;
@@ -27,6 +27,19 @@ pub struct PyEdges {
 }
 
 impl_edgeviewops!(PyEdges, edges, Edges<'static, DynamicGraph>, "Edges");
+impl_iterable_mixin!(
+    PyEdges,
+    edges,
+    Vec<EdgeView<DynamicGraph>>,
+    "list[Edge]",
+    "edge"
+);
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'graph, G, GH> {
+    fn repr(&self) -> String {
+        format!("Edges({})", iterator_repr(self.iter()))
+    }
+}
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for Edges<'static, G, GH>
@@ -51,24 +64,10 @@ impl PyEdges {
     fn iter(&self) -> BoxedIter<EdgeView<DynamicGraph, DynamicGraph>> {
         self.edges.iter().into_dyn_boxed()
     }
-
-    /// returns an iterable used in python
-    fn py_iter(&self) -> BoxedIter<PyEdge> {
-        Box::new(self.iter().map(|e| e.into()))
-    }
 }
 
 #[pymethods]
 impl PyEdges {
-    fn __iter__(&self) -> PyGenericIterator {
-        self.edges.iter().into()
-    }
-
-    /// Returns all edges as a list
-    fn collect(&self) -> Vec<PyEdge> {
-        self.py_iter().collect()
-    }
-
     /// Returns the number of edges
     fn count(&self) -> usize {
         self.iter().count()
@@ -216,14 +215,6 @@ impl PyEdges {
     fn layer_names(&self) -> ArcStringVecIterable {
         let edges = self.edges.clone();
         (move || edges.layer_names().map(|e| e.collect_vec())).into()
-    }
-
-    fn __repr__(&self) -> String {
-        self.repr()
-    }
-
-    fn __len__(&self) -> usize {
-        self.count()
     }
 }
 

@@ -59,6 +59,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         let op = self.op.clone();
         self.base_iter().map(move |vid| op(vid))
     }
+
+    pub fn len(&self) -> usize {
+        self.iter().count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
+
+    pub fn collect(&self) -> Vec<Vec<NodeView<G, GH>>> {
+        self.iter().map(|path| path.collect()).collect()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
@@ -220,6 +232,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
             NodeView::new_one_hop_filtered(base_graph.clone(), graph.clone(), node)
         });
         Box::new(iter)
+    }
+
+    pub fn len(&self) -> usize {
+        self.iter().count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
+
+    pub fn collect(&self) -> Vec<NodeView<G, GH>> {
+        self.iter().collect()
     }
 
     pub(crate) fn new_one_hop_filtered(

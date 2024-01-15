@@ -86,6 +86,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
             vid,
         ))
     }
+
+    pub fn collect(&self) -> Vec<NodeView<G, GH>> {
+        self.iter().collect()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph>

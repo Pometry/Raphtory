@@ -22,7 +22,7 @@ use crate::{
     python::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{repr::StructReprBuilder, wrappers::iterators::*},
-        utils::{PyGenericIterator, PyTime},
+        utils::PyTime,
     },
     *,
 };
@@ -221,11 +221,6 @@ impl PyNode {
             .get(name)
             .ok_or(PyKeyError::new_err(format!("Unknown property {}", name)))
     }
-
-    /// Display the node as a string.
-    pub fn __repr__(&self) -> String {
-        self.repr()
-    }
 }
 
 impl Repr for PyNode {
@@ -376,6 +371,13 @@ impl_nodeviewops!(
     Nodes<'static, DynamicGraph, DynamicGraph>,
     "Nodes"
 );
+impl_iterable_mixin!(
+    PyNodes,
+    nodes,
+    Vec<NodeView<DynamicGraph>>,
+    "list[Node]",
+    "node"
+);
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
@@ -523,32 +525,10 @@ impl PyNodes {
         (move || nodes.out_degree()).into()
     }
 
-    /// Collects all nodes into a list
-    fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
-        self.nodes.iter().collect()
-    }
-
-    //****** Python *******
-    pub fn __iter__(&self) -> PyGenericIterator {
-        self.nodes.iter().into()
-    }
-
-    pub fn __len__(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn __bool__(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
     pub fn __getitem__(&self, node: NodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
-    }
-
-    pub fn __repr__(&self) -> String {
-        self.nodes.repr()
     }
 }
 
@@ -569,16 +549,16 @@ impl_nodeviewops!(
     PathFromGraph<'static, DynamicGraph, DynamicGraph>,
     "PathFromGraph"
 );
+impl_iterable_mixin!(
+    PyPathFromGraph,
+    path,
+    Vec<Vec<NodeView<DynamicGraph>>>,
+    "list[list[Node]]",
+    "node"
+);
 
 #[pymethods]
 impl PyPathFromGraph {
-    fn __iter__(&self) -> PyGenericIterator {
-        self.path.iter().into()
-    }
-
-    fn collect(&self) -> Vec<Vec<NodeView<DynamicGraph>>> {
-        self.path.iter().map(|path| path.iter().collect()).collect()
-    }
     #[getter]
     fn id(&self) -> NestedU64Iterable {
         let path = self.path.clone();
@@ -649,10 +629,6 @@ impl PyPathFromGraph {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
-
-    fn __repr__(&self) -> String {
-        self.path.repr()
-    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
@@ -691,6 +667,20 @@ pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
 
+impl_nodeviewops!(
+    PyPathFromNode,
+    path,
+    PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    "PathFromNode"
+);
+impl_iterable_mixin!(
+    PyPathFromNode,
+    path,
+    Vec<NodeView<DynamicGraph>>,
+    "list[Node]",
+    "node"
+);
+
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<PathFromNode<'static, G, GH>> for PyPathFromNode
 {
@@ -705,13 +695,6 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl_timeops!(
-    PyPathFromNode,
-    path,
-    PathFromNode<'static, DynamicGraph, DynamicGraph>,
-    "path"
-);
-
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
     for PathFromNode<'static, G, GH>
 {
@@ -722,14 +705,6 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 
 #[pymethods]
 impl PyPathFromNode {
-    fn __iter__(&self) -> PyGenericIterator {
-        self.path.iter().into()
-    }
-
-    fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
-        self.path.iter().collect()
-    }
-
     #[getter]
     fn id(&self) -> U64Iterable {
         let path = self.path.clone();
@@ -773,10 +748,6 @@ impl PyPathFromNode {
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
-    }
-
-    fn __repr__(&self) -> String {
-        self.path.repr()
     }
 }
 

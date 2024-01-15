@@ -56,6 +56,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G,
         let graph = self.graph.clone();
         (self.edges)().map(move |e| EdgeView::new_filtered(base_graph.clone(), graph.clone(), e))
     }
+
+    pub fn len(&self) -> usize {
+        self.iter().count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
+
+    pub fn collect(&self) -> Vec<EdgeView<G, GH>> {
+        self.iter().collect()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
@@ -137,6 +149,34 @@ pub struct NestedEdges<'graph, G, GH = G> {
     pub(crate) graph: GH,
     pub(crate) nodes: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
     pub(crate) edges: Arc<dyn Fn(VID) -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NestedEdges<'graph, G, GH> {
+    pub fn len(&self) -> usize {
+        (self.nodes)().count()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        (self.nodes)().next().is_none()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = Edges<'graph, G, GH>> + 'graph {
+        let base_graph = self.base_graph.clone();
+        let graph = self.graph.clone();
+        let edges = self.edges.clone();
+        (self.nodes)().map(move |n| {
+            let edge_fn = edges.clone();
+            Edges {
+                base_graph: base_graph.clone(),
+                graph: graph.clone(),
+                edges: Arc::new(move || edge_fn(n)),
+            }
+        })
+    }
+
+    pub fn collect(&self) -> Vec<Vec<EdgeView<G, GH>>> {
+        self.iter().map(|edges| edges.collect()).collect()
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
