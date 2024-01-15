@@ -1,7 +1,7 @@
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
-    graph::{edge::Edge, get_expanded_edges, node::Node, property::GqlProperties},
+    graph::{edge::Edge, get_expanded_edges, node::Node, nodes::GqlNodes, property::GqlProperties},
     schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -237,17 +237,8 @@ impl GqlGraph {
         self.graph.node(v_ref).map(|v| v.into())
     }
 
-    async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
-        match filter {
-            Some(filter) => self
-                .graph
-                .nodes()
-                .iter()
-                .map(|vv| vv.into())
-                .filter(|n| filter.matches(n))
-                .collect(),
-            None => self.graph.nodes().iter().map(|vv| vv.into()).collect(),
-        }
+    async fn nodes(&self, filter: Option<NodeFilter>) -> GqlNodes {
+        GqlNodes::new(self.graph.nodes(), filter)
     }
 
     async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {

@@ -20,9 +20,7 @@ use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
-        view::internal::{
-            Base, DynamicGraph, InheritViewOps, IntoDynamic, MaterializedGraph, Static,
-        },
+        view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
 };
@@ -189,12 +187,6 @@ impl Graph {
 
     pub fn as_arc(&self) -> Arc<InternalGraph> {
         self.0.clone()
-    }
-}
-
-impl IntoDynamic for Graph {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
     }
 }
 
