@@ -1,12 +1,12 @@
 use parking_lot::RwLock;
 use raphtory::{
     core::Prop,
-    db::api::view::{DynamicGraph, MaterializedGraph},
+    db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::DynamicVectorisedGraph},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 use walkdir::WalkDir;
 
 #[derive(Default)]

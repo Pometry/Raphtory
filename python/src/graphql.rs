@@ -1,31 +1,22 @@
 use async_graphql::{
-    dynamic::{
-        Field, FieldFuture, FieldValue, InputValue, Object, ResolverContext, TypeRef, ValueAccessor,
-    },
-    FieldResult, Value as GraphqlValue,
+    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
+    Value as GraphqlValue,
 };
 use crossbeam_channel::Sender;
-use dynamic_graphql::{
-    internal::{Register, Registry, TypeName},
-    SimpleObject,
-};
+use dynamic_graphql::internal::{Register, Registry, TypeName};
 use pyo3::{
     exceptions,
-    exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
+    exceptions::{PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
 };
 use raphtory_core::{
-    db::api::view::{DynamicGraph, MaterializedGraph},
+    db::api::view::MaterializedGraph,
     python::{
-        graph::node::PyNode,
-        packages::vectors::{PyDocumentTemplate, PyGraphDocument, PyVectorisedGraph},
+        packages::vectors::{PyDocumentTemplate, PyGraphDocument},
         utils::{errors::adapt_err_value, execute_async_task},
     },
-    vectors::{
-        document_template::DocumentTemplate, embeddings::openai_embedding,
-        vectorised_graph::VectorisedGraph, Document, EmbeddingFunction,
-    },
+    vectors::{embeddings::openai_embedding, EmbeddingFunction},
 };
 use raphtory_graphql::{
     model::algorithms::{
@@ -39,7 +30,6 @@ use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
     path::PathBuf,
-    sync::Arc,
     thread,
     thread::{sleep, JoinHandle},
     time::Duration,
