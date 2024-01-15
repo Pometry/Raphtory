@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            view::{internal::DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
+            view::{internal::DynamicGraph, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -15,7 +15,7 @@ use crate::{
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        vectorised_graph::{DynamicTemplate, DynamicVectorisedGraph, VectorisedGraph},
+        vectorised_graph::DynamicVectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -214,53 +214,6 @@ impl IntoPy<PyObject> for DynamicVectorisedGraph {
         Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
     }
 }
-
-// impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> From<T> for DynamicTemplate {
-//     fn from(value: DocumentTemplate<G>) -> Self {}
-// }
-//
-// struct DynamicTemplateWrapper<G: StaticGraphViewOps, T: DocumentTemplate<G>>(T);
-//
-// impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> DocumentTemplate<DynamicGraph>
-//     for DynamicTemplateWrapper<G, T>
-// {
-//     fn node(&self, node: &NodeView<DynamicGraph>) -> Box<dyn Iterator<Item = DocumentInput>> {}
-//
-//     fn edge(
-//         &self,
-//         edge: &EdgeView<DynamicGraph, DynamicGraph>,
-//     ) -> Box<dyn Iterator<Item = DocumentInput>> {
-//         todo!()
-//     }
-// }
-//
-// // TODO: this would be nice to have!!!!!!!!!!!!!
-// impl<G: StaticGraphViewOps + IntoDynamic, T: DocumentTemplate<G>> From<VectorisedGraph<G, T>>
-//     for PyVectorisedGraph
-// {
-//     fn from(value: VectorisedGraph<G, T>) -> Self {
-//         let source_graph = value.source_graph.into_dynamic();
-//     }
-// }
-
-// impl IntoPy<PyObject>
-//     for VectorisedGraph<MaterializedGraph, Arc<dyn DocumentTemplate<MaterializedGraph>>>
-// {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         let graph = self.source_graph.into_dynamic();
-//         let template = self.template;
-//
-//         let vectorised = VectorisedGraph::new(
-//             graph,
-//             template,
-//             self.embedding,
-//             self.node_documents,
-//             self.edge_documents,
-//             vec![],
-//         );
-//         vectorised.into_py(py)
-//     }
-// }
 
 type Window = Option<(PyTime, PyTime)>;
 

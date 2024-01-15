@@ -9,9 +9,6 @@ use raphtory::{
 use std::{collections::HashMap, sync::Arc};
 use walkdir::WalkDir;
 
-// pub type DynamicTemplate = Arc<dyn DocumentTemplate<DynamicGraph>>;
-// pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, DynamicTemplate>;
-
 #[derive(Default)]
 pub struct Data {
     pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
