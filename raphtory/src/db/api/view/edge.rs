@@ -12,7 +12,7 @@ use crate::{
         properties::{internal::PropertiesOps, Properties},
         view::{
             internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
-            BoxedIter,
+            BoxedIter, IntoDynBoxed,
         },
     },
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
@@ -270,7 +270,14 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// Gets the name of the layer this edge belongs to
     fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>> {
-        self.map(|g, e| g.get_layer_names_from_ids(g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| {
+            let layer_names = g.edge_meta().layer_meta().get_keys();
+            g.edge_layers(e, g.layer_ids().constrain_from_edge(e))
+                .map(move |ee| {
+                    layer_names[*ee.layer().expect("exploded edge should have layer")].clone()
+                })
+                .into_dyn_boxed()
+        })
     }
 }
 

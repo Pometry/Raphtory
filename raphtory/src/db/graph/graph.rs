@@ -1761,6 +1761,24 @@ mod db_tests {
         );
     }
 
+    #[test]
+    fn test_layer_name() {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.add_edge(0, 0, 2, NO_PROPS, Some("awesome layer"))
+            .unwrap();
+
+        assert_eq!(
+            g.edge(0, 1).unwrap().layer_names().collect_vec(),
+            ["_default"]
+        );
+        assert_eq!(
+            g.edge(0, 2).unwrap().layer_names().collect_vec(),
+            ["awesome layer"]
+        );
+    }
+
     // non overlaping time intervals
     #[derive(Clone, Debug)]
     struct Intervals(Vec<(i64, i64)>);
