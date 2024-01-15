@@ -25,17 +25,17 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{InternalLayerOps, OneHopFilter, Static},
-                BoxedIter, BoxedLIter, EdgeViewInternalOps, StaticGraphViewOps,
+                internal::{OneHopFilter, Static},
+                BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
             },
         },
-        graph::{node::NodeView, views::window_graph::WindowedGraph},
+        graph::{edges::Edges, node::NodeView},
     },
     prelude::*,
 };
 use std::{
     fmt::{Debug, Formatter},
-    iter,
+    sync::Arc,
 };
 
 /// A view of an edge in the graph.
@@ -100,57 +100,52 @@ impl<
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeViewInternalOps<'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
     for EdgeView<G, GH>
 {
     type BaseGraph = G;
     type Graph = GH;
-    type EList = BoxedLIter<'graph, Self>;
-    type Neighbour = NodeView<G, G>;
 
-    fn graph(&self) -> &GH {
-        &self.graph
+    type ValueType<T> =T where T: 'graph;
+    type PropType = Self;
+    type Nodes = NodeView<G, G>;
+    type Exploded = Edges<'graph, G, GH>;
+
+    fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
+        &self,
+        op: F,
+    ) -> Self::ValueType<O> {
+        op(&self.graph, self.edge)
     }
 
-    fn eref(&self) -> EdgeRef {
-        self.edge
+    fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
+        Properties::new(self.clone())
     }
 
-    fn new_node(&self, v: VID) -> NodeView<G, G> {
-        NodeView::new_internal(self.base_graph.clone(), v)
+    fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
+        &self,
+        op: F,
+    ) -> Self::Nodes {
+        let vid = op(&self.graph, self.edge);
+        NodeView::new_internal(self.base_graph.clone(), vid)
     }
 
-    fn new_edge(&self, e: EdgeRef) -> Self {
-        Self {
-            graph: self.graph.clone(),
-            base_graph: self.base_graph.clone(),
-            edge: e,
-        }
-    }
-
-    fn internal_explode(&self) -> Self::EList {
-        let ev = self.clone();
-        match self.edge.time() {
-            Some(_) => Box::new(iter::once(ev)),
-            None => {
-                let layer_ids = self.layer_ids();
-                let e = self.edge;
-                let ex_iter = self.graph.edge_exploded(e, layer_ids);
-                // FIXME: use duration
-                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
-            }
-        }
-    }
-
-    fn internal_explode_layers(&self) -> Self::EList {
-        let ev = self.clone();
-        match self.edge.layer() {
-            Some(_) => Box::new(iter::once(ev)),
-            None => {
-                let e = self.edge;
-                let ex_iter = self.graph.edge_layers(e, self.graph.layer_ids());
-                Box::new(ex_iter.map(move |ex| ev.new_edge(ex)))
-            }
+    fn map_exploded<
+        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> I + Send + Sync + Clone + 'graph,
+    >(
+        &self,
+        op: F,
+    ) -> Self::Exploded {
+        let graph1 = self.graph.clone();
+        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
+        let edge = self.edge;
+        let edges = Arc::new(move || op(&graph1, edge).into_dyn_boxed());
+        Edges {
+            graph,
+            base_graph,
+            edges,
         }
     }
 }
@@ -296,14 +291,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         self.graph
             .edge_meta()
             .temporal_prop_meta()
             .get_id(name)
-            .filter(|id| {
-                self.graph
-                    .has_temporal_edge_prop(self.edge, *id, self.layer_ids())
-            })
+            .filter(move |id| self.graph.has_temporal_edge_prop(self.edge, *id, layer_ids))
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
@@ -311,12 +304,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
         Box::new(
             self.graph
-                .temporal_edge_prop_ids(self.edge, self.layer_ids())
-                .filter(|id| {
+                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
+                .filter(move |id| {
                     self.graph
-                        .has_temporal_edge_prop(self.edge, *id, self.layer_ids())
+                        .has_temporal_edge_prop(self.edge, *id, layer_ids.clone())
                 }),
         )
     }
@@ -362,251 +356,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
         filtered_graph: GHH,
     ) -> Self::Filtered<GHH> {
         EdgeView::new_filtered(self.base_graph.clone(), filtered_graph, self.edge)
-    }
-}
-
-/// Implement `EdgeListOps` trait for an iterator of `EdgeView` objects.
-///
-/// This implementation enables the use of the `src` and `dst` methods to retrieve the nodes
-/// connected to the edges inside the iterator.
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'graph>
-    for BoxedLIter<'graph, EdgeView<G, GH>>
-{
-    type Edge = EdgeView<G, GH>;
-    type ValueType<T> = T;
-
-    /// Specifies the associated type for an iterator over nodes.
-    type VList = BoxedLIter<'graph, NodeView<G, G>>;
-
-    /// Specifies the associated type for the iterator over edges.
-    type IterType<T> = BoxedLIter<'graph, T>;
-
-    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
-        Box::new(self.map(move |e| e.properties()))
-    }
-
-    /// Returns an iterator over the source nodes of the edges in the iterator.
-    fn src(self) -> Self::VList {
-        Box::new(self.map(|e| e.src()))
-    }
-
-    /// Returns an iterator over the destination nodes of the edges in the iterator.
-    fn dst(self) -> Self::VList {
-        Box::new(self.map(|e| e.dst()))
-    }
-
-    fn id(self) -> Self::IterType<(u64, u64)> {
-        Box::new(self.map(|e| e.id()))
-    }
-
-    /// returns an iterator of exploded edges that include an edge at each point in time
-    fn explode(self) -> Self {
-        Box::new(self.flat_map(move |e| e.explode()))
-    }
-
-    /// Gets the earliest times of a list of edges
-    fn earliest_time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.earliest_time()))
-    }
-
-    fn earliest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.earliest_date_time()))
-    }
-
-    /// Gets the latest times of a list of edges
-    fn latest_time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.latest_time()))
-    }
-
-    fn latest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.latest_date_time()))
-    }
-
-    fn date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.date_time()))
-    }
-
-    fn time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.time()))
-    }
-
-    fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
-        Box::new(self.map(|e| e.layer_name().map(|v| v.clone())))
-    }
-
-    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
-        Box::new(self.map(|e| e.layer_names()))
-    }
-
-    fn history(self) -> Self::IterType<Vec<i64>> {
-        Box::new(self.map(|e| e.history()))
-    }
-    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
-        Box::new(self.map(|e| e.history_date_time()))
-    }
-
-    fn deletions(self) -> Self::IterType<Vec<i64>> {
-        Box::new(self.map(|e| e.deletions()))
-    }
-
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
-        Box::new(self.map(|e| e.deletions_date_time()))
-    }
-
-    fn is_valid(self) -> Self::IterType<bool> {
-        Box::new(self.map(|e| e.is_valid()))
-    }
-
-    fn is_deleted(self) -> Self::IterType<bool> {
-        Box::new(self.map(|e| e.is_deleted()))
-    }
-
-    fn start(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.start()))
-    }
-
-    fn start_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.start_date_time()))
-    }
-
-    fn end(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.end()))
-    }
-
-    fn end_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.end_date_time()))
-    }
-
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
-        let new_time = time.into_time();
-        Box::new(self.map(move |e| e.at(new_time)))
-    }
-
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
-        let start = start.into_time();
-        let end = end.into_time();
-        Box::new(self.map(move |e| e.window(start, end)))
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeListOps<'graph>
-    for BoxedLIter<'graph, BoxedLIter<'graph, EdgeView<G, GH>>>
-{
-    type Edge = EdgeView<G, GH>;
-    type ValueType<T> = BoxedLIter<'graph, T>;
-    type VList = BoxedLIter<'graph, BoxedLIter<'graph, NodeView<G, G>>>;
-    type IterType<T> = BoxedLIter<'graph, BoxedLIter<'graph, T>>;
-
-    fn properties(self) -> Self::IterType<Properties<Self::Edge>> {
-        Box::new(self.map(move |it| it.properties()))
-    }
-
-    fn src(self) -> Self::VList {
-        Box::new(self.map(|it| it.src()))
-    }
-
-    fn dst(self) -> Self::VList {
-        Box::new(self.map(|it| it.dst()))
-    }
-
-    fn id(self) -> Self::IterType<(u64, u64)> {
-        Box::new(self.map(|it| it.id()))
-    }
-
-    fn explode(self) -> Self {
-        Box::new(self.map(move |it| it.explode()))
-    }
-
-    /// Gets the earliest times of a list of edges
-    fn earliest_time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.earliest_time()))
-    }
-
-    fn earliest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.earliest_date_time()))
-    }
-
-    /// Gets the latest times of a list of edges
-    fn latest_time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|e| e.latest_time()))
-    }
-
-    fn latest_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|e| e.latest_date_time()))
-    }
-
-    fn date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|it| it.date_time()))
-    }
-
-    fn time(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|it| it.time()))
-    }
-
-    fn layer_name(self) -> Self::IterType<Option<ArcStr>> {
-        Box::new(self.map(|it| it.layer_name()))
-    }
-
-    fn layer_names(self) -> Self::IterType<BoxedIter<ArcStr>> {
-        Box::new(self.map(|it| it.layer_names()))
-    }
-    fn history(self) -> Self::IterType<Vec<i64>> {
-        Box::new(self.map(|it| it.history()))
-    }
-
-    fn history_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
-        Box::new(self.map(|it| it.history_date_time()))
-    }
-
-    fn deletions(self) -> Self::IterType<Vec<i64>> {
-        Box::new(self.map(|it| it.deletions()))
-    }
-
-    fn deletions_date_time(self) -> Self::IterType<Option<Vec<DateTime<Utc>>>> {
-        Box::new(self.map(|it| it.deletions_date_time()))
-    }
-
-    fn is_valid(self) -> Self::IterType<bool> {
-        Box::new(self.map(|it| it.is_valid()))
-    }
-
-    fn is_deleted(self) -> Self::IterType<bool> {
-        Box::new(self.map(|it| it.is_deleted()))
-    }
-
-    fn start(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|it| it.start()))
-    }
-
-    fn start_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|it| it.start_date_time()))
-    }
-
-    fn end(self) -> Self::IterType<Option<i64>> {
-        Box::new(self.map(|it| it.end()))
-    }
-
-    fn end_date_time(self) -> Self::IterType<Option<DateTime<Utc>>> {
-        Box::new(self.map(|it| it.end_date_time()))
-    }
-
-    fn at<T: IntoTime>(self, time: T) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
-        let new_time = time.into_time();
-        Box::new(self.map(move |e| e.at(new_time)))
-    }
-
-    fn window<T: IntoTime>(
-        self,
-        start: T,
-        end: T,
-    ) -> Self::IterType<EdgeView<G, WindowedGraph<GH>>> {
-        let start = start.into_time();
-        let end = end.into_time();
-        Box::new(self.map(move |e| e.window(start, end)))
     }
 }
 
@@ -679,7 +428,7 @@ mod test_edge {
         assert!(e1.add_updates(2, props, Some("test2")).is_err()); // different layer is error
         let e = g.edge(1, 2).unwrap();
         e.add_updates(2, props, Some("test2")).unwrap(); // non-restricted edge view can create new layers
-        let layered_views = e.explode_layers().collect_vec();
+        let layered_views = e.explode_layers().into_iter().collect_vec();
         for ev in layered_views {
             let layer = ev.layer_name().unwrap();
             assert!(ev.add_updates(1, props, Some("test")).is_err()); // restricted edge view cannot create updates in different layer

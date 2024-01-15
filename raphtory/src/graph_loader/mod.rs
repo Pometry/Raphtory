@@ -317,30 +317,33 @@ mod graph_loader_test {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
-        assert_eq!(g.node("Gandalf").unwrap().edges().count(), 59);
+        assert_eq!(g.node("Gandalf").unwrap().edges().iter().count(), 59);
         assert_eq!(
             g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .edges()
+                .iter()
                 .count(),
             36
         );
-        assert_eq!(g.node("Gandalf").unwrap().in_edges().count(), 24);
+        assert_eq!(g.node("Gandalf").unwrap().in_edges().iter().count(), 24);
         assert_eq!(
             g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .in_edges()
+                .iter()
                 .count(),
             16
         );
-        assert_eq!(g.node("Gandalf").unwrap().out_edges().count(), 35);
+        assert_eq!(g.node("Gandalf").unwrap().out_edges().iter().count(), 35);
         assert_eq!(
             g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .out_edges()
+                .iter()
                 .count(),
             20
         );

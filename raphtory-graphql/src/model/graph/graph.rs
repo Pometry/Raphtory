@@ -7,7 +7,7 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -53,11 +53,11 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.default_layer())
     }
 
-    async fn layers(&self, names: Vec<String>) -> Option<GqlGraph> {
+    async fn layers(&self, names: Vec<String>) -> Result<GqlGraph, GraphError> {
         let name = self.name.clone();
         self.graph.layer(names).map(move |g| GqlGraph::new(name, g))
     }
-    async fn layer(&self, name: String) -> Option<GqlGraph> {
+    async fn layer(&self, name: String) -> Result<GqlGraph, GraphError> {
         let v_name = self.name.clone();
         self.graph.layer(name).map(|g| GqlGraph::new(v_name, g))
     }
@@ -216,13 +216,27 @@ impl GqlGraph {
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         let src: NodeRef = src.into();
         let dst: NodeRef = dst.into();
-        self.graph.has_edge(src, dst, layer)
+        match layer {
+            Some(name) => self
+                .graph
+                .layer(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
     }
 
     async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
         let src: NodeRef = src.into();
         let dst: NodeRef = dst.into();
-        self.graph.has_edge(src, dst, layer)
+        match layer {
+            Some(name) => self
+                .graph
+                .layer(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
     }
 
     ////////////////////////

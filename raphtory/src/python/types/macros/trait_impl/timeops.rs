@@ -24,7 +24,7 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"     The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn start_date_time(&self) -> Option<DateTime<Utc>> {
+            pub fn start_date_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
                 self.$field.start_date_time()
             }
 
@@ -42,7 +42,7 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"     The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn end_date_time(&self) -> Option<DateTime<Utc>> {
+            pub fn end_date_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
                 self.$field.end_date_time()
             }
 
@@ -61,7 +61,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     A `WindowSet` object.
-            fn expanding(&self, step: PyInterval) -> Result<WindowSet<'static, $base_type>, ParseTimeError> {
+            fn expanding(&self, step: $crate::python::utils::PyInterval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, $crate::core::utils::time::error::ParseTimeError> {
                 self.$field.expanding(step)
             }
 
@@ -77,9 +77,9 @@ macro_rules! impl_timeops {
             ///     A `WindowSet` object.
             fn rolling(
                 &self,
-                window: PyInterval,
-                step: Option<PyInterval>,
-            ) -> Result<WindowSet<'static, $base_type>, ParseTimeError> {
+                window: $crate::python::utils::PyInterval,
+                step: Option<$crate::python::utils::PyInterval>,
+            ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, $crate::core::utils::time::error::ParseTimeError> {
                 self.$field.rolling(window, step)
             }
 

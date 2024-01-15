@@ -715,8 +715,7 @@ mod views_test {
     use super::*;
     use crate::{
         algorithms::centrality::degree_centrality::degree_centrality,
-        db::{api::view::Layer, graph::graph::assert_graph_equal},
-        prelude::*,
+        db::graph::graph::assert_graph_equal, prelude::*,
     };
     use itertools::Itertools;
     use quickcheck::TestResult;
@@ -894,7 +893,7 @@ mod views_test {
 
         let (i, e) = edges.get(rand_test_index).expect("test index in range");
         if (start..end).contains(i) {
-            if wg.has_edge(e.0, e.1, Layer::All) {
+            if wg.has_edge(e.0, e.1) {
                 TestResult::passed()
             } else {
                 TestResult::error(format!(
@@ -903,7 +902,7 @@ mod views_test {
                     start..end
                 ))
             }
-        } else if !wg.has_edge(e.0, e.1, Layer::All) {
+        } else if !wg.has_edge(e.0, e.1) {
             TestResult::passed()
         } else {
             TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
@@ -937,7 +936,7 @@ mod views_test {
                 wg.count_edges(),
                 true_edge_count
             );
-            println!("g.edges() = {:?}", wg.edges().collect_vec());
+            println!("g.edges() = {:?}", wg.edges().iter().collect_vec());
         }
         TestResult::from_bool(wg.count_edges() == true_edge_count)
     }
@@ -954,7 +953,8 @@ mod views_test {
             });
         let w = g.window(i64::MIN, i64::MAX);
         g.edges()
-            .all(|e| w.has_edge(e.src().id(), e.dst().id(), Layer::All))
+            .iter()
+            .all(|e| w.has_edge(e.src().id(), e.dst().id()))
     }
 
     #[quickcheck]

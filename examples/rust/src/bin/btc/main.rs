@@ -123,8 +123,8 @@ fn main() {
     assert!(windowed_graph.has_node(test_v));
     let v = windowed_graph.node(test_v).unwrap();
 
-    let deg_out = v.out_edges().count();
-    let deg_in = v.in_edges().count();
+    let deg_out = v.out_edges().iter().count();
+    let deg_in = v.in_edges().iter().count();
 
     assert_eq!(deg_out, 22);
     assert_eq!(deg_in, 1);

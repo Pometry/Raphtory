@@ -6,7 +6,8 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
-        edge::{PyDirection, PyEdge, PyEdges, PyMutableEdge},
+        edge::{PyDirection, PyEdge, PyMutableEdge},
+        edges::PyEdges,
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,

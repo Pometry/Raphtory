@@ -195,6 +195,7 @@ impl ModularityFunction for ModularityUnDir {
             .iter()
             .map(|node| {
                 node.edges()
+                    .iter()
                     .filter(|e| e.dst() != e.src())
                     .map(|e| {
                         let w = weight_prop
@@ -290,13 +291,13 @@ impl ModularityFunction for ModularityUnDir {
                 .and_modify(|v| *v -= w_self)
             {
                 Entry::Occupied(v) => {
-                    if *v.get() < 1e-8 {
+                    if *v.get() < self.tol {
                         v.remove();
                     }
                 }
                 _ => {
                     // should only be possible for small values due to tolerance above
-                    debug_assert!(w_self < 1e-8)
+                    debug_assert!(w_self < self.tol)
                 }
             }
             if w_self != 0.0 {
@@ -309,13 +310,13 @@ impl ModularityFunction for ModularityUnDir {
                     .and_modify(|v| *v -= w)
                 {
                     Entry::Occupied(v) => {
-                        if *v.get() < 1e-8 {
+                        if *v.get() < self.tol {
                             v.remove();
                         }
                     }
                     _ => {
                         // should only be possible for small values due to tolerance above
-                        debug_assert!(*w < 1e-8)
+                        debug_assert!(*w < self.tol)
                     }
                 }
                 match self.adj_com[node.index()]
@@ -323,13 +324,13 @@ impl ModularityFunction for ModularityUnDir {
                     .and_modify(|v| *v -= w)
                 {
                     Entry::Occupied(v) => {
-                        if *v.get() < 1e-8 {
+                        if *v.get() < self.tol {
                             v.remove();
                         }
                     }
                     _ => {
                         // should only be possible for small values due to tolerance above
-                        debug_assert!(*w < 1e-8)
+                        debug_assert!(*w < self.tol)
                     }
                 }
                 *self.adj_com[n.index()].entry(new_com).or_insert(0.0) += w;

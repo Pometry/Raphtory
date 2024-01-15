@@ -2,11 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef,
-        utils::{errors::GraphError, time::error::ParseTimeError},
-        Prop,
-    },
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
     db::{
         api::{
             properties::Properties,
@@ -16,26 +12,19 @@ use crate::{
             },
         },
         graph::{
-            // path::{PathFromGraph, PathFromNode},
             node::NodeView,
             nodes::Nodes,
-            views::{deletion_graph::GraphWithDeletions, layer_graph::LayeredGraph},
+            path::{PathFromGraph, PathFromNode},
+            views::deletion_graph::GraphWithDeletions,
         },
     },
     prelude::Graph,
     python::{
-        graph::{
-            edge::{PyEdges, PyNestedEdges},
-            properties::{PyNestedPropsIterable, PyPropsList},
-        },
-        types::wrappers::iterators::*,
-        utils::{PyInterval, PyTime},
+        graph::properties::{PyNestedPropsIterable, PyPropsList},
+        types::{repr::StructReprBuilder, wrappers::iterators::*},
+        utils::PyTime,
     },
     *,
-};
-use crate::{
-    db::graph::path::{PathFromGraph, PathFromNode},
-    python::types::repr::StructReprBuilder,
 };
 use chrono::{DateTime, Utc};
 use pyo3::{
@@ -43,7 +32,7 @@ use pyo3::{
     prelude::*,
     pyclass,
     pyclass::CompareOp,
-    pymethods, PyAny, PyObject, PyRef, PyRefMut, PyResult, Python,
+    pymethods, PyAny, PyObject, PyRef, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
 use std::collections::HashMap;
@@ -54,6 +43,8 @@ use std::collections::HashMap;
 pub struct PyNode {
     node: NodeView<DynamicGraph, DynamicGraph>,
 }
+
+impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<NodeView<G, GH>> for PyNode
@@ -206,87 +197,6 @@ impl PyNode {
         self.node.out_degree()
     }
 
-    /// Get the edges that are pointing to or from this node.
-    ///
-    /// Returns:
-    ///     A list of `Edge` objects.
-    #[getter]
-    pub fn edges(&self) -> PyEdges {
-        let node = self.node.clone();
-        (move || node.edges()).into()
-    }
-
-    /// Get the edges that are pointing to this node.
-    ///
-    /// Returns:
-    ///     A list of `Edge` objects.
-    #[getter]
-    pub fn in_edges(&self) -> PyEdges {
-        let node = self.node.clone();
-        (move || node.in_edges()).into()
-    }
-
-    /// Get the edges that are pointing from this node.
-    ///
-    /// Returns:
-    ///    A list of `Edge` objects.
-    #[getter]
-    pub fn out_edges(&self) -> PyEdges {
-        let node = self.node.clone();
-        (move || node.out_edges()).into()
-    }
-
-    /// Get the neighbours of this node.
-    ///
-    /// Returns:
-    ///
-    ///    A list of `Node` objects.
-    #[getter]
-    pub fn neighbours(&self) -> PyPathFromNode {
-        self.node.neighbours().into()
-    }
-
-    /// Get the neighbours of this node that are pointing to it.
-    ///
-    /// Returns:
-    ///   A list of `Node` objects.
-    #[getter]
-    pub fn in_neighbours(&self) -> PyPathFromNode {
-        self.node.in_neighbours().into()
-    }
-
-    /// Get the neighbours of this node that are pointing from it.
-    ///
-    /// Returns:
-    ///   A list of `Node` objects.
-    #[getter]
-    pub fn out_neighbours(&self) -> PyPathFromNode {
-        self.node.out_neighbours().into()
-    }
-
-    #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> PyNode {
-        self.node.default_layer().into()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (names))]
-    pub fn layers(
-        &self,
-        names: Vec<String>,
-    ) -> Option<NodeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.node.layer(names)
-    }
-
-    #[doc = layers_name_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(
-        &self,
-        name: String,
-    ) -> Option<NodeView<DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.node.layer(name)
-    }
-
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
@@ -311,14 +221,7 @@ impl PyNode {
             .get(name)
             .ok_or(PyKeyError::new_err(format!("Unknown property {}", name)))
     }
-
-    /// Display the node as a string.
-    pub fn __repr__(&self) -> String {
-        self.repr()
-    }
 }
-
-impl_timeops!(PyNode, node, NodeView<DynamicGraph, DynamicGraph>, "node");
 
 impl Repr for PyNode {
     fn repr(&self) -> String {
@@ -326,7 +229,7 @@ impl Repr for PyNode {
     }
 }
 
-impl<G: StaticGraphViewOps, GH: StaticGraphViewOps> Repr for NodeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeView<G, GH> {
     fn repr(&self) -> String {
         if self.properties().is_empty() {
             StructReprBuilder::new("Node")
@@ -461,6 +364,20 @@ impl PyMutableNode {
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodeviewops!(
+    PyNodes,
+    nodes,
+    Nodes<'static, DynamicGraph, DynamicGraph>,
+    "Nodes"
+);
+impl_iterable_mixin!(
+    PyNodes,
+    nodes,
+    Vec<NodeView<DynamicGraph>>,
+    "list[Node]",
+    "node"
+);
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
@@ -608,115 +525,16 @@ impl PyNodes {
         (move || nodes.out_degree()).into()
     }
 
-    /// Returns the edges of the nodes
-    ///
-    /// Returns:
-    ///     An iterator of edges of the nodes
-    #[getter]
-    fn edges(&self) -> PyNestedEdges {
-        let clone = self.nodes.clone();
-        (move || clone.edges()).into()
-    }
-
-    /// Returns the in edges of the nodes
-    ///
-    /// Returns:
-    ///     An iterator of in edges of the nodes
-    #[getter]
-    fn in_edges(&self) -> PyNestedEdges {
-        let clone = self.nodes.clone();
-        (move || clone.in_edges()).into()
-    }
-
-    /// Returns the out edges of the nodes
-    ///
-    /// Returns:
-    ///     An iterator of out edges of the nodes
-    #[getter]
-    fn out_edges(&self) -> PyNestedEdges {
-        let clone = self.nodes.clone();
-        (move || clone.out_edges()).into()
-    }
-
-    /// Get the neighbours of the nodes
-    ///
-    /// Returns:
-    ///     An iterator of the neighbours of the nodes
-    #[getter]
-    fn neighbours(&self) -> PyPathFromGraph {
-        self.nodes.neighbours().into()
-    }
-
-    /// Get the in neighbours of the nodes
-    ///
-    /// Returns:
-    ///     An iterator of the in neighbours of the nodes
-    #[getter]
-    fn in_neighbours(&self) -> PyPathFromGraph {
-        self.nodes.in_neighbours().into()
-    }
-
-    /// Get the out neighbours of the nodes
-    ///
-    /// Returns:
-    ///     An iterator of the out neighbours of the nodes
-    #[getter]
-    fn out_neighbours(&self) -> PyPathFromGraph {
-        self.nodes.out_neighbours().into()
-    }
-
-    /// Collects all nodes into a list
-    fn collect(&self) -> Vec<PyNode> {
-        self.__iter__().into_iter().collect()
-    }
-    #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> PyNodes {
-        self.nodes.default_layer().into()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(
-        &self,
-        name: &str,
-    ) -> Option<Nodes<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.nodes.layer(name)
-    }
-
-    //****** Python *******
-    pub fn __iter__(&self) -> PyNodeIterator {
-        self.nodes.iter().into()
-    }
-
-    pub fn __len__(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn __bool__(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
     pub fn __getitem__(&self, node: NodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
     }
-
-    pub fn __repr__(&self) -> String {
-        self.repr()
-    }
 }
 
-impl_timeops!(
-    PyNodes,
-    nodes,
-    Nodes<'static, DynamicGraph, DynamicGraph>,
-    "nodes"
-);
-
-impl Repr for PyNodes {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'graph, G, GH> {
     fn repr(&self) -> String {
-        format!("Nodes({})", iterator_repr(self.__iter__().into_iter()))
+        format!("Nodes({})", iterator_repr(self.iter()))
     }
 }
 
@@ -725,15 +543,22 @@ pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
 
+impl_nodeviewops!(
+    PyPathFromGraph,
+    path,
+    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    "PathFromGraph"
+);
+impl_iterable_mixin!(
+    PyPathFromGraph,
+    path,
+    Vec<Vec<NodeView<DynamicGraph>>>,
+    "list[list[Node]]",
+    "node"
+);
+
 #[pymethods]
 impl PyPathFromGraph {
-    fn __iter__(&self) -> PathIterator {
-        self.path.iter().into()
-    }
-
-    fn collect(&self) -> Vec<Vec<PyNode>> {
-        self.__iter__().into_iter().map(|it| it.collect()).collect()
-    }
     #[getter]
     fn id(&self) -> NestedU64Iterable {
         let path = self.path.clone();
@@ -804,72 +629,13 @@ impl PyPathFromGraph {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
-
-    #[getter]
-    fn edges(&self) -> PyNestedEdges {
-        let clone = self.path.clone();
-        (move || clone.edges()).into()
-    }
-
-    #[getter]
-    fn in_edges(&self) -> PyNestedEdges {
-        let clone = self.path.clone();
-        (move || clone.in_edges()).into()
-    }
-
-    #[getter]
-    fn out_edges(&self) -> PyNestedEdges {
-        let clone = self.path.clone();
-        (move || clone.out_edges()).into()
-    }
-
-    #[getter]
-    fn out_neighbours(&self) -> Self {
-        self.path.out_neighbours().into()
-    }
-
-    #[getter]
-    fn in_neighbours(&self) -> Self {
-        self.path.in_neighbours().into()
-    }
-
-    #[getter]
-    fn neighbours(&self) -> Self {
-        self.path.neighbours().into()
-    }
-
-    #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> Self {
-        self.path.default_layer().into()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(
-        &self,
-        name: &str,
-    ) -> Option<PathFromGraph<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.path.layer(name)
-    }
-
-    fn __repr__(&self) -> String {
-        self.repr()
-    }
 }
 
-impl_timeops!(
-    PyPathFromGraph,
-    path,
-    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
-    "path"
-);
-
-impl Repr for PyPathFromGraph {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
+    for PathFromGraph<'graph, G, GH>
+{
     fn repr(&self) -> String {
-        format!(
-            "PathFromGraph({})",
-            iterator_repr(self.__iter__().into_iter())
-        )
+        format!("PathFromGraph({})", iterator_repr(self.iter()))
     }
 }
 
@@ -879,9 +645,10 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     fn from(value: PathFromGraph<'static, G, GH>) -> Self {
         Self {
             path: PathFromGraph {
-                base_graph: value.base_graph.clone().into_dynamic(),
-                graph: value.graph.clone().into_dynamic(),
-                op: value.op.clone(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
+                op: value.op,
+                nodes: value.nodes,
             },
         }
     }
@@ -900,6 +667,20 @@ pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
 
+impl_nodeviewops!(
+    PyPathFromNode,
+    path,
+    PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    "PathFromNode"
+);
+impl_iterable_mixin!(
+    PyPathFromNode,
+    path,
+    Vec<NodeView<DynamicGraph>>,
+    "list[Node]",
+    "node"
+);
+
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<PathFromNode<'static, G, GH>> for PyPathFromNode
 {
@@ -908,7 +689,6 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
             path: PathFromNode {
                 graph: value.graph.clone().into_dynamic(),
                 base_graph: value.base_graph.clone().into_dynamic(),
-                node: value.node,
                 op: value.op.clone(),
             },
         }
@@ -925,14 +705,6 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 
 #[pymethods]
 impl PyPathFromNode {
-    fn __iter__(&self) -> PyNodeIterator {
-        self.path.iter().into()
-    }
-
-    fn collect(&self) -> Vec<PyNode> {
-        self.__iter__().into_iter().collect()
-    }
-
     #[getter]
     fn id(&self) -> U64Iterable {
         let path = self.path.clone();
@@ -977,308 +749,12 @@ impl PyPathFromNode {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
-
-    #[getter]
-    fn edges(&self) -> PyEdges {
-        let path = self.path.clone();
-        (move || path.edges()).into()
-    }
-
-    #[getter]
-    fn in_edges(&self) -> PyEdges {
-        let path = self.path.clone();
-        (move || path.in_edges()).into()
-    }
-
-    #[getter]
-    fn out_edges(&self) -> PyEdges {
-        let path = self.path.clone();
-        (move || path.out_edges()).into()
-    }
-
-    #[getter]
-    fn out_neighbours(&self) -> Self {
-        self.path.out_neighbours().into()
-    }
-
-    #[getter]
-    fn in_neighbours(&self) -> Self {
-        self.path.in_neighbours().into()
-    }
-
-    #[getter]
-    fn neighbours(&self) -> Self {
-        self.path.neighbours().into()
-    }
-
-    pub fn default_layer(&self) -> Self {
-        self.path.default_layer().into()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(
-        &self,
-        name: &str,
-    ) -> Option<PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>> {
-        self.path.layer(name)
-    }
-
-    fn __repr__(&self) -> String {
-        self.repr()
-    }
 }
 
-impl_timeops!(
-    PyPathFromNode,
-    path,
-    PathFromNode<'static, DynamicGraph, DynamicGraph>,
-    "path"
-);
-
-impl Repr for PyPathFromNode {
-    fn repr(&self) -> String {
-        format!(
-            "PathFromNode({})",
-            iterator_repr(self.__iter__().into_iter())
-        )
-    }
-}
-
-#[pyclass(name = "NodeIterator")]
-pub struct PyNodeIterator {
-    iter: Box<dyn Iterator<Item = PyNode> + Send>,
-}
-
-impl<I: Iterator<Item = NodeView<DynamicGraph, DynamicGraph>> + Send + 'static> From<I>
-    for PyNodeIterator
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
+    for PathFromNode<'graph, G, GH>
 {
-    fn from(value: I) -> Self {
-        Self {
-            iter: Box::new(value.map(|v| v.into())),
-        }
-    }
-}
-
-impl IntoIterator for PyNodeIterator {
-    type Item = PyNode;
-    type IntoIter = Box<dyn Iterator<Item = PyNode> + Send>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter
-    }
-}
-
-#[pymethods]
-impl PyNodeIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyNode> {
-        slf.iter.next()
-    }
-}
-
-#[pyclass]
-pub struct PathIterator {
-    pub(crate) iter: Box<dyn Iterator<Item = PyPathFromNode> + Send>,
-}
-
-impl IntoIterator for PathIterator {
-    type Item = PyPathFromNode;
-    type IntoIter = Box<dyn Iterator<Item = PyPathFromNode> + Send>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter
-    }
-}
-
-impl<I: Iterator<Item = P> + Send + 'static, P: Into<PyPathFromNode>> From<I> for PathIterator {
-    fn from(value: I) -> Self {
-        Self {
-            iter: Box::new(value.map(|path| path.into())),
-        }
-    }
-}
-
-#[pymethods]
-impl PathIterator {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyPathFromNode> {
-        slf.iter.next()
-    }
-}
-
-py_iterable!(PyNodeIterable, NodeView<DynamicGraph, DynamicGraph>, PyNode);
-
-#[pymethods]
-impl PyNodeIterable {
-    #[getter]
-    fn id(&self) -> U64Iterable {
-        let builder = self.builder.clone();
-        (move || builder().id()).into()
-    }
-
-    #[getter]
-    fn name(&self) -> StringIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().name()).into()
-    }
-
-    #[getter]
-    fn earliest_time(&self) -> OptionI64Iterable {
-        let nodes = self.builder.clone();
-        (move || nodes().earliest_time()).into()
-    }
-
-    #[getter]
-    fn latest_time(&self) -> OptionI64Iterable {
-        let nodes = self.builder.clone();
-        (move || nodes().latest_time()).into()
-    }
-
-    #[getter]
-    fn properties(&self) -> PyPropsList {
-        let nodes = self.builder.clone();
-        (move || nodes().properties()).into()
-    }
-
-    fn degree(&self) -> UsizeIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().degree()).into()
-    }
-
-    fn in_degree(&self) -> UsizeIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().in_degree()).into()
-    }
-
-    fn out_degree(&self) -> UsizeIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().out_degree()).into()
-    }
-
-    #[getter]
-    fn edges(&self) -> PyEdges {
-        let clone = self.builder.clone();
-        (move || clone().edges()).into()
-    }
-
-    #[getter]
-    fn in_edges(&self) -> PyEdges {
-        let clone = self.builder.clone();
-        (move || clone().in_edges()).into()
-    }
-
-    #[getter]
-    fn out_edges(&self) -> PyEdges {
-        let clone = self.builder.clone();
-        (move || clone().out_edges()).into()
-    }
-
-    #[getter]
-    fn out_neighbours(&self) -> Self {
-        let builder = self.builder.clone();
-        (move || builder().out_neighbours()).into()
-    }
-
-    #[getter]
-    fn in_neighbours(&self) -> Self {
-        let builder = self.builder.clone();
-        (move || builder().in_neighbours()).into()
-    }
-
-    #[getter]
-    fn neighbours(&self) -> Self {
-        let builder = self.builder.clone();
-        (move || builder().neighbours()).into()
-    }
-}
-
-py_nested_iterable!(PyNestedNodeIterable, NodeView<DynamicGraph, DynamicGraph>);
-
-#[pymethods]
-impl PyNestedNodeIterable {
-    #[getter]
-    fn id(&self) -> NestedU64Iterable {
-        let builder = self.builder.clone();
-        (move || builder().id()).into()
-    }
-
-    #[getter]
-    fn name(&self) -> NestedStringIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().name()).into()
-    }
-
-    #[getter]
-    fn earliest_time(&self) -> NestedOptionI64Iterable {
-        let nodes = self.builder.clone();
-        (move || nodes().earliest_time()).into()
-    }
-
-    #[getter]
-    fn latest_time(&self) -> NestedOptionI64Iterable {
-        let nodes = self.builder.clone();
-        (move || nodes().latest_time()).into()
-    }
-
-    #[getter]
-    fn properties(&self) -> PyNestedPropsIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().properties()).into()
-    }
-
-    fn degree(&self) -> NestedUsizeIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().degree()).into()
-    }
-
-    fn in_degree(&self) -> NestedUsizeIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().in_degree()).into()
-    }
-
-    fn out_degree(&self) -> NestedUsizeIterable {
-        let nodes = self.builder.clone();
-        (move || nodes().out_degree()).into()
-    }
-
-    #[getter]
-    fn edges(&self) -> PyNestedEdges {
-        let clone = self.builder.clone();
-        (move || clone().edges()).into()
-    }
-
-    #[getter]
-    fn in_edges(&self) -> PyNestedEdges {
-        let clone = self.builder.clone();
-        (move || clone().in_edges()).into()
-    }
-
-    #[getter]
-    fn out_edges(&self) -> PyNestedEdges {
-        let clone = self.builder.clone();
-        (move || clone().out_edges()).into()
-    }
-
-    #[getter]
-    fn out_neighbours(&self) -> Self {
-        let builder = self.builder.clone();
-        (move || builder().out_neighbours()).into()
-    }
-
-    #[getter]
-    fn in_neighbours(&self) -> Self {
-        let builder = self.builder.clone();
-        (move || builder().in_neighbours()).into()
-    }
-
-    #[getter]
-    fn neighbours(&self) -> Self {
-        let builder = self.builder.clone();
-        (move || builder().neighbours()).into()
+    fn repr(&self) -> String {
+        format!("PathFromNode({})", iterator_repr(self.iter()))
     }
 }

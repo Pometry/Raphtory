@@ -7,8 +7,8 @@ mod layer;
 mod node;
 pub(crate) mod time;
 
-pub(crate) use edge::EdgeViewInternalOps;
-pub use edge::{EdgeListOps, EdgeViewOps};
+pub(crate) use edge::BaseEdgeViewOps;
+pub use edge::EdgeViewOps;
 
 pub use graph::*;
 pub use internal::{
@@ -16,7 +16,7 @@ pub use internal::{
 };
 pub use layer::*;
 pub(crate) use node::BaseNodeViewOps;
-pub use node::{NodeListOps, NodeViewOps};
+pub use node::NodeViewOps;
 pub use time::*;
 
 pub type BoxedIter<T> = Box<dyn Iterator<Item = T> + Send>;

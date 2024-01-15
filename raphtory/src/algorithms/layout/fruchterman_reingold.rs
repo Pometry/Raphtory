@@ -17,7 +17,7 @@ pub fn fruchterman_reingold_unbounded<'graph, G: GraphViewOps<'graph>>(
     let mut positions = init_positions(graph, node_start_size);
     let mut velocities = init_velocities(graph);
 
-    for index in 0..iterations {
+    for _index in 0..iterations {
         positions = update_positions(
             &positions,
             &mut velocities,
@@ -48,7 +48,7 @@ fn update_positions<'graph, G: GraphViewOps<'graph>>(
         force += compute_repulsion(id, scale, old_positions);
         force += compute_attraction(id, scale, old_positions, graph);
 
-        let mut velocity = velocities.get_mut(&id).unwrap();
+        let velocity = velocities.get_mut(&id).unwrap();
 
         *velocity += force * dt;
         *velocity *= cooloff_factor;

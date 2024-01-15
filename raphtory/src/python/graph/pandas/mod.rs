@@ -57,6 +57,7 @@ mod test {
 
         let actual = graph
             .edges()
+            .iter()
             .map(|e| {
                 (
                     e.src().id(),

@@ -1765,16 +1765,6 @@ def test_starend_edges():
     g.add_edge(2, 1, 2)
     g.add_edge(3, 1, 2)
 
-    old_start_way = []
-    for e in g.edges:
-        old_start_way.append(e.start)
-    assert old_start_way == list(g.edges.start)
-
-    old_end_way = []
-    for e in g.edges:
-        old_end_way.append(e.end)
-    assert old_end_way == list(g.edges.end)
-
     old_time_way = []
     for e in g.edges:
         old_time_way.append(e.time)
@@ -1798,18 +1788,10 @@ def test_starend_edges():
     old_earliest_time_nested_way = []
     for edges in g.nodes.edges:
         for edge in edges:
-            old_start_nested_way.append(edge.start)
-            old_end_nested_way.append(edge.end)
             old_time_nested_way.append(edge.time)
             old_latest_time_nested_way.append(edge.latest_time)
             old_earliest_time_nested_way.append(edge.earliest_time)
 
-    assert old_start_nested_way == [
-        item for sublist in g.nodes.edges.start.collect() for item in sublist
-    ]
-    assert old_end_nested_way == [
-        item for sublist in g.nodes.edges.end.collect() for item in sublist
-    ]
     assert old_time_nested_way == [
         item for sublist in g.nodes.edges.time.collect() for item in sublist
     ]
@@ -1819,6 +1801,11 @@ def test_starend_edges():
     assert old_earliest_time_nested_way == [
         item for sublist in g.nodes.edges.earliest_time.collect() for item in sublist
     ]
+    gw = g.window(1, 3)
+    assert gw.edges.start == gw.start
+    assert gw.edges.end == gw.end
+    assert gw.nodes.edges.start == gw.start
+    assert gw.nodes.edges.end == gw.end
 
 
 def test_date_time_edges():
@@ -1829,34 +1816,19 @@ def test_date_time_edges():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    old_start_way = []
-    for e in g.edges:
-        old_start_way.append(e.start_date_time)
-    assert old_start_way == list(g.edges.start_date_time)
-
-    old_end_way = []
-    for e in g.edges:
-        old_end_way.append(e.end_date_time)
-    assert old_end_way == list(g.edges.end_date_time)
-
     old_date_way = []
-    old_start_nested_way = []
-    old_end_nested_way = []
     for edges in g.nodes.edges:
         for edge in edges:
             old_date_way.append(edge.date_time)
-            old_start_nested_way.append(edge.start_date_time)
-            old_end_nested_way.append(edge.end_date_time)
 
     assert old_date_way == [
         item for sublist in g.nodes.edges.date_time.collect() for item in sublist
     ]
-    assert old_start_nested_way == [
-        item for sublist in g.nodes.edges.start_date_time.collect() for item in sublist
-    ]
-    assert old_end_nested_way == [
-        item for sublist in g.nodes.edges.end_date_time.collect() for item in sublist
-    ]
+    gw = g.window("2014-02-02", "2014-02-05")
+    assert gw.edges.start_date_time == gw.start_date_time
+    assert gw.edges.end_date_time == gw.end_date_time
+    assert gw.nodes.edges.start_date_time == gw.start_date_time
+    assert gw.nodes.edges.end_date_time == gw.end_date_time
 
 
 def test_layer_edges():

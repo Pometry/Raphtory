@@ -13,7 +13,7 @@ use raphtory::{
             task_runner::TaskRunner,
         },
     },
-    prelude::{EdgeListOps, EdgeViewOps, LayerOps, PropUnwrap, TimeOps},
+    prelude::{EdgeViewOps, LayerOps, PropUnwrap, TimeOps},
 };
 
 fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
@@ -24,6 +24,7 @@ fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
         .unwrap()
         .in_edges()
         .explode()
+        .iter()
         .map(|nf_e_edge_expl| one_path_algorithm(nf_e_edge_expl, no_time))
         .sum::<usize>()
 }
@@ -82,6 +83,7 @@ fn one_path_algorithm<
         .into_iter()
         .flat_map(|v| {
             v.in_edges()
+                .iter()
                 .filter(|e| e.src().id() != a_id && e.src().id() != b_id)
                 .flat_map(|e| e.explode())
         })
@@ -93,6 +95,7 @@ fn one_path_algorithm<
         })
         .flat_map(|v| {
             v.out_edges()
+                .iter()
                 .filter(|e| e.src().id() == e.dst().id())
                 .flat_map(|e| e.explode())
         })

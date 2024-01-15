@@ -110,21 +110,19 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
                     src_node: "start".to_string(),
                 },
             );
-            evv.window(start_time, i64::MAX)
-                .out_edges()
-                .for_each(|eev| {
-                    let dst = eev.dst();
-                    eev.history().into_iter().for_each(|t| {
-                        dst.update(&earliest_taint_time, t);
-                        dst.update(
-                            &recv_tainted_msgs,
-                            TaintMessage {
-                                event_time: t,
-                                src_node: evv.name(),
-                            },
-                        )
-                    });
+            for eev in evv.window(start_time, i64::MAX).out_edges() {
+                let dst = eev.dst();
+                eev.history().into_iter().for_each(|t| {
+                    dst.update(&earliest_taint_time, t);
+                    dst.update(
+                        &recv_tainted_msgs,
+                        TaintMessage {
+                            event_time: t,
+                            src_node: evv.name(),
+                        },
+                    )
                 });
+            }
         }
         Step::Continue
     });
@@ -148,9 +146,9 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
 
             if stop_nodes.is_empty() || !stop_nodes.contains(&evv.id()) {
                 let earliest = evv.read(&earliest_taint_time);
-                evv.window(earliest, i64::MAX).out_edges().for_each(|eev| {
+                for eev in evv.window(earliest, i64::MAX).out_edges() {
                     let dst = eev.dst();
-                    eev.history().into_iter().for_each(|t| {
+                    for t in eev.history() {
                         dst.update(&earliest_taint_time, t);
                         dst.update(
                             &recv_tainted_msgs,
@@ -159,8 +157,8 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
                                 src_node: evv.name(),
                             },
                         )
-                    });
-                });
+                    }
+                }
             }
         }
         Step::Continue

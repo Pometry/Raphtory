@@ -170,31 +170,35 @@ impl<const N: usize> TemporalGraph<N> {
         self.edge_meta.get_all_layers()
     }
 
-    pub(crate) fn layer_id(&self, key: Layer) -> LayerIds {
+    pub(crate) fn layer_id(&self, key: Layer) -> Result<LayerIds, GraphError> {
         match key {
-            Layer::All => LayerIds::All,
-            Layer::Default => LayerIds::One(0),
+            Layer::All => Ok(LayerIds::All),
+            Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
-                Some(id) => LayerIds::One(id),
-                None => LayerIds::None,
+                Some(id) => Ok(LayerIds::One(id)),
+                None => Err(GraphError::InvalidLayer(id.to_string())),
             },
             Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
-                    .filter_map(|id| self.edge_meta.get_layer_id(id))
-                    .collect::<Vec<_>>();
+                    .map(|id| {
+                        self.edge_meta
+                            .get_layer_id(id)
+                            .ok_or_else(|| GraphError::InvalidLayer(id.to_string()))
+                    })
+                    .collect::<Result<Vec<_>, GraphError>>()?;
                 let num_layers = self.num_layers();
                 let num_new_layers = new_layers.len();
                 if num_new_layers == 0 {
-                    LayerIds::None
+                    Ok(LayerIds::None)
                 } else if num_new_layers == 1 {
-                    LayerIds::One(new_layers[0])
+                    Ok(LayerIds::One(new_layers[0]))
                 } else if num_new_layers == num_layers {
-                    LayerIds::All
+                    Ok(LayerIds::All)
                 } else {
                     new_layers.sort_unstable();
                     new_layers.dedup();
-                    LayerIds::Multiple(new_layers.into())
+                    Ok(LayerIds::Multiple(new_layers.into()))
                 }
             }
         }
