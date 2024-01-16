@@ -955,7 +955,7 @@ mod test_deletions {
     fn check_valid<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(e: &EdgeView<G, GH>) {
         assert!(e.is_valid());
         assert!(!e.is_deleted());
-        assert!(e.graph.has_edge(e.src(), e.dst(), Layer::All));
+        assert!(e.graph.has_edge(e.src(), e.dst()));
         assert!(e.graph.edge(e.src(), e.dst()).is_some());
     }
 
@@ -966,7 +966,7 @@ mod test_deletions {
         assert!(e.is_deleted());
         let t = e.latest_time().unwrap_or(i64::MAX);
         let g = e.graph.at(e.latest_time().unwrap_or(i64::MAX)); // latest view of the graph
-        assert!(!g.has_edge(e.src(), e.dst(), Layer::All));
+        assert!(!g.has_edge(e.src(), e.dst()));
         assert!(g.edge(e.src(), e.dst()).is_none());
     }
 

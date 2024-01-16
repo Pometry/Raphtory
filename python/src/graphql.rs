@@ -1,21 +1,32 @@
+use async_graphql::{
+    dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
+    Value as GraphqlValue,
+};
 use crossbeam_channel::Sender;
+use dynamic_graphql::internal::{Register, Registry, TypeName};
 use pyo3::{
     exceptions,
     exceptions::{PyException, PyTypeError, PyValueError},
     prelude::*,
-    types::{PyDict, PyFunction},
+    types::{IntoPyDict, PyDict, PyFunction, PyList},
 };
 use raphtory_core::{
     db::api::view::MaterializedGraph,
     python::{
-        packages::vectors::PyDocumentTemplate,
+        packages::vectors::{PyDocumentTemplate, PyGraphDocument},
         utils::{errors::adapt_err_value, execute_async_task},
     },
     vectors::{embeddings::openai_embedding, EmbeddingFunction},
 };
-use raphtory_graphql::{url_encode_graph, RaphtoryServer};
+use raphtory_graphql::{
+    model::algorithms::{
+        algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
+        vector_algorithms::VectorAlgorithms,
+    },
+    url_encode_graph, RaphtoryServer,
+};
 use reqwest::Client;
-use serde_json::{json, Map, Number, Value};
+use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -125,10 +136,76 @@ impl PyRaphtoryServer {
         }
     }
 
-    // // TODO: this is doable!!!
-    // pub fn register_algorithm(self, name: String, algorithm: &PyFunction) -> RaphtoryServer {
-    //     self.0.register_algorithm(???)
-    // }
+    /// Register a function in the GraphQL schema for document search.
+    ///
+    /// The function needs to take a `VectorisedGraph` as the first argument followed by a
+    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
+    /// They have to be specified using the `input` parameter as a dict where the keys are the
+    /// names of the parameters and the values are the types, expressed as strings.
+    ///
+    /// Arguments:
+    ///   * `name` (`str`): the name of the function in the GraphQL schema.
+    ///   * `input` (`dict`): the keyword arguments expected by the function.
+    ///   * `function` (`function`): the function to run.
+    ///
+    /// Returns:
+    ///    A new server object containing the vectorised graphs.
+    pub fn with_document_search_function(
+        slf: PyRefMut<Self>,
+        name: String,
+        input: HashMap<String, String>,
+        function: &PyFunction,
+    ) -> PyResult<Self> {
+        let function: Py<PyFunction> = function.into();
+
+        let register_function = |name: &str, registry: Registry, parent: Object| {
+            let registry = registry.register::<GqlDocument>();
+            let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
+            let mut field = Field::new(name, output_type, move |ctx| {
+                let algos: &VectorAlgorithms = ctx.parent_value.downcast_ref().unwrap();
+                let documents = Python::with_gil(|py| {
+                    let graph = algos.graph.clone().into_py(py);
+                    let kw_args: HashMap<&str, PyObject> = ctx
+                        .args
+                        .iter()
+                        .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
+                        .collect();
+                    let py_kw_args = kw_args.into_py_dict(py);
+                    let result = function.call(py, (graph,), Some(py_kw_args)).unwrap();
+                    let list = result.downcast::<PyList>(py).unwrap();
+                    let py_documents = list
+                        .iter()
+                        .map(|doc| doc.extract::<PyGraphDocument>().unwrap());
+                    py_documents
+                        .map(|doc| doc.extract_rust_document(py).unwrap())
+                        .collect::<Vec<_>>()
+                });
+
+                let gql_documents = documents
+                    .into_iter()
+                    .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
+
+                FieldFuture::Value(Some(FieldValue::list(gql_documents)))
+            });
+            for (name, type_name) in input {
+                let ty = match type_name.as_str() {
+                    // TODO: try to use PyType here!!
+                    "str" => TypeRef::named_nn(TypeRef::STRING),
+                    "int" => TypeRef::named_nn(TypeRef::INT),
+                    "float" => TypeRef::named_nn(TypeRef::FLOAT),
+                    _ => panic!("type allowed are only: 'str', 'int' and 'float'"),
+                };
+                field = field.argument(InputValue::new(name, ty));
+            }
+            let parent = parent.field(field);
+            (registry, parent)
+        };
+        println!("inserting algorithm with name {name}");
+        VectorAlgorithms::lock_plugins().insert(name, Box::new(register_function));
+
+        let new_server = take_server_ownership(slf)?;
+        Ok(Self::new(new_server))
+    }
 
     /// Start the server and return a handle to it.
     ///
@@ -171,8 +248,26 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(signature = (port = 1736))]
-    pub fn run(slf: PyRefMut<Self>, port: u16) -> PyResult<()> {
-        wait_server(&mut Self::start(slf, port)?.0)
+    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16) -> PyResult<()> {
+        let mut server = Self::start(slf, port)?.0;
+        py.allow_threads(|| wait_server(&mut server))
+    }
+}
+
+fn adapt_graphql_value(value: &ValueAccessor, py: Python) -> PyObject {
+    match value.as_value() {
+        GraphqlValue::Number(number) => {
+            if number.is_f64() {
+                number.as_f64().unwrap().to_object(py)
+            } else if number.is_u64() {
+                number.as_u64().unwrap().to_object(py)
+            } else {
+                number.as_i64().unwrap().to_object(py)
+            }
+        }
+        GraphqlValue::String(value) => value.to_object(py),
+        GraphqlValue::Boolean(value) => value.to_object(py),
+        value => panic!("graphql input value {value} has an unsuported type"),
     }
 }
 
@@ -253,8 +348,9 @@ impl PyRunningRaphtoryServer {
     }
 
     /// Wait until server completion.
-    pub(crate) fn wait(mut slf: PyRefMut<Self>) -> PyResult<()> {
-        wait_server(&mut slf.0)
+    pub(crate) fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
+        let server = &mut slf.0;
+        py.allow_threads(|| wait_server(server))
     }
 
     /// Wait for the server to be online.
@@ -329,8 +425,8 @@ impl PyRaphtoryClient {
     fn query_with_json_variables(
         &self,
         query: String,
-        variables: HashMap<String, Value>,
-    ) -> PyResult<HashMap<String, Value>> {
+        variables: HashMap<String, JsonValue>,
+    ) -> PyResult<HashMap<String, JsonValue>> {
         let client = self.clone();
         let (graphql_query, graphql_result) = execute_async_task(move || async move {
             client.send_graphql_query(query, variables).await
@@ -338,9 +434,9 @@ impl PyRaphtoryClient {
         let mut graphql_result = graphql_result;
 
         match graphql_result.remove("data") {
-            Some(Value::Object(data)) => Ok(data.into_iter().collect()),
+            Some(JsonValue::Object(data)) => Ok(data.into_iter().collect()),
             _ => match graphql_result.remove("errors") {
-                Some(Value::Array(errors)) => Err(PyException::new_err(format!(
+                Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
                     "After sending query to the server:\n\t{graphql_query}\nGot the following errors:\n\t{errors:?}"
                 ))),
                 _ => Err(PyException::new_err(format!(
@@ -354,8 +450,8 @@ impl PyRaphtoryClient {
     async fn send_graphql_query(
         &self,
         query: String,
-        variables: HashMap<String, Value>,
-    ) -> PyResult<(Value, HashMap<String, Value>)> {
+        variables: HashMap<String, JsonValue>,
+    ) -> PyResult<(JsonValue, HashMap<String, JsonValue>)> {
         let client = Client::new();
 
         let request_body = json!({
@@ -390,7 +486,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
 
         match data.get(load_function) {
-            Some(Value::Array(loads)) => {
+            Some(JsonValue::Array(loads)) => {
                 let num_graphs = loads.len();
                 println!("Loaded {num_graphs} graph(s)");
                 translate_map_to_python(py, data)
@@ -500,7 +596,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query, variables.into())?;
 
         match data.get("sendGraph") {
-            Some(Value::String(name)) => {
+            Some(JsonValue::String(name)) => {
                 println!("Sent graph '{name}' to the server");
                 translate_map_to_python(py, data)
             }
@@ -534,21 +630,21 @@ impl PyRaphtoryClient {
     }
 }
 
-fn translate_from_python(py: Python, value: PyObject) -> PyResult<Value> {
+fn translate_from_python(py: Python, value: PyObject) -> PyResult<JsonValue> {
     if let Ok(value) = value.extract::<i64>(py) {
-        Ok(Value::Number(value.into()))
+        Ok(JsonValue::Number(value.into()))
     } else if let Ok(value) = value.extract::<f64>(py) {
-        Ok(Value::Number(Number::from_f64(value).unwrap()))
+        Ok(JsonValue::Number(Number::from_f64(value).unwrap()))
     } else if let Ok(value) = value.extract::<bool>(py) {
-        Ok(Value::Bool(value))
+        Ok(JsonValue::Bool(value))
     } else if let Ok(value) = value.extract::<String>(py) {
-        Ok(Value::String(value))
+        Ok(JsonValue::String(value))
     } else if let Ok(value) = value.extract::<Vec<PyObject>>(py) {
         let mut vec = Vec::new();
         for item in value {
             vec.push(translate_from_python(py, item)?);
         }
-        Ok(Value::Array(vec))
+        Ok(JsonValue::Array(vec))
     } else if let Ok(value) = value.extract::<&PyDict>(py) {
         let mut map = Map::new();
         for (key, value) in value.iter() {
@@ -556,7 +652,7 @@ fn translate_from_python(py: Python, value: PyObject) -> PyResult<Value> {
             let value = translate_from_python(py, value.into_py(py))?;
             map.insert(key, value);
         }
-        Ok(Value::Object(map))
+        Ok(JsonValue::Object(map))
     } else {
         Err(PyErr::new::<PyTypeError, _>("Unsupported type"))
     }
@@ -564,7 +660,7 @@ fn translate_from_python(py: Python, value: PyObject) -> PyResult<Value> {
 
 fn translate_map_to_python(
     py: Python,
-    input: HashMap<String, Value>,
+    input: HashMap<String, JsonValue>,
 ) -> PyResult<HashMap<String, PyObject>> {
     let mut output_dict = HashMap::new();
     for (key, value) in input {
@@ -577,7 +673,7 @@ fn translate_map_to_python(
 
 fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<PyObject> {
     match value {
-        Value::Number(num) => {
+        JsonValue::Number(num) => {
             if num.is_i64() {
                 Ok(num.as_i64().unwrap().into_py(py))
             } else if num.is_f64() {
@@ -586,23 +682,23 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<PyObjec
                 Err(PyErr::new::<PyTypeError, _>("Unsupported number type"))
             }
         }
-        Value::String(s) => Ok(s.into_py(py)),
-        Value::Array(vec) => {
+        JsonValue::String(s) => Ok(s.into_py(py)),
+        JsonValue::Array(vec) => {
             let mut list = Vec::new();
             for item in vec {
                 list.push(translate_to_python(py, item)?);
             }
             Ok(list.into_py(py))
         }
-        Value::Object(map) => {
+        JsonValue::Object(map) => {
             let dict = PyDict::new(py);
             for (key, value) in map {
                 dict.set_item(key, translate_to_python(py, value)?)?;
             }
             Ok(dict.into())
         }
-        Value::Bool(b) => Ok(b.into_py(py)),
-        Value::Null => Ok(py.None()),
+        JsonValue::Bool(b) => Ok(b.into_py(py)),
+        JsonValue::Null => Ok(py.None()),
     }
 }
 

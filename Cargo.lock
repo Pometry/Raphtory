@@ -2968,7 +2968,9 @@ dependencies = [
 name = "raphtory-pymodule"
 version = "0.7.0"
 dependencies = [
+ "async-graphql",
  "crossbeam-channel",
+ "dynamic-graphql",
  "openssl",
  "pyo3",
  "pyo3-build-config 0.19.2",
