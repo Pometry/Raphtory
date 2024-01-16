@@ -28,7 +28,10 @@ impl From<DynamicGraph> for GraphAlgorithms {
 
 impl<'a> AlgorithmEntryPoint<'a> for GraphAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::from([("pagerank", Pagerank::register_algo as RegisterFunction)])
+        HashMap::from([(
+            "pagerank",
+            Box::new(Pagerank::register_algo) as RegisterFunction,
+        )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         GRAPH_ALGO_PLUGINS.lock().unwrap()

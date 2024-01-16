@@ -31,6 +31,7 @@ use std::{
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two nodes.
 #[pyclass(name = "Edge", subclass)]
+#[derive(Clone)]
 pub struct PyEdge {
     pub(crate) edge: EdgeView<DynamicGraph, DynamicGraph>,
 }
