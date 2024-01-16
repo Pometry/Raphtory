@@ -123,15 +123,15 @@ fn main() {
     assert!(windowed_graph.has_node(test_v));
     let v = windowed_graph.node(test_v).unwrap();
 
-    let deg_out = v.out_edges().count();
-    let deg_in = v.in_edges().count();
+    let deg_out = v.out_edges().iter().count();
+    let deg_in = v.in_edges().iter().count();
 
     assert_eq!(deg_out, 22);
     assert_eq!(deg_in, 1);
 }
 
 mod custom_date_format {
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
     use serde::{self, Deserialize, Deserializer, Serializer};
 
     const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
@@ -163,7 +163,7 @@ mod custom_date_format {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Utc.datetime_from_str(&s, FORMAT)
-            .map_err(serde::de::Error::custom)
+        let dt = NaiveDateTime::parse_from_str(&s, FORMAT).map_err(serde::de::Error::custom)?;
+        Ok(dt.and_utc())
     }
 }

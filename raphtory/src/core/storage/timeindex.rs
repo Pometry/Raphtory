@@ -3,6 +3,7 @@ use crate::{
     core::{entities::LayerIds, utils::time::error::ParseTimeError},
     db::api::mutation::{internal::InternalAdditionOps, InputTime, TryIntoInputTime},
 };
+use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::{Itertools, KMerge};
 use num_traits::Saturating;
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,12 @@ pub struct TimeIndexEntry(pub i64, pub usize);
 
 pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync {
     fn t(&self) -> &i64;
+
+    fn dt(&self) -> Option<DateTime<Utc>> {
+        let t = *self.t();
+        NaiveDateTime::from_timestamp_millis(t).map(|dt| dt.and_utc())
+    }
+
     fn range(w: Range<i64>) -> Range<Self>;
 }
 

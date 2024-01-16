@@ -10,6 +10,7 @@ use crate::{
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
+use itertools::kmerge;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use std::{ops::Range, sync::Arc};
@@ -27,11 +28,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn view_start(&self) -> Option<i64> {
-        self.earliest_time_global()
+        None
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.latest_time_global().map(|t| t.saturating_add(1)) // so it is exclusive
+        None
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
@@ -193,6 +194,28 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .or_else(|| self.edge_additions(e, layer_ids).range(w).last_t())
     }
 
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(|index| index.iter()),
+        )
+        .map(|te| *te.t())
+        .collect()
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(move |index| index.range_iter(w.clone())),
+        )
+        .map(|ti| *ti.t())
+        .collect()
+    }
+
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
         self.edge_deletions(e, layer_ids)
             .iter_t()
@@ -322,5 +345,13 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
                 None => p.iter().collect(),
             })
             .unwrap_or_default()
+    }
+
+    fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: LayerIds) -> bool {
+        true
+    }
+
+    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_ids: LayerIds, _t: i64) -> bool {
+        true
     }
 }

@@ -9,11 +9,11 @@ from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
 from math import isclose
-import datetime
+from datetime import datetime, timezone
 import string
 
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
-
+utc = timezone.utc
 
 def create_graph():
     g = Graph()
@@ -247,6 +247,83 @@ def test_getitem():
     )
 
 
+def test_entity_history_date_time():
+    g = Graph()
+    g.add_node(0, 1)
+    g.add_node(1, 1)
+    g.add_node(2, 1)
+    v = g.add_node(3, 1)
+    g.add_edge(0, 1, 2)
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 2)
+    e = g.add_edge(3, 1, 2)
+
+    full_history_1 = [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 2000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+    ]
+
+    full_history_2 = [
+        datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 5000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 6000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+    ]
+
+    windowed_history = [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 1000, tzinfo=utc),
+    ]
+
+    assert v.history_date_time() == full_history_1
+    assert v.window(0, 2).history_date_time() == windowed_history
+    assert e.history_date_time() == full_history_1
+    assert e.window(0, 2).history_date_time() == windowed_history
+
+    g.add_edge(4, 1, 3)
+    g.add_edge(5, 1, 3)
+    g.add_edge(6, 1, 3)
+    g.add_edge(7, 1, 3)
+
+    assert g.edges.history_date_time() == [full_history_1, full_history_2]
+    assert g.nodes.in_edges.history_date_time() == [
+        [],
+        [full_history_1],
+        [full_history_2],
+    ]
+
+    assert g.nodes.earliest_date_time == [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+    ]
+    assert g.nodes.latest_date_time == [
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+    ]
+
+    assert g.nodes.neighbours.latest_date_time.collect() == [
+        [
+            datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        ],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+    ]
+
+    assert g.nodes.neighbours.earliest_date_time.collect() == [
+        [
+            datetime(1970, 1, 1, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+        ],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+    ]
+
+
 def test_graph_properties():
     g = create_graph()
 
@@ -280,9 +357,9 @@ def test_graph_properties():
 
     def time_history_test(time, key, value):
         if value is None:
-            assert g.before(time+1).properties.temporal.get(key) is None
+            assert g.before(time + 1).properties.temporal.get(key) is None
         else:
-            assert g.before(time+1).properties.temporal.get(key).items() == value
+            assert g.before(time + 1).properties.temporal.get(key).items() == value
 
     time_history_test(2, "prop 6", [(1, False), (2, True)])
     time_history_test(1, "static prop", None)
@@ -401,9 +478,7 @@ def test_node_properties():
         if value is None:
             assert g.at(time).node(1).properties.temporal.get(key) is None
             assert g.at(time).nodes.properties.temporal.get(key) is None
-            assert (
-                g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
-            )
+            assert g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
         else:
             assert g.at(time).node(1).properties.temporal.get(key).items() == value
             assert g.at(time).nodes.properties.temporal.get(key).items() == [value]
@@ -415,7 +490,7 @@ def test_node_properties():
     time_history_test(1, "static prop", None)
 
     def time_static_property_test(time, key, value):
-        gg = g.before(time+1)
+        gg = g.before(time + 1)
         if value is None:
             assert gg.node(1).properties.constant.get(key) is None
             assert gg.nodes.properties.constant.get(key) is None
@@ -442,7 +517,7 @@ def test_node_properties():
 
     # testing property
     def time_property_test(time, key, value):
-        gg = g.before(time+1)
+        gg = g.before(time + 1)
         if value is None:
             assert gg.node(1).properties.get(key) is None
             assert gg.nodes.properties.get(key) is None
@@ -949,14 +1024,14 @@ def test_all_degrees_window():
     view = g.before(5)
     v = view.node(2)
     assert v.window(0, 4).in_degree() == 3
-    assert v.window(start=2).in_degree() == 2
-    assert v.window(end=3).in_degree() == 2
+    assert v.after(1).in_degree() == 2
+    assert v.before(3).in_degree() == 2
     assert v.window(0, 4).out_degree() == 1
-    assert v.window(start=2).out_degree() == 1
-    assert v.window(end=3).out_degree() == 1
+    assert v.after(1).out_degree() == 1
+    assert v.before(end=3).out_degree() == 1
     assert v.window(0, 4).degree() == 3
-    assert v.window(start=2).degree() == 2
-    assert v.window(end=3).degree() == 2
+    assert v.after(1).degree() == 2
+    assert v.before(end=3).degree() == 2
 
 
 def test_all_edge_window():
@@ -972,24 +1047,24 @@ def test_all_edge_window():
     view = g.before(5)
     v = view.node(2)
     assert sorted(v.window(0, 4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.window(end=4).in_edges.src.id) == [1, 3, 4]
-    assert sorted(v.window(start=2).in_edges.src.id) == [3, 4]
+    assert sorted(v.before(end=4).in_edges.src.id) == [1, 3, 4]
+    assert sorted(v.after(start=1).in_edges.src.id) == [3, 4]
     assert sorted(v.window(0, 4).out_edges.dst.id) == [3]
-    assert sorted(v.window(end=3).out_edges.dst.id) == [3]
-    assert sorted(v.window(start=2).out_edges.dst.id) == [4]
+    assert sorted(v.before(end=3).out_edges.dst.id) == [3]
+    assert sorted(v.after(start=1).out_edges.dst.id) == [4]
     assert sorted((e.src.id, e.dst.id) for e in v.window(0, 4).edges) == [
         (1, 2),
         (2, 3),
         (3, 2),
         (4, 2),
     ]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(end=4).edges) == [
+    assert sorted((e.src.id, e.dst.id) for e in v.before(end=4).edges) == [
         (1, 2),
         (2, 3),
         (3, 2),
         (4, 2),
     ]
-    assert sorted((e.src.id, e.dst.id) for e in v.window(start=1).edges) == [
+    assert sorted((e.src.id, e.dst.id) for e in v.after(start=0).edges) == [
         (1, 2),
         (2, 3),
         (2, 4),
@@ -1099,7 +1174,6 @@ def test_edge_earliest_latest_time():
     assert list(g.node(1).at(1).edges.latest_time) == [1, 1]
     assert list(g.node(1).before(1).edges.latest_time) == [0, 0]
     assert list(g.node(1).after(1).edges.latest_time) == [2, 2]
-
 
 
 def test_node_earliest_time():
@@ -1254,9 +1328,6 @@ def test_lotr_edge_history():
     assert g.edge("Frodo", "Gandalf").window(100, 1000).history() == [329, 555, 861]
 
 
-
-
-
 # def test_generic_taint_loader():
 #     g = graph_loader.stable_coin_graph("/tmp/stablecoin",true, 1)
 #
@@ -1337,7 +1408,9 @@ def test_window_size():
     g.add_node(1, 1)
     g.add_node(4, 4)
 
-    assert g.window_size == 4
+    assert g.window_size is None
+    assert g.window(1, 5).window_size == 4
+
 
 
 def test_time_index():
@@ -1347,8 +1420,8 @@ def test_time_index():
     rolling = w.rolling("1 day")
     time_index = rolling.time_index()
     assert list(time_index) == [
-        datetime.datetime(2020, 1, 1, 23, 59, 59, 999000),
-        datetime.datetime(2020, 1, 2, 23, 59, 59, 999000),
+        datetime(2020, 1, 1, 23, 59, 59, 999000, tzinfo=utc),
+        datetime(2020, 1, 2, 23, 59, 59, 999000, tzinfo=utc),
     ]
 
     w = g.window(1, 3)
@@ -1364,11 +1437,11 @@ def test_time_index():
 
 def test_datetime_props():
     g = Graph()
-    dt1 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999000)
+    dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
     g.add_node(0, 0, {"time": dt1})
     assert g.node(0).properties.get("time") == dt1
 
-    dt2 = datetime.datetime(2020, 1, 1, 23, 59, 59, 999999)
+    dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
     g.add_node(0, 1, {"time": dt2})
     assert g.node(1).properties.get("time") == dt2
 
@@ -1381,19 +1454,19 @@ def test_date_time():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    assert g.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert g.latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
     e = g.edge(1, 3)
     exploded_edges = []
     for edge in e.explode():
         exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime.datetime(2014, 2, 3)]
-    assert g.edge(1, 2).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.edge(1, 2).latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert exploded_edges == [datetime(2014, 2, 3, tzinfo=utc)]
+    assert g.edge(1, 2).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert g.edge(1, 2).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert g.node(1).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert g.node(1).latest_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert g.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert g.node(1).latest_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
 
 def test_date_time_window():
@@ -1408,47 +1481,78 @@ def test_date_time_window():
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.end_date_time == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-    assert view2.edge(1, 2).start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.edge(1, 2).end_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.edge(1, 2).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.edge(1, 2).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert view.node(1).earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.node(1).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.node(1).earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.node(1).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
     e = view.edge(1, 2)
     exploded_edges = []
     for edge in e.explode():
         exploded_edges.append(edge.date_time)
-    assert exploded_edges == [datetime.datetime(2014, 2, 2)]
+    assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
 
 
 def test_datetime_add_node():
     g = Graph()
-    g.add_node(datetime.datetime(2014, 2, 2), 1)
-    g.add_node(datetime.datetime(2014, 2, 3), 2)
-    g.add_node(datetime.datetime(2014, 2, 4), 2)
-    g.add_node(datetime.datetime(2014, 2, 5), 4)
-    g.add_node(datetime.datetime(2014, 2, 6), 5)
+    g.add_node(datetime(2014, 2, 2), 1)
+    g.add_node(datetime(2014, 2, 3), 2)
+    g.add_node(datetime(2014, 2, 4), 2)
+    g.add_node(datetime(2014, 2, 5), 4)
+    g.add_node(datetime(2014, 2, 6), 5)
 
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
-    assert view.start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view.end_date_time == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view.start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.end_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view2.earliest_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.latest_date_time == datetime.datetime(2014, 2, 4, 0, 0)
+    assert view2.earliest_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.latest_date_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-    assert view2.node(1).start_date_time == datetime.datetime(2014, 2, 2, 0, 0)
-    assert view2.node(1).end_date_time == datetime.datetime(2014, 2, 5, 0, 0)
+    assert view2.node(1).start_date_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.node(1).end_date_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-    assert view.node(2).earliest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
-    assert view.node(2).latest_date_time == datetime.datetime(2014, 2, 3, 0, 0)
+    assert view.node(2).earliest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+    assert view.node(2).latest_date_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+
+
+def test_datetime_with_timezone():
+    from raphtory import Graph
+    import pytz
+
+    g = Graph()
+    # testing zones east and west of UK
+    timezones = [
+        "Asia/Kolkata",
+        "America/New_York",
+        "US/Central",
+        "Europe/London",
+        "Australia/Sydney",
+        "Africa/Johannesburg",
+    ]
+    results = [
+        datetime(2024, 1, 5, 1, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 6, 30, tzinfo=utc),
+        datetime(2024, 1, 5, 10, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 12, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 17, 0, tzinfo=utc),
+        datetime(2024, 1, 5, 18, 0, tzinfo=utc),
+    ]
+
+    for tz in timezones:
+        timezone = pytz.timezone(tz)
+        naive_datetime = datetime(2024, 1, 5, 12, 0, 0)
+        localized_datetime = timezone.localize(naive_datetime)
+        g.add_node(localized_datetime, 1)
+    assert g.node(1).history_date_time() == results
 
 
 def test_equivalent_nodes_edges_and_sets():
@@ -1544,14 +1648,48 @@ def test_materialize_graph():
 
 def test_deletions():
     g = create_graph_with_deletions()
+    deleted_edge = g.edge(edges[0][1], edges[0][2])
     for e in edges:
         assert g.at(e[0]).has_edge(e[1], e[2])
+        assert g.after(e[0]).has_edge(e[1], e[2])
 
-    assert not g.window(start=11).has_edge(edges[0][1], edges[0][2])
+    for e in edges[:-1]:
+        # last update is an existing edge
+        assert not g.before(e[0]).has_edge(e[1], e[2])
+
+    # deleted at window start
+    assert deleted_edge.window(10, 20).is_deleted()
+    assert not deleted_edge.window(10, 20).is_valid()
+    assert deleted_edge.window(10, 20).earliest_time is None
+    assert deleted_edge.window(10, 20).latest_time is None
+
+    # deleted before window start
+    assert deleted_edge.window(15, 20).is_deleted()
+    assert not deleted_edge.window(15, 20).is_valid()
+    assert deleted_edge.window(15, 20).earliest_time is None
+    assert deleted_edge.window(15, 20).latest_time is None
+
+    # deleted in window
+    assert deleted_edge.window(5, 20).is_deleted()
+    assert not deleted_edge.window(5, 20).is_valid()
+    assert deleted_edge.window(5, 20).earliest_time == 5
+    assert deleted_edge.window(5, 20).latest_time == 10
+
+    # check deleted edge is gone at 10
+    assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
+    assert not g.at(10).has_edge(edges[0][1], edges[0][2])
+    assert g.before(10).has_edge(edges[0][1], edges[0][2])
+
+    # check not deleted edges are still there
     for e in edges[1:]:
-        assert g.window(start=11).has_edge(e[1], e[2])
+        assert g.after(start=10).has_edge(e[1], e[2])
 
-    assert list(g.edge(edges[0][1], edges[0][2]).explode().latest_time) == [10]
+    assert list(deleted_edge.explode().latest_time) == [10]
+    assert list(deleted_edge.explode().earliest_time) == [edges[0][0]]
+
+    # check rolling and expanding behaviour
+    assert not list(g.before(1).node(1).after(1).rolling(1))
+    assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
 
 
 def test_edge_layer():
@@ -1621,22 +1759,11 @@ def test_edge_explode_layers():
     print(e_layers)
 
 
-
 def test_starend_edges():
     g = Graph()
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 2)
     g.add_edge(3, 1, 2)
-
-    old_start_way = []
-    for e in g.edges:
-        old_start_way.append(e.start)
-    assert old_start_way == list(g.edges.start)
-
-    old_end_way = []
-    for e in g.edges:
-        old_end_way.append(e.end)
-    assert old_end_way == list(g.edges.end)
 
     old_time_way = []
     for e in g.edges:
@@ -1661,18 +1788,10 @@ def test_starend_edges():
     old_earliest_time_nested_way = []
     for edges in g.nodes.edges:
         for edge in edges:
-            old_start_nested_way.append(edge.start)
-            old_end_nested_way.append(edge.end)
             old_time_nested_way.append(edge.time)
             old_latest_time_nested_way.append(edge.latest_time)
             old_earliest_time_nested_way.append(edge.earliest_time)
 
-    assert old_start_nested_way == [
-        item for sublist in g.nodes.edges.start.collect() for item in sublist
-    ]
-    assert old_end_nested_way == [
-        item for sublist in g.nodes.edges.end.collect() for item in sublist
-    ]
     assert old_time_nested_way == [
         item for sublist in g.nodes.edges.time.collect() for item in sublist
     ]
@@ -1682,6 +1801,11 @@ def test_starend_edges():
     assert old_earliest_time_nested_way == [
         item for sublist in g.nodes.edges.earliest_time.collect() for item in sublist
     ]
+    gw = g.window(1, 3)
+    assert gw.edges.start == gw.start
+    assert gw.edges.end == gw.end
+    assert gw.nodes.edges.start == gw.start
+    assert gw.nodes.edges.end == gw.end
 
 
 def test_date_time_edges():
@@ -1692,36 +1816,19 @@ def test_date_time_edges():
     g.add_edge("2014-02-04", 1, 4)
     g.add_edge("2014-02-05", 1, 2)
 
-    old_start_way = []
-    for e in g.edges:
-        old_start_way.append(e.start_date_time)
-    assert old_start_way == list(g.edges.start_date_time)
-
-    old_end_way = []
-    for e in g.edges:
-        old_end_way.append(e.end_date_time)
-    assert old_end_way == list(g.edges.end_date_time)
-
     old_date_way = []
-    old_start_nested_way = []
-    old_end_nested_way = []
     for edges in g.nodes.edges:
         for edge in edges:
             old_date_way.append(edge.date_time)
-            old_start_nested_way.append(edge.start_date_time)
-            old_end_nested_way.append(edge.end_date_time)
 
     assert old_date_way == [
         item for sublist in g.nodes.edges.date_time.collect() for item in sublist
     ]
-    assert old_start_nested_way == [
-        item
-        for sublist in g.nodes.edges.start_date_time.collect()
-        for item in sublist
-    ]
-    assert old_end_nested_way == [
-        item for sublist in g.nodes.edges.end_date_time.collect() for item in sublist
-    ]
+    gw = g.window("2014-02-02", "2014-02-05")
+    assert gw.edges.start_date_time == gw.start_date_time
+    assert gw.edges.end_date_time == gw.end_date_time
+    assert gw.nodes.edges.start_date_time == gw.start_date_time
+    assert gw.nodes.edges.end_date_time == gw.end_date_time
 
 
 def test_layer_edges():
@@ -1777,6 +1884,7 @@ def test_at_edges():
         old_at_way.append(e.at(2))
     assert old_at_way == list(g.edges.at(2))
 
+
 def test_one_hop_filter_reset():
     g = Graph()
     g.add_edge(0, 1, 2, {"layer": 1}, "1")
@@ -1791,7 +1899,9 @@ def test_one_hop_filter_reset():
     out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
     assert out_out == [3]
 
-    out_out = v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
+    out_out = (
+        v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
+    )
     assert out_out == [2]
 
     out_out = v.at(0).out_neighbours.after(1).out_neighbours.id
@@ -1811,6 +1921,7 @@ def test_one_hop_filter_reset():
     # graph level filter is preserved
     out_out_2 = g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
     assert len(out_out_2) == 0
+
 
 def test_time_exploded_edges():
     g = Graph()
@@ -1834,9 +1945,7 @@ def test_time_exploded_edges():
         for edge in edges:
             time_nested.append(edge.time)
     assert [
-        item
-        for sublist in g.nodes.edges.explode().time.collect()
-        for item in sublist
+        item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
     ] == time_nested
 
     date_time_nested = []
@@ -1871,74 +1980,140 @@ def test_leading_zeroes_ids():
 
 def test_search_in_python():
     g = Graph()
-    g.add_node(1,"hamza",properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_node(2,"ben",properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-    g.add_node(3,"haaroon",properties={"value":199,"value_f":52.6,"value_str":"I wanna rock right now"})
+    g.add_node(
+        1, "hamza", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
+    )
+    g.add_node(
+        2,
+        "ben",
+        properties={"value": 59, "value_f": 11.4, "value_str": "test test test"},
+    )
+    g.add_node(
+        3,
+        "haaroon",
+        properties={
+            "value": 199,
+            "value_f": 52.6,
+            "value_str": "I wanna rock right now",
+        },
+    )
 
-    g.add_edge(2,"haaroon","hamza",properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_edge(1,"ben","hamza",properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-    g.add_edge(3,"ben","haaroon",properties={"value":199,"value_f":52.6,"value_str":"I wanna rock right now"})
+    g.add_edge(
+        2,
+        "haaroon",
+        "hamza",
+        properties={"value": 60, "value_f": 31.3, "value_str": "abc123"},
+    )
+    g.add_edge(
+        1,
+        "ben",
+        "hamza",
+        properties={"value": 59, "value_f": 11.4, "value_str": "test test test"},
+    )
+    g.add_edge(
+        3,
+        "ben",
+        "haaroon",
+        properties={
+            "value": 199,
+            "value_f": 52.6,
+            "value_str": "I wanna rock right now",
+        },
+    )
 
     index = g.index()
 
-    #Name tests
+    # Name tests
     assert len(index.search_nodes("name:ben")) == 1
     assert len(index.search_nodes("name:ben OR name:hamza")) == 2
     assert len(index.search_nodes("name:ben AND name:hamza")) == 0
     assert len(index.search_nodes("name: IN [ben, hamza]")) == 2
 
-    #Property tests
+    # Property tests
     assert len(index.search_nodes("value:<120 OR value_f:>30")) == 3
-    assert len(index.search_nodes("value: [0 TO 60]")) == 2
-    assert len(index.search_nodes("value: [0 TO 60}")) == 1 # } == exclusive
+    assert len(index.search_nodes("value:[0 TO 60]")) == 2
+    assert len(index.search_nodes("value:[0 TO 60}")) == 1  # } == exclusive
     assert len(index.search_nodes("value:>59 AND value_str:abc123")) == 1
 
-    #edge tests
+    # edge tests
     assert len(index.search_edges("from:ben")) == 2
     assert len(index.search_edges("from:ben OR from:haaroon")) == 3
     assert len(index.search_edges("to:haaroon AND from:ben")) == 1
     assert len(index.search_edges("to: IN [ben, hamza]")) == 2
 
-    #edge prop tests
+    # edge prop tests
     assert len(index.search_edges("value:<120 OR value_f:>30")) == 3
-    assert len(index.search_edges("value: [0 TO 60]")) == 2
-    assert len(index.search_edges("value: [0 TO 60}")) == 1 # } == exclusive
+    assert len(index.search_edges("value:[0 TO 60]")) == 2
+    assert len(index.search_edges("value:[0 TO 60}")) == 1  # } == exclusive
     assert len(index.search_edges("value:>59 AND value_str:abc123")) == 1
 
-    #Multiple history points test
+    # Multiple history points test
     g = Graph()
-    g.add_node(1,"hamza",properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_node(2,"hamza",properties={"value":70,"value_f":21.3,"value_str":"avc125"})
-    g.add_node(3,"hamza",properties={"value":80,"value_f":11.3,"value_str":"dsc2312"})
+    g.add_node(
+        1, "hamza", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
+    )
+    g.add_node(
+        2, "hamza", properties={"value": 70, "value_f": 21.3, "value_str": "avc125"}
+    )
+    g.add_node(
+        3, "hamza", properties={"value": 80, "value_f": 11.3, "value_str": "dsc2312"}
+    )
 
     index = g.index()
 
-    #The semantics here are that the expressions independently need to evaluate at ANY point in the lifetime of the node - hence hamza is returned even though at no point does he have both these values at the same time
+    # The semantics here are that the expressions independently need to evaluate at ANY point in the lifetime of the node - hence hamza is returned even though at no point does he have both these values at the same time
     assert len(index.search_nodes("value:<70 AND value_f:<19.2")) == 1
 
-    g.add_node(4,"hamza",properties={"value":100,"value_f":11.3,"value_str":"dsc2312"})
+    g.add_node(
+        4, "hamza", properties={"value": 100, "value_f": 11.3, "value_str": "dsc2312"}
+    )
     # the graph isn't currently reindexed so this will not return hamza even though he now has a value which fits the bill
     assert len(index.search_nodes("value:>99")) == 0
 
 
 def test_search_with_windows():
-
-    #Window test
+    # Window test
     g = Graph()
-    g.add_node(1,"hamza",properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_node(2,"hamza",properties={"value":70,"value_f":21.3,"value_str":"avc125"})
-    g.add_node(3,"hamza",properties={"value":80,"value_f":11.3,"value_str":"dsc2312"})
+    g.add_node(
+        1, "hamza", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
+    )
+    g.add_node(
+        2, "hamza", properties={"value": 70, "value_f": 21.3, "value_str": "avc125"}
+    )
+    g.add_node(
+        3, "hamza", properties={"value": 80, "value_f": 11.3, "value_str": "dsc2312"}
+    )
 
-    g.add_edge(1,"haaroon","hamza",properties={"value":50,"value_f":31.3,"value_str":"abc123"})
-    g.add_edge(2,"haaroon","hamza",properties={"value":60,"value_f":21.3,"value_str":"abddasc1223"})
-    g.add_edge(3,"haaroon","hamza",properties={"value":70,"value_f":11.3,"value_str":"abdsda2c123"})
-    g.add_edge(4,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"})
+    g.add_edge(
+        1,
+        "haaroon",
+        "hamza",
+        properties={"value": 50, "value_f": 31.3, "value_str": "abc123"},
+    )
+    g.add_edge(
+        2,
+        "haaroon",
+        "hamza",
+        properties={"value": 60, "value_f": 21.3, "value_str": "abddasc1223"},
+    )
+    g.add_edge(
+        3,
+        "haaroon",
+        "hamza",
+        properties={"value": 70, "value_f": 11.3, "value_str": "abdsda2c123"},
+    )
+    g.add_edge(
+        4,
+        "ben",
+        "naomi",
+        properties={"value": 100, "value_f": 22.3, "value_str": "ddddd"},
+    )
 
-    w_g = g.window(1,3)
+    w_g = g.window(1, 3)
 
     w_index = w_g.index()
 
-    #Testing if windowing works - ben shouldn't be included and Hamza should only have max value of 70
+    # Testing if windowing works - ben shouldn't be included and Hamza should only have max value of 70
     assert len(w_index.search_nodes("name:ben")) == 0
     assert len(w_index.search_nodes("value:70")) == 1
     assert len(w_index.search_nodes("value:>80")) == 0
@@ -1947,68 +2122,139 @@ def test_search_with_windows():
     assert len(w_index.search_edges("from:haaroon AND value:>70")) == 0
     assert len(w_index.search_edges("from:haaroon AND to:hamza")) == 1
 
+
 def test_search_with_subgraphs():
     g = Graph()
-    g.add_edge(2,"haaroon","hamza",properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_edge(1,"ben","hamza",properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-    g.add_edge(3,"ben","haaroon",properties={"value":199,"value_f":52.6,"value_str":"I wanna rock right now"})
-    g.add_edge(4,"hamza","naomi")
+    g.add_edge(
+        2,
+        "haaroon",
+        "hamza",
+        properties={"value": 60, "value_f": 31.3, "value_str": "abc123"},
+    )
+    g.add_edge(
+        1,
+        "ben",
+        "hamza",
+        properties={"value": 59, "value_f": 11.4, "value_str": "test test test"},
+    )
+    g.add_edge(
+        3,
+        "ben",
+        "haaroon",
+        properties={
+            "value": 199,
+            "value_f": 52.6,
+            "value_str": "I wanna rock right now",
+        },
+    )
+    g.add_edge(4, "hamza", "naomi")
 
     index = g.index()
     assert len(index.search_edges("from:hamza OR to:hamza")) == 3
 
-    subgraph = g.subgraph([g.node("ben"),g.node("hamza"),g.node("haaroon")])
+    subgraph = g.subgraph([g.node("ben"), g.node("hamza"), g.node("haaroon")])
     index = subgraph.index()
 
     assert len(index.search_edges("from:hamza OR to:hamza")) == 2
 
+
 def test_fuzzy_search():
     g = Graph()
-    g.add_node(1,"hamza",properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_node(2,"hamza",properties={"value":70,"value_f":21.3,"value_str":"avc125"})
-    g.add_node(3,"haaroon",properties={"value":80,"value_f":11.3,"value_str":"avc125"})
-    g.add_node(4,"ben",properties={"value":80,"value_f":11.3,"value_str":"dsc2312"})
+    g.add_node(
+        1, "hamza", properties={"value": 60, "value_f": 31.3, "value_str": "abc123"}
+    )
+    g.add_node(
+        2, "hamza", properties={"value": 70, "value_f": 21.3, "value_str": "avc125"}
+    )
+    g.add_node(
+        3, "haaroon", properties={"value": 80, "value_f": 11.3, "value_str": "avc125"}
+    )
+    g.add_node(
+        4, "ben", properties={"value": 80, "value_f": 11.3, "value_str": "dsc2312"}
+    )
 
-    g.add_edge(2,"haaroon","hamza", properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    g.add_edge(1,"ben","hamza", properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-    g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I wanna rock right now"})
-    g.add_edge(4,"hamza","naomi", properties={"value_str":"I wanna rock right now"})
+    g.add_edge(
+        2,
+        "haaroon",
+        "hamza",
+        properties={"value": 60, "value_f": 31.3, "value_str": "abc123"},
+    )
+    g.add_edge(
+        1,
+        "ben",
+        "hamza",
+        properties={"value": 59, "value_f": 11.4, "value_str": "test test test"},
+    )
+    g.add_edge(
+        3,
+        "ben",
+        "haaroon",
+        properties={
+            "value": 199,
+            "value_f": 52.6,
+            "value_str": "I wanna rock right now",
+        },
+    )
+    g.add_edge(4, "hamza", "naomi", properties={"value_str": "I wanna rock right now"})
 
     index = g.index()
 
-    assert len(index.fuzzy_search_nodes("name:habza",levenshtein_distance=1)) == 1
-    assert len(index.fuzzy_search_nodes("name:haa",levenshtein_distance=1,prefix=True)) == 2
-    assert len(index.fuzzy_search_nodes("value_str:abc123",levenshtein_distance=2,prefix=True)) == 2
-    assert len(index.fuzzy_search_nodes("value_str:dsss312",levenshtein_distance=2,prefix=False)) == 1
+    assert len(index.fuzzy_search_nodes("name:habza", levenshtein_distance=1)) == 1
+    assert (
+        len(index.fuzzy_search_nodes("name:haa", levenshtein_distance=1, prefix=True))
+        == 2
+    )
+    assert (
+        len(
+            index.fuzzy_search_nodes(
+                "value_str:abc123", levenshtein_distance=2, prefix=True
+            )
+        )
+        == 2
+    )
+    assert (
+        len(
+            index.fuzzy_search_nodes(
+                "value_str:dsss312", levenshtein_distance=2, prefix=False
+            )
+        )
+        == 1
+    )
 
-    assert len(index.fuzzy_search_edges("from:bon",levenshtein_distance=1)) == 2
-    assert len(index.fuzzy_search_edges("from:bo",levenshtein_distance=1,prefix=True)) == 2
-    assert len(index.fuzzy_search_edges("from:eon",levenshtein_distance=2,prefix=True)) == 2
+    assert len(index.fuzzy_search_edges("from:bon", levenshtein_distance=1)) == 2
+    assert (
+        len(index.fuzzy_search_edges("from:bo", levenshtein_distance=1, prefix=True))
+        == 2
+    )
+    assert (
+        len(index.fuzzy_search_edges("from:eon", levenshtein_distance=2, prefix=True))
+        == 2
+    )
 
 
-#def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
-    # g = Graph()
-    # g.add_edge(2,"haaroon","hamza", properties={"value":60,"value_f":31.3,"value_str":"abc123"})
-    # g.add_edge(1,"ben","hamza", properties={"value":59,"value_f":11.4,"value_str":"test test test"})
-    # g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I gitgit awanna rock right now"})
-    # g.add_edge(4,"hamza","naomi", properties={"value_str":"I wanna rock right now"})
-    #assert len(index.fuzzy_search_edges("value_str:\"I wanna nock right now\"",levenshtein_distance=2)) == 2
+# def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
+# g = Graph()
+# g.add_edge(2,"haaroon","hamza", properties={"value":60,"value_f":31.3,"value_str":"abc123"})
+# g.add_edge(1,"ben","hamza", properties={"value":59,"value_f":11.4,"value_str":"test test test"})
+# g.add_edge(3,"ben","haaroon", properties={"value":199,"value_f":52.6,"value_str":"I gitgit awanna rock right now"})
+# g.add_edge(4,"hamza","naomi", properties={"value_str":"I wanna rock right now"})
+# assert len(index.fuzzy_search_edges("value_str:\"I wanna nock right now\"",levenshtein_distance=2)) == 2
 
 
-#def test_search_with_layers(): #TODO: Fix layer seearching
-    #g = Graph()
-    #g.add_edge(3,"haaroon","hamza",properties={"value":70,"value_f":11.3,"value_str":"abdsda2c123"},layer="1")
-    #g.add_edge(4,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="2")
-    #g.add_edge(5,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="3")
-    #index = g.index()
+# def test_search_with_layers(): #TODO: Fix layer seearching
+# g = Graph()
+# g.add_edge(3,"haaroon","hamza",properties={"value":70,"value_f":11.3,"value_str":"abdsda2c123"},layer="1")
+# g.add_edge(4,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="2")
+# g.add_edge(5,"ben","naomi",properties={"value":100,"value_f":22.3,"value_str":"ddddd"},layer="3")
+# index = g.index()
 
-    # need to expose actual layer searching
-    #assert len(index.search_edges("layer:1")) == 1
+# need to expose actual layer searching
+# assert len(index.search_edges("layer:1")) == 1
 
-    #assert len(index.search_edges("value_str:ddddd")) == 1
-    #assert len(index.search_edges("value:>60")) == 2
+# assert len(index.search_edges("value_str:ddddd")) == 1
+# assert len(index.search_edges("value:>60")) == 2
 
-    #l_g = g.layer(["1","3"])
-    #l_index = l_g.index()
-    #assert len(index.search_edges("value_str:ddddd")) == 1
-    #assert len(index.search_edges("value:>60")) == 2
+# l_g = g.layer(["1","3"])
+# l_index = l_g.index()
+# assert len(index.search_edges("value_str:ddddd")) == 1
+# assert len(index.search_edges("value:>60")) == 2

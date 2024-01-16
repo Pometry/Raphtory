@@ -40,52 +40,22 @@ def test_graphql():
     dir_server.wait_for_online()
     map_dir_server.wait_for_online()
 
-    query_g1 = """{graph(name: "g1") {nodes {name}}}"""
-    query_g2 = """{graph(name: "g2") {nodes {name}}}"""
-    query_g3 = """{graph(name: "g3") {nodes {name}}}"""
-    query_g4 = """{graph(name: "g4") {nodes {name}}}"""
+    query_g1 = """{graph(name: "g1") {nodes {list {name}}}}"""
+    query_g1_window = """{graph(name: "g1") {nodes {before(time: 2) {list {name}}}}}"""
+    query_g2 = """{graph(name: "g2") {nodes {list {name}}}}"""
+    query_g3 = """{graph(name: "g3") {nodes {list {name}}}}"""
+    query_g4 = """{graph(name: "g4") {nodes {list {name}}}}"""
 
-    assert str(map_server.query(query_g1)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}".replace(
-        " ", ""
-    )
-    assert str(map_server.query(query_g2)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}".replace(
-        " ", ""
-    )
-    assert str(dir_server.query(query_g3)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}".replace(
-        " ", ""
-    )
-    assert str(dir_server.query(query_g4)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}".replace(
-        " ", ""
-    )
+    assert map_server.query(query_g1) == {'graph': {'nodes': {"list": [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}
+    assert map_server.query(query_g1_window) == {'graph': {'nodes': {"before": {"list": [{'name': 'ben'}, {'name': 'hamza'}]}}}}
+    assert map_server.query(query_g2) == {'graph': {'nodes': {"list": [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}
+    assert dir_server.query(query_g3) == {'graph': {'nodes': {"list": [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}
+    assert dir_server.query(query_g4) == {'graph': {'nodes': {"list": [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}
 
-    assert str(map_dir_server.query(query_g1)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}".replace(
-        " ", ""
-    )
-    assert str(map_dir_server.query(query_g2)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}".replace(
-        " ", ""
-    )
-    assert str(map_dir_server.query(query_g4)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}".replace(
-        " ", ""
-    )
-    assert str(map_dir_server.query(query_g3)).replace(
-        " ", ""
-    ) == "{'graph': {'nodes': [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}".replace(
-        " ", ""
-    )
+    assert map_dir_server.query(query_g1) == {'graph': {'nodes': {"list": [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}
+    assert map_dir_server.query(query_g2) == {'graph': {'nodes': {"list": [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}
+    assert map_dir_server.query(query_g4) == {'graph': {'nodes': {"list": [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}
+    assert map_dir_server.query(query_g3) == {'graph': {'nodes': {"list": [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}
 
     map_server.stop()
     dir_server.stop()
@@ -133,14 +103,16 @@ def generic_client_test(raphtory_client, temp_dir):
     query = """query GetNodes($graphname: String!) {
         graph(name: $graphname) {
             nodes {
-            name
+                list {
+                    name
+                }
             }
         }
     }"""
     variables = {"graphname": "g1.bincode"}
     res = raphtory_client.query(query, variables)
     assert res == {
-        "graph": {"nodes": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        "graph": {"nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}}
     }
 
     # load a new graph into the client from a path
@@ -166,13 +138,15 @@ def generic_client_test(raphtory_client, temp_dir):
     query = """query GetNodes($graphname: String!) {
         graph(name: $graphname) {
             nodes {
-                name
+                list {
+                    name
+                }
             }
         }
     }"""
     variables = {"graphname": "hello"}
     res = raphtory_client.query(query, variables)
-    assert res == {"graph": {"nodes": [{"name": "1"}]}}
+    assert res == {"graph": {"nodes": {"list": [{"name": "1"}]}}}
 
 
 def test_windows_and_layers():
@@ -184,9 +158,9 @@ def test_windows_and_layers():
 
     g_lotr = graph_loader.lotr_graph()
     g_layers = Graph()
-    g_layers.add_edge(1,1,2,layer="layer1")
-    g_layers.add_edge(1,2,3,layer="layer2")
-    hm = {"lotr":g_lotr,"layers":g_layers}
+    g_layers.add_edge(1, 1, 2, layer="layer1")
+    g_layers.add_edge(1, 2, 3, layer="layer2")
+    hm = {"lotr": g_lotr, "layers": g_layers}
     server = RaphtoryServer(hm).start()
     server.wait_for_online()
     q = """
@@ -299,4 +273,3 @@ def test_windows_and_layers():
     assert json_a == json_ra
     server.stop()
     server.wait()
-

@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::LayerIds, ArcStr},
+    core::{utils::errors::GraphError, ArcStr},
     db::{
         api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
@@ -17,23 +17,20 @@ pub trait LayerOps<'graph> {
     }
 
     /// Return a graph containing the layer `name`
-    fn layer<L: Into<Layer>>(&self, name: L) -> Option<Self::LayeredViewType>;
+    fn layer<L: Into<Layer>>(&self, name: L) -> Result<Self::LayeredViewType, GraphError>;
 }
 
-impl<'graph, V: OneHopFilter<'graph> + InternalLayerOps + 'graph> LayerOps<'graph> for V {
-    type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
+impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
+    type LayeredViewType = V::Filtered<LayeredGraph<V::FilteredGraph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
     }
 
-    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
+    fn layer<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
         let layers = layers.into();
-        let ids = self.layer_ids_from_names(layers);
-        match ids {
-            LayerIds::None => None,
-            _ => Some(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))),
-        }
+        let ids = self.current_filter().layer_ids_from_names(layers)?;
+        Ok(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids)))
     }
 }
 

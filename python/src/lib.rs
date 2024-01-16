@@ -6,7 +6,8 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
-        edge::{PyDirection, PyEdge, PyEdges},
+        edge::{PyDirection, PyEdge, PyMutableEdge},
+        edges::PyEdges,
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
@@ -50,6 +51,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyMutableNode,
         PyEdge,
         PyEdges,
+        PyMutableEdge,
         PyProperties,
         PyConstProperties,
         PyTemporalProperties,
@@ -101,6 +103,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         balance,
         label_propagation,
         temporal_SEIR,
+        louvain,
+        fruchterman_reingold,
+        cohesive_fruchterman_reingold,
     );
     m.add_submodule(algorithm_module)?;
 

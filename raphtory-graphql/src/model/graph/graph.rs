@@ -1,13 +1,13 @@
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
-    graph::{edge::Edge, get_expanded_edges, node::Node, property::GqlProperties},
+    graph::{edge::Edge, get_expanded_edges, node::Node, nodes::GqlNodes, property::GqlProperties},
     schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -53,11 +53,11 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.default_layer())
     }
 
-    async fn layers(&self, names: Vec<String>) -> Option<GqlGraph> {
+    async fn layers(&self, names: Vec<String>) -> Result<GqlGraph, GraphError> {
         let name = self.name.clone();
         self.graph.layer(names).map(move |g| GqlGraph::new(name, g))
     }
-    async fn layer(&self, name: String) -> Option<GqlGraph> {
+    async fn layer(&self, name: String) -> Result<GqlGraph, GraphError> {
         let v_name = self.name.clone();
         self.graph.layer(name).map(|g| GqlGraph::new(v_name, g))
     }
@@ -93,6 +93,18 @@ impl GqlGraph {
 
     async fn after(&self, time: i64) -> GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.after(time))
+    }
+
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_window(start, end))
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_start(start))
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_end(end))
     }
 
     ////////////////////////
@@ -204,13 +216,27 @@ impl GqlGraph {
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         let src: NodeRef = src.into();
         let dst: NodeRef = dst.into();
-        self.graph.has_edge(src, dst, layer)
+        match layer {
+            Some(name) => self
+                .graph
+                .layer(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
     }
 
     async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
         let src: NodeRef = src.into();
         let dst: NodeRef = dst.into();
-        self.graph.has_edge(src, dst, layer)
+        match layer {
+            Some(name) => self
+                .graph
+                .layer(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
     }
 
     ////////////////////////
@@ -225,17 +251,8 @@ impl GqlGraph {
         self.graph.node(v_ref).map(|v| v.into())
     }
 
-    async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
-        match filter {
-            Some(filter) => self
-                .graph
-                .nodes()
-                .iter()
-                .map(|vv| vv.into())
-                .filter(|n| filter.matches(n))
-                .collect(),
-            None => self.graph.nodes().iter().map(|vv| vv.into()).collect(),
-        }
+    async fn nodes(&self, filter: Option<NodeFilter>) -> GqlNodes {
+        GqlNodes::new(self.graph.nodes(), filter)
     }
 
     async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {

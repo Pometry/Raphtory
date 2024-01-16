@@ -81,16 +81,13 @@
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
 //! our [Github repository](https://github.com/Raphtory/raphtory)
-#[allow(unused_imports)]
-#[macro_use(quickcheck)]
-extern crate quickcheck_macros;
-
 pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
 
 #[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
 #[cfg(feature = "io")]
@@ -109,10 +106,7 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
-                view::{
-                    EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeListOps,
-                    NodeViewOps, TimeOps,
-                },
+                view::{EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
             },
             graph::graph::Graph,
         },

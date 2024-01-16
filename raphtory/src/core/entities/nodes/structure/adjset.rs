@@ -237,6 +237,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
 #[cfg(test)]
 mod tadjset_tests {
     use super::*;
+    use quickcheck_macros::quickcheck;
 
     #[quickcheck]
     fn insert_fuzz(input: Vec<usize>) -> bool {

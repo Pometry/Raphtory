@@ -4,17 +4,10 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::{document_template::DocumentTemplate, vectorised_graph::VectorisedGraph},
+    vectors::{document_template::DocumentTemplate, vectorised_graph::DynamicVectorisedGraph},
 };
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-    sync::Arc,
-};
+use std::collections::HashMap;
 use walkdir::WalkDir;
-
-pub(crate) type DynamicTemplate = Arc<dyn DocumentTemplate<MaterializedGraph>>;
-pub(crate) type DynamicVectorisedGraph = VectorisedGraph<MaterializedGraph, DynamicTemplate>;
 
 #[derive(Default)]
 pub struct Data {

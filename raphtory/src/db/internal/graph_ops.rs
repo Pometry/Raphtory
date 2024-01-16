@@ -6,6 +6,7 @@ use crate::{
             nodes::node_ref::NodeRef,
             LayerIds, EID, VID,
         },
+        storage::timeindex::TimeIndexOps,
         Direction,
     },
     db::api::view::{
@@ -236,7 +237,28 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         edges
             .par_iter()
             .filter(|&e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
-            .map(|e| e.additions_iter(&layers).map(|ts| ts.len()).sum::<usize>())
+            .map(|e| {
+                e.updates_iter(&layers)
+                    .map(|(_, additions, deletions)| {
+                        additions.len()
+                            + deletions
+                                .first()
+                                .map(|first_deletion| {
+                                    additions
+                                        .first()
+                                        .map(|first_addition| {
+                                            if first_deletion < first_addition {
+                                                1
+                                            } else {
+                                                0
+                                            }
+                                        })
+                                        .unwrap_or(1)
+                                })
+                                .unwrap_or(0)
+                    })
+                    .sum::<usize>()
+            })
             .sum()
     }
 

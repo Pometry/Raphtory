@@ -7,8 +7,7 @@ on:
         type: 'string'
         default: 'master'
       dry_run:
-        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. 
-        However it will still make a PR and a branch to show you what it changed'
+        description: 'DRY RUN: If true will not publish the release and will not push anything to PyPi/crates.io. However it will still make a PR and a branch to show you what it changed'
         type: boolean
         default: false
         required: false
@@ -47,14 +46,15 @@ jobs:
             3.9
             3.10
             3.11
+            3.12
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11
-          manylinux: 2014
+          args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11 -i python3.12
+          manylinux: 2_28
           before-script-linux: |
             if [[ -f /etc/os-release ]]; then
               . /etc/os-release
@@ -62,27 +62,33 @@ jobs:
                 ubuntu)
                   echo "Installing openssl-dev on Ubuntu..."
                   apt update -y
-                  apt install -y pkg-config libssl-dev libc6 build-essential
+                  apt install -y pkg-config libssl-dev libc6 build-essential musl-tools
                   ;;
                 arch)
                   echo "Installing openssl-dev on Arch Linux..."
-                  pacman -Syu --noconfirm pkg-config openssl
+                  pacman -Syu --noconfirm pkg-config openssl musl
                   ;;
                 fedora)
                   echo "Installing openssl-dev on Fedora..."
                   dnf update -y
-                  dnf install -y pkg-config openssl-devel
+                  dnf install -y pkg-config openssl-devel musl
                   ;;
                 alpine)
                   echo "Installing openssl-dev on Alpine Linux..."
                   apk update -y
-                  apk add pkgconfig openssl-dev
+                  apk add pkgconfig openssl-dev musl-dev
                   ;;
                 centos)
                     echo "Installing openssl-dev on CentOS..."
                     yum update -y
                     yum install -y pkgconfig openssl-devel
                     ;;  
+                almalinux)
+                    echo "Installing openssl-dev on almalinux..."
+                    dnf update -y
+                    dnf group install -y 'Development Tools'
+                    dnf install -y pkg-config openssl-devel
+                    ;;
                 *)
                     echo "Unsupported distribution: $ID"
                     exit 1
@@ -91,6 +97,13 @@ jobs:
             else
               echo "Could not determine distribution."
               exit 1
+            fi
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "aarch64" ]; then
+              echo "Running on aarch64 architecture"
+              rustup override set stable-msvc
+            else
+              echo "Running on non-aarch64 architecture"
             fi
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
@@ -119,6 +132,7 @@ jobs:
             3.9
             3.10
             3.11
+            3.12
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -126,7 +140,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
-          args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11
+          args: --release --out dist -i python3.7 -i python3.8 -i python3.9 -i python3.10 -i python3.11 -i python3.12
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v3
         with:
@@ -165,6 +179,7 @@ jobs:
             3.9
             3.10
             3.11
+            3.12
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:

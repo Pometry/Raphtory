@@ -15,18 +15,18 @@ use crate::{
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        vectorised_graph::DynamicVectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::PyTypeError,
+    exceptions::{PyException, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -56,10 +56,34 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
+#[derive(Clone)]
 #[pyclass(name = "GraphDocument", frozen, get_all)]
 pub struct PyGraphDocument {
     content: String,
     entity: PyObject,
+}
+
+impl PyGraphDocument {
+    pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
+        let node = self.entity.extract::<PyNode>(py);
+        let edge = self.entity.extract::<PyEdge>(py);
+        if let Ok(node) = node {
+            Ok(Document::Node {
+                name: node.name(),
+                content: self.content.clone(),
+            })
+        } else if let Ok(edge) = edge {
+            Ok(Document::Edge {
+                src: edge.edge.src().name(),
+                dst: edge.edge.dst().name(),
+                content: self.content.clone(),
+            })
+        } else {
+            Err(PyException::new_err(
+                "document entity is not a node nor an edge",
+            ))
+        }
+    }
 }
 
 #[pymethods]
@@ -145,8 +169,6 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
     }
 }
 
-pub(crate) type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, PyDocumentTemplate>;
-
 #[pymethods]
 impl PyGraphView {
     /// Create a VectorisedGraph from the current graph
@@ -181,7 +203,7 @@ impl PyGraphView {
                     Box::new(embedding.clone()),
                     cache,
                     overwrite_cache,
-                    template,
+                    Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>,
                     verbose,
                 )
                 .await

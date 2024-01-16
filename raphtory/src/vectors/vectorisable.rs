@@ -106,7 +106,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
                     life: doc.life,
                 })
         });
-        let edges = self.edges().flat_map(|edge| {
+        let edges = self.edges().iter().flat_map(|edge| {
             template
                 .edge(&edge)
                 .enumerate()

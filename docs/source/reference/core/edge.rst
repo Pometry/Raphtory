@@ -15,3 +15,11 @@ Edge
    :show-inheritance:
    :private-members:
    :inherited-members:
+
+.. autoclass:: raphtory.MutableEdge
+   :autosummary:
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :private-members:
+   :inherited-members:

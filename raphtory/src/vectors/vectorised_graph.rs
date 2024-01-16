@@ -1,7 +1,7 @@
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{
-        api::view::StaticGraphViewOps,
+        api::view::{DynamicGraph, StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -38,6 +38,10 @@ pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     selected_docs: Vec<(DocumentRef, f32)>,
     empty_vec: Vec<DocumentRef>,
 }
+
+// This has to be here so it is shared between python and graphql
+pub type DynamicTemplate = Arc<dyn DocumentTemplate<DynamicGraph> + 'static>;
+pub type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph, DynamicTemplate>;
 
 impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G, T> {
     fn clone(&self) -> Self {
@@ -502,7 +506,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                     None => Box::new(std::iter::empty()),
                     Some(node) => {
                         let edges = node.edges();
-                        let edge_docs = edges.flat_map(|edge| {
+                        let edge_docs = edges.iter().flat_map(|edge| {
                             let edge_id = EntityId::from_edge(&edge);
                             self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
                         });

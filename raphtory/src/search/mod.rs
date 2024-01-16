@@ -22,8 +22,8 @@ use crate::{
         api::{
             mutation::internal::InternalAdditionOps,
             view::{
-                internal::{DynamicGraph, InheritViewOps, IntoDynamic},
-                EdgeViewInternalOps, StaticGraphViewOps,
+                internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
+                StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -48,11 +48,7 @@ impl<G> Deref for IndexedGraph<G> {
     }
 }
 
-impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
-    }
-}
+impl<G: StaticGraphViewOps> Static for IndexedGraph<G> {}
 
 impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
 
@@ -285,8 +281,9 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 document.add_text(prop_field, prop_text);
             }
             Prop::DTime(prop_time) => {
-                let time =
-                    tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
+                let time = tantivy::DateTime::from_timestamp_nanos(
+                    prop_time.and_utc().timestamp_nanos_opt().unwrap(),
+                );
                 document.add_date(prop_field, time);
             }
             Prop::U8(prop_u8) => {
@@ -415,7 +412,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         destination_field: Field,
         edge_id_field: Field,
     ) -> tantivy::Result<()> {
-        let edge_ref = e_ref.eref();
+        let edge_ref = e_ref.edge;
 
         let src = e_ref.src();
         let dst = e_ref.dst();
@@ -825,7 +822,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
 #[cfg(test)]
 mod test {
     use std::time::SystemTime;
-    use tantivy::{doc, DocAddress};
+    use tantivy::{doc, DocAddress, Order};
 
     use super::*;
 
@@ -1163,7 +1160,7 @@ mod test {
         // ensure time is part of the index
         schema.add_u64_field("time", INDEXED | STORED);
         // ensure we add node_id as stored to get back the node id after the search
-        schema.add_text_field("node_id", FAST | STORED);
+        schema.add_u64_field("node_id", FAST | STORED);
 
         let index = Index::create_in_ram(schema.build());
 
@@ -1194,7 +1191,8 @@ mod test {
         let query_parser = tantivy::query::QueryParser::for_index(&index, vec![]);
         let query = query_parser.parse_query(r#"name:"gandalf""#).unwrap();
 
-        let ranking = TopDocs::with_limit(10).order_by_u64_field(fields::VERTEX_ID.to_string());
+        let ranking =
+            TopDocs::with_limit(10).order_by_fast_field(fields::VERTEX_ID.to_string(), Order::Asc);
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());

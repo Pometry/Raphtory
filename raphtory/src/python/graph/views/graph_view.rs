@@ -1,22 +1,20 @@
 //! The API for querying a view of the graph in a read-only state
 
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef,
-        utils::{errors::GraphError, time::error::ParseTimeError},
-        ArcStr,
-    },
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
     db::{
         api::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-                LayerOps, StaticGraphViewOps, WindowSet,
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
             edge::EdgeView,
+            edges::Edges,
             node::NodeView,
+            nodes::Nodes,
             views::{
                 layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
             },
@@ -24,16 +22,12 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, node::PyNodes},
-        types::repr::Repr,
-        utils::{PyInterval, PyTime},
+        types::repr::{Repr, StructReprBuilder},
+        utils::PyTime,
     },
-    *,
 };
 use chrono::prelude::*;
-use itertools::Itertools;
 use pyo3::{prelude::*, types::PyBytes};
-use std::ops::Deref;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -70,6 +64,9 @@ impl<'source> FromPyObject<'source> for DynamicGraph {
 pub struct PyGraphView {
     pub graph: DynamicGraph,
 }
+
+impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -123,9 +120,8 @@ impl PyGraphView {
     /// Returns:
     ///     the datetime of the earliest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        let earliest_time = self.graph.earliest_time()?;
-        NaiveDateTime::from_timestamp_millis(earliest_time)
+    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph.earliest_date_time()
     }
 
     /// Timestamp of latest activity in the graph
@@ -142,9 +138,8 @@ impl PyGraphView {
     /// Returns:
     ///     the datetime of the latest activity in the graph
     #[getter]
-    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
-        let latest_time = self.graph.latest_time()?;
-        NaiveDateTime::from_timestamp_millis(latest_time)
+    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph.latest_date_time()
     }
 
     /// Number of edges in the graph
@@ -187,13 +182,12 @@ impl PyGraphView {
     /// Arguments:
     ///   src (str or int): the source node id
     ///   dst (str or int): the destination node id
-    ///   layer (str): the edge layer (optional)
     ///
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
-    #[pyo3(signature = (src, dst, layer=None))]
-    pub fn has_edge(&self, src: NodeRef, dst: NodeRef, layer: Option<&str>) -> bool {
-        self.graph.has_edge(src, dst, layer)
+    #[pyo3(signature = (src, dst))]
+    pub fn has_edge(&self, src: NodeRef, dst: NodeRef) -> bool {
+        self.graph.has_edge(src, dst)
     }
 
     //******  Getter APIs ******//
@@ -214,8 +208,8 @@ impl PyGraphView {
     /// Returns:
     ///  the nodes in the graph
     #[getter]
-    pub fn nodes(&self) -> PyNodes {
-        self.graph.nodes().into()
+    pub fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+        self.graph.nodes()
     }
 
     /// Gets the edge with the specified source and destination nodes
@@ -237,26 +231,8 @@ impl PyGraphView {
     /// Returns:
     ///  the edges in the graph
     #[getter]
-    pub fn edges(&self) -> PyEdges {
-        let clone = self.graph.clone();
-        (move || clone.edges()).into()
-    }
-
-    #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> LayeredGraph<DynamicGraph> {
-        self.graph.default_layer()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (names))]
-    pub fn layers(&self, names: Vec<String>) -> Option<LayeredGraph<DynamicGraph>> {
-        self.graph.layer(names)
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(&self, name: String) -> Option<LayeredGraph<DynamicGraph>> {
-        self.graph.layer(name)
+    pub fn edges(&self) -> Edges<'static, DynamicGraph> {
+        self.graph.edges()
     }
 
     /// Get all graph properties
@@ -300,32 +276,31 @@ impl PyGraphView {
     }
 }
 
-impl_timeops!(PyGraphView, graph, DynamicGraph, "graph");
-
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
-        let num_edges = self.graph.count_edges();
-        let num_nodes = self.graph.count_nodes();
-        let num_temporal_edges: usize = self.graph.count_temporal_edges();
-        let earliest_time = self.graph.earliest_time().repr();
-        let latest_time = self.graph.latest_time().repr();
-        let properties: String = self
-            .graph
-            .properties()
-            .iter()
-            .map(|(k, v)| format!("{}: {}", k.deref(), v))
-            .join(", ");
-        if properties.is_empty() {
-            format!(
-                "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
-                num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time
-            )
+        if self.properties().is_empty() {
+            StructReprBuilder::new("Graph")
+                .add_field("number_of_nodes", self.graph.count_nodes())
+                .add_field("number_of_edges", self.graph.count_edges())
+                .add_field(
+                    "number_of_temporal_edges",
+                    self.graph.count_temporal_edges(),
+                )
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .finish()
         } else {
-            let property_string: String = format!("{{{properties}}}");
-            format!(
-                "Graph(number_of_edges={:?}, number_of_nodes={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
-                num_edges, num_nodes, num_temporal_edges, earliest_time, latest_time, property_string
-            )
+            StructReprBuilder::new("Graph")
+                .add_field("number_of_nodes", self.graph.count_nodes())
+                .add_field("number_of_edges", self.graph.count_edges())
+                .add_field(
+                    "number_of_temporal_edges",
+                    self.graph.count_temporal_edges(),
+                )
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .add_field("properties", self.properties())
+                .finish()
         }
     }
 }

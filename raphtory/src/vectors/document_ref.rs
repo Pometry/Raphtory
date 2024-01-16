@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
-    prelude::{Layer, NodeViewOps},
+    prelude::NodeViewOps,
     vectors::{
         document_template::DocumentTemplate, entity_id::EntityId, Document, Embedding, Lifespan,
     },
@@ -49,6 +49,7 @@ impl DocumentRef {
             life,
         }
     }
+    #[allow(dead_code)]
     pub fn id(&self) -> (EntityId, usize) {
         (self.entity_id.clone(), self.index)
     }
@@ -82,7 +83,7 @@ impl DocumentRef {
         match self.entity_id {
             EntityId::Graph { .. } => true, // TODO: review this
             EntityId::Node { id } => graph.has_node(id),
-            EntityId::Edge { src, dst } => graph.has_edge(src, dst, Layer::All),
+            EntityId::Edge { src, dst } => graph.has_edge(src, dst),
             // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
     }

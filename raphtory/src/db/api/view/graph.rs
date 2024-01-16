@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
+        storage::timeindex::AsTime,
         utils::errors::GraphError,
         ArcStr,
     },
@@ -10,11 +11,16 @@ use crate::{
             properties::Properties,
             view::{internal::*, *},
         },
-        graph::{edge::EdgeView, node::NodeView, nodes::Nodes, views::node_subgraph::NodeSubgraph},
+        graph::{
+            edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes,
+            views::node_subgraph::NodeSubgraph,
+        },
     },
     prelude::{DeletionOps, NO_PROPS},
 };
+use chrono::{DateTime, Utc};
 use rustc_hash::FxHashSet;
+use std::sync::Arc;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -23,7 +29,7 @@ use rustc_hash::FxHashSet;
 ///
 pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph>;
+    fn edges(&self) -> Edges<'graph, Self, Self>;
 
     /// Return a View of the nodes in the Graph
     fn nodes(&self) -> Nodes<'graph, Self, Self>;
@@ -41,8 +47,18 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of earliest activity in the graph
+    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.earliest_time()?.dt()
+    }
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of latest activity in the graph
+    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.latest_time()?.dt()
+    }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -61,7 +77,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of nodes `(src, dst)`.
-    fn has_edge<T: Into<NodeRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
+    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
     fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>>;
@@ -78,13 +94,14 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
 }
 
 impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph> {
-        let layer_ids = self.layer_ids();
-        let edge_filter = self.edge_filter();
-        let g = self.clone();
-        self.edge_refs(layer_ids, edge_filter)
-            .map(move |eref| EdgeView::new(g.clone(), eref))
-            .into_dyn_boxed()
+    fn edges(&self) -> Edges<'graph, Self, Self> {
+        let graph = self.clone();
+        let edges = Arc::new(move || graph.edge_refs(graph.layer_ids(), graph.edge_filter()));
+        Edges {
+            base_graph: self.clone(),
+            graph: self.clone(),
+            edges,
+        }
     }
 
     fn nodes(&self) -> Nodes<'graph, Self, Self> {
@@ -186,13 +203,12 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.has_node_ref(v.into(), &self.layer_ids(), self.edge_filter())
     }
 
-    fn has_edge<T: Into<NodeRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
+    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool {
         let src_ref = src.into();
         let dst_ref = dst.into();
-        let layers = self.layer_ids_from_names(layer.into());
         if let Some(src) = self.internalise_node(src_ref) {
             if let Some(dst) = self.internalise_node(dst_ref) {
-                return self.has_edge_ref(src, dst, &layers, self.edge_filter());
+                return self.has_edge_ref(src, dst, &self.layer_ids(), self.edge_filter());
             }
         }
         false
@@ -227,10 +243,15 @@ pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
 impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
-    type Graph = G;
+    type BaseGraph = G;
+    type FilteredGraph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self
     }
 

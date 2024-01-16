@@ -6,10 +6,9 @@ mod inherit;
 mod into_dynamic;
 mod layer_ops;
 mod materialize;
+mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
-
-mod one_hop_filter;
 
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},

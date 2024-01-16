@@ -20,7 +20,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::{EdgeListOps, GraphViewOps, NodeViewOps, PropUnwrap},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
 };
 use ordered_float::OrderedFloat;
 

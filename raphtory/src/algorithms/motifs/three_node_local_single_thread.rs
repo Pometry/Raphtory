@@ -48,6 +48,7 @@ fn star_motif_count<'graph, G: GraphViewOps<'graph>>(graph: &G, v: u64, delta: i
         let mut exploded_edges = node
             .edges()
             .explode()
+            .iter()
             .map(|edge| {
                 if edge.src().id() == v {
                     star_event(neigh_map[&edge.dst().id()], 1, edge.time().unwrap())
@@ -79,6 +80,7 @@ fn twonode_motif_count<'graph, G: GraphViewOps<'graph>>(
             let mut all_exploded = match (out, inc) {
                 (Some(o), Some(i)) => o
                     .explode()
+                    .iter()
                     .chain(i.explode())
                     .map(|e| {
                         two_node_event(if e.src().id() == v { 1 } else { 0 }, e.time().unwrap())
@@ -86,10 +88,12 @@ fn twonode_motif_count<'graph, G: GraphViewOps<'graph>>(
                     .collect::<Vec<TwoNodeEvent>>(),
                 (Some(o), None) => o
                     .explode()
+                    .iter()
                     .map(|e| two_node_event(1, e.time().unwrap()))
                     .collect::<Vec<TwoNodeEvent>>(),
                 (None, Some(i)) => i
                     .explode()
+                    .iter()
                     .map(|e| two_node_event(0, e.time().unwrap()))
                     .collect::<Vec<TwoNodeEvent>>(),
                 (None, None) => Vec::new(),
@@ -127,12 +131,14 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                         tri_edges.append(
                             &mut o
                                 .explode()
+                                .iter()
                                 .map(|e| new_triangle_edge(false, 1, 0, 1, e.time().unwrap()))
                                 .collect::<Vec<TriangleEdge>>(),
                         );
                         tri_edges.append(
                             &mut i
                                 .explode()
+                                .iter()
                                 .map(|e| new_triangle_edge(false, 1, 0, 0, e.time().unwrap()))
                                 .collect::<Vec<TriangleEdge>>(),
                         );
@@ -141,6 +147,7 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                         tri_edges.append(
                             &mut o
                                 .explode()
+                                .iter()
                                 .map(|e| new_triangle_edge(false, 1, 0, 1, e.time().unwrap()))
                                 .collect::<Vec<TriangleEdge>>(),
                         );
@@ -149,6 +156,7 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                         tri_edges.append(
                             &mut i
                                 .explode()
+                                .iter()
                                 .map(|e| new_triangle_edge(false, 1, 0, 0, e.time().unwrap()))
                                 .collect::<Vec<TriangleEdge>>(),
                         );
@@ -165,12 +173,14 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                             tri_edges.append(
                                 &mut o
                                     .explode()
+                                    .iter()
                                     .map(|e| new_triangle_edge(false, 0, 0, 1, e.time().unwrap()))
                                     .collect::<Vec<TriangleEdge>>(),
                             );
                             tri_edges.append(
                                 &mut i
                                     .explode()
+                                    .iter()
                                     .map(|e| new_triangle_edge(false, 0, 0, 0, e.time().unwrap()))
                                     .collect::<Vec<TriangleEdge>>(),
                             );
@@ -179,6 +189,7 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                             tri_edges.append(
                                 &mut o
                                     .explode()
+                                    .iter()
                                     .map(|e| new_triangle_edge(false, 0, 0, 1, e.time().unwrap()))
                                     .collect::<Vec<TriangleEdge>>(),
                             );
@@ -187,6 +198,7 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                             tri_edges.append(
                                 &mut i
                                     .explode()
+                                    .iter()
                                     .map(|e| new_triangle_edge(false, 0, 0, 0, e.time().unwrap()))
                                     .collect::<Vec<TriangleEdge>>(),
                             );
@@ -200,6 +212,7 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                         Some(edge) => {
                             let r = edge
                                 .explode()
+                                .iter()
                                 .map(|e| new_triangle_edge(true, 1, 0, 1, e.time().unwrap()))
                                 .collect::<Vec<TriangleEdge>>();
                             r.into_iter()
@@ -210,6 +223,7 @@ fn triangle_motif_count<'graph, G: GraphViewOps<'graph>>(
                         Some(edge) => {
                             let r = edge
                                 .explode()
+                                .iter()
                                 .map(|e| new_triangle_edge(true, 0, 0, 0, e.time().unwrap()))
                                 .collect::<Vec<TriangleEdge>>();
                             r.into_iter()
