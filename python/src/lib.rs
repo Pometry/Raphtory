@@ -6,7 +6,6 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
-        arrow::PyArrowGraph,
         edge::{PyDirection, PyEdge, PyEdges},
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
@@ -21,6 +20,9 @@ use raphtory_core::python::{
         vectors::{PyGraphDocument, PyVectorisedGraph},
     },
 };
+
+#[cfg(feature = "arrow")]
+use raphtory_core::python::graph::arrow::PyArrowGraph;
 
 macro_rules! add_functions {
     ($module:expr, $($func:ident),* $(,)?) => {
@@ -45,7 +47,6 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     add_classes!(
         m,
         PyGraph,
-        PyArrowGraph,
         PyGraphWithDeletions,
         PyNode,
         PyNodes,
@@ -60,6 +61,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         AlgorithmResult,
         GraphIndex
     );
+
+    #[cfg(feature = "arrow")]
+    add_classes!(m, PyArrowGraph,);
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;

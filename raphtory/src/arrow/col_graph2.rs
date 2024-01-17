@@ -17,7 +17,10 @@ use crate::{
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         list_buffer::{as_primitive_column, ListColumn},
-        loader::{read_file_chunks, sort_dedup_2, sort_within_chunks, ExternalEdgeList},
+        loader::{
+            read_file_chunks, sort_dedup_2, sort_within_chunks, sort_within_chunks_iter,
+            ExternalEdgeList,
+        },
         mmap::{mmap_batch, mmap_batches, write_batches},
         node_frame_builder::NodeFrameBuilder,
         parquet_reader::{ParquetOffsetIter, ParquetReader},
@@ -467,11 +470,19 @@ impl TempColGraphFragment {
             let sorted_nodes = thread_pool.install(|| {
                 let (_, sorted_nodes) = srcs_parquet_files
                     .par_iter()
-                    .map(|dir_entry| {
-                        sort_within_chunks(dir_entry, src_col, src_hash_col, dst_col, dst_hash_col)
+                    .flat_map(|dir_entry| {
+                        sort_within_chunks_iter(
+                            dir_entry,
+                            src_col,
+                            src_hash_col,
+                            dst_col,
+                            dst_hash_col,
+                        )
+                        .expect("sort within chunks failed")
                     })
                     .flatten()
                     .reduce_with(|(l_hash, l), (r_hash, r)| {
+                        println!("reduce phase len left {}, len right {}", l.len(), r.len());
                         sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
                     })
                     .unwrap();

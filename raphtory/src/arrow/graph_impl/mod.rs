@@ -132,7 +132,7 @@ impl Graph2 {
             time_col,
         )?;
         let t_graph = TemporalGraph::from_edge_lists(
-            8,
+            48,
             node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,

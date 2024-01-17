@@ -295,10 +295,10 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // if it exists make sure it's empty
     std::fs::create_dir_all(&graph_dir)?;
 
-    // let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-    // if dir_iter.next().is_some() {
-    //     return Err(Error::GraphDirNotEmpty);
-    // }
+    let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+    if dir_iter.next().is_some() {
+        return Err(Error::GraphDirNotEmpty);
+    }
 
     return Ok(());
 }

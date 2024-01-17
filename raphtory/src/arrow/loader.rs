@@ -95,6 +95,68 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
         &self.parquet_files
     }
 }
+pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
+    parquet_file: P,
+    src_col: &str,
+    src_hash_col: &str,
+    dst_col: &str,
+    dst_hash_col: &str,
+) -> Result<impl ParallelIterator<Item = Result<(Box<dyn Array>, Box<dyn Array>), Error>>, Error> {
+    let thread_id = std::thread::current().id();
+    println!(
+        "pre sort reading file: {:?} on thread {thread_id:?}",
+        parquet_file.as_ref()
+    );
+    let file = std::fs::File::open(&parquet_file)?;
+    let mut reader = BufReader::new(file);
+    let metadata = read::read_metadata(&mut reader)?;
+    let schema = read::infer_schema(&metadata)?;
+
+    let schema = schema.filter(|_, field| {
+        field.name == src_col
+            || field.name == dst_col
+            || field.name == src_hash_col
+            || field.name == dst_hash_col
+    });
+
+    let src_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == src_col)
+        .unwrap();
+    let dst_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == dst_col)
+        .unwrap();
+    let src_hash_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == src_hash_col)
+        .unwrap();
+    let dst_hash_idx = schema
+        .fields
+        .iter()
+        .position(|f| f.name == dst_hash_col)
+        .unwrap();
+
+    let reader = read::FileReader::new(
+        reader,
+        metadata.row_groups,
+        schema,
+        Some(1_000_000),
+        None,
+        None,
+    );
+    let sorted_nodes = reader.flatten().par_bridge().map(move |chunk| {
+        sort_dedup_2(
+            (&chunk[src_hash_idx], &chunk[src_idx]),
+            (&chunk[dst_hash_idx], &chunk[dst_idx]),
+        )
+    });
+
+    Ok(sorted_nodes)
+}
 
 pub(crate) fn sort_within_chunks<P: AsRef<Path>>(
     parquet_file: P,
@@ -141,7 +203,14 @@ pub(crate) fn sort_within_chunks<P: AsRef<Path>>(
         .position(|f| f.name == dst_hash_col)
         .unwrap();
 
-    let reader = read::FileReader::new(reader, metadata.row_groups, schema, None, None, None);
+    let reader = read::FileReader::new(
+        reader,
+        metadata.row_groups,
+        schema,
+        Some(1_000_000),
+        None,
+        None,
+    );
     let sorted_nodes = reader
         .flatten()
         .par_bridge()
@@ -175,33 +244,30 @@ pub(crate) fn sort_dedup_2(
 
     let options = SortOptions::default();
 
-    let rhs_sorted = sort::lexsort::<i32>(
-        &vec![
-            SortColumn {
-                values: hash_rhs.as_ref(),
-                options: None,
-            },
-            SortColumn {
-                values: rhs.as_ref(),
-                options: None,
-            },
-        ],
-        None,
-    )?;
+    let res = [
+        (hash_rhs.as_ref(), rhs.as_ref()),
+        (hash_lhs.as_ref(), lhs.as_ref()),
+    ]
+    .into_par_iter()
+    .map(|(hash, nodes)| {
+        sort::lexsort::<i32>(
+            &vec![
+                SortColumn {
+                    values: hash.as_ref(),
+                    options: None,
+                },
+                SortColumn {
+                    values: nodes.as_ref(),
+                    options: None,
+                },
+            ],
+            None,
+        )
+    })
+    .collect::<Result<Vec<_>, _>>()?;
 
-    let lhs_sorted = sort::lexsort::<i32>(
-        &vec![
-            SortColumn {
-                values: hash_lhs.as_ref(),
-                options: None,
-            },
-            SortColumn {
-                values: lhs.as_ref(),
-                options: None,
-            },
-        ],
-        None,
-    )?;
+    let rhs_sorted = &res[0];
+    let lhs_sorted = &res[1];
 
     let rhs_hash = rhs_sorted[0].as_ref();
     let lhs_hash = lhs_sorted[0].as_ref();
@@ -223,12 +289,7 @@ pub(crate) fn sort_dedup_2(
 
         if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
             let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
-            for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
+            for (h, v) in hash_arr.values().iter().zip(arr.values().iter()).dedup() {
                 deduped_hash.push(*h);
                 deduped.push(*v);
             }
@@ -238,8 +299,8 @@ pub(crate) fn sort_dedup_2(
         } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i64>>() {
             let mut deduped = MutableUtf8Array::<i64>::new();
             for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
+                .values()
+                .iter()
                 .zip(arr.into_iter().flatten())
                 .dedup()
             {
@@ -252,8 +313,8 @@ pub(crate) fn sort_dedup_2(
         } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i32>>() {
             let mut deduped = MutableUtf8Array::<i32>::new();
             for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
+                .values()
+                .iter()
                 .zip(arr.into_iter().flatten())
                 .dedup()
             {
@@ -265,12 +326,7 @@ pub(crate) fn sort_dedup_2(
             Ok((next_hash.boxed(), arr.to_boxed()))
         } else if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<i64>>() {
             let mut deduped: Vec<i64> = Vec::with_capacity(arr.len());
-            for (h, v) in hash_arr
-                .into_iter()
-                .flatten()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
+            for (h, v) in hash_arr.values().iter().zip(arr.values().iter()).dedup() {
                 deduped_hash.push(*h);
                 deduped.push(*v);
             }
