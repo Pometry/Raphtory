@@ -1,6 +1,6 @@
 use crate::arrow::{
     mmap::{mmap_batch, write_batches},
-    Time, DST_COLUMN, SRC_COLUMN,
+    DST_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
     array::PrimitiveArray,

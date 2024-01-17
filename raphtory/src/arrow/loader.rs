@@ -79,8 +79,8 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
     ) -> impl ParallelIterator<Item = (Box<dyn Array>, Box<dyn Array>)> + '_ {
         self.parquet_files
             .par_iter()
-            .map(|path| {
-                sort_within_chunks(
+            .flat_map(|path| {
+                sort_within_chunks_iter(
                     path,
                     self.src_col,
                     self.src_hash_col,
@@ -101,7 +101,7 @@ pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
     src_hash_col: &str,
     dst_col: &str,
     dst_hash_col: &str,
-) -> Result<impl ParallelIterator<Item = Result<(Box<dyn Array>, Box<dyn Array>), Error>>, Error> {
+) -> Result<impl ParallelIterator<Item = (Box<dyn Array>, Box<dyn Array>)>, Error> {
     let thread_id = std::thread::current().id();
     println!(
         "pre sort reading file: {:?} on thread {thread_id:?}",
@@ -149,131 +149,50 @@ pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
         None,
     );
     let sorted_nodes = reader.flatten().par_bridge().map(move |chunk| {
-        sort_dedup_2(
-            (&chunk[src_hash_idx], &chunk[src_idx]),
-            (&chunk[dst_hash_idx], &chunk[dst_idx]),
-        )
+        let (dest_hash, dest) = sort_destinations(&chunk[dst_hash_idx], &chunk[dst_idx])
+            .expect("failed to sort destinations");
+        let (nodes_hash, nodes) =
+            merge_sort_dest_src((&dest_hash, &dest), (&chunk[src_hash_idx], &chunk[src_idx]))
+                .expect("failed to merge sort destinations and sources");
+        (nodes_hash, nodes)
     });
 
     Ok(sorted_nodes)
 }
 
-pub(crate) fn sort_within_chunks<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-    src_hash_col: &str,
-    dst_col: &str,
-    dst_hash_col: &str,
+pub(crate) fn sort_destinations(
+    dest_hashes: &Box<dyn Array>,
+    dest: &Box<dyn Array>,
 ) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
-    let thread_id = std::thread::current().id();
-    println!(
-        "pre sort reading file: {:?} on thread {thread_id:?}",
-        parquet_file.as_ref()
-    );
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
-
-    let schema = schema.filter(|_, field| {
-        field.name == src_col
-            || field.name == dst_col
-            || field.name == src_hash_col
-            || field.name == dst_hash_col
-    });
-
-    let src_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == src_col)
-        .unwrap();
-    let dst_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == dst_col)
-        .unwrap();
-    let src_hash_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == src_hash_col)
-        .unwrap();
-    let dst_hash_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == dst_hash_col)
-        .unwrap();
-
-    let reader = read::FileReader::new(
-        reader,
-        metadata.row_groups,
-        schema,
-        Some(1_000_000),
+    let mut arr = sort::lexsort::<i32>(
+        &vec![
+            SortColumn {
+                values: dest_hashes.as_ref(),
+                options: None,
+            },
+            SortColumn {
+                values: dest.as_ref(),
+                options: None,
+            },
+        ],
         None,
-        None,
-    );
-    let sorted_nodes = reader
-        .flatten()
-        .par_bridge()
-        .map(|chunk| {
-            sort_dedup_2(
-                (&chunk[src_hash_idx], &chunk[src_idx]),
-                (&chunk[dst_hash_idx], &chunk[dst_idx]),
-            )
-        })
-        .reduce_with(|l, r| {
-            l.and_then(|(l_hash, l)| {
-                r.and_then(|(r_hash, r)| sort_dedup_2((&r_hash, &r), (&l_hash, &l)))
-            })
-        })
-        .unwrap();
-
-    if sorted_nodes.is_err() {
-        println!("error reading file: {:?}", sorted_nodes);
-    }
-
-    sorted_nodes
+    )?;
+    let sorted_hashes = arr.remove(0);
+    let sorted_dest = arr.remove(0);
+    Ok((sorted_hashes, sorted_dest))
 }
 
-// sort by 2 columns
-pub(crate) fn sort_dedup_2(
+pub(crate) fn merge_sort_dest_src(
     lhs: (&Box<dyn Array>, &Box<dyn Array>),
     rhs: (&Box<dyn Array>, &Box<dyn Array>),
 ) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
-    let (hash_rhs, rhs) = rhs;
-    let (hash_lhs, lhs) = lhs;
+    let options = SortOptions {
+        descending: false,
+        nulls_first: false,
+    };
 
-    let options = SortOptions::default();
-
-    let res = [
-        (hash_rhs.as_ref(), rhs.as_ref()),
-        (hash_lhs.as_ref(), lhs.as_ref()),
-    ]
-    .into_par_iter()
-    .map(|(hash, nodes)| {
-        sort::lexsort::<i32>(
-            &vec![
-                SortColumn {
-                    values: hash.as_ref(),
-                    options: None,
-                },
-                SortColumn {
-                    values: nodes.as_ref(),
-                    options: None,
-                },
-            ],
-            None,
-        )
-    })
-    .collect::<Result<Vec<_>, _>>()?;
-
-    let rhs_sorted = &res[0];
-    let lhs_sorted = &res[1];
-
-    let rhs_hash = rhs_sorted[0].as_ref();
-    let lhs_hash = lhs_sorted[0].as_ref();
-
-    let rhs_nodes = rhs_sorted[1].as_ref();
-    let lhs_nodes = lhs_sorted[1].as_ref();
+    let (rhs_hash, rhs_nodes) = rhs;
+    let (lhs_hash, lhs_nodes) = lhs;
 
     let hashes = vec![rhs_hash.as_ref(), lhs_hash.as_ref()];
     let nodes = vec![rhs_nodes.as_ref(), lhs_nodes.as_ref()];
@@ -281,8 +200,16 @@ pub(crate) fn sort_dedup_2(
 
     let slices = merge_sort::slices(pairs.as_ref())?;
 
-    let new_hashes = merge_sort::take_arrays(&[rhs_hash, lhs_hash], slices.iter().copied(), None);
-    let merged = merge_sort::take_arrays(&[rhs_nodes, lhs_nodes], slices.iter().copied(), None);
+    let new_hashes = merge_sort::take_arrays(
+        &[rhs_hash.as_ref(), lhs_hash.as_ref()],
+        slices.iter().copied(),
+        None,
+    );
+    let merged = merge_sort::take_arrays(
+        &[rhs_nodes.as_ref(), lhs_nodes.as_ref()],
+        slices.iter().copied(),
+        None,
+    );
 
     if let Some(hash_arr) = new_hashes.as_any().downcast_ref::<PrimitiveArray<i64>>() {
         let mut deduped_hash: Vec<i64> = Vec::with_capacity(hash_arr.len());
@@ -416,7 +343,7 @@ pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
                     .par_iter()
                     .flat_map(|e_list| e_list.par_sorted_nodes())
                     .reduce_with(|(l_hash, l), (r_hash, r)| {
-                        sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
+                        merge_sort_dest_src((&l_hash, &l), (&r_hash, &r)).unwrap()
                     })
             })
             .ok_or_else(|| Error::NoEdgeLists)?;
@@ -456,4 +383,30 @@ pub(crate) fn read_sorted_gids(
     let hash_arr = arrays[0].clone();
     let gid_arr = arrays[1].clone();
     Ok((hash_arr, gid_arr))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn sort_merge_dedup_2_cols() {
+        let rhs = PrimitiveArray::from_vec(vec![1u64, 2, 3, 4, 5, 6, 7, 8, 9, 10]).boxed();
+        let hash_rhs = PrimitiveArray::from_vec(vec![4i64, 5, 5, 6, 7, 7, 8, 8, 9, 11]).boxed();
+
+        let lhs = PrimitiveArray::from_vec(vec![0u64, 9, 10, 6, 7, 8, 3, 1, 4, 15]).boxed();
+        let hash_lhs = PrimitiveArray::from_vec(vec![-3i64, 9, 11, 7, 8, 8, 5, 4, 6, 17]).boxed();
+
+        let (hash_lhs, lhs) = sort_destinations(&hash_lhs, &lhs).unwrap();
+        let (actual_h, actual_v) =
+            merge_sort_dest_src((&hash_lhs, &lhs), (&hash_rhs, &rhs)).unwrap();
+
+        let expected_v =
+            PrimitiveArray::from_vec(vec![0u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]).boxed();
+        let expected_h =
+            PrimitiveArray::from_vec(vec![-3i64, 4, 5, 5, 6, 7, 7, 8, 8, 9, 11, 17]).boxed();
+
+        assert_eq!(actual_h, expected_h);
+        assert_eq!(actual_v, expected_v);
+    }
 }

@@ -123,7 +123,7 @@ impl TimeSemantics for Graph2 {
     }
 
     #[doc = " Get the time of the latest activity of an edge"]
-    fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+    fn edge_latest_time(&self, _e: EdgeRef, _layer_ids: LayerIds) -> Option<i64> {
         todo!()
     }
 
@@ -138,7 +138,7 @@ impl TimeSemantics for Graph2 {
     }
 
     #[doc = " Get the edge deletions for use with materialize"]
-    fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+    fn edge_deletion_history(&self, _e: EdgeRef, _layer_ids: LayerIds) -> Vec<i64> {
         todo!()
     }
 
@@ -329,7 +329,7 @@ impl TimeSemantics for Graph2 {
     #[doc = ""]
     #[doc = " * `e` - The id of the edge"]
     #[doc = " * `prop_id` - The id of the property to retrieve."]
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn has_temporal_edge_prop(&self, _e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
         let layer_id = match layer_ids {
             LayerIds::One(layer_id) => layer_id,
             _ => panic!("only one layer id supported"),

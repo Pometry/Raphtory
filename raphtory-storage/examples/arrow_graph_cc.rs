@@ -1,4 +1,3 @@
-use core::panic;
 use std::{cmp::Reverse, time::Instant};
 
 use itertools::Itertools;
@@ -17,8 +16,8 @@ fn main() {
     // else call create_path
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
-        //     Graph2::open_path(graph_dir).expect("Cannot open graph")
-        // } else {
+        Graph2::open_path(graph_dir).expect("Cannot open graph")
+    } else {
         let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
         let chunk_size = 4_194_304;
         let t_props_chunk_size = 10_485_050;
@@ -38,8 +37,6 @@ fn main() {
         .expect("Cannot load graph");
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
-    } else {
-        panic!("Graph directory does not exist");
     };
 
     println!("{:?}", graph2.layer_names());

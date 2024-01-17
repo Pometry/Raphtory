@@ -17,10 +17,7 @@ use crate::{
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         list_buffer::{as_primitive_column, ListColumn},
-        loader::{
-            read_file_chunks, sort_dedup_2, sort_within_chunks, sort_within_chunks_iter,
-            ExternalEdgeList,
-        },
+        loader::{read_file_chunks, ExternalEdgeList},
         mmap::{mmap_batch, mmap_batches, write_batches},
         node_frame_builder::NodeFrameBuilder,
         parquet_reader::{ParquetOffsetIter, ParquetReader},
@@ -44,11 +41,10 @@ use rayon::prelude::*;
 use tempfile::tempfile_in;
 
 use super::{
-    array_as_id_iter,
     chunked_array::chunked_array::ChunkedArray,
     edge_frame_builder::edge_props_builder::write_buffer,
     edges::{calculate_earliest_latest_time, Edges},
-    global_order::{GlobalMap, GlobalOrder},
+    global_order::GlobalOrder,
     node_chunk::{NodeChunk, RowOwned},
     nodes::{Node, Nodes},
     split_struct_chunk, GraphChunk, Time,
@@ -59,14 +55,6 @@ pub struct TempColGraphFragment {
     nodes: Nodes,
     edges: Edges,
     graph_dir: Box<Path>,
-    layer_id: usize,
-}
-
-fn is_parquet_file(path: impl AsRef<Path>) -> bool {
-    path.as_ref()
-        .extension()
-        .map(|ext| ext == "parquet")
-        .unwrap_or(false)
 }
 
 pub fn list_sorted_files(
@@ -83,7 +71,7 @@ pub fn list_sorted_files(
 
 impl TempColGraphFragment {
     pub fn new<P: AsRef<Path>>(graph_dir: P, mmap: bool, layer_id: usize) -> Result<Self, Error> {
-        let nodes = Nodes::from_path(graph_dir.as_ref(), mmap, layer_id)?;
+        let nodes = Nodes::from_path(graph_dir.as_ref(), mmap)?;
 
         let has_additions = nodes.additions.len() > 0;
 
@@ -95,7 +83,6 @@ impl TempColGraphFragment {
             nodes,
             edges,
             graph_dir: graph_dir.as_ref().into(),
-            layer_id,
         };
 
         if !has_additions {
@@ -338,7 +325,6 @@ impl TempColGraphFragment {
             nodes,
             edges,
             graph_dir: graph_dir.into(),
-            layer_id,
         })
     }
 
@@ -429,104 +415,7 @@ impl TempColGraphFragment {
             nodes,
             edges,
             graph_dir: graph_dir.into(),
-            layer_id,
         })
-    }
-
-    pub fn from_sorted_parquet_dir_edge_list<P: AsRef<Path> + Clone + Send + Sync>(
-        parquet_path: P,
-        graph_dir: P,
-        layer_id: usize,
-        src_col: &str,
-        src_hash_col: &str,
-        dst_col: &str,
-        dst_hash_col: &str,
-        time_col: &str,
-        exclude_cols: &[&str],
-        num_threads: NonZeroUsize,
-        node_chunk_size: usize,
-        edge_chunk_size: usize,
-        t_props_chunk_size: usize,
-    ) -> Result<Self, Error> {
-        let sorted_gids_path = parquet_path
-            .as_ref()
-            .to_path_buf()
-            .join("sorted_global_ids.ipc");
-
-        let srcs_parquet_files =
-            list_sorted_files(&parquet_path, |path| is_parquet_file(path))?.collect_vec();
-
-        let now = std::time::Instant::now();
-
-        let sorted_nodes = if sorted_gids_path.exists() {
-            let chunk = unsafe { mmap_batch(sorted_gids_path.as_path(), 0)? };
-            chunk.into_arrays().into_iter().next().unwrap()
-        } else {
-            let thread_pool = rayon::ThreadPoolBuilder::new()
-                .num_threads(num_threads.get())
-                .build()
-                .unwrap();
-
-            let sorted_nodes = thread_pool.install(|| {
-                let (_, sorted_nodes) = srcs_parquet_files
-                    .par_iter()
-                    .flat_map(|dir_entry| {
-                        sort_within_chunks_iter(
-                            dir_entry,
-                            src_col,
-                            src_hash_col,
-                            dst_col,
-                            dst_hash_col,
-                        )
-                        .expect("sort within chunks failed")
-                    })
-                    .flatten()
-                    .reduce_with(|(l_hash, l), (r_hash, r)| {
-                        println!("reduce phase len left {}, len right {}", l.len(), r.len());
-                        sort_dedup_2((&l_hash, &l), (&r_hash, &r)).unwrap()
-                    })
-                    .unwrap();
-                sorted_nodes
-            });
-
-            let schema = Schema::from(vec![Field::new(
-                "sorted_global_ids",
-                sorted_nodes.data_type().clone(),
-                false,
-            )]);
-
-            let chunk = [Chunk::try_new(vec![sorted_nodes.clone()])?];
-            write_batches(sorted_gids_path.as_path(), schema, &chunk)?;
-            sorted_nodes
-        };
-
-        let mut go: GlobalMap = GlobalMap::default();
-        for (i, gid) in array_as_id_iter(&sorted_nodes)?.enumerate() {
-            go.insert(gid, i);
-        }
-
-        println!(
-            "DONE global order time: {:?}, len: {}",
-            now.elapsed(),
-            go.len()
-        );
-
-        Self::from_sorted_parquet_files_edge_list(
-            &srcs_parquet_files,
-            Arc::new(go),
-            layer_id,
-            graph_dir.as_ref(),
-            src_col,
-            src_hash_col,
-            dst_col,
-            dst_hash_col,
-            time_col,
-            exclude_cols,
-            num_threads,
-            node_chunk_size,
-            edge_chunk_size,
-            t_props_chunk_size,
-        )
     }
 
     pub fn num_nodes(&self) -> usize {
@@ -1171,61 +1060,12 @@ mod test {
         edges_sanity_check_inner(edges, 1, 1, 1, 1)
     }
 
-    #[test]
-    fn load_from_parquet() {
-        let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), "resources", "test", "nft"]
-            .iter()
-            .collect();
-        let test_dir = TempDir::new().unwrap();
-
-        let g = TempColGraphFragment::from_sorted_parquet_dir_edge_list(
-            file_path.as_path(),
-            test_dir.path(),
-            0,
-            "src",
-            "src_hash",
-            "dst",
-            "dst_hash",
-            "epoch_time",
-            &[],
-            4.try_into().unwrap(),
-            5,
-            5,
-            5,
-        )
-        .unwrap();
-
-        let v1_out_deg = g.edges(VID(1), Direction::OUT).count();
-        assert_eq!(v1_out_deg, 3);
-        assert_eq!(g.exploded_edges().count(), 24);
-        assert_eq!(g.all_edges_iter().count(), 24);
-    }
-
     fn schema() -> Schema {
         let srcs = Field::new("srcs", DataType::UInt64, false);
         let dsts = Field::new("dsts", DataType::UInt64, false);
         let time = Field::new("time", DataType::Int64, false);
         let weight = Field::new("weight", DataType::Float64, true);
         Schema::from(vec![srcs, dsts, time, weight])
-    }
-
-    #[test]
-    fn sort_merge_dedup_2_cols() {
-        let rhs = PrimitiveArray::from_vec(vec![1u64, 2, 3, 4, 5, 6, 7, 8, 9, 10]).boxed();
-        let hash_rhs = PrimitiveArray::from_vec(vec![4i64, 5, 5, 6, 7, 7, 8, 8, 9, 11]).boxed();
-
-        let lhs = PrimitiveArray::from_vec(vec![0u64, 9, 10, 6, 7, 8, 3, 1, 4, 15]).boxed();
-        let hash_lhs = PrimitiveArray::from_vec(vec![-3i64, 9, 11, 7, 8, 8, 5, 4, 6, 17]).boxed();
-
-        let (actual_h, actual_v) = sort_dedup_2((&hash_rhs, &rhs), (&hash_lhs, &lhs)).unwrap();
-
-        let expected_v =
-            PrimitiveArray::from_vec(vec![0u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]).boxed();
-        let expected_h =
-            PrimitiveArray::from_vec(vec![-3i64, 4, 5, 5, 6, 7, 7, 8, 8, 9, 11, 17]).boxed();
-
-        assert_eq!(actual_h, expected_h);
-        assert_eq!(actual_v, expected_v);
     }
 
     #[test]
