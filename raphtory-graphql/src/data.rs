@@ -6,7 +6,7 @@ use raphtory::{
     search::IndexedGraph,
     vectors::{document_template::DocumentTemplate, vectorised_graph::DynamicVectorisedGraph},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path, sync::Arc};
 use walkdir::WalkDir;
 
 #[derive(Default)]

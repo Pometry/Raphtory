@@ -79,37 +79,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    fn load_from_embedding_store(file: &Path, graph: G) -> Option<Self> {
-        let store = StoredVectorisedGraph::load_from_path(file)?;
-
-        Some(Self {
-            source_graph: graph,
-            template,
-            embedding,
-            graph_documents: Arc::new(store.graph_documents),
-            node_documents: Arc::new(store.node_documents),
-            edge_documents: Arc::new(store.edge_documents),
-            selected_docs: vec![],
-            empty_vec: vec![],
-        })
-    }
-
-    fn save_embedding_store(&self, file: &Path) {
-        let name = self
-            .source_graph
-            .properties()
-            .get("name")
-            .map(|prop| prop.to_string())
-            .unwrap_or("".to_owned());
-        let store = StoredVectorisedGraph {
-            name,
-            graph_documents: self.graph_documents.deref().clone(),
-            node_documents: self.node_documents.deref().clone(),
-            edge_documents: self.edge_documents.deref().clone(),
-        };
-        store.save_to_path(file);
-    }
-
     // TODO: rename so that is is clear that if refers to the cache
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
     pub fn save_embeddings(&self, file: PathBuf) {

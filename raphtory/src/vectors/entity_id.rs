@@ -21,7 +21,8 @@ impl EntityId {
             name: graph
                 .properties()
                 .get("name")
-                .expect("A graph should have a 'name' property in order to make a document for it").to_string(),
+                .expect("A graph should have a 'name' property in order to make a document for it")
+                .to_string(),
         }
     }
 

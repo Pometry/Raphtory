@@ -9,13 +9,13 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
-        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        graph::{edge::PyEdge, graph::PyGraph, node::PyNode, views::graph_view::PyGraphView},
         utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        vectorised_graph::DynamicVectorisedGraph,
+        vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -112,14 +112,20 @@ impl PyGraphDocument {
 
 #[cfg(feature = "python")]
 pub struct PyDocumentTemplate {
+    graph_document: Option<String>,
     node_document: Option<String>,
     edge_document: Option<String>,
     default_template: DefaultTemplate,
 }
 
 impl PyDocumentTemplate {
-    pub fn new(node_document: Option<String>, edge_document: Option<String>) -> Self {
+    pub fn new(
+        graph_document: Option<String>,
+        node_document: Option<String>,
+        edge_document: Option<String>,
+    ) -> Self {
         Self {
+            graph_document,
             node_document,
             edge_document,
             default_template: DefaultTemplate,
@@ -128,22 +134,25 @@ impl PyDocumentTemplate {
 }
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
+    // TODO: review, how can we let the users use the default template from graphql??
     fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
-        // TODO: finish this
-        Box::new(std::iter::empty())
+        match &self.graph_document {
+            Some(graph_document) => get_documents_from_prop(graph.properties(), graph_document),
+            None => Box::new(std::iter::empty()), // self.default_template.graph(graph),
+        }
     }
 
     fn node(&self, node: &NodeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
             Some(node_document) => get_documents_from_prop(node.properties(), node_document),
-            None => self.default_template.node(node),
+            None => Box::new(std::iter::empty()), // self.default_template.node(node),
         }
     }
 
     fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
             Some(edge_document) => get_documents_from_prop(edge.properties(), edge_document),
-            None => self.default_template.edge(edge),
+            None => Box::new(std::iter::empty()), // self.default_template.edge(edge),
         }
     }
 }
@@ -183,12 +192,13 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, node_document = None, edge_document = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_document = None, node_document = None, edge_document = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
         cache: Option<String>,
         overwrite_cache: bool,
+        graph_document: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
         verbose: bool,
@@ -196,7 +206,7 @@ impl PyGraphView {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
         let cache = cache.map(PathBuf::from);
-        let template = PyDocumentTemplate::new(node_document, edge_document);
+        let template = PyDocumentTemplate::new(graph_document, node_document, edge_document);
         execute_async_task(move || async move {
             graph
                 .vectorise_with_template(
@@ -214,16 +224,51 @@ impl PyGraphView {
 #[pyclass(name = "VectorisedGraph", frozen)]
 pub struct PyVectorisedGraph(DynamicVectorisedGraph);
 
+impl From<DynamicVectorisedGraph> for PyVectorisedGraph {
+    fn from(value: DynamicVectorisedGraph) -> Self {
+        PyVectorisedGraph(value)
+    }
+}
+
 impl IntoPy<PyObject> for DynamicVectorisedGraph {
-    fn into_py(self, py: Python<'_>) -> PyObject {
+    fn into_py(self, py: Python) -> PyObject {
         Py::new(py, PyVectorisedGraph(self)).unwrap().into_py(py)
     }
 }
 
-type Window = Option<(PyTime, PyTime)>;
+pub type PyWindow = Option<(PyTime, PyTime)>;
 
-fn translate(window: Window) -> Option<(i64, i64)> {
+pub fn translate_py_window(window: PyWindow) -> Option<(i64, i64)> {
     window.map(|(start, end)| (start.into_time(), end.into_time()))
+}
+
+pub fn into_py_document(
+    document: Document,
+    graph: &DynamicVectorisedGraph,
+    py: Python,
+) -> PyGraphDocument {
+    match document {
+        Document::Graph { name, content } => PyGraphDocument {
+            content,
+            entity: graph.source_graph.clone().into_py(py),
+        },
+        Document::Node { name, content } => {
+            let node = graph.source_graph.node(name).unwrap();
+
+            PyGraphDocument {
+                content,
+                entity: node.into_py(py),
+            }
+        }
+        Document::Edge { src, dst, content } => {
+            let edge = graph.source_graph.edge(src, dst).unwrap();
+
+            PyGraphDocument {
+                content,
+                entity: edge.into_py(py),
+            }
+        }
+    }
 }
 
 /// A vectorised graph, containing a set of documents positioned in the graph space and a selection
@@ -255,12 +300,7 @@ impl PyVectorisedGraph {
 
     /// Return the documents present in the current selection
     fn get_documents(&self, py: Python) -> Vec<PyGraphDocument> {
-        let path = PathBuf::from("/tmp/graph");
-        // TODO: remove all of this
-        let f = std::fs::File::open(path).unwrap();
-        let mut reader = std::io::BufReader::new(f);
-        let test: PyFunction = bincode::deserialize_from(&mut reader).unwrap();
-
+        // TODO: review if I can simplify this
         self.get_documents_with_scores(py)
             .into_iter()
             .map(|(doc, _)| doc)
@@ -270,38 +310,9 @@ impl PyVectorisedGraph {
     /// Return the documents alongside their scores present in the current selection
     fn get_documents_with_scores(&self, py: Python) -> Vec<(PyGraphDocument, f32)> {
         let docs = self.0.get_documents_with_scores();
-
         docs.into_iter()
-            .map(|(doc, score)| match doc {
-                Document::Graph { name, content } => (
-                    PyGraphDocument {
-                        content,
-                        entity: self.0.source_graph.clone().into_py(py),
-                    },
-                    score,
-                ),
-                Document::Node { name, content } => {
-                    let node = self.0.source_graph.node(name).unwrap();
-                    (
-                        PyGraphDocument {
-                            content,
-                            entity: node.into_py(py),
-                        },
-                        score,
-                    )
-                }
-                Document::Edge { src, dst, content } => {
-                    let edge = self.0.source_graph.edge(src, dst).unwrap();
-                    (
-                        PyGraphDocument {
-                            content,
-                            entity: edge.into_py(py),
-                        },
-                        score,
-                    )
-                }
-            })
-            .collect_vec()
+            .map(|(doc, score)| (into_py_document(doc, &self.0, py), score))
+            .collect()
     }
 
     /// Add all the documents from `nodes` and `edges` to the current selection
@@ -362,11 +373,11 @@ impl PyVectorisedGraph {
         &self,
         query: PyQuery,
         limit: usize,
-        window: Window,
+        window: PyWindow,
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .append_by_similarity(&embedding, limit, translate(window))
+            .append_by_similarity(&embedding, limit, translate_py_window(window))
     }
 
     /// Add the top `limit` node documents to the current selection using `query`
@@ -383,11 +394,11 @@ impl PyVectorisedGraph {
         &self,
         query: PyQuery,
         limit: usize,
-        window: Window,
+        window: PyWindow,
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .append_nodes_by_similarity(&embedding, limit, translate(window))
+            .append_nodes_by_similarity(&embedding, limit, translate_py_window(window))
     }
 
     /// Add the top `limit` edge documents to the current selection using `query`
@@ -404,11 +415,11 @@ impl PyVectorisedGraph {
         &self,
         query: PyQuery,
         limit: usize,
-        window: Window,
+        window: PyWindow,
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .append_edges_by_similarity(&embedding, limit, translate(window))
+            .append_edges_by_similarity(&embedding, limit, translate_py_window(window))
     }
 
     /// Add all the documents `hops` hops away to the selection
@@ -425,8 +436,8 @@ impl PyVectorisedGraph {
     /// Returns:
     ///   A new vectorised graph containing the updated selection
     #[pyo3(signature = (hops, window=None))]
-    fn expand(&self, hops: usize, window: Window) -> DynamicVectorisedGraph {
-        self.0.expand(hops, translate(window))
+    fn expand(&self, hops: usize, window: PyWindow) -> DynamicVectorisedGraph {
+        self.0.expand(hops, translate_py_window(window))
     }
 
     /// Add the top `limit` adjacent documents with higher score for `query` to the selection
@@ -451,11 +462,11 @@ impl PyVectorisedGraph {
         &self,
         query: PyQuery,
         limit: usize,
-        window: Window,
+        window: PyWindow,
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .expand_by_similarity(&embedding, limit, translate(window))
+            .expand_by_similarity(&embedding, limit, translate_py_window(window))
     }
 
     /// Add the top `limit` adjacent node documents with higher score for `query` to the selection
@@ -474,11 +485,11 @@ impl PyVectorisedGraph {
         &self,
         query: PyQuery,
         limit: usize,
-        window: Window,
+        window: PyWindow,
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .expand_nodes_by_similarity(&embedding, limit, translate(window))
+            .expand_nodes_by_similarity(&embedding, limit, translate_py_window(window))
     }
 
     /// Add the top `limit` adjacent edge documents with higher score for `query` to the selection
@@ -497,15 +508,15 @@ impl PyVectorisedGraph {
         &self,
         query: PyQuery,
         limit: usize,
-        window: Window,
+        window: PyWindow,
     ) -> DynamicVectorisedGraph {
         let embedding = compute_embedding(&self.0, query);
         self.0
-            .expand_edges_by_similarity(&embedding, limit, translate(window))
+            .expand_edges_by_similarity(&embedding, limit, translate_py_window(window))
     }
 }
 
-fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
+pub fn compute_embedding(vectors: &DynamicVectorisedGraph, query: PyQuery) -> Embedding {
     let embedding = vectors.embedding.clone();
     execute_async_task(move || async move { query.into_embedding(embedding.as_ref()).await })
 }

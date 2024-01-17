@@ -16,6 +16,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{BufReader, BufWriter},
+    marker::PhantomData,
     path::Path,
     sync::Arc,
 };
@@ -38,14 +39,16 @@ struct StoredDocumentTemplate<G: StaticGraphViewOps> {
     pub(crate) graph_documents: Vec<DocumentInput>,
     pub(crate) node_documents: HashMap<EntityId, Vec<DocumentInput>>,
     pub(crate) edge_documents: HashMap<EntityId, Vec<DocumentInput>>,
+    phantom: PhantomData<G>,
 }
 
-impl From<&StoredVectorisedGraph> for StoredDocumentTemplate {
+impl<G: StaticGraphViewOps> From<&StoredVectorisedGraph> for StoredDocumentTemplate<G> {
     fn from(value: &StoredVectorisedGraph) -> Self {
         Self {
             graph_documents: from_document_vector(&value.graph_documents),
             node_documents: from_document_hashmap(&value.node_documents),
             edge_documents: from_document_hashmap(&value.edge_documents),
+            phantom: Default::default(),
         }
     }
 }
@@ -55,7 +58,7 @@ fn from_document_hashmap(
 ) -> HashMap<EntityId, Vec<DocumentInput>> {
     stored_documents
         .iter()
-        .map(|(id, docs)| (id, from_document_vector(docs)))
+        .map(|(id, docs)| (id.clone(), from_document_vector(docs)))
         .collect()
 }
 
@@ -71,17 +74,23 @@ fn from_document_vector(stored_documents: &Vec<StoredDocument>) -> Vec<DocumentI
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for StoredDocumentTemplate<G> {
     fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
-        Box::new(self.graph_documents.iter().cloned())
+        // TODO: should be having Arc inside of StoredDocumentTemplate to avoid clonig here as cannot have lifetimes in the output
+        let cloned = self.graph_documents.clone();
+        Box::new(cloned.into_iter())
     }
 
     fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let id = EntityId::from_node(node);
-        Box::new(self.node_documents.get(&id).iter().cloned())
+        let docs = self.node_documents.get(&id);
+        let cloned = docs.map(|v| v.clone()).unwrap_or_else(|| vec![]);
+        Box::new(cloned.into_iter())
     }
 
     fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let id = EntityId::from_edge(edge);
-        Box::new(self.edge_documents.get(&id).iter().cloned())
+        let docs = self.edge_documents.get(&id);
+        let cloned = docs.map(|v| v.clone()).unwrap_or_else(|| vec![]);
+        Box::new(cloned.into_iter())
     }
 }
 
@@ -163,12 +172,12 @@ impl StoredVectorisedGraph {
         let node_documents = graph
             .node_documents
             .iter()
-            .map(|(key, docs)| (key, regenerate_documents(docs, source, template)))
+            .map(|(id, docs)| (id.clone(), regenerate_documents(docs, source, template)))
             .collect();
         let edge_documents = graph
             .edge_documents
             .iter()
-            .map(|(key, docs)| (key, regenerate_documents(docs, source, template)))
+            .map(|(id, docs)| (id.clone(), regenerate_documents(docs, source, template)))
             .collect();
 
         let graph_embeddings = Self {

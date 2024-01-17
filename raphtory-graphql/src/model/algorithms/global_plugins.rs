@@ -1,17 +1,17 @@
-use crate::{
-    data::DynamicVectorisedGraph,
-    model::algorithms::{
-        algorithm::{Algorithm, Pagerank},
-        algorithm_entry_point::AlgorithmEntryPoint,
-        global_search::GlobalSearch,
-        RegisterFunction,
-    },
+use crate::model::algorithms::{
+    algorithm::{Algorithm, Pagerank},
+    algorithm_entry_point::AlgorithmEntryPoint,
+    global_search::GlobalSearch,
+    RegisterFunction,
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
 use parking_lot::RwLock;
-use raphtory::{db::api::view::MaterializedGraph, search::IndexedGraph};
+use raphtory::{
+    db::api::view::MaterializedGraph, search::IndexedGraph,
+    vectors::vectorised_graph::DynamicVectorisedGraph,
+};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -21,6 +21,7 @@ use std::{
 pub static GLOBAL_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
+#[derive(Clone)]
 pub struct GlobalPlugins {
     pub graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
     pub vectorised_graphs: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
@@ -31,7 +32,7 @@ impl<'a> AlgorithmEntryPoint<'a> for GlobalPlugins {
         // HashMap::from([("pagerank", Pagerank::register_algo as RegisterFunction)])
         HashMap::from([(
             "globalSearch",
-            GlobalSearch::register_algo as RegisterFunction,
+            Box::new(GlobalSearch::register_algo) as RegisterFunction,
         )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
