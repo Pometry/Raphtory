@@ -10,6 +10,7 @@ use raphtory::{
 use std::collections::HashSet;
 
 pub(crate) mod edge;
+mod edges;
 pub(crate) mod graph;
 pub(crate) mod node;
 mod nodes;

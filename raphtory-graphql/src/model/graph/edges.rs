@@ -1,83 +1,83 @@
-use crate::model::{filters::node_filter::NodeFilter, graph::node::Node};
+use crate::model::{filters::edge_filter::EdgeFilter, graph::edge::Edge};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::errors::GraphError,
-    db::{api::view::DynamicGraph, graph::nodes::Nodes},
-    prelude::*,
+    db::{api::view::DynamicGraph, graph::edges::Edges},
+    prelude::{LayerOps, TimeOps},
 };
 
 #[derive(ResolvedObject)]
-pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>,
-    pub(crate) filter: Option<NodeFilter>,
+pub(crate) struct GqlEdges {
+    pub(crate) ee: Edges<'static, DynamicGraph>,
+    pub(crate) filter: Option<EdgeFilter>,
 }
 
-impl GqlNodes {
-    fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
-        GqlNodes::new(nodes, self.filter.clone())
+impl GqlEdges {
+    fn update<E: Into<Edges<'static, DynamicGraph>>>(&self, edges: E) -> Self {
+        Self::new(edges, self.filter.clone())
     }
 }
 
-impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(
-        nodes: N,
-        filter: Option<NodeFilter>,
+impl GqlEdges {
+    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph>>>(
+        edges: E,
+        filter: Option<EdgeFilter>,
     ) -> Self {
         Self {
-            nn: nodes.into(),
+            ee: edges.into(),
             filter,
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
-        let iter = self.nn.iter().map(Node::from);
+    fn iter(&self) -> Box<dyn Iterator<Item = Edge> + '_> {
+        let iter = self.ee.iter().map(Edge::from);
         match self.filter.as_ref() {
-            Some(filter) => Box::new(iter.filter(|n| filter.matches(n))),
+            Some(filter) => Box::new(iter.filter(|e| filter.matches(e))),
             None => Box::new(iter),
         }
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlNodes {
+impl GqlEdges {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
 
     async fn layers(&self, names: Vec<String>) -> Result<Self, GraphError> {
-        self.nn.layer(names).map(|v| self.update(v))
+        self.ee.layer(names).map(|v| self.update(v))
     }
 
     async fn layer(&self, name: String) -> Result<Self, GraphError> {
-        self.nn.layer(name).map(|v| self.update(v))
+        self.ee.layer(name).map(|v| self.update(v))
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.window(start, end))
+        self.update(self.ee.window(start, end))
     }
 
     async fn at(&self, time: i64) -> Self {
-        self.update(self.nn.at(time))
+        self.update(self.ee.at(time))
     }
 
     async fn before(&self, time: i64) -> Self {
-        self.update(self.nn.before(time))
+        self.update(self.ee.before(time))
     }
 
     async fn after(&self, time: i64) -> Self {
-        self.update(self.nn.after(time))
+        self.update(self.ee.after(time))
     }
 
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.shrink_window(start, end))
+        self.update(self.ee.shrink_window(start, end))
     }
 
     async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.nn.shrink_start(start))
+        self.update(self.ee.shrink_start(start))
     }
 
     async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.nn.shrink_end(end))
+        self.update(self.ee.shrink_end(end))
     }
 
     ////////////////////////
@@ -85,26 +85,27 @@ impl GqlNodes {
     ////////////////////////
 
     async fn start(&self) -> Option<i64> {
-        self.nn.start()
+        self.ee.start()
     }
 
     async fn end(&self) -> Option<i64> {
-        self.nn.end()
+        self.ee.end()
     }
 
     /////////////////
     //// List ///////
     /////////////////
+
     async fn count(&self) -> usize {
         self.iter().count()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Node> {
+    async fn page(&self, limit: usize, offset: usize) -> Vec<Edge> {
         let start = offset * limit;
         self.iter().skip(start).take(limit).collect()
     }
 
-    async fn list(&self) -> Vec<Node> {
+    async fn list(&self) -> Vec<Edge> {
         self.iter().collect()
     }
 }
