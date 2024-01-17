@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
@@ -186,11 +186,23 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let input_layer_id = self.resolve_layer(layer)?;
+        if self
+            .graph
+            .edge_layers(self.edge, LayerIds::One(input_layer_id))
+            .next()
+            .is_none()
+        {
+            return Err(GraphError::InvalidEdgeLayer {
+                layer: layer.unwrap_or("_default").to_string(),
+                src: self.src().name(),
+                dst: self.dst().name(),
+            });
+        }
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let input_layer_id = self.resolve_layer(layer)?;
 
         self.graph.internal_add_constant_edge_properties(
             self.edge.pid(),

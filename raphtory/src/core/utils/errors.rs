@@ -54,6 +54,12 @@ pub enum GraphError {
     NodeIdNotStringOrNumber,
     #[error("Invalid layer {0}.")]
     InvalidLayer(String),
+    #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
+    InvalidEdgeLayer {
+        layer: String,
+        src: String,
+        dst: String,
+    },
     #[error("Bincode operation failed")]
     BinCodeError {
         #[from]
