@@ -116,6 +116,10 @@ pub enum MutateGraphError {
         dst_id: u64,
         source: IllegalMutate,
     },
+    #[error("Cannot add properties to edge view with no layers")]
+    NoLayersError,
+    #[error("Cannot add properties to edge view with more than one layer")]
+    AmbiguousLayersError,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
