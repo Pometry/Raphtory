@@ -6,7 +6,7 @@ use crate::db::{
 use super::Graph2;
 
 impl InternalMaterialize for Graph2 {
-    fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
+    fn new_base_graph(&self, _graph: InternalGraph) -> MaterializedGraph {
         todo!()
     }
 

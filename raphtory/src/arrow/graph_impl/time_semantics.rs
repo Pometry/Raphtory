@@ -78,21 +78,21 @@ impl TimeSemantics for Graph2 {
     }
 
     #[doc = " Exploded edge iterator for edge `e`"]
-    fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_exploded(&self, _e: EdgeRef, _layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         todo!()
     }
 
     #[doc = " Explode edge iterator for edge `e` for every layer"]
-    fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
+    fn edge_layers(&self, _e: EdgeRef, _layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         todo!()
     }
 
     #[doc = " Exploded edge iterator for edge`e` over window `w`"]
     fn edge_window_exploded(
         &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
+        _e: EdgeRef,
+        _w: Range<i64>,
+        _layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
         todo!()
     }
@@ -100,24 +100,24 @@ impl TimeSemantics for Graph2 {
     #[doc = " Exploded edge iterator for edge `e` over window `w` for every layer"]
     fn edge_window_layers(
         &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
+        _e: EdgeRef,
+        _w: Range<i64>,
+        _layer_ids: LayerIds,
     ) -> BoxedIter<EdgeRef> {
         todo!()
     }
 
     #[doc = " Get the time of the earliest activity of an edge"]
-    fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
+    fn edge_earliest_time(&self, _e: EdgeRef, _layer_ids: LayerIds) -> Option<i64> {
         todo!()
     }
 
     #[doc = " Get the time of the earliest activity of an edge `e` in window `w`"]
     fn edge_earliest_time_window(
         &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
+        _e: EdgeRef,
+        _w: Range<i64>,
+        _layer_ids: LayerIds,
     ) -> Option<i64> {
         todo!()
     }
@@ -130,9 +130,9 @@ impl TimeSemantics for Graph2 {
     #[doc = " Get the time of the latest activity of an edge `e` in window `w`"]
     fn edge_latest_time_window(
         &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
+        _e: EdgeRef,
+        _w: Range<i64>,
+        _layer_ids: LayerIds,
     ) -> Option<i64> {
         todo!()
     }
@@ -145,9 +145,9 @@ impl TimeSemantics for Graph2 {
     #[doc = " Get the edge deletions for use with materialize restricted to window `w`"]
     fn edge_deletion_history_window(
         &self,
-        e: EdgeRef,
-        w: Range<i64>,
-        layer_ids: LayerIds,
+        _e: EdgeRef,
+        _w: Range<i64>,
+        _layer_ids: LayerIds,
     ) -> Vec<i64> {
         todo!()
     }
@@ -157,7 +157,7 @@ impl TimeSemantics for Graph2 {
     #[doc = " # Arguments"]
     #[doc = ""]
     #[doc = " * `prop_id` - The id of the property to retrieve."]
-    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+    fn has_temporal_prop(&self, _prop_id: usize) -> bool {
         todo!()
     }
 
@@ -172,7 +172,7 @@ impl TimeSemantics for Graph2 {
     #[doc = " A vector of tuples representing the temporal values of the property"]
     #[doc = " that fall within the specified time window, where the first element of each tuple is the timestamp"]
     #[doc = " and the second element is the property value."]
-    fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
+    fn temporal_prop_vec(&self, _prop_id: usize) -> Vec<(i64, Prop)> {
         todo!()
     }
 
@@ -182,7 +182,7 @@ impl TimeSemantics for Graph2 {
     #[doc = ""]
     #[doc = " * `prop_id` - The id of the property to retrieve."]
     #[doc = " * `w` - time window"]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, _prop_id: usize, _w: Range<i64>) -> bool {
         todo!()
     }
 
@@ -200,7 +200,12 @@ impl TimeSemantics for Graph2 {
     #[doc = " A vector of tuples representing the temporal values of the property"]
     #[doc = " that fall within the specified time window, where the first element of each tuple is the timestamp"]
     #[doc = " and the second element is the property value."]
-    fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
+    fn temporal_prop_vec_window(
+        &self,
+        _prop_id: usize,
+        _start: i64,
+        _end: i64,
+    ) -> Vec<(i64, Prop)> {
         todo!()
     }
 
@@ -210,7 +215,7 @@ impl TimeSemantics for Graph2 {
     #[doc = ""]
     #[doc = " * `v` - The id of the node"]
     #[doc = " * `prop_id` - The id of the property to retrieve."]
-    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
+    fn has_temporal_node_prop(&self, _v: VID, _prop_id: usize) -> bool {
         todo!()
     }
 
@@ -227,7 +232,7 @@ impl TimeSemantics for Graph2 {
     #[doc = " A vector of tuples representing the temporal values of the property for the given node"]
     #[doc = " that fall within the specified time window, where the first element of each tuple is the timestamp"]
     #[doc = " and the second element is the property value."]
-    fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
+    fn temporal_node_prop_vec(&self, _v: VID, _id: usize) -> Vec<(i64, Prop)> {
         todo!()
     }
 
@@ -238,7 +243,7 @@ impl TimeSemantics for Graph2 {
     #[doc = " * `v` - the id of the node"]
     #[doc = " * `prop_id` - The id of the property to retrieve."]
     #[doc = " * `w` - time window"]
-    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_node_prop_window(&self, _v: VID, _prop_id: usize, _w: Range<i64>) -> bool {
         todo!()
     }
 
@@ -259,10 +264,10 @@ impl TimeSemantics for Graph2 {
     #[doc = " and the second element is the property value."]
     fn temporal_node_prop_vec_window(
         &self,
-        v: VID,
-        id: usize,
-        start: i64,
-        end: i64,
+        _v: VID,
+        _id: usize,
+        _start: i64,
+        _end: i64,
     ) -> Vec<(i64, Prop)> {
         todo!()
     }

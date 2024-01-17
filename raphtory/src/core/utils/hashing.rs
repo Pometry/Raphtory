@@ -5,6 +5,7 @@
 use std::hash::{Hash, Hasher};
 use twox_hash::XxHash64;
 
+#[cfg(feature = "arrow")]
 use crate::arrow::GID;
 
 pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
@@ -13,6 +14,7 @@ pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
+#[cfg(feature = "arrow")]
 pub fn calculate_hash_spark(gid: &GID) -> i64 {
     let mut s = XxHash64::with_seed(42);
     match gid {

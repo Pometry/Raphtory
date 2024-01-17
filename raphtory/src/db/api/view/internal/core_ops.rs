@@ -1,5 +1,4 @@
 use crate::{
-    arrow::timestamps::TimeStamps,
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
@@ -371,9 +370,12 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
         self.graph().core_node(vid)
     }
 }
+#[cfg(feature = "arrow")]
+use crate::arrow::timestamps::TimeStamps;
 
 pub enum NodeAdditions<'a> {
     Mem(LockedView<'a, TimeIndex<i64>>),
+    #[cfg(feature = "arrow")]
     Col(TimeStamps<'a, i64>),
 }
 
@@ -383,6 +385,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn active(&self, w: std::ops::Range<i64>) -> bool {
         match self {
             NodeAdditions::Mem(index) => index.active(w),
+            #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.active(w),
         }
     }
@@ -393,6 +396,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             NodeAdditions::Mem(index) => index.range(w),
+            #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.range(w),
         }
     }
@@ -400,6 +404,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.first(),
+            #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.first(),
         }
     }
@@ -407,6 +412,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             NodeAdditions::Mem(index) => index.last(),
+            #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.last(),
         }
     }
@@ -414,6 +420,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
     fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
         match self {
             NodeAdditions::Mem(index) => index.iter_t(),
+            #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.iter_t(),
         }
     }

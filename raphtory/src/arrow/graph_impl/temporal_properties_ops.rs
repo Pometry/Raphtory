@@ -7,11 +7,11 @@ use crate::{
 use super::Graph2;
 
 impl TemporalPropertiesOps for Graph2 {
-    fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
+    fn get_temporal_prop_id(&self, _name: &str) -> Option<usize> {
         todo!()
     }
 
-    fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
+    fn get_temporal_prop_name(&self, _id: usize) -> ArcStr {
         todo!()
     }
 
@@ -21,11 +21,11 @@ impl TemporalPropertiesOps for Graph2 {
 }
 
 impl TemporalPropertyViewOps for Graph2 {
-    fn temporal_history(&self, id: usize) -> Vec<i64> {
+    fn temporal_history(&self, _id: usize) -> Vec<i64> {
         todo!()
     }
 
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
+    fn temporal_values(&self, _id: usize) -> Vec<Prop> {
         todo!()
     }
 }

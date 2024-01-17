@@ -202,7 +202,7 @@ impl CoreGraphOps for Graph2 {
         CoreEdgeView::Arrow(self.edge(eid, 0))
     }
 
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
+    fn core_node(&self, _vid: VID) -> ArcEntry<NodeStore> {
         todo!()
     }
 }
