@@ -62,12 +62,16 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> {
-    pub fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
+    pub(crate) fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
         Self {
             base_graph,
             graph,
             edge,
         }
+    }
+
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
 }
 
