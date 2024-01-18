@@ -46,11 +46,11 @@ impl Node {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Result<Node, GraphError> {
-        self.vv.layer(names).map(|v| v.into())
+    async fn layers(&self, names: Vec<String>) -> Node {
+        self.vv.valid_layers(names).into()
     }
-    async fn layer(&self, name: String) -> Result<Node, GraphError> {
-        self.vv.layer(name).map(|v| v.into())
+    async fn layer(&self, name: String) -> Node {
+        self.vv.valid_layers(name).into()
     }
     async fn window(&self, start: i64, end: i64) -> Node {
         self.vv.window(start, end).into()

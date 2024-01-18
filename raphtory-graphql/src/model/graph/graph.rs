@@ -56,13 +56,12 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.default_layer())
     }
 
-    async fn layers(&self, names: Vec<String>) -> Result<GqlGraph, GraphError> {
+    async fn layers(&self, names: Vec<String>) -> GqlGraph {
         let name = self.name.clone();
-        self.graph.layer(names).map(move |g| GqlGraph::new(name, g))
+        GqlGraph::new(name, self.graph.valid_layers(names))
     }
-    async fn layer(&self, name: String) -> Result<GqlGraph, GraphError> {
-        let v_name = self.name.clone();
-        self.graph.layer(name).map(|g| GqlGraph::new(v_name, g))
+    async fn layer(&self, name: String) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.valid_layers(name))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
@@ -222,7 +221,7 @@ impl GqlGraph {
         match layer {
             Some(name) => self
                 .graph
-                .layer(name)
+                .layers(name)
                 .map(|l| l.has_edge(src, dst))
                 .unwrap_or(false),
             None => self.graph.has_edge(src, dst),
@@ -235,7 +234,7 @@ impl GqlGraph {
         match layer {
             Some(name) => self
                 .graph
-                .layer(name)
+                .layers(name)
                 .map(|l| l.has_edge(src, dst))
                 .unwrap_or(false),
             None => self.graph.has_edge(src, dst),

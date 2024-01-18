@@ -369,7 +369,7 @@ mod db_tests {
 
         let e = g
             .window(i64::MIN, i64::MAX)
-            .layer(Layer::Default)
+            .layers(Layer::Default)
             .unwrap()
             .edge(1, 3)
             .unwrap();
@@ -696,18 +696,18 @@ mod db_tests {
         assert!(g.has_edge(11, 22));
         assert!(g.default_layer().has_edge(11, 22));
         assert!(!g.default_layer().has_edge(11, 44));
-        assert!(!g.layer("layer2").unwrap().has_edge(11, 22));
-        assert!(g.layer("layer2").unwrap().has_edge(11, 44));
+        assert!(!g.layers("layer2").unwrap().has_edge(11, 22));
+        assert!(g.layers("layer2").unwrap().has_edge(11, 44));
 
         assert!(g.edge(11, 22).is_some());
-        assert!(g.layer(Layer::Default).unwrap().edge(11, 44).is_none());
-        assert!(g.layer("layer2").unwrap().edge(11, 22).is_none());
-        assert!(g.layer("layer2").unwrap().edge(11, 44).is_some());
+        assert!(g.layers(Layer::Default).unwrap().edge(11, 44).is_none());
+        assert!(g.layers("layer2").unwrap().edge(11, 22).is_none());
+        assert!(g.layers("layer2").unwrap().edge(11, 44).is_some());
 
         let dft_layer = g.default_layer();
-        let layer1 = g.layer("layer1").expect("layer1");
-        let layer2 = g.layer("layer2").expect("layer2");
-        assert!(g.layer("missing layer").is_err());
+        let layer1 = g.layers("layer1").expect("layer1");
+        let layer2 = g.layers("layer2").expect("layer2");
+        assert!(g.layers("missing layer").is_err());
 
         assert_eq!(g.count_nodes(), 4);
         assert_eq!(g.count_edges(), 4);
@@ -1301,7 +1301,7 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer")).unwrap();
 
         assert!(g.edge(1, 2).is_some());
-        assert!(g.layer("layer").unwrap().edge(1, 2).is_some())
+        assert!(g.layers("layer").unwrap().edge(1, 2).is_some())
     }
 
     #[test]
@@ -1314,10 +1314,10 @@ mod db_tests {
             .expect("add edge");
         g.add_edge(1, 1, 4, NO_PROPS, None).expect("add edge");
 
-        let g_layers = g.layer(vec!["layer1", "layer3"]).expect("layer");
+        let g_layers = g.layers(vec!["layer1", "layer3"]).expect("layer");
 
-        assert!(g_layers.layer("layer1").unwrap().edge(1, 2).is_some());
-        assert!(g_layers.layer("layer3").unwrap().edge(1, 3).is_some());
+        assert!(g_layers.layers("layer1").unwrap().edge(1, 2).is_some());
+        assert!(g_layers.layers("layer3").unwrap().edge(1, 3).is_some());
         assert!(g_layers.edge(1, 2).is_some());
         assert!(g_layers.edge(1, 3).is_some());
 
@@ -1327,9 +1327,9 @@ mod db_tests {
         let ns = one.neighbours().iter().map(|v| v.id()).collect::<Vec<_>>();
         assert_eq!(ns, vec![2, 3]);
 
-        let g_layers2 = g_layers.layer(vec!["layer1"]).expect("layer");
+        let g_layers2 = g_layers.layers(vec!["layer1"]).expect("layer");
 
-        assert!(g_layers2.layer("layer1").unwrap().edge(1, 2).is_some());
+        assert!(g_layers2.layers("layer1").unwrap().edge(1, 2).is_some());
         assert!(g_layers2.edge(1, 2).is_some());
 
         assert!(g_layers2.edge(1, 3).is_none());
@@ -1492,7 +1492,7 @@ mod db_tests {
 
         assert_eq!(sum, 100);
 
-        let lg = g.layer(vec!["eth", "btc"]).expect("failed to layer graph");
+        let lg = g.layers(vec!["eth", "btc"]).expect("failed to layer graph");
 
         let e = lg.edge(1, 2).expect("failed to get edge");
 
@@ -1511,8 +1511,8 @@ mod db_tests {
 
         let e = g.edge(1, 2).expect("failed to get edge");
 
-        let e_btc = e.layer("btc").expect("failed to get btc layer");
-        let e_eth = e.layer("eth").expect("failed to get eth layer");
+        let e_btc = e.layers("btc").expect("failed to get btc layer");
+        let e_eth = e.layers("eth").expect("failed to get eth layer");
 
         let edge_btc_sum = e_btc
             .properties()
@@ -1535,7 +1535,7 @@ mod db_tests {
         assert!(edge_btc_sum < edge_eth_sum);
 
         let e_eth = e_eth
-            .layer(vec!["eth", "btc"])
+            .layers(vec!["eth", "btc"])
             .expect("failed to get eth,btc layers");
 
         let eth_sum = e_eth
@@ -1557,7 +1557,7 @@ mod db_tests {
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
         g.add_edge(0, 1, 2, NO_PROPS, Some("layer2")).unwrap();
         assert_eq!(
-            g.layer("layer2").unwrap().unique_layers().collect_vec(),
+            g.layers("layer2").unwrap().unique_layers().collect_vec(),
             vec!["layer2"]
         )
     }
@@ -1680,10 +1680,10 @@ mod db_tests {
         // filtering resets on neighbours
         let out_out: Vec<_> = v
             .at(0)
-            .layer("1")
+            .layers("1")
             .unwrap()
             .out_neighbours()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .out_neighbours()
             .id()
@@ -1692,10 +1692,10 @@ mod db_tests {
 
         let out_out: Vec<_> = v
             .at(0)
-            .layer("1")
+            .layers("1")
             .unwrap()
             .out_neighbours()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .out_edges()
             .properties()
@@ -1724,7 +1724,7 @@ mod db_tests {
 
         // filter applies to edges
         let layers: Vec<_> = v
-            .layer("1")
+            .layers("1")
             .unwrap()
             .edges()
             .layer_names()
@@ -1736,7 +1736,7 @@ mod db_tests {
         // dst and src on edge reset the filter
         let degrees: Vec<_> = v
             .at(0)
-            .layer("1")
+            .layers("1")
             .unwrap()
             .edges()
             .dst()
@@ -1749,10 +1749,10 @@ mod db_tests {
             .at(0)
             .node(1)
             .unwrap()
-            .layer("1")
+            .layers("1")
             .unwrap()
             .out_neighbours()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .out_neighbours()
             .id()
@@ -1769,7 +1769,7 @@ mod db_tests {
         g.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
         g.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
 
-        let wl = g.window(0, 3).layer(vec!["1", "2"]).unwrap();
+        let wl = g.window(0, 3).layers(vec!["1", "2"]).unwrap();
         assert_eq!(
             weakly_connected_components(&wl, 10, None).get_all_values(),
             [1, 1, 1, 1]

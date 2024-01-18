@@ -1,7 +1,7 @@
 use crate::{
     core::{utils::errors::GraphError, ArcStr},
     db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
+        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
 };
@@ -13,11 +13,18 @@ pub trait LayerOps<'graph> {
 
     /// Return a graph containing only the default edge layer
     fn default_layer(&self) -> Self::LayeredViewType {
-        self.layer(Layer::Default).expect("Default layer not found")
+        self.layers(Layer::Default)
+            .expect("Default layer not found")
     }
 
-    /// Return a graph containing the layer `name`
-    fn layer<L: Into<Layer>>(&self, name: L) -> Result<Self::LayeredViewType, GraphError>;
+    /// Return a graph containing the layers in `names`. Errors if one or more of the layers do not exists.
+    fn layers<L: Into<Layer>>(&self, names: L) -> Result<Self::LayeredViewType, GraphError>;
+
+    /// Check if `name` is a valid layer name
+    fn has_layer(&self, name: &str) -> bool;
+
+    /// Return a graph containing the layers in `names`. Any layers that do not exist are ignored.
+    fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType;
 }
 
 impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
@@ -27,10 +34,18 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), 0.into()))
     }
 
-    fn layer<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
+    fn layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
         let layers = layers.into();
         let ids = self.current_filter().layer_ids_from_names(layers)?;
         Ok(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids)))
+    }
+
+    fn has_layer(&self, name: &str) -> bool {
+        self.current_filter().get_layer_id(name).is_none()
+    }
+
+    fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType {
+        todo!()
     }
 }
 

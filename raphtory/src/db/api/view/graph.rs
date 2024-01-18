@@ -297,7 +297,7 @@ mod test_materialize {
             .eq(&vec!["1", "2"]));
 
         assert!(!g
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
@@ -307,7 +307,7 @@ mod test_materialize {
         assert!(!gm
             .into_events()
             .unwrap()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()

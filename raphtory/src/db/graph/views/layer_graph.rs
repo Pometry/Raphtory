@@ -114,6 +114,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
         Ok(self.constrain(self.graph.layer_ids_from_names(key)?))
     }
+
+    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.constrain(self.graph.valid_layer_ids_from_names(key))
+    }
 }
 
 #[cfg(test)]
@@ -128,7 +132,7 @@ mod test_layers {
         g.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
         g.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
         let neighbours = g
-            .layer(vec!["layer1", "layer2"])
+            .layers(vec!["layer1", "layer2"])
             .unwrap()
             .node(1)
             .unwrap()
@@ -137,7 +141,7 @@ mod test_layers {
             .collect_vec();
         assert_eq!(
             neighbours[0]
-                .layer("layer2")
+                .layers("layer2")
                 .unwrap()
                 .edges()
                 .id()
@@ -145,7 +149,7 @@ mod test_layers {
             vec![(2, 3)]
         );
         assert_eq!(
-            g.layer("layer2")
+            g.layers("layer2")
                 .unwrap()
                 .node(neighbours[0].name())
                 .unwrap()
@@ -155,7 +159,7 @@ mod test_layers {
             vec![(2, 3)]
         );
         let mut edges = g
-            .layer("layer1")
+            .layers("layer1")
             .unwrap()
             .node(neighbours[0].name())
             .unwrap()
@@ -164,11 +168,11 @@ mod test_layers {
             .collect_vec();
         edges.sort();
         assert_eq!(edges, vec![(1, 2), (2, 4)]);
-        let mut edges = g.layer("layer1").unwrap().edges().id().collect_vec();
+        let mut edges = g.layers("layer1").unwrap().edges().id().collect_vec();
         edges.sort();
         assert_eq!(edges, vec![(1, 2), (2, 4)]);
         let mut edges = g
-            .layer(vec!["layer1", "layer2"])
+            .layers(vec!["layer1", "layer2"])
             .unwrap()
             .edges()
             .id()
