@@ -114,8 +114,10 @@ mod vector_tests {
         },
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
         vectors::{
-            document_template::DocumentTemplate, embeddings::openai_embedding,
-            graph_entity::GraphEntity, vectorisable::Vectorisable,
+            document_template::{DefaultTemplate, DocumentTemplate},
+            embeddings::openai_embedding,
+            graph_entity::GraphEntity,
+            vectorisable::Vectorisable,
         },
     };
     use dotenv::dotenv;
@@ -141,7 +143,7 @@ mod vector_tests {
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
         fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
-            Box::new(std::iter::empty())
+            DefaultTemplate.graph(graph)
         }
 
         fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
@@ -262,6 +264,10 @@ age: 30"###;
     struct FakeMultiDocumentTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
         fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
@@ -310,6 +316,10 @@ age: 30"###;
     struct FakeTemplateWithIntervals;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
         fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
