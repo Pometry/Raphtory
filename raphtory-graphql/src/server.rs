@@ -16,8 +16,6 @@ use raphtory::{
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
-        vectorised_graph_storage::VectorisedGraphStorage,
         EmbeddingFunction,
     },
 };
@@ -59,39 +57,6 @@ impl RaphtoryServer {
         let data = Data::from_map_and_directory(graphs, graph_directory);
         Self { data }
     }
-
-    // TODO:
-    // pub fn with_vectors_from_directory(self, directory: &str) {
-    //     let graphs = &self.data.graphs;
-    //     let stores = &self.data.vector_stores;
-    //
-    //     let graph_embeddings = Data::load_from_directory(directory, |path| {
-    //         GraphEmbeddings::load_from_path(path).expect("Unable to load embedding store")
-    //     });
-    //
-    //     graph_embeddings.map(|embeddings| {
-    //         VectorisedGraph
-    //     })
-    //
-    //     for graph_name in graph_names {
-    //         let graph_cache = cache.join(&graph_name);
-    //         let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
-    //         println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
-    //         let vectorised = graph
-    //             .vectorise_with_template(
-    //                 Box::new(embedding.clone()),
-    //                 Some(graph_cache),
-    //                 true,
-    //                 template.clone(),
-    //                 true,
-    //             )
-    //             .await;
-    //         stores.write().insert(graph_name, vectorised);
-    //     }
-    //     println!("Embeddings were loaded successfully");
-    //
-    //     self
-    // }
 
     /// Vectorise a subset of the graphs of the server.
     ///
