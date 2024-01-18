@@ -4,11 +4,9 @@ use crate::model::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use raphtory::{
-    db::{
-        api::{properties::dyn_props::DynProperties, view::*},
-        graph::node::NodeView,
-    },
+use raphtory::db::{
+    api::{properties::dyn_props::DynProperties, view::*},
+    graph::node::NodeView,
 };
 use std::collections::HashSet;
 
