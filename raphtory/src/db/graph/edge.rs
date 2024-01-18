@@ -468,7 +468,7 @@ mod test_edge {
                 .collect()
         );
         assert_eq!(
-            e.layer("test2").unwrap().properties().as_map(),
+            e.layers("test2").unwrap().properties().as_map(),
             props
                 .into_iter()
                 .map(|(k, v)| (ArcStr::from(k), v.into_prop()))

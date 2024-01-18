@@ -175,6 +175,10 @@ impl LayerIds {
     pub fn contains(&self, layer_id: &usize) -> bool {
         self.find(*layer_id).is_some()
     }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, LayerIds::None)
+    }
 }
 
 impl From<Vec<usize>> for LayerIds {

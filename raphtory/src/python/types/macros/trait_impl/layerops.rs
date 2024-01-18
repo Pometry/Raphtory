@@ -18,16 +18,28 @@ macro_rules! impl_layerops {
             }
 
             #[doc = concat!(" Return a view of ", $name, r#" containing the layer `"name"`"#)]
+            /// Errors if the layer does not exist
+            ///
             /// Returns:
             #[doc = concat!("     ", $name, ": The layered view")]
             fn layer(
                 &self,
                 name: &str,
             ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
-                self.$field.layer(name)
+                self.$field.layers(name)
+            }
+
+            #[doc = concat!(" Check if ", $name, r#" has the layer `"name"`"#)]
+            fn has_layer(
+                &self,
+                name: &str,
+            ) -> bool {
+                self.$field.has_layer(name)
             }
 
             #[doc = concat!(" Return a view of ", $name, " containing all layers `names`")]
+            /// Errors if any of the layers do not exist.
+            ///
             /// Arguments:
             ///     names (list[str]): list of layer names for the new view
             ///
@@ -37,7 +49,22 @@ macro_rules! impl_layerops {
                 &self,
                 names: Vec<String>,
             ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
-                self.$field.layer(names)
+                self.$field.layers(names)
+            }
+
+            #[doc = concat!(" Return a view of ", $name, " containing all layers `names`")]
+            /// Any layers that do not exist are ignored
+            ///
+            /// Arguments:
+            ///     names (list[str]): list of layer names for the new view
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $name, ": The layered view")]
+            fn valid_layers(
+                &self,
+                names: Vec<String>,
+            ) -> <$base_type as LayerOps<'static>>::LayeredViewType {
+                self.$field.valid_layers(names)
             }
         }
     };

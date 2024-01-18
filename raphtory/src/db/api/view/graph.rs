@@ -7,7 +7,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{AdditionOps, PropertyAdditionOps},
+            mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
             properties::Properties,
             view::{internal::*, *},
         },
@@ -110,6 +110,12 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
     }
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InnerTemporalGraph::default();
+
+        // make sure we preserve all layers even if they are empty
+        // skip default layer
+        for layer in self.unique_layers().skip(1) {
+            g.resolve_layer(Some(&layer));
+        }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {
             // FIXME: this needs to be verified
@@ -297,7 +303,7 @@ mod test_materialize {
             .eq(&vec!["1", "2"]));
 
         assert!(!g
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
@@ -307,7 +313,7 @@ mod test_materialize {
         assert!(!gm
             .into_events()
             .unwrap()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
