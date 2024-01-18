@@ -11,8 +11,8 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, ArcStr, Prop},
-    db::api::view::MaterializedGraph,
+    core::{utils::errors::GraphError, ArcStr, Prop, entities::nodes::node::Node},
+    db::api::{view::MaterializedGraph, mutation::CollectProperties},
     prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
@@ -171,7 +171,7 @@ impl Mut {
         new_graph_name: String,
         props: String,
         is_archive: u8,
-        graph_nodes: Vec<String>,
+        graph_nodes: String,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
@@ -202,7 +202,10 @@ impl Mut {
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
 
-        let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
+        let deserialized_node_map: serde_json::Value = serde_json::from_str(graph_nodes.as_str())?;
+        let node_map = deserialized_node_map.as_object().ok_or("graph_nodes not object")?;
+        let node_ids = node_map.keys().map(|key| key.as_str());
+        let new_subgraph = parent_graph.subgraph(node_ids).materialize()?;
 
         new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
@@ -238,6 +241,19 @@ impl Mut {
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+
+        // Temporary hack to allow adding of arbitrary maps of data to nodes
+        for node in new_subgraph.nodes() {
+            if !node_map.contains_key(&node.name().to_string()) {
+                println!("Could not find key! {} {:?}", node.name(), node_map);
+                panic!()
+            }
+            let node_props = node_map
+                .get(node.name().to_string().as_str())
+                .ok_or(format!("Could not find node {} in provided map", node.name()))?;
+            let node_props_as_str = node_props.as_str().ok_or("node_props must be string")?;
+            node.update_constant_properties([("props", node_props_as_str)])?;
+        }
 
         new_subgraph.save_to_file(path)?;
 
