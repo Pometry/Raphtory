@@ -76,19 +76,37 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
 
     pub(crate) fn par_sorted_nodes(
         &self,
-    ) -> impl ParallelIterator<Item = (Box<dyn Array>, Box<dyn Array>)> + '_ {
-        self.parquet_files
-            .par_iter()
-            .flat_map(|path| {
-                sort_within_chunks_iter(
-                    path,
-                    self.src_col,
-                    self.src_hash_col,
-                    self.dst_col,
-                    self.dst_hash_col,
-                )
-            })
-            .flatten()
+    ) -> impl Iterator<Item = (Box<dyn Array>, Box<dyn Array>)> + '_ {
+        let concurrent_files = 16;
+        let file_groups = self.parquet_files.iter().chunks(concurrent_files).into_iter().map(|c|c.cloned().collect_vec()).collect_vec();
+
+        file_groups.into_iter().flat_map(|paths| {
+            let now = std::time::Instant::now();
+
+            let res = paths
+                .into_par_iter()
+                .flat_map(|path| {
+                    sort_within_chunks_iter(
+                        path,
+                        self.src_col,
+                        self.src_hash_col,
+                        self.dst_col,
+                        self.dst_hash_col,
+                    )
+                    .expect("failed to sort within chunks")
+                })
+                .reduce_with(|(lhs_hash, lhs), (rhs_hash, rhs)| {
+                    merge_sort_dest_src((&lhs_hash, &lhs), (&rhs_hash, &rhs))
+                        .expect("failed to merge sort destinations and sources")
+                });
+
+            println!(
+                "DONE sorting time: {:?}, len: {}",
+                now.elapsed(),
+                res.as_ref().map(|(_, arr)| arr.len()).unwrap_or(0)
+            );
+            res
+        })
     }
 
     pub(crate) fn files(&self) -> &[PathBuf] {
@@ -144,7 +162,7 @@ pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
         reader,
         metadata.row_groups,
         schema,
-        Some(1_000_000),
+        Some(2_000_000),
         None,
         None,
     );
@@ -154,6 +172,7 @@ pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
         let (nodes_hash, nodes) =
             merge_sort_dest_src((&dest_hash, &dest), (&chunk[src_hash_idx], &chunk[src_idx]))
                 .expect("failed to merge sort destinations and sources");
+
         (nodes_hash, nodes)
     });
 
@@ -337,16 +356,22 @@ pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
             .build()
             .unwrap();
 
-        let (node_hashes, nodes) = thread_pool
-            .install(|| {
-                edge_lists
-                    .par_iter()
-                    .flat_map(|e_list| e_list.par_sorted_nodes())
-                    .reduce_with(|(l_hash, l), (r_hash, r)| {
-                        merge_sort_dest_src((&l_hash, &l), (&r_hash, &r)).unwrap()
-                    })
-            })
-            .ok_or_else(|| Error::NoEdgeLists)?;
+        let (node_hashes, nodes) = thread_pool.install(|| {
+            edge_lists
+                .iter()
+                .filter_map(|e_list| {
+                    let res = e_list
+                        .par_sorted_nodes()
+                        .reduce(|(l_hash, l), (r_hash, r)| {
+                            merge_sort_dest_src((&l_hash, &l), (&r_hash, &r)).unwrap()
+                        });
+                    res
+                })
+                .reduce(|(l_hash, l), (r_hash, r)| {
+                    merge_sort_dest_src((&l_hash, &l), (&r_hash, &r)).unwrap()
+                })
+                .ok_or_else(|| Error::NoEdgeLists)
+        })?;
 
         persist_sorted_gids(sorted_gids_path, node_hashes.clone(), nodes.clone())?;
         (node_hashes, nodes)
@@ -359,6 +384,19 @@ pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
     );
 
     (Some(node_hashes), nodes).try_into()
+}
+
+fn merge_inter_stage(
+    new_vec: Vec<(Box<dyn Array>, Box<dyn Array>)>,
+) -> (Box<dyn Array>, Box<dyn Array>) {
+    let res = new_vec
+        .into_par_iter()
+        .reduce_with(|(lhs_hash, lhs), (rhs_hash, rhs)| {
+            merge_sort_dest_src((&lhs_hash, &lhs), (&rhs_hash, &rhs))
+                .expect("failed to merge sort destinations and sources")
+        })
+        .unwrap();
+    res
 }
 
 pub(crate) fn persist_sorted_gids(

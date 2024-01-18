@@ -122,7 +122,6 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
                 .map_ok(move |chunk| {
-                    println!("chunk_len: {:?}, {path:?}", chunk.len());
                     GraphChunk::from_chunk(chunk, 0, 1)
                 })
         });
@@ -131,7 +130,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
     }
 }
 
-fn read_parquet_file(
+pub(crate) fn read_parquet_file(
     path: impl AsRef<Path>,
     schema: Schema,
 ) -> Result<impl Iterator<Item = Result<Chunk<Box<dyn Array>>, arrow2::error::Error>>, Error> {
@@ -143,7 +142,7 @@ fn read_parquet_file(
     Ok(reader)
 }
 
-fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
+pub(crate) fn read_file_metadata(path: impl AsRef<Path>) -> Result<FileMetaData, Error> {
     let mut file = std::fs::File::open(path.as_ref())?;
     let meta = parquet::read::read_metadata(&mut file)?;
     Ok(meta)

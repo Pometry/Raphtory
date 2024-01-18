@@ -45,6 +45,7 @@ use super::{
     edge_frame_builder::edge_props_builder::write_buffer,
     edges::{calculate_earliest_latest_time, Edges},
     global_order::GlobalOrder,
+    node_builder::{resolve_and_dedup_chunk, NodeBuilder, ParquetSource},
     node_chunk::{NodeChunk, RowOwned},
     nodes::{Node, Nodes},
     split_struct_chunk, GraphChunk, Time,
@@ -355,6 +356,89 @@ impl TempColGraphFragment {
             edge_chunk_size,
             t_props_chunk_size,
         )
+    }
+
+    fn from_sorted_parquet_files_edge_list_2<GO: GlobalOrder + Sync + Send>(
+        files: &[PathBuf],
+        global_order: Arc<GO>,
+        layer_id: usize,
+        graph_dir: &Path,
+        src_col: &str,
+        src_hash_col: &str,
+        dst_col: &str,
+        dst_hash_col: &str,
+        time_col: &str,
+        exclude_cols: &[&str],
+        num_threads: NonZeroUsize,
+        node_chunk_size: usize,
+        edge_chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> Result<Self, Error> {
+        prepare_graph_dir(graph_dir)?;
+
+        let source = ParquetSource::new(
+            files.into_iter().cloned().collect(),
+            num_threads.get(),
+            Some(vec![src_col, dst_col]),
+            |chunk| {
+                // get the source and dest and map them to their IDs also dedupe them
+                resolve_and_dedup_chunk(chunk, &global_order)
+            },
+        );
+
+        let mut vf_builder = NodeBuilder::new(node_chunk_size, global_order.len(), graph_dir);
+        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
+
+        source.produce(&mut (&mut vf_builder, &mut edge_builder), |s, file, _, chunk|{
+            let src = chunk[0].as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
+            let dst = chunk[1].as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
+
+            let (vf_builder, edge_builder) = s;
+
+            src.values_iter().zip(dst.values_iter()).for_each(|(src, dst)|{
+                vf_builder.push_update(*src, *dst);
+                edge_builder.push_update(*src, *dst);
+            })
+        });
+
+        vf_builder.finalise_empty_chunks()?;
+        // finalize edge_builder
+        edge_builder.finalize()?;
+
+
+        let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
+        excluded_cols.extend_from_slice(exclude_cols);
+
+        let reader = ParquetReader::new_from_filelist(
+            graph_dir,
+            files,
+            src_col,
+            dst_col,
+            time_col,
+            &excluded_cols,
+        )?;
+
+        let t_props = reader.load_edges(num_threads, t_props_chunk_size)?;
+
+        let (earliest_time, latest_time) = calculate_earliest_latest_time(&t_props);
+        let edges = Edges::new(
+            edge_builder.src_chunks,
+            edge_builder.dst_chunks,
+            t_props,
+            layer_id,
+            earliest_time,
+            latest_time,
+        );
+
+        write_graph_metadata(graph_dir, earliest_time, latest_time)?;
+
+        let nodes = Nodes::new(node_chunk_size, vf_builder.adj_out_chunks, Vec::default());
+
+        Ok(TempColGraphFragment {
+            nodes,
+            edges,
+            graph_dir: graph_dir.into(),
+        })
     }
 
     fn from_sorted_parquet_files_edge_list<GO: GlobalOrder>(

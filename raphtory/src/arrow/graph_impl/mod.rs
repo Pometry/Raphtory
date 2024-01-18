@@ -132,7 +132,7 @@ impl Graph2 {
             time_col,
         )?;
         let t_graph = TemporalGraph::from_edge_lists(
-            48,
+            32,
             node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
@@ -357,7 +357,6 @@ mod test {
         ];
 
         edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
-        println!("{:?}", edges);
 
         let g = make_simple_graph(test_dir, &edges);
 
