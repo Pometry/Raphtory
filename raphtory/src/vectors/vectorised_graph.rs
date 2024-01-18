@@ -80,7 +80,6 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    // TODO: rename so that is is clear that if refers to the cache
     /// Save the embeddings present in this graph to `file` so they can be further used in a call to `vectorise`
     pub fn save_embeddings(&self, file: PathBuf) {
         let cache = EmbeddingCache::new(file);
