@@ -3,7 +3,7 @@ use async_graphql::{
     Value as GraphqlValue,
 };
 use crossbeam_channel::Sender;
-use dynamic_graphql::internal::{Register, Registry, TypeName};
+use dynamic_graphql::internal::{Registry, TypeName};
 use pyo3::{
     exceptions,
     exceptions::{PyException, PyTypeError, PyValueError},

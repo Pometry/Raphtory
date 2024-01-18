@@ -1,7 +1,6 @@
 use crate::model::{filters::edge_filter::EdgeFilter, graph::edge::Edge};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{api::view::DynamicGraph, graph::edges::Edges},
     prelude::{LayerOps, TimeOps},
 };

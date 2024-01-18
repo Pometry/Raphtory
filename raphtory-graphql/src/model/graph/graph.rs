@@ -10,7 +10,7 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             properties::dyn_props::DynProperties,

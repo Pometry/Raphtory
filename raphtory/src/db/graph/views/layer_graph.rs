@@ -185,7 +185,7 @@ mod test_layers {
     fn layering_tests() {
         let g = Graph::new();
         let e1 = g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
-        let e2 = g.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
+        g.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
         let e = g.edge(1, 2).unwrap();
 
         // FIXME: this is weird, see issue #1458

@@ -5,7 +5,6 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
         graph::node::NodeView,

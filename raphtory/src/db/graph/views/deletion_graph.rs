@@ -965,7 +965,7 @@ mod test_deletions {
         assert!(!e.is_valid());
         assert!(e.is_deleted());
         let t = e.latest_time().unwrap_or(i64::MAX);
-        let g = e.graph.at(e.latest_time().unwrap_or(i64::MAX)); // latest view of the graph
+        let g = e.graph.at(t); // latest view of the graph
         assert!(!g.has_edge(e.src(), e.dst()));
         assert!(g.edge(e.src(), e.dst()).is_none());
     }
