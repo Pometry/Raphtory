@@ -48,63 +48,58 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     }
 
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType {
-        todo!()
+        let layers = names.into();
+        let ids = self.current_filter().valid_layer_ids_from_names(layers);
+        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Layer {
     All,
+    None,
     Default,
     One(ArcStr),
-    Multiple(Arc<[String]>),
+    Multiple(Arc<[ArcStr]>),
 }
 
-impl<'a, T: ToOwned<Owned = String> + ?Sized> From<Option<&'a T>> for Layer {
-    fn from(name: Option<&'a T>) -> Self {
-        match name {
-            Some(name) => Layer::One(name.to_owned().into()),
-            None => Layer::All,
-        }
+trait SingleLayer {
+    fn name(self) -> ArcStr;
+}
+
+impl<T: SingleLayer> From<T> for Layer {
+    fn from(value: T) -> Self {
+        Layer::One(value.name())
     }
 }
 
-impl From<Option<String>> for Layer {
-    fn from(value: Option<String>) -> Self {
-        match value {
-            Some(name) => Layer::One(name.into()),
-            None => Layer::All,
-        }
+impl SingleLayer for ArcStr {
+    fn name(self) -> ArcStr {
+        self
     }
 }
 
-impl From<ArcStr> for Layer {
-    fn from(value: ArcStr) -> Self {
-        Layer::One(value)
+impl SingleLayer for String {
+    fn name(self) -> ArcStr {
+        self.into()
     }
 }
 
-impl From<String> for Layer {
-    fn from(value: String) -> Self {
-        Layer::One(value.into())
+impl<'a, T: ToOwned<Owned = String> + ?Sized> SingleLayer for &'a T {
+    fn name(self) -> ArcStr {
+        self.to_owned().into()
     }
 }
 
-impl<'a, T: ToOwned<Owned = String> + ?Sized> From<&'a T> for Layer {
-    fn from(name: &'a T) -> Self {
-        Layer::One(name.to_owned().into())
-    }
-}
-
-impl<'a, T: ToOwned<Owned = String> + ?Sized> From<Vec<&'a T>> for Layer {
-    fn from(names: Vec<&'a T>) -> Self {
+impl<T: SingleLayer> From<Vec<T>> for Layer {
+    fn from(names: Vec<T>) -> Self {
         match names.len() {
-            0 => Layer::All,
-            1 => Layer::One(names[0].to_owned().into()),
+            0 => Layer::None,
+            1 => Layer::One(names.into_iter().next().unwrap().name()),
             _ => Layer::Multiple(
                 names
                     .into_iter()
-                    .map(|s| s.to_owned())
+                    .map(|s| s.name())
                     .collect::<Vec<_>>()
                     .into(),
             ),
@@ -112,12 +107,18 @@ impl<'a, T: ToOwned<Owned = String> + ?Sized> From<Vec<&'a T>> for Layer {
     }
 }
 
-impl From<Vec<String>> for Layer {
-    fn from(names: Vec<String>) -> Self {
-        match names.len() {
-            0 => Layer::All,
-            1 => Layer::One(names.into_iter().next().expect("exists").into()),
-            _ => Layer::Multiple(names.into()),
+impl<T: SingleLayer, const N: usize> From<[T; N]> for Layer {
+    fn from(names: [T; N]) -> Self {
+        match N {
+            0 => Layer::None,
+            1 => Layer::One(names.into_iter().next().unwrap().name()),
+            _ => Layer::Multiple(
+                names
+                    .into_iter()
+                    .map(|s| s.name())
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
         }
     }
 }

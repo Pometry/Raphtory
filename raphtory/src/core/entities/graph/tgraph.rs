@@ -172,6 +172,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
         match key {
+            Layer::None => Ok(LayerIds::None),
             Layer::All => Ok(LayerIds::All),
             Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
@@ -206,6 +207,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn valid_layer_ids(&self, key: Layer) -> LayerIds {
         match key {
+            Layer::None => LayerIds::None,
             Layer::All => LayerIds::All,
             Layer::Default => LayerIds::One(0),
             Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
