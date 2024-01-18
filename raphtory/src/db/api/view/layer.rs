@@ -41,7 +41,10 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
     }
 
     fn has_layer(&self, name: &str) -> bool {
-        self.current_filter().get_layer_id(name).is_none()
+        !self
+            .current_filter()
+            .valid_layer_ids_from_names(name.into())
+            .is_none()
     }
 
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType {
