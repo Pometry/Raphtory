@@ -89,7 +89,6 @@ impl PyGlobalPlugins {
             .expect("trying to search documents with no vectorised graphs on the server");
         let embedding = compute_embedding(first_graph, query);
         let documents = cluster.search_graph_documents_with_scores(&embedding, limit, window);
-        // TODO: add window
         documents.into_iter().map(|(doc, score)| {
             let graph = match &doc {
                 Document::Graph { name, .. } => {
