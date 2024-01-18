@@ -3,25 +3,32 @@ use async_graphql::{
     Value as GraphqlValue,
 };
 use crossbeam_channel::Sender;
-use dynamic_graphql::internal::{Register, Registry, TypeName};
+use dynamic_graphql::internal::{Registry, TypeName};
+use itertools::intersperse;
 use pyo3::{
     exceptions,
-    exceptions::{PyException, PyTypeError, PyValueError},
+    exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
 };
 use raphtory_core::{
     db::api::view::MaterializedGraph,
     python::{
-        packages::vectors::{PyDocumentTemplate, PyGraphDocument},
+        packages::vectors::{
+            compute_embedding, into_py_document, translate_py_window, PyDocument,
+            PyDocumentTemplate, PyQuery, PyVectorisedGraph, PyWindow,
+        },
         utils::{errors::adapt_err_value, execute_async_task},
     },
-    vectors::{embeddings::openai_embedding, EmbeddingFunction},
+    vectors::{
+        embeddings::openai_embedding, vectorised_cluster::VectorisedCluster, Document,
+        EmbeddingFunction,
+    },
 };
 use raphtory_graphql::{
     model::algorithms::{
         algorithm_entry_point::AlgorithmEntryPoint, document::GqlDocument,
-        vector_algorithms::VectorAlgorithms,
+        global_plugins::GlobalPlugins, vector_algorithms::VectorAlgorithms,
     },
     url_encode_graph, RaphtoryServer,
 };
@@ -35,6 +42,73 @@ use std::{
     time::Duration,
 };
 use tokio::{self, io::Result as IoResult};
+
+/// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
+/// graph documents
+#[pyclass(name = "GraphqlGraphs")]
+pub(crate) struct PyGlobalPlugins(GlobalPlugins);
+
+#[pymethods]
+impl PyGlobalPlugins {
+    /// Return the top documents with the smallest cosine distance to `query`
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of documents to return
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A list of documents
+    fn search_graph_documents(
+        &self,
+        py: Python,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> Vec<PyDocument> {
+        self.search_graph_documents_with_scores(py, query, limit, window)
+            .into_iter()
+            .map(|(doc, score)| doc)
+            .collect()
+    }
+
+    /// Same as `search_graph_documents` but it also returns the scores alongside the documents
+    fn search_graph_documents_with_scores(
+        &self,
+        py: Python,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> Vec<(PyDocument, f32)> {
+        let window = translate_py_window(window);
+        let graphs = self.0.vectorised_graphs.read();
+        let cluster = VectorisedCluster::new(&graphs);
+        let vectorised_graphs = self.0.vectorised_graphs.read();
+        let graph_entry = vectorised_graphs.iter().next();
+        let (_, first_graph) = graph_entry
+            .expect("trying to search documents with no vectorised graphs on the server");
+        let embedding = compute_embedding(first_graph, query);
+        let documents = cluster.search_graph_documents_with_scores(&embedding, limit, window);
+        documents.into_iter().map(|(doc, score)| {
+            let graph = match &doc {
+                Document::Graph { name, .. } => {
+                    vectorised_graphs.get(name).unwrap()
+                },
+                _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
+            };
+            (into_py_document(doc, graph, py), score)
+        }).collect()
+    }
+
+    /// Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist
+    fn get(&self, name: &str) -> Option<PyVectorisedGraph> {
+        self.0
+            .vectorised_graphs
+            .read()
+            .get(name)
+            .map(|graph| graph.clone().into())
+    }
+}
 
 /// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "RaphtoryServer")]
@@ -50,10 +124,11 @@ impl PyRaphtoryServer {
         graph_names: Vec<String>,
         embedding: F,
         cache: String,
+        graph_document: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
     ) -> PyResult<Self> {
-        let template = PyDocumentTemplate::new(node_document, edge_document);
+        let template = PyDocumentTemplate::new(graph_document, node_document, edge_document);
         let server = take_server_ownership(slf)?;
         execute_async_task(move || async move {
             let new_server = server
@@ -66,6 +141,78 @@ impl PyRaphtoryServer {
                 .await;
             Ok(Self::new(new_server))
         })
+    }
+
+    fn with_generic_document_search_function<
+        'a,
+        E: AlgorithmEntryPoint<'a> + 'static,
+        F: Fn(&E, Python) -> PyObject + Send + Sync + 'static,
+    >(
+        slf: PyRefMut<Self>,
+        name: String,
+        input: HashMap<String, String>,
+        function: &PyFunction,
+        adapter: F,
+    ) -> PyResult<Self> {
+        let function: Py<PyFunction> = function.into();
+
+        let input_mapper = HashMap::from([
+            ("str", TypeRef::named_nn(TypeRef::STRING)),
+            ("int", TypeRef::named_nn(TypeRef::INT)),
+            ("float", TypeRef::named_nn(TypeRef::FLOAT)),
+        ]);
+
+        let input_values = input
+            .into_iter()
+            .map(|(name, type_name)| {
+                let type_ref = input_mapper.get(&type_name.as_str()).cloned();
+                type_ref
+                    .map(|type_ref| InputValue::new(name, type_ref))
+                    .ok_or_else(|| {
+                        let valid_types = input_mapper.keys().map(|key| key.to_owned());
+                        let valid_types_string: String = intersperse(valid_types, ", ").collect();
+                        let msg = format!("types in input have to be one of: {valid_types_string}");
+                        PyAttributeError::new_err(msg)
+                    })
+            })
+            .collect::<PyResult<Vec<InputValue>>>()?;
+
+        let register_function = |name: &str, registry: Registry, parent: Object| {
+            let registry = registry.register::<GqlDocument>();
+            let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
+            let mut field = Field::new(name, output_type, move |ctx| {
+                let documents = Python::with_gil(|py| {
+                    let entry_point = adapter(ctx.parent_value.downcast_ref().unwrap(), py);
+                    let kw_args: HashMap<&str, PyObject> = ctx
+                        .args
+                        .iter()
+                        .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
+                        .collect();
+                    let py_kw_args = kw_args.into_py_dict(py);
+                    let result = function.call(py, (entry_point,), Some(py_kw_args)).unwrap();
+                    let list = result.downcast::<PyList>(py).unwrap();
+                    let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
+                    py_documents
+                        .map(|doc| doc.extract_rust_document(py).unwrap())
+                        .collect::<Vec<_>>()
+                });
+
+                let gql_documents = documents
+                    .into_iter()
+                    .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
+
+                FieldFuture::Value(Some(FieldValue::list(gql_documents)))
+            });
+            for input_value in input_values {
+                field = field.argument(input_value);
+            }
+            let parent = parent.field(field);
+            (registry, parent)
+        };
+        E::lock_plugins().insert(name, Box::new(register_function));
+
+        let new_server = take_server_ownership(slf)?;
+        Ok(Self::new(new_server))
     }
 }
 
@@ -110,6 +257,7 @@ impl PyRaphtoryServer {
         cache: String,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
         embedding: Option<&PyFunction>,
+        graph_document: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
     ) -> PyResult<Self> {
@@ -121,6 +269,7 @@ impl PyRaphtoryServer {
                     graph_names,
                     embedding,
                     cache,
+                    graph_document,
                     node_document,
                     edge_document,
                 )
@@ -130,13 +279,14 @@ impl PyRaphtoryServer {
                 graph_names,
                 openai_embedding,
                 cache,
+                graph_document,
                 node_document,
                 edge_document,
             ),
         }
     }
 
-    /// Register a function in the GraphQL schema for document search.
+    /// Register a function in the GraphQL schema for document search over a graph.
     ///
     /// The function needs to take a `VectorisedGraph` as the first argument followed by a
     /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
@@ -156,55 +306,35 @@ impl PyRaphtoryServer {
         input: HashMap<String, String>,
         function: &PyFunction,
     ) -> PyResult<Self> {
-        let function: Py<PyFunction> = function.into();
+        let adapter =
+            |entry_point: &VectorAlgorithms, py: Python| entry_point.graph.clone().into_py(py);
+        PyRaphtoryServer::with_generic_document_search_function(slf, name, input, function, adapter)
+    }
 
-        let register_function = |name: &str, registry: Registry, parent: Object| {
-            let registry = registry.register::<GqlDocument>();
-            let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
-            let mut field = Field::new(name, output_type, move |ctx| {
-                let algos: &VectorAlgorithms = ctx.parent_value.downcast_ref().unwrap();
-                let documents = Python::with_gil(|py| {
-                    let graph = algos.graph.clone().into_py(py);
-                    let kw_args: HashMap<&str, PyObject> = ctx
-                        .args
-                        .iter()
-                        .map(|(name, value)| (name.as_str(), adapt_graphql_value(&value, py)))
-                        .collect();
-                    let py_kw_args = kw_args.into_py_dict(py);
-                    let result = function.call(py, (graph,), Some(py_kw_args)).unwrap();
-                    let list = result.downcast::<PyList>(py).unwrap();
-                    let py_documents = list
-                        .iter()
-                        .map(|doc| doc.extract::<PyGraphDocument>().unwrap());
-                    py_documents
-                        .map(|doc| doc.extract_rust_document(py).unwrap())
-                        .collect::<Vec<_>>()
-                });
-
-                let gql_documents = documents
-                    .into_iter()
-                    .map(|doc| FieldValue::owned_any(GqlDocument::from(doc)));
-
-                FieldFuture::Value(Some(FieldValue::list(gql_documents)))
-            });
-            for (name, type_name) in input {
-                let ty = match type_name.as_str() {
-                    // TODO: try to use PyType here!!
-                    "str" => TypeRef::named_nn(TypeRef::STRING),
-                    "int" => TypeRef::named_nn(TypeRef::INT),
-                    "float" => TypeRef::named_nn(TypeRef::FLOAT),
-                    _ => panic!("type allowed are only: 'str', 'int' and 'float'"),
-                };
-                field = field.argument(InputValue::new(name, ty));
-            }
-            let parent = parent.field(field);
-            (registry, parent)
+    /// Register a function in the GraphQL schema for document search among all the graphs.
+    ///
+    /// The function needs to take a `GraphqlGraphs` object as the first argument followed by a
+    /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
+    /// They have to be specified using the `input` parameter as a dict where the keys are the
+    /// names of the parameters and the values are the types, expressed as strings.
+    ///
+    /// Arguments:
+    ///   * `name` (`str`): the name of the function in the GraphQL schema.
+    ///   * `input` (`dict`): the keyword arguments expected by the function.
+    ///   * `function` (`function`): the function to run.
+    ///
+    /// Returns:
+    ///    A new server object containing the vectorised graphs.
+    pub fn with_global_search_function(
+        slf: PyRefMut<Self>,
+        name: String,
+        input: HashMap<String, String>,
+        function: &PyFunction,
+    ) -> PyResult<Self> {
+        let adapter = |entry_point: &GlobalPlugins, py: Python| {
+            PyGlobalPlugins(entry_point.clone()).into_py(py)
         };
-        println!("inserting algorithm with name {name}");
-        VectorAlgorithms::lock_plugins().insert(name, Box::new(register_function));
-
-        let new_server = take_server_ownership(slf)?;
-        Ok(Self::new(new_server))
+        PyRaphtoryServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
     /// Start the server and return a handle to it.
