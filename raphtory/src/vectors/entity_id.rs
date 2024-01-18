@@ -65,7 +65,7 @@ impl EntityId {
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            EntityId::Graph { name } => f.write_str(&format!("graph:{name}")), // TODO: review, Im not sure what Im using this for smth
+            EntityId::Graph { name } => f.write_str(&format!("graph:{name}")),
             EntityId::Node { id } => f.serialize_u64(*id),
             EntityId::Edge { src, dst } => {
                 f.serialize_u64(*src)

@@ -1,4 +1,4 @@
-use crate::vectors::{entity_id::EntityId, Embedding};
+use crate::vectors::Embedding;
 use parking_lot::RwLock;
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},

@@ -62,8 +62,8 @@ impl Data {
             .collect()
     }
 
-    // TODO: use this for regular graphs as well?
-    pub fn load_from_directory<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
+    // TODO: use this for loading both regular and vectorised graphs
+    pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
     where
         F: Fn(&Path) -> T + 'static,
     {

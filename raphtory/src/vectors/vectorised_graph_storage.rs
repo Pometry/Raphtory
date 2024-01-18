@@ -28,7 +28,7 @@ pub(crate) struct StoredDocument {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct StoredVectorisedGraph {
+pub struct VectorisedGraphStorage {
     pub name: String,
     pub(crate) graph_documents: Vec<StoredDocument>,
     pub(crate) node_documents: HashMap<EntityId, Vec<StoredDocument>>,
@@ -42,8 +42,8 @@ pub struct StoredDocumentTemplate<G: StaticGraphViewOps> {
     phantom: PhantomData<G>,
 }
 
-impl<G: StaticGraphViewOps> From<&StoredVectorisedGraph> for StoredDocumentTemplate<G> {
-    fn from(value: &StoredVectorisedGraph) -> Self {
+impl<G: StaticGraphViewOps> From<&VectorisedGraphStorage> for StoredDocumentTemplate<G> {
+    fn from(value: &VectorisedGraphStorage) -> Self {
         Self {
             graph_documents: from_document_vector(&value.graph_documents),
             node_documents: from_document_hashmap(&value.node_documents),
@@ -120,7 +120,7 @@ fn regenerate_documents<G: StaticGraphViewOps, T: DocumentTemplate<G>>(
         .collect_vec()
 }
 
-impl StoredVectorisedGraph {
+impl VectorisedGraphStorage {
     pub fn load_vectorised_graph<G: StaticGraphViewOps>(
         self,
         graph: G,

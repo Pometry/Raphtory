@@ -15,9 +15,9 @@ use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph},
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
-        graph_embeddings::StoredVectorisedGraph,
         vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
+        vectorised_graph_storage::VectorisedGraphStorage,
         EmbeddingFunction,
     },
 };

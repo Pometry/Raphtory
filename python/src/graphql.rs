@@ -43,6 +43,74 @@ use std::{
 };
 use tokio::{self, io::Result as IoResult};
 
+/// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
+/// graph documents
+#[pyclass(name = "GraphqlGraphs")]
+pub(crate) struct PyGlobalPlugins(GlobalPlugins);
+
+#[pymethods]
+impl PyGlobalPlugins {
+    /// Return the top documents with the smallest cosine distance to `query`
+    ///
+    /// # Arguments
+    ///   * query - the text or the embedding to score against
+    ///   * limit - the maximum number of documents to return
+    ///   * window - the window where documents need to belong to in order to be considered
+    ///
+    /// # Returns
+    ///   A list of documents
+    fn search_graph_documents(
+        &self,
+        py: Python,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> Vec<PyGraphDocument> {
+        self.search_graph_documents_with_scores(py, query, limit, window)
+            .into_iter()
+            .map(|(doc, score)| doc)
+            .collect()
+    }
+
+    /// Same as `search_graph_documents` but it also returns the scores alongside the documents
+    fn search_graph_documents_with_scores(
+        &self,
+        py: Python,
+        query: PyQuery,
+        limit: usize,
+        window: PyWindow,
+    ) -> Vec<(PyGraphDocument, f32)> {
+        let window = translate_py_window(window);
+        let graphs = self.0.vectorised_graphs.read();
+        let cluster = VectorisedCluster::new(&graphs);
+        let vectorised_graphs = self.0.vectorised_graphs.read();
+        let graph_entry = vectorised_graphs.iter().next();
+        let (_, first_graph) = graph_entry
+            .expect("trying to search documents with no vectorised graphs on the server");
+        let embedding = compute_embedding(first_graph, query);
+        let documents = cluster.search_graph_documents_with_scores(&embedding, limit, window);
+        // TODO: add window
+        documents.into_iter().map(|(doc, score)| {
+            let graph = match &doc {
+                Document::Graph { name, .. } => {
+                    vectorised_graphs.get(name).unwrap()
+                },
+                _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
+            };
+            (into_py_document(doc, graph, py), score)
+        }).collect()
+    }
+
+    /// Return the `VectorisedGraph` with name `name` or `None` if it doesn't exist
+    fn get(&self, name: &str) -> Option<PyVectorisedGraph> {
+        self.0
+            .vectorised_graphs
+            .read()
+            .get(name)
+            .map(|graph| graph.clone().into())
+    }
+}
+
 /// A class for defining and running a Raphtory GraphQL server
 #[pyclass(name = "RaphtoryServer")]
 pub(crate) struct PyRaphtoryServer(Option<RaphtoryServer>);
@@ -121,11 +189,12 @@ impl PyRaphtoryServer {
             });
             for (name, type_name) in input {
                 let ty = match type_name.as_str() {
-                    // TODO: try to use PyType here!!
+                    // TODO: use here pyo3::type::PyType instead of strings
+                    // TODO: add support for optionals somehow and other types
                     "str" => TypeRef::named_nn(TypeRef::STRING),
                     "int" => TypeRef::named_nn(TypeRef::INT),
                     "float" => TypeRef::named_nn(TypeRef::FLOAT),
-                    _ => panic!("type allowed are only: 'str', 'int' and 'float'"),
+                    _ => panic!("types allowed are only: 'str', 'int' and 'float'"),
                 };
                 field = field.argument(InputValue::new(name, ty));
             }
@@ -136,61 +205,6 @@ impl PyRaphtoryServer {
 
         let new_server = take_server_ownership(slf)?;
         Ok(Self::new(new_server))
-    }
-}
-
-#[pyclass(name = "GraphqlGraphs")]
-pub(crate) struct PyGlobalPlugins(GlobalPlugins);
-
-#[pymethods]
-impl PyGlobalPlugins {
-    fn search_graph_documents(
-        &self,
-        py: Python,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> Vec<PyGraphDocument> {
-        self.search_graph_documents_with_scores(py, query, limit, window)
-            .into_iter()
-            .map(|(doc, score)| doc)
-            .collect()
-    }
-
-    fn search_graph_documents_with_scores(
-        &self,
-        py: Python,
-        query: PyQuery,
-        limit: usize,
-        window: PyWindow,
-    ) -> Vec<(PyGraphDocument, f32)> {
-        let window = translate_py_window(window);
-        let graphs = self.0.vectorised_graphs.read();
-        let cluster = VectorisedCluster::new(&graphs);
-        let vectorised_graphs = self.0.vectorised_graphs.read();
-        let graph_entry = vectorised_graphs.iter().next();
-        let (_, first_graph) = graph_entry
-            .expect("trying to search documents with no vectorised graphs on the server");
-        let embedding = compute_embedding(first_graph, query);
-        let documents = cluster.search_graph_documents_with_scores(&embedding, limit, window);
-        // TODO: add window
-        documents.into_iter().map(|(doc, score)| {
-            let graph = match &doc {
-                Document::Graph { name, .. } => {
-                    vectorised_graphs.get(name).unwrap()
-                },
-                _ => panic!("search_graph_documents_with_scores returned a document that is not from a graph"),
-            };
-                (into_py_document(doc, graph, py), score)
-        }).collect()
-    }
-
-    fn get(&self, name: &str) -> Option<PyVectorisedGraph> {
-        self.0
-            .vectorised_graphs
-            .read()
-            .get(name)
-            .map(|graph| graph.clone().into())
     }
 }
 
@@ -264,7 +278,7 @@ impl PyRaphtoryServer {
         }
     }
 
-    /// Register a function in the GraphQL schema for document search.
+    /// Register a function in the GraphQL schema for document search over a graph.
     ///
     /// The function needs to take a `VectorisedGraph` as the first argument followed by a
     /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
@@ -289,10 +303,9 @@ impl PyRaphtoryServer {
         PyRaphtoryServer::with_generic_document_search_function(slf, name, input, function, adapter)
     }
 
-    // TODO: update this
-    /// Register a function in the GraphQL schema for document search.
+    /// Register a function in the GraphQL schema for document search among all the graphs.
     ///
-    /// The function needs to take a `VectorisedGraph` as the first argument followed by a
+    /// The function needs to take a `GraphqlGraphs` object as the first argument followed by a
     /// pre-defined set of keyword arguments. Supported types are `str`, `int`, and `float`.
     /// They have to be specified using the `input` parameter as a dict where the keys are the
     /// names of the parameters and the values are the types, expressed as strings.

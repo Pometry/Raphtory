@@ -3,7 +3,8 @@ use crate::{
     vectors::{
         document_template::DocumentTemplate,
         entity_id::EntityId,
-        vectorised_graph::{find_top_k, score_documents, VectorisedGraph},
+        similarity_search_utils::{find_top_k, score_documents},
+        vectorised_graph::VectorisedGraph,
         Document, Embedding,
     },
 };

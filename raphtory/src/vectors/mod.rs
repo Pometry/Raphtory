@@ -1,4 +1,6 @@
+use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 
@@ -7,12 +9,13 @@ pub mod document_template;
 mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
-pub mod graph_embeddings;
 pub mod graph_entity;
+mod similarity_search_utils;
 pub mod splitting;
 pub mod vectorisable;
 pub mod vectorised_cluster;
 pub mod vectorised_graph;
+pub mod vectorised_graph_storage;
 
 pub type Embedding = Vec<f32>;
 

@@ -29,7 +29,6 @@ pub struct GlobalPlugins {
 
 impl<'a> AlgorithmEntryPoint<'a> for GlobalPlugins {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
-        // HashMap::from([("pagerank", Pagerank::register_algo as RegisterFunction)])
         HashMap::from([(
             "globalSearch",
             Box::new(GlobalSearch::register_algo) as RegisterFunction,
