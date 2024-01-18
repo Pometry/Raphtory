@@ -477,7 +477,7 @@ mod db_tests {
     }
 
     #[test]
-    fn static_properties() {
+    fn constant_properties() {
         let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
         g.add_edge(
@@ -518,6 +518,11 @@ mod db_tests {
             .add_constant_properties(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
+        // cannot add properties to non-existant layer
+        assert!(edge1111
+            .add_constant_properties([("test", "test")], Some("test"))
+            .is_err());
+
         // cannot change property type
         assert!(v22
             .add_constant_properties(vec![("b", Prop::U64(22))])
@@ -548,6 +553,16 @@ mod db_tests {
             Some(Prop::U64(3311))
         );
         assert_eq!(edge2233.properties().constant().get("a"), None);
+
+        // cannot add properties to non-existant layer
+        assert!(edge1111
+            .add_constant_properties([("test", "test")], Some("test"))
+            .is_err());
+        g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
+        // cannot add properties to layer without updates
+        assert!(edge1111
+            .add_constant_properties([("test", "test")], Some("test"))
+            .is_err());
     }
 
     #[test]
