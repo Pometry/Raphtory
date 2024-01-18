@@ -301,10 +301,10 @@ mod graphql_test {
         g0.save_to_file(f0).unwrap();
 
         let g1 = GraphWithDeletions::new();
-        g1.add_node(0, 1, NO_PROPS).unwrap();
+        g1.add_node(0, 1, [("name", "1")]).unwrap();
 
         let g2 = GraphWithDeletions::new();
-        g2.add_node(0, 2, NO_PROPS).unwrap();
+        g2.add_node(0, 2, [("name", "2")]).unwrap();
 
         let data = Data::default();
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -422,7 +422,7 @@ mod graphql_test {
         );
 
         // test save graph
-        let req = Request::new(save_graph("g0", r#"["2"]"#));
+        let req = Request::new(save_graph("g0", r#""{ \"2\": \"{}\" }""#));
         let res = schema.execute(req).await;
         println!("{:?}", res.errors);
         assert!(res.errors.is_empty());
@@ -435,7 +435,7 @@ mod graphql_test {
         );
 
         // test save graph overwrite
-        let req = Request::new(save_graph("g1", r#"["1"]"#));
+        let req = Request::new(save_graph("g1", r#""{ \"1\": \"{}\" }""#));
         let res = schema.execute(req).await;
         println!("{:?}", res.errors);
         assert!(res.errors.is_empty());
@@ -529,7 +529,7 @@ mod graphql_test {
 
         let query = r#"
         mutation($graph: String!) {
-            sendGraph(name: "test", graph: $graph) 
+            sendGraph(name: "test", graph: $graph)
         }
         "#;
         let req =
