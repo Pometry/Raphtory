@@ -3,7 +3,11 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{
+                internal::{OneHopFilter, Static},
+                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                StaticGraphViewOps,
+            },
         },
         graph::{
             edge::EdgeView,
@@ -139,6 +143,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             edges,
+        }
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Static>
+    From<Edges<'static, G, GH>> for Edges<'static, DynamicGraph>
+{
+    fn from(value: Edges<'static, G, GH>) -> Self {
+        Edges {
+            base_graph: value.base_graph.into_dynamic(),
+            graph: value.graph.into_dynamic(),
+            edges: value.edges,
         }
     }
 }
