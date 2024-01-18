@@ -663,7 +663,7 @@ mod test_deletions {
 
         let nodes = g
             .window(0, 1701786285758)
-            .layer(vec!["assigned", "has", "blocks"])
+            .layers(vec!["assigned", "has", "blocks"])
             .unwrap()
             .nodes()
             .into_iter()
@@ -674,7 +674,7 @@ mod test_deletions {
 
         let nodes = g
             .at(1701786285758)
-            .layer(vec!["assigned", "has", "blocks"])
+            .layers(vec!["assigned", "has", "blocks"])
             .unwrap()
             .nodes()
             .into_iter()
@@ -936,8 +936,8 @@ mod test_deletions {
         g.add_edge(10, 1, 2, NO_PROPS, Some("2")).unwrap();
 
         let e = g.edge(1, 2).unwrap();
-        let e_layer_1 = e.layer("1").unwrap();
-        let e_layer_2 = e.layer("2").unwrap();
+        let e_layer_1 = e.layers("1").unwrap();
+        let e_layer_2 = e.layers("2").unwrap();
 
         for t in 0..11 {
             assert!(g.at(t).has_edge(1, 2));
@@ -965,7 +965,7 @@ mod test_deletions {
         assert!(!e.is_valid());
         assert!(e.is_deleted());
         let t = e.latest_time().unwrap_or(i64::MAX);
-        let g = e.graph.at(e.latest_time().unwrap_or(i64::MAX)); // latest view of the graph
+        let g = e.graph.at(t); // latest view of the graph
         assert!(!g.has_edge(e.src(), e.dst()));
         assert!(g.edge(e.src(), e.dst()).is_none());
     }
@@ -985,21 +985,21 @@ mod test_deletions {
 
         g.delete_edge(3, 1, 2, Some("1")).unwrap();
         check_valid(&e);
-        check_deleted(&e.layer("1").unwrap());
-        check_deleted(&e.layer("1").unwrap().at(3));
-        check_deleted(&e.layer("1").unwrap().after(3));
-        check_valid(&e.layer("1").unwrap().before(3));
+        check_deleted(&e.layers("1").unwrap());
+        check_deleted(&e.layers("1").unwrap().at(3));
+        check_deleted(&e.layers("1").unwrap().after(3));
+        check_valid(&e.layers("1").unwrap().before(3));
         check_valid(&e.default_layer());
 
         g.delete_edge(4, 1, 2, None).unwrap();
         check_deleted(&e);
-        check_deleted(&e.layer("1").unwrap());
+        check_deleted(&e.layers("1").unwrap());
         check_deleted(&e.default_layer());
 
         g.add_edge(5, 1, 2, NO_PROPS, None).unwrap();
         check_valid(&e);
         check_valid(&e.default_layer());
-        check_deleted(&e.layer("1").unwrap());
+        check_deleted(&e.layers("1").unwrap());
     }
 
     #[test]
@@ -1125,7 +1125,7 @@ mod test_deletions {
 
         let nodes = g
             .window(0, 1701786285758)
-            .layer(vec!["assigned", "has", "blocks"])
+            .layers(vec!["assigned", "has", "blocks"])
             .unwrap()
             .edges()
             .into_iter()
@@ -1136,7 +1136,7 @@ mod test_deletions {
 
         let nodes = g
             .window(0, 1701786285758)
-            .layer(vec!["assigned", "has", "blocks"])
+            .layers(vec!["assigned", "has", "blocks"])
             .unwrap()
             .nodes()
             .into_iter()
@@ -1147,7 +1147,7 @@ mod test_deletions {
 
         let nodes = g
             .at(1701786285758)
-            .layer(vec!["assigned", "has", "blocks"])
+            .layers(vec!["assigned", "has", "blocks"])
             .unwrap()
             .edges()
             .into_iter()
@@ -1157,7 +1157,7 @@ mod test_deletions {
 
         let nodes = g
             .at(1701786285758)
-            .layer(vec!["assigned", "has", "blocks"])
+            .layers(vec!["assigned", "has", "blocks"])
             .unwrap()
             .nodes()
             .into_iter()

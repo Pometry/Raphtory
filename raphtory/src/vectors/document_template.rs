@@ -57,7 +57,7 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for DefaultTemplate {
 
         let layer_lines = edge.layer_names().map(|layer| {
             let times = edge
-                .layer(layer.clone())
+                .layers(layer.clone())
                 .unwrap()
                 .history()
                 .iter()

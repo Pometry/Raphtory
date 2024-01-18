@@ -12,6 +12,9 @@ pub trait InternalLayerOps {
 
     /// Get the layer id for the given layer name
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError>;
+
+    /// Get the valid layer ids for given layer names
+    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds;
 }
 
 pub trait InheritLayerOps: Base {}
@@ -43,5 +46,10 @@ impl<G: DelegateLayerOps> InternalLayerOps for G {
     #[inline]
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
         self.graph().layer_ids_from_names(key)
+    }
+
+    #[inline]
+    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        self.graph().valid_layer_ids_from_names(key)
     }
 }

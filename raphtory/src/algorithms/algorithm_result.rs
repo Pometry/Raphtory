@@ -685,7 +685,7 @@ mod algorithm_result_test {
             .expect("Unable to add edge");
         g.add_edge(4, 8, 9, NO_PROPS, Some("THREE-FIVE"))
             .expect("Unable to add edge");
-        let g_layer = g.layer(vec!["ZERO-TWO"]).unwrap();
+        let g_layer = g.layers(vec!["ZERO-TWO"]).unwrap();
         let res_window = weakly_connected_components(&g_layer, 20, None);
         let mut expected_result: HashMap<String, u64> = HashMap::new();
         expected_result.insert("8".to_string(), 8);

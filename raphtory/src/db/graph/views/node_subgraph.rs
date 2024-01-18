@@ -215,6 +215,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
 #[cfg(test)]
 mod subgraph_tests {
     use crate::{algorithms::motifs::triangle_count::triangle_count, prelude::*};
+    use itertools::Itertools;
 
     #[test]
     fn test_materialize_no_edges() {
@@ -263,5 +264,19 @@ mod subgraph_tests {
         let ts = triangle_count(&subgraph, None);
         let tg = triangle_count(&graph, None);
         assert_eq!(ts, tg)
+    }
+
+    #[test]
+    fn layer_materialize() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        g.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
+
+        let sg = g.subgraph([1, 2]);
+        let sgm = sg.materialize().unwrap();
+        assert_eq!(
+            sg.unique_layers().collect_vec(),
+            sgm.unique_layers().collect_vec()
+        );
     }
 }

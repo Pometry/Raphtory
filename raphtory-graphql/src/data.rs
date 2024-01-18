@@ -4,7 +4,7 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::{document_template::DocumentTemplate, vectorised_graph::DynamicVectorisedGraph},
+    vectors::vectorised_graph::DynamicVectorisedGraph,
 };
 use std::{collections::HashMap, path::Path, sync::Arc};
 use walkdir::WalkDir;
