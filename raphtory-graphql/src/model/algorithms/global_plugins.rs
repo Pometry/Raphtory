@@ -36,9 +36,7 @@ impl<'a> AlgorithmEntryPoint<'a> for GlobalPlugins {
         )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
-        crate::model::algorithms::graph_algorithms::GRAPH_ALGO_PLUGINS
-            .lock()
-            .unwrap()
+        GLOBAL_PLUGINS.lock().unwrap()
     }
 }
 

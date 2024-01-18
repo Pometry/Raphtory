@@ -89,6 +89,8 @@ impl PyRaphtoryServer {
     ) -> PyResult<Self> {
         let function: Py<PyFunction> = function.into();
 
+        println!("inserting function {name}");
+
         let register_function = |name: &str, registry: Registry, parent: Object| {
             let registry = registry.register::<GqlDocument>();
             let output_type = TypeRef::named_nn_list_nn(GqlDocument::get_type_name());
@@ -137,8 +139,8 @@ impl PyRaphtoryServer {
     }
 }
 
-#[pyclass(name = "GlobalPlugins")]
-struct PyGlobalPlugins(GlobalPlugins);
+#[pyclass(name = "GraphqlGraphs")]
+pub(crate) struct PyGlobalPlugins(GlobalPlugins);
 
 #[pymethods]
 impl PyGlobalPlugins {

@@ -63,6 +63,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;
+    graphql_module.add_class::<PyGlobalPlugins>()?;
     graphql_module.add_class::<PyRaphtoryServer>()?;
     graphql_module.add_class::<PyRunningRaphtoryServer>()?;
     graphql_module.add_class::<PyRaphtoryClient>()?;

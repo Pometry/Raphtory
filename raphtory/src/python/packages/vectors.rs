@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime},
+    core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime, Prop},
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
@@ -67,6 +67,7 @@ impl PyGraphDocument {
     pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
         let node = self.entity.extract::<PyNode>(py);
         let edge = self.entity.extract::<PyEdge>(py);
+        let graph = self.entity.extract::<PyGraphView>(py);
         if let Ok(node) = node {
             Ok(Document::Node {
                 name: node.name(),
@@ -76,6 +77,11 @@ impl PyGraphDocument {
             Ok(Document::Edge {
                 src: edge.edge.src().name(),
                 dst: edge.edge.dst().name(),
+                content: self.content.clone(),
+            })
+        } else if let Ok(graph) = graph {
+            Ok(Document::Graph {
+                name: graph.graph.properties().get("name").unwrap().to_string(),
                 content: self.content.clone(),
             })
         } else {
@@ -172,6 +178,10 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
             Box::new(iter)
         }
         None => match properties.get(name) {
+            Some(Prop::List(props)) => {
+                let doc_list = props.iter().map(|doc| doc.to_string().into()).collect_vec();
+                Box::new(doc_list.into_iter())
+            }
             Some(prop) => Box::new(std::iter::once(prop.to_string().into())),
             _ => Box::new(std::iter::empty()),
         },
