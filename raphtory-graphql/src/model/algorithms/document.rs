@@ -13,6 +13,11 @@ pub struct GqlDocument {
 impl From<Document> for GqlDocument {
     fn from(value: Document) -> Self {
         match value {
+            Document::Graph { name, content } => Self {
+                name: vec![name],
+                entity_type: "graph".to_owned(),
+                content,
+            },
             Document::Node { name, content } => Self {
                 name: vec![name],
                 entity_type: "node".to_owned(),

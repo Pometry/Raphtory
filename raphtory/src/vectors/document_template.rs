@@ -11,6 +11,9 @@ use std::{convert::identity, sync::Arc};
 
 /// Trait to be implemented for custom document templates
 pub trait DocumentTemplate<G: StaticGraphViewOps>: Send + Sync {
+    /// A function that translate the graph into an iterator of documents
+    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>>;
+
     /// A function that translate a node into an iterator of documents
     fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>>;
 
@@ -19,6 +22,9 @@ pub trait DocumentTemplate<G: StaticGraphViewOps>: Send + Sync {
 }
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for Arc<dyn DocumentTemplate<G>> {
+    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+        self.as_ref().graph(graph)
+    }
     fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         self.as_ref().node(node)
     }
@@ -32,6 +38,10 @@ pub struct DefaultTemplate;
 const DEFAULT_MAX_SIZE: usize = 1000;
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for DefaultTemplate {
+    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+        Box::new(std::iter::empty())
+    }
+
     fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         let name = node.name();
         let property_list = node.generate_property_list(&identity, vec![], vec![]);

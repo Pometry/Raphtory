@@ -3,18 +3,29 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub(crate) enum EntityId {
+    Graph { name: String },
     Node { id: u64 },
     Edge { src: u64, dst: u64 },
 }
 
 impl EntityId {
+    pub(crate) fn from_graph<G: StaticGraphViewOps>(graph: &G) -> Self {
+        Self::Graph {
+            name: graph
+                .properties()
+                .get("name")
+                .expect("A graph should have a 'name' property in order to make a document for it")
+                .to_string(),
+        }
+    }
+
     pub(crate) fn from_node<G: StaticGraphViewOps>(node: &NodeView<G>) -> Self {
         Self::Node { id: node.id() }
     }
@@ -26,8 +37,17 @@ impl EntityId {
         }
     }
 
+    pub(crate) fn is_graph(&self) -> bool {
+        match self {
+            EntityId::Graph { .. } => true,
+            EntityId::Node { .. } => false,
+            EntityId::Edge { .. } => false,
+        }
+    }
+
     pub(crate) fn is_node(&self) -> bool {
         match self {
+            EntityId::Graph { .. } => false,
             EntityId::Node { .. } => true,
             EntityId::Edge { .. } => false,
         }
@@ -35,6 +55,7 @@ impl EntityId {
 
     pub(crate) fn is_edge(&self) -> bool {
         match self {
+            EntityId::Graph { .. } => false,
             EntityId::Node { .. } => false,
             EntityId::Edge { .. } => true,
         }
@@ -44,6 +65,7 @@ impl EntityId {
 impl Display for EntityId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            EntityId::Graph { name } => f.write_str(&format!("graph:{name}")),
             EntityId::Node { id } => f.serialize_u64(*id),
             EntityId::Edge { src, dst } => {
                 f.serialize_u64(*src)
