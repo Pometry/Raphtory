@@ -1,5 +1,6 @@
 use crate::{
     db::api::view::StaticGraphViewOps,
+    prelude::Graph,
     vectors::{
         document_template::DocumentTemplate,
         entity_id::EntityId,
@@ -38,11 +39,11 @@ impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Vec<(Document, f32)> {
-        // FIXME: still need to use the window!!!!
         let documents = self
             .graphs
             .iter()
             .flat_map(|(name, graph)| graph.graph_documents.iter().cloned())
+            .filter(|doc| doc.exists_on_window::<Graph>(None, window))
             .collect_vec();
         let scored_documents = score_documents(query, documents);
         let top_k = find_top_k(scored_documents, limit);

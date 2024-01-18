@@ -55,7 +55,8 @@ impl DocumentRef {
     }
 
     // TODO: review -> does window really need to be an Option
-    pub fn exists_on_window<G>(&self, graph: &G, window: Option<(i64, i64)>) -> bool
+    /// This function expects a graph with a window that matches the one provided in `window`
+    pub fn exists_on_window<G>(&self, graph: Option<&G>, window: Option<(i64, i64)>) -> bool
     where
         G: StaticGraphViewOps,
     {
@@ -79,11 +80,11 @@ impl DocumentRef {
         }
     }
 
-    fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: &G) -> bool {
+    fn entity_exists_in_graph<G: StaticGraphViewOps>(&self, graph: Option<&G>) -> bool {
         match self.entity_id {
-            EntityId::Graph { .. } => true, // TODO: review this
-            EntityId::Node { id } => graph.has_node(id),
-            EntityId::Edge { src, dst } => graph.has_edge(src, dst),
+            EntityId::Graph { .. } => true, // TODO: maybe consider dead a graph with no entities
+            EntityId::Node { id } => graph.map(|g| g.has_node(id)).unwrap_or(true),
+            EntityId::Edge { src, dst } => graph.map(|g| g.has_edge(src, dst)).unwrap_or(true),
             // TODO: Edge should probably contain a layer filter that we can pass to has_edge()
         }
     }

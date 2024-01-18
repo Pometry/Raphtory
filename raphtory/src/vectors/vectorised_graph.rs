@@ -440,8 +440,9 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             None => Box::new(documents),
             Some((start, end)) => {
                 let windowed_graph = self.source_graph.window(start, end);
-                let filtered = documents
-                    .filter(move |document| document.exists_on_window(&windowed_graph, window));
+                let filtered = documents.filter(move |document| {
+                    document.exists_on_window(Some(&windowed_graph), window)
+                });
                 Box::new(filtered)
             }
         };
@@ -477,8 +478,9 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                             self.edge_documents.get(&edge_id).unwrap_or(&self.empty_vec)
                         });
                         Box::new(
-                            chain!(self_docs, edge_docs)
-                                .filter(move |doc| doc.exists_on_window(windowed_graph, window)),
+                            chain!(self_docs, edge_docs).filter(move |doc| {
+                                doc.exists_on_window(Some(windowed_graph), window)
+                            }),
                         )
                     }
                 }
@@ -493,8 +495,9 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                         let src_docs = self.node_documents.get(&src_id).unwrap();
                         let dst_docs = self.node_documents.get(&dst_id).unwrap();
                         Box::new(
-                            chain!(self_docs, src_docs, dst_docs)
-                                .filter(move |doc| doc.exists_on_window(windowed_graph, window)),
+                            chain!(self_docs, src_docs, dst_docs).filter(move |doc| {
+                                doc.exists_on_window(Some(windowed_graph), window)
+                            }),
                         )
                     }
                 }
