@@ -140,6 +140,10 @@ mod vector_tests {
     struct CustomTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            Box::new(std::iter::empty())
+        }
+
         fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let name = node.name();
             let node_type = node.properties().get("type").unwrap().to_string();

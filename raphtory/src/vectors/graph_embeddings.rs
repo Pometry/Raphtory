@@ -22,7 +22,7 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize)]
-struct StoredDocument {
+pub(crate) struct StoredDocument {
     reference: DocumentRef,
     content: String,
 }
@@ -35,7 +35,7 @@ pub struct StoredVectorisedGraph {
     pub(crate) edge_documents: HashMap<EntityId, Vec<StoredDocument>>,
 }
 
-struct StoredDocumentTemplate<G: StaticGraphViewOps> {
+pub struct StoredDocumentTemplate<G: StaticGraphViewOps> {
     pub(crate) graph_documents: Vec<DocumentInput>,
     pub(crate) node_documents: HashMap<EntityId, Vec<DocumentInput>>,
     pub(crate) edge_documents: HashMap<EntityId, Vec<DocumentInput>>,
