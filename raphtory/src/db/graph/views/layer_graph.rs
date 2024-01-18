@@ -180,4 +180,29 @@ mod test_layers {
         edges.sort();
         assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
     }
+
+    #[test]
+    fn layering_tests() {
+        let g = Graph::new();
+        let e1 = g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        let e2 = g.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
+        let e = g.edge(1, 2).unwrap();
+
+        // FIXME: this is weird, see issue #1458
+        assert!(e1.has_layer("2"));
+        assert!(e1.layers("2").unwrap().history().is_empty());
+
+        // layers with non-existing layers errors
+        assert!(e.layers(["1", "3"]).is_err());
+        // valid_layers ignores non-existing layers
+        assert_eq!(
+            e.valid_layers(["1", "3"]).layer_names().collect_vec(),
+            ["1"]
+        );
+        assert!(e.has_layer("1"));
+        assert!(e.has_layer("2"));
+        assert!(!e.has_layer("3"));
+        assert!(e.valid_layers("1").has_layer("1"));
+        assert!(!e.valid_layers("1").has_layer("2"));
+    }
 }
