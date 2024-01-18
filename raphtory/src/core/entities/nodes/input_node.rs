@@ -5,6 +5,7 @@
 //! `u64`, `&str`, and `String`.
 
 use crate::core::utils::hashing;
+use regex::Regex;
 
 pub trait InputNode: Clone {
     fn id(&self) -> u64;
@@ -23,8 +24,9 @@ impl InputNode for u64 {
 
 impl<'a> InputNode for &'a str {
     fn id(&self) -> u64 {
-        if &self.chars().next().unwrap_or('0') != &'0' {
-            self.parse().unwrap_or(hashing::calculate_hash(self))
+        let positive_strict_num = Regex::new(r"^[1-9][0-9]*$").unwrap();
+        if *self == "0" || positive_strict_num.is_match(self) {
+            self.parse().unwrap()
         } else {
             hashing::calculate_hash(self)
         }
@@ -43,5 +45,27 @@ impl InputNode for String {
 
     fn id_str(&self) -> Option<&str> {
         Some(self)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::core::entities::nodes::input_node::InputNode;
+    use regex::Regex;
+
+    #[test]
+    fn test_weird_num_edge_cases() {
+        assert_ne!("+3".id(), "3".id());
+        assert_eq!(3.id(), "3".id());
+        assert_ne!("00".id(), "0".id());
+        assert_eq!("0".id(), 0.id());
+    }
+
+    #[test]
+    fn test_num_regex() {
+        let re = Regex::new(r"^[1-9][0-9]*$").unwrap();
+        assert!(re.is_match("10"));
+        assert!(!re.is_match("00"));
+        assert!(!re.is_match("+3"));
     }
 }
