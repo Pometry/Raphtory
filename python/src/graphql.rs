@@ -3,10 +3,11 @@ use async_graphql::{
     Value as GraphqlValue,
 };
 use crossbeam_channel::Sender;
-use dynamic_graphql::internal::{Register, Registry, TypeName};
+use dynamic_graphql::internal::{Registry, TypeName};
+use itertools::intersperse;
 use pyo3::{
     exceptions,
-    exceptions::{PyException, PyTypeError, PyValueError},
+    exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
 };
@@ -35,7 +36,6 @@ use reqwest::Client;
 use serde_json::{json, Map, Number, Value as JsonValue};
 use std::{
     collections::HashMap,
-    ops::{Deref, DerefMut},
     path::PathBuf,
     thread,
     thread::{sleep, JoinHandle},
@@ -156,7 +156,26 @@ impl PyRaphtoryServer {
     ) -> PyResult<Self> {
         let function: Py<PyFunction> = function.into();
 
-        println!("inserting function {name}");
+        let input_mapper = HashMap::from([
+            ("str", TypeRef::named_nn(TypeRef::STRING)),
+            ("int", TypeRef::named_nn(TypeRef::INT)),
+            ("float", TypeRef::named_nn(TypeRef::FLOAT)),
+        ]);
+
+        let input_values = input
+            .into_iter()
+            .map(|(name, type_name)| {
+                let type_ref = input_mapper.get(&type_name.as_str()).cloned();
+                type_ref
+                    .map(|type_ref| InputValue::new(name, type_ref))
+                    .ok_or_else(|| {
+                        let valid_types = input_mapper.keys().map(|key| key.to_owned());
+                        let valid_types_string: String = intersperse(valid_types, ", ").collect();
+                        let msg = format!("types in input have to be one of: {valid_types_string}");
+                        PyAttributeError::new_err(msg)
+                    })
+            })
+            .collect::<PyResult<Vec<InputValue>>>()?;
 
         let register_function = |name: &str, registry: Registry, parent: Object| {
             let registry = registry.register::<GqlDocument>();
@@ -186,16 +205,8 @@ impl PyRaphtoryServer {
 
                 FieldFuture::Value(Some(FieldValue::list(gql_documents)))
             });
-            for (name, type_name) in input {
-                let ty = match type_name.as_str() {
-                    // TODO: use here pyo3::type::PyType instead of strings
-                    // TODO: add support for optionals somehow and other types
-                    "str" => TypeRef::named_nn(TypeRef::STRING),
-                    "int" => TypeRef::named_nn(TypeRef::INT),
-                    "float" => TypeRef::named_nn(TypeRef::FLOAT),
-                    _ => panic!("types allowed are only: 'str', 'int' and 'float'"),
-                };
-                field = field.argument(InputValue::new(name, ty));
+            for input_value in input_values {
+                field = field.argument(input_value);
             }
             let parent = parent.field(field);
             (registry, parent)
