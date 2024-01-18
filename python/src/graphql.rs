@@ -15,8 +15,8 @@ use raphtory_core::{
     db::api::view::MaterializedGraph,
     python::{
         packages::vectors::{
-            compute_embedding, into_py_document, translate_py_window, PyDocumentTemplate,
-            PyGraphDocument, PyQuery, PyVectorisedGraph, PyWindow,
+            compute_embedding, into_py_document, translate_py_window, PyDocument,
+            PyDocumentTemplate, PyQuery, PyVectorisedGraph, PyWindow,
         },
         utils::{errors::adapt_err_value, execute_async_task},
     },
@@ -65,7 +65,7 @@ impl PyGlobalPlugins {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> Vec<PyGraphDocument> {
+    ) -> Vec<PyDocument> {
         self.search_graph_documents_with_scores(py, query, limit, window)
             .into_iter()
             .map(|(doc, score)| doc)
@@ -79,7 +79,7 @@ impl PyGlobalPlugins {
         query: PyQuery,
         limit: usize,
         window: PyWindow,
-    ) -> Vec<(PyGraphDocument, f32)> {
+    ) -> Vec<(PyDocument, f32)> {
         let window = translate_py_window(window);
         let graphs = self.0.vectorised_graphs.read();
         let cluster = VectorisedCluster::new(&graphs);
@@ -191,9 +191,7 @@ impl PyRaphtoryServer {
                     let py_kw_args = kw_args.into_py_dict(py);
                     let result = function.call(py, (entry_point,), Some(py_kw_args)).unwrap();
                     let list = result.downcast::<PyList>(py).unwrap();
-                    let py_documents = list
-                        .iter()
-                        .map(|doc| doc.extract::<PyGraphDocument>().unwrap());
+                    let py_documents = list.iter().map(|doc| doc.extract::<PyDocument>().unwrap());
                     py_documents
                         .map(|doc| doc.extract_rust_document(py).unwrap())
                         .collect::<Vec<_>>()

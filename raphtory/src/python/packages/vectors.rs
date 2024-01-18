@@ -9,13 +9,13 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
-        graph::{edge::PyEdge, graph::PyGraph, node::PyNode, views::graph_view::PyGraphView},
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
-        vectorised_graph::{DynamicVectorisedGraph, VectorisedGraph},
+        vectorised_graph::DynamicVectorisedGraph,
         Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
     },
 };
@@ -27,6 +27,12 @@ use pyo3::{
     types::{PyFunction, PyList},
 };
 use std::{path::PathBuf, sync::Arc};
+
+pub type PyWindow = Option<(PyTime, PyTime)>;
+
+pub fn translate_py_window(window: PyWindow) -> Option<(i64, i64)> {
+    window.map(|(start, end)| (start.into_time(), end.into_time()))
+}
 
 #[derive(Clone)]
 pub enum PyQuery {
@@ -58,12 +64,12 @@ impl<'source> FromPyObject<'source> for PyQuery {
 
 #[derive(Clone)]
 #[pyclass(name = "GraphDocument", frozen, get_all)]
-pub struct PyGraphDocument {
+pub struct PyDocument {
     content: String,
     entity: PyObject,
 }
 
-impl PyGraphDocument {
+impl PyDocument {
     pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
         let node = self.entity.extract::<PyNode>(py);
         let edge = self.entity.extract::<PyEdge>(py);
@@ -86,14 +92,14 @@ impl PyGraphDocument {
             })
         } else {
             Err(PyException::new_err(
-                "document entity is not a node nor an edge",
+                "document entity is not a node nor an edge nor a graph",
             ))
         }
     }
 }
 
 #[pymethods]
-impl PyGraphDocument {
+impl PyDocument {
     #[new]
     fn new(content: String, entity: PyObject) -> Self {
         Self { content, entity }
@@ -113,6 +119,35 @@ impl PyGraphDocument {
             "GraphDocument(content={}, entity={})",
             content_repr, entity_repr
         )
+    }
+}
+
+pub fn into_py_document(
+    document: Document,
+    graph: &DynamicVectorisedGraph,
+    py: Python,
+) -> PyDocument {
+    match document {
+        Document::Graph { content, .. } => PyDocument {
+            content,
+            entity: graph.source_graph.clone().into_py(py),
+        },
+        Document::Node { name, content } => {
+            let node = graph.source_graph.node(name).unwrap();
+
+            PyDocument {
+                content,
+                entity: node.into_py(py),
+            }
+        }
+        Document::Edge { src, dst, content } => {
+            let edge = graph.source_graph.edge(src, dst).unwrap();
+
+            PyDocument {
+                content,
+                entity: edge.into_py(py),
+            }
+        }
     }
 }
 
@@ -246,41 +281,6 @@ impl IntoPy<PyObject> for DynamicVectorisedGraph {
     }
 }
 
-pub type PyWindow = Option<(PyTime, PyTime)>;
-
-pub fn translate_py_window(window: PyWindow) -> Option<(i64, i64)> {
-    window.map(|(start, end)| (start.into_time(), end.into_time()))
-}
-
-pub fn into_py_document(
-    document: Document,
-    graph: &DynamicVectorisedGraph,
-    py: Python,
-) -> PyGraphDocument {
-    match document {
-        Document::Graph { name, content } => PyGraphDocument {
-            content,
-            entity: graph.source_graph.clone().into_py(py),
-        },
-        Document::Node { name, content } => {
-            let node = graph.source_graph.node(name).unwrap();
-
-            PyGraphDocument {
-                content,
-                entity: node.into_py(py),
-            }
-        }
-        Document::Edge { src, dst, content } => {
-            let edge = graph.source_graph.edge(src, dst).unwrap();
-
-            PyGraphDocument {
-                content,
-                entity: edge.into_py(py),
-            }
-        }
-    }
-}
-
 /// A vectorised graph, containing a set of documents positioned in the graph space and a selection
 /// over those documents
 #[pymethods]
@@ -309,7 +309,7 @@ impl PyVectorisedGraph {
     }
 
     /// Return the documents present in the current selection
-    fn get_documents(&self, py: Python) -> Vec<PyGraphDocument> {
+    fn get_documents(&self, py: Python) -> Vec<PyDocument> {
         // TODO: review if I can simplify this
         self.get_documents_with_scores(py)
             .into_iter()
@@ -318,7 +318,7 @@ impl PyVectorisedGraph {
     }
 
     /// Return the documents alongside their scores present in the current selection
-    fn get_documents_with_scores(&self, py: Python) -> Vec<(PyGraphDocument, f32)> {
+    fn get_documents_with_scores(&self, py: Python) -> Vec<(PyDocument, f32)> {
         let docs = self.0.get_documents_with_scores();
         docs.into_iter()
             .map(|(doc, score)| (into_py_document(doc, &self.0, py), score))
