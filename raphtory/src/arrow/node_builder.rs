@@ -1,14 +1,27 @@
 use crate::arrow::{
-    adj_schema, mmap::{mmap_batch, write_batches}, Error, GID
+    adj_schema,
+    mmap::{mmap_batch, write_batches},
+    Error, GID,
 };
 use arrow2::{
-    array::{Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray, Utf8Array}, chunk::Chunk, datatypes::{DataType, Field as ArrowField, Schema as ArrowSchema}, error::Result as ArrowResult, io::parquet::read::infer_schema, offset::Offsets
+    array::{
+        Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray, Utf8Array,
+    },
+    chunk::Chunk,
+    datatypes::{DataType, Field as ArrowField, Schema as ArrowSchema},
+    error::Result as ArrowResult,
+    io::parquet::read::infer_schema,
+    offset::Offsets,
 };
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 
-use super::{global_order::GlobalOrder, node_chunk::NodeChunk, parquet_reader::{read_file_metadata, read_parquet_file}};
+use super::{
+    global_order::GlobalOrder,
+    node_chunk::NodeChunk,
+    parquet_reader::{read_file_metadata, read_parquet_file},
+};
 
 pub(crate) struct NodeBuilder {
     pub(crate) adj_out_chunks: Vec<NodeChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
@@ -29,7 +42,7 @@ pub(crate) struct NodeBuilder {
 }
 
 impl NodeBuilder {
-    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, num_nodes:usize, path: P) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, num_nodes: usize, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
             adj_out_dst: vec![],
@@ -56,28 +69,60 @@ impl NodeBuilder {
         std::mem::swap(&mut adj_out_dst_prev, &mut self.adj_out_dst);
         std::mem::swap(&mut adj_out_offsets_prev, &mut self.adj_out_offsets);
 
-        // fill chunk with empty adjacency lists
+        let id = self.adj_out_chunks.len();
+        self.adj_out_chunks.push(NodeChunk::empty()); // placeholder
         adj_out_offsets_prev.push(self.chunk_adj_out_offset);
+        let location_path = self.location_path.clone();
 
-        let col =
-            new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
+        std::thread::spawn(move || {
+            let col =
+                new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
 
-        self.persist_and_mmap_adj_chunk(col)?;
+            Self::persist_and_mmap_adj_chunk(location_path, id, col)
+                .expect(format!("Failed to persist and mmap adj chunk {id}").as_str());
+        });
+
+        // fill chunk with empty adjacency lists
         self.chunk_adj_out_offset = 0i64;
         Ok(())
     }
 
-    fn persist_and_mmap_adj_chunk(&mut self, col: Box<dyn Array>) -> ArrowResult<()> {
+    fn load_all_chunks_replace_placeholders(&mut self) -> ArrowResult<()> {
+        self.adj_out_chunks
+            .iter_mut()
+            .enumerate()
+            .for_each(|(id, node_chunk)| {
+                let file_path = self
+                    .location_path
+                    .join(format!("adj_out_chunk_{:08}.ipc", id));
+
+                let mut count = 0;
+                loop {
+                    let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0) };
+                    if let Ok(mmapped_chunk) = mmapped_chunk {
+                        *node_chunk = NodeChunk::new(mmapped_chunk);
+                        break;
+                    } else if count > 10 {
+                        panic!("Failed to load chunk after 10 tries");
+                    }
+                    // sleep a bit
+                    std::thread::sleep(std::time::Duration::from_millis(1000));
+                    count +=1;
+                }
+            });
+        Ok(())
+    }
+
+    fn persist_and_mmap_adj_chunk(
+        location_path: PathBuf,
+        id: usize,
+        col: Box<dyn Array>,
+    ) -> ArrowResult<()> {
         let dtype = col.data_type().clone();
         let schema = ArrowSchema::from(vec![ArrowField::new("adj_out", dtype, false)]);
-        let file_path = self.location_path.join(format!(
-            "adj_out_chunk_{:08}.ipc",
-            self.adj_out_chunks.len()
-        ));
+        let file_path = location_path.join(format!("adj_out_chunk_{:08}.ipc", id));
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema.clone(), &chunk)?;
-        let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        self.adj_out_chunks.push(NodeChunk::new(mmapped_chunk));
         Ok(())
     }
 
@@ -142,6 +187,7 @@ impl NodeBuilder {
                 self.push_chunk()?;
             }
         }
+        self.load_all_chunks_replace_placeholders()?;
         Ok(())
     }
 }
@@ -168,7 +214,7 @@ fn new_arrow_adj_list_chunk(
 
 pub(crate) struct ParquetSource<F> {
     files: Vec<PathBuf>,
-    num_threads: usize,
+    concurrent_files: usize,
     projection: Option<Vec<String>>,
     mapper: F,
 }
@@ -179,13 +225,13 @@ where
 {
     pub fn new(
         files: Vec<PathBuf>,
-        num_threads: usize,
+        concurrent_files: usize,
         projection: Option<Vec<&str>>,
         mapper: F,
     ) -> Self {
         Self {
             files,
-            num_threads,
+            concurrent_files,
             projection: projection.map(|p| p.into_iter().map(|s| s.to_string()).collect_vec()),
             mapper,
         }
@@ -196,11 +242,15 @@ impl<F> ParquetSource<F>
 where
     F: Fn(Chunk<Box<dyn Array>>) -> Chunk<Box<dyn Array>> + Send + Sync,
 {
-    pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, Chunk<Box<dyn Array>>)>(&self, s: &mut S, cb: CB) {
+    pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, Chunk<Box<dyn Array>>)>(
+        &self,
+        s: &mut S,
+        cb: CB,
+    ) {
         let file_groups = self
             .files
             .iter()
-            .chunks(self.num_threads)
+            .chunks(self.concurrent_files)
             .into_iter()
             .map(|c| c.cloned().collect_vec())
             .collect_vec();
@@ -209,6 +259,7 @@ where
             let mut chunks = file_group
                 .into_par_iter()
                 .flat_map(|file| {
+                    println!("Reading parquet file {:?}", file);
                     let metadata = read_file_metadata(&file)
                         .expect(format!("Failed to read metadata for file {:?}", file).as_str());
                     let schema = infer_schema(&metadata)
@@ -224,8 +275,11 @@ where
                         .enumerate()
                         .par_bridge()
                         .map(move |(id, chunk)| {
+                            let now = std::time::Instant::now();
                             let chunk = (&self.mapper)(chunk);
-                            (file.clone(), id, chunk)
+                            let res = (file.clone(), id, chunk);
+                            println!("########## Parallel lookup and dedup time took {:?} file: {file:?} chunk: {id} chunk_size: {} ########## ", now.elapsed(), res.2.len());
+                            res
                         })
                 })
                 .collect::<Vec<_>>();
@@ -233,7 +287,11 @@ where
 
             chunks
                 .into_iter()
-                .for_each(|(file, id, chunk)| cb(s, file, id, chunk));
+                .for_each(|(file, id, chunk)| { 
+                    let now = std::time::Instant::now();
+                    cb(s, file.clone(), id, chunk);
+                    println!("########## Sync processing time took {:?} file: {file:?} ########## ", now.elapsed());
+                });
         });
     }
 }

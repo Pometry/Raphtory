@@ -329,7 +329,7 @@ impl TempColGraphFragment {
         })
     }
 
-    pub(crate) fn from_external_edge_list<GO: GlobalOrder, P: AsRef<Path>>(
+    pub(crate) fn from_external_edge_list<GO: GlobalOrder + Send + Sync, P: AsRef<Path>>(
         el: &ExternalEdgeList<P>,
         graph_dir: &Path,
         global_order: Arc<GO>,
@@ -340,7 +340,7 @@ impl TempColGraphFragment {
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
     ) -> Result<TempColGraphFragment, Error> {
-        Self::from_sorted_parquet_files_edge_list(
+        Self::from_sorted_parquet_files_edge_list_2(
             el.files(),
             global_order,
             layer_id,
@@ -376,9 +376,14 @@ impl TempColGraphFragment {
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir)?;
 
+        // let thread_pool = rayon::ThreadPoolBuilder::new()
+        //     .num_threads(num_threads.get())
+        //     .build()
+        //     .unwrap();
+
         let source = ParquetSource::new(
             files.into_iter().cloned().collect(),
-            num_threads.get(),
+            4,
             Some(vec![src_col, dst_col]),
             |chunk| {
                 // get the source and dest and map them to their IDs also dedupe them
@@ -396,8 +401,8 @@ impl TempColGraphFragment {
             let (vf_builder, edge_builder) = s;
 
             src.values_iter().zip(dst.values_iter()).for_each(|(src, dst)|{
-                vf_builder.push_update(*src, *dst);
-                edge_builder.push_update(*src, *dst);
+                vf_builder.push_update(*src, *dst).expect("push update failed");
+                edge_builder.push_update(*src, *dst).expect("edge push update failed");
             })
         });
 

@@ -15,6 +15,13 @@ pub struct NodeChunk {
 }
 
 impl NodeChunk {
+
+    pub(crate) fn empty() -> Self {
+        let columns = vec![];
+        NodeChunk {
+            columns: columns.into(),
+        }
+    }
     pub(crate) fn new(chunk: Chunk<Box<dyn Array>>) -> Self {
         let columns = chunk.into_arrays().into();
         NodeChunk { columns }

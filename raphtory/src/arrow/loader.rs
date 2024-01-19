@@ -18,7 +18,7 @@ use rayon::prelude::*;
 
 use crate::arrow::mmap::{mmap_batch, write_batches};
 
-use super::{global_order::SortedGIDs, Error, GraphChunk};
+use super::{global_order::SortedGIDs, ipc, Error, GraphChunk};
 
 #[derive(Debug)]
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
