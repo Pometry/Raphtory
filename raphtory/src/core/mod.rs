@@ -24,7 +24,7 @@
 //!    * `macOS`
 //!
 
-use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
+use crate::{db::graph::graph::Graph, prelude::GraphViewOps, vectors::DocumentInput};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -130,6 +130,7 @@ pub enum PropType {
     Map,
     DTime,
     Graph,
+    Document,
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.
@@ -149,6 +150,7 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     DTime(NaiveDateTime),
     Graph(Graph),
+    Document(DocumentInput),
 }
 
 impl PartialOrd for Prop {
@@ -187,6 +189,7 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::DTime(_) => PropType::DTime,
             Prop::Graph(_) => PropType::Graph,
+            Prop::Document(_) => PropType::Document,
         }
     }
 
@@ -294,6 +297,11 @@ pub trait PropUnwrap: Sized {
     fn unwrap_graph(self) -> Graph {
         self.into_graph().unwrap()
     }
+
+    fn into_document(self) -> Option<DocumentInput>;
+    fn unwrap_document(self) -> DocumentInput {
+        self.into_document().unwrap()
+    }
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -351,6 +359,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.and_then(|p| p.into_graph())
+    }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        self.and_then(|p| p.into_document())
     }
 }
 
@@ -466,6 +478,14 @@ impl PropUnwrap for Prop {
             None
         }
     }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        if let Prop::Document(d) = self {
+            Some(d)
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Prop {
@@ -494,6 +514,7 @@ impl fmt::Display for Prop {
             Prop::Map(value) => {
                 write!(f, "{:?}", value)
             }
+            Prop::Document(value) => write!(f, "{}", value),
         }
     }
 }

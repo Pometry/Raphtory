@@ -61,17 +61,23 @@ impl DocumentOps for Document {
 
 /// struct containing all the necessary information to allow Raphtory creating a document and
 /// storing it
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct DocumentInput {
     pub content: String,
     pub life: Lifespan,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
     Inherited,
+}
+
+impl Lifespan {
+    pub(crate) fn event(time: i64) -> Self {
+        Self::Event { time }
+    }
 }
 
 impl From<String> for DocumentInput {

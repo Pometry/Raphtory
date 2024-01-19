@@ -178,27 +178,27 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
     // TODO: review, how can we let the users use the default template from graphql??
     fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.graph_document {
-            Some(graph_document) => get_documents_from_prop(graph.properties(), graph_document),
+            Some(graph_document) => get_documents_from_props(graph.properties(), graph_document),
             None => Box::new(std::iter::empty()), // self.default_template.graph(graph),
         }
     }
 
     fn node(&self, node: &NodeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
-            Some(node_document) => get_documents_from_prop(node.properties(), node_document),
+            Some(node_document) => get_documents_from_props(node.properties(), node_document),
             None => Box::new(std::iter::empty()), // self.default_template.node(node),
         }
     }
 
     fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
-            Some(edge_document) => get_documents_from_prop(edge.properties(), edge_document),
+            Some(edge_document) => get_documents_from_props(edge.properties(), edge_document),
             None => Box::new(std::iter::empty()), // self.default_template.edge(edge),
         }
     }
 }
 
-fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
+fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
     properties: Properties<P>,
     name: &str,
 ) -> Box<dyn Iterator<Item = DocumentInput>> {
@@ -206,19 +206,32 @@ fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
 
     match prop {
         Some((_, prop)) => {
-            let iter = prop.iter().map(|(time, prop)| DocumentInput {
-                content: prop.to_string(),
-                life: Lifespan::Event { time },
-            });
-            Box::new(iter)
+            let props = prop.iter();
+            let docs = props.map(|(time, prop)| prop_to_doc(&prop, Lifespan::event(time)));
+            Box::new(docs)
         }
         None => match properties.get(name) {
             Some(Prop::List(props)) => {
-                let doc_list = props.iter().map(|doc| doc.to_string().into()).collect_vec();
+                let doc_list = props.iter().map(|prop| constant_to_doc(prop)).collect_vec();
                 Box::new(doc_list.into_iter())
             }
-            Some(prop) => Box::new(std::iter::once(prop.to_string().into())),
+            Some(prop) => Box::new(std::iter::once(constant_to_doc(&prop))),
             _ => Box::new(std::iter::empty()),
+        },
+    }
+}
+
+fn constant_to_doc(prop: &Prop) -> DocumentInput {
+    prop_to_doc(prop, Lifespan::Inherited)
+}
+
+fn prop_to_doc(prop: &Prop, default_lifespan: Lifespan) -> DocumentInput {
+    // FIXME: this needs to improve, what happens with temporal documents. Does document lifespan take precedence or the event time?
+    match prop {
+        Prop::Document(document) => document.clone(),
+        prop => DocumentInput {
+            content: prop.to_string(),
+            life: default_lifespan,
         },
     }
 }
