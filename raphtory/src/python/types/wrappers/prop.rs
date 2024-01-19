@@ -1,3 +1,5 @@
+use crate::core::{DocumentInput, Lifespan};
+use crate::python::packages::vectors::PyDocument;
 use crate::{
     core::Prop,
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
@@ -19,6 +21,7 @@ impl IntoPy<PyObject> for Prop {
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
             Prop::Graph(g) => g.into_py(py), // Need to find a better way
+            Prop::Document(d) => d.content.into_py(py), // FIXME: this is awful
             Prop::I32(v) => v.into_py(py),
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
@@ -49,6 +52,12 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(g) = ob.extract() {
             return Ok(Prop::Graph(g));
         }
+        if let Ok(d) = ob.extract::<PyDocument>() {
+            return Ok(Prop::Document(DocumentInput {
+                content: d.content,
+                life: d.life,
+            })); // FIXME: need to allow different lifespans!!
+        }
         if let Ok(list) = ob.extract() {
             return Ok(Prop::List(Arc::new(list)));
         }
@@ -71,6 +80,7 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::Graph(g) => PyGraphView::from(g.clone()).repr(),
+            Prop::Document(d) => d.content.repr(), // FIXME: this is also awful
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),

@@ -24,7 +24,7 @@
 //!    * `macOS`
 //!
 
-use crate::{db::graph::graph::Graph, prelude::GraphViewOps, vectors::DocumentInput};
+use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -32,7 +32,7 @@ use std::{
     cmp::Ordering,
     collections::HashMap,
     fmt,
-    fmt::{Display, Formatter},
+    fmt::{Display, Formatter, Write},
     ops::Deref,
     sync::Arc,
 };
@@ -110,6 +110,27 @@ pub enum Direction {
     OUT,
     IN,
     BOTH,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Lifespan {
+    Interval { start: i64, end: i64 },
+    Event { time: i64 },
+    Inherited,
+}
+
+/// struct containing all the necessary information to allow Raphtory creating a document and
+/// storing it
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct DocumentInput {
+    pub content: String,
+    pub life: Lifespan,
+}
+
+impl Display for DocumentInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.content)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]

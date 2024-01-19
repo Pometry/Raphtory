@@ -1,3 +1,4 @@
+use crate::core::DocumentInput;
 use crate::{
     core::{
         entities::{
@@ -9,7 +10,6 @@ use crate::{
         ArcStr, Prop, PropType,
     },
     db::graph::graph::Graph,
-    vectors::DocumentInput,
 };
 use chrono::NaiveDateTime;
 use itertools::Itertools;

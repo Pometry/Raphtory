@@ -1,4 +1,7 @@
-use crate::vectors::document_ref::DocumentRef;
+use crate::{
+    core::{DocumentInput, Lifespan},
+    vectors::document_ref::DocumentRef,
+};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -24,15 +27,18 @@ pub enum Document {
     Graph {
         name: String,
         content: String,
+        life: Lifespan,
     },
     Node {
         name: String,
         content: String,
+        life: Lifespan,
     },
     Edge {
         src: String,
         dst: String,
         content: String,
+        life: Lifespan,
     },
 }
 
@@ -57,21 +63,6 @@ impl DocumentOps for Document {
             Document::Edge { content, .. } => content,
         }
     }
-}
-
-/// struct containing all the necessary information to allow Raphtory creating a document and
-/// storing it
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct DocumentInput {
-    pub content: String,
-    pub life: Lifespan,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub enum Lifespan {
-    Interval { start: i64, end: i64 },
-    Event { time: i64 },
-    Inherited,
 }
 
 impl Lifespan {

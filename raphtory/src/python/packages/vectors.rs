@@ -1,3 +1,4 @@
+use crate::core::{DocumentInput, Lifespan};
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime, Prop},
     db::{
@@ -16,11 +17,13 @@ use crate::{
         document_template::{DefaultTemplate, DocumentTemplate},
         vectorisable::Vectorisable,
         vectorised_graph::DynamicVectorisedGraph,
-        Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
+        Document, Embedding, EmbeddingFunction,
     },
 };
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
+use pyo3::exceptions::PyAttributeError;
+use pyo3::types::PyTuple;
 use pyo3::{
     exceptions::{PyException, PyTypeError},
     prelude::*,
@@ -62,38 +65,58 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
+impl IntoPy<PyObject> for Lifespan {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            Lifespan::Inherited => ().into_py(py),
+            Lifespan::Event { time } => (time,).into_py(py),
+            Lifespan::Interval { start, end } => (start, end).into_py(py),
+        }
+    }
+}
+
 #[derive(Clone)]
-#[pyclass(name = "GraphDocument", frozen, get_all)]
+#[pyclass(name = "Document", frozen, get_all)]
 pub struct PyDocument {
-    content: String,
-    entity: PyObject,
+    pub(crate) content: String,
+    entity: Option<PyObject>,
+    pub(crate) life: Lifespan,
 }
 
 impl PyDocument {
+    // FIXME: this function is not meant to be called from python, so there is no point of returning PyResult
     pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
-        let node = self.entity.extract::<PyNode>(py);
-        let edge = self.entity.extract::<PyEdge>(py);
-        let graph = self.entity.extract::<PyGraphView>(py);
-        if let Ok(node) = node {
-            Ok(Document::Node {
-                name: node.name(),
-                content: self.content.clone(),
-            })
-        } else if let Ok(edge) = edge {
-            Ok(Document::Edge {
-                src: edge.edge.src().name(),
-                dst: edge.edge.dst().name(),
-                content: self.content.clone(),
-            })
-        } else if let Ok(graph) = graph {
-            Ok(Document::Graph {
-                name: graph.graph.properties().get("name").unwrap().to_string(),
-                content: self.content.clone(),
-            })
-        } else {
-            Err(PyException::new_err(
-                "document entity is not a node nor an edge nor a graph",
-            ))
+        match &self.entity {
+            None => Err(PyException::new_err("Document entity cannot be None")),
+            Some(entity) => {
+                let node = entity.extract::<PyNode>(py);
+                let edge = entity.extract::<PyEdge>(py);
+                let graph = entity.extract::<PyGraphView>(py);
+                if let Ok(node) = node {
+                    Ok(Document::Node {
+                        name: node.name(),
+                        content: self.content.clone(),
+                        life: self.life,
+                    })
+                } else if let Ok(edge) = edge {
+                    Ok(Document::Edge {
+                        src: edge.edge.src().name(),
+                        dst: edge.edge.dst().name(),
+                        content: self.content.clone(),
+                        life: self.life,
+                    })
+                } else if let Ok(graph) = graph {
+                    Ok(Document::Graph {
+                        name: graph.graph.properties().get("name").unwrap().to_string(),
+                        content: self.content.clone(),
+                        life: self.life,
+                    })
+                } else {
+                    Err(PyException::new_err(
+                        "document entity is not a node nor an edge nor a graph",
+                    ))
+                }
+            }
         }
     }
 }
@@ -101,14 +124,43 @@ impl PyDocument {
 #[pymethods]
 impl PyDocument {
     #[new]
-    fn new(content: String, entity: PyObject) -> Self {
-        Self { content, entity }
+    fn new(content: String, life: Option<&PyAny>) -> PyResult<Self> {
+        let life = match life {
+            None => Lifespan::Inherited,
+            Some(life) => {
+                if let Ok(time) = life.extract::<i64>() {
+                    Lifespan::Event { time }
+                } else if let Ok(life) = life.extract::<&PyTuple>() {
+                    match life.iter().collect_vec().as_slice() {
+                        [start, end] => Lifespan::Interval {
+                            start: start.extract::<i64>()?,
+                            end: end.extract::<i64>()?,
+                        },
+                        _ => Err(PyAttributeError::new_err(
+                            "if life is a tuple it has to have two elements",
+                        ))?,
+                    }
+                } else {
+                    Err(PyAttributeError::new_err(
+                        "life has to be an int or a tuple with two numbers",
+                    ))?
+                }
+            }
+        };
+        Ok(Self {
+            content,
+            entity: None,
+            life,
+        })
     }
 
     fn __repr__(&self, py: Python) -> String {
-        let entity_repr = match self.entity.call_method0(py, "__repr__") {
-            Ok(repr) => repr.extract::<String>(py).unwrap_or("None".to_owned()),
-            Err(_) => "None".to_owned(),
+        let entity_repr = match &self.entity {
+            None => "None".to_owned(),
+            Some(entity) => match entity.call_method0(py, "__repr__") {
+                Ok(repr) => repr.extract::<String>(py).unwrap_or("None".to_owned()),
+                Err(_) => "None".to_owned(),
+            },
         };
         let py_content = self.content.clone().into_py(py);
         let content_repr = match py_content.call_method0(py, "__repr__") {
@@ -116,7 +168,7 @@ impl PyDocument {
             Err(_) => "''".to_owned(),
         };
         format!(
-            "GraphDocument(content={}, entity={})",
+            "Document(content={}, entity={})", // FIXME: add life here?
             content_repr, entity_repr
         )
     }
@@ -128,30 +180,42 @@ pub fn into_py_document(
     py: Python,
 ) -> PyDocument {
     match document {
-        Document::Graph { content, .. } => PyDocument {
+        Document::Graph { content, life, .. } => PyDocument {
             content,
-            entity: graph.source_graph.clone().into_py(py),
+            entity: Some(graph.source_graph.clone().into_py(py)),
+            life,
         },
-        Document::Node { name, content } => {
+        Document::Node {
+            name,
+            content,
+            life,
+        } => {
             let node = graph.source_graph.node(name).unwrap();
 
             PyDocument {
                 content,
-                entity: node.into_py(py),
+                entity: Some(node.into_py(py)),
+                life,
             }
         }
-        Document::Edge { src, dst, content } => {
+        Document::Edge {
+            src,
+            dst,
+            content,
+            life,
+        } => {
             let edge = graph.source_graph.edge(src, dst).unwrap();
 
             PyDocument {
                 content,
-                entity: edge.into_py(py),
+                entity: Some(edge.into_py(py)),
+                life,
             }
         }
     }
 }
 
-#[cfg(feature = "python")]
+#[cfg(feature = "python")] // we dont need this, we already have the flag for the full module
 pub struct PyDocumentTemplate {
     graph_document: Option<String>,
     node_document: Option<String>,
