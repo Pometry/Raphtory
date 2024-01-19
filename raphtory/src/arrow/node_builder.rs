@@ -77,8 +77,8 @@ impl NodeBuilder {
         let location_path = self.location_path.clone();
 
         let file_path = self
-                .location_path
-                .join(format!("adj_out_chunk_{:08}.ipc", id));
+            .location_path
+            .join(format!("adj_out_chunk_{:08}.ipc", id));
 
         // TODO: add a thread pool
         let handle = std::thread::spawn(move || {
@@ -259,7 +259,6 @@ where
             let mut chunks = file_group
                 .into_par_iter()
                 .flat_map(|file| {
-                    println!("Reading parquet file {:?}", file);
                     let metadata = read_file_metadata(&file)
                         .expect(format!("Failed to read metadata for file {:?}", file).as_str());
                     let schema = infer_schema(&metadata)
@@ -275,11 +274,8 @@ where
                         .enumerate()
                         .par_bridge()
                         .map(move |(id, chunk)| {
-                            let now = std::time::Instant::now();
                             let chunk = (&self.mapper)(chunk);
-                            let res = (file.clone(), id, chunk);
-                            println!("########## Parallel lookup and dedup time took {:?} file: {file:?} chunk: {id} chunk_size: {} ########## ", now.elapsed(), res.2.len());
-                            res
+                            (file.clone(), id, chunk)
                         })
                 })
                 .collect::<Vec<_>>();
@@ -287,11 +283,7 @@ where
 
             chunks
                 .into_iter()
-                .for_each(|(file, id, chunk)| { 
-                    let now = std::time::Instant::now();
-                    cb(s, file.clone(), id, chunk);
-                    println!("########## Sync processing time took {:?} file: {file:?} ########## ", now.elapsed());
-                });
+                .for_each(|(file, id, chunk)| cb(s, file.clone(), id, chunk));
         });
     }
 }

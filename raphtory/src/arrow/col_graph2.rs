@@ -249,7 +249,6 @@ impl TempColGraphFragment {
         time_chunks: &mut Vec<i64>,
         chunk_count: usize,
     ) -> Result<JoinHandle<Box<dyn Array>>, Error> {
-        println!("persisting node additions chunk: {}", chunk_count);
         // write down time chunk as
         let mut times = Vec::with_capacity(time_chunks.len());
         std::mem::swap(&mut times, time_chunks);
@@ -394,22 +393,36 @@ impl TempColGraphFragment {
         let mut vf_builder = NodeBuilder::new(node_chunk_size, global_order.len(), graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
 
-        source.produce(&mut (&mut vf_builder, &mut edge_builder), |s, _, _, chunk|{
-            let src = chunk[0].as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
-            let dst = chunk[1].as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
+        source.produce(
+            &mut (&mut vf_builder, &mut edge_builder),
+            |s, _, _, chunk| {
+                let src = chunk[0]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap();
+                let dst = chunk[1]
+                    .as_any()
+                    .downcast_ref::<PrimitiveArray<u64>>()
+                    .unwrap();
 
-            let (vf_builder, edge_builder) = s;
+                let (vf_builder, edge_builder) = s;
 
-            src.values_iter().zip(dst.values_iter()).for_each(|(src, dst)|{
-                vf_builder.push_update(*src, *dst).expect("push update failed");
-                edge_builder.push_update(*src, *dst).expect("edge push update failed");
-            })
-        });
+                src.values_iter()
+                    .zip(dst.values_iter())
+                    .for_each(|(src, dst)| {
+                        vf_builder
+                            .push_update(*src, *dst)
+                            .expect("push update failed");
+                        edge_builder
+                            .push_update(*src, *dst)
+                            .expect("edge push update failed");
+                    })
+            },
+        );
 
         vf_builder.finalise_empty_chunks()?;
         // finalize edge_builder
         edge_builder.finalize()?;
-
 
         let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
         excluded_cols.extend_from_slice(exclude_cols);

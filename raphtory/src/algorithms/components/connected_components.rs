@@ -94,7 +94,6 @@ where
         None,
     );
 
-    println!("SS: {}", runner.ctx.ss());
     AlgorithmResult::new(graph.clone(), "Connected Components", results_type, res)
 }
 

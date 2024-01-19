@@ -15,7 +15,6 @@ pub struct NodeChunk {
 }
 
 impl NodeChunk {
-
     pub(crate) fn empty() -> Self {
         let columns = vec![];
         NodeChunk {

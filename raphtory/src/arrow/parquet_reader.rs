@@ -121,9 +121,7 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         let chunks = self.files.borrow().par_iter().flat_map_iter(|path| {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
-                .map_ok(move |chunk| {
-                    GraphChunk::from_chunk(chunk, 0, 1)
-                })
+                .map_ok(move |chunk| GraphChunk::from_chunk(chunk, 0, 1))
         });
         self.edge_props_builder
             .load_t_edge_offsets_from_par_chunks(chunks)

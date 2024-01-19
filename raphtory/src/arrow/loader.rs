@@ -78,7 +78,13 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
         &self,
     ) -> impl Iterator<Item = (Box<dyn Array>, Box<dyn Array>)> + '_ {
         let concurrent_files = 16;
-        let file_groups = self.parquet_files.iter().chunks(concurrent_files).into_iter().map(|c|c.cloned().collect_vec()).collect_vec();
+        let file_groups = self
+            .parquet_files
+            .iter()
+            .chunks(concurrent_files)
+            .into_iter()
+            .map(|c| c.cloned().collect_vec())
+            .collect_vec();
 
         file_groups.into_iter().flat_map(|paths| {
             let now = std::time::Instant::now();
