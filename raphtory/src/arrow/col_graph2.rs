@@ -133,7 +133,7 @@ impl TempColGraphFragment {
                 .dedup()
         });
 
-        let counts = (0..self.num_nodes())
+        let counts: Vec<i64> = (0..self.num_nodes())
             .into_par_iter()
             .map(VID)
             .map(|v_id| {
@@ -394,7 +394,7 @@ impl TempColGraphFragment {
         let mut vf_builder = NodeBuilder::new(node_chunk_size, global_order.len(), graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
 
-        source.produce(&mut (&mut vf_builder, &mut edge_builder), |s, file, _, chunk|{
+        source.produce(&mut (&mut vf_builder, &mut edge_builder), |s, _, _, chunk|{
             let src = chunk[0].as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
             let dst = chunk[1].as_any().downcast_ref::<PrimitiveArray<u64>>().unwrap();
 

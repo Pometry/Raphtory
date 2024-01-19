@@ -46,8 +46,6 @@ pub enum Error {
     //serde error
     #[error("Serde error: {0}")]
     Serde(#[from] serde_json::Error),
-    #[error("LMDB error: {0}")]
-    LMDB(#[from] heed::Error),
     #[error("Bad data type for node column: {0:?}")]
     DType(DataType),
     #[error("Graph directory is not empty before loading")]

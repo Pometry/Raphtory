@@ -25,6 +25,7 @@ use super::{
 
 pub(crate) struct NodeBuilder {
     pub(crate) adj_out_chunks: Vec<NodeChunk>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
+    thread_handles: Vec<std::thread::JoinHandle<ArrowResult<NodeChunk>>>,
 
     adj_out_dst: Vec<u64>, // the dst of the adjacency list for the current chunk
     adj_out_eid: Vec<u64>, // the eid of the adjacency list for the current chunk
@@ -45,6 +46,7 @@ impl NodeBuilder {
     pub(crate) fn new<P: AsRef<Path>>(chunk_size: usize, num_nodes: usize, path: P) -> Self {
         Self {
             adj_out_chunks: vec![],
+            thread_handles: vec![],
             adj_out_dst: vec![],
             adj_out_eid: vec![],
             adj_out_offsets: vec![],
@@ -74,13 +76,23 @@ impl NodeBuilder {
         adj_out_offsets_prev.push(self.chunk_adj_out_offset);
         let location_path = self.location_path.clone();
 
-        std::thread::spawn(move || {
+        let file_path = self
+                .location_path
+                .join(format!("adj_out_chunk_{:08}.ipc", id));
+
+        // TODO: add a thread pool
+        let handle = std::thread::spawn(move || {
             let col =
                 new_arrow_adj_list_chunk(adj_out_dst_prev, adj_out_eid_prev, adj_out_offsets_prev);
 
             Self::persist_and_mmap_adj_chunk(location_path, id, col)
                 .expect(format!("Failed to persist and mmap adj chunk {id}").as_str());
+
+            let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0) };
+            mmapped_chunk.map(|chunk| NodeChunk::new(chunk))
         });
+
+        self.thread_handles.push(handle);
 
         // fill chunk with empty adjacency lists
         self.chunk_adj_out_offset = 0i64;
@@ -90,25 +102,13 @@ impl NodeBuilder {
     fn load_all_chunks_replace_placeholders(&mut self) -> ArrowResult<()> {
         self.adj_out_chunks
             .iter_mut()
-            .enumerate()
-            .for_each(|(id, node_chunk)| {
-                let file_path = self
-                    .location_path
-                    .join(format!("adj_out_chunk_{:08}.ipc", id));
-
-                let mut count = 0;
-                loop {
-                    let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0) };
-                    if let Ok(mmapped_chunk) = mmapped_chunk {
-                        *node_chunk = NodeChunk::new(mmapped_chunk);
-                        break;
-                    } else if count > 10 {
-                        panic!("Failed to load chunk after 10 tries");
-                    }
-                    // sleep a bit
-                    std::thread::sleep(std::time::Duration::from_millis(1000));
-                    count +=1;
-                }
+            .zip(self.thread_handles.drain(..))
+            .for_each(|(node_chunk, handle)| {
+                let t_node_chunk = handle
+                    .join()
+                    .expect("Failed to join thread")
+                    .expect("Failed to load chunk");
+                *node_chunk = t_node_chunk;
             });
         Ok(())
     }

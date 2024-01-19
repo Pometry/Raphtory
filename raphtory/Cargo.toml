@@ -72,7 +72,6 @@ arrow2 = { version = "0.18", optional = true }
 kdam = { version="0.5.0", features = ["notebook"], optional = true}
 
 # arrow storage optional dependencies
-heed = { version = "0.11.0", optional = true }
 memmap2 = { version = "0.8.0", optional = true }
 ahash = { version = "0.8.3", optional = true }
 tempfile = { version = "3.8.0", optional = true }
@@ -100,7 +99,7 @@ search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
-arrow = ["dep:arrow2", "dep:heed", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:serde_json",
+arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:serde_json",
     "arrow2?/io_ipc",
     "arrow2?/io_parquet",
     "arrow2?/io_parquet_compression",
