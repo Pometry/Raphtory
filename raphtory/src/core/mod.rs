@@ -647,6 +647,46 @@ impl<T: Into<Prop>> IntoProp for T {
     }
 }
 
+#[cfg(feature = "io")]
+mod serde_value_into_prop {
+    use std::collections::HashMap;
+
+    use serde_json::Value;
+    use super::{Prop, IntoPropMap};
+
+    impl TryFrom<Value> for Prop {
+        type Error = String;
+
+        fn try_from(value: Value) -> Result<Self, Self::Error> {
+            match value {
+                Value::Null => Err("Null property not valid".to_string()),
+                Value::Bool(value) => Ok(value.into()),
+                Value::Number(value) => {
+                    value.as_i64().map(|num| num.into())
+                        .or_else(|| {
+                            value.as_f64().map(|num| num.into())
+                        })
+                        .ok_or( format!("Number conversion error for: {}", value))
+                },
+                Value::String(value) => Ok(value.into()),
+                Value::Array(value) =>
+                    value.into_iter()
+                        .map(|item| item.try_into())
+                        .collect::<Result<Vec<Prop>, Self::Error>>()
+                        .map(|item| item.into()),
+                Value::Object(value) =>
+                    value.into_iter()
+                        .map(|(key, value)| {
+                            let prop = value.try_into()?;
+                            Ok((key, prop))
+                        })
+                        .collect::<Result<HashMap<String, Prop>, Self::Error>>()
+                        .map(|item| item.into_prop_map()),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test_arc_str {
     use crate::core::ArcStr;
