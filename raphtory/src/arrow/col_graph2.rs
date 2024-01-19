@@ -47,7 +47,7 @@ use super::{
     global_order::GlobalOrder,
     node_builder::{resolve_and_dedup_chunk, NodeBuilder, ParquetSource},
     node_chunk::{NodeChunk, RowOwned},
-    nodes::{Node, Nodes},
+    nodes::{Node, Nodes, Nodes2},
     split_struct_chunk, GraphChunk, Time,
 };
 
@@ -339,6 +339,7 @@ impl TempColGraphFragment {
         node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
+        gids: Box<dyn Array>,
     ) -> Result<TempColGraphFragment, Error> {
         Self::from_sorted_parquet_files_edge_list_2(
             el.files(),
@@ -355,6 +356,7 @@ impl TempColGraphFragment {
             node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
+            gids
         )
     }
 
@@ -373,13 +375,9 @@ impl TempColGraphFragment {
         node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
+        gids: Box<dyn Array>,
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir)?;
-
-        // let thread_pool = rayon::ThreadPoolBuilder::new()
-        //     .num_threads(num_threads.get())
-        //     .build()
-        //     .unwrap();
 
         let source = ParquetSource::new(
             files.into_iter().cloned().collect(),
@@ -450,67 +448,10 @@ impl TempColGraphFragment {
             latest_time,
         );
 
-        write_graph_metadata(graph_dir, earliest_time, latest_time)?;
+        let dst_ids = edges.dst_ids.clone();
 
-        let nodes = Nodes::new(node_chunk_size, vf_builder.adj_out_chunks, Vec::default());
+        let nodes2 = Nodes2::new(gids, src_offsets, dst_ids);
 
-        Ok(TempColGraphFragment {
-            nodes,
-            edges,
-            graph_dir: graph_dir.into(),
-        })
-    }
-
-    fn from_sorted_parquet_files_edge_list<GO: GlobalOrder>(
-        files: &[PathBuf],
-        global_order: Arc<GO>,
-        layer_id: usize,
-        graph_dir: &Path,
-        src_col: &str,
-        src_hash_col: &str,
-        dst_col: &str,
-        dst_hash_col: &str,
-        time_col: &str,
-        exclude_cols: &[&str],
-        num_threads: NonZeroUsize,
-        node_chunk_size: usize,
-        edge_chunk_size: usize,
-        t_props_chunk_size: usize,
-    ) -> Result<Self, Error> {
-        prepare_graph_dir(graph_dir)?;
-        let chunks = files
-            .iter()
-            .flat_map(|dir_entry| read_file_chunks(dir_entry, src_col, dst_col, time_col))
-            .flatten();
-
-        let mut vf_builder = NodeFrameBuilder::new(node_chunk_size, global_order, graph_dir);
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
-
-        load_chunks(&mut vf_builder, &mut edge_builder, chunks)?;
-        let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
-        excluded_cols.extend_from_slice(exclude_cols);
-
-        let reader = ParquetReader::new_from_filelist(
-            graph_dir,
-            files,
-            src_col,
-            dst_col,
-            time_col,
-            &excluded_cols,
-        )?;
-
-        let (edge_offsets, src_offsets) = reader.load_offsets()?;
-        let t_props = reader.load_edges(num_threads, t_props_chunk_size, edge_offsets)?;
-
-        let (earliest_time, latest_time) = calculate_earliest_latest_time(&t_props);
-        let edges = Edges::new(
-            edge_builder.src_chunks,
-            edge_builder.dst_chunks,
-            t_props,
-            layer_id,
-            earliest_time,
-            latest_time,
-        );
 
         write_graph_metadata(graph_dir, earliest_time, latest_time)?;
 

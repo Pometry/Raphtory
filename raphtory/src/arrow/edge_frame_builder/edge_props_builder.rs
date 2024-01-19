@@ -45,6 +45,8 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         &self,
         chunks: impl ParallelIterator<Item = Result<GraphChunk, arrow2::error::Error>>,
     ) -> Result<(OffsetsBuffer<i64>, OffsetsBuffer<i64>), Error> {
+        //FIXME: this needs to work with 17bn edges
+
         let bounds_and_counts = chunks
             .map(|chunk| self.count_chunk(chunk))
             .collect::<Result<Vec<_>, Error>>()?;
@@ -77,7 +79,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
             old_bounds = bounds;
         }
 
-        let buffer = Buffer::from(offsets);
+        let buffer: Buffer<i64> = Buffer::from(offsets);
         write_buffer(
             self.graph_dir.as_ref().join("edge_offsets.ipc"),
             buffer.clone(),
