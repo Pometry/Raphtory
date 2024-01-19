@@ -11,11 +11,12 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{entities::nodes::node::Node, utils::errors::GraphError, ArcStr, Prop},
-    db::api::{mutation::CollectProperties, view::MaterializedGraph},
+    core::{utils::errors::GraphError, ArcStr, Prop},
+    db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
+use serde_json::Value;
 use std::{
     collections::HashMap,
     error::Error,
@@ -202,7 +203,7 @@ impl Mut {
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
 
-        let deserialized_node_map: serde_json::Value = serde_json::from_str(graph_nodes.as_str())?;
+        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
         let node_map = deserialized_node_map
             .as_object()
             .ok_or("graph_nodes not object")?;
@@ -256,8 +257,15 @@ impl Mut {
                     "Could not find node {} in provided map",
                     node.name()
                 ))?;
-            let node_props_as_str = node_props.as_str().ok_or("node_props must be string")?;
-            node.update_constant_properties([("props", node_props_as_str)])?;
+            let node_props_as_obj = node_props
+                .as_object()
+                .ok_or("node_props must be an object")?
+                .to_owned();
+            let values = node_props_as_obj
+                .into_iter()
+                .map(|(key, value)| Ok((key, value.try_into()?)))
+                .collect::<Result<Vec<(String, Prop)>>>()?;
+            node.update_constant_properties(values)?;
         }
 
         new_subgraph.save_to_file(path)?;

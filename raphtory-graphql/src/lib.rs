@@ -422,7 +422,7 @@ mod graphql_test {
         );
 
         // test save graph
-        let req = Request::new(save_graph("g0", r#""{ \"2\": \"{}\" }""#));
+        let req = Request::new(save_graph("g0", r#""{ \"2\": {} }""#));
         let res = schema.execute(req).await;
         println!("{:?}", res.errors);
         assert!(res.errors.is_empty());
@@ -435,7 +435,7 @@ mod graphql_test {
         );
 
         // test save graph overwrite
-        let req = Request::new(save_graph("g1", r#""{ \"1\": \"{}\" }""#));
+        let req = Request::new(save_graph("g1", r#""{ \"1\": {} }""#));
         let res = schema.execute(req).await;
         println!("{:?}", res.errors);
         assert!(res.errors.is_empty());
