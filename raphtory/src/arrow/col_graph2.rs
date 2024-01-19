@@ -301,9 +301,10 @@ impl TempColGraphFragment {
         let edge_props_values = edge_props_builder
             .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
         let graph_chunks_iter = edges.into_par_iter().map(Ok);
-        let offsets = edge_props_builder.load_t_edge_offsets_from_par_chunks(graph_chunks_iter)?;
+        let (edge_offsets, src_offsets) =
+            edge_props_builder.load_offsets_from_par_chunks(graph_chunks_iter)?;
 
-        let temporal_props = ChunkedListArray::new_from_parts(edge_props_values, offsets);
+        let temporal_props = ChunkedListArray::new_from_parts(edge_props_values, edge_offsets);
 
         let (earliest_time, latest_time) = calculate_earliest_latest_time(&temporal_props);
 
@@ -436,7 +437,8 @@ impl TempColGraphFragment {
             &excluded_cols,
         )?;
 
-        let t_props = reader.load_edges(num_threads, t_props_chunk_size)?;
+        let (edge_offsets, src_offsets) = reader.load_offsets()?;
+        let t_props = reader.load_edges(num_threads, t_props_chunk_size, edge_offsets)?;
 
         let (earliest_time, latest_time) = calculate_earliest_latest_time(&t_props);
         let edges = Edges::new(
@@ -497,7 +499,8 @@ impl TempColGraphFragment {
             &excluded_cols,
         )?;
 
-        let t_props = reader.load_edges(num_threads, t_props_chunk_size)?;
+        let (edge_offsets, src_offsets) = reader.load_offsets()?;
+        let t_props = reader.load_edges(num_threads, t_props_chunk_size, edge_offsets)?;
 
         let (earliest_time, latest_time) = calculate_earliest_latest_time(&t_props);
         let edges = Edges::new(

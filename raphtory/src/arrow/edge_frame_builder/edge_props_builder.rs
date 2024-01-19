@@ -19,6 +19,15 @@ use crate::arrow::{
     Error, GraphChunk, GID,
 };
 
+fn extend_offsets<I: IntoIterator<Item = usize>>(offsets: &mut Vec<i64>, counts: I) {
+    let last_value = *offsets.last().unwrap(); // FIXME: could initialise here?
+    offsets.extend(counts.into_iter().scan(last_value, |state, v| {
+        let new = v as i64 + *state;
+        *state = new;
+        Some(new)
+    }));
+}
+
 pub struct EdgePropsBuilder<P> {
     graph_dir: P,
     time_col_idx: usize,
@@ -32,39 +41,39 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         }
     }
 
-    pub(crate) fn load_t_edge_offsets_from_par_chunks(
+    pub(crate) fn load_offsets_from_par_chunks(
         &self,
         chunks: impl ParallelIterator<Item = Result<GraphChunk, arrow2::error::Error>>,
-    ) -> Result<OffsetsBuffer<i64>, Error> {
+    ) -> Result<(OffsetsBuffer<i64>, OffsetsBuffer<i64>), Error> {
         let bounds_and_counts = chunks
             .map(|chunk| self.count_chunk(chunk))
             .collect::<Result<Vec<_>, Error>>()?;
 
         let mut bounds_and_counts_iter = bounds_and_counts.into_iter();
-        let (mut old_bounds, counts) = bounds_and_counts_iter
+        let (mut old_bounds, counts, src_counts) = bounds_and_counts_iter
             .next()
             .ok_or_else(|| Error::NoEdgeLists)?;
 
         let mut offsets: Vec<i64> = vec![0];
-        offsets.extend(counts.into_iter().scan(0i64, |state, v| {
-            let new = v as i64 + *state;
-            *state = new;
-            Some(new)
-        }));
+        extend_offsets(&mut offsets, counts);
 
-        for (bounds, counts) in bounds_and_counts_iter {
+        let mut src_offsets: Vec<i64> = vec![0];
+        extend_offsets(&mut src_offsets, src_counts);
+
+        for (bounds, counts, src_counts) in bounds_and_counts_iter {
             let mut counts_iter = counts.into_iter();
+            let mut src_counts_iter = src_counts.into_iter();
 
             if bounds.first == old_bounds.last {
                 let first_count = counts_iter.next().ok_or_else(|| Error::EmptyChunk)?;
                 *offsets.last_mut().unwrap() += first_count as i64;
             }
-            let last_value = *offsets.last().unwrap();
-            offsets.extend(counts_iter.scan(last_value, |state, v| {
-                let new = v as i64 + *state;
-                *state = new;
-                Some(new)
-            }));
+            if bounds.first.0 == old_bounds.last.0 {
+                let first_count = src_counts_iter.next().ok_or_else(|| Error::EmptyChunk)?;
+                *src_offsets.last_mut().unwrap() += first_count as i64;
+            }
+            extend_offsets(&mut offsets, counts_iter);
+            extend_offsets(&mut src_offsets, src_counts_iter);
             old_bounds = bounds;
         }
 
@@ -73,8 +82,16 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
             self.graph_dir.as_ref().join("edge_offsets.ipc"),
             buffer.clone(),
         )?;
+
+        let src_buffer = Buffer::from(src_offsets);
+        write_buffer(
+            self.graph_dir.as_ref().join("adj_out_offsets.ipc"),
+            src_buffer.clone(),
+        )?;
         //safety: we made some offsets that are increasing and start at 0
-        Ok(unsafe { OffsetsBuffer::new_unchecked(buffer) })
+        Ok((unsafe { OffsetsBuffer::new_unchecked(buffer) }, unsafe {
+            OffsetsBuffer::new_unchecked(src_buffer)
+        }))
     }
 
     pub(crate) fn load_t_edges_from_par_structs(
@@ -123,7 +140,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
     fn count_chunk(
         &self,
         chunk: Result<GraphChunk, arrow2::error::Error>,
-    ) -> Result<(EdgeBounds, Vec<usize>), Error> {
+    ) -> Result<(EdgeBounds, Vec<usize>, Vec<usize>), Error> {
         let chunk = chunk?;
         let srcs = &chunk.srcs;
         let dests = &chunk.dsts;
@@ -135,6 +152,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
         let mut last = first.clone();
         let mut counts: Vec<usize> = vec![1];
+        let mut src_counts: Vec<usize> = vec![1];
 
         for edge in iter {
             if edge == last {
@@ -142,10 +160,17 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
             } else {
                 counts.push(1);
             }
+            if edge.0 == last.0 {
+                if edge.1 != last.1 {
+                    *src_counts.last_mut().expect("this should not be empty") += 1;
+                }
+            } else {
+                src_counts.push(1);
+            }
             last = edge;
         }
 
-        Ok((EdgeBounds { first, last }, counts))
+        Ok((EdgeBounds { first, last }, counts, src_counts))
     }
 }
 

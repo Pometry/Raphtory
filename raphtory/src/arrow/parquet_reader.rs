@@ -93,9 +93,9 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         &self,
         num_threads: NonZeroUsize,
         t_prop_chunk_size: usize,
+        edge_offsets: OffsetsBuffer<i64>,
     ) -> Result<ChunkedListArray<ChunkedArray<StructArray>>, Error> {
         let edge_values = self.load_t_edge_values(num_threads, t_prop_chunk_size)?;
-        let edge_offsets = self.load_t_edge_offsets()?;
         assert_eq!(edge_offsets.get(0), Some(&0));
         assert!(edge_offsets
             .iter()
@@ -117,14 +117,13 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
             .load_t_edges_from_par_structs(num_threads, iter)
     }
 
-    fn load_t_edge_offsets(&self) -> Result<OffsetsBuffer<i64>, Error> {
+    pub(crate) fn load_offsets(&self) -> Result<(OffsetsBuffer<i64>, OffsetsBuffer<i64>), Error> {
         let chunks = self.files.borrow().par_iter().flat_map_iter(|path| {
             read_parquet_file(path, self.src_dest_schema.clone())
                 .expect("failed to read parquet file")
                 .map_ok(move |chunk| GraphChunk::from_chunk(chunk, 0, 1))
         });
-        self.edge_props_builder
-            .load_t_edge_offsets_from_par_chunks(chunks)
+        self.edge_props_builder.load_offsets_from_par_chunks(chunks)
     }
 }
 
@@ -427,7 +426,10 @@ mod test {
         )
         .unwrap();
 
-        let list_arr = reader.load_edges(4.try_into().unwrap(), 17).unwrap();
+        let (edge_offsets, _) = reader.load_offsets().unwrap();
+        let list_arr = reader
+            .load_edges(4.try_into().unwrap(), 17, edge_offsets)
+            .unwrap();
         let list_arr_vs = list_arr.values();
         assert_eq!(list_arr.len(), 97);
         assert_eq!(list_arr_vs.len(), 100);
