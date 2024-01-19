@@ -1970,8 +1970,8 @@ def test_leading_zeroes_ids():
     g = Graph()
     g.add_node(0, 0)
     g.add_node(1, "0")
-    assert g.node(0).history() == [0]
-    assert g.nodes.name.collect() == ["0", "0"]
+    assert g.node(0).history() == [0, 1]
+    assert g.nodes.name.collect() == ["0"]
 
     # g = Graph()
     # g.add_node(0, 1)
