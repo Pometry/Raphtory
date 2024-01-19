@@ -8,24 +8,31 @@ tags:
   - dynamics
 authors:
   - name: Ben Steer
-    affiliation: "1, 4" # (Multiple affiliations must be quoted)
-    corresponding: true # (This is how to denote the corresponding author)
+    affiliation: "1, 4" # (Multiple affiliations must be quoted) # (This is how to denote the corresponding author)
+    orcid: 0000-0001-9446-5690
   - name: Naomi Arnold
     affiliation: 3
+    corresponding: true
+    orcid: 0000-0001-6396-4788
   - name: Cheick Tidiane Ba
     affiliation: "6, 4"
+    orcid: 0000-0002-4035-7464
   - name: Renaud Lambiotte
     affiliation: "2, 1, 8"
+    orcid: 0000-0002-0583-4595
   - name: Haaroon Yousaf
     affiliation: 1
+    orcid: 0000-0001-5098-5811
   - name: Lucas Jeub
     affiliation: 1
+    orcid: 0000-0001-8941-9227
   - name: Fabian Murariu
     affiliation: 5
   - name: Shivam Kapoor
     affiliation: 1
   - name: Pedro Rico
     affiliation: 1
+    orcid: 0000-0002-4698-8435
   - name: Rachel Chan
     affiliation: 1
   - name: Louis Chan
@@ -34,14 +41,17 @@ authors:
     affiliation: 1
   - name: Richard G. Clegg
     affiliation: 4
+    orcid: 0000-0001-7241-6679
   - name: Felix Cuadrado
     affiliation: "7, 4"
+    orcid: 0000-0002-5745-1609
   - name: Matt Barnes
     affiliation: 4
   - name: Peijie Zhong
     affiliation: 4
   - name: John Pougué-Biyong
     affiliation: 2
+    orcid: 0000-0002-6582-193X
   - name: Alhamza Alnaimi
     affiliation: 1
 
