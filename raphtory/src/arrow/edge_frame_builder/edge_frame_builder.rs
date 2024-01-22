@@ -1,5 +1,4 @@
 use crate::arrow::{
-    edge,
     mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
     node_builder::LoadingState,
     DST_COLUMN, SRC_COLUMN,
@@ -11,9 +10,12 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
     offset::OffsetsBuffer,
-    types::NativeType,
 };
-use std::path::{Path, PathBuf};
+use itertools::{EitherOrBoth, Itertools};
+use std::{
+    mem,
+    path::{Path, PathBuf},
+};
 
 use crate::arrow::Error;
 
@@ -21,13 +23,13 @@ pub struct EdgeFrameBuilder {
     pub(crate) src_chunks: Vec<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
     pub(crate) dst_chunks: Vec<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
 
-    pub(crate) src_offsets: Vec<OffsetsBuffer<i64>>,
+    pub(crate) adj_out_offsets: Vec<OffsetsBuffer<i64>>,
     pub(crate) edge_offsets: Vec<OffsetsBuffer<i64>>,
 
     edge_src_id: Vec<u64>, // the src ids for the edge in the current chunk
     edge_dst_id: Vec<u64>, // the dst ids for the edge in the current chunk
 
-    cur_src_offset: Vec<i64>,
+    cur_adj_out_offset: Vec<i64>,
     cur_edge_offset: Vec<i64>,
 
     chunk_size: usize,
@@ -41,13 +43,13 @@ impl EdgeFrameBuilder {
             src_chunks: vec![],
             dst_chunks: vec![],
 
-            src_offsets: vec![],
+            adj_out_offsets: vec![],
             edge_offsets: vec![],
 
             edge_src_id: vec![],
             edge_dst_id: vec![],
 
-            cur_src_offset: vec![0],
+            cur_adj_out_offset: vec![0],
             cur_edge_offset: vec![0],
 
             chunk_size,
@@ -71,25 +73,23 @@ impl EdgeFrameBuilder {
             .zip(deduped_dst_ids.first().copied())
             .ok_or(Error::EmptyChunk)?;
 
-        let edge_counts = if self.last_update == Some(first) {
+        if self.last_update == Some(first) {
             let first_count = edge_counts[0];
             *self.cur_edge_offset.last_mut().unwrap() += first_count as i64;
-            &edge_counts[1..]
+            self.update_src_dst(&deduped_src_ids[1..], &deduped_dst_ids[1..])?;
+            self.update_edge_offsets(&edge_counts[1..])?;
         } else {
-            &edge_counts
+            self.update_src_dst(&deduped_src_ids, &deduped_dst_ids)?;
+            self.update_edge_offsets(&edge_counts)?;
         };
 
-        let src_counts = if self.last_update.map(|(src, _)| src) == Some(first.0) {
+        if self.last_update.map(|(src, _)| src) == Some(first.0) {
             let first_count = src_counts[0];
-            *self.cur_src_offset.last_mut().unwrap() += first_count as i64;
-            &src_counts[1..]
+            *self.cur_adj_out_offset.last_mut().unwrap() += first_count as i64;
+            self.update_adj_out_offsets(&deduped_src_ids[1..], &src_counts[1..])?;
         } else {
-            &src_counts
+            self.update_adj_out_offsets(&deduped_src_ids, &src_counts)?;
         };
-
-        self.update_src_offsets(&src_counts)?;
-
-        self.update_edge_offsets(&edge_counts)?;
 
         self.last_update = deduped_src_ids
             .last()
@@ -98,39 +98,82 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    fn push_src_offset_chunk(&mut self) -> Result<(), Error> {
-        let mut new_src_offset = Vec::with_capacity(self.cur_src_offset.len());
-        std::mem::swap(&mut new_src_offset, &mut self.cur_src_offset);
+    fn push_adj_out_offset_chunk(&mut self) -> Result<(), Error> {
+        let mut new_adj_out_offset = Vec::with_capacity(self.cur_adj_out_offset.len());
+        mem::swap(&mut new_adj_out_offset, &mut self.cur_adj_out_offset);
 
-        let last_elem = new_src_offset.pop().ok_or(Error::EmptyChunk)?;
-        self.cur_src_offset.push(last_elem);
+        let last_elem = new_adj_out_offset.last().ok_or(Error::EmptyChunk)?;
+        self.cur_adj_out_offset.push(*last_elem);
 
-        let id = self.cur_src_offset.len();
-
-        let file_path = self
-            .location_path
-            .join(format!("src_offsets_{:08}.ipc", id));
-
-        write_buffer(&file_path, Buffer::from(new_src_offset))?;
-
-        let buffer = unsafe { mmap_buffer::<i64>(file_path, 0)? };
-        self.src_offsets
-            .push(unsafe { OffsetsBuffer::new_unchecked(buffer) });
+        self.persist_adj_out_offset_chunk(new_adj_out_offset)?;
 
         Ok(())
     }
 
-    fn push_edge_offset_chunk(&self) -> Result<(), Error> {
-        todo!()
+    fn persist_adj_out_offset_chunk(&mut self, new_adj_out_offset: Vec<i64>) -> Result<(), Error> {
+        let id = self.adj_out_offsets.len();
+
+        let file_path = self
+            .location_path
+            .join(format!("adj_out_offsets_{:08}.ipc", id));
+
+        write_buffer(&file_path, Buffer::from(new_adj_out_offset))?;
+
+        let buffer = unsafe { mmap_buffer::<i64>(file_path, 0)? };
+        self.adj_out_offsets
+            .push(unsafe { OffsetsBuffer::new_unchecked(buffer) });
+        Ok(())
     }
 
-    fn update_src_offsets(&mut self, src_counts: &[usize]) -> Result<(), Error> {
-        let src_off_remaining = self.chunk_size - self.cur_src_offset.len() + 1;
-        extend_offsets(&mut self.cur_src_offset, &src_counts[0..src_off_remaining]);
+    fn push_edge_offset_chunk(&mut self) -> Result<(), Error> {
+        let mut new_edge_offset = Vec::with_capacity(self.cur_edge_offset.len());
+        mem::swap(&mut new_edge_offset, &mut self.cur_edge_offset);
 
-        if self.cur_src_offset.len() == self.chunk_size + 1 {
-            self.push_src_offset_chunk()?;
-            self.update_src_offsets(&src_counts[src_off_remaining..])?;
+        let last_elem = new_edge_offset.last().ok_or(Error::EmptyChunk)?;
+        self.cur_edge_offset.push(*last_elem);
+
+        self.persist_edge_offset_chunk(new_edge_offset)?;
+
+        Ok(())
+    }
+
+    fn persist_edge_offset_chunk(&mut self, new_edge_offset: Vec<i64>) -> Result<(), Error> {
+        let id = self.edge_offsets.len();
+
+        let file_path = self
+            .location_path
+            .join(format!("edge_offsets_{:08}.ipc", id));
+
+        write_buffer(&file_path, Buffer::from(new_edge_offset))?;
+
+        let buffer = unsafe { mmap_buffer::<i64>(file_path, 0)? };
+        self.edge_offsets
+            .push(unsafe { OffsetsBuffer::new_unchecked(buffer) });
+        Ok(())
+    }
+
+    fn update_adj_out_offsets(
+        &mut self,
+        deduped_src_ids: &[u64],
+        src_counts: &[usize],
+    ) -> Result<(), Error> {
+        let last_id = self.last_update.map(|(src, _)| src).unwrap_or(0);
+        let mut last_offset = *self.cur_adj_out_offset.last().unwrap();
+        let all_nodes = last_id..=deduped_src_ids.last().copied().unwrap_or(0);
+        for merged in all_nodes.merge_join_by(
+            deduped_src_ids.iter().zip(src_counts),
+            |left_id, (right_id, _)| left_id.cmp(right_id),
+        ) {
+            match merged {
+                EitherOrBoth::Both(_, (_, count)) => {
+                    last_offset += *count as i64;
+                }
+                _ => {}
+            }
+            self.cur_adj_out_offset.push(last_offset);
+            if self.cur_adj_out_offset.len() == self.chunk_size + 1 {
+                self.push_adj_out_offset_chunk()?;
+            }
         }
         Ok(())
     }
@@ -154,8 +197,8 @@ impl EdgeFrameBuilder {
         let mut edge_src_id_prev = Vec::with_capacity(self.edge_src_id.len());
         let mut edge_dst_id_prev = Vec::with_capacity(self.edge_dst_id.len());
 
-        std::mem::swap(&mut edge_src_id_prev, &mut self.edge_src_id);
-        std::mem::swap(&mut edge_dst_id_prev, &mut self.edge_dst_id);
+        mem::swap(&mut edge_src_id_prev, &mut self.edge_src_id);
+        mem::swap(&mut edge_dst_id_prev, &mut self.edge_dst_id);
 
         self.persist_and_mmap_adj_chunk(edge_src_id_prev, edge_dst_id_prev)?;
         Ok(())
@@ -194,20 +237,21 @@ impl EdgeFrameBuilder {
         if self.edge_src_id.len() > 0 {
             self.push_chunk()?;
         }
+        let adj_out_offsets = mem::take(&mut self.cur_adj_out_offset);
+        self.persist_adj_out_offset_chunk(adj_out_offsets)?;
+        let edge_offsets = mem::take(&mut self.cur_edge_offset);
+        self.persist_edge_offset_chunk(edge_offsets)?;
         Ok(())
     }
 
-    pub(crate) fn push_update(&mut self, src_id: u64, dst_id: u64) -> Result<(), Error> {
-        if self.last_update != Some((src_id, dst_id)) {
-            self.edge_src_id.push(src_id);
-            self.edge_dst_id.push(dst_id);
-
+    pub(crate) fn update_src_dst(&mut self, src_ids: &[u64], dst_ids: &[u64]) -> Result<(), Error> {
+        for (src_id, dst_id) in src_ids.iter().zip(dst_ids) {
+            self.edge_src_id.push(*src_id);
+            self.edge_dst_id.push(*dst_id);
             if self.edge_src_id.len() == self.chunk_size {
                 self.push_chunk()?;
             }
         }
-
-        self.last_update = Some((src_id, dst_id));
         Ok(())
     }
 }
@@ -219,4 +263,10 @@ fn extend_offsets<'a, I: IntoIterator<Item = &'a usize>>(offsets: &mut Vec<i64>,
         *state = new;
         Some(new)
     }));
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test() {}
 }
