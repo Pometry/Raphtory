@@ -1,10 +1,12 @@
 use arrow2::{
-    array::Array,
+    array::{Array, PrimitiveArray},
+    buffer::Buffer,
     chunk::Chunk,
-    datatypes::Schema,
-    error::Result,
+    datatypes::{Field, Schema},
+    error::{self, Result},
     io::ipc::{read, write},
     mmap::{mmap_dictionaries_unchecked, mmap_unchecked},
+    types::NativeType,
 };
 use memmap2::{Mmap, MmapAsRawDesc};
 use std::{fs::File, path::Path, sync::Arc};
@@ -24,6 +26,32 @@ pub fn write_batches<P: AsRef<Path>>(
         writer.write(chunk, None)?
     }
     writer.finish()
+}
+
+pub fn write_buffer<T: NativeType>(file_path: impl AsRef<Path>, buffer: Buffer<T>) -> Result<()> {
+    let arr: PrimitiveArray<T> =
+        unsafe { PrimitiveArray::from_inner_unchecked(T::PRIMITIVE.into(), buffer, None) };
+
+    let schema = Schema::from(vec![Field::new("offsets", arr.data_type().clone(), false)]);
+    let chunk = Chunk::new(vec![arr.boxed()]);
+    write_batches(file_path, schema, &[chunk])?;
+    Ok(())
+}
+
+pub unsafe fn mmap_buffer<T: NativeType>(
+    file_path: impl AsRef<Path>,
+    chunk_id: usize,
+) -> Result<Buffer<T>> {
+    let chunk =  mmap_batch(file_path.as_ref(), chunk_id)? ;
+    let buffer = &chunk[0]
+        .as_any()
+        .downcast_ref::<PrimitiveArray<T>>()
+        .ok_or(error::Error::ExternalFormat(format!(
+            "failed to read buffer of type: {:?} from file: {:?}",
+            T::PRIMITIVE,
+            file_path.as_ref()
+        )))?;
+    Ok(buffer.values().clone())
 }
 
 /// Only safe if file is never modified!

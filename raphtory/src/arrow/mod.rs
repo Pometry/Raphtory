@@ -130,6 +130,10 @@ impl GraphChunk {
         let dsts = chunk[dst_col_idx].clone();
         Self { srcs, dsts }
     }
+
+    pub fn to_chunk(&self) -> Chunk<Box<dyn Array>> {
+        Chunk::new(vec![self.srcs.clone(), self.dsts.clone()])
+    }
 }
 
 #[derive(Debug, Clone)]

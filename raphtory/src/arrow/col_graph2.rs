@@ -272,7 +272,7 @@ impl TempColGraphFragment {
         Ok(arr_job)
     }
 
-    pub fn load_from_edge_list<G: GlobalOrder, I: IntoIterator<Item = StructArray>>(
+    pub fn load_from_edge_list<G: GlobalOrder + Send + Sync, I: IntoIterator<Item = StructArray>>(
         graph_dir: &Path,
         layer_id: usize,
         num_threads: NonZeroUsize,
@@ -286,7 +286,7 @@ impl TempColGraphFragment {
         edge_list: I,
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir)?;
-        let mut vf_builder = NodeFrameBuilder::new(node_chunk_size, go, graph_dir);
+        let mut vf_builder = NodeFrameBuilder::new(node_chunk_size, go.clone(), graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
         let edge_props_builder = EdgePropsBuilder::new(graph_dir, 0);
 
@@ -295,7 +295,7 @@ impl TempColGraphFragment {
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
 
-        load_chunks(&mut vf_builder, &mut edge_builder, edges.iter().cloned())?;
+        load_chunks(&mut vf_builder, &mut edge_builder, go, edges.iter().cloned())?;
 
         let edge_chunks = ParquetOffsetIter::new(props.iter(), t_props_chunk_size).collect_vec();
         let edge_props_values = edge_props_builder
@@ -356,7 +356,7 @@ impl TempColGraphFragment {
             node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
-            gids
+            gids,
         )
     }
 
@@ -385,41 +385,18 @@ impl TempColGraphFragment {
             Some(vec![src_col, dst_col]),
             |chunk| {
                 // get the source and dest and map them to their IDs also dedupe them
-                resolve_and_dedup_chunk(chunk, &global_order)
+                resolve_and_dedup_chunk(chunk, global_order.as_ref())
             },
         );
 
         let mut vf_builder = NodeBuilder::new(node_chunk_size, global_order.len(), graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
 
-        source.produce(
-            &mut (&mut vf_builder, &mut edge_builder),
-            |s, _, _, chunk| {
-                let src = chunk[0]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap();
-                let dst = chunk[1]
-                    .as_any()
-                    .downcast_ref::<PrimitiveArray<u64>>()
-                    .unwrap();
+        source.produce(&mut edge_builder, |edge_builder, _, _, state| {
+            edge_builder.push_update_state(state)
+        })?;
 
-                let (vf_builder, edge_builder) = s;
-
-                src.values_iter()
-                    .zip(dst.values_iter())
-                    .for_each(|(src, dst)| {
-                        vf_builder
-                            .push_update(*src, *dst)
-                            .expect("push update failed");
-                        edge_builder
-                            .push_update(*src, *dst)
-                            .expect("edge push update failed");
-                    })
-            },
-        );
-
-        vf_builder.finalise_empty_chunks()?;
+        // vf_builder.finalise_empty_chunks()?;
         // finalize edge_builder
         edge_builder.finalize()?;
 
@@ -452,9 +429,9 @@ impl TempColGraphFragment {
 
         let nodes2 = Nodes2::new(gids, src_offsets, dst_ids);
 
-
         write_graph_metadata(graph_dir, earliest_time, latest_time)?;
 
+        // FIXME: remove this and use Nodes2
         let nodes = Nodes::new(node_chunk_size, vf_builder.adj_out_chunks, Vec::default());
 
         Ok(TempColGraphFragment {
@@ -808,23 +785,20 @@ pub(crate) fn write_graph_metadata(
     Ok(())
 }
 
-pub(crate) fn load_chunks<GO: GlobalOrder, C: Borrow<GraphChunk>>(
+pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
     vf_builder: &mut NodeFrameBuilder<GO>,
     edge_builder: &mut EdgeFrameBuilder,
+    go: impl AsRef<GO>,
     chunks_iter: impl IntoIterator<Item = C>,
 ) -> Result<(), Error> {
     // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-    for chunk in chunks_iter {
-        let chunk = chunk.borrow();
-        // get the source and destintion columns
-        let src_iter = chunk.sources()?;
-        let dst_iter = chunk.destinations()?;
+    for chunk in chunks_iter
+        .into_iter()
+        .map(|c| c.borrow().to_chunk())
+    {
 
-        for (src, dst) in src_iter.zip(dst_iter) {
-            let (src_id, dst_id) = vf_builder.push_update(src, dst)?;
-
-            edge_builder.push_update(src_id, dst_id)?;
-        }
+        let state = resolve_and_dedup_chunk(chunk, go.as_ref())?;
+        edge_builder.push_update_state(state)?;
     }
 
     vf_builder.finalise_empty_chunks()?;

@@ -1,4 +1,4 @@
- use crate::arrow::{
+use crate::arrow::{
     adj_schema,
     mmap::{mmap_batch, write_batches},
     Error, GID,
@@ -8,7 +8,7 @@ use arrow2::{
         Array, ListArray, MutableListArray, MutablePrimitiveArray, MutableStructArray, Utf8Array,
     },
     chunk::Chunk,
-    datatypes::{DataType, Field as ArrowField, Schema as ArrowSchema},
+    datatypes::{DataType, Field, Schema},
     error::Result as ArrowResult,
     io::parquet::read::infer_schema,
     offset::Offsets,
@@ -119,7 +119,7 @@ impl NodeBuilder {
         col: Box<dyn Array>,
     ) -> ArrowResult<()> {
         let dtype = col.data_type().clone();
-        let schema = ArrowSchema::from(vec![ArrowField::new("adj_out", dtype, false)]);
+        let schema = Schema::from(vec![Field::new("adj_out", dtype, false)]);
         let file_path = location_path.join(format!("adj_out_chunk_{:08}.ipc", id));
         let chunk = [Chunk::try_new(vec![col])?];
         write_batches(file_path.as_path(), schema.clone(), &chunk)?;
@@ -221,7 +221,7 @@ pub(crate) struct ParquetSource<F> {
 
 impl<F> ParquetSource<F>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Chunk<Box<dyn Array>> + Send + Sync,
+    F: Fn(Chunk<Box<dyn Array>>) -> Result<LoadingState, Error>,
 {
     pub fn new(
         files: Vec<PathBuf>,
@@ -240,13 +240,13 @@ where
 
 impl<F> ParquetSource<F>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Chunk<Box<dyn Array>> + Send + Sync,
+    F: Fn(Chunk<Box<dyn Array>>) -> Result<LoadingState, Error> + Sync,
 {
-    pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, Chunk<Box<dyn Array>>)>(
+    pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, LoadingState) -> Result<(), Error>>(
         &self,
         s: &mut S,
         cb: CB,
-    ) {
+    ) -> Result<(), Error> {
         let file_groups = self
             .files
             .iter()
@@ -275,23 +275,28 @@ where
                         .par_bridge()
                         .map(move |(id, chunk)| {
                             let chunk = (&self.mapper)(chunk);
-                            (file.clone(), id, chunk)
+                            chunk.map(|state| (file.clone(), id, state))
                         })
                 })
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>, _>>()
+                .expect("Failed to collect chunks");
+
             chunks.sort_by_key(|(file, id, _)| (file.clone(), *id));
 
             chunks
                 .into_iter()
-                .for_each(|(file, id, chunk)| cb(s, file.clone(), id, chunk));
+                .for_each(|(file, id, chunk)| cb(s, file.clone(), id, chunk).expect(
+                    format!("Failed to process chunk {:?} from file {:?}", id, file).as_str(),
+                ));
         });
+        Ok(())
     }
 }
 
 pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
     chunk: Chunk<Box<dyn Array>>,
-    go: impl AsRef<GO>,
-) -> Chunk<Box<dyn Array>> {
+    go: &GO,
+) -> Result<LoadingState, Error> {
     let chunk = chunk;
     let src = &chunk[0];
     let dst = &chunk[1];
@@ -304,7 +309,7 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
         "src and dst must have the same type"
     );
 
-    let mapped_nodes = match src.data_type() {
+    let mut mapped_nodes = match src.data_type() {
         DataType::Int64 => {
             let src = src
                 .as_any()
@@ -316,7 +321,6 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
                 .downcast_ref::<arrow2::array::PrimitiveArray<i64>>()
                 .unwrap();
 
-            let go = go.as_ref();
             let values = [src, dst]
                 .into_par_iter()
                 .map(|arr| {
@@ -339,7 +343,6 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
                 .downcast_ref::<arrow2::array::PrimitiveArray<u64>>()
                 .unwrap();
 
-            let go = go.as_ref();
             let values = [src, dst]
                 .into_par_iter()
                 .map(|arr| {
@@ -356,7 +359,6 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
 
             let dst = dst.as_any().downcast_ref::<Utf8Array<i64>>().unwrap();
 
-            let go = go.as_ref();
             let values = [src, dst]
                 .into_par_iter()
                 .map(|arr| {
@@ -377,7 +379,6 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
 
             let dst = dst.as_any().downcast_ref::<Utf8Array<i32>>().unwrap();
 
-            let go = go.as_ref();
             let values = [src, dst]
                 .into_par_iter()
                 .map(|arr| {
@@ -396,11 +397,103 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
         _ => panic!("Unsupported type"),
     };
 
-    let src = &mapped_nodes[0];
-    let dst = &mapped_nodes[1];
+    let dst = mapped_nodes.pop().unwrap();
+    let src = mapped_nodes.pop().unwrap();
 
-    let src_dst: (Vec<_>, Vec<_>) = src.iter().copied().zip(dst.iter().copied()).dedup().unzip();
-    let src = arrow2::array::PrimitiveArray::<u64>::from_vec(src_dst.0);
-    let dst = arrow2::array::PrimitiveArray::<u64>::from_vec(src_dst.1);
-    Chunk::new(vec![src.boxed(), dst.boxed()])
+    let mut iter = src.iter().copied().zip(dst.iter().copied());
+    let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
+    let mut last @ (last_src, last_dst) = first.clone();
+    let mut counts: Vec<usize> = vec![1];
+    let mut src_counts: Vec<usize> = vec![1];
+
+    let mut deduped_src_ids = vec![last_src];
+    let mut deduped_dst_ids = vec![last_dst];
+
+    for edge @ (src, dst) in iter {
+        if edge == last {
+            *counts.last_mut().expect("this is not empty") += 1;
+        } else {
+            counts.push(1);
+
+            deduped_src_ids.push(src);
+            deduped_dst_ids.push(dst);
+        }
+        if src == last_src {
+            if dst != last_dst {
+                *src_counts.last_mut().expect("this should not be empty") += 1;
+            }
+        } else {
+            src_counts.push(1);
+        }
+        last = edge;
+    }
+
+    Ok(LoadingState {
+        deduped_src_ids,
+        deduped_dst_ids,
+        edge_counts: counts,
+        src_counts,
+    })
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct LoadingState {
+    pub(crate) deduped_src_ids: Vec<u64>,
+    pub(crate) deduped_dst_ids: Vec<u64>,
+
+    pub(crate) edge_counts: Vec<usize>, // used to compute the offsets for edge temporal properties
+    pub(crate) src_counts: Vec<usize>, // used to compute the offsets for the static graph (adj lists)
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use arrow2::{array::PrimitiveArray, chunk::Chunk};
+
+    use crate::arrow::{global_order::GlobalMap, node_builder::LoadingState, GID};
+
+    use super::resolve_and_dedup_chunk;
+
+    #[test]
+    fn dedup_1_row() {
+        let chunk = Chunk::new(vec![
+            PrimitiveArray::from_vec(vec![1u64]).boxed(),
+            PrimitiveArray::from_vec(vec![2u64]).boxed(),
+        ]);
+
+        let go = GlobalMap::from(vec![GID::U64(1), GID::U64(2)]);
+        let actual = resolve_and_dedup_chunk(chunk, &go).unwrap();
+
+        assert_eq!(
+            actual,
+            LoadingState {
+                deduped_src_ids: vec![0],
+                deduped_dst_ids: vec![1],
+                edge_counts: vec![1],
+                src_counts: vec![1],
+            }
+        );
+    }
+
+    #[test]
+    fn dedup_rows() {
+        let chunk = Chunk::new(vec![
+            PrimitiveArray::from_vec(vec![1i64, 1, 1, 2]).boxed(),
+            PrimitiveArray::from_vec(vec![2i64, 2, 3, 3]).boxed(),
+        ]);
+
+        let go = GlobalMap::from(vec![GID::I64(1), GID::I64(2), GID::I64(3)]);
+        let actual = resolve_and_dedup_chunk(chunk, &go).unwrap();
+
+        assert_eq!(
+            actual,
+            LoadingState {
+                deduped_src_ids: vec![0, 0, 1],
+                deduped_dst_ids: vec![1, 2, 2],
+                edge_counts: vec![2, 1, 1],
+                src_counts: vec![2, 1],
+            }
+        );
+    }
 }
