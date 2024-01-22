@@ -1,4 +1,5 @@
 use crate::core::{DocumentInput, Lifespan};
+use crate::vectors::graph_entity::GraphEntity;
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime, Prop},
     db::{
@@ -20,6 +21,7 @@ use crate::{
         Document, Embedding, EmbeddingFunction,
     },
 };
+use chrono::NaiveDateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::exceptions::PyAttributeError;
@@ -72,6 +74,38 @@ impl IntoPy<PyObject> for Lifespan {
             Lifespan::Event { time } => (time,).into_py(py),
             Lifespan::Interval { start, end } => (start, end).into_py(py),
         }
+    }
+}
+
+fn format_time(millis: i64) -> String {
+    if millis == 0 {
+        "unknown time".to_owned()
+    } else {
+        match NaiveDateTime::from_timestamp_millis(millis) {
+            Some(time) => time.format("%Y-%m-%d %H:%M:%S").to_string(),
+            None => "unknown time".to_owned(),
+        }
+    }
+}
+
+#[pyfunction(signature = (entity, filter_out = vec![], force_static = vec![]))]
+pub fn generate_property_list(
+    entity: &PyAny,
+    // TODO: add time_format parameter with options: None (number) or str, to set some format like "%Y-%m-%d %H:%M:%S"
+    filter_out: Vec<&str>,
+    force_static: Vec<&str>,
+) -> PyResult<String> {
+    let node = entity.extract::<PyNode>().map(|node| node.node);
+    let edge = entity.extract::<PyEdge>().map(|edge| edge.edge);
+
+    if let Ok(node) = node {
+        Ok(node.generate_property_list(&format_time, filter_out, force_static))
+    } else if let Ok(edge) = edge {
+        Ok(edge.generate_property_list(&format_time, filter_out, force_static))
+    } else {
+        Err(PyAttributeError::new_err(
+            "First argument 'entity' has to be of type Node or Edge",
+        ))
     }
 }
 

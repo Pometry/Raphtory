@@ -41,7 +41,7 @@ use std::collections::HashMap;
 #[pyclass(name = "Node", subclass)]
 #[derive(Clone)]
 pub struct PyNode {
-    node: NodeView<DynamicGraph, DynamicGraph>,
+    pub(crate) node: NodeView<DynamicGraph, DynamicGraph>,
 }
 
 impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
