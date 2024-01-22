@@ -13,12 +13,14 @@ use arrow2::{
 };
 use itertools::{EitherOrBoth, Itertools};
 use std::{
+    cmp::min,
     mem,
     path::{Path, PathBuf},
 };
 
 use crate::arrow::Error;
 
+#[derive(Debug)]
 pub struct EdgeFrameBuilder {
     pub(crate) src_chunks: Vec<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
     pub(crate) dst_chunks: Vec<PrimitiveArray<u64>>, // chunks for the adjacency list, these are ListArrays with a struct {eid, vid}
@@ -179,7 +181,10 @@ impl EdgeFrameBuilder {
     }
 
     fn update_edge_offsets(&mut self, edge_counts: &[usize]) -> Result<(), Error> {
-        let edge_off_remaining = self.chunk_size - self.cur_edge_offset.len() + 1;
+        let edge_off_remaining = min(
+            self.chunk_size - self.cur_edge_offset.len() + 1,
+            edge_counts.len(),
+        );
         extend_offsets(
             &mut self.cur_edge_offset,
             &edge_counts[0..edge_off_remaining],
@@ -267,6 +272,141 @@ fn extend_offsets<'a, I: IntoIterator<Item = &'a usize>>(offsets: &mut Vec<i64>,
 
 #[cfg(test)]
 mod test {
+    use arrow2::{array::PrimitiveArray, buffer::Buffer, offset::OffsetsBuffer};
+
+    use crate::arrow::node_builder::LoadingState;
+
     #[test]
-    fn test() {}
+    fn load_1_edge() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let mut edge_builder = super::EdgeFrameBuilder::new(2, tempdir.path());
+
+        let state = LoadingState {
+            deduped_src_ids: vec![0],
+            deduped_dst_ids: vec![1],
+            edge_counts: vec![1],
+            src_counts: vec![1],
+        };
+
+        edge_builder
+            .push_update_state(state)
+            .expect("push update state");
+
+        edge_builder.finalize().expect("finalize");
+
+        assert_eq!(
+            edge_builder.src_chunks,
+            vec![PrimitiveArray::from_vec(vec![0u64])]
+        );
+        assert_eq!(
+            edge_builder.dst_chunks,
+            vec![PrimitiveArray::from_vec(vec![1u64])]
+        );
+
+        let expected: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 1])) };
+        assert_eq!(edge_builder.adj_out_offsets, vec![expected.clone()]);
+        assert_eq!(edge_builder.edge_offsets, vec![expected]);
+    }
+
+    #[test]
+    fn load_3_edges_fit_chunk_size() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let mut edge_builder = super::EdgeFrameBuilder::new(4, tempdir.path());
+
+        let state = LoadingState {
+            deduped_src_ids: vec![0, 0, 1],
+            deduped_dst_ids: vec![1, 2, 2],
+            edge_counts: vec![2, 1, 1],
+            src_counts: vec![2, 1],
+        };
+
+        edge_builder
+            .push_update_state(state)
+            .expect("push update state");
+
+        edge_builder.finalize().expect("finalize");
+
+        assert_eq!(
+            edge_builder.src_chunks,
+            vec![PrimitiveArray::from_vec(vec![0u64, 0u64, 1u64])]
+        );
+        assert_eq!(
+            edge_builder.dst_chunks,
+            vec![PrimitiveArray::from_vec(vec![1u64, 2u64, 2u64])]
+        );
+
+        let edge_offsets: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2, 3, 4])) };
+        assert_eq!(edge_builder.edge_offsets, vec![edge_offsets]);
+
+        let adj_out_offsets: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2, 3])) };
+        assert_eq!(edge_builder.adj_out_offsets, vec![adj_out_offsets]);
+    }
+
+    // #[test]
+    // fn load_edges_2_chunks_no_dups() {
+    //     let tempdir = tempfile::tempdir().unwrap();
+    //     let mut edge_builder = super::EdgeFrameBuilder::new(2, tempdir.path());
+
+    //     let state1 = LoadingState {
+    //         deduped_src_ids: vec![0, 0],
+    //         deduped_dst_ids: vec![0, 1],
+    //         edge_counts: vec![1, 1],
+    //         src_counts: vec![2],
+    //     };
+
+    //     let state2 = LoadingState {
+    //         deduped_src_ids: vec![0, 1],
+    //         deduped_dst_ids: vec![2, 2],
+    //         edge_counts: vec![1, 1],
+    //         src_counts: vec![1, 1],
+    //     };
+
+    //     let states = vec![state1, state2];
+
+    //     for state in states {
+    //         edge_builder
+    //             .push_update_state(state)
+    //             .expect("push update state");
+    //     }
+
+    //     edge_builder.finalize().expect("finalize");
+
+    //     assert_eq!(
+    //         edge_builder.src_chunks,
+    //         vec![
+    //             PrimitiveArray::from_vec(vec![0u64, 0u64]),
+    //             PrimitiveArray::from_vec(vec![0u64, 1u64])
+    //         ]
+    //     );
+    //     assert_eq!(
+    //         edge_builder.dst_chunks,
+    //         vec![
+    //             PrimitiveArray::from_vec(vec![0u64, 1u64]),
+    //             PrimitiveArray::from_vec(vec![2u64, 2u64])
+    //         ]
+    //     );
+
+    //     let edge_offsets1: OffsetsBuffer<i64> =
+    //         unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2])) };
+    //     let edge_offsets2: OffsetsBuffer<i64> =
+    //         unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![3, 4])) };
+
+    //     assert_eq!(
+    //         edge_builder.edge_offsets,
+    //         vec![edge_offsets1, edge_offsets2]
+    //     );
+
+    //     let adj_out_offsets1: OffsetsBuffer<i64> =
+    //         unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2])) };
+
+    //     let adj_out_offsets2 = unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![3i64])) };
+
+    //     assert_eq!(
+    //         edge_builder.adj_out_offsets,
+    //         vec![adj_out_offsets1, adj_out_offsets2]
+    //     );
+    // }
 }

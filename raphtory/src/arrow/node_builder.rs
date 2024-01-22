@@ -283,11 +283,11 @@ where
 
             chunks.sort_by_key(|(file, id, _)| (file.clone(), *id));
 
-            chunks
-                .into_iter()
-                .for_each(|(file, id, chunk)| cb(s, file.clone(), id, chunk).expect(
+            chunks.into_iter().for_each(|(file, id, chunk)| {
+                cb(s, file.clone(), id, chunk).expect(
                     format!("Failed to process chunk {:?} from file {:?}", id, file).as_str(),
-                ));
+                )
+            });
         });
         Ok(())
     }
@@ -447,8 +447,6 @@ pub(crate) struct LoadingState {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use arrow2::{array::PrimitiveArray, chunk::Chunk};
 
     use crate::arrow::{global_order::GlobalMap, node_builder::LoadingState, GID};
@@ -495,5 +493,25 @@ mod test {
                 src_counts: vec![2, 1],
             }
         );
+    }
+
+    #[test]
+    fn something() {
+        let chunk = Chunk::new(vec![
+            PrimitiveArray::from_vec(vec![1i64, 1]).boxed(),
+            PrimitiveArray::from_vec(vec![1i64, 2]).boxed(),
+        ]);
+
+        let go = GlobalMap::from(vec![GID::I64(1), GID::I64(2), GID::I64(3)]);
+        let actual = resolve_and_dedup_chunk(chunk, &go).unwrap();
+        println!("{:?}", actual);
+
+        let chunk = Chunk::new(vec![
+            PrimitiveArray::from_vec(vec![1i64, 2]).boxed(),
+            PrimitiveArray::from_vec(vec![3i64, 0]).boxed(),
+        ]);
+
+        let actual = resolve_and_dedup_chunk(chunk, &go).unwrap();
+        println!("{:?}", actual);
     }
 }
