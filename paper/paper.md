@@ -10,7 +10,7 @@ authors:
   - name: Ben Steer
     affiliation: "1, 4" # (Multiple affiliations must be quoted) # (This is how to denote the corresponding author)
     orcid: 0000-0001-9446-5690
-  - name: Naomi Arnold
+  - name: Naomi A. Arnold
     affiliation: 3
     corresponding: true
     orcid: 0000-0001-6396-4788
@@ -45,7 +45,7 @@ authors:
   - name: Felix Cuadrado
     affiliation: "7, 4"
     orcid: 0000-0002-5745-1609
-  - name: Matt Barnes
+  - name: Matthew Russell Barnes
     affiliation: 4
   - name: Peijie Zhong
     affiliation: 4
