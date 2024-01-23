@@ -62,6 +62,8 @@ pub enum Error {
     EmptyChunk,
     #[error("Conversion error: {0}")]
     ArgumentError(#[from] TryFromIntError),
+    #[error("Invalid file: {0:?}")]
+    InvalidFile(PathBuf),
 }
 
 unsafe impl Send for Error {} // heed::Error can't be made Send
@@ -84,33 +86,36 @@ pub fn adj_schema() -> DataType {
 }
 
 pub(crate) mod file_prefix {
-    use std::path::{Path, PathBuf};
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
+    use strum::{AsRefStr, EnumString};
 
-    pub const EDGE_IDS: &str = "edge_ids_"; // (src_ids, dst_ids)
-    pub const ADJ_OUT_OFFSETS: &str = "adj_out_offsets_";
-
+    #[derive(AsRefStr, EnumString, PartialEq)]
     pub enum GraphPaths {
         EdgeIds,
         AdjOutOffsets,
     }
 
     impl GraphPaths {
-        fn try_from(value: impl AsRef<Path>) -> Result<Self, super::Error> {
-            todo!()
+        pub fn try_from(path: impl AsRef<Path>) -> Option<Self> {
+            let path = path.as_ref();
+            let name = path.file_name().and_then(|name| name.to_str())?;
+            let prefix = name.split('-').next()?;
+            GraphPaths::from_str(prefix).ok()
         }
 
-        fn to_path(&self, location_path: impl AsRef<Path>, id: usize) -> PathBuf {
-            match self {
-                Self::EdgeIds => make_path(location_path, EDGE_IDS, id),
-                Self::AdjOutOffsets => make_path(location_path, ADJ_OUT_OFFSETS, id),
-            }
+        pub fn to_path(&self, location_path: impl AsRef<Path>, id: usize) -> PathBuf {
+            let prefix: &str = self.as_ref();
+            make_path(location_path, prefix, id)
         }
     }
 
     pub fn make_path(location_path: impl AsRef<Path>, prefix: &str, id: usize) -> PathBuf {
         let file_path = location_path
             .as_ref()
-            .join(format!("{}{:08}.ipc", prefix, id));
+            .join(format!("{}-{:08}.ipc", prefix, id));
         file_path
     }
 }

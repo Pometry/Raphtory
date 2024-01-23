@@ -10,6 +10,7 @@ use arrow2::{
 };
 use memmap2::{Mmap, MmapAsRawDesc};
 use std::{fs::File, path::Path, sync::Arc};
+use crate::arrow::ipc;
 
 pub fn write_batches<P: AsRef<Path>>(
     path: P,
@@ -43,6 +44,22 @@ pub unsafe fn mmap_buffer<T: NativeType>(
     chunk_id: usize,
 ) -> Result<Buffer<T>> {
     let chunk = mmap_batch(file_path.as_ref(), chunk_id)?;
+    let buffer = &chunk[0]
+        .as_any()
+        .downcast_ref::<PrimitiveArray<T>>()
+        .ok_or(error::Error::ExternalFormat(format!(
+            "failed to read buffer of type: {:?} from file: {:?}",
+            T::PRIMITIVE,
+            file_path.as_ref()
+        )))?;
+    Ok(buffer.values().clone())
+}
+
+pub fn read_buffer<T: NativeType> (
+    file_path: impl AsRef<Path>,
+) -> Result<Buffer<T>> {
+    let path = file_path.as_ref();
+    let chunk = ipc::read_batch(path)?;
     let buffer = &chunk[0]
         .as_any()
         .downcast_ref::<PrimitiveArray<T>>()
