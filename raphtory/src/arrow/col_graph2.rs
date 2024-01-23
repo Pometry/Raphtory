@@ -84,30 +84,8 @@ impl TempColGraphFragment {
 
         for (file_type, path) in files {
             match file_type {
-                //
-                // Ok(GraphPaths::AdjOutChunk) => {
-                //     let chunk = if mmap {
-                //         unsafe { mmap_batch(&file_path, 0)? }
-                //     } else {
-                //         ipc::read_batch(&file_path)?
-                //     };
-                //     adj_out_chunks.push(NodeChunk::new(chunk));
-                // }
-                // Ok(GraphPaths::AdjInChunk) => {
-                //     let chunk = if mmap {
-                //         unsafe { mmap_batch(&file_path, 0)? }
-                //     } else {
-                //         ipc::read_batch(&file_path)?
-                //     };
-                //     adj_in_chunks.push(NodeChunk::new(chunk));
-                // }
-                // Err(_) => {}
                 GraphPaths::EdgeIds => {
-                    let chunk = if mmap {
-                        unsafe { mmap_batch(&path, 0)? }
-                    } else {
-                        read_batch(&path)?
-                    };
+                    let chunk = read_or_mmap_chunk(mmap, &path)?;
                     let src_ids = chunk[0]
                         .as_any()
                         .downcast_ref::<PrimitiveArray<u64>>()
@@ -122,11 +100,7 @@ impl TempColGraphFragment {
                     dst_ids_chunks.push(dst_ids);
                 }
                 GraphPaths::AdjOutOffsets => {
-                    let chunk = if mmap {
-                        unsafe { mmap_buffer(&path, 0)? }
-                    } else {
-                        read_buffer(&path)?
-                    };
+                    let chunk = unsafe { mmap_buffer(&path, 0) }?;
                     adj_out_offsets_chunks.push(unsafe { OffsetsBuffer::new_unchecked(chunk) });
                 }
             }
@@ -331,7 +305,6 @@ impl TempColGraphFragment {
         graph_dir: &Path,
         layer_id: usize,
         num_threads: NonZeroUsize,
-        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         go: Arc<G>,
@@ -782,6 +755,15 @@ impl TempColGraphFragment {
     }
 }
 
+fn read_or_mmap_chunk(mmap: bool, path: &PathBuf) -> Result<Chunk<Box<dyn Array>>, Error> {
+    let chunk = if mmap {
+        unsafe { mmap_batch(path, 0)? }
+    } else {
+        read_batch(path)?
+    };
+    Ok(chunk)
+}
+
 pub(crate) fn write_graph_metadata(
     graph_dir: &Path,
     earliest_time: i64,
@@ -874,15 +856,16 @@ mod test {
         });
 
         let go: GlobalMap = nodes.iter().copied().collect();
+        let node_gids = PrimitiveArray::from_slice(nodes).boxed();
 
         let mut graph = TempColGraphFragment::load_from_edge_list(
             test_dir.as_ref(),
             0,
             4.try_into().unwrap(),
-            node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
             go.into(),
+            node_gids,
             0,
             1,
             2,
@@ -975,9 +958,10 @@ mod test {
             Ok(graph) => {
                 // check graph is sane
                 check_graph_sanity(&edges, &nodes, &graph);
+                let node_gids = PrimitiveArray::from_slice(&nodes).boxed();
 
                 // check that reloading from graph dir works
-                let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true, 0).unwrap();
+                let reloaded_graph = TempColGraphFragment::new(test_dir.path(), true, 0, nodes_gids).unwrap();
                 check_graph_sanity(&edges, &nodes, &reloaded_graph)
             }
             Err(Error::NoEdgeLists) => assert!(edges.is_empty()),

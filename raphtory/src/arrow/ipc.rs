@@ -1,14 +1,13 @@
 use std::{fs::File, path::Path};
 
-use arrow2::{array::Array, chunk::Chunk, datatypes::Schema, io::ipc::read};
+use arrow2::{array::Array, chunk::Chunk, datatypes::Schema, io::ipc::read, error::Error};
 
-use super::Error;
 
 pub fn read_batch<P: AsRef<Path>>(path: P) -> Result<Chunk<Box<dyn Array>>, Error> {
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
     let mut reader = read::FileReader::new(file, meta, None, None);
-    let chunk = reader.next().ok_or_else(|| Error::NoEdgeLists)??;
+    let chunk = reader.next().ok_or_else(|| Error::ExternalFormat(format!( "file {:?} must contain extactly 1 chunk ", path.as_ref() )))??;
     Ok(chunk)
 }
 
@@ -19,7 +18,7 @@ pub fn read_batch_with_projection<P: AsRef<Path>>(
     let mut file = File::open(path)?;
     let meta = read::read_file_metadata(&mut file)?;
     let mut reader = read::FileReader::new(file, meta, Some(projection), None);
-    let chunk = reader.next().ok_or_else(|| Error::NoEdgeLists)??;
+    let chunk = reader.next().ok_or_else(|| Error::ExternalFormat(format!( "file {:?} must contain extactly 1 chunk ", path.as_ref() )))??;
     Ok(chunk)
 }
 
