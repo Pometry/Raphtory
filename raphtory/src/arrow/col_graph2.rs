@@ -272,7 +272,10 @@ impl TempColGraphFragment {
         Ok(arr_job)
     }
 
-    pub fn load_from_edge_list<G: GlobalOrder + Send + Sync, I: IntoIterator<Item = StructArray>>(
+    pub fn load_from_edge_list<
+        G: GlobalOrder + Send + Sync,
+        I: IntoIterator<Item = StructArray>,
+    >(
         graph_dir: &Path,
         layer_id: usize,
         num_threads: NonZeroUsize,
@@ -295,7 +298,12 @@ impl TempColGraphFragment {
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
 
-        load_chunks(&mut vf_builder, &mut edge_builder, go, edges.iter().cloned())?;
+        load_chunks(
+            &mut vf_builder,
+            &mut edge_builder,
+            go,
+            edges.iter().cloned(),
+        )?;
 
         let edge_chunks = ParquetOffsetIter::new(props.iter(), t_props_chunk_size).collect_vec();
         let edge_props_values = edge_props_builder
@@ -792,11 +800,7 @@ pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
     chunks_iter: impl IntoIterator<Item = C>,
 ) -> Result<(), Error> {
     // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
-    for chunk in chunks_iter
-        .into_iter()
-        .map(|c| c.borrow().to_chunk())
-    {
-
+    for chunk in chunks_iter.into_iter().map(|c| c.borrow().to_chunk()) {
         let state = resolve_and_dedup_chunk(chunk, go.as_ref())?;
         edge_builder.push_update_state(state)?;
     }

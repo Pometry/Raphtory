@@ -172,7 +172,6 @@ impl EdgeFrameBuilder {
             deduped_src_ids.iter().dedup().zip(src_counts),
             |left_id, (right_id, _)| left_id.cmp(right_id),
         ) {
-            println!("{merged:?}");
             match merged {
                 EitherOrBoth::Both(_, (_, count)) => {
                     last_offset += *count as i64;

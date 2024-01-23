@@ -42,7 +42,7 @@ pub unsafe fn mmap_buffer<T: NativeType>(
     file_path: impl AsRef<Path>,
     chunk_id: usize,
 ) -> Result<Buffer<T>> {
-    let chunk =  mmap_batch(file_path.as_ref(), chunk_id)? ;
+    let chunk = mmap_batch(file_path.as_ref(), chunk_id)?;
     let buffer = &chunk[0]
         .as_any()
         .downcast_ref::<PrimitiveArray<T>>()
