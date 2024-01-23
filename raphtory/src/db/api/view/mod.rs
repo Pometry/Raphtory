@@ -4,7 +4,7 @@ mod edge;
 mod graph;
 pub(crate) mod internal;
 mod layer;
-mod node;
+pub(crate) mod node;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;
