@@ -1,6 +1,5 @@
 //! The API for querying a view of the graph in a read-only state
 
-use std::collections::HashMap;
 use crate::{
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
     db::{
@@ -8,8 +7,8 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-                LayerOps, StaticGraphViewOps,
                 node::BaseNodeViewOps,
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
@@ -29,8 +28,11 @@ use crate::{
     },
 };
 use chrono::prelude::*;
-use pyo3::{prelude::*, types::PyBytes};
-use pyo3::types::PyDict;
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyDict},
+};
+use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {

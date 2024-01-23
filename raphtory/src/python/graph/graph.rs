@@ -347,8 +347,6 @@ impl PyGraph {
         Ok(graph.graph)
     }
 
-
-
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
