@@ -1,7 +1,5 @@
 use crate::arrow::{
-    mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
-    node_builder::LoadingState,
-    DST_COLUMN, SRC_COLUMN,
+    file_prefix::{make_path, EDGE_IDS}, mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer}, node_builder::LoadingState, DST_COLUMN, SRC_COLUMN
 };
 use arrow2::{
     array::PrimitiveArray,
@@ -219,9 +217,7 @@ impl EdgeFrameBuilder {
             Field::new(SRC_COLUMN, DataType::UInt64, false),
             Field::new(DST_COLUMN, DataType::UInt64, false),
         ]);
-        let file_path = self
-            .location_path
-            .join(format!("edge_ids_{:08}.ipc", self.src_chunks.len()));
+        let file_path = make_path(self.location_path, self.src_chunks.len());
         let chunk = Chunk::new(vec![
             PrimitiveArray::from_vec(src).boxed(),
             PrimitiveArray::from_vec(dst).boxed(),
@@ -242,6 +238,7 @@ impl EdgeFrameBuilder {
 
         Ok(())
     }
+
 
     pub(crate) fn finalize(&mut self, num_nodes: usize) -> Result<(), Error> {
         if self.edge_src_id.len() > 0 {

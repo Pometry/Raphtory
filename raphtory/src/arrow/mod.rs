@@ -83,6 +83,38 @@ pub fn adj_schema() -> DataType {
     ])
 }
 
+pub(crate) mod file_prefix {
+    use std::path::{Path, PathBuf};
+
+    pub const EDGE_IDS: &str = "edge_ids_"; // (src_ids, dst_ids)
+    pub const ADJ_OUT_OFFSETS: &str = "adj_out_offsets_";
+
+    pub enum GraphPaths {
+        EdgeIds,
+        AdjOutOffsets,
+    }
+
+    impl GraphPaths {
+        fn try_from(value: impl AsRef<Path>) -> Result<Self, super::Error> {
+            todo!()
+        }
+
+        fn to_path(&self, location_path: impl AsRef<Path>, id: usize) -> PathBuf {
+            match self {
+                Self::EdgeIds => make_path(location_path, EDGE_IDS, id),
+                Self::AdjOutOffsets => make_path(location_path, ADJ_OUT_OFFSETS, id),
+            }
+        }
+    }
+
+    pub fn make_path(location_path: impl AsRef<Path>, prefix: &str, id: usize) -> PathBuf {
+        let file_path = location_path
+            .as_ref()
+            .join(format!("{}{:08}.ipc", prefix, id));
+        file_path
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum GID {
     U64(u64),
