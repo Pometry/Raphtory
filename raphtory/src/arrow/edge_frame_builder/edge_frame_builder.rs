@@ -248,10 +248,11 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    pub(crate) fn finalize(&mut self) -> Result<(), Error> {
+    pub(crate) fn finalize(&mut self, num_nodes: usize) -> Result<(), Error> {
         if self.edge_src_id.len() > 0 {
             self.push_chunk()?;
         }
+        self.update_adj_out_offsets(&[(num_nodes - 1) as u64], &[0])?;
         let adj_out_offsets = mem::take(&mut self.cur_adj_out_offset);
         self.persist_adj_out_offset_chunk(adj_out_offsets)?;
         let edge_offsets = mem::take(&mut self.cur_edge_offset);
@@ -302,7 +303,7 @@ mod test {
             .push_update_state(state)
             .expect("push update state");
 
-        edge_builder.finalize().expect("finalize");
+        edge_builder.finalize(2).expect("finalize");
 
         assert_eq!(
             edge_builder.src_chunks,
@@ -313,10 +314,12 @@ mod test {
             vec![PrimitiveArray::from_vec(vec![1u64])]
         );
 
-        let expected: OffsetsBuffer<i64> =
+        let expected_adj_out: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 1, 1])) };
+        assert_eq!(edge_builder.adj_out_offsets, vec![expected_adj_out]);
+        let expected_edge: OffsetsBuffer<i64> =
             unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 1])) };
-        assert_eq!(edge_builder.adj_out_offsets, vec![expected.clone()]);
-        assert_eq!(edge_builder.edge_offsets, vec![expected]);
+        assert_eq!(edge_builder.edge_offsets, vec![expected_edge]);
     }
 
     #[test]
@@ -335,7 +338,7 @@ mod test {
             .push_update_state(state)
             .expect("push update state");
 
-        edge_builder.finalize().expect("finalize");
+        edge_builder.finalize(3).expect("finalize");
 
         assert_eq!(
             edge_builder.src_chunks,
@@ -351,7 +354,7 @@ mod test {
         assert_eq!(edge_builder.edge_offsets, vec![edge_offsets]);
 
         let adj_out_offsets: OffsetsBuffer<i64> =
-            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2, 3])) };
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2, 3, 3])) };
         assert_eq!(edge_builder.adj_out_offsets, vec![adj_out_offsets]);
     }
 
@@ -382,7 +385,7 @@ mod test {
                 .expect("push update state");
         }
 
-        edge_builder.finalize().expect("finalize");
+        edge_builder.finalize(3).expect("finalize");
 
         assert_eq!(
             edge_builder.src_chunks,

@@ -406,7 +406,7 @@ impl TempColGraphFragment {
 
         // vf_builder.finalise_empty_chunks()?;
         // finalize edge_builder
-        edge_builder.finalize()?;
+        edge_builder.finalize(global_order.len())?;
 
         let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
         excluded_cols.extend_from_slice(exclude_cols);
@@ -808,7 +808,7 @@ pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
     vf_builder.finalise_empty_chunks()?;
 
     // finalize edge_builder
-    edge_builder.finalize()?;
+    edge_builder.finalize(go.as_ref().len())?;
     Ok(())
 }
 
