@@ -7,7 +7,7 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-                node::BaseNodeViewOps,
+                qnode::BaseNodeViewOps,
                 LayerOps, StaticGraphViewOps,
             },
         },
