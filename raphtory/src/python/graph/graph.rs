@@ -348,7 +348,6 @@ impl PyGraph {
     }
 
 
-
     /// Load nodes from a Pandas DataFrame into the graph.
     ///
     /// Arguments:
