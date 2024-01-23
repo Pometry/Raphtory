@@ -212,7 +212,7 @@ impl TempColGraphFragment {
         let chunked_t_array = ChunkedArray::from(arrays);
         let offsets = unsafe { OffsetsBuffer::new_unchecked(offsets) };
 
-        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
+        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets.into());
         self.nodes.additions = chunked_list_array;
         Ok(())
     }
@@ -308,11 +308,9 @@ impl TempColGraphFragment {
         let edge_chunks = ParquetOffsetIter::new(props.iter(), t_props_chunk_size).collect_vec();
         let edge_props_values = edge_props_builder
             .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
-        let graph_chunks_iter = edges.into_par_iter().map(Ok);
-        let (edge_offsets, src_offsets) =
-            edge_props_builder.load_offsets_from_par_chunks(graph_chunks_iter)?;
 
-        let temporal_props = ChunkedListArray::new_from_parts(edge_props_values, edge_offsets);
+        let temporal_props =
+            ChunkedListArray::new_from_parts(edge_props_values, edge_builder.edge_offsets.into());
 
         let (earliest_time, latest_time) = calculate_earliest_latest_time(&temporal_props);
 
@@ -434,8 +432,6 @@ impl TempColGraphFragment {
         );
 
         let dst_ids = edges.dst_ids.clone();
-
-        let nodes2 = Nodes2::new(gids, src_offsets, dst_ids);
 
         write_graph_metadata(graph_dir, earliest_time, latest_time)?;
 

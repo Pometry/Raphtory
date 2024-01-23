@@ -102,7 +102,10 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
             .tuple_windows()
             .all(|(prev, next)| prev <= next));
         assert_eq!(edge_offsets.last(), &(edge_values.len() as i64));
-        Ok(ChunkedListArray::new_from_parts(edge_values, edge_offsets))
+        Ok(ChunkedListArray::new_from_parts(
+            edge_values,
+            edge_offsets.into(),
+        ))
     }
 
     fn load_t_edge_values(
