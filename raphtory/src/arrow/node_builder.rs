@@ -404,7 +404,7 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
     let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
     let mut last @ (last_src, last_dst) = first.clone();
     let mut counts: Vec<usize> = vec![1];
-    let mut src_counts: Vec<usize> = vec![1];
+    let mut src_counts = vec![(first.0, 1)];
 
     let mut deduped_src_ids = vec![last_src];
     let mut deduped_dst_ids = vec![last_dst];
@@ -420,10 +420,10 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
         }
         if src == last_src {
             if dst != last_dst {
-                *src_counts.last_mut().expect("this should not be empty") += 1;
+                src_counts.last_mut().expect("this should not be empty").1 += 1;
             }
         } else {
-            src_counts.push(1);
+            src_counts.push((src, 1));
         }
         last = edge;
     }
@@ -442,7 +442,7 @@ pub(crate) struct LoadingState {
     pub(crate) deduped_dst_ids: Vec<u64>,
 
     pub(crate) edge_counts: Vec<usize>, // used to compute the offsets for edge temporal properties
-    pub(crate) src_counts: Vec<usize>, // used to compute the offsets for the static graph (adj lists)
+    pub(crate) src_counts: Vec<(u64, usize)>, // used to compute the offsets for the static graph (adj lists)
 }
 
 #[cfg(test)]
@@ -469,7 +469,7 @@ mod test {
                 deduped_src_ids: vec![0],
                 deduped_dst_ids: vec![1],
                 edge_counts: vec![1],
-                src_counts: vec![1],
+                src_counts: vec![(0, 1)],
             }
         );
     }
@@ -490,7 +490,7 @@ mod test {
                 deduped_src_ids: vec![0, 0, 1],
                 deduped_dst_ids: vec![1, 2, 2],
                 edge_counts: vec![2, 1, 1],
-                src_counts: vec![2, 1],
+                src_counts: vec![(0, 2), (1, 1)],
             }
         );
     }

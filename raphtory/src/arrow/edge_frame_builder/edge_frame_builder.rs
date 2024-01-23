@@ -85,12 +85,12 @@ impl EdgeFrameBuilder {
             self.update_edge_offsets(&edge_counts)?;
         };
 
-        if self.last_update.map(|(src, _)| src) == Some(first.0) {
-            let first_count = src_counts[0];
+        let (first_src, first_count) = src_counts[0];
+        if self.last_update.map(|(src, _)| src) == Some(first_src) {
             *self.cur_adj_out_offset.last_mut().unwrap() += first_count as i64;
-            self.update_adj_out_offsets(&deduped_src_ids[1..], &src_counts[1..])?;
+            self.update_adj_out_offsets(&src_counts[1..])?;
         } else {
-            self.update_adj_out_offsets(&deduped_src_ids, &src_counts)?;
+            self.update_adj_out_offsets(&src_counts)?;
         };
 
         self.last_update = deduped_src_ids
@@ -160,18 +160,13 @@ impl EdgeFrameBuilder {
         Ok(())
     }
 
-    fn update_adj_out_offsets(
-        &mut self,
-        deduped_src_ids: &[u64],
-        src_counts: &[usize],
-    ) -> Result<(), Error> {
+    fn update_adj_out_offsets(&mut self, src_counts: &[(u64, usize)]) -> Result<(), Error> {
         let next_id = self.last_update.map(|(src, _)| src + 1).unwrap_or(0);
         let mut last_offset = *self.cur_adj_out_offset.last().unwrap();
-        let all_nodes = next_id..=deduped_src_ids.last().copied().unwrap_or(0);
-        for merged in all_nodes.merge_join_by(
-            deduped_src_ids.iter().dedup().zip(src_counts),
-            |left_id, (right_id, _)| left_id.cmp(right_id),
-        ) {
+        let all_nodes = next_id..=src_counts.last().map(|(src, _)| *src).unwrap_or(0);
+        for merged in
+            all_nodes.merge_join_by(src_counts, |left_id, (right_id, _)| left_id.cmp(right_id))
+        {
             match merged {
                 EitherOrBoth::Both(_, (_, count)) => {
                     last_offset += *count as i64;
@@ -252,7 +247,7 @@ impl EdgeFrameBuilder {
         if self.edge_src_id.len() > 0 {
             self.push_chunk()?;
         }
-        self.update_adj_out_offsets(&[(num_nodes - 1) as u64], &[0])?;
+        self.update_adj_out_offsets(&[((num_nodes - 1) as u64, 0)])?;
         let adj_out_offsets = mem::take(&mut self.cur_adj_out_offset);
         self.persist_adj_out_offset_chunk(adj_out_offsets)?;
         let edge_offsets = mem::take(&mut self.cur_edge_offset);
@@ -296,7 +291,7 @@ mod test {
             deduped_src_ids: vec![0],
             deduped_dst_ids: vec![1],
             edge_counts: vec![1],
-            src_counts: vec![1],
+            src_counts: vec![(0, 1)],
         };
 
         edge_builder
@@ -331,7 +326,7 @@ mod test {
             deduped_src_ids: vec![0, 0, 1],
             deduped_dst_ids: vec![1, 2, 2],
             edge_counts: vec![2, 1, 1],
-            src_counts: vec![2, 1],
+            src_counts: vec![(0, 2), (1, 1)],
         };
 
         edge_builder
@@ -367,14 +362,14 @@ mod test {
             deduped_src_ids: vec![0, 0],
             deduped_dst_ids: vec![0, 1],
             edge_counts: vec![1, 1],
-            src_counts: vec![2],
+            src_counts: vec![(0, 2)],
         };
 
         let state2 = LoadingState {
             deduped_src_ids: vec![0, 1],
             deduped_dst_ids: vec![2, 2],
             edge_counts: vec![1, 1],
-            src_counts: vec![1, 1],
+            src_counts: vec![(0, 1), (1, 1)],
         };
 
         let states = vec![state1, state2];
