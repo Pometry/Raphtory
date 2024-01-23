@@ -104,8 +104,11 @@ impl EdgeFrameBuilder {
         let mut new_adj_out_offset = Vec::with_capacity(self.cur_adj_out_offset.len());
         mem::swap(&mut new_adj_out_offset, &mut self.cur_adj_out_offset);
 
-        let last_elem = new_adj_out_offset.last().ok_or(Error::EmptyChunk)?;
-        self.cur_adj_out_offset.push(*last_elem);
+        let incomplete = new_adj_out_offset.pop().ok_or(Error::EmptyChunk)?;
+        if let Some(last_elem) = new_adj_out_offset.last() {
+            self.cur_adj_out_offset.push(*last_elem);
+        }
+        self.cur_adj_out_offset.push(incomplete);
 
         self.persist_adj_out_offset_chunk(new_adj_out_offset)?;
 
@@ -131,8 +134,11 @@ impl EdgeFrameBuilder {
         let mut new_edge_offset = Vec::with_capacity(self.cur_edge_offset.len());
         mem::swap(&mut new_edge_offset, &mut self.cur_edge_offset);
 
-        let last_elem = new_edge_offset.last().ok_or(Error::EmptyChunk)?;
-        self.cur_edge_offset.push(*last_elem);
+        let incomplete = new_edge_offset.pop().ok_or(Error::EmptyChunk)?;
+        if let Some(last_elem) = new_edge_offset.last() {
+            self.cur_edge_offset.push(*last_elem);
+        }
+        self.cur_edge_offset.push(incomplete);
 
         self.persist_edge_offset_chunk(new_edge_offset)?;
 
@@ -159,21 +165,26 @@ impl EdgeFrameBuilder {
         deduped_src_ids: &[u64],
         src_counts: &[usize],
     ) -> Result<(), Error> {
-        let last_id = self.last_update.map(|(src, _)| src).unwrap_or(0);
+        let next_id = self.last_update.map(|(src, _)| src + 1).unwrap_or(0);
         let mut last_offset = *self.cur_adj_out_offset.last().unwrap();
-        let all_nodes = last_id..=deduped_src_ids.last().copied().unwrap_or(0);
+        let all_nodes = next_id..=deduped_src_ids.last().copied().unwrap_or(0);
         for merged in all_nodes.merge_join_by(
-            deduped_src_ids.iter().zip(src_counts),
+            deduped_src_ids.iter().dedup().zip(src_counts),
             |left_id, (right_id, _)| left_id.cmp(right_id),
         ) {
+            println!("{merged:?}");
             match merged {
                 EitherOrBoth::Both(_, (_, count)) => {
                     last_offset += *count as i64;
                 }
-                _ => {}
+                EitherOrBoth::Right((_, count)) => {
+                    last_offset += *count as i64;
+                }
+                EitherOrBoth::Left(_) => {}
             }
             self.cur_adj_out_offset.push(last_offset);
-            if self.cur_adj_out_offset.len() == self.chunk_size + 1 {
+
+            if self.cur_adj_out_offset.len() == self.chunk_size + 2 {
                 self.push_adj_out_offset_chunk()?;
             }
         }
@@ -182,7 +193,7 @@ impl EdgeFrameBuilder {
 
     fn update_edge_offsets(&mut self, edge_counts: &[usize]) -> Result<(), Error> {
         let edge_off_remaining = min(
-            self.chunk_size - self.cur_edge_offset.len() + 1,
+            self.chunk_size + 2 - self.cur_edge_offset.len(),
             edge_counts.len(),
         );
         extend_offsets(
@@ -190,7 +201,7 @@ impl EdgeFrameBuilder {
             &edge_counts[0..edge_off_remaining],
         );
 
-        if self.cur_edge_offset.len() == self.chunk_size + 1 {
+        if self.cur_edge_offset.len() == self.chunk_size + 2 {
             self.push_edge_offset_chunk()?;
             self.update_edge_offsets(&edge_counts[edge_off_remaining..])?;
         }
@@ -345,68 +356,68 @@ mod test {
         assert_eq!(edge_builder.adj_out_offsets, vec![adj_out_offsets]);
     }
 
-    // #[test]
-    // fn load_edges_2_chunks_no_dups() {
-    //     let tempdir = tempfile::tempdir().unwrap();
-    //     let mut edge_builder = super::EdgeFrameBuilder::new(2, tempdir.path());
+    #[test]
+    fn load_edges_2_chunks_no_dups() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let mut edge_builder = super::EdgeFrameBuilder::new(2, tempdir.path());
 
-    //     let state1 = LoadingState {
-    //         deduped_src_ids: vec![0, 0],
-    //         deduped_dst_ids: vec![0, 1],
-    //         edge_counts: vec![1, 1],
-    //         src_counts: vec![2],
-    //     };
+        let state1 = LoadingState {
+            deduped_src_ids: vec![0, 0],
+            deduped_dst_ids: vec![0, 1],
+            edge_counts: vec![1, 1],
+            src_counts: vec![2],
+        };
 
-    //     let state2 = LoadingState {
-    //         deduped_src_ids: vec![0, 1],
-    //         deduped_dst_ids: vec![2, 2],
-    //         edge_counts: vec![1, 1],
-    //         src_counts: vec![1, 1],
-    //     };
+        let state2 = LoadingState {
+            deduped_src_ids: vec![0, 1],
+            deduped_dst_ids: vec![2, 2],
+            edge_counts: vec![1, 1],
+            src_counts: vec![1, 1],
+        };
 
-    //     let states = vec![state1, state2];
+        let states = vec![state1, state2];
 
-    //     for state in states {
-    //         edge_builder
-    //             .push_update_state(state)
-    //             .expect("push update state");
-    //     }
+        for state in states {
+            edge_builder
+                .push_update_state(state)
+                .expect("push update state");
+        }
 
-    //     edge_builder.finalize().expect("finalize");
+        edge_builder.finalize().expect("finalize");
 
-    //     assert_eq!(
-    //         edge_builder.src_chunks,
-    //         vec![
-    //             PrimitiveArray::from_vec(vec![0u64, 0u64]),
-    //             PrimitiveArray::from_vec(vec![0u64, 1u64])
-    //         ]
-    //     );
-    //     assert_eq!(
-    //         edge_builder.dst_chunks,
-    //         vec![
-    //             PrimitiveArray::from_vec(vec![0u64, 1u64]),
-    //             PrimitiveArray::from_vec(vec![2u64, 2u64])
-    //         ]
-    //     );
+        assert_eq!(
+            edge_builder.src_chunks,
+            vec![
+                PrimitiveArray::from_vec(vec![0u64, 0u64]),
+                PrimitiveArray::from_vec(vec![0u64, 1u64])
+            ]
+        );
+        assert_eq!(
+            edge_builder.dst_chunks,
+            vec![
+                PrimitiveArray::from_vec(vec![0u64, 1u64]),
+                PrimitiveArray::from_vec(vec![2u64, 2u64])
+            ]
+        );
 
-    //     let edge_offsets1: OffsetsBuffer<i64> =
-    //         unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2])) };
-    //     let edge_offsets2: OffsetsBuffer<i64> =
-    //         unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![3, 4])) };
+        let edge_offsets1: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 1, 2])) };
+        let edge_offsets2: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![2, 3, 4])) };
 
-    //     assert_eq!(
-    //         edge_builder.edge_offsets,
-    //         vec![edge_offsets1, edge_offsets2]
-    //     );
+        assert_eq!(
+            edge_builder.edge_offsets,
+            vec![edge_offsets1, edge_offsets2]
+        );
 
-    //     let adj_out_offsets1: OffsetsBuffer<i64> =
-    //         unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 2])) };
+        let adj_out_offsets1: OffsetsBuffer<i64> =
+            unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![0, 3, 4])) };
 
-    //     let adj_out_offsets2 = unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![3i64])) };
+        let adj_out_offsets2 = unsafe { OffsetsBuffer::new_unchecked(Buffer::from(vec![4i64, 4])) };
 
-    //     assert_eq!(
-    //         edge_builder.adj_out_offsets,
-    //         vec![adj_out_offsets1, adj_out_offsets2]
-    //     );
-    // }
+        assert_eq!(
+            edge_builder.adj_out_offsets,
+            vec![adj_out_offsets1, adj_out_offsets2]
+        );
+    }
 }
