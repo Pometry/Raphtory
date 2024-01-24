@@ -334,34 +334,8 @@ impl Mut {
         is_archive: u8,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
-
-        let path = subgraph
-            .properties()
-            .constant()
-            .get("path")
-            .ok_or("Path is missing")?
-            .to_string();
-
-        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
-        let new_subgraph = parent_graph
-            .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
-            .materialize()?;
-
-        let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph
-            .properties()
-            .into_iter()
-            .filter(|(a, _)| a != "isArchive")
-            .collect_vec();
-        new_subgraph.update_constant_properties(static_props_without_isactive)?;
-        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-        new_subgraph.save_to_file(path)?;
-
-        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
-
-        data.insert(graph_name, gi);
-
+        subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
         Ok(true)
     }
 }
