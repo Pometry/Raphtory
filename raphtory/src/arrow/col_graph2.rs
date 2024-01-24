@@ -67,6 +67,7 @@ impl TempColGraphFragment {
         layer_id: usize,
         node_gids: Box<dyn Array>,
     ) -> Result<Self, Error> {
+        let graph_dir = graph_dir.as_ref();
         let files = list_sorted_files(graph_dir)?;
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
         let mut edge_tprops_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
@@ -130,7 +131,7 @@ impl TempColGraphFragment {
         let mut grapho = Self {
             nodes,
             edges,
-            graph_dir: graph_dir.as_ref().into(),
+            graph_dir: graph_dir.into(),
         };
 
         if !has_additions {
@@ -532,6 +533,9 @@ impl TempColGraphFragment {
         })
     }
 
+    pub fn nodes(&self) -> &Nodes {
+        &self.nodes
+    }
     pub fn num_nodes(&self) -> usize {
         self.nodes.len()
     }

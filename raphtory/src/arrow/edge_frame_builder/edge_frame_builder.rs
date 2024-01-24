@@ -216,7 +216,7 @@ impl EdgeFrameBuilder {
             Field::new(SRC_COLUMN, DataType::UInt64, false),
             Field::new(DST_COLUMN, DataType::UInt64, false),
         ]);
-        let file_path = GraphPaths::EdgeIds.to_path(self.location_path, self.src_chunks.len());
+        let file_path = GraphPaths::EdgeIds.to_path(&self.location_path, self.src_chunks.len());
         let chunk = Chunk::new(vec![
             PrimitiveArray::from_vec(src).boxed(),
             PrimitiveArray::from_vec(dst).boxed(),

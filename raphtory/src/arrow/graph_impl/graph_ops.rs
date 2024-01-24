@@ -1,3 +1,4 @@
+use itertools::{EitherOrBoth, Itertools};
 use rayon::iter::ParallelIterator;
 
 use crate::{
@@ -5,6 +6,7 @@ use crate::{
     core::{
         self,
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
+        Direction,
     },
     db::api::view::{
         self,
@@ -96,18 +98,40 @@ impl<'graph> GraphOps<'graph> for Graph2 {
             LayerIds::One(layer_id) => *layer_id,
             _ => todo!(),
         };
+        let nodes = self.layers[layer_id].nodes();
         if let Some(ef) = filter {
-            self.edges_par(v, d, layer_id)
-                .filter(|(e_id, _)| {
-                    let edge = self.edge(*e_id, layer_id);
-                    ef(&edge, layers)
-                })
-                .count()
+            match d {
+                Direction::OUT => nodes
+                    .out_edges_par(v)
+                    .filter(|eid| self.filter_edge(*eid, ef, layer_id))
+                    .count(),
+                Direction::IN => nodes
+                    .in_edges_par(v)
+                    .filter(|eid| self.filter_edge(*eid, ef, layer_id))
+                    .count(),
+                Direction::BOTH => nodes
+                    .out_adj_list(v)
+                    .merge_join_by(nodes.in_adj_list(v), |(_, v_l), (_, v_r)| v_l.cmp(v_r))
+                    .filter(|merged| match merged {
+                        EitherOrBoth::Both((e_l, _), (e_r, _)) => {
+                            self.filter_edge(*e_l, ef, layer_id)
+                                || self.filter_edge(*e_r, ef, layer_id)
+                        }
+                        EitherOrBoth::Left((eid, _)) => self.filter_edge(*eid, ef, layer_id),
+                        EitherOrBoth::Right((eid, _)) => self.filter_edge(*eid, ef, layer_id),
+                    })
+                    .count(),
+            }
         } else {
-            let iter = self.edges_iter(v, d, layer_id);
-            let (low, up) = iter.size_hint();
-            assert_eq!(Some(low), up);
-            low
+            match d {
+                Direction::OUT => nodes.out_degree(v),
+                Direction::IN => nodes.in_degree(v),
+                Direction::BOTH => nodes
+                    .out_neighbours_iter(v)
+                    .merge(nodes.in_neighbours_iter(v))
+                    .dedup()
+                    .count(),
+            }
         }
     }
 
@@ -122,17 +146,17 @@ impl<'graph> GraphOps<'graph> for Graph2 {
             LayerIds::One(layer_id) => *layer_id,
             _ => todo!(),
         };
-        let (vs, es) = self.edges_slice(src, core::Direction::OUT, layer_id)?;
-        let needle = dst.as_u64();
-        let pos = vs.binary_search_by(|v| v.cmp(&needle)).ok()?;
-
-        let e_id = es[pos];
-        let edge = self.edge(EID(e_id as usize), layer_id);
-
-        filter
-            .map(|f| f(&edge, layers))
-            .unwrap_or(true)
-            .then(|| EdgeRef::new_outgoing(EID(e_id as usize), src, dst))
+        let eid = self.layers[layer_id].nodes().find_edge(src, dst)?;
+        match filter {
+            None => Some(EdgeRef::new_outgoing(eid, src, dst)),
+            Some(ef) => {
+                if self.filter_edge(eid, ef, layer_id) {
+                    Some(EdgeRef::new_outgoing(eid, src, dst))
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     fn node_refs(
