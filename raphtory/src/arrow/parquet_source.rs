@@ -1,10 +1,6 @@
-use crate::arrow::{
-    Error, GID,
-};
+use crate::arrow::{Error, GID};
 use arrow2::{
-    array::{
-        Array, Utf8Array,
-    },
+    array::{Array, Utf8Array},
     chunk::Chunk,
     datatypes::DataType,
     io::parquet::read::infer_schema,
@@ -50,7 +46,7 @@ where
 impl<F, ST> ParquetSource<F, ST>
 where
     F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, Error> + Sync,
-    ST: Send
+    ST: Send,
 {
     pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, ST) -> Result<(), Error>>(
         &self,
@@ -304,5 +300,4 @@ mod test {
             }
         );
     }
-
 }

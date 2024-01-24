@@ -69,8 +69,7 @@ fn valid_netflow_events(
     window: i64,
 ) -> Option<Vec<(VID, Vec<Window>)>> {
     let mut nft_events: Vec<_> = nft_graph
-        .edges_par_iter(b_vid, Direction::OUT)
-        .unwrap()
+        .out_edges_par(b_vid)
         .filter(|(_, e_vid)| *e_vid != b_vid)
         .filter_map(|(edge_id, e_vid)| {
             let nf1 = nft_graph.edge(edge_id);
@@ -315,10 +314,9 @@ pub fn query<GO: GlobalOrder>(
     let count_login_ms_ref = count_login_ms.clone();
 
     let count = log_nodes.into_par_iter().flat_map(move |b_vid| {
-        let login_edges = events_2v_graph.edges_par_iter(b_vid, Direction::IN)?;
+        let login_edges = events_2v_graph.in_edges_par(b_vid);
         let (self_loop, _) = events_1v_graph
             .edges_iter(b_vid, Direction::OUT)
-            .unwrap()
             .filter(|(_, n_vid)| *n_vid == b_vid)
             .next()?;
 
@@ -411,8 +409,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -442,8 +440,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -474,8 +472,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,

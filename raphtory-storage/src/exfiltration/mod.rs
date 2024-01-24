@@ -9,21 +9,24 @@ pub mod list;
 
 #[inline]
 fn find_active_nodes(layer: &TempColGraphFragment) -> Vec<VID> {
-    let chunk_size = layer.vertex_chunk_size();
-    layer
-        .outbound()
-        .par_iter()
-        .enumerate()
-        .flat_map_iter(move |(chunk_id, chunk)| {
-            let chunk_start = chunk_id * chunk_size;
-            chunk
-                .adj()
-                .offsets()
-                .lengths()
-                .enumerate()
-                .filter_map(move |(i, d)| (d > 0).then(|| VID(chunk_start + i)))
-        })
-        .collect()
+    // let chunk_size = layer.vertex_chunk_size();
+    // layer
+    //     .outbound()
+    //     .par_iter()
+    //     .enumerate()
+    //     .flat_map_iter(move |(chunk_id, chunk)| {
+    //         let chunk_start = chunk_id * chunk_size;
+    //         chunk
+    //             .adj()
+    //             .offsets()
+    //             .lengths()
+    //             .enumerate()
+    //             .filter_map(move |(i, d)| (d > 0).then(|| VID(chunk_start + i)))
+    //     })
+    //     .collect()
+
+    // layer.all_nodes_par().filter(|v| v.out_degree() > 0).map(|node| node.id()).collect()
+    vec![]
 }
 
 #[cfg(test)]

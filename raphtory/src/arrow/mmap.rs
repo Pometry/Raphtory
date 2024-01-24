@@ -1,3 +1,4 @@
+use crate::arrow::ipc;
 use arrow2::{
     array::{Array, PrimitiveArray},
     buffer::Buffer,
@@ -10,7 +11,6 @@ use arrow2::{
 };
 use memmap2::{Mmap, MmapAsRawDesc};
 use std::{fs::File, path::Path, sync::Arc};
-use crate::arrow::ipc;
 
 pub fn write_batches<P: AsRef<Path>>(
     path: P,
@@ -55,9 +55,7 @@ pub unsafe fn mmap_buffer<T: NativeType>(
     Ok(buffer.values().clone())
 }
 
-pub fn read_buffer<T: NativeType> (
-    file_path: impl AsRef<Path>,
-) -> Result<Buffer<T>> {
+pub fn read_buffer<T: NativeType>(file_path: impl AsRef<Path>) -> Result<Buffer<T>> {
     let path = file_path.as_ref();
     let chunk = ipc::read_batch(path)?;
     let buffer = &chunk[0]

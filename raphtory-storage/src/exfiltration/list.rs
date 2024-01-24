@@ -8,15 +8,7 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{iter::ParallelIterator, prelude::*};
-use std::{
-    cmp::Ordering,
-    collections::VecDeque,
-    fmt::Debug,
-    fs::File,
-    io::{BufWriter, Write},
-    sync::atomic::{AtomicU64, Ordering::Relaxed},
-    time::Instant,
-};
+use std::{cmp::Ordering, collections::VecDeque, fmt::Debug};
 
 #[inline]
 fn valid_netflow_events(
@@ -28,7 +20,6 @@ fn valid_netflow_events(
         nft_graph
             .edges_iter(b_vid, Direction::OUT)
             .into_iter()
-            .flatten()
             .filter(|(_, e_vid)| *e_vid != b_vid)
             .map(move |(edge_id, _)| {
                 nft_graph
@@ -52,7 +43,6 @@ fn login_edges(
         events_2v_graph
             .edges_iter(b_vid, Direction::IN)
             .into_iter()
-            .flatten()
             .filter(|(_, a_vid)| *a_vid != b_vid)
             .map(move |(edge_id, _)| {
                 events_2v_graph
@@ -75,7 +65,6 @@ fn prog1_edges(
     event_1v_graph
         .edges_iter(b_vid, Direction::OUT)
         .into_iter()
-        .flatten()
         .filter(move |(_, vid)| *vid == b_vid)
         .flat_map(move |(eid, _)| {
             event_1v_graph
@@ -446,8 +435,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -477,8 +466,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices,
             0,
             1,
             2,
@@ -509,8 +498,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices,
             0,
             1,
             2,
@@ -561,8 +550,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices,
             0,
             1,
             2,
@@ -592,8 +581,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices,
             0,
             1,
             2,
@@ -622,8 +611,8 @@ mod test {
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,

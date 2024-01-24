@@ -532,7 +532,7 @@ impl TempColGraphFragment {
         })
     }
 
-    pub fn nodes(&self) -> &Nodes {
+    pub(crate) fn nodes(&self) -> &Nodes {
         &self.nodes
     }
     pub fn num_nodes(&self) -> usize {
@@ -611,8 +611,12 @@ impl TempColGraphFragment {
         (0..self.num_edges()).map(|e_id| EID(e_id))
     }
 
-    pub fn all_edges_par(&self) -> impl ParallelIterator<Item = Edge> + '_ {
+    pub fn all_edges_par(&self) -> impl IndexedParallelIterator<Item = Edge> + '_ {
         self.edges.par_iter()
+    }
+
+    pub fn all_nodes_par(&self) -> impl IndexedParallelIterator<Item = Node> + '_ {
+        self.nodes.par_iter()
     }
 
     pub fn exploded_edges(&self) -> impl Iterator<Item = ExplodedEdge> + '_ {

@@ -105,14 +105,14 @@ fn query1_v7(
         let now = Instant::now();
         pool.install(|| {
             vs.into_par_iter().for_each(|b| {
-                g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
+                g.out_adj_par(b, nft).for_each(|(b2e, e)| {
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
                         nf1.par_prop_items_unchecked::<i64>(bytes_prop_id)
                             .unwrap()
                             .filter(|(_, &v)| v > 100_000_000)
                             .for_each(|(nf1_t, _)| {
-                                g.edges_par(b, Direction::OUT, events_1v)
+                                g.out_adj_par(b, events_1v)
                                     .filter(|(_, v)| v == &b && b_prog1_filter.contains(v))
                                     .for_each(|(b2b, _)| {
                                         let prog1 = g.edge(b2b, events_1v);
@@ -180,33 +180,32 @@ fn query1_v7(
                 let (b, (min_nft_less30, (prog1, nft_less30, e))) = entry;
                 let b = *b;
 
-                g.edges_par(b, Direction::IN, events_2v)
-                    .for_each(|(a2b, a)| {
-                        if a != b {
-                            let login1 = g.edge(a2b, events_2v);
+                g.in_adj_par(b, events_2v).for_each(|(a2b, a)| {
+                    if a != b {
+                        let login1 = g.edge(a2b, events_2v);
 
-                            let mut skip = false;
-                            if !prog1.is_empty() {
-                                let max_prog1 = *prog1.last().unwrap() as i64;
+                        let mut skip = false;
+                        if !prog1.is_empty() {
+                            let max_prog1 = *prog1.last().unwrap() as i64;
 
-                                let login1_ts = login1.timestamps();
+                            let login1_ts = login1.timestamps();
 
-                                let min_login1 = login1_ts.iter().next().unwrap();
-                                if min_login1 > &max_prog1 {
-                                    skip = true;
-                                }
-                            }
-
-                            if !skip {
-                                let iter = login1
-                                    .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
-                                    .unwrap()
-                                    .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
-
-                                binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
+                            let min_login1 = login1_ts.iter().next().unwrap();
+                            if min_login1 > &max_prog1 {
+                                skip = true;
                             }
                         }
-                    });
+
+                        if !skip {
+                            let iter = login1
+                                .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
+                                .unwrap()
+                                .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
+
+                            binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
+                        }
+                    }
+                });
             })
         });
 

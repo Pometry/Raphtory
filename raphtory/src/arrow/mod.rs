@@ -24,9 +24,9 @@ pub mod ipc;
 pub(crate) mod list_buffer;
 pub mod loader;
 pub mod mmap;
-pub(crate) mod parquet_source; 
 pub(crate) mod nodes;
 pub(crate) mod parquet_reader;
+pub(crate) mod parquet_source;
 pub(crate) mod timestamps;
 
 pub type Time = i64;
