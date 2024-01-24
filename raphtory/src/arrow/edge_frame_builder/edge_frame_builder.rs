@@ -119,7 +119,7 @@ impl EdgeFrameBuilder {
     fn persist_adj_out_offset_chunk(&mut self, new_adj_out_offset: Vec<i64>) -> Result<(), Error> {
         let id = self.adj_out_offsets.len();
 
-        let file_path = GraphPaths::AdjOutOffsets.to_path(self.location_path, id);
+        let file_path = GraphPaths::AdjOutOffsets.to_path(&self.location_path, id);
 
         write_buffer(&file_path, Buffer::from(new_adj_out_offset))?;
 
@@ -147,7 +147,7 @@ impl EdgeFrameBuilder {
     fn persist_edge_offset_chunk(&mut self, new_edge_offset: Vec<i64>) -> Result<(), Error> {
         let id = self.edge_offsets.len();
 
-        let file_path = GraphPaths::EdgeTPropsOffsets.to_path(self.location_path, id);
+        let file_path = GraphPaths::EdgeTPropsOffsets.to_path(&self.location_path, id);
 
         write_buffer(&file_path, Buffer::from(new_edge_offset))?;
 

@@ -12,7 +12,7 @@ use crate::arrow::{
     file_prefix::GraphPaths,
     mmap::{mmap_batch, write_batches},
     parquet_reader::{ParquetOffset, TrySlice},
-    Error
+    Error,
 };
 
 fn extend_offsets<I: IntoIterator<Item = usize>>(offsets: &mut Vec<i64>, counts: I) {
@@ -61,7 +61,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
                 .enumerate()
                 .map(|(chunk_id, struct_arr)| {
                     struct_arr.and_then(|struct_arr| {
-                        let file_path = GraphPaths::EdgeTProps.to_path(self.graph_dir, chunk_id);
+                        let file_path = GraphPaths::EdgeTProps.to_path(&self.graph_dir, chunk_id);
                         write_temporal_properties(file_path, struct_arr, self.time_col_idx)
                     })
                 })

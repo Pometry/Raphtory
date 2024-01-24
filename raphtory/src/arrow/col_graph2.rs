@@ -20,7 +20,7 @@ use crate::{
     },
     core::{
         entities::{EID, VID},
-        Direction
+        Direction,
     },
 };
 use arrow2::{
@@ -38,8 +38,8 @@ use super::{
     edges::Edges,
     global_order::GlobalOrder,
     ipc::{self, read_batch},
-    parquet_source::{resolve_and_dedup_chunk, ParquetSource},
     nodes::{Node, Nodes},
+    parquet_source::{resolve_and_dedup_chunk, ParquetSource},
     split_struct_chunk, GraphChunk, Time, GID,
 };
 
@@ -114,10 +114,6 @@ impl TempColGraphFragment {
             }
         }
 
-        let dst_ids = ChunkedArray::from(dst_ids_chunks);
-        let nodes = Nodes::new(node_gids, adj_out_offsets_chunks, dst_ids.clone());
-        let has_additions = nodes.additions.len() > 0;
-
         let edges = Edges::from_parts(
             src_ids_chunks,
             dst_ids_chunks,
@@ -125,6 +121,9 @@ impl TempColGraphFragment {
             edge_tprops_offsets_chunks,
             layer_id,
         );
+
+        let nodes = Nodes::new(node_gids, adj_out_offsets_chunks, edges.dst_ids.clone());
+        let has_additions = nodes.additions.len() > 0;
 
         let edges_chunk_size = edges.t_props_chunk_size();
 
