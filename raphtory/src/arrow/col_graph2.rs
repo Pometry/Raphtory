@@ -22,7 +22,7 @@ use crate::{
         ipc::read_batch,
         list_buffer::{as_primitive_column, ListColumn},
         loader::{read_file_chunks, ExternalEdgeList},
-        mmap::{mmap_batch, mmap_batches, mmap_buffer, read_buffer, write_batches},
+        mmap::{mmap_batch, mmap_batches, mmap_buffer, read_buffer, write_batches, write_buffer},
         node_frame_builder::NodeFrameBuilder,
         parquet_reader::{ParquetOffsetIter, ParquetReader},
         prepare_graph_dir, Error,
@@ -48,7 +48,6 @@ use tempfile::{tempfile_in, TempDir};
 
 use super::{
     chunked_array::chunked_array::ChunkedArray,
-    edge_frame_builder::edge_props_builder::write_buffer,
     edges::{calculate_earliest_latest_time, Edges},
     global_order::GlobalOrder,
     ipc,
@@ -124,6 +123,7 @@ impl TempColGraphFragment {
                         StructArray::new(DataType::Struct(schema.fields), arrays, None);
                     t_props.push(t_prop_array);
                 }
+                GraphPaths::NodeAdditionsOffsets => todo!(),
             }
         }
 
@@ -131,7 +131,13 @@ impl TempColGraphFragment {
         let nodes = Nodes::new(node_gids, adj_out_offsets_chunks, dst_ids.clone());
         let has_additions = nodes.additions.len() > 0;
 
-        let edges = Edges::from_parts(src_ids_chunks, dst_ids_chunks, t_props, edge_tprops_offsets_chunks, layer_id);
+        let edges = Edges::from_parts(
+            src_ids_chunks,
+            dst_ids_chunks,
+            t_props,
+            edge_tprops_offsets_chunks,
+            layer_id,
+        );
 
         let edges_chunk_size = edges.t_props_chunk_size();
 
@@ -237,10 +243,8 @@ impl TempColGraphFragment {
         // persist offsets
 
         let offsets = Buffer::from(offsets);
-        write_buffer(
-            self.graph_dir.as_ref().join("node_offsets.ipc"),
-            offsets.clone(),
-        )?;
+        let file_path = GraphPaths::NodeAdditionsOffsets.to_path(&self.graph_dir, 0);
+        write_buffer(file_path, offsets.clone())?;
 
         let arrays: Vec<_> = time_addition_arrays
             .into_iter()
@@ -412,25 +416,17 @@ impl TempColGraphFragment {
 
         load_chunks(&mut edge_builder, go, edges.iter().cloned())?;
 
-        let edge_chunks = ParquetOffsetIter::new(props.iter(), t_props_chunk_size).collect_vec();
+        let offset_iter = ParquetOffsetIter::new(props.iter(), t_props_chunk_size);
+        let edge_chunks = offset_iter.collect_vec();
         let edge_props_values = edge_props_builder
             .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
 
-        let temporal_props =
-            ChunkedListArray::new_from_parts(edge_props_values, edge_builder.edge_offsets.into());
-
-        let (earliest_time, latest_time) = calculate_earliest_latest_time(&temporal_props);
-
-        // write to edge_metadata.json
-        write_graph_metadata(graph_dir, earliest_time, latest_time)?;
-
-        let edges = Edges::new(
+        let edges = Edges::from_parts(
             edge_builder.src_chunks,
             edge_builder.dst_chunks,
-            temporal_props,
+            edge_props_values,
+            edge_builder.edge_offsets,
             layer_id,
-            earliest_time,
-            latest_time,
         );
 
         let nodes = Nodes::new(
@@ -506,14 +502,12 @@ impl TempColGraphFragment {
             },
         );
 
-        let mut vf_builder = NodeBuilder::new(node_chunk_size, global_order.len(), graph_dir);
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
 
         source.produce(&mut edge_builder, |edge_builder, _, _, state| {
             edge_builder.push_update_state(state)
         })?;
 
-        // vf_builder.finalise_empty_chunks()?;
         // finalize edge_builder
         edge_builder.finalize(global_order.len())?;
 
@@ -529,22 +523,18 @@ impl TempColGraphFragment {
             &excluded_cols,
         )?;
 
-        let (edge_offsets, src_offsets) = reader.load_offsets()?;
-        let t_props = reader.load_edges(num_threads, t_props_chunk_size, edge_offsets)?;
+        let t_prop_values = reader.load_t_edge_values(num_threads, t_props_chunk_size)?;
+        let edge_offsets = edge_builder.edge_offsets;
 
-        let (earliest_time, latest_time) = calculate_earliest_latest_time(&t_props);
-        let edges = Edges::new(
+        let edges = Edges::from_parts(
             edge_builder.src_chunks,
             edge_builder.dst_chunks,
-            t_props,
+            t_prop_values,
+            edge_offsets,
             layer_id,
-            earliest_time,
-            latest_time,
         );
 
         let dst_ids = edges.dst_ids.clone();
-
-        write_graph_metadata(graph_dir, earliest_time, latest_time)?;
 
         // FIXME: remove this and use Nodes2
         let nodes = Nodes::new(gids, edge_builder.adj_out_offsets, dst_ids);

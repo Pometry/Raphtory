@@ -1,22 +1,18 @@
 use std::{num::NonZeroUsize, path::Path};
 
 use arrow2::{
-    array::{PrimitiveArray, StructArray},
-    buffer::Buffer,
+    array::StructArray,
     chunk::Chunk,
-    datatypes::{DataType, Field, Schema},
-    offset::OffsetsBuffer,
-    types::NativeType,
+    datatypes::{DataType, Schema},
 };
 use rayon::prelude::*;
 
 use crate::arrow::{
-    array_as_id_iter,
-    chunked_array::chunked_array::ChunkedArray,
     concat,
+    file_prefix::GraphPaths,
     mmap::{mmap_batch, write_batches},
     parquet_reader::{ParquetOffset, TrySlice},
-    Error, GraphChunk, GID,
+    Error
 };
 
 fn extend_offsets<I: IntoIterator<Item = usize>>(offsets: &mut Vec<i64>, counts: I) {
@@ -41,68 +37,11 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         }
     }
 
-    // pub(crate) fn load_offsets_from_par_chunks_2()
-
-    pub(crate) fn load_offsets_from_par_chunks(
-        &self,
-        chunks: impl ParallelIterator<Item = Result<GraphChunk, arrow2::error::Error>>,
-    ) -> Result<(OffsetsBuffer<i64>, OffsetsBuffer<i64>), Error> {
-        //FIXME: this needs to work with 17bn edges
-
-        let bounds_and_counts = chunks
-            .map(|chunk| count_chunk(chunk))
-            .collect::<Result<Vec<_>, Error>>()?;
-
-        let mut bounds_and_counts_iter = bounds_and_counts.into_iter();
-        let (mut old_bounds, counts, src_counts) = bounds_and_counts_iter
-            .next()
-            .ok_or_else(|| Error::NoEdgeLists)?;
-
-        let mut offsets: Vec<i64> = vec![0];
-        extend_offsets(&mut offsets, counts);
-
-        let mut src_offsets: Vec<i64> = vec![0];
-        extend_offsets(&mut src_offsets, src_counts);
-
-        for (bounds, counts, src_counts) in bounds_and_counts_iter {
-            let mut counts_iter = counts.into_iter();
-            let mut src_counts_iter = src_counts.into_iter();
-
-            if bounds.first == old_bounds.last {
-                let first_count = counts_iter.next().ok_or_else(|| Error::EmptyChunk)?;
-                *offsets.last_mut().unwrap() += first_count as i64;
-            }
-            if bounds.first.0 == old_bounds.last.0 {
-                let first_count = src_counts_iter.next().ok_or_else(|| Error::EmptyChunk)?;
-                *src_offsets.last_mut().unwrap() += first_count as i64;
-            }
-            extend_offsets(&mut offsets, counts_iter);
-            extend_offsets(&mut src_offsets, src_counts_iter);
-            old_bounds = bounds;
-        }
-
-        let buffer: Buffer<i64> = Buffer::from(offsets);
-        write_buffer(
-            self.graph_dir.as_ref().join("edge_offsets.ipc"),
-            buffer.clone(),
-        )?;
-
-        let src_buffer = Buffer::from(src_offsets);
-        write_buffer(
-            self.graph_dir.as_ref().join("adj_out_offsets.ipc"),
-            src_buffer.clone(),
-        )?;
-        //safety: we made some offsets that are increasing and start at 0
-        Ok((unsafe { OffsetsBuffer::new_unchecked(buffer) }, unsafe {
-            OffsetsBuffer::new_unchecked(src_buffer)
-        }))
-    }
-
     pub(crate) fn load_t_edges_from_par_structs(
         &self,
         num_threads: NonZeroUsize,
         iter: impl IndexedParallelIterator<Item = Vec<ParquetOffset<impl TrySlice>>>,
-    ) -> Result<ChunkedArray<StructArray>, Error> {
+    ) -> Result<Vec<StructArray>, Error> {
         // TODO: make this dependent on number of cores, number of columns and available memory
 
         let pool = rayon::ThreadPoolBuilder::new()
@@ -122,11 +61,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
                 .enumerate()
                 .map(|(chunk_id, struct_arr)| {
                     struct_arr.and_then(|struct_arr| {
-                        let file_path = self
-                            .graph_dir
-                            .as_ref()
-                            .join(format!("edge_chunk_{:08}.ipc", chunk_id));
-
+                        let file_path = GraphPaths::EdgeTProps.to_path(self.graph_dir, chunk_id);
                         write_temporal_properties(file_path, struct_arr, self.time_col_idx)
                     })
                 })
@@ -137,62 +72,9 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         if arrays.is_empty() {
             Err(Error::NoEdgeLists)
         } else {
-            Ok(arrays.into())
+            Ok(arrays)
         }
     }
-}
-
-pub(crate) fn count_chunk(
-    chunk: Result<GraphChunk, arrow2::error::Error>,
-) -> Result<(EdgeBounds, Vec<usize>, Vec<usize>), Error> {
-    let chunk = chunk?;
-    let srcs = &chunk.srcs;
-    let dests = &chunk.dsts;
-
-    let srcs = array_as_id_iter(srcs)?;
-    let dests = array_as_id_iter(dests)?;
-
-    let mut iter = srcs.zip(dests);
-    let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
-    let mut last = first.clone();
-    let mut counts: Vec<usize> = vec![1];
-    let mut src_counts: Vec<usize> = vec![1];
-
-    for edge in iter {
-        if edge == last {
-            *counts.last_mut().expect("this is not empty") += 1;
-        } else {
-            counts.push(1);
-        }
-        if edge.0 == last.0 {
-            if edge.1 != last.1 {
-                *src_counts.last_mut().expect("this should not be empty") += 1;
-            }
-        } else {
-            src_counts.push(1);
-        }
-        last = edge;
-    }
-
-    Ok((EdgeBounds { first, last }, counts, src_counts))
-}
-
-struct EdgeBounds {
-    first: (GID, GID),
-    last: (GID, GID),
-}
-
-pub fn write_buffer<T: NativeType>(
-    file_path: impl AsRef<Path>,
-    buffer: Buffer<T>,
-) -> Result<(), Error> {
-    let arr: PrimitiveArray<T> =
-        unsafe { PrimitiveArray::from_inner_unchecked(T::PRIMITIVE.into(), buffer, None) };
-
-    let schema = Schema::from(vec![Field::new("offsets", arr.data_type().clone(), false)]);
-    let chunk = Chunk::new(vec![arr.boxed()]);
-    write_batches(file_path, schema, &[chunk])?;
-    Ok(())
 }
 
 fn write_temporal_properties(

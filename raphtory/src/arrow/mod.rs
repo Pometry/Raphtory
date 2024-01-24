@@ -95,6 +95,7 @@ pub(crate) mod file_prefix {
     #[derive(AsRefStr, EnumString, PartialEq)]
     pub enum GraphPaths {
         EdgeIds,
+        NodeAdditionsOffsets,
         AdjOutOffsets,
         EdgeTPropsOffsets,
         EdgeTProps,
