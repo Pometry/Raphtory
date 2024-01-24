@@ -1,5 +1,8 @@
 use crate::arrow::{
-    file_prefix::GraphPaths, mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer}, node_builder::LoadingState, DST_COLUMN, SRC_COLUMN
+    file_prefix::GraphPaths,
+    mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
+    node_builder::LoadingState,
+    DST_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
     array::PrimitiveArray,
@@ -116,9 +119,7 @@ impl EdgeFrameBuilder {
     fn persist_adj_out_offset_chunk(&mut self, new_adj_out_offset: Vec<i64>) -> Result<(), Error> {
         let id = self.adj_out_offsets.len();
 
-        let file_path = self
-            .location_path
-            .join(format!("adj_out_offsets_{:08}.ipc", id));
+        let file_path = GraphPaths::AdjOutOffsets.to_path(self.location_path, id);
 
         write_buffer(&file_path, Buffer::from(new_adj_out_offset))?;
 
@@ -146,9 +147,7 @@ impl EdgeFrameBuilder {
     fn persist_edge_offset_chunk(&mut self, new_edge_offset: Vec<i64>) -> Result<(), Error> {
         let id = self.edge_offsets.len();
 
-        let file_path = self
-            .location_path
-            .join(format!("edge_offsets_{:08}.ipc", id));
+        let file_path = GraphPaths::EdgeTPropsOffsets.to_path(self.location_path, id);
 
         write_buffer(&file_path, Buffer::from(new_edge_offset))?;
 
@@ -238,7 +237,6 @@ impl EdgeFrameBuilder {
 
         Ok(())
     }
-
 
     pub(crate) fn finalize(&mut self, num_nodes: usize) -> Result<(), Error> {
         if self.edge_src_id.len() > 0 {

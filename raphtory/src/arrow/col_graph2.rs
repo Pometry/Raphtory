@@ -51,6 +51,7 @@ use super::{
     edge_frame_builder::edge_props_builder::write_buffer,
     edges::{calculate_earliest_latest_time, Edges},
     global_order::GlobalOrder,
+    ipc,
     node_builder::{resolve_and_dedup_chunk, NodeBuilder, ParquetSource},
     node_chunk::{NodeChunk, RowOwned},
     nodes::{Node, Nodes},
@@ -83,6 +84,10 @@ impl TempColGraphFragment {
     ) -> Result<Self, Error> {
         let files = list_sorted_files(graph_dir)?;
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
+        let mut edge_tprops_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
+
+        let mut t_props: Vec<StructArray> = vec![];
+
         let mut dst_ids_chunks: Vec<PrimitiveArray<u64>> = vec![];
         let mut src_ids_chunks: Vec<PrimitiveArray<u64>> = vec![];
 
@@ -107,6 +112,18 @@ impl TempColGraphFragment {
                     let chunk = unsafe { mmap_buffer(&path, 0) }?;
                     adj_out_offsets_chunks.push(unsafe { OffsetsBuffer::new_unchecked(chunk) });
                 }
+                GraphPaths::EdgeTPropsOffsets => {
+                    let chunk = unsafe { mmap_buffer(&path, 0) }?;
+                    edge_tprops_offsets_chunks.push(unsafe { OffsetsBuffer::new_unchecked(chunk) });
+                }
+                GraphPaths::EdgeTProps => {
+                    let chunk = read_or_mmap_chunk(mmap, &path)?;
+                    let arrays = chunk.into_arrays();
+                    let schema = ipc::read_schema(&path)?;
+                    let t_prop_array =
+                        StructArray::new(DataType::Struct(schema.fields), arrays, None);
+                    t_props.push(t_prop_array);
+                }
             }
         }
 
@@ -114,7 +131,7 @@ impl TempColGraphFragment {
         let nodes = Nodes::new(node_gids, adj_out_offsets_chunks, dst_ids.clone());
         let has_additions = nodes.additions.len() > 0;
 
-        let edges = Edges::from_path(graph_dir.as_ref(), mmap, layer_id)?;
+        let edges = Edges::from_parts(src_ids_chunks, dst_ids_chunks, t_props, edge_tprops_offsets_chunks, layer_id);
 
         let edges_chunk_size = edges.t_props_chunk_size();
 
@@ -863,7 +880,6 @@ pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
 #[cfg(test)]
 mod test {
     use crate::{arrow::global_order::GlobalMap, prelude::*};
-    use std::iter;
 
     use super::*;
     use arrow2::datatypes::DataType;
