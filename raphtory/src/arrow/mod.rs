@@ -96,6 +96,7 @@ pub(crate) mod file_prefix {
     pub enum GraphPaths {
         EdgeIds,
         AdjOutOffsets,
+        EdgeTPropsOffsets,
     }
 
     impl GraphPaths {
