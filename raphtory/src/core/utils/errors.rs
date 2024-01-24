@@ -38,6 +38,12 @@ pub enum GraphError {
         source: ParseTimeError,
     },
 
+    #[error("Node already exists with ID {0}")]
+    NodeExistsError(u64),
+
+    #[error("Edge already exists for nodes {0} {1}")]
+    EdgeExistsError(u64, u64),
+
     #[error("No Node with ID {0}")]
     NodeIdError(u64),
 

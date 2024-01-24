@@ -304,6 +304,33 @@ mod db_tests {
     }
 
     #[test]
+    fn import_node_from_another_graph() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))])
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let gg = Graph::new();
+        let res = gg.import_node(&g_a, None).unwrap();
+        assert_eq!(res.name(), "A");
+        assert_eq!(res.history(), vec![0]);
+        let res = gg.import_node(&g_b, None).unwrap();
+        assert_eq!(res.name(), "B");
+        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
+        assert_eq!(
+            res.properties().constant().get("con").unwrap(),
+            Prop::I64(11)
+        );
+
+        let gg = Graph::new();
+        let res = gg.import_nodes(vec![&g_a, &g_b], None).unwrap();
+        assert_eq!(res.len(), 2);
+        assert_eq!(res.iter().map(|n| n.name()).collect_vec(), vec!["A", "B"]);
+    }
+
+    #[test]
     fn graph_save_to_load_from_file() {
         let vs = vec![
             (1, 1, 2),
