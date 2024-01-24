@@ -1,58 +1,44 @@
-use ahash::AHashMap;
 use std::{
     borrow::Borrow,
-    io,
     num::NonZeroUsize,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::Arc,
     thread::JoinHandle,
 };
 
 use crate::{
     arrow::{
-        adj_schema,
-        chunked_array::{chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray},
+        chunked_array::list_array::ChunkedListArray,
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         file_prefix::GraphPaths,
         global_order::GlobalMap,
-        ipc::read_batch,
-        list_buffer::{as_primitive_column, ListColumn},
-        loader::{read_file_chunks, ExternalEdgeList},
-        mmap::{mmap_batch, mmap_batches, mmap_buffer, read_buffer, write_batches, write_buffer},
-        node_frame_builder::NodeFrameBuilder,
+        loader::ExternalEdgeList,
+        mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
         parquet_reader::{ParquetOffsetIter, ParquetReader},
         prepare_graph_dir, Error,
     },
     core::{
-        entities::{properties::props::PropMapper, EID, VID},
-        Direction, Prop, PropType,
+        entities::{EID, VID},
+        Direction
     },
-    db::api::mutation::CollectProperties,
 };
 use arrow2::{
-    array::{Array, ListArray, PrimitiveArray, StructArray, Utf8Array},
+    array::{Array, PrimitiveArray, StructArray, Utf8Array},
     buffer::Buffer,
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
-    io::ipc::write::{FileWriter, WriteOptions},
     offset::OffsetsBuffer,
 };
-use flume::IntoIter;
 use itertools::Itertools;
 use rayon::prelude::*;
-use tempfile::{tempfile_in, TempDir};
 
 use super::{
     chunked_array::chunked_array::ChunkedArray,
-    edges::{calculate_earliest_latest_time, Edges},
+    edges::Edges,
     global_order::GlobalOrder,
-    ipc,
-    node_builder::{resolve_and_dedup_chunk, NodeBuilder, ParquetSource},
-    node_chunk::{NodeChunk, RowOwned},
+    ipc::{self, read_batch},
+    parquet_source::{resolve_and_dedup_chunk, ParquetSource},
     nodes::{Node, Nodes},
     split_struct_chunk, GraphChunk, Time, GID,
 };

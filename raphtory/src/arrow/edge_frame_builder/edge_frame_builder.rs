@@ -1,7 +1,7 @@
 use crate::arrow::{
     file_prefix::GraphPaths,
     mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
-    node_builder::LoadingState,
+    parquet_source::LoadingState,
     DST_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
@@ -275,7 +275,7 @@ fn extend_offsets<'a, I: IntoIterator<Item = &'a usize>>(offsets: &mut Vec<i64>,
 mod test {
     use arrow2::{array::PrimitiveArray, buffer::Buffer, offset::OffsetsBuffer};
 
-    use crate::arrow::node_builder::LoadingState;
+    use crate::arrow::parquet_source::LoadingState;
 
     #[test]
     fn load_1_edge() {
