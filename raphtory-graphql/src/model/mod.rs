@@ -152,7 +152,8 @@ impl Mut {
             let timestamp: i64 = dt.timestamp();
             new_subgraph
                 .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-
+            new_subgraph
+                .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             new_subgraph.save_to_file(path)?;
 
             let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
@@ -235,6 +236,7 @@ impl Mut {
         }
 
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
