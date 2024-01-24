@@ -165,6 +165,28 @@ impl Mut {
         Ok(true)
     }
 
+    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, graph_name: String) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>().graphs.write();
+
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+
+        let dt = Utc::now();
+        let timestamp: i64 = dt.timestamp();
+
+        subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+
+        let path = subgraph
+            .properties()
+            .constant()
+            .get("path")
+            .ok_or("Path is missing")?
+            .to_string();
+
+        subgraph.save_to_file(path)?;
+
+        Ok(true)
+    }
+
     async fn save_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
