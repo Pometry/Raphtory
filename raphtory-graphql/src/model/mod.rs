@@ -333,9 +333,18 @@ impl Mut {
         parent_graph_name: String,
         is_archive: u8,
     ) -> Result<bool> {
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
+        let data = ctx.data_unchecked::<Data>().graphs.write();
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
         subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+
+        let path = subgraph
+            .properties()
+            .constant()
+            .get("path")
+            .ok_or("Path is missing")?
+            .to_string();
+        subgraph.save_to_file(path)?;
+
         Ok(true)
     }
 }
