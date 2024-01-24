@@ -127,6 +127,29 @@ pub enum GID {
     Str(String),
 }
 
+impl GID {
+    pub fn into_str(self) -> Option<String> {
+        match self {
+            GID::Str(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_i64(self) -> Option<i64> {
+        match self {
+            GID::I64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_u64(self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 impl From<u64> for GID {
     fn from(id: u64) -> Self {
         Self::U64(id)

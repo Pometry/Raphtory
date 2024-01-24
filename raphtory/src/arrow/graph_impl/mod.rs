@@ -16,6 +16,7 @@ pub mod edge_filter_ops;
 pub mod graph_ops;
 pub mod layer_ops;
 pub mod materialize;
+mod prop_conversion;
 pub mod temporal_properties_ops;
 pub mod time_semantics;
 pub mod tprops;

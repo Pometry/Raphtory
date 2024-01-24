@@ -92,7 +92,7 @@ dotenv = "0.15.0" # for vector testing
 [features]
 default = ["arrow"]
 # Enables the graph loader io module
-io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio", "dep:strum"]
+io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:serde_json", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
 python = ["io", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam"]
 # search
@@ -106,4 +106,5 @@ arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:serde_js
     "arrow2?/io_parquet_compression",
     "arrow2?/compute_concatenate",
     "arrow2?/compute_sort",
-    "arrow2?/compute_merge_sort"]
+    "arrow2?/compute_merge_sort",
+    "dep:strum"]

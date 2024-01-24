@@ -320,7 +320,11 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
-    fn get_or_create_and_validate(&self, prop: &str, dtype: PropType) -> Result<usize, GraphError> {
+    pub(crate) fn get_or_create_and_validate(
+        &self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<usize, GraphError> {
         let id = self.id_mapper.get_or_create_id(prop);
         let dtype_read = self.dtypes.read_recursive();
         if let Some(old_type) = dtype_read.get(id) {

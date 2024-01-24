@@ -69,6 +69,13 @@ impl From<ArcStr> for String {
         value.to_string()
     }
 }
+
+impl From<&ArcStr> for String {
+    fn from(value: &ArcStr) -> Self {
+        value.clone().into()
+    }
+}
+
 impl Deref for ArcStr {
     type Target = Arc<str>;
 
