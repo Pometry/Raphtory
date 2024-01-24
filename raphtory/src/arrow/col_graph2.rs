@@ -59,9 +59,9 @@ use super::{
 
 #[derive(Debug)]
 pub struct TempColGraphFragment {
-    nodes: Nodes,
-    edges: Edges,
-    graph_dir: Box<Path>,
+    pub(crate) nodes: Nodes,
+    pub(crate) edges: Edges,
+    pub(crate) graph_dir: Box<Path>,
 }
 
 pub fn list_sorted_files(
