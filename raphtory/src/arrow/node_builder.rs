@@ -212,16 +212,19 @@ fn new_arrow_adj_list_chunk(
     Box::new(outbound)
 }
 
-pub(crate) struct ParquetSource<F> {
+pub(crate) struct ParquetSource<F, ST>
+where
+    F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, Error>,
+{
     files: Vec<PathBuf>,
     concurrent_files: usize,
     projection: Option<Vec<String>>,
     mapper: F,
 }
 
-impl<F> ParquetSource<F>
+impl<F, ST> ParquetSource<F, ST>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Result<LoadingState, Error>,
+    F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, Error>,
 {
     pub fn new(
         files: Vec<PathBuf>,
@@ -238,11 +241,12 @@ where
     }
 }
 
-impl<F> ParquetSource<F>
+impl<F, ST> ParquetSource<F, ST>
 where
-    F: Fn(Chunk<Box<dyn Array>>) -> Result<LoadingState, Error> + Sync,
+    F: Fn(Chunk<Box<dyn Array>>) -> Result<ST, Error> + Sync,
+    ST: Send
 {
-    pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, LoadingState) -> Result<(), Error>>(
+    pub(crate) fn produce<S, CB: Fn(&mut S, PathBuf, usize, ST) -> Result<(), Error>>(
         &self,
         s: &mut S,
         cb: CB,

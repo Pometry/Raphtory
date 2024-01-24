@@ -1,9 +1,7 @@
 use crate::arrow::chunked_array::array_ops::BaseArrayOps;
 
 use super::{
-    chunked_array::{chunked_array::ChunkedArray, list_array::ChunkedListArray},
-    edge_frame_builder::edge_props_builder::EdgePropsBuilder,
-    Error, GraphChunk,
+    chunked_array::{chunked_array::ChunkedArray, chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray}, edge_frame_builder::edge_props_builder::{count_chunk, EdgePropsBuilder}, node_builder::ParquetSource, Error, GraphChunk
 };
 use arrow2::{
     array::{Array, StructArray},
@@ -127,6 +125,12 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
                 .map_ok(move |chunk| GraphChunk::from_chunk(chunk, 0, 1))
         });
         self.edge_props_builder.load_offsets_from_par_chunks(chunks)
+    }
+
+    pub(crate) fn load_chunked_offsets(&self) -> Result<ChunkedOffsets, Error> {
+        let files = self.files.borrow().into_iter().cloned().collect();
+        let source = ParquetSource::new(files, 4, None, |chunk| count_chunk(Ok(GraphChunk::from_chunk(chunk, 0, 1))));
+        todo!()
     }
 }
 

@@ -41,6 +41,8 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         }
     }
 
+    // pub(crate) fn load_offsets_from_par_chunks_2()
+
     pub(crate) fn load_offsets_from_par_chunks(
         &self,
         chunks: impl ParallelIterator<Item = Result<GraphChunk, arrow2::error::Error>>,
@@ -48,7 +50,7 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
         //FIXME: this needs to work with 17bn edges
 
         let bounds_and_counts = chunks
-            .map(|chunk| self.count_chunk(chunk))
+            .map(|chunk| count_chunk(chunk))
             .collect::<Result<Vec<_>, Error>>()?;
 
         let mut bounds_and_counts_iter = bounds_and_counts.into_iter();
@@ -138,42 +140,41 @@ impl<P: AsRef<Path> + Send + Sync> EdgePropsBuilder<P> {
             Ok(arrays.into())
         }
     }
+}
 
-    fn count_chunk(
-        &self,
-        chunk: Result<GraphChunk, arrow2::error::Error>,
-    ) -> Result<(EdgeBounds, Vec<usize>, Vec<usize>), Error> {
-        let chunk = chunk?;
-        let srcs = &chunk.srcs;
-        let dests = &chunk.dsts;
+pub(crate) fn count_chunk(
+    chunk: Result<GraphChunk, arrow2::error::Error>,
+) -> Result<(EdgeBounds, Vec<usize>, Vec<usize>), Error> {
+    let chunk = chunk?;
+    let srcs = &chunk.srcs;
+    let dests = &chunk.dsts;
 
-        let srcs = array_as_id_iter(srcs)?;
-        let dests = array_as_id_iter(dests)?;
+    let srcs = array_as_id_iter(srcs)?;
+    let dests = array_as_id_iter(dests)?;
 
-        let mut iter = srcs.zip(dests);
-        let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
-        let mut last = first.clone();
-        let mut counts: Vec<usize> = vec![1];
-        let mut src_counts: Vec<usize> = vec![1];
+    let mut iter = srcs.zip(dests);
+    let first = iter.next().ok_or_else(|| Error::EmptyChunk)?;
+    let mut last = first.clone();
+    let mut counts: Vec<usize> = vec![1];
+    let mut src_counts: Vec<usize> = vec![1];
 
-        for edge in iter {
-            if edge == last {
-                *counts.last_mut().expect("this is not empty") += 1;
-            } else {
-                counts.push(1);
-            }
-            if edge.0 == last.0 {
-                if edge.1 != last.1 {
-                    *src_counts.last_mut().expect("this should not be empty") += 1;
-                }
-            } else {
-                src_counts.push(1);
-            }
-            last = edge;
+    for edge in iter {
+        if edge == last {
+            *counts.last_mut().expect("this is not empty") += 1;
+        } else {
+            counts.push(1);
         }
-
-        Ok((EdgeBounds { first, last }, counts, src_counts))
+        if edge.0 == last.0 {
+            if edge.1 != last.1 {
+                *src_counts.last_mut().expect("this should not be empty") += 1;
+            }
+        } else {
+            src_counts.push(1);
+        }
+        last = edge;
     }
+
+    Ok((EdgeBounds { first, last }, counts, src_counts))
 }
 
 struct EdgeBounds {
