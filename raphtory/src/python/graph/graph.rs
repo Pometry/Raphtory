@@ -20,9 +20,13 @@ use crate::{
         api::view::internal::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
     },
-    python::graph::pandas::{
-        dataframe::{process_pandas_py_df, GraphLoadException},
-        loaders::{load_edges_props_from_df, load_node_props_from_df},
+    python::graph::{
+        edge::PyEdge,
+        node::PyNode,
+        pandas::{
+            dataframe::{process_pandas_py_df, GraphLoadException},
+            loaders::{load_edges_props_from_df, load_node_props_from_df},
+        },
     },
 };
 use pyo3::types::{IntoPyDict, PyBytes};
@@ -31,8 +35,6 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::python::graph::edge::PyEdge;
-use crate::python::graph::node::PyNode;
 
 use super::pandas::loaders::{load_edges_from_df, load_nodes_from_df};
 
@@ -225,7 +227,7 @@ impl PyGraph {
     pub fn import_node(
         &self,
         node: PyNode,
-        force: Option<bool>
+        force: Option<bool>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
@@ -234,7 +236,7 @@ impl PyGraph {
     pub fn import_nodes(
         &self,
         nodes: Vec<PyNode>,
-        force: Option<bool>
+        force: Option<bool>,
     ) -> Result<Vec<NodeView<Graph, Graph>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
@@ -244,7 +246,7 @@ impl PyGraph {
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: Option<bool>
+        force: Option<bool>,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
@@ -253,12 +255,11 @@ impl PyGraph {
     pub fn import_edges(
         &self,
         edges: Vec<PyEdge>,
-        force: Option<bool>
+        force: Option<bool>,
     ) -> Result<Vec<EdgeView<Graph, Graph>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)
     }
-
 
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
     /// Gets the node with the specified id
