@@ -62,6 +62,8 @@ impl EdgeFrameBuilder {
     }
 
     pub(crate) fn push_update_state(&mut self, state: LoadingState) -> Result<(), Error> {
+        println!("state: {state:?}");
+
         let LoadingState {
             deduped_src_ids,
             deduped_dst_ids,

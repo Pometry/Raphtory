@@ -69,6 +69,9 @@ impl TempColGraphFragment {
     ) -> Result<Self, Error> {
         let graph_dir = graph_dir.as_ref();
         let files = list_sorted_files(graph_dir)?;
+        let collected_files = files.collect_vec();
+        println!("files: {collected_files:?}");
+        let files = collected_files.into_iter();
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
         let mut edge_tprops_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
 
@@ -400,6 +403,7 @@ impl TempColGraphFragment {
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
 
+        println!("edges: {edges:?}");
         load_chunks(&mut edge_builder, go, edges.iter().cloned())?;
 
         let offset_iter = ParquetOffsetIter::new(props.iter(), t_props_chunk_size);
