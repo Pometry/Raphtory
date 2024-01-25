@@ -2,13 +2,19 @@ use std::{
     borrow::Borrow,
     num::NonZeroUsize,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
     thread::JoinHandle,
 };
 
 use crate::{
     arrow::{
-        chunked_array::list_array::ChunkedListArray,
+        chunked_array::{
+            list_array::ChunkedListArray,
+            mutable_chunked_array::{MutableChunkedOffsets, MutablePrimitiveChunkedArray},
+        },
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         file_prefix::GraphPaths,
@@ -16,6 +22,7 @@ use crate::{
         loader::ExternalEdgeList,
         mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
         parquet_reader::{ParquetOffsetIter, ParquetReader},
+        prelude::BaseArrayOps,
         prepare_graph_dir, Error,
     },
     core::{
@@ -30,7 +37,7 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
     offset::OffsetsBuffer,
 };
-use itertools::Itertools;
+use itertools::{kmerge_by, Itertools};
 use rayon::prelude::*;
 
 use super::{
@@ -661,201 +668,62 @@ impl TempColGraphFragment {
         self.edges.iter().flat_map(|e| e.explode())
     }
     pub fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
-        // let num_chunks = self.outbound().len();
-        // let tmp_schema = Schema::from(vec![Field::new(
-        //     "adj_in",
-        //     <ListArray<i64>>::default_datatype(adj_schema()),
-        //     false,
-        // )]);
-        // let options = WriteOptions { compression: None };
-        // let tmp_files = (0..num_chunks)
-        //     .map(|_| tempfile_in(&self.graph_dir))
-        //     .collect::<Result<Vec<_>, io::Error>>()?;
-        // let mut writers: Vec<_> = tmp_files
-        //     .iter()
-        //     .map(|chunk_file| FileWriter::new(chunk_file, tmp_schema.clone(), None, options))
-        //     .collect();
-        // if let Some(error) = writers
-        //     .par_iter_mut()
-        //     .find_map_any(|writer| writer.start().err())
-        // {
-        //     return Err(error.into());
-        // }
-        //
-        // for (outbound_chunk_id, outbound) in self.outbound().iter().enumerate() {
-        //     let adj_column: ListColumn<u64> = outbound.neighbours_col().unwrap();
-        //     let edge_ids_column: ListColumn<u64> = outbound.edge_col().unwrap();
-        //
-        //     let outbound_chunksize = outbound.len();
-        //     let mut progress = vec![0usize; outbound_chunksize]; // keeps track of how far we got for each list
-        //     for inbound_chunk_id in 0..num_chunks {
-        //         // build partial inbound chunk sequentially
-        //         let chunk_max_id = self.nodes.node_chunk_size * (inbound_chunk_id + 1); // id in this chunk less than this
-        //         let inbound_chunksize = self.outbound()[inbound_chunk_id].len();
-        //         // let offsets = vec![0i64; inbound_chunksize + 1];
-        //         let mut counts = Vec::with_capacity(inbound_chunksize);
-        //         counts.resize_with(inbound_chunksize, || AtomicUsize::new(0));
-        //         let new_progress: Vec<_> = progress
-        //             .par_iter()
-        //             .enumerate()
-        //             .map(|(row, &start)| {
-        //                 let node_ids = &adj_column[row][start..];
-        //                 let mut row_size = 0usize;
-        //                 for &id in node_ids {
-        //                     let id = id as usize;
-        //                     if id < chunk_max_id {
-        //                         if let Some(counts) = counts.get(id % self.nodes.node_chunk_size) {
-        //                             counts.fetch_add(1, Ordering::Relaxed);
-        //                         } else {
-        //                             let inner_id = id % self.nodes.node_chunk_size;
-        //                             panic!("counts index out of bounds for inbound chunk {inbound_chunk_id} with size {inbound_chunksize}: id {id}, index in chunk: {inner_id}")
-        //                         }
-        //                         row_size += 1;
-        //                     } else {
-        //                         break;
-        //                     }
-        //                 }
-        //                 row_size
-        //             })
-        //             .collect();
-        //         let mut offsets = Vec::with_capacity(inbound_chunksize + 1);
-        //         offsets.push(0i64);
-        //         let mut cum_sum = 0;
-        //         for v in counts {
-        //             cum_sum += v.load(Ordering::Relaxed);
-        //             offsets.push(cum_sum as i64);
-        //         }
-        //
-        //         // assemble the value vectors
-        //         let mut inbound_vids = vec![0u64; cum_sum];
-        //         let mut inbound_eids = vec![0u64; cum_sum];
-        //         let mut extra_offsets = vec![0usize; inbound_chunksize];
-        //
-        //         for (row, &start) in progress.iter().enumerate() {
-        //             let row_node_ids = &adj_column[row][start..start + new_progress[row]];
-        //             let row_edge_ids = &edge_ids_column[row][start..start + new_progress[row]];
-        //             // in principle we can do all these updates in parallel as they end up pointing at unique rows of the vector
-        //             // this would require some careful unsafe code though
-        //             for (&vid, &eid) in row_node_ids.iter().zip(row_edge_ids) {
-        //                 let vid = vid as usize % self.nodes.node_chunk_size; //local index
-        //                 let insertion_point = offsets[vid] as usize + extra_offsets[vid];
-        //                 extra_offsets[vid] += 1;
-        //                 inbound_vids[insertion_point] =
-        //                     (outbound_chunk_id * self.nodes.node_chunk_size + row) as u64;
-        //                 inbound_eids[insertion_point] = eid;
-        //             }
-        //         }
-        //
-        //         // assemble the array and write to file
-        //         let dtype = <ListArray<i64>>::default_datatype(adj_schema());
-        //         let offsets = OffsetsBuffer::try_from(offsets)?;
-        //         let vid_array = PrimitiveArray::from_vec(inbound_vids).boxed();
-        //         let eid_array = PrimitiveArray::from_vec(inbound_eids).boxed();
-        //         let values =
-        //             StructArray::new(adj_schema(), vec![vid_array, eid_array], None).boxed();
-        //
-        //         let inbound_array = ListArray::new(dtype, offsets, values, None).boxed();
-        //         writers[inbound_chunk_id].write(&Chunk::new(vec![inbound_array]), None)?;
-        //
-        //         // record the progress
-        //         progress
-        //             .par_iter_mut()
-        //             .enumerate()
-        //             .for_each(|(row, v)| *v += new_progress[row]);
-        //     }
-        // }
-        //
-        // // finalise the files
-        // if let Some(error) = writers
-        //     .par_iter_mut()
-        //     .find_map_any(|writer| writer.finish().err())
-        // {
-        //     return Err(error.into());
-        // }
-        //
-        // // combine the results
-        // for f in tmp_files {
-        //     let chunks: Vec<_> = unsafe { mmap_batches(&f, 0..num_chunks)? };
-        //     let chunk_size = chunks[0].len();
-        //     let arrays: Vec<_> = chunks
-        //         .iter()
-        //         .flat_map(|chunk| chunk[0].as_any().downcast_ref::<ListArray<i64>>())
-        //         .collect();
-        //     let mut offsets = vec![0i64; chunk_size + 1];
-        //     for array in arrays.iter() {
-        //         let array_offsets = array.offsets().as_slice();
-        //         offsets
-        //             .par_iter_mut()
-        //             .zip(array_offsets)
-        //             .for_each(|(a, b)| *a += b);
-        //     }
-        //
-        //     let mut adj = vec![0u64; offsets[chunk_size] as usize];
-        //     let mut adj_lists: Vec<&mut [u64]> = Vec::default();
-        //
-        //     let mut eids = vec![0u64; offsets[chunk_size] as usize];
-        //     let mut eids_lists: Vec<&mut [u64]> = Vec::default();
-        //     let mut right_adj: &mut [u64] = &mut adj;
-        //     let mut right_eids: &mut [u64] = &mut eids;
-        //
-        //     for v in offsets.windows(2) {
-        //         if let &[start, end] = v {
-        //             let split = (end - start) as usize;
-        //             let (left, right) = right_adj.split_at_mut(split);
-        //             adj_lists.push(left);
-        //             right_adj = right;
-        //             let (left, right) = right_eids.split_at_mut(split);
-        //             eids_lists.push(left);
-        //             right_eids = right;
-        //         }
-        //     }
-        //
-        //     let mut insertion_points = vec![0usize; chunk_size];
-        //     for array in arrays.iter() {
-        //         let new_adj = as_primitive_column::<u64>(array, 0).unwrap();
-        //         let new_eid_col = as_primitive_column::<u64>(array, 1).unwrap();
-        //         adj_lists
-        //             .par_iter_mut()
-        //             .zip(eids_lists.par_iter_mut())
-        //             .zip(insertion_points.par_iter_mut())
-        //             .enumerate()
-        //             .for_each(|(i, ((a, e), offset))| {
-        //                 let new_adj_i = &new_adj[i];
-        //                 let new_eid_i = &new_eid_col[i];
-        //                 a[*offset..*offset + new_adj_i.len()].copy_from_slice(new_adj_i);
-        //                 e[*offset..*offset + new_eid_i.len()].copy_from_slice(new_eid_i);
-        //                 *offset += new_adj_i.len();
-        //             });
-        //     }
-        //
-        //     let values = StructArray::new(
-        //         adj_schema(),
-        //         vec![
-        //             PrimitiveArray::from_vec(adj).to_boxed(),
-        //             PrimitiveArray::from_vec(eids).to_boxed(),
-        //         ],
-        //         None,
-        //     );
-        //     let res = <ListArray<i64>>::new(
-        //         <ListArray<i64>>::default_datatype(adj_schema()),
-        //         OffsetsBuffer::try_from(offsets)?,
-        //         values.to_boxed(),
-        //         None,
-        //     )
-        //     .to_boxed();
-        //     let dtype = res.data_type().clone();
-        //     let schema = Schema::from(vec![Field::new("adj_in", dtype, false)]);
-        //     let file_path = self.graph_dir.join(format!(
-        //         "adj_in_chunk_{:08}.ipc",
-        //         self.nodes.adj_in_chunks.len()
-        //     ));
-        //     let chunk = [Chunk::try_new(vec![res])?];
-        //     write_batches(file_path.as_path(), schema, &chunk)?;
-        //     let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        //     self.nodes.adj_in_chunks.push(NodeChunk::new(mmapped_chunk));
-        // }
-        // Ok(())
-        todo!()
+        let num_nodes = self.nodes.len();
+        let mut counts = Vec::with_capacity(num_nodes);
+        counts.resize_with(num_nodes, || AtomicUsize::new(0));
+
+        let outbound = self.nodes.outbound_neighbours();
+        outbound.values().par_iter().for_each(|v| {
+            if let Some(v) = v {
+                counts[v as usize].fetch_add(1, Ordering::Relaxed);
+            }
+        });
+
+        let mut offsets = MutableChunkedOffsets::new(
+            outbound.offsets().chunk_size,
+            Some((GraphPaths::AdjInOffsets, self.graph_dir.to_path_buf())),
+            true,
+        );
+        offsets.push(0)?;
+        let mut cum_sum = 0;
+        for count in counts {
+            cum_sum += count.load(Ordering::Relaxed);
+            offsets.push(cum_sum)?;
+        }
+        let offsets = offsets.finish()?;
+
+        let mut inbound_src = MutablePrimitiveChunkedArray::new(
+            outbound.values().chunk_size,
+            Some((GraphPaths::AdjInSrcs, self.graph_dir.to_path_buf())),
+            true,
+        );
+        let mut inbound_eids = MutablePrimitiveChunkedArray::new(
+            outbound.values().chunk_size,
+            Some((GraphPaths::AdjInEdges, self.graph_dir.to_path_buf())),
+            true,
+        );
+        for (_, src, eid) in outbound
+            .offsets()
+            .iter()
+            .enumerate()
+            .map(|(src_id, eids)| {
+                let dsts = outbound.values().slice(eids.clone());
+                dsts.flatten()
+                    .zip(eids)
+                    .map(move |(dst, eid)| (dst, src_id as u64, eid as u64))
+            })
+            .kmerge()
+        {
+            inbound_src.push(src)?;
+            inbound_eids.push(eid)?;
+        }
+        let inbound_srcs = inbound_src.finish()?;
+        let inbound_eids = inbound_eids.finish()?;
+
+        self.nodes.adj_in_neighbours =
+            ChunkedListArray::new_from_parts(inbound_srcs, offsets.clone());
+        self.nodes.adj_in_edges = ChunkedListArray::new_from_parts(inbound_eids, offsets);
+        Ok(())
     }
 
     pub(crate) fn t_len(&self) -> usize {

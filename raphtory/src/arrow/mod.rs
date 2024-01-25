@@ -97,6 +97,9 @@ pub(crate) mod file_prefix {
         AdjOutOffsets,
         EdgeTPropsOffsets,
         EdgeTProps,
+        AdjInSrcs,
+        AdjInEdges,
+        AdjInOffsets,
     }
 
     impl GraphPaths {
