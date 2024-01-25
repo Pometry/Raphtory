@@ -53,10 +53,12 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let len = event_ids.len();
 
                 let count: usize = g
-                    .edges_par(edge.dst(), Direction::OUT, events_1v)
+                    .layer(events_1v)
+                    .out_edges_par(edge.dst())
                     .map(|(_, a)| {
                         let nft_ts = g
-                            .edges_par(a, Direction::IN, nft)
+                            .layer(nft)
+                            .in_edges_par(a)
                             .filter(|(_, b)| a != *b)
                             .map(|(eid, b)| {
                                 (
@@ -105,7 +107,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                     .into_iter()
                                                     .zip(edge_ts.slice(i + 1..len))
                                                 {
-                                                    if program_t < t
+                                                    if program_t < &t
                                                         || nft1_t < &program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
@@ -165,10 +167,12 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
             let edge_ts = edge.timestamps();
             let len = event_ids.len();
 
-            g.edges_par(edge.dst(), Direction::OUT, events_1v)
+            g.layer(events_1v)
+                .out_edges_par(edge.dst())
                 .for_each(|(_, a)| {
                     let nft_ts = g
-                        .edges_par(a, Direction::IN, nft)
+                        .layer(nft)
+                        .in_edges_par(a)
                         .map(|(eid, b)| {
                             (
                                 b,
@@ -195,7 +199,7 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                                     .into_iter()
                                     .zip(edge_ts.slice(i + 1..len))
                                 {
-                                    if program_t < t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                    if program_t < &t || nft_t < &program_t || nft_t - t >= WINDOW {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {

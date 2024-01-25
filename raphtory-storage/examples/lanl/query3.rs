@@ -47,10 +47,12 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let len = event_ids.len();
 
                 let count: usize = g
-                    .edges_par(edge.dst(), Direction::OUT, events_1v)
+                    .layer(events_1v)
+                    .out_edges_par(edge.dst())
                     .map(|(_, a)| {
                         let nft_ts = g
-                            .edges_par(a, Direction::IN, nft)
+                            .layer(nft)
+                            .in_edges_par(a)
                             .map(|(eid, b)| {
                                 (
                                     b,
@@ -78,7 +80,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                         .into_iter()
                                         .zip(edge_ts.slice(i + 1..len))
                                     {
-                                        if program_t < t
+                                        if program_t < &t
                                             || nft_t < &program_t
                                             || nft_t - t >= WINDOW
                                         {

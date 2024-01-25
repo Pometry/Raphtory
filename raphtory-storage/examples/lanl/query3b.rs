@@ -55,7 +55,8 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let a = edge.dst();
 
                 let nfts: usize = g
-                    .edges_par(a, Direction::IN, nft)
+                    .layer(nft)
+                    .in_edges_par(a)
                     .filter(|(eid, b)| &a != b)
                     .map(|(eid, b)| {
                         g.edge(eid, nft)

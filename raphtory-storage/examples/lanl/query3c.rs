@@ -49,7 +49,8 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let a = edge.dst();
 
                 let nfts: Vec<i64> = g
-                    .edges_par(a, Direction::IN, nft)
+                    .layer(nft)
+                    .in_edges_par(a)
                     .filter(|(_, b)| &a != b)
                     .flat_map_iter(|(eid, _)| {
                         g.edge(eid, nft)
