@@ -84,6 +84,9 @@ impl TempColGraphFragment {
         let files = collected_files.into_iter();
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
         let mut edge_tprops_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
+        let mut adj_in_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
+        let mut adj_in_srcs_chunks: Vec<PrimitiveArray<u64>> = vec![];
+        let mut adj_in_eids_chunks: Vec<PrimitiveArray<u64>> = vec![];
 
         let mut t_props: Vec<StructArray> = vec![];
 
@@ -124,6 +127,28 @@ impl TempColGraphFragment {
                     t_props.push(t_prop_array);
                 }
                 GraphPaths::NodeAdditionsOffsets => todo!(),
+                GraphPaths::AdjInSrcs => {
+                    let chunk = read_or_mmap_chunk(mmap, &path)?;
+                    let array = chunk[0]
+                        .as_any()
+                        .downcast_ref::<PrimitiveArray<u64>>()
+                        .unwrap()
+                        .clone();
+                    adj_in_srcs_chunks.push(array);
+                }
+                GraphPaths::AdjInEdges => {
+                    let chunk = read_or_mmap_chunk(mmap, &path)?;
+                    let array = chunk[0]
+                        .as_any()
+                        .downcast_ref::<PrimitiveArray<u64>>()
+                        .unwrap()
+                        .clone();
+                    adj_in_eids_chunks.push(array);
+                }
+                GraphPaths::AdjInOffsets => {
+                    let chunk = unsafe { mmap_buffer(&path, 0) }?;
+                    adj_in_offsets_chunks.push(unsafe { OffsetsBuffer::new_unchecked(chunk) });
+                }
             }
         }
 
@@ -135,7 +160,19 @@ impl TempColGraphFragment {
             layer_id,
         );
 
-        let nodes = Nodes::new(node_gids, adj_out_offsets_chunks, edges.dst_ids.clone());
+        let nodes = if !adj_in_offsets_chunks.is_empty() {
+            Nodes::new_with_inbound(
+                node_gids,
+                adj_out_offsets_chunks,
+                edges.dst_ids.clone(),
+                adj_in_offsets_chunks,
+                adj_in_srcs_chunks,
+                adj_in_eids_chunks,
+            )
+        } else {
+            Nodes::new(node_gids, adj_out_offsets_chunks, edges.dst_ids.clone())
+        };
+
         let has_additions = nodes.additions.len() > 0;
 
         let edges_chunk_size = edges.t_props_chunk_size();
