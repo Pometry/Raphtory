@@ -727,9 +727,6 @@ impl TempColGraphFragment {
             cum_sum += count.load(Ordering::Relaxed);
             offsets.push(cum_sum)?;
         }
-        for _ in offsets.len()..outbound.len() {
-            offsets.push(cum_sum)?;
-        }
         let offsets = offsets.finish()?;
 
         let mut inbound_src = MutablePrimitiveChunkedArray::new(
