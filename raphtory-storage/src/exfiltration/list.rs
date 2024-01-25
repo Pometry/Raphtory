@@ -634,31 +634,4 @@ mod test {
         println!("{:?}", actual);
         assert_eq!(actual.len(), 2);
     }
-    #[test]
-    #[ignore]
-    fn test_broken_vertex() {
-        let data: &Path = "/Users/lucasjeub/Data/netflow".as_ref();
-        let graph = TemporalGraph::new(data).unwrap();
-
-        let vertices = [VID(94592)];
-        let result: Vec<_> = query_per_vertex(&graph, 30, vertices.into_par_iter())
-            .unwrap()
-            .flat_map_iter(|(_, iter)| {
-                iter.map(|(l, p, n)| {
-                    (
-                        l.timestamp(),
-                        p.timestamp(),
-                        n.timestamp(),
-                        l.src().0,
-                        p.src().0,
-                        n.dst().0,
-                    )
-                })
-            })
-            .collect();
-        for res in &result {
-            println!("{res:?}");
-        }
-        assert_eq!(result.len(), 248);
-    }
 }
