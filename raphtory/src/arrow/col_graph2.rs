@@ -721,10 +721,13 @@ impl TempColGraphFragment {
             Some((GraphPaths::AdjInOffsets, self.graph_dir.to_path_buf())),
             true,
         );
-        offsets.push(0)?;
+
         let mut cum_sum = 0;
         for count in counts {
             cum_sum += count.load(Ordering::Relaxed);
+            offsets.push(cum_sum)?;
+        }
+        for _ in offsets.len()..outbound.len() {
             offsets.push(cum_sum)?;
         }
         let offsets = offsets.finish()?;
