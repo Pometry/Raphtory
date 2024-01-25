@@ -223,6 +223,17 @@ impl PyGraph {
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
+    /// Import a single node into the graph.
+    ///
+    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the node even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///     node (Node) - A PyNode object representing the node to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+    ///
+    /// Returns:
+    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
     #[pyo3(signature = (node, force=false))]
     pub fn import_node(
         &self,
@@ -232,6 +243,18 @@ impl PyGraph {
         self.graph.import_node(&node.node, force)
     }
 
+    /// Import multiple nodes into the graph.
+    ///
+    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the nodes even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+    ///
+    /// Returns:
+    ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
     #[pyo3(signature = (nodes, force=false))]
     pub fn import_nodes(
         &self,
@@ -242,6 +265,18 @@ impl PyGraph {
         self.graph.import_nodes(nodeviews, force)
     }
 
+    /// Import a single edge into the graph.
+    ///
+    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edge even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edge (Edge) - A PyEdge object representing the edge to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+    ///
+    /// Returns:
+    ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
     #[pyo3(signature = (edge, force=false))]
     pub fn import_edge(
         &self,
@@ -251,6 +286,18 @@ impl PyGraph {
         self.graph.import_edge(&edge.edge, force)
     }
 
+    /// Import multiple edges into the graph.
+    ///
+    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edges even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
+    ///
+    /// Returns:
+    ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
     #[pyo3(signature = (edges, force=false))]
     pub fn import_edges(
         &self,
