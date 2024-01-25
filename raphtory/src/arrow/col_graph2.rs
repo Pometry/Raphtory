@@ -53,10 +53,13 @@ pub struct TempColGraphFragment {
 pub fn list_sorted_files(
     path: impl AsRef<Path>,
 ) -> Result<impl Iterator<Item = (GraphPaths, PathBuf)>, Error> {
-    let iter = std::fs::read_dir(&path)?.flatten().filter_map(|dir| {
-        let path = dir.path();
-        GraphPaths::try_from(&path).map(|p| (p, path))
-    });
+    let iter = std::fs::read_dir(&path)?
+        .flatten()
+        .filter_map(|dir| {
+            let path = dir.path();
+            GraphPaths::try_from(&path).map(|p| (p, path))
+        })
+        .sorted();
     Ok(iter)
 }
 
@@ -319,16 +322,26 @@ impl TempColGraphFragment {
         edge_chunk_size: usize,
     ) -> Result<Self, Error> {
         let mut times: Vec<i64> = vec![];
-        let mut src_ids: Vec<u64> = vec![];
-        let mut dst_ids: Vec<u64> = vec![];
+        let mut src_ids: Vec<GID> = vec![];
+        let mut dst_ids: Vec<GID> = vec![];
         let mut weights: Vec<f64> = vec![];
         let mut go = GlobalMap::default();
 
         for (time, src, dst, weight) in edges {
             times.push(time);
-            src_ids.push(go.get_or_insert(src) as u64);
-            dst_ids.push(go.get_or_insert(dst) as u64);
+            src_ids.push(src.into());
+            dst_ids.push(dst.into());
             weights.push(weight);
+        }
+
+        for (index, id) in src_ids
+            .iter()
+            .chain(dst_ids.iter())
+            .sorted()
+            .dedup()
+            .enumerate()
+        {
+            go.insert(id.clone(), index);
         }
 
         let mut sorted_gids_iter = go.sorted_gids().peekable();
@@ -348,8 +361,29 @@ impl TempColGraphFragment {
             }
         };
 
-        let srcs = PrimitiveArray::from_vec(src_ids).boxed();
-        let dsts = PrimitiveArray::from_vec(dst_ids).boxed();
+        let srcs = match &src_ids[0] {
+            GID::U64(_) => {
+                PrimitiveArray::from_iter(src_ids.into_iter().map(|v| v.into_u64())).boxed()
+            }
+            GID::I64(_) => {
+                PrimitiveArray::from_iter(src_ids.into_iter().map(|v| v.into_i64())).boxed()
+            }
+            GID::Str(_) => {
+                <Utf8Array<i64>>::from_iter(src_ids.into_iter().map(|v| v.into_str())).boxed()
+            }
+        };
+
+        let dsts = match &dst_ids[0] {
+            GID::U64(_) => {
+                PrimitiveArray::from_iter(dst_ids.into_iter().map(|v| v.into_u64())).boxed()
+            }
+            GID::I64(_) => {
+                PrimitiveArray::from_iter(dst_ids.into_iter().map(|v| v.into_i64())).boxed()
+            }
+            GID::Str(_) => {
+                <Utf8Array<i64>>::from_iter(dst_ids.into_iter().map(|v| v.into_str())).boxed()
+            }
+        };
         let time = PrimitiveArray::from_vec(times).boxed();
         let weight = PrimitiveArray::from_vec(weights).boxed();
 
@@ -1459,7 +1493,7 @@ mod test {
             2,
         )
         .unwrap();
-        assert_eq!(graph.num_nodes(), 11);
+        assert_eq!(graph.num_nodes(), 7);
     }
 
     #[test]

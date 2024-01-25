@@ -156,7 +156,11 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
                 .into_par_iter()
                 .map(|arr| {
                     arr.values_iter()
-                        .map(|id| go.find(&GID::U64(*id)).map(|id| id as u64).unwrap())
+                        .map(|id| {
+                            go.find(&GID::U64(*id))
+                                .map(|id| id as u64)
+                                .expect(&format!("id {id:?} should exist in {go:?}"))
+                        })
                         .collect_vec()
                 })
                 .collect::<Vec<_>>();
@@ -227,6 +231,7 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
             deduped_src_ids.push(src);
             deduped_dst_ids.push(dst);
         }
+        let (last_src, last_dst) = last;
         if src == last_src {
             if dst != last_dst {
                 src_counts.last_mut().expect("this should not be empty").1 += 1;
@@ -300,6 +305,27 @@ mod test {
                 deduped_dst_ids: vec![1, 2, 2],
                 edge_counts: vec![2, 1, 1],
                 src_counts: vec![(0, 2), (1, 1)],
+            }
+        );
+    }
+
+    #[test]
+    fn self_loops() {
+        let chunk = Chunk::new(vec![
+            PrimitiveArray::from_vec(vec![0i64, 0, 2, 2, 2]).boxed(),
+            PrimitiveArray::from_vec(vec![0i64, 1, 1, 2, 2]).boxed(),
+        ]);
+
+        let go = GlobalMap::from(vec![GID::I64(0), GID::I64(1), GID::I64(2), GID::I64(3)]);
+        let actual = resolve_and_dedup_chunk(chunk, &go).unwrap();
+
+        assert_eq!(
+            actual,
+            LoadingState {
+                deduped_src_ids: vec![0, 0, 2, 2],
+                deduped_dst_ids: vec![0, 1, 1, 2],
+                edge_counts: vec![1, 1, 1, 2],
+                src_counts: vec![(0, 2), (2, 2)],
             }
         );
     }

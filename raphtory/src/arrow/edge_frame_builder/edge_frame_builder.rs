@@ -90,7 +90,9 @@ impl EdgeFrameBuilder {
 
         let (first_src, first_count) = src_counts[0];
         if self.last_update.map(|(src, _)| src) == Some(first_src) {
-            *self.cur_adj_out_offset.last_mut().unwrap() += first_count as i64;
+            if self.last_update != Some(first) {
+                *self.cur_adj_out_offset.last_mut().unwrap() += first_count as i64;
+            }
             self.update_adj_out_offsets(&src_counts[1..])?;
         } else {
             self.update_adj_out_offsets(&src_counts)?;
@@ -275,9 +277,13 @@ fn extend_offsets<'a, I: IntoIterator<Item = &'a usize>>(offsets: &mut Vec<i64>,
 
 #[cfg(test)]
 mod test {
+    use crate::arrow::chunked_array::{
+        chunked_array::ChunkedArray, chunked_offsets::ChunkedOffsets,
+    };
     use arrow2::{array::PrimitiveArray, buffer::Buffer, offset::OffsetsBuffer};
+    use itertools::Itertools;
 
-    use crate::arrow::parquet_source::LoadingState;
+    use crate::arrow::{parquet_source::LoadingState, prelude::BaseArrayOps};
 
     #[test]
     fn load_1_edge() {
@@ -413,5 +419,79 @@ mod test {
             edge_builder.adj_out_offsets,
             vec![adj_out_offsets1, adj_out_offsets2]
         );
+    }
+
+    #[test]
+    fn load_2_chunks_with_dups() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let mut edge_builder = super::EdgeFrameBuilder::new(2, tempdir.path());
+
+        let state1 = LoadingState {
+            deduped_src_ids: vec![0, 0],
+            deduped_dst_ids: vec![1, 2],
+            edge_counts: vec![1, 1],
+            src_counts: vec![(0, 2)],
+        };
+        let state2 = LoadingState {
+            deduped_src_ids: vec![0, 1, 1],
+            deduped_dst_ids: vec![2, 2, 3],
+            edge_counts: vec![1, 1, 2],
+            src_counts: vec![(0, 1), (1, 2)],
+        };
+
+        let states = vec![state1, state2];
+
+        for state in states {
+            edge_builder
+                .push_update_state(state)
+                .expect("push update state");
+        }
+
+        edge_builder.finalize(4).expect("finalize");
+
+        let adj_out_offsets = ChunkedOffsets::from(edge_builder.adj_out_offsets);
+        let dst_ids = ChunkedArray::from(edge_builder.dst_chunks);
+        println!("offsets: {adj_out_offsets:?}, values: {dst_ids:?}");
+        assert_eq!(adj_out_offsets.last(), dst_ids.len());
+
+        assert_eq!(adj_out_offsets.lengths().collect_vec(), [2, 2, 0, 0]);
+        assert_eq!(dst_ids.into_iter().flatten().collect_vec(), [1, 2, 2, 3]);
+    }
+
+    #[test]
+    fn load_2_chunks_start_at_2_with_dups() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let mut edge_builder = super::EdgeFrameBuilder::new(2, tempdir.path());
+
+        let state1 = LoadingState {
+            deduped_src_ids: vec![2, 2],
+            deduped_dst_ids: vec![3, 4],
+            edge_counts: vec![1, 1],
+            src_counts: vec![(2, 2)],
+        };
+        let state2 = LoadingState {
+            deduped_src_ids: vec![2, 3, 3],
+            deduped_dst_ids: vec![4, 1, 5],
+            edge_counts: vec![1, 1, 1],
+            src_counts: vec![(2, 1), (3, 2)],
+        };
+
+        let states = vec![state1, state2];
+
+        for state in states {
+            edge_builder
+                .push_update_state(state)
+                .expect("push update state");
+        }
+
+        edge_builder.finalize(6).expect("finalize");
+
+        let adj_out_offsets = ChunkedOffsets::from(edge_builder.adj_out_offsets);
+        let dst_ids = ChunkedArray::from(edge_builder.dst_chunks);
+        println!("offsets: {adj_out_offsets:?}, values: {dst_ids:?}");
+        assert_eq!(adj_out_offsets.last(), dst_ids.len());
+
+        assert_eq!(adj_out_offsets.lengths().collect_vec(), [0, 0, 2, 2, 0, 0]);
+        assert_eq!(dst_ids.into_iter().flatten().collect_vec(), [3, 4, 1, 5]);
     }
 }

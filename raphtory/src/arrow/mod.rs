@@ -90,7 +90,7 @@ pub(crate) mod file_prefix {
     };
     use strum::{AsRefStr, EnumString};
 
-    #[derive(AsRefStr, EnumString, PartialEq)]
+    #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq)]
     pub enum GraphPaths {
         EdgeIds,
         NodeAdditionsOffsets,
