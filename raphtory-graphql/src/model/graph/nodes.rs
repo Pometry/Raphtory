@@ -106,4 +106,8 @@ impl GqlNodes {
     async fn list(&self) -> Vec<Node> {
         self.iter().collect()
     }
+
+    async fn ids(&self) -> Vec<String> {
+        self.nn.name().collect()
+    }
 }
