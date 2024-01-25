@@ -146,11 +146,45 @@ pub trait AdditionOps: StaticGraphViewOps {
         force: Option<bool>,
     ) -> Result<Vec<NodeView<Self, Self>>, GraphError>;
 
+    /// Imports a single edge into the graph.
+    ///
+    /// This function takes a reference to an edge and an optional boolean flag `force`.
+    /// If `force` is `Some(false)` or `None`, the function will return an error if the edge already exists in the graph.
+    /// If `force` is `Some(true)`, the function will overwrite the existing edge in the graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `edge` - A reference to the edge to be imported.
+    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing edge.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` which is `Ok` if the edge was successfully imported, and `Err` otherwise.
     fn import_edge<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         edge: &EdgeView<GHH, GH>,
         force: Option<bool>,
     ) -> Result<EdgeView<Self, Self>, GraphError>;
+
+    /// Imports multiple edges into the graph.
+    ///
+    /// This function takes a vector of references to edges and an optional boolean flag `force`.
+    /// If `force` is `Some(false)` or `None`, the function will return an error if any of the edges already exist in the graph.
+    /// If `force` is `Some(true)`, the function will overwrite the existing edges in the graph.
+    ///
+    /// # Arguments
+    ///
+    /// * `edges` - A vector of references to the edges to be imported.
+    /// * `force` - An optional boolean flag. If `Some(true)`, the function will overwrite the existing edges.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` which is `Ok` if the edges were successfully imported, and `Err` otherwise.
+    fn import_edges<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+        &self,
+        edges: Vec<&EdgeView<GHH, GH>>,
+        force: Option<bool>,
+    ) -> Result<Vec<EdgeView<Self, Self>>, GraphError>;
 }
 
 impl<G: InternalAdditionOps + StaticGraphViewOps + InternalPropertyAdditionOps> AdditionOps for G {
@@ -233,6 +267,19 @@ impl<G: InternalAdditionOps + StaticGraphViewOps + InternalPropertyAdditionOps> 
         Ok(added_nodes)
     }
 
+    fn import_edges<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
+        &self,
+        edges: Vec<&EdgeView<GHH, GH>>,
+        force: Option<bool>,
+    ) -> Result<Vec<EdgeView<Self, Self>>, GraphError> {
+        let mut added_edges = vec![];
+        for edge in edges {
+            let res = self.import_edge(edge, force);
+            added_edges.push(res.unwrap())
+        }
+        Ok(added_edges)
+    }
+
     fn import_edge<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         edge: &EdgeView<GHH, GH>,
@@ -244,11 +291,10 @@ impl<G: InternalAdditionOps + StaticGraphViewOps + InternalPropertyAdditionOps> 
             self.resolve_layer(Some(&layer));
         }
         if force == Some(false) || force.is_none() {
-            if self.edge(edge.src(), edge.dst()).is_some() {
+            if self.has_edge(edge.src().name(), edge.dst().name()) {
                 return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
             }
         }
-
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for ee in edge.explode_layers() {
             let layer_id = *ee.edge.layer().expect("exploded layers");
@@ -259,7 +305,6 @@ impl<G: InternalAdditionOps + StaticGraphViewOps + InternalPropertyAdditionOps> 
             } else {
                 Some(&layer_name)
             };
-
             for ee in ee.explode() {
                 self.add_edge(
                     ee.time().expect("exploded edge"),
@@ -269,11 +314,10 @@ impl<G: InternalAdditionOps + StaticGraphViewOps + InternalPropertyAdditionOps> 
                     layer_name,
                 )?;
             }
-
             self.edge(ee.src().id(), ee.dst().id())
                 .expect("edge added")
                 .add_constant_properties(ee.properties().constant(), layer_name)?;
         }
-        Ok(self.edge(edge.src(), edge.dst()).unwrap())
+        Ok(self.edge(edge.src().name(), edge.dst().name()).unwrap())
     }
 }

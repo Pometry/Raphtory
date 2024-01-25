@@ -304,7 +304,7 @@ mod db_tests {
     }
 
     #[test]
-    fn import_node_from_another_graph() {
+    fn import_from_another_graph() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS).unwrap();
         let g_b = g
@@ -328,6 +328,31 @@ mod db_tests {
         let res = gg.import_nodes(vec![&g_a, &g_b], None).unwrap();
         assert_eq!(res.len(), 2);
         assert_eq!(res.iter().map(|n| n.name()).collect_vec(), vec!["A", "B"]);
+
+        let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
+        let res = gg.import_edge(&e_a_b, None).unwrap();
+        assert_eq!(
+            (res.src().name(), res.dst().name()),
+            (e_a_b.src().name(), e_a_b.dst().name())
+        );
+        let e_a_b_p = g
+            .add_edge(
+                3,
+                "A",
+                "B",
+                vec![("etemp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+        let gg = Graph::new();
+        gg.add_node(0, "B", NO_PROPS);
+        let res = gg.import_edge(&e_a_b_p, None).expect("Failed to add edge");
+        assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
+
+        let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
+        let gg = Graph::new();
+        let res = gg.import_edges(vec![&e_a_b, &e_c_d], None).unwrap();
+        assert_eq!(res.len(), 2);
     }
 
     #[test]
