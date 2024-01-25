@@ -183,10 +183,10 @@ impl TempColGraphFragment {
             graph_dir: graph_dir.into(),
         };
 
-        if !has_additions {
-            println!("No additions found, building them");
-            grapho.node_additions_2(edges_chunk_size)?;
-        }
+        // if !has_additions {
+        //     println!("No additions found, building them");
+        //     grapho.node_additions_2(edges_chunk_size)?;
+        // }
 
         Ok(grapho)
     }
@@ -887,7 +887,7 @@ mod test {
             triples,
         )?;
         graph.build_inbound_adj_index()?;
-        graph.node_additions_2(t_props_chunk_size)?;
+        // graph.node_additions_2(t_props_chunk_size)?;
         Ok(graph)
     }
 
@@ -1451,7 +1451,7 @@ mod test {
         ];
         assert_eq!(all_exploded, expected);
         graph.build_inbound_adj_index().unwrap();
-        graph.node_additions_2(2).unwrap();
+        // graph.node_additions_2(2).unwrap();
 
         let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
         let reloaded_graph =
