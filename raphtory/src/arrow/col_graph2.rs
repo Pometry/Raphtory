@@ -560,9 +560,11 @@ impl TempColGraphFragment {
     ) -> Result<Self, Error> {
         prepare_graph_dir(graph_dir)?;
 
+        let now = std::time::Instant::now();
+
         let source = ParquetSource::new(
             files.into_iter().cloned().collect(),
-            4,
+            8,
             Some(vec![src_col, dst_col]),
             |chunk| {
                 // get the source and dest and map them to their IDs also dedupe them
@@ -579,6 +581,10 @@ impl TempColGraphFragment {
         // finalize edge_builder
         edge_builder.finalize(global_order.len())?;
 
+        println!("Edge builder took {:?}", now.elapsed());
+
+        let now = std::time::Instant::now();
+
         let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
         excluded_cols.extend_from_slice(exclude_cols);
 
@@ -592,8 +598,9 @@ impl TempColGraphFragment {
         )?;
 
         let t_prop_values = reader.load_t_edge_values(num_threads, t_props_chunk_size)?;
-        let edge_offsets = edge_builder.edge_offsets;
+        println!("COPY T prop values took {:?}", now.elapsed());
 
+        let edge_offsets = edge_builder.edge_offsets;
         let edges = Edges::from_parts(
             edge_builder.src_chunks,
             edge_builder.dst_chunks,
@@ -604,7 +611,6 @@ impl TempColGraphFragment {
 
         let dst_ids = edges.dst_ids.clone();
 
-        // FIXME: remove this and use Nodes2
         let nodes = Nodes::new(gids, edge_builder.adj_out_offsets, dst_ids);
 
         Ok(TempColGraphFragment {

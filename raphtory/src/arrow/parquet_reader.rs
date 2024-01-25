@@ -1,5 +1,3 @@
-use crate::arrow::chunked_array::array_ops::BaseArrayOps;
-
 use super::{edge_frame_builder::edge_props_builder::EdgePropsBuilder, Error};
 use arrow2::{
     array::{Array, StructArray},
@@ -25,7 +23,6 @@ use std::{
 pub(crate) struct ParquetReader<P, V = Vec<PathBuf>> {
     files: V,
     edge_t_prop_schema: Schema,
-    src_dest_schema: Schema,
     edge_props_builder: EdgePropsBuilder<P>,
 }
 
@@ -43,10 +40,6 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         let parquet_meta = read_file_metadata(first_file)?;
         let schema = infer_schema(&parquet_meta)?;
 
-        let src_dest_schema = schema
-            .clone()
-            .filter(|_, field| field.name == src_col || field.name == dst_col);
-
         let edge_t_prop_schema =
             schema.filter(|_, field| !excluded_cols.contains(&field.name.as_str()));
         let time_col = edge_t_prop_schema
@@ -60,7 +53,6 @@ impl<P: AsRef<Path> + Clone + Send + Sync, V: Borrow<[PathBuf]> + Send + Sync> P
         Ok(Self {
             files,
             edge_t_prop_schema,
-            src_dest_schema,
             edge_props_builder,
         })
     }

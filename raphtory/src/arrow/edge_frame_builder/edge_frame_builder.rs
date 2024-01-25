@@ -17,6 +17,7 @@ use std::{
     cmp::min,
     mem,
     path::{Path, PathBuf},
+    thread::JoinHandle,
 };
 
 use crate::arrow::Error;
@@ -38,6 +39,8 @@ pub struct EdgeFrameBuilder {
     chunk_size: usize,
     pub(crate) last_update: Option<(u64, u64)>,
     location_path: PathBuf,
+
+    thread_handles: Vec<JoinHandle<(PrimitiveArray<u64>, PrimitiveArray<u64>)>>,
 }
 
 impl EdgeFrameBuilder {
@@ -58,11 +61,12 @@ impl EdgeFrameBuilder {
             chunk_size,
             last_update: None,
             location_path: path.as_ref().to_path_buf(),
+            thread_handles: vec![],
         }
     }
 
     pub(crate) fn push_update_state(&mut self, state: LoadingState) -> Result<(), Error> {
-        println!("state: {state:?}");
+        // println!("state: {state:?}");
 
         let LoadingState {
             deduped_src_ids,
@@ -220,24 +224,28 @@ impl EdgeFrameBuilder {
             Field::new(SRC_COLUMN, DataType::UInt64, false),
             Field::new(DST_COLUMN, DataType::UInt64, false),
         ]);
-        let file_path = GraphPaths::EdgeIds.to_path(&self.location_path, self.src_chunks.len());
-        let chunk = Chunk::new(vec![
-            PrimitiveArray::from_vec(src).boxed(),
-            PrimitiveArray::from_vec(dst).boxed(),
-        ]);
-        write_batches(file_path.as_path(), schema, &[chunk])?;
-        let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0)? };
-        let src = mmapped_chunk[0]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<u64>>()
-            .unwrap();
-        let dst = mmapped_chunk[1]
-            .as_any()
-            .downcast_ref::<PrimitiveArray<u64>>()
-            .unwrap();
 
-        self.src_chunks.push(src.clone());
-        self.dst_chunks.push(dst.clone());
+        let file_path = GraphPaths::EdgeIds.to_path(&self.location_path, self.thread_handles.len());
+
+        let handle = std::thread::spawn(move || {
+            let chunk = Chunk::new(vec![
+                PrimitiveArray::from_vec(src).boxed(),
+                PrimitiveArray::from_vec(dst).boxed(),
+            ]);
+            write_batches(file_path.as_path(), schema, &[chunk]).expect("write batches");
+            let mmapped_chunk = unsafe { mmap_batch(file_path.as_path(), 0).expect("mmap batch") };
+            let src = mmapped_chunk[0]
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap();
+            let dst = mmapped_chunk[1]
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap();
+            (src.clone(), dst.clone())
+        });
+
+        self.thread_handles.push(handle);
 
         Ok(())
     }
@@ -251,6 +259,13 @@ impl EdgeFrameBuilder {
         self.persist_adj_out_offset_chunk(adj_out_offsets)?;
         let edge_offsets = mem::take(&mut self.cur_edge_offset);
         self.persist_edge_offset_chunk(edge_offsets)?;
+
+        for handle in self.thread_handles.drain(..) {
+            let (src, dst) = handle.join().expect("join");
+            self.src_chunks.push(src);
+            self.dst_chunks.push(dst);
+        }
+
         Ok(())
     }
 

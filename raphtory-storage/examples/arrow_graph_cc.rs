@@ -1,9 +1,9 @@
-use std::{cmp::Reverse, thread::panicking, time::Instant};
+use std::time::Instant;
 
-use itertools::Itertools;
 use raphtory::{
-    algorithms::components::weakly_connected_components, arrow::graph_impl::Graph2, prelude::*,
+    arrow::graph_impl::Graph2, prelude::*,
 };
+
 fn main() {
     let graph_dir = std::env::args()
         .nth(1)
@@ -17,8 +17,8 @@ fn main() {
     // else call create_path
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
-        //     Graph2::open_path(graph_dir).expect("Cannot open graph")
-        // } else {
+        Graph2::open_path(graph_dir).expect("Cannot open graph")
+    } else {
         let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
         let chunk_size = 8_388_608;
         let t_props_chunk_size = 20_970_100;
@@ -34,12 +34,12 @@ fn main() {
             chunk_size,
             chunk_size,
             t_props_chunk_size,
+            Some(4_000_000),
+            Some(8),
         )
-        .expect("Cannot load graph");
+            .expect("Cannot load graph");
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
-    } else {
-        panic!("Graph directory does not exist")
     };
 
     println!("Graph has {} nodes", graph2.count_nodes());

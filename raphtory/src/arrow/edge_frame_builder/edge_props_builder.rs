@@ -15,15 +15,6 @@ use crate::arrow::{
     Error,
 };
 
-fn extend_offsets<I: IntoIterator<Item = usize>>(offsets: &mut Vec<i64>, counts: I) {
-    let last_value = *offsets.last().unwrap(); // FIXME: could initialise here?
-    offsets.extend(counts.into_iter().scan(last_value, |state, v| {
-        let new = v as i64 + *state;
-        *state = new;
-        Some(new)
-    }));
-}
-
 pub struct EdgePropsBuilder<P> {
     graph_dir: P,
     time_col_idx: usize,
@@ -89,7 +80,6 @@ fn write_temporal_properties(
     let schema = Schema::from(fields.clone());
 
     write_batches(file_path.as_ref(), schema, &[Chunk::new(values)])?;
-    // let mmapped_chunk = ipc::read_batch(file_path.as_ref()).unwrap(); // uncomment for better errors in case of broken ipc file
     let mmapped_chunk = unsafe { mmap_batch(file_path.as_ref(), 0)? };
     let mmapped = StructArray::new(DataType::Struct(fields), mmapped_chunk.into_arrays(), None);
     Ok(mmapped)

@@ -1,4 +1,5 @@
-use crate::arrow::{Error, GID};
+use std::path::PathBuf;
+
 use arrow2::{
     array::{Array, Utf8Array},
     chunk::Chunk,
@@ -7,7 +8,8 @@ use arrow2::{
 };
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::path::PathBuf;
+
+use crate::arrow::{Error, GID};
 
 use super::{
     global_order::GlobalOrder,
@@ -62,6 +64,7 @@ where
             .collect_vec();
 
         file_groups.into_iter().for_each(|file_group| {
+            let last = file_group.last().cloned();
             let mut chunks = file_group
                 .into_par_iter()
                 .flat_map(|file| {
@@ -94,6 +97,7 @@ where
                     format!("Failed to process chunk {:?} from file {:?}", id, file).as_str(),
                 )
             });
+            println!("Finished processing file {:?}", last);
         });
         Ok(())
     }

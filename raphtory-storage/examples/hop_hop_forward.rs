@@ -1,15 +1,3 @@
-use ahash::HashSet;
-use dashmap::DashMap;
-use itertools::Itertools;
-use raphtory::{
-    arrow::{graph::TemporalGraph, loader::ExternalEdgeList, prelude::*, Time},
-    core::{entities::VID, Direction},
-};
-use rayon::{
-    iter::IntoParallelIterator,
-    prelude::{IntoParallelRefIterator, ParallelIterator},
-    ThreadPoolBuilder,
-};
 use std::{
     collections::HashMap,
     sync::{
@@ -17,6 +5,20 @@ use std::{
         Arc,
     },
     time::Instant,
+};
+
+use ahash::HashSet;
+use dashmap::DashMap;
+use itertools::Itertools;
+use rayon::{
+    iter::IntoParallelIterator,
+    prelude::{IntoParallelRefIterator, ParallelIterator},
+    ThreadPoolBuilder,
+};
+
+use raphtory::{
+    arrow::{graph::TemporalGraph, loader::ExternalEdgeList, prelude::*, Time},
+    core::entities::VID,
 };
 
 fn query1(g: &TemporalGraph) -> Option<usize> {
@@ -328,6 +330,8 @@ fn main() {
             chunk_size,
             chunk_size,
             t_props_chunk_size,
+            None,
+            None,
             graph_dir,
             layered_edge_list,
         )
@@ -336,6 +340,10 @@ fn main() {
     };
     println!("Time taken to load graph: {:?}", now.elapsed());
 
+    println!("graph nodes count {}", graph.num_nodes());
+    println!("graph edges count netflow {}", graph.num_edges(0));
+    println!("graph edges count 1v {}", graph.num_edges(1));
+    println!("graph edges count 2v {}", graph.num_edges(2));
     let now = Instant::now();
 
     //     MATCH

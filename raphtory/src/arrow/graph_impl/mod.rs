@@ -122,6 +122,8 @@ impl Graph2 {
         node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
+        read_chunk_size: Option<usize>,
+        concurrent_files: Option<usize>,
     ) -> Result<Graph2, Error> {
         let edge_list = ExternalEdgeList::new(
             "default",
@@ -137,6 +139,8 @@ impl Graph2 {
             node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
             graph_dir.as_ref(),
             [edge_list],
         )?;

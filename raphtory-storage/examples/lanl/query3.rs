@@ -4,7 +4,6 @@ use raphtory::{
         graph::TemporalGraph,
         prelude::{ArrayOps, BaseArrayOps},
     },
-    core::Direction,
 };
 use rayon::prelude::*;
 

@@ -4,13 +4,10 @@ use std::{
 };
 
 use arrow2::{
-    array::{Array, MutableUtf8Array, PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, Utf8Array},
     chunk::Chunk,
-    compute::{
-        merge_sort,
-        sort::{self, SortColumn, SortOptions},
-    },
-    datatypes::{Field, Schema},
+    compute::sort::{self, SortColumn},
+    datatypes::{DataType, Field, Schema},
     io::parquet::read,
 };
 use itertools::Itertools;
@@ -18,7 +15,7 @@ use rayon::prelude::*;
 
 use crate::arrow::mmap::{mmap_batch, write_batches};
 
-use super::{global_order::SortedGIDs, ipc, Error, GraphChunk};
+use super::{global_order::SortedGIDs, Error};
 
 #[derive(Debug)]
 pub struct ExternalEdgeList<'a, P: AsRef<Path>> {
@@ -76,8 +73,9 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
 
     pub(crate) fn par_sorted_nodes(
         &self,
+        read_chunk_size: Option<usize>,
+        concurrent_files: usize,
     ) -> impl Iterator<Item = (Box<dyn Array>, Box<dyn Array>)> + '_ {
-        let concurrent_files = 16;
         let file_groups = self
             .parquet_files
             .iter()
@@ -86,14 +84,13 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
             .map(|c| c.cloned().collect_vec())
             .collect_vec();
 
-        file_groups.into_iter().flat_map(|paths| {
-            let now = std::time::Instant::now();
-
-            let res = paths
+        file_groups.into_iter().flat_map(move |paths| {
+            paths
                 .into_par_iter()
                 .flat_map(|path| {
                     sort_within_chunks_iter(
                         path,
+                        read_chunk_size,
                         self.src_col,
                         self.src_hash_col,
                         self.dst_col,
@@ -104,14 +101,7 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
                 .reduce_with(|(lhs_hash, lhs), (rhs_hash, rhs)| {
                     merge_sort_dest_src((&lhs_hash, &lhs), (&rhs_hash, &rhs))
                         .expect("failed to merge sort destinations and sources")
-                });
-
-            println!(
-                "DONE sorting time: {:?}, len: {}",
-                now.elapsed(),
-                res.as_ref().map(|(_, arr)| arr.len()).unwrap_or(0)
-            );
-            res
+                })
         })
     }
 
@@ -119,18 +109,15 @@ impl<'a, P: AsRef<Path>> ExternalEdgeList<'a, P> {
         &self.parquet_files
     }
 }
+
 pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
     parquet_file: P,
+    read_chunk_size: Option<usize>,
     src_col: &str,
     src_hash_col: &str,
     dst_col: &str,
     dst_hash_col: &str,
 ) -> Result<impl ParallelIterator<Item = (Box<dyn Array>, Box<dyn Array>)>, Error> {
-    let thread_id = std::thread::current().id();
-    println!(
-        "pre sort reading file: {:?} on thread {thread_id:?}",
-        parquet_file.as_ref()
-    );
     let file = std::fs::File::open(&parquet_file)?;
     let mut reader = BufReader::new(file);
     let metadata = read::read_metadata(&mut reader)?;
@@ -143,32 +130,16 @@ pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
             || field.name == dst_hash_col
     });
 
-    let src_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == src_col)
-        .unwrap();
-    let dst_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == dst_col)
-        .unwrap();
-    let src_hash_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == src_hash_col)
-        .unwrap();
-    let dst_hash_idx = schema
-        .fields
-        .iter()
-        .position(|f| f.name == dst_hash_col)
-        .unwrap();
+    let src_idx = find_col_pos(src_col, &schema)?;
+    let dst_idx = find_col_pos(dst_col, &schema)?;
+    let src_hash_idx = find_col_pos(src_hash_col, &schema)?;
+    let dst_hash_idx = find_col_pos(dst_hash_col, &schema)?;
 
     let reader = read::FileReader::new(
         reader,
         metadata.row_groups,
         schema,
-        Some(2_000_000),
+        read_chunk_size,
         None,
         None,
     );
@@ -183,6 +154,17 @@ pub(crate) fn sort_within_chunks_iter<P: AsRef<Path>>(
     });
 
     Ok(sorted_nodes)
+}
+
+fn find_col_pos(src_col: &str, schema: &Schema) -> Result<usize, Error> {
+    schema
+        .fields
+        .iter()
+        .position(|f| f.name == src_col)
+        .ok_or(Error::ColumnNotFound(format!(
+            "Column {} not found in schema: {:?}",
+            src_col, schema
+        )))
 }
 
 pub(crate) fn sort_destinations(
@@ -211,146 +193,143 @@ pub(crate) fn merge_sort_dest_src(
     lhs: (&Box<dyn Array>, &Box<dyn Array>),
     rhs: (&Box<dyn Array>, &Box<dyn Array>),
 ) -> Result<(Box<dyn Array>, Box<dyn Array>), Error> {
-    let options = SortOptions {
-        descending: false,
-        nulls_first: false,
-    };
-
     let (rhs_hash, rhs_nodes) = rhs;
     let (lhs_hash, lhs_nodes) = lhs;
 
-    let hashes = vec![rhs_hash.as_ref(), lhs_hash.as_ref()];
-    let nodes = vec![rhs_nodes.as_ref(), lhs_nodes.as_ref()];
-    let pairs = vec![(hashes.as_ref(), &options), (nodes.as_ref(), &options)];
+    if rhs_nodes.data_type() == &DataType::UInt64 {
+        let (rhs_hash, rhs_nodes) = (
+            rhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            rhs_nodes
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap(),
+        );
+        let (lhs_hash, lhs_nodes) = (
+            lhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            lhs_nodes
+                .as_any()
+                .downcast_ref::<PrimitiveArray<u64>>()
+                .unwrap(),
+        );
 
-    let slices = merge_sort::slices(pairs.as_ref())?;
+        let rhs_iter = rhs_hash
+            .values_iter()
+            .copied()
+            .zip(rhs_nodes.values_iter().copied());
+        let lhs_iter = lhs_hash
+            .values_iter()
+            .copied()
+            .zip(lhs_nodes.values_iter().copied());
 
-    let new_hashes = merge_sort::take_arrays(
-        &[rhs_hash.as_ref(), lhs_hash.as_ref()],
-        slices.iter().copied(),
-        None,
-    );
-    let merged = merge_sort::take_arrays(
-        &[rhs_nodes.as_ref(), lhs_nodes.as_ref()],
-        slices.iter().copied(),
-        None,
-    );
+        let res: (Vec<_>, Vec<_>) = rhs_iter.merge(lhs_iter).dedup().unzip();
+        Ok((
+            PrimitiveArray::from_vec(res.0).boxed(),
+            PrimitiveArray::from_vec(res.1).boxed(),
+        ))
+    } else if rhs_nodes.data_type() == &DataType::Int64 {
+        let (rhs_hash, rhs_nodes) = (
+            rhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            rhs_nodes
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+        );
+        let (lhs_hash, lhs_nodes) = (
+            lhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            lhs_nodes
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+        );
 
-    if let Some(hash_arr) = new_hashes.as_any().downcast_ref::<PrimitiveArray<i64>>() {
-        let mut deduped_hash: Vec<i64> = Vec::with_capacity(hash_arr.len());
+        let rhs_iter = rhs_hash
+            .values_iter()
+            .copied()
+            .zip(rhs_nodes.values_iter().copied());
+        let lhs_iter = lhs_hash
+            .values_iter()
+            .copied()
+            .zip(lhs_nodes.values_iter().copied());
 
-        if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<u64>>() {
-            let mut deduped: Vec<u64> = Vec::with_capacity(arr.len());
-            for (h, v) in hash_arr.values().iter().zip(arr.values().iter()).dedup() {
-                deduped_hash.push(*h);
-                deduped.push(*v);
-            }
-            let arr = PrimitiveArray::from_vec(deduped);
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i64>>() {
-            let mut deduped = MutableUtf8Array::<i64>::new();
-            for (h, v) in hash_arr
-                .values()
-                .iter()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
-                deduped_hash.push(*h);
-                deduped.push(Some(v));
-            }
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            let arr: Utf8Array<i64> = deduped.into();
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else if let Some(arr) = merged.as_any().downcast_ref::<Utf8Array<i32>>() {
-            let mut deduped = MutableUtf8Array::<i32>::new();
-            for (h, v) in hash_arr
-                .values()
-                .iter()
-                .zip(arr.into_iter().flatten())
-                .dedup()
-            {
-                deduped_hash.push(*h);
-                deduped.push(Some(v));
-            }
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            let arr: Utf8Array<i32> = deduped.into();
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else if let Some(arr) = merged.as_any().downcast_ref::<PrimitiveArray<i64>>() {
-            let mut deduped: Vec<i64> = Vec::with_capacity(arr.len());
-            for (h, v) in hash_arr.values().iter().zip(arr.values().iter()).dedup() {
-                deduped_hash.push(*h);
-                deduped.push(*v);
-            }
-            let arr = PrimitiveArray::from_vec(deduped);
-            let next_hash = PrimitiveArray::from_vec(deduped_hash);
-            Ok((next_hash.boxed(), arr.to_boxed()))
-        } else {
-            Err(Error::InvalidTypeColumn(format!(
-                "src or dst column need to be u64, i64 or string, found: {:?}",
-                merged.data_type()
-            )))
-        }
+        let res: (Vec<_>, Vec<_>) = rhs_iter.merge(lhs_iter).dedup().unzip();
+        Ok((
+            PrimitiveArray::from_vec(res.0).boxed(),
+            PrimitiveArray::from_vec(res.1).boxed(),
+        ))
+    } else if rhs_nodes.data_type() == &DataType::LargeUtf8 {
+        let (rhs_hash, rhs_nodes) = (
+            rhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            rhs_nodes.as_any().downcast_ref::<Utf8Array<i64>>().unwrap(),
+        );
+        let (lhs_hash, lhs_nodes) = (
+            lhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            lhs_nodes.as_any().downcast_ref::<Utf8Array<i64>>().unwrap(),
+        );
+
+        let rhs_iter = rhs_hash.values_iter().copied().zip(rhs_nodes.into_iter());
+        let lhs_iter = lhs_hash.values_iter().copied().zip(lhs_nodes.into_iter());
+
+        let res: (Vec<_>, Vec<_>) = rhs_iter.merge(lhs_iter).dedup().unzip();
+        Ok((
+            PrimitiveArray::from_vec(res.0).boxed(),
+            Utf8Array::<i64>::from(res.1).to_boxed(),
+        ))
+    } else if rhs_nodes.data_type() == &DataType::Utf8 {
+        let (rhs_hash, rhs_nodes) = (
+            rhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            rhs_nodes.as_any().downcast_ref::<Utf8Array<i32>>().unwrap(),
+        );
+        let (lhs_hash, lhs_nodes) = (
+            lhs_hash
+                .as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap(),
+            lhs_nodes.as_any().downcast_ref::<Utf8Array<i32>>().unwrap(),
+        );
+
+        let rhs_iter = rhs_hash.values_iter().copied().zip(rhs_nodes.into_iter());
+        let lhs_iter = lhs_hash.values_iter().copied().zip(lhs_nodes.into_iter());
+
+        let res: (Vec<_>, Vec<_>) = rhs_iter.merge(lhs_iter).dedup().unzip();
+        Ok((
+            PrimitiveArray::from_vec(res.0).boxed(),
+            Utf8Array::<i32>::from(res.1).to_boxed(),
+        ))
     } else {
         Err(Error::InvalidTypeColumn(format!(
-            "hash column need to be i64 found: {:?}",
-            new_hashes.data_type()
+            "src or dst column need to be u64, i64 or string, found: {:?}",
+            rhs_nodes.data_type()
         )))
     }
 }
 
-pub(crate) fn read_file_chunks<P: AsRef<Path>>(
-    parquet_file: P,
-    src_col: &str,
-    dst_col: &str,
-    time_col: &str,
-) -> Result<impl Iterator<Item = GraphChunk>, Error> {
-    println!("reading file: {:?}", parquet_file.as_ref());
-
-    let file = std::fs::File::open(&parquet_file)?;
-    let mut reader = BufReader::new(file);
-    let metadata = read::read_metadata(&mut reader)?;
-    let schema = read::infer_schema(&metadata)?;
-    let src_col_field = schema
-        .fields
-        .iter()
-        .find(|field| &field.name == src_col)
-        .ok_or_else(|| Error::ColumnNotFound(src_col.to_owned()))?;
-    let dst_col_field = schema
-        .fields
-        .iter()
-        .find(|field| &field.name == dst_col)
-        .ok_or_else(|| Error::ColumnNotFound(dst_col.to_owned()))?;
-    let time_col_field = schema
-        .fields
-        .iter()
-        .find(|field| &field.name == time_col)
-        .ok_or_else(|| Error::ColumnNotFound(time_col.to_owned()))?;
-
-    let schema = Schema::from(vec![
-        src_col_field.clone(),
-        dst_col_field.clone(),
-        time_col_field.clone(),
-    ])
-    .with_metadata(schema.metadata);
-
-    let reader = read::FileReader::new(
-        reader,
-        metadata.row_groups,
-        schema.clone(),
-        None,
-        None,
-        None,
-    );
-    Ok(reader
-        .flatten()
-        .map(|chunk| GraphChunk::from_chunk(chunk, 0, 1)))
-}
-
-pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
+pub(crate) fn make_global_ordering<P: AsRef<Path> + Sync + Send>(
     sorted_gids_path: impl AsRef<Path>,
-    edge_lists: &[ExternalEdgeList<'a, P>],
+    edge_lists: &[ExternalEdgeList<P>],
     num_threads: usize,
+    read_chunk_size: Option<usize>,
+    concurrent_files: usize,
 ) -> Result<SortedGIDs, Error> {
     let now = std::time::Instant::now();
 
@@ -367,7 +346,7 @@ pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
                 .iter()
                 .filter_map(|e_list| {
                     let res = e_list
-                        .par_sorted_nodes()
+                        .par_sorted_nodes(read_chunk_size, concurrent_files)
                         .reduce(|(l_hash, l), (r_hash, r)| {
                             merge_sort_dest_src((&l_hash, &l), (&r_hash, &r)).unwrap()
                         });
@@ -390,19 +369,6 @@ pub(crate) fn make_global_ordering<'a, P: AsRef<Path> + Sync + Send>(
     );
 
     (Some(node_hashes), nodes).try_into()
-}
-
-fn merge_inter_stage(
-    new_vec: Vec<(Box<dyn Array>, Box<dyn Array>)>,
-) -> (Box<dyn Array>, Box<dyn Array>) {
-    let res = new_vec
-        .into_par_iter()
-        .reduce_with(|(lhs_hash, lhs), (rhs_hash, rhs)| {
-            merge_sort_dest_src((&lhs_hash, &lhs), (&rhs_hash, &rhs))
-                .expect("failed to merge sort destinations and sources")
-        })
-        .unwrap();
-    res
 }
 
 pub(crate) fn persist_sorted_gids(
