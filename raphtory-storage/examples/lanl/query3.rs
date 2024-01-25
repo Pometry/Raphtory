@@ -1,9 +1,7 @@
 use itertools::Itertools;
-use raphtory::{
-    arrow::{
-        graph::TemporalGraph,
-        prelude::{ArrayOps, BaseArrayOps},
-    },
+use raphtory::arrow::{
+    graph::TemporalGraph,
+    prelude::{ArrayOps, BaseArrayOps},
 };
 use rayon::prelude::*;
 

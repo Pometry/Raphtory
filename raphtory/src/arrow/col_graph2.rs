@@ -9,9 +9,20 @@ use std::{
     thread::JoinHandle,
 };
 
+use arrow2::{
+    array::{Array, PrimitiveArray, StructArray, Utf8Array},
+    buffer::Buffer,
+    chunk::Chunk,
+    datatypes::{DataType, Field, Schema},
+    offset::OffsetsBuffer,
+};
+use itertools::Itertools;
+use rayon::prelude::*;
+
 use crate::{
     arrow::{
         chunked_array::{
+            chunked_offsets::ChunkedOffsets,
             list_array::ChunkedListArray,
             mutable_chunked_array::{MutableChunkedOffsets, MutablePrimitiveChunkedArray},
         },
@@ -30,15 +41,6 @@ use crate::{
         Direction,
     },
 };
-use arrow2::{
-    array::{Array, PrimitiveArray, StructArray, Utf8Array},
-    buffer::Buffer,
-    chunk::Chunk,
-    datatypes::{DataType, Field, Schema},
-    offset::OffsetsBuffer,
-};
-use itertools::{kmerge_by, Itertools};
-use rayon::prelude::*;
 
 use super::{
     chunked_array::chunked_array::ChunkedArray,
@@ -79,9 +81,6 @@ impl TempColGraphFragment {
     ) -> Result<Self, Error> {
         let graph_dir = graph_dir.as_ref();
         let files = list_sorted_files(graph_dir)?;
-        let collected_files = files.collect_vec();
-        println!("files: {collected_files:?}");
-        let files = collected_files.into_iter();
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
         let mut edge_tprops_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
         let mut adj_in_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
@@ -92,6 +91,9 @@ impl TempColGraphFragment {
 
         let mut dst_ids_chunks: Vec<PrimitiveArray<u64>> = vec![];
         let mut src_ids_chunks: Vec<PrimitiveArray<u64>> = vec![];
+
+        let mut node_additions_offsets: Vec<OffsetsBuffer<i64>> = vec![];
+        let mut node_additions_chunks: Vec<StructArray> = vec![];
 
         for (file_type, path) in files {
             match file_type {
@@ -126,7 +128,29 @@ impl TempColGraphFragment {
                         StructArray::new(DataType::Struct(schema.fields), arrays, None);
                     t_props.push(t_prop_array);
                 }
-                GraphPaths::NodeAdditionsOffsets => todo!(),
+                GraphPaths::NodeAdditionsOffsets => {
+                    let chunk = unsafe { mmap_buffer(&path, 0) }?;
+                    node_additions_offsets.push(unsafe { OffsetsBuffer::new_unchecked(chunk) });
+                }
+                GraphPaths::NodeAdditions => {
+                    let chunk = read_or_mmap_chunk(mmap, &path)?;
+                    let node_additions = chunk[0]
+                        .as_any()
+                        .downcast_ref::<PrimitiveArray<i64>>()
+                        .unwrap()
+                        .clone();
+
+                    let additions_struct_arr = StructArray::new(
+                        DataType::Struct(vec![Field::new(
+                            "additions",
+                            node_additions.data_type().clone(),
+                            false,
+                        )]),
+                        vec![node_additions.boxed()],
+                        None,
+                    );
+                    node_additions_chunks.push(additions_struct_arr);
+                }
                 GraphPaths::AdjInSrcs => {
                     let chunk = read_or_mmap_chunk(mmap, &path)?;
                     let array = chunk[0]
@@ -173,7 +197,7 @@ impl TempColGraphFragment {
             Nodes::new(node_gids, adj_out_offsets_chunks, edges.dst_ids.clone())
         };
 
-        let has_additions = nodes.additions.len() > 0;
+        let has_additions = node_additions_chunks.len() > 0;
 
         let edges_chunk_size = edges.t_props_chunk_size();
 
@@ -183,10 +207,15 @@ impl TempColGraphFragment {
             graph_dir: graph_dir.into(),
         };
 
-        // if !has_additions {
-        //     println!("No additions found, building them");
-        //     grapho.node_additions_2(edges_chunk_size)?;
-        // }
+        if !has_additions {
+            println!("No additions found, building them");
+            grapho.node_additions(edges_chunk_size)?;
+        } else {
+            grapho.nodes.additions = ChunkedListArray::new_from_parts(
+                ChunkedArray::from(node_additions_chunks),
+                ChunkedOffsets::from(node_additions_offsets),
+            );
+        }
 
         Ok(grapho)
     }
@@ -207,7 +236,7 @@ impl TempColGraphFragment {
         self.edges.data_type()
     }
 
-    pub fn node_additions_2(&mut self, temp_prop_chunk_size: usize) -> Result<(), Error> {
+    pub fn node_additions(&mut self, temp_prop_chunk_size: usize) -> Result<(), super::Error> {
         // go over every node and merge join and dedup all the additions for edges then write them down
         let node_times = (0..self.num_nodes()).into_iter().map(VID).flat_map(|v_id| {
             self.edges(v_id, Direction::OUT)
@@ -268,16 +297,20 @@ impl TempColGraphFragment {
         }
 
         let mut time_addition_arrays = vec![];
-        for job in jobs {
-            let arr = job.join().unwrap();
+        for job in jobs.drain(..) {
+            let arr = job.join().expect("persist node additions task failed");
             time_addition_arrays.push(arr);
         }
         // finalize whatever is left
         if time_chunks.len() > 0 {
-            self.persist_node_additions(&mut time_chunks, &mut time_addition_arrays)?;
+            let arr = self
+                .persist_node_additions_task(&mut time_chunks, chunk_count)?
+                .join()
+                .expect("persist node additions task failed");
+            time_addition_arrays.push(arr);
         }
-        // persist offsets
 
+        // persist offsets
         let offsets = Buffer::from(offsets);
         let file_path = GraphPaths::NodeAdditionsOffsets.to_path(&self.graph_dir, 0);
         write_buffer(file_path, offsets.clone())?;
@@ -291,7 +324,7 @@ impl TempColGraphFragment {
                         time_col.data_type().clone(),
                         false,
                     )]),
-                    vec![time_col],
+                    vec![time_col.boxed()],
                     None,
                 )
             })
@@ -299,35 +332,11 @@ impl TempColGraphFragment {
         let chunked_t_array = ChunkedArray::from(arrays);
         let offsets = unsafe { OffsetsBuffer::new_unchecked(offsets) };
 
+        println!("Offsets: {:?}", offsets);
+        println!("Chunked t array: {:?}", chunked_t_array);
+
         let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets.into());
         self.nodes.additions = chunked_list_array;
-        Ok(())
-    }
-
-    fn persist_node_additions(
-        &self,
-        time_chunks: &mut Vec<i64>,
-        time_addition_arrays: &mut Vec<Box<dyn Array>>,
-    ) -> Result<(), Error> {
-        // write down time chunk as
-        let mut times = Vec::with_capacity(time_chunks.len());
-        std::mem::swap(&mut times, time_chunks);
-
-        let time_chunk = PrimitiveArray::from_vec(times).boxed();
-        let time_chunk = Chunk::new(vec![time_chunk]);
-        let schema = Schema::from(vec![Field::new("additions", DataType::Int64, false)]);
-
-        let chunk_count = time_addition_arrays.len();
-        let file_path = self
-            .graph_dir
-            .join(format!("node_additions_{:08}.ipc", chunk_count));
-        write_batches(file_path.as_path(), schema, &[time_chunk])?;
-
-        let arr = unsafe { mmap_batch(file_path.as_path(), 0) }
-            .unwrap()
-            .into_arrays()
-            .remove(0);
-        time_addition_arrays.push(arr);
         Ok(())
     }
 
@@ -335,7 +344,7 @@ impl TempColGraphFragment {
         &self,
         time_chunks: &mut Vec<i64>,
         chunk_count: usize,
-    ) -> Result<JoinHandle<Box<dyn Array>>, Error> {
+    ) -> Result<JoinHandle<PrimitiveArray<i64>>, super::Error> {
         // write down time chunk as
         let mut times = Vec::with_capacity(time_chunks.len());
         std::mem::swap(&mut times, time_chunks);
@@ -346,7 +355,7 @@ impl TempColGraphFragment {
         let graph_dir = self.graph_dir.to_path_buf();
 
         let arr_job = std::thread::spawn(move || {
-            let file_path = graph_dir.join(format!("node_additions_{:08}.ipc", chunk_count));
+            let file_path = GraphPaths::NodeAdditions.to_path(&graph_dir, chunk_count);
             write_batches(file_path.as_path(), schema, &[time_chunk])
                 .expect("write batches failed");
 
@@ -354,7 +363,10 @@ impl TempColGraphFragment {
                 .unwrap()
                 .into_arrays()
                 .remove(0);
-            arr
+            arr.as_any()
+                .downcast_ref::<PrimitiveArray<i64>>()
+                .unwrap()
+                .clone()
         });
         Ok(arr_job)
     }
@@ -481,7 +493,6 @@ impl TempColGraphFragment {
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
 
-        println!("edges: {edges:?}");
         load_chunks(&mut edge_builder, go, edges.iter().cloned())?;
 
         let offset_iter = ParquetOffsetIter::new(props.iter(), t_props_chunk_size);
@@ -811,12 +822,13 @@ pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
 
 #[cfg(test)]
 mod test {
-    use crate::{arrow::global_order::GlobalMap, prelude::*};
-
-    use super::*;
     use arrow2::datatypes::DataType;
     use proptest::prelude::*;
     use tempfile::TempDir;
+
+    use crate::{arrow::global_order::GlobalMap, prelude::*};
+
+    use super::*;
 
     fn edges_sanity_node_list(edges: &[(u64, u64, i64)]) -> Vec<u64> {
         edges
@@ -890,7 +902,7 @@ mod test {
             triples,
         )?;
         graph.build_inbound_adj_index()?;
-        // graph.node_additions_2(t_props_chunk_size)?;
+        graph.node_additions(t_props_chunk_size)?;
         Ok(graph)
     }
 
@@ -1007,6 +1019,22 @@ mod test {
         }
     }
 
+    #[test]
+    fn edge_sanity_bad() {
+        let edges = vec![
+            (0, 85, -8744527736816607775),
+            (0, 85, -8533859256444633783),
+            (0, 85, -7949123054744509169),
+            (0, 85, -7208573652910411733),
+            (0, 85, -7004677070223473589),
+            (0, 85, -6486844751834401685),
+            (0, 85, -6420653301843451067),
+            (0, 85, -6151481582745013767),
+            (0, 85, -5577061971106014565),
+            (0, 85, -5484794766797320810),
+        ];
+        edges_sanity_check_inner(edges, 3, 4, 5, 6)
+    }
     #[test]
     fn edges_sanity_chunk_1() {
         edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1, 1)
@@ -1454,7 +1482,7 @@ mod test {
         ];
         assert_eq!(all_exploded, expected);
         graph.build_inbound_adj_index().unwrap();
-        // graph.node_additions_2(2).unwrap();
+        graph.node_additions(2).unwrap();
 
         let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
         let reloaded_graph =

@@ -1,8 +1,6 @@
 use std::time::Instant;
 
-use raphtory::{
-    arrow::graph_impl::Graph2, prelude::*,
-};
+use raphtory::{arrow::graph_impl::Graph2, prelude::*};
 
 fn main() {
     let graph_dir = std::env::args()
@@ -37,7 +35,7 @@ fn main() {
             Some(4_000_000),
             Some(8),
         )
-            .expect("Cannot load graph");
+        .expect("Cannot load graph");
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
     };

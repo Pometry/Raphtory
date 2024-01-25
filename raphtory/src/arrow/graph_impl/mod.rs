@@ -279,6 +279,22 @@ mod test {
     }
 
     #[test]
+    fn test_2_edges() {
+        let test_dir = tempfile::tempdir().unwrap();
+        let edges = vec![
+            (0, 0, 0, 0.0),
+            (
+                2266002770009600945,
+                627296855214952430,
+                -1670755171396705229,
+                0.0,
+            ),
+        ];
+        let g = make_simple_graph(test_dir, &edges);
+        check_graph_counts(&edges, &g);
+    }
+
+    #[test]
     fn graph_degree_window() {
         let test_dir = tempfile::tempdir().unwrap();
         let mut edges = vec![

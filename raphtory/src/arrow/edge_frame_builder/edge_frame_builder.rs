@@ -66,8 +66,6 @@ impl EdgeFrameBuilder {
     }
 
     pub(crate) fn push_update_state(&mut self, state: LoadingState) -> Result<(), Error> {
-        // println!("state: {state:?}");
-
         let LoadingState {
             deduped_src_ids,
             deduped_dst_ids,
@@ -466,7 +464,6 @@ mod test {
 
         let adj_out_offsets = ChunkedOffsets::from(edge_builder.adj_out_offsets);
         let dst_ids = ChunkedArray::from(edge_builder.dst_chunks);
-        println!("offsets: {adj_out_offsets:?}, values: {dst_ids:?}");
         assert_eq!(adj_out_offsets.last(), dst_ids.len());
 
         assert_eq!(adj_out_offsets.lengths().collect_vec(), [2, 2, 0, 0]);
@@ -503,7 +500,6 @@ mod test {
 
         let adj_out_offsets = ChunkedOffsets::from(edge_builder.adj_out_offsets);
         let dst_ids = ChunkedArray::from(edge_builder.dst_chunks);
-        println!("offsets: {adj_out_offsets:?}, values: {dst_ids:?}");
         assert_eq!(adj_out_offsets.last(), dst_ids.len());
 
         assert_eq!(adj_out_offsets.lengths().collect_vec(), [0, 0, 2, 2, 0, 0]);

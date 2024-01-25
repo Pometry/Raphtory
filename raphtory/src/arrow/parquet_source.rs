@@ -111,9 +111,6 @@ pub(crate) fn resolve_and_dedup_chunk<GO: GlobalOrder + Send + Sync>(
     let src = &chunk[0];
     let dst = &chunk[1];
 
-    println!("src: {src:?}");
-    println!("dst: {dst:?}");
-
     // three cases u64, i64 and str
 
     assert_eq!(
