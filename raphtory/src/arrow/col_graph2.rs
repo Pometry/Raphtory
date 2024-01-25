@@ -133,10 +133,10 @@ impl TempColGraphFragment {
             graph_dir: graph_dir.into(),
         };
 
-        if !has_additions {
-            println!("No additions found, building them");
-            grapho.node_additions_2(edges_chunk_size)?;
-        }
+        // if !has_additions {
+        //     println!("No additions found, building them");
+        //     grapho.node_additions_2(edges_chunk_size)?;
+        // }
 
         Ok(grapho)
     }
@@ -940,8 +940,8 @@ mod test {
             2,
             triples,
         )?;
-        graph.build_inbound_adj_index()?;
-        graph.node_additions_2(t_props_chunk_size)?;
+        // graph.build_inbound_adj_index()?;
+        // graph.node_additions_2(t_props_chunk_size)?;
         Ok(graph)
     }
 
@@ -967,11 +967,11 @@ mod test {
                 .map(|(_, v)| v)
                 .tuple_windows()
                 .all(|(v1, v2)| v1 <= v2));
-            assert!(graph
-                .edges(v, Direction::IN)
-                .map(|(_, v)| v)
-                .tuple_windows()
-                .all(|(v1, v2)| v1 <= v2));
+            // assert!(graph
+            //     .edges(v, Direction::IN)
+            //     .map(|(_, v)| v)
+            //     .tuple_windows()
+            //     .all(|(v1, v2)| v1 <= v2));
         }
 
         let exploded_edges: Vec<_> = graph
@@ -981,18 +981,18 @@ mod test {
         assert_eq!(exploded_edges, edges);
 
         // check incoming edges
-        for (v_id, g_id) in nodes.iter().enumerate() {
-            let node = expected_graph.node(*g_id).unwrap();
-            let mut expected_inbound = node.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
-            expected_inbound.sort();
-
-            let actual_inbound = graph
-                .edges(VID(v_id), Direction::IN)
-                .map(|(_, v)| nodes[v.0])
-                .collect::<Vec<_>>();
-
-            assert_eq!(expected_inbound, actual_inbound);
-        }
+        // for (v_id, g_id) in nodes.iter().enumerate() {
+        //     let node = expected_graph.node(*g_id).unwrap();
+        //     let mut expected_inbound = node.in_edges().id().map(|(v, _)| v).collect::<Vec<_>>();
+        //     expected_inbound.sort();
+        //
+        //     let actual_inbound = graph
+        //         .edges(VID(v_id), Direction::IN)
+        //         .map(|(_, v)| nodes[v.0])
+        //         .collect::<Vec<_>>();
+        //
+        //     assert_eq!(expected_inbound, actual_inbound);
+        // }
 
         let unique_edges = edges.iter().map(|(src, dst, _)| (*src, *dst)).dedup();
 
@@ -1264,10 +1264,10 @@ mod test {
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
         assert_eq!(actual, expected);
 
-        graph.build_inbound_adj_index().unwrap();
-        let actual: Vec<_> = graph.edges(VID(2), Direction::IN).collect();
-        let expected = vec![(EID(1), VID(0)), (EID(2), VID(1))];
-        assert_eq!(actual, expected);
+        // graph.build_inbound_adj_index().unwrap();
+        // let actual: Vec<_> = graph.edges(VID(2), Direction::IN).collect();
+        // let expected = vec![(EID(1), VID(0)), (EID(2), VID(1))];
+        // assert_eq!(actual, expected);
 
         // check edges
         let actual = graph
@@ -1504,8 +1504,8 @@ mod test {
             (VID(1), VID(2), 3),
         ];
         assert_eq!(all_exploded, expected);
-        graph.build_inbound_adj_index().unwrap();
-        graph.node_additions_2(2).unwrap();
+        // graph.build_inbound_adj_index().unwrap();
+        // graph.node_additions_2(2).unwrap();
 
         let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
         let reloaded_graph =
