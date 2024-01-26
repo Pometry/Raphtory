@@ -1,6 +1,7 @@
 use crate::{
     core::{
         entities::LayerIds,
+        storage::timeindex::TimeIndexEntry,
         utils::errors::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
@@ -20,7 +21,6 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
-use crate::core::storage::timeindex::TimeIndexEntry;
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -202,7 +202,6 @@ impl<
                     self.internal_delete_edge(ti, src_id, dst_id, layer)?;
                 }
             }
-
 
             self.edge(ee.src().id(), ee.dst().id())
                 .expect("edge added")
