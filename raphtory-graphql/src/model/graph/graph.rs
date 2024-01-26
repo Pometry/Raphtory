@@ -335,10 +335,10 @@ impl GqlGraph {
         self.name.clone()
     }
     async fn schema(&self) -> GraphSchema {
-        GraphSchema::new(&self.graph)
+        GraphSchema::new(self.graph.graph())
     }
     async fn algorithms(&self) -> GraphAlgorithms {
-        self.graph.deref().clone().into()
+        self.graph.graph().clone().into()
     }
 
     async fn node_names(&self) -> Vec<String> {

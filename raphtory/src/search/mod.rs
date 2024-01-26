@@ -2,7 +2,7 @@
 
 pub mod into_indexed;
 
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
@@ -20,10 +20,12 @@ use crate::{
     },
     db::{
         api::{
-            mutation::internal::InternalAdditionOps,
+            mutation::internal::{
+                InheritPropertyAdditionOps, InternalAdditionOps, InternalPropertyAdditionOps,
+            },
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
-                StaticGraphViewOps,
+                Base, MaterializedGraph, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -40,10 +42,11 @@ pub struct IndexedGraph<G> {
     pub(crate) edge_reader: IndexReader,
 }
 
-impl<G> Deref for IndexedGraph<G> {
-    type Target = G;
+impl<G> Base for IndexedGraph<G> {
+    type Base = G;
 
-    fn deref(&self) -> &Self::Target {
+    #[inline]
+    fn base(&self) -> &Self::Base {
         &self.graph
     }
 }
@@ -51,6 +54,9 @@ impl<G> Deref for IndexedGraph<G> {
 impl<G: StaticGraphViewOps> Static for IndexedGraph<G> {}
 
 impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
+
+//FIXME: should index constant properties on updates
+impl<G: StaticGraphViewOps> InheritPropertyAdditionOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
@@ -84,7 +90,16 @@ impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
     }
 }
 
+impl IndexedGraph<MaterializedGraph> {
+    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.graph.save_to_file(path)
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
+    pub fn graph(&self) -> &G {
+        &self.graph
+    }
     fn new_node_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
 

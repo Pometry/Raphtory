@@ -36,6 +36,7 @@ use crate::{
         ArcStr, Direction, Prop, PropUnwrap,
     },
     db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
+    prelude::DeletionOps,
 };
 use dashmap::{DashMap, DashSet};
 use itertools::Itertools;
@@ -59,6 +60,8 @@ pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
+
+impl<const N: usize> DeletionOps for InnerTemporalGraph<N> {}
 
 impl<const N: usize> InnerTemporalGraph<N> {
     #[inline]
