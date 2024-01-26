@@ -20,6 +20,7 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
+use crate::core::storage::timeindex::TimeIndexEntry;
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -172,6 +173,7 @@ impl<
             }
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
+        // FIXME: this needs to be verified
         for ee in edge.explode_layers() {
             let layer_id = *ee.edge.layer().expect("exploded layers");
             let layer_ids = LayerIds::One(layer_id);
@@ -190,6 +192,18 @@ impl<
                     layer_name,
                 )?;
             }
+
+            if self.include_deletions() {
+                for t in edge.graph.edge_deletion_history(edge.edge, layer_ids) {
+                    let ti = TimeIndexEntry::from_input(self, t)?;
+                    let src_id = self.resolve_node(edge.src().id(), Some(&edge.src().name()));
+                    let dst_id = self.resolve_node(edge.dst().id(), Some(&edge.dst().name()));
+                    let layer = self.resolve_layer(layer_name);
+                    self.internal_delete_edge(ti, src_id, dst_id, layer)?;
+                }
+            }
+
+
             self.edge(ee.src().id(), ee.dst().id())
                 .expect("edge added")
                 .add_constant_properties(ee.properties().constant(), layer_name)?;
