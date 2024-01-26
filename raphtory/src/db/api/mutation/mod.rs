@@ -11,11 +11,13 @@ use crate::{
 
 mod addition_ops;
 mod deletion_ops;
+mod import_ops;
 pub mod internal;
 mod property_addition_ops;
 
 pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
+pub use import_ops::ImportOps;
 pub use property_addition_ops::PropertyAdditionOps;
 
 /// Used to handle automatic injection of secondary index if not explicitly provided

@@ -105,7 +105,7 @@ pub mod prelude {
         core::{IntoProp, Prop, PropUnwrap},
         db::{
             api::{
-                mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
+                mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
             },
             graph::graph::Graph,

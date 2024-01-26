@@ -19,7 +19,7 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
-        mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
+        mutation::internal::{InheritAdditionOps, InheritMutationOps, InheritPropertyAdditionOps},
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
@@ -30,6 +30,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
@@ -134,8 +135,7 @@ impl Base for Graph {
     }
 }
 
-impl InheritAdditionOps for Graph {}
-impl InheritPropertyAdditionOps for Graph {}
+impl InheritMutationOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
