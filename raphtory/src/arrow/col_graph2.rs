@@ -2,10 +2,7 @@ use std::{
     borrow::Borrow,
     num::NonZeroUsize,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::Arc,
     thread::JoinHandle,
 };
 
@@ -21,11 +18,7 @@ use rayon::prelude::*;
 
 use crate::{
     arrow::{
-        chunked_array::{
-            chunked_offsets::ChunkedOffsets,
-            list_array::ChunkedListArray,
-            mutable_chunked_array::{MutableChunkedOffsets, MutablePrimitiveChunkedArray},
-        },
+        chunked_array::{chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray},
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         file_prefix::GraphPaths,
@@ -33,7 +26,6 @@ use crate::{
         loader::ExternalEdgeList,
         mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
         parquet_reader::{ParquetOffsetIter, ParquetReader},
-        prelude::BaseArrayOps,
         prepare_graph_dir, Error,
     },
     core::{
@@ -194,7 +186,12 @@ impl TempColGraphFragment {
                 adj_in_eids_chunks,
             )
         } else {
-            Nodes::new(node_gids, adj_out_offsets_chunks, edges.dst_ids.clone())
+            Nodes::new(
+                graph_dir,
+                node_gids,
+                adj_out_offsets_chunks,
+                edges.dst_ids.clone(),
+            )?
         };
 
         let has_additions = node_additions_chunks.len() > 0;
@@ -509,10 +506,11 @@ impl TempColGraphFragment {
         );
 
         let nodes = Nodes::new(
+            graph_dir,
             node_gids,
             edge_builder.adj_out_offsets,
             edges.dst_ids.clone(),
-        );
+        )?;
 
         Ok(TempColGraphFragment {
             nodes,
@@ -622,7 +620,7 @@ impl TempColGraphFragment {
 
         let dst_ids = edges.dst_ids.clone();
 
-        let nodes = Nodes::new(gids, edge_builder.adj_out_offsets, dst_ids);
+        let nodes = Nodes::new(graph_dir, gids, edge_builder.adj_out_offsets, dst_ids)?;
 
         Ok(TempColGraphFragment {
             nodes,
@@ -720,64 +718,6 @@ impl TempColGraphFragment {
 
     pub fn exploded_edges(&self) -> impl Iterator<Item = ExplodedEdge> + '_ {
         self.edges.iter().flat_map(|e| e.explode())
-    }
-    pub fn build_inbound_adj_index(&mut self) -> Result<(), Error> {
-        let num_nodes = self.nodes.len();
-        let mut counts = Vec::with_capacity(num_nodes);
-        counts.resize_with(num_nodes, || AtomicUsize::new(0));
-
-        let outbound = self.nodes.outbound_neighbours();
-        outbound.values().par_iter().for_each(|v| {
-            if let Some(v) = v {
-                counts[v as usize].fetch_add(1, Ordering::Relaxed);
-            }
-        });
-
-        let mut offsets = MutableChunkedOffsets::new(
-            outbound.offsets().chunk_size,
-            Some((GraphPaths::AdjInOffsets, self.graph_dir.to_path_buf())),
-            true,
-        );
-
-        let mut cum_sum = 0;
-        for count in counts {
-            cum_sum += count.load(Ordering::Relaxed);
-            offsets.push(cum_sum)?;
-        }
-        let offsets = offsets.finish()?;
-
-        let mut inbound_src = MutablePrimitiveChunkedArray::new(
-            outbound.values().chunk_size,
-            Some((GraphPaths::AdjInSrcs, self.graph_dir.to_path_buf())),
-            true,
-        );
-        let mut inbound_eids = MutablePrimitiveChunkedArray::new(
-            outbound.values().chunk_size,
-            Some((GraphPaths::AdjInEdges, self.graph_dir.to_path_buf())),
-            true,
-        );
-        for (_, src, eid) in outbound
-            .offsets()
-            .iter()
-            .enumerate()
-            .map(|(src_id, eids)| {
-                let dsts = outbound.values().slice(eids.clone());
-                dsts.flatten()
-                    .zip(eids)
-                    .map(move |(dst, eid)| (dst, src_id as u64, eid as u64))
-            })
-            .kmerge()
-        {
-            inbound_src.push(src)?;
-            inbound_eids.push(eid)?;
-        }
-        let inbound_srcs = inbound_src.finish()?;
-        let inbound_eids = inbound_eids.finish()?;
-
-        self.nodes.adj_in_neighbours =
-            ChunkedListArray::new_from_parts(inbound_srcs, offsets.clone());
-        self.nodes.adj_in_edges = ChunkedListArray::new_from_parts(inbound_eids, offsets);
-        Ok(())
     }
 
     pub(crate) fn t_len(&self) -> usize {
@@ -901,7 +841,6 @@ mod test {
             2,
             triples,
         )?;
-        graph.build_inbound_adj_index()?;
         graph.node_additions(t_props_chunk_size)?;
         Ok(graph)
     }
@@ -1222,7 +1161,7 @@ mod test {
     #[test]
     fn load_muliple_sorted_edges_multiple_ts() {
         let test_dir = TempDir::new().unwrap();
-        let mut graph = TempColGraphFragment::from_edges(
+        let graph = TempColGraphFragment::from_edges(
             test_dir.path(),
             [
                 (0, 1u64, 2, 1.14),
@@ -1241,7 +1180,6 @@ mod test {
         let expected = vec![(EID(0), VID(1)), (EID(1), VID(2))];
         assert_eq!(actual, expected);
 
-        graph.build_inbound_adj_index().unwrap();
         let actual: Vec<_> = graph.edges(VID(2), Direction::IN).collect();
         let expected = vec![(EID(1), VID(0)), (EID(2), VID(1))];
         assert_eq!(actual, expected);
@@ -1481,7 +1419,6 @@ mod test {
             (VID(1), VID(2), 3),
         ];
         assert_eq!(all_exploded, expected);
-        graph.build_inbound_adj_index().unwrap();
         graph.node_additions(2).unwrap();
 
         let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();

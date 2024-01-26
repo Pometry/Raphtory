@@ -443,7 +443,6 @@ mod test {
             vec![chunk],
         )
         .unwrap();
-        graph_events2v.build_inbound_adj_index().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![2u64, 2, 2]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![2u64, 2, 2]).boxed();
@@ -558,7 +557,6 @@ mod test {
             vec![chunk],
         )
         .unwrap();
-        graph_events2v.build_inbound_adj_index().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![2u64]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![2u64]).boxed();

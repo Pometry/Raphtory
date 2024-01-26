@@ -70,6 +70,8 @@ pub fn load_graph_from_params(args: Args) -> TemporalGraph {
             chunk_size,
             chunk_size,
             t_props_chunk_size,
+            None,
+            None,
             graph_dir,
             layered_edge_list,
         )
