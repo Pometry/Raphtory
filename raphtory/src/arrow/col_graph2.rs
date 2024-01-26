@@ -18,7 +18,10 @@ use rayon::prelude::*;
 
 use crate::{
     arrow::{
-        chunked_array::{chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray},
+        chunked_array::{
+            chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray,
+            mutable_chunked_array::MutableChunkedOffsets,
+        },
         edge::{Edge, ExplodedEdge},
         edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         file_prefix::GraphPaths,
@@ -26,6 +29,7 @@ use crate::{
         loader::ExternalEdgeList,
         mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
         parquet_reader::{ParquetOffsetIter, ParquetReader},
+        prelude::BaseArrayOps,
         prepare_graph_dir, Error,
     },
     core::{
@@ -248,7 +252,7 @@ impl TempColGraphFragment {
                 .dedup()
         });
 
-        let counts: Vec<i64> = (0..self.num_nodes())
+        let counts = (0..self.num_nodes())
             .into_par_iter()
             .map(VID)
             .map(|v_id| {
@@ -262,22 +266,26 @@ impl TempColGraphFragment {
                     })
                     .kmerge_by(|t1, t2| t1 < t2)
                     .dedup()
-                    .count() as i64
+                    .count()
             })
             .collect::<Vec<_>>();
 
-        let mut offsets = counts
-            .into_iter()
-            .scan(0i64, |off, v_count| {
-                let out = Some(v_count + *off);
-                *off += v_count;
-                out
-            })
-            .collect::<Vec<_>>();
+        let mut offsets = MutableChunkedOffsets::new(
+            temp_prop_chunk_size,
+            Some((
+                GraphPaths::NodeAdditionsOffsets,
+                self.graph_dir.to_path_buf(),
+            )),
+            true,
+        );
 
-        offsets.insert(0, 0);
+        let mut cum_sum = 0;
+        for count in counts {
+            cum_sum += count;
+            offsets.push(cum_sum)?;
+        }
 
-        assert_eq!(offsets.len(), self.num_nodes() + 1);
+        let offsets = offsets.finish()?;
 
         let mut time_chunks = vec![];
         let mut jobs = vec![];
@@ -307,11 +315,6 @@ impl TempColGraphFragment {
             time_addition_arrays.push(arr);
         }
 
-        // persist offsets
-        let offsets = Buffer::from(offsets);
-        let file_path = GraphPaths::NodeAdditionsOffsets.to_path(&self.graph_dir, 0);
-        write_buffer(file_path, offsets.clone())?;
-
         let arrays: Vec<_> = time_addition_arrays
             .into_iter()
             .map(|time_col| {
@@ -327,12 +330,8 @@ impl TempColGraphFragment {
             })
             .collect();
         let chunked_t_array = ChunkedArray::from(arrays);
-        let offsets = unsafe { OffsetsBuffer::new_unchecked(offsets) };
 
-        println!("Offsets: {:?}", offsets);
-        println!("Chunked t array: {:?}", chunked_t_array);
-
-        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets.into());
+        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
         self.nodes.additions = chunked_list_array;
         Ok(())
     }
@@ -481,6 +480,9 @@ impl TempColGraphFragment {
         time_col_idx: usize,
         edge_list: I,
     ) -> Result<Self, Error> {
+        if node_gids.len() == 0 {
+            return Err(Error::EmptyChunk);
+        }
         prepare_graph_dir(graph_dir)?;
         let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
         let edge_props_builder = EdgePropsBuilder::new(graph_dir, 0);
@@ -934,7 +936,7 @@ mod test {
                     TempColGraphFragment::new(test_dir.path(), true, 0, node_gids).unwrap();
                 check_graph_sanity(&edges, &nodes, &reloaded_graph)
             }
-            Err(Error::NoEdgeLists) => assert!(edges.is_empty()),
+            Err(Error::NoEdgeLists | Error::EmptyChunk) => assert!(edges.is_empty()),
             Err(error) => panic!("{}", error.to_string()),
         };
     }
@@ -974,6 +976,25 @@ mod test {
         ];
         edges_sanity_check_inner(edges, 3, 4, 5, 6)
     }
+    #[test]
+    fn edge_sanity_more_bad() {
+        let edges = vec![
+            (1, 3, -8622734205120758463),
+            (2, 0, -8064563587743129892),
+            (2, 0, 0),
+            (2, 0, 66718116),
+            (2, 0, 733950369757766878),
+            (2, 0, 2044789983495278802),
+            (2, 0, 2403967656666566197),
+            (2, 4, -9199293364914546702),
+            (2, 4, -9104424882442202562),
+            (2, 4, -8942117006530427874),
+            (2, 4, -8805351871358148900),
+            (2, 4, -8237347600058197888),
+        ];
+        edges_sanity_check_inner(edges, 3, 4, 5, 6)
+    }
+
     #[test]
     fn edges_sanity_chunk_1() {
         edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1, 1)

@@ -94,6 +94,10 @@ impl EdgeFrameBuilder {
         if self.last_update.map(|(src, _)| src) == Some(first_src) {
             if self.last_update != Some(first) {
                 *self.cur_adj_out_offset.last_mut().unwrap() += first_count as i64;
+            } else {
+                // we have already counted the first edge in the chunk so we need to subtract 1
+                *self.cur_adj_out_offset.last_mut().unwrap() +=
+                    (first_count as i64).saturating_sub(1);
             }
             self.update_adj_out_offsets(&src_counts[1..])?;
         } else {
@@ -252,7 +256,11 @@ impl EdgeFrameBuilder {
         if self.edge_src_id.len() > 0 {
             self.push_chunk()?;
         }
-        self.update_adj_out_offsets(&[((num_nodes - 1) as u64, 0)])?;
+
+        if self.last_update.map(|(src, _)| src as usize) != Some(num_nodes.saturating_sub(1)) {
+            self.update_adj_out_offsets(&[((num_nodes - 1) as u64, 0)])?;
+        }
+
         let adj_out_offsets = mem::take(&mut self.cur_adj_out_offset);
         self.persist_adj_out_offset_chunk(adj_out_offsets)?;
         let edge_offsets = mem::take(&mut self.cur_edge_offset);
