@@ -197,6 +197,8 @@ impl InternalMaterialize for GraphWithDeletions {
     }
 }
 
+impl DeletionOps for GraphWithDeletions {}
+
 impl InheritMutationOps for GraphWithDeletions {}
 
 impl InheritCoreOps for GraphWithDeletions {}

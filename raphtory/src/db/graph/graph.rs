@@ -19,7 +19,7 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
-        mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
+        mutation::internal::{InheritAdditionOps, InheritMutationOps, InheritPropertyAdditionOps},
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
@@ -30,6 +30,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
@@ -134,8 +135,7 @@ impl Base for Graph {
     }
 }
 
-impl InheritAdditionOps for Graph {}
-impl InheritPropertyAdditionOps for Graph {}
+impl InheritMutationOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
@@ -301,6 +301,58 @@ mod db_tests {
         edges
             .iter()
             .all(|&(_, src, dst)| g.edge(src, dst).is_some())
+    }
+
+    #[test]
+    fn import_from_another_graph() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))])
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let gg = Graph::new();
+        let res = gg.import_node(&g_a, None).unwrap();
+        assert_eq!(res.name(), "A");
+        assert_eq!(res.history(), vec![0]);
+        let res = gg.import_node(&g_b, None).unwrap();
+        assert_eq!(res.name(), "B");
+        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
+        assert_eq!(
+            res.properties().constant().get("con").unwrap(),
+            Prop::I64(11)
+        );
+
+        let gg = Graph::new();
+        let res = gg.import_nodes(vec![&g_a, &g_b], None).unwrap();
+        assert_eq!(res.len(), 2);
+        assert_eq!(res.iter().map(|n| n.name()).collect_vec(), vec!["A", "B"]);
+
+        let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
+        let res = gg.import_edge(&e_a_b, None).unwrap();
+        assert_eq!(
+            (res.src().name(), res.dst().name()),
+            (e_a_b.src().name(), e_a_b.dst().name())
+        );
+        let e_a_b_p = g
+            .add_edge(
+                3,
+                "A",
+                "B",
+                vec![("etemp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+        let gg = Graph::new();
+        gg.add_node(0, "B", NO_PROPS);
+        let res = gg.import_edge(&e_a_b_p, None).expect("Failed to add edge");
+        assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
+
+        let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
+        let gg = Graph::new();
+        let res = gg.import_edges(vec![&e_a_b, &e_c_d], None).unwrap();
+        assert_eq!(res.len(), 2);
     }
 
     #[test]
