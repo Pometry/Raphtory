@@ -8,7 +8,6 @@ use std::{
 
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
-    buffer::Buffer,
     chunk::Chunk,
     datatypes::{DataType, Field, Schema},
     offset::OffsetsBuffer,
@@ -27,9 +26,8 @@ use crate::{
         file_prefix::GraphPaths,
         global_order::GlobalMap,
         loader::ExternalEdgeList,
-        mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
+        mmap::{mmap_batch, mmap_buffer, write_batches},
         parquet_reader::{ParquetOffsetIter, ParquetReader},
-        prelude::BaseArrayOps,
         prepare_graph_dir, Error,
     },
     core::{
@@ -75,6 +73,7 @@ impl TempColGraphFragment {
         layer_id: usize,
         node_gids: Box<dyn Array>,
     ) -> Result<Self, Error> {
+        println!("Loading graph from {:?}", graph_dir.as_ref());
         let graph_dir = graph_dir.as_ref();
         let files = list_sorted_files(graph_dir)?;
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
@@ -190,6 +189,7 @@ impl TempColGraphFragment {
                 adj_in_eids_chunks,
             )
         } else {
+            println!("No inbounds edges, building them");
             Nodes::new(
                 graph_dir,
                 node_gids,
@@ -210,7 +210,9 @@ impl TempColGraphFragment {
 
         if !has_additions {
             println!("No additions found, building them");
+            let now = std::time::Instant::now();
             grapho.node_additions(edges_chunk_size)?;
+            println!("Node additions took {:?}", now.elapsed());
         } else {
             grapho.nodes.additions = ChunkedListArray::new_from_parts(
                 ChunkedArray::from(node_additions_chunks),
@@ -238,18 +240,21 @@ impl TempColGraphFragment {
     }
 
     pub fn node_additions(&mut self, temp_prop_chunk_size: usize) -> Result<(), super::Error> {
-        // go over every node and merge join and dedup all the additions for edges then write them down
-        let node_times = (0..self.num_nodes()).into_iter().map(VID).flat_map(|v_id| {
-            self.edges(v_id, Direction::OUT)
-                .map(|(e, _)| e)
-                .merge(self.edges(v_id, Direction::IN).map(|(e, _)| e))
-                .dedup()
-                .map(|e| {
-                    let edge = self.edge(e);
-                    edge.into_timestamps()
+        let nodes = (0..self.num_nodes()).chunks(1_000_000);
+        let node_times = nodes.into_iter().map(|v_ids| {
+            let vids = v_ids.into_iter().map(VID).collect::<Vec<_>>();
+            vids.into_par_iter()
+                .with_max_len(8)
+                .flat_map_iter(|v_id| {
+                    self.out_edges(v_id)
+                        .map(|(e, _)| e)
+                        .merge(self.in_edges(v_id).map(|(e, _)| e))
+                        .dedup()
+                        .flat_map(|e| self.edge(e).into_timestamps().iter_unchecked())
+                        .kmerge_by(|t1, t2| t1 < t2)
+                        .dedup()
                 })
-                .kmerge_by(|t1, t2| t1 < t2)
-                .dedup()
+                .collect::<Vec<_>>()
         });
 
         let counts = (0..self.num_nodes())
@@ -271,7 +276,7 @@ impl TempColGraphFragment {
             .collect::<Vec<_>>();
 
         let mut offsets = MutableChunkedOffsets::new(
-            temp_prop_chunk_size,
+            temp_prop_chunk_size * 2,
             Some((
                 GraphPaths::NodeAdditionsOffsets,
                 self.graph_dir.to_path_buf(),
@@ -291,13 +296,15 @@ impl TempColGraphFragment {
         let mut jobs = vec![];
         let mut chunk_count = 0;
 
-        for t in node_times {
-            time_chunks.push(t);
+        for ts in node_times {
+            for t in ts {
+                time_chunks.push(*t);
 
-            if time_chunks.len() == temp_prop_chunk_size {
-                let task = self.persist_node_additions_task(&mut time_chunks, chunk_count)?;
-                jobs.push(task);
-                chunk_count += 1;
+                if time_chunks.len() == temp_prop_chunk_size * 2 {
+                    let task = self.persist_node_additions_task(&mut time_chunks, chunk_count)?;
+                    jobs.push(task);
+                    chunk_count += 1;
+                }
             }
         }
 
@@ -656,6 +663,14 @@ impl TempColGraphFragment {
                 Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2))
             }
         }
+    }
+
+    pub fn out_edges(&self, node_id: VID) -> impl DoubleEndedIterator<Item = (EID, VID)> + '_ {
+        self.nodes.out_adj_list(node_id)
+    }
+
+    pub fn in_edges(&self, node_id: VID) -> impl DoubleEndedIterator<Item = (EID, VID)> + '_ {
+        self.nodes.in_adj_list(node_id)
     }
 
     pub fn out_edges_par(

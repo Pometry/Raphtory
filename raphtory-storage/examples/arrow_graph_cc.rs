@@ -1,6 +1,9 @@
-use std::time::Instant;
+use std::{cmp::Reverse, time::Instant};
 
-use raphtory::{arrow::graph_impl::Graph2, prelude::*};
+use itertools::Itertools;
+use raphtory::{
+    algorithms::components::weakly_connected_components, arrow::graph_impl::Graph2, prelude::*,
+};
 
 fn main() {
     let graph_dir = std::env::args()
@@ -42,6 +45,24 @@ fn main() {
 
     println!("Graph has {} nodes", graph2.count_nodes());
     println!("Graph has {} edges", graph2.count_edges());
+
+    let now = Instant::now();
+    let ccs = weakly_connected_components(&graph2, 100, None).group_by();
+    println!("########## Arrow CC took {:?} ########## ", now.elapsed());
+
+    let actual = ccs
+        .into_iter()
+        .map(|(cc, group)| (cc, Reverse(group.len())))
+        .sorted_by_key(|(key, count)| (*count, *key))
+        .map(|(cc, count)| (cc, count.0))
+        .take(2)
+        .collect::<Vec<_>>();
+
+    println!("Top 2 connected components by size: {}", actual.len());
+    for (cc, count) in actual {
+        println!("{}: {}", cc, count);
+    }
+
 
     //     // println!("{:?}", graph2.layer_names());
 
@@ -115,10 +136,6 @@ fn main() {
 
     //     // println!("Graph has {} nodes", rg.count_nodes());
     //     // println!("Graph has {} edges", rg.count_edges());
-
-    //     // let now = Instant::now();
-    //     // let ccs = weakly_connected_components(&l_graph, 100, None).group_by();
-    //     // println!("########## Arrow CC took {:?} ########## ", now.elapsed());
 
     //     // let actual = ccs
     //     //     .into_iter()
