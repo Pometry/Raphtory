@@ -3,13 +3,12 @@ use std::{
     num::NonZeroUsize,
     path::{Path, PathBuf},
     sync::Arc,
-    thread::JoinHandle,
 };
 
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
-    datatypes::{DataType, Field, Schema},
+    datatypes::{DataType, Field},
     offset::OffsetsBuffer,
 };
 use itertools::Itertools;
@@ -17,10 +16,16 @@ use rayon::prelude::*;
 
 use crate::{
     arrow::{
-        chunked_array::{
-            chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray,
-            mutable_chunked_array::MutableChunkedOffsets,
-        }, edge::{Edge, ExplodedEdge}, graph_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder}, file_prefix::GraphPaths, global_order::GlobalMap, load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader}, prepare_graph_dir, Error
+        chunked_array::{chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray},
+        edge::{Edge, ExplodedEdge},
+        file_prefix::GraphPaths,
+        global_order::GlobalMap,
+        graph_builder::{
+            edge_props_builder::EdgePropsBuilder, node_addition_builder::make_node_additions,
+            EdgeFrameBuilder,
+        },
+        load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader},
+        prepare_graph_dir, Error,
     },
     core::{
         entities::{EID, VID},
@@ -33,8 +38,13 @@ use super::{
     edges::Edges,
     global_order::GlobalOrder,
     load::ipc::read_batch,
+    load::{
+        mmap::mmap_batch,
+        parquet_reader::ParquetOffsetIter,
+        parquet_source::{resolve_and_dedup_chunk, ParquetSource},
+        ExternalEdgeList,
+    },
     nodes::{Node, Nodes},
-    load::{mmap::{mmap_batch, write_batches}, parquet_reader::ParquetOffsetIter, parquet_source::{resolve_and_dedup_chunk, ParquetSource}, ExternalEdgeList},
     split_struct_chunk, GraphChunk, Time, GID,
 };
 
@@ -232,138 +242,12 @@ impl TempColGraphFragment {
     }
 
     pub fn node_additions(&mut self, temp_prop_chunk_size: usize) -> Result<(), super::Error> {
-        let nodes = (0..self.num_nodes()).chunks(1_000_000);
-        let node_times = nodes.into_iter().map(|v_ids| {
-            let vids = v_ids.into_iter().map(VID).collect::<Vec<_>>();
-            vids.into_par_iter()
-                .with_max_len(8)
-                .flat_map_iter(|v_id| {
-                    self.out_edges(v_id)
-                        .map(|(e, _)| e)
-                        .merge(self.in_edges(v_id).map(|(e, _)| e))
-                        .dedup()
-                        .flat_map(|e| self.edge(e).into_timestamps().iter_unchecked())
-                        .kmerge_by(|t1, t2| t1 < t2)
-                        .dedup()
-                })
-                .collect::<Vec<_>>()
-        });
-
-        let counts = (0..self.num_nodes())
-            .into_par_iter()
-            .map(VID)
-            .map(|v_id| {
-                self.edges(v_id, Direction::OUT)
-                    .map(|(e, _)| e)
-                    .merge(self.edges(v_id, Direction::IN).map(|(e, _)| e))
-                    .dedup()
-                    .map(|e| {
-                        let edge = self.edge(e);
-                        edge.into_timestamps()
-                    })
-                    .kmerge_by(|t1, t2| t1 < t2)
-                    .dedup()
-                    .count()
-            })
-            .collect::<Vec<_>>();
-
-        let mut offsets = MutableChunkedOffsets::new(
-            temp_prop_chunk_size * 2,
-            Some((
-                GraphPaths::NodeAdditionsOffsets,
-                self.graph_dir.to_path_buf(),
-            )),
-            true,
-        );
-
-        let mut cum_sum = 0;
-        for count in counts {
-            cum_sum += count;
-            offsets.push(cum_sum)?;
-        }
-
-        let offsets = offsets.finish()?;
-
-        let mut time_chunks = vec![];
-        let mut jobs = vec![];
-        let mut chunk_count = 0;
-
-        for ts in node_times {
-            for t in ts {
-                time_chunks.push(*t);
-
-                if time_chunks.len() == temp_prop_chunk_size * 2 {
-                    let task = self.persist_node_additions_task(&mut time_chunks, chunk_count)?;
-                    jobs.push(task);
-                    chunk_count += 1;
-                }
-            }
-        }
-
-        let mut time_addition_arrays = vec![];
-        for job in jobs.drain(..) {
-            let arr = job.join().expect("persist node additions task failed");
-            time_addition_arrays.push(arr);
-        }
-        // finalize whatever is left
-        if time_chunks.len() > 0 {
-            let arr = self
-                .persist_node_additions_task(&mut time_chunks, chunk_count)?
-                .join()
-                .expect("persist node additions task failed");
-            time_addition_arrays.push(arr);
-        }
-
-        let arrays: Vec<_> = time_addition_arrays
-            .into_iter()
-            .map(|time_col| {
-                StructArray::new(
-                    DataType::Struct(vec![Field::new(
-                        "additions",
-                        time_col.data_type().clone(),
-                        false,
-                    )]),
-                    vec![time_col.boxed()],
-                    None,
-                )
-            })
-            .collect();
+        let (arrays, offsets) = make_node_additions(self, temp_prop_chunk_size)?;
         let chunked_t_array = ChunkedArray::from(arrays);
 
         let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
         self.nodes.additions = chunked_list_array;
         Ok(())
-    }
-
-    fn persist_node_additions_task(
-        &self,
-        time_chunks: &mut Vec<i64>,
-        chunk_count: usize,
-    ) -> Result<JoinHandle<PrimitiveArray<i64>>, super::Error> {
-        // write down time chunk as
-        let mut times = Vec::with_capacity(time_chunks.len());
-        std::mem::swap(&mut times, time_chunks);
-
-        let time_chunk = PrimitiveArray::from_vec(times).boxed();
-        let time_chunk = Chunk::new(vec![time_chunk]);
-        let schema = Schema::from(vec![Field::new("additions", DataType::Int64, false)]);
-        let graph_dir = self.graph_dir.to_path_buf();
-
-        let arr_job = std::thread::spawn(move || {
-            let file_path = GraphPaths::NodeAdditions.to_path(&graph_dir, chunk_count);
-            write_batches(file_path.as_path(), schema, &[time_chunk])
-                .expect("write batches failed");
-
-            let arr = unsafe { mmap_batch(file_path.as_path(), 0) }
-                .unwrap()
-                .into_arrays()
-                .remove(0);
-            arr.as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .unwrap()
-                .clone()
-        });
-        Ok(arr_job)
     }
 
     pub fn from_edges<ID: Into<GID>, E: IntoIterator<Item = (i64, ID, ID, f64)>>(
@@ -595,12 +479,7 @@ impl TempColGraphFragment {
         let mut excluded_cols = vec![src_col, dst_col, src_hash_col, dst_hash_col];
         excluded_cols.extend_from_slice(exclude_cols);
 
-        let reader = ParquetReader::new_from_filelist(
-            graph_dir,
-            files,
-            time_col,
-            &excluded_cols,
-        )?;
+        let reader = ParquetReader::new_from_filelist(graph_dir, files, time_col, &excluded_cols)?;
 
         let t_prop_values = reader.load_t_edge_values(num_threads, t_props_chunk_size)?;
         println!("COPY T prop values took {:?}", now.elapsed());
@@ -738,17 +617,6 @@ fn read_or_mmap_chunk(mmap: bool, path: &PathBuf) -> Result<Chunk<Box<dyn Array>
     Ok(chunk)
 }
 
-pub(crate) fn write_graph_metadata(
-    graph_dir: &Path,
-    earliest_time: i64,
-    latest_time: i64,
-) -> Result<(), Error> {
-    let metadata_file = graph_dir.join("edge_metadata.json");
-    let metadata = serde_json::to_string(&(earliest_time, latest_time))?;
-    std::fs::write(metadata_file, metadata)?;
-    Ok(())
-}
-
 pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
     edge_builder: &mut EdgeFrameBuilder,
     go: impl AsRef<GO>,
@@ -766,7 +634,7 @@ pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
 
 #[cfg(test)]
 mod test {
-    use arrow2::datatypes::DataType;
+    use arrow2::datatypes::{DataType, Schema};
     use proptest::prelude::*;
     use tempfile::TempDir;
 
@@ -789,7 +657,6 @@ mod test {
         edges: &[(u64, u64, i64)],
         nodes: &[u64],
         input_chunk_size: u64,
-        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
     ) -> Result<TempColGraphFragment, Error> {
@@ -913,7 +780,6 @@ mod test {
     fn edges_sanity_check_inner(
         edges: Vec<(u64, u64, i64)>,
         input_chunk_size: u64,
-        node_chunk_size: usize,
         edge_chunk_size: usize,
         edge_max_list_size: usize,
     ) {
@@ -924,7 +790,6 @@ mod test {
             &edges,
             &nodes,
             input_chunk_size,
-            node_chunk_size,
             edge_chunk_size,
             edge_max_list_size,
         ) {
@@ -954,11 +819,10 @@ mod test {
                 v.sort();
                 v}),
             input_chunk_size in 1..1024u64,
-            node_chunk_size in 1..1024usize,
             edge_chunk_size in 1..1024usize,
             edge_max_list_size in 1..128usize
         ) {
-            edges_sanity_check_inner(edges, input_chunk_size, node_chunk_size, edge_chunk_size, edge_max_list_size);
+            edges_sanity_check_inner(edges, input_chunk_size, edge_chunk_size, edge_max_list_size);
         }
     }
 
@@ -976,7 +840,7 @@ mod test {
             (0, 85, -5577061971106014565),
             (0, 85, -5484794766797320810),
         ];
-        edges_sanity_check_inner(edges, 3, 4, 5, 6)
+        edges_sanity_check_inner(edges, 3, 5, 6)
     }
     #[test]
     fn edge_sanity_more_bad() {
@@ -994,17 +858,17 @@ mod test {
             (2, 4, -8805351871358148900),
             (2, 4, -8237347600058197888),
         ];
-        edges_sanity_check_inner(edges, 3, 4, 5, 6)
+        edges_sanity_check_inner(edges, 3, 5, 6)
     }
 
     #[test]
     fn edges_sanity_chunk_1() {
-        edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1, 1)
+        edges_sanity_check_inner(vec![(876787706323152993, 0, 0)], 1, 1, 1)
     }
 
     #[test]
     fn edges_sanity_chunk_2() {
-        edges_sanity_check_inner(vec![(4, 3, 2), (4, 5, 0)], 2, 2, 2, 2)
+        edges_sanity_check_inner(vec![(4, 3, 2), (4, 5, 0)], 2, 2, 2)
     }
 
     #[test]
@@ -1032,17 +896,10 @@ mod test {
             (9, 11, -75),
         ];
         let input_chunk_size = 411;
-        let node_chunk_size = 10;
         let edge_chunk_size = 5;
         let edge_max_list_size = 7;
 
-        edges_sanity_check_inner(
-            edges,
-            input_chunk_size,
-            node_chunk_size,
-            edge_chunk_size,
-            edge_max_list_size,
-        );
+        edges_sanity_check_inner(edges, input_chunk_size, edge_chunk_size, edge_max_list_size);
     }
 
     #[test]
@@ -1064,13 +921,13 @@ mod test {
             (8, 3, -7707029126214574305),
         ];
 
-        edges_sanity_check_inner(edges, 853, 4, 122, 98)
+        edges_sanity_check_inner(edges, 853, 122, 98)
     }
 
     #[test]
     fn edge_sanity_chunk_broken_something() {
         let edges = vec![(0, 3, 0), (1, 2, 0), (3, 2, 0)];
-        edges_sanity_check_inner(edges, 1, 1, 1, 1)
+        edges_sanity_check_inner(edges, 1, 1, 1)
     }
 
     fn schema() -> Schema {
@@ -1452,5 +1309,265 @@ mod test {
             &[0, 1, 2],
             &reloaded_graph,
         );
+    }
+
+    mod addition_bounds {
+        use arrow2::array::PrimitiveArray;
+        use proptest::prelude::*;
+        use tempfile::TempDir;
+
+        use crate::arrow::graph_builder::node_addition_builder::{
+            addition_bounds, bound_to_array, make_offsets, NodeAdditionBound,
+        };
+
+        use super::{TempColGraphFragment, VID};
+
+        #[test]
+        fn node_additions_bounds_1_self_edge() {
+            let test_dir = TempDir::new().unwrap();
+            let graph = TempColGraphFragment::from_edges(test_dir.path(), [(0, 1u64, 1, 0.)], 0, 2)
+                .unwrap();
+
+            let temp_prop_chunk_size = 2;
+            let offsets =
+                make_offsets(&graph, temp_prop_chunk_size).expect("failed to make offsets");
+
+            let addition_bounds = addition_bounds(&graph, &offsets, temp_prop_chunk_size);
+
+            let expected = vec![NodeAdditionBound {
+                start: VID(0),
+                end: VID(0),
+                from: 0,
+                to: 1,
+            }];
+
+            assert_eq!(addition_bounds, expected);
+        }
+
+        #[test]
+        fn node_additions_bounds_2_nodes_1_chunk() {
+            let test_dir = TempDir::new().unwrap();
+            let graph = TempColGraphFragment::from_edges(test_dir.path(), [(0, 0u64, 1, 0.)], 0, 2)
+                .unwrap();
+
+            let temp_prop_chunk_size = 2;
+            let offsets =
+                make_offsets(&graph, temp_prop_chunk_size).expect("failed to make offsets");
+
+            let addition_bounds = addition_bounds(&graph, &offsets, temp_prop_chunk_size);
+
+            let expected = vec![NodeAdditionBound {
+                start: VID(0),
+                end: VID(1),
+                from: 0,
+                to: 1,
+            }];
+
+            assert_eq!(addition_bounds, expected);
+        }
+
+        #[test]
+        fn node_additions_bounds_2_nodes_2_chunks() {
+            let test_dir = TempDir::new().unwrap();
+            let graph = TempColGraphFragment::from_edges(test_dir.path(), [(0, 0u64, 1, 0.)], 0, 2)
+                .unwrap();
+
+            let temp_prop_chunk_size = 1;
+            let offsets =
+                make_offsets(&graph, temp_prop_chunk_size).expect("failed to make offsets");
+
+            let addition_bounds = addition_bounds(&graph, &offsets, temp_prop_chunk_size);
+
+            let expected = vec![
+                NodeAdditionBound {
+                    start: VID(0),
+                    end: VID(0),
+                    from: 0,
+                    to: 1,
+                },
+                NodeAdditionBound {
+                    start: VID(1),
+                    end: VID(1),
+                    from: 0,
+                    to: 1,
+                },
+            ];
+
+            assert_eq!(addition_bounds, expected);
+        }
+
+        #[test]
+        fn node_additions_bounds_5_nodes_across_3_chunks() {
+            // first chunk has node 0 and a bit of node 1
+            // second chunk has node 1 only
+            // third chunk has node 1, 2 and a bit of node 3
+            // fourth chunk has node 3 and 4
+            // chunks_size is 3
+
+            let test_dir = TempDir::new().unwrap();
+            let graph = TempColGraphFragment::from_edges(
+                test_dir.path(),
+                [
+                    (0, 0u64, 1, 0.),
+                    (1, 0u64, 2, 0.),
+                    (2, 1u64, 1, 0.),
+                    (3, 1u64, 1, 0.),
+                    (4, 1u64, 3, 0.),
+                    (5, 1u64, 3, 0.),
+                    (5, 3u64, 4, 0.),
+                ],
+                0,
+                2,
+            )
+            .unwrap();
+
+            let temp_prop_chunk_size = 3;
+            let offsets =
+                make_offsets(&graph, temp_prop_chunk_size).expect("failed to make offsets");
+
+            let addition_bounds = addition_bounds(&graph, &offsets, temp_prop_chunk_size);
+
+            let expected_bounds_vids = vec![
+                (VID(0), VID(1)),
+                (VID(1), VID(1)),
+                (VID(1), VID(3)),
+                (VID(3), VID(4)),
+            ];
+
+            let actual = addition_bounds
+                .iter()
+                .map(|bound| (bound.start, bound.end))
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, expected_bounds_vids);
+
+            let expected_bounds = vec![
+                NodeAdditionBound {
+                    start: VID(0),
+                    end: VID(1),
+                    from: 0,
+                    to: 1,
+                },
+                NodeAdditionBound {
+                    start: VID(1),
+                    end: VID(1),
+                    from: 1,
+                    to: 4,
+                },
+                NodeAdditionBound {
+                    start: VID(1),
+                    end: VID(3),
+                    from: 4,
+                    to: 1,
+                },
+                NodeAdditionBound {
+                    start: VID(3),
+                    end: VID(4),
+                    from: 1,
+                    to: 1,
+                },
+            ];
+
+            assert_eq!(addition_bounds, expected_bounds);
+
+            let actual = expected_bounds
+                .into_iter()
+                .map(|bound| bound_to_array(bound, &graph))
+                .collect::<Vec<_>>();
+
+            let expected = vec![
+                PrimitiveArray::from_vec(vec![0i64, 1, 0]),
+                PrimitiveArray::from_vec(vec![2i64, 3, 4]),
+                PrimitiveArray::from_vec(vec![5i64, 1, 4]),
+                PrimitiveArray::from_vec(vec![5i64, 5]),
+            ];
+
+            assert_eq!(actual, expected);
+        }
+
+        #[test]
+        fn one_node_across_3_chunks() {
+            let test_dir = TempDir::new().unwrap();
+            let graph = TempColGraphFragment::from_edges(
+                test_dir.path(),
+                [
+                    (0, 0u64, 0, 0.),
+                    (1, 0u64, 0, 0.),
+                    (2, 0u64, 0, 0.),
+                    (3, 0u64, 0, 0.),
+                    (4, 0u64, 0, 0.),
+                ],
+                0,
+                2,
+            )
+            .unwrap();
+
+            let temp_prop_chunk_size = 2;
+            let offsets =
+                make_offsets(&graph, temp_prop_chunk_size).expect("failed to make offsets");
+
+            let addition_bounds = addition_bounds(&graph, &offsets, temp_prop_chunk_size);
+
+            let expected = vec![
+                NodeAdditionBound {
+                    start: VID(0),
+                    end: VID(0),
+                    from: 0,
+                    to: 2,
+                },
+                NodeAdditionBound {
+                    start: VID(0),
+                    end: VID(0),
+                    from: 2,
+                    to: 4,
+                },
+                NodeAdditionBound {
+                    start: VID(0),
+                    end: VID(0),
+                    from: 4,
+                    to: 5,
+                },
+            ];
+
+            assert_eq!(addition_bounds, expected);
+        }
+
+        fn node_addition_bounds_check(edges: Vec<(i64, u64, u64, f64)>, chunk_size: usize) {
+            let test_dir = TempDir::new().unwrap();
+            let graph = TempColGraphFragment::from_edges(test_dir.path(), edges, 0, chunk_size)
+                .expect("failed to create graph");
+
+            let offsets = make_offsets(&graph, chunk_size).expect("failed to make offsets");
+            let bounds = addition_bounds(&graph, &offsets, chunk_size);
+
+            assert_eq!(bounds.first().unwrap().start, VID(0));
+            assert_eq!(bounds.last().unwrap().end, VID(graph.num_nodes() - 1));
+            bounds.windows(2).for_each(|w| {
+                let (prev, next) = (&w[0], &w[1]);
+                assert!(prev.end <= next.start);
+            });
+        }
+
+        #[test]
+        fn one_edge_bounds_chunk_remainder() {
+            let edges = vec![(0, 0u64, 1, 1.)];
+            node_addition_bounds_check(edges, 3)
+        }
+
+        proptest! {
+            #[test]
+            fn node_addition_bounds_test(
+                edges in any::<Vec<(u8, u8, Vec<i64>)>>().prop_map(|v| {
+                    let mut v: Vec<(i64, u64, u64, f64)> = v.into_iter().flat_map(|(src, dst, times)| {
+                        let src = src as u64;
+                        let dst = dst as u64;
+                        times.into_iter().map(move |t| (t, src, dst, 1f64))}).collect();
+                    v.sort_by_key(|(t, src, dst, _)| (*src, *dst, *t));
+                    v}).prop_filter("edge list mut have one edge at least",|edges| edges.len() > 0),
+                chunk_size in 1..1024usize,
+            ) {
+                node_addition_bounds_check(edges, chunk_size)
+            }
+        }
     }
 }
