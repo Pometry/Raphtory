@@ -1394,6 +1394,18 @@ mod test {
             ];
 
             assert_eq!(addition_bounds, expected);
+
+            let actual = expected
+                .into_iter()
+                .map(|bound| bound_to_array(bound, &graph))
+                .collect::<Vec<_>>();
+
+            let expected = vec![
+                PrimitiveArray::from_vec(vec![0i64]),
+                PrimitiveArray::from_vec(vec![0i64]),
+            ];
+
+            assert_eq!(actual, expected);
         }
 
         #[test]
