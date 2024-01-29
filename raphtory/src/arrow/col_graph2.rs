@@ -20,7 +20,7 @@ use crate::{
         chunked_array::{
             chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray,
             mutable_chunked_array::MutableChunkedOffsets,
-        }, edge::{Edge, ExplodedEdge}, edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder}, file_prefix::GraphPaths, global_order::GlobalMap, load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader}, prepare_graph_dir, Error
+        }, edge::{Edge, ExplodedEdge}, graph_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder}, file_prefix::GraphPaths, global_order::GlobalMap, load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader}, prepare_graph_dir, Error
     },
     core::{
         entities::{EID, VID},
