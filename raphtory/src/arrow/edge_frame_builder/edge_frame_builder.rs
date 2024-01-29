@@ -1,7 +1,7 @@
 use crate::arrow::{
     file_prefix::GraphPaths,
-    mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
-    parquet_source::LoadingState,
+    load::mmap::{mmap_batch, mmap_buffer, write_batches, write_buffer},
+    load::parquet_source::LoadingState,
     DST_COLUMN, SRC_COLUMN,
 };
 use arrow2::{
@@ -304,7 +304,7 @@ mod test {
     use arrow2::{array::PrimitiveArray, buffer::Buffer, offset::OffsetsBuffer};
     use itertools::Itertools;
 
-    use crate::arrow::{parquet_source::LoadingState, prelude::BaseArrayOps};
+    use crate::arrow::{load::parquet_source::LoadingState, prelude::BaseArrayOps};
 
     #[test]
     fn load_1_edge() {

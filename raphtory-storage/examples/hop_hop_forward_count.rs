@@ -1,4 +1,4 @@
-use raphtory::arrow::{graph::TemporalGraph, loader::ExternalEdgeList};
+use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
 
 use raphtory_storage::exfiltration::count::query_total;
 use std::time::Instant;

@@ -17,7 +17,7 @@ use rayon::{
 };
 
 use raphtory::{
-    arrow::{graph::TemporalGraph, loader::ExternalEdgeList, prelude::*, Time},
+    arrow::{graph::TemporalGraph, load::ExternalEdgeList, prelude::*, Time},
     core::entities::VID,
 };
 

@@ -10,8 +10,8 @@ use rayon::prelude::*;
 use crate::arrow::{
     concat,
     file_prefix::GraphPaths,
-    mmap::{mmap_batch, write_batches},
-    parquet_reader::{ParquetOffset, TrySlice},
+    load::mmap::{mmap_batch, write_batches},
+    load::parquet_reader::{ParquetOffset, TrySlice},
     Error,
 };
 

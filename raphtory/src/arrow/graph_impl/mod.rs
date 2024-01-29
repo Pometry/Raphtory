@@ -8,7 +8,7 @@ use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
 
 use crate::core::entities::properties::props::Meta;
 
-use super::{graph::TemporalGraph, loader::ExternalEdgeList, Error};
+use super::{graph::TemporalGraph, load::ExternalEdgeList, Error};
 
 pub mod const_properties_ops;
 pub mod core_ops;

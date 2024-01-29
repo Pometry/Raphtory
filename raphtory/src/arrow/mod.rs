@@ -1,4 +1,4 @@
-use crate::arrow::parquet_reader::{NumRows, TrySlice};
+use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
@@ -16,17 +16,13 @@ pub(crate) mod chunked_array;
 pub mod col_graph2;
 pub mod edge;
 pub(crate) mod edge_frame_builder;
+// pub(crate) mod node_additions;
 pub(crate) mod edges;
 pub mod global_order;
 pub mod graph;
 pub mod graph_impl;
-pub mod ipc;
-pub(crate) mod list_buffer;
-pub mod loader;
-pub mod mmap;
+pub mod load;
 pub(crate) mod nodes;
-pub(crate) mod parquet_reader;
-pub(crate) mod parquet_source;
 pub(crate) mod timestamps;
 
 pub type Time = i64;

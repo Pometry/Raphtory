@@ -20,15 +20,7 @@ use crate::{
         chunked_array::{
             chunked_offsets::ChunkedOffsets, list_array::ChunkedListArray,
             mutable_chunked_array::MutableChunkedOffsets,
-        },
-        edge::{Edge, ExplodedEdge},
-        edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
-        file_prefix::GraphPaths,
-        global_order::GlobalMap,
-        loader::ExternalEdgeList,
-        mmap::{mmap_batch, mmap_buffer, write_batches},
-        parquet_reader::{ParquetOffsetIter, ParquetReader},
-        prepare_graph_dir, Error,
+        }, edge::{Edge, ExplodedEdge}, edge_frame_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder}, file_prefix::GraphPaths, global_order::GlobalMap, load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader}, prepare_graph_dir, Error
     },
     core::{
         entities::{EID, VID},
@@ -40,9 +32,9 @@ use super::{
     chunked_array::chunked_array::ChunkedArray,
     edges::Edges,
     global_order::GlobalOrder,
-    ipc::{self, read_batch},
+    load::ipc::read_batch,
     nodes::{Node, Nodes},
-    parquet_source::{resolve_and_dedup_chunk, ParquetSource},
+    load::{mmap::{mmap_batch, write_batches}, parquet_reader::ParquetOffsetIter, parquet_source::{resolve_and_dedup_chunk, ParquetSource}, ExternalEdgeList},
     split_struct_chunk, GraphChunk, Time, GID,
 };
 
@@ -118,7 +110,7 @@ impl TempColGraphFragment {
                 GraphPaths::EdgeTProps => {
                     let chunk = read_or_mmap_chunk(mmap, &path)?;
                     let arrays = chunk.into_arrays();
-                    let schema = ipc::read_schema(&path)?;
+                    let schema = read_schema(&path)?;
                     let t_prop_array =
                         StructArray::new(DataType::Struct(schema.fields), arrays, None);
                     t_props.push(t_prop_array);
@@ -535,7 +527,6 @@ impl TempColGraphFragment {
         layer_id: usize,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
-        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         gids: Box<dyn Array>,
@@ -552,7 +543,6 @@ impl TempColGraphFragment {
             el.time_col,
             exclude_cols,
             num_threads,
-            node_chunk_size,
             edge_chunk_size,
             t_props_chunk_size,
             gids,
@@ -571,7 +561,6 @@ impl TempColGraphFragment {
         time_col: &str,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
-        node_chunk_size: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         gids: Box<dyn Array>,
@@ -609,8 +598,6 @@ impl TempColGraphFragment {
         let reader = ParquetReader::new_from_filelist(
             graph_dir,
             files,
-            src_col,
-            dst_col,
             time_col,
             &excluded_cols,
         )?;
