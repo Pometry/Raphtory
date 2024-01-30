@@ -68,7 +68,7 @@ fn valid_netflow_events(
     bytes_prop_id: usize,
     window: i64,
 ) -> Option<Vec<(VID, Vec<Window>)>> {
-    let mut nft_events: Vec<_> = nft_graph
+    let nft_events: Vec<_> = nft_graph
         .out_edges_par(b_vid)
         .filter(|(_, e_vid)| *e_vid != b_vid)
         .filter_map(|(edge_id, e_vid)| {
@@ -403,7 +403,7 @@ mod test {
             None,
         );
 
-        let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
+        let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
             0,
             4.try_into().unwrap(),

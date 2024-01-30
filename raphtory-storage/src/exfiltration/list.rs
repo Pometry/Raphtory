@@ -395,17 +395,16 @@ pub fn query<GO: GlobalOrder>(
 
 #[cfg(test)]
 mod test {
-    use crate::exfiltration::list::{query, query_per_vertex};
+    use crate::exfiltration::list::query;
     use arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{DataType, Field},
     };
-    use raphtory::{
-        arrow::{col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph},
-        core::entities::VID,
+    use raphtory::arrow::{
+        col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph,
     };
     use rayon::prelude::*;
-    use std::{path::Path, sync::Arc};
+    use std::sync::Arc;
     use tempfile::TempDir;
 
     #[test]
@@ -429,7 +428,7 @@ mod test {
             None,
         );
 
-        let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
+        let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
             0,
             4.try_into().unwrap(),
@@ -543,7 +542,7 @@ mod test {
             None,
         );
 
-        let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
+        let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
             0,
             4.try_into().unwrap(),
