@@ -20,10 +20,7 @@ use crate::{
         edge::{Edge, ExplodedEdge},
         file_prefix::GraphPaths,
         global_order::GlobalMap,
-        graph_builder::{
-            edge_props_builder::EdgePropsBuilder, node_addition_builder::make_node_additions,
-            EdgeFrameBuilder,
-        },
+        graph_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
         load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader},
         prepare_graph_dir, Error,
     },
@@ -37,6 +34,7 @@ use super::{
     chunked_array::chunked_array::ChunkedArray,
     edges::Edges,
     global_order::GlobalOrder,
+    graph_builder::node_addition_builder::make_node_additions,
     load::ipc::read_batch,
     load::{
         mmap::mmap_batch,
@@ -1313,14 +1311,19 @@ mod test {
 
     mod addition_bounds {
         use arrow2::array::PrimitiveArray;
-        use proptest::prelude::*;
+        use itertools::Itertools;
+        use proptest::{prelude::*, sample::size_range};
         use tempfile::TempDir;
 
-        use crate::arrow::graph_builder::node_addition_builder::{
-            addition_bounds, bound_to_array, make_offsets, NodeAdditionBound,
+        use crate::arrow::{
+            col_graph2::test::{AdditionOps, Graph, NO_PROPS},
+            graph_builder::node_addition_builder::{
+                addition_bounds, bound_to_array, make_node_additions,
+                make_offsets, NodeAdditionBound,
+            },
         };
 
-        use super::{TempColGraphFragment, VID};
+        use super::{GraphViewOps, NodeViewOps, TempColGraphFragment, VID};
 
         #[test]
         fn node_additions_bounds_1_self_edge() {
@@ -1546,8 +1549,9 @@ mod test {
 
         fn node_addition_bounds_check(edges: Vec<(i64, u64, u64, f64)>, chunk_size: usize) {
             let test_dir = TempDir::new().unwrap();
-            let graph = TempColGraphFragment::from_edges(test_dir.path(), edges, 0, chunk_size)
-                .expect("failed to create graph");
+            let graph: TempColGraphFragment =
+                TempColGraphFragment::from_edges(test_dir.path(), edges, 0, chunk_size)
+                    .expect("failed to create graph");
 
             let offsets = make_offsets(&graph, chunk_size).expect("failed to make offsets");
             let bounds = addition_bounds(&graph, &offsets, chunk_size);
@@ -1558,27 +1562,91 @@ mod test {
                 let (prev, next) = (&w[0], &w[1]);
                 assert!(prev.end <= next.start);
             });
+
+            let size = offsets.last();
+
+            let (actual, _) =
+                make_node_additions(&graph, chunk_size).expect("failed to make node additions");
+
+            assert_eq!(
+                actual.len(),
+                (size as f64 / chunk_size as f64).ceil() as usize,
+                "{} != {}, size: {} chunk_size: {}",
+                actual.len(),
+                (size as f64 / chunk_size as f64).ceil() as usize,
+                size,
+                chunk_size,
+            );
+        }
+
+        fn compare_raphtory_graph(edges: Vec<(i64, u64, u64, f64)>, chunk_size: usize) {
+            let nodes = edges
+                .iter()
+                .flat_map(|(_, src, dst, _)| [*src, *dst])
+                .sorted()
+                .dedup()
+                .collect::<Vec<_>>();
+
+            let rg = Graph::new();
+
+            for (time, src, dst, _) in &edges {
+                rg.add_edge(*time, *src, *dst, NO_PROPS, None)
+                    .expect("failed to add edge");
+            }
+
+            let test_dir = TempDir::new().unwrap();
+            let mut graph: TempColGraphFragment =
+                TempColGraphFragment::from_edges(test_dir.path(), edges, 0, chunk_size)
+                    .expect("failed to create graph");
+
+            graph
+                .node_additions(chunk_size)
+                .expect("failed to make node additions");
+
+            for (v_id, node) in nodes.into_iter().enumerate() {
+                let node = rg.node(node).expect("failed to get node id");
+                let expected = node.history();
+                let node = graph.node(v_id.into());
+                let actual = node.into_timestamps().into_iter_t().collect::<Vec<_>>();
+                assert_eq!(actual, expected);
+            }
+        }
+
+        #[test]
+        fn node_additions_bounds_to_arrays() {
+            let edges = vec![
+                (-2, 0, 0, 1.0),
+                (-1, 0, 0, 1.0),
+                (0, 0, 0, 1.0),
+                (1, 0, 0, 1.0),
+                (2, 0, 0, 1.0),
+            ];
+
+            node_addition_bounds_check(edges.clone(), 2);
+            compare_raphtory_graph(edges, 2);
         }
 
         #[test]
         fn one_edge_bounds_chunk_remainder() {
             let edges = vec![(0, 0u64, 1, 1.)];
-            node_addition_bounds_check(edges, 3)
+            node_addition_bounds_check(edges.clone(), 3);
+            compare_raphtory_graph(edges, 3);
         }
 
         proptest! {
             #[test]
             fn node_addition_bounds_test(
-                edges in any::<Vec<(u8, u8, Vec<i64>)>>().prop_map(|v| {
+                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=10).lift()).prop_map(|v| {
                     let mut v: Vec<(i64, u64, u64, f64)> = v.into_iter().flat_map(|(src, dst, times)| {
                         let src = src as u64;
                         let dst = dst as u64;
                         times.into_iter().map(move |t| (t, src, dst, 1f64))}).collect();
                     v.sort_by_key(|(t, src, dst, _)| (*src, *dst, *t));
                     v}).prop_filter("edge list mut have one edge at least",|edges| edges.len() > 0),
-                chunk_size in 1..1024usize,
+                chunk_size in 1..5usize,
             ) {
-                node_addition_bounds_check(edges, chunk_size)
+                node_addition_bounds_check(edges.clone(), chunk_size);
+                compare_raphtory_graph(edges, chunk_size);
             }
         }
     }
