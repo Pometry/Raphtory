@@ -33,7 +33,6 @@ fn main() {
             "dst_hash",
             "time",
             chunk_size,
-            chunk_size,
             t_props_chunk_size,
             Some(4_000_000),
             Some(8),
@@ -62,7 +61,6 @@ fn main() {
     for (cc, count) in actual {
         println!("{}: {}", cc, count);
     }
-
 
     //     // println!("{:?}", graph2.layer_names());
 

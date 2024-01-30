@@ -69,7 +69,6 @@ fn main() {
         let graph = TemporalGraph::from_edge_lists(
             8,
             chunk_size,
-            chunk_size,
             t_props_chunk_size,
             None,
             None,

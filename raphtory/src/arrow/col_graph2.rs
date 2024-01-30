@@ -13,6 +13,7 @@ use arrow2::{
 };
 use itertools::Itertools;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     arrow::{
@@ -35,8 +36,8 @@ use super::{
     edges::Edges,
     global_order::GlobalOrder,
     graph_builder::node_addition_builder::make_node_additions,
-    load::ipc::read_batch,
     load::{
+        ipc::read_batch,
         mmap::mmap_batch,
         parquet_reader::ParquetOffsetIter,
         parquet_source::{resolve_and_dedup_chunk, ParquetSource},
@@ -51,6 +52,47 @@ pub struct TempColGraphFragment {
     pub(crate) nodes: Nodes,
     pub(crate) edges: Edges,
     pub(crate) graph_dir: Box<Path>,
+    pub(crate) metadata: Metadata,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub(crate) struct Metadata {
+    earliest_time: Time,
+    latest_time: Time,
+}
+
+impl Default for Metadata {
+    fn default() -> Self {
+        Self {
+            earliest_time: Time::MIN,
+            latest_time: Time::MAX,
+        }
+    }
+}
+
+impl From<(Time, Time)> for Metadata {
+    fn from((earliest_time, latest_time): (Time, Time)) -> Self {
+        Self {
+            earliest_time,
+            latest_time,
+        }
+    }
+}
+
+impl Metadata {
+    fn from_path(graph_dir: &Path) -> Result<Self, Error> {
+        let path = GraphPaths::Metadata.to_path(graph_dir, 0);
+        let metadata = std::fs::read(path)?;
+        let metadata = bincode::deserialize(&metadata)?;
+        Ok(metadata)
+    }
+
+    fn write_to_path(&self, graph_dir: &Path) -> Result<(), Error> {
+        let path = GraphPaths::Metadata.to_path(graph_dir, 0);
+        let metadata = bincode::serialize(self)?;
+        std::fs::write(path, metadata)?;
+        Ok(())
+    }
 }
 
 pub fn list_sorted_files(
@@ -89,6 +131,8 @@ impl TempColGraphFragment {
 
         let mut node_additions_offsets: Vec<OffsetsBuffer<i64>> = vec![];
         let mut node_additions_chunks: Vec<StructArray> = vec![];
+
+        let mut metadata = Metadata::default();
 
         for (file_type, path) in files {
             match file_type {
@@ -168,6 +212,9 @@ impl TempColGraphFragment {
                     let chunk = unsafe { mmap_buffer(&path, 0) }?;
                     adj_in_offsets_chunks.push(unsafe { OffsetsBuffer::new_unchecked(chunk) });
                 }
+                GraphPaths::Metadata => {
+                    metadata = Metadata::from_path(graph_dir)?;
+                }
             }
         }
 
@@ -206,6 +253,7 @@ impl TempColGraphFragment {
             nodes,
             edges,
             graph_dir: graph_dir.into(),
+            metadata,
         };
 
         if !has_additions {
@@ -224,11 +272,11 @@ impl TempColGraphFragment {
     }
 
     pub(crate) fn earliest_time(&self) -> Time {
-        self.edges.earliest_time
+        self.metadata.earliest_time
     }
 
     pub(crate) fn latest_time(&self) -> Time {
-        self.edges.latest_time
+        self.metadata.latest_time
     }
 
     pub fn edge_property_id(&self, name: &str) -> Option<usize> {
@@ -395,10 +443,14 @@ impl TempColGraphFragment {
             edges.dst_ids.clone(),
         )?;
 
+        let metadata = edges.earliest_latest().into();
+        Metadata::write_to_path(&metadata, &graph_dir)?;
+
         Ok(TempColGraphFragment {
             nodes,
             edges,
             graph_dir: graph_dir.into(),
+            metadata,
         })
     }
 
@@ -491,6 +543,9 @@ impl TempColGraphFragment {
             layer_id,
         );
 
+        let metadata = edges.earliest_latest().into();
+        Metadata::write_to_path(&metadata, &graph_dir)?;
+
         let dst_ids = edges.dst_ids.clone();
 
         let nodes = Nodes::new(graph_dir, gids, edge_builder.adj_out_offsets, dst_ids)?;
@@ -499,6 +554,7 @@ impl TempColGraphFragment {
             nodes,
             edges,
             graph_dir: graph_dir.into(),
+            metadata,
         })
     }
 
@@ -1318,8 +1374,8 @@ mod test {
         use crate::arrow::{
             col_graph2::test::{AdditionOps, Graph, NO_PROPS},
             graph_builder::node_addition_builder::{
-                addition_bounds, bound_to_array, make_node_additions,
-                make_offsets, NodeAdditionBound,
+                addition_bounds, bound_to_array, make_node_additions, make_offsets,
+                NodeAdditionBound,
             },
         };
 

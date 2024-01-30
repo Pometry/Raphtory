@@ -119,8 +119,7 @@ impl Graph2 {
         dst_col: &str,
         dst_hash_col: &str,
         time_col: &str,
-        node_chunk_size: usize,
-        edge_chunk_size: usize,
+        chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
@@ -136,8 +135,7 @@ impl Graph2 {
         )?;
         let t_graph = TemporalGraph::from_edge_lists(
             32,
-            node_chunk_size,
-            edge_chunk_size,
+            chunk_size,
             t_props_chunk_size,
             read_chunk_size,
             concurrent_files,

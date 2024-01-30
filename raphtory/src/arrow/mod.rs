@@ -6,6 +6,7 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::{
     num::TryFromIntError,
     ops::Range,
@@ -58,6 +59,8 @@ pub enum Error {
     ArgumentError(#[from] TryFromIntError),
     #[error("Invalid file: {0:?}")]
     InvalidFile(PathBuf),
+    #[error("Invalid metadata: {0:?}")]
+    MetadataError(#[from] Box<bincode::ErrorKind>),
 }
 
 unsafe impl Send for Error {} // heed::Error can't be made Send
@@ -97,6 +100,7 @@ pub(crate) mod file_prefix {
         AdjInSrcs,
         AdjInEdges,
         AdjInOffsets,
+        Metadata,
     }
 
     impl GraphPaths {
@@ -121,7 +125,7 @@ pub(crate) mod file_prefix {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum GID {
     U64(u64),
     I64(i64),
