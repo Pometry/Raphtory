@@ -4,21 +4,21 @@ use raphtory::{
     db::api::view::MaterializedGraph,
     prelude::{GraphViewOps, PropUnwrap, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::{document_template::DocumentTemplate, vectorised_graph::DynamicVectorisedGraph},
+    vectors::vectorised_graph::DynamicVectorisedGraph,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path, sync::Arc};
 use walkdir::WalkDir;
 
 #[derive(Default)]
 pub struct Data {
-    pub(crate) graphs: RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>,
-    pub(crate) vector_stores: RwLock<HashMap<String, DynamicVectorisedGraph>>,
+    pub(crate) graphs: Arc<RwLock<HashMap<String, IndexedGraph<MaterializedGraph>>>>,
+    pub(crate) vector_stores: Arc<RwLock<HashMap<String, DynamicVectorisedGraph>>>,
 }
 
 impl Data {
     pub fn from_map<G: Into<MaterializedGraph>>(graphs: HashMap<String, G>) -> Self {
-        let graphs = RwLock::new(Self::convert_graphs(graphs));
-        let vector_stores = RwLock::new(HashMap::new());
+        let graphs = Arc::new(RwLock::new(Self::convert_graphs(graphs)));
+        let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
             vector_stores,
@@ -26,8 +26,8 @@ impl Data {
     }
 
     pub fn from_directory(directory_path: &str) -> Self {
-        let graphs = RwLock::new(Self::load_from_file(directory_path));
-        let vector_stores = RwLock::new(HashMap::new());
+        let graphs = Arc::new(RwLock::new(Self::load_from_file(directory_path)));
+        let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
             vector_stores,
@@ -40,8 +40,8 @@ impl Data {
     ) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
         graphs.extend(Self::load_from_file(directory_path));
-        let graphs = RwLock::new(graphs);
-        let vector_stores = RwLock::new(HashMap::new());
+        let graphs = Arc::new(RwLock::new(graphs));
+        let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
             vector_stores,
@@ -60,6 +60,27 @@ impl Data {
                 )
             })
             .collect()
+    }
+
+    // TODO: use this for loading both regular and vectorised graphs
+    pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
+    where
+        F: Fn(&Path) -> T + 'static,
+    {
+        WalkDir::new(path)
+            .into_iter()
+            .filter_map(|e| {
+                let entry = e.ok()?;
+                let path = entry.path();
+                let filename = path.file_name().and_then(|name| name.to_str())?;
+                (path.is_file() && !filename.starts_with('.')).then_some(entry)
+            })
+            .map(move |entry| {
+                let path = entry.path();
+                let path_string = path.display().to_string();
+                println!("loading from {path_string}");
+                loader(path)
+            })
     }
 
     pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<MaterializedGraph>> {

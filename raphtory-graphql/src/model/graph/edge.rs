@@ -2,7 +2,6 @@ use crate::model::graph::{node::Node, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
@@ -35,11 +34,11 @@ impl Edge {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Result<Edge, GraphError> {
-        self.ee.layer(names).map(move |v| v.into())
+    async fn layers(&self, names: Vec<String>) -> Edge {
+        self.ee.valid_layers(names).into()
     }
-    async fn layer(&self, name: String) -> Result<Edge, GraphError> {
-        self.ee.layer(name).map(|v| v.into())
+    async fn layer(&self, name: String) -> Edge {
+        self.ee.valid_layers(name).into()
     }
     async fn window(&self, start: i64, end: i64) -> Edge {
         self.ee.window(start, end).into()

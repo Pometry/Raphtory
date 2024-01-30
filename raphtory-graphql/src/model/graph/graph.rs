@@ -10,13 +10,13 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError},
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             properties::dyn_props::DynProperties,
             view::{DynamicGraph, NodeViewOps, TimeOps},
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
@@ -56,13 +56,12 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.default_layer())
     }
 
-    async fn layers(&self, names: Vec<String>) -> Result<GqlGraph, GraphError> {
+    async fn layers(&self, names: Vec<String>) -> GqlGraph {
         let name = self.name.clone();
-        self.graph.layer(names).map(move |g| GqlGraph::new(name, g))
+        GqlGraph::new(name, self.graph.valid_layers(names))
     }
-    async fn layer(&self, name: String) -> Result<GqlGraph, GraphError> {
-        let v_name = self.name.clone();
-        self.graph.layer(name).map(|g| GqlGraph::new(v_name, g))
+    async fn layer(&self, name: String) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.valid_layers(name))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
@@ -222,7 +221,7 @@ impl GqlGraph {
         match layer {
             Some(name) => self
                 .graph
-                .layer(name)
+                .layers(name)
                 .map(|l| l.has_edge(src, dst))
                 .unwrap_or(false),
             None => self.graph.has_edge(src, dst),
@@ -235,7 +234,7 @@ impl GqlGraph {
         match layer {
             Some(name) => self
                 .graph
-                .layer(name)
+                .layers(name)
                 .map(|l| l.has_edge(src, dst))
                 .unwrap_or(false),
             None => self.graph.has_edge(src, dst),
@@ -336,10 +335,10 @@ impl GqlGraph {
         self.name.clone()
     }
     async fn schema(&self) -> GraphSchema {
-        GraphSchema::new(&self.graph)
+        GraphSchema::new(self.graph.graph())
     }
     async fn algorithms(&self) -> GraphAlgorithms {
-        self.graph.deref().clone().into()
+        self.graph.graph().clone().into()
     }
 
     async fn node_names(&self) -> Vec<String> {
@@ -398,6 +397,33 @@ impl GqlGraph {
                 .filter(|ev| filter.matches(ev))
                 .collect(),
             None => fetched_edges,
+        }
+    }
+
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
+        if selected_nodes.is_empty() {
+            return vec![];
+        }
+
+        let neighbours: Vec<HashSet<NodeView<IndexedGraph<DynamicGraph>>>> = selected_nodes
+            .iter()
+            .filter_map(|n| self.graph.node(Into::<NodeRef>::into(n.clone())))
+            .map(|n| {
+                n.neighbours()
+                    .collect()
+                    .iter()
+                    .map(|vv| vv.clone())
+                    .collect::<HashSet<NodeView<IndexedGraph<DynamicGraph>>>>()
+            })
+            .collect();
+
+        let intersection = neighbours.iter().fold(None, |acc, n| match acc {
+            None => Some(n.clone()),
+            Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
+        });
+        match intersection {
+            Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
+            None => vec![],
         }
     }
 }

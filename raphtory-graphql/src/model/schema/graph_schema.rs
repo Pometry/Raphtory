@@ -21,7 +21,7 @@ impl GraphSchema {
 
         let layers = graph
             .unique_layers()
-            .map(|layer_name| graph.layer(layer_name).unwrap().into())
+            .map(|layer_name| graph.layers(layer_name).unwrap().into())
             .collect_vec();
 
         GraphSchema { nodes, layers }

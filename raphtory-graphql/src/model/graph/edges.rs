@@ -1,7 +1,6 @@
 use crate::model::{filters::edge_filter::EdgeFilter, graph::edge::Edge};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::GraphError,
     db::{api::view::DynamicGraph, graph::edges::Edges},
     prelude::{LayerOps, TimeOps},
 };
@@ -44,12 +43,12 @@ impl GqlEdges {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Result<Self, GraphError> {
-        self.ee.layer(names).map(|v| self.update(v))
+    async fn layers(&self, names: Vec<String>) -> Self {
+        self.update(self.ee.valid_layers(names))
     }
 
-    async fn layer(&self, name: String) -> Result<Self, GraphError> {
-        self.ee.layer(name).map(|v| self.update(v))
+    async fn layer(&self, name: String) -> Self {
+        self.update(self.ee.valid_layers(name))
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {

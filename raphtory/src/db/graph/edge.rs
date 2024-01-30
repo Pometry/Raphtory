@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::{errors::GraphError, time::IntoTime},
         ArcStr,
@@ -62,12 +62,16 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> {
-    pub fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
+    pub(crate) fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
         Self {
             base_graph,
             graph,
             edge,
         }
+    }
+
+    fn layer_ids(&self) -> LayerIds {
+        self.graph.layer_ids().constrain_from_edge(self.edge)
     }
 }
 
@@ -80,7 +84,7 @@ impl<
 {
     pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, t)?;
-        let layer = self.resolve_layer(layer)?;
+        let layer = self.resolve_layer(layer, true)?;
         self.graph
             .internal_delete_edge(t, self.edge.src(), self.edge.dst(), layer)
     }
@@ -151,7 +155,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 }
 
 impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G, G> {
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
         match layer {
             Some(name) => match self.edge.layer() {
                 Some(l_id) => self
@@ -159,7 +163,15 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
                     .get_layer_id(name)
                     .filter(|id| id == l_id)
                     .ok_or_else(|| GraphError::InvalidLayer(name.to_owned())),
-                None => Ok(self.graph.resolve_layer(layer)),
+                None => {
+                    if create {
+                        Ok(self.graph.resolve_layer(layer))
+                    } else {
+                        self.graph
+                            .get_layer_id(name)
+                            .ok_or(GraphError::InvalidLayer(name.to_owned()))
+                    }
+                }
             },
             None => Ok(self.edge.layer().copied().unwrap_or(0)),
         }
@@ -182,11 +194,23 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let input_layer_id = self.resolve_layer(layer, false)?;
+        if self
+            .graph
+            .edge_layers(self.edge, LayerIds::One(input_layer_id))
+            .next()
+            .is_none()
+        {
+            return Err(GraphError::InvalidEdgeLayer {
+                layer: layer.unwrap_or("_default").to_string(),
+                src: self.src().name(),
+                dst: self.dst().name(),
+            });
+        }
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let input_layer_id = self.resolve_layer(layer)?;
 
         self.graph.internal_add_constant_edge_properties(
             self.edge.pid(),
@@ -200,11 +224,11 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let input_layer_id = self.resolve_layer(layer, false)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_edge_property(name, dtype, true),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let input_layer_id = self.resolve_layer(layer)?;
 
         self.graph.internal_update_constant_edge_properties(
             self.edge.pid(),
@@ -220,7 +244,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let t = TimeIndexEntry::from_input(&self.graph, time)?;
-        let layer_id = self.resolve_layer(layer)?;
+        let layer_id = self.resolve_layer(layer, true)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(
             |name, dtype| self.graph.resolve_edge_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
@@ -444,7 +468,7 @@ mod test_edge {
                 .collect()
         );
         assert_eq!(
-            e.layer("test2").unwrap().properties().as_map(),
+            e.layers("test2").unwrap().properties().as_map(),
             props
                 .into_iter()
                 .map(|(k, v)| (ArcStr::from(k), v.into_prop()))

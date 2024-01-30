@@ -219,35 +219,19 @@ impl EdgeStore {
     }
 
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
-        let layer_ids = self
+        let from_additions = self
             .additions
             .iter()
             .enumerate()
-            .zip_longest(self.deletions.iter().enumerate())
-            .flat_map(|e| match e {
-                itertools::EitherOrBoth::Both((i, t1), (_, t2)) => {
-                    if !t1.is_empty() || !t2.is_empty() {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }
-                itertools::EitherOrBoth::Left((i, t)) => {
-                    if !t.is_empty() {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }
-                itertools::EitherOrBoth::Right((i, t)) => {
-                    if !t.is_empty() {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }
-            });
-        layer_ids
+            .map(|(i, t)| (!t.is_empty()).then_some(i));
+        let from_deletions = self
+            .deletions
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (!t.is_empty()).then_some(i));
+        from_additions
+            .zip_longest(from_deletions)
+            .flat_map(|v| v.reduce(|l, r| l.or(r)))
     }
 
     pub fn layer_ids_window_iter(&self, w: Range<i64>) -> impl Iterator<Item = usize> + '_ {

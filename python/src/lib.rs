@@ -18,7 +18,7 @@ use raphtory_core::python::{
         algorithms::*,
         graph_gen::*,
         graph_loader::*,
-        vectors::{PyGraphDocument, PyVectorisedGraph},
+        vectors::{PyDocument, PyVectorisedGraph},
     },
 };
 
@@ -63,6 +63,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;
+    graphql_module.add_class::<PyGlobalPlugins>()?;
     graphql_module.add_class::<PyRaphtoryServer>()?;
     graphql_module.add_class::<PyRunningRaphtoryServer>()?;
     graphql_module.add_class::<PyRaphtoryClient>()?;
@@ -137,7 +138,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // VECTORS
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
-    vectors_module.add_class::<PyGraphDocument>()?;
+    vectors_module.add_class::<PyDocument>()?;
     m.add_submodule(vectors_module)?;
 
     Ok(())

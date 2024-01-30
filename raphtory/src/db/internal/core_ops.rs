@@ -326,7 +326,7 @@ mod test_edges {
             vec![0.into(), 1.into()]
         );
 
-        let e = g.edge(1, 2).unwrap().layer("layer1").unwrap();
+        let e = g.edge(1, 2).unwrap().layers("layer1").unwrap();
         assert!(e.properties().constant().contains("layer1"));
     }
 }
