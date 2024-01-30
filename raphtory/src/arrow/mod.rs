@@ -22,7 +22,6 @@ pub(crate) mod edges;
 pub mod global_order;
 pub mod graph;
 pub mod graph_impl;
-pub(crate) mod inbound_adj_builder;
 pub mod load;
 pub(crate) mod nodes;
 pub(crate) mod timestamps;
