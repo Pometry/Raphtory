@@ -115,7 +115,6 @@ impl TempColGraphFragment {
         layer_id: usize,
         node_gids: Box<dyn Array>,
     ) -> Result<Self, Error> {
-        println!("Loading graph from {:?}", graph_dir.as_ref());
         let graph_dir = graph_dir.as_ref();
         let files = list_sorted_files(graph_dir)?;
         let mut adj_out_offsets_chunks: Vec<OffsetsBuffer<i64>> = vec![];
