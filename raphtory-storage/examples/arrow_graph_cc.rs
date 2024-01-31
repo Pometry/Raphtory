@@ -21,8 +21,8 @@ fn main() {
         Graph2::open_path(graph_dir).expect("Cannot open graph")
     } else {
         let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
-        let chunk_size = 8_388_608;
-        let t_props_chunk_size = 20_970_100;
+        let chunk_size = 33_554_432;
+        let t_props_chunk_size = 83_880_400;
         let now = Instant::now();
         let graph = Graph2::load_from_dir(
             graph_dir,
@@ -35,7 +35,7 @@ fn main() {
             chunk_size,
             t_props_chunk_size,
             Some(4_000_000),
-            Some(8),
+            Some(16),
         )
         .expect("Cannot load graph");
         println!("########## Load took {:?} ########## ", now.elapsed());
