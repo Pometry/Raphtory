@@ -18,6 +18,7 @@ pub mod col_graph2;
 pub mod edge;
 pub(crate) mod graph_builder;
 // pub(crate) mod node_additions;
+pub mod algorithms;
 pub(crate) mod edges;
 pub mod global_order;
 pub mod graph;
