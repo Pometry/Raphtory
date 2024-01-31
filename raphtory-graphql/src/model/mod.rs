@@ -164,7 +164,8 @@ impl Mut {
             let timestamp: i64 = dt.timestamp();
             new_subgraph
                 .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-
+            new_subgraph
+                .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             new_subgraph.save_to_file(path)?;
 
             let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
@@ -172,6 +173,28 @@ impl Mut {
             data.insert(new_graph_name, gi);
             data.remove(&graph_name);
         }
+
+        Ok(true)
+    }
+
+    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, graph_name: String) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>().graphs.write();
+
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+
+        let dt = Utc::now();
+        let timestamp: i64 = dt.timestamp();
+
+        subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+
+        let path = subgraph
+            .properties()
+            .constant()
+            .get("path")
+            .ok_or("Path is missing")?
+            .to_string();
+
+        subgraph.save_to_file(path)?;
 
         Ok(true)
     }
@@ -252,6 +275,7 @@ impl Mut {
         }
 
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
