@@ -46,13 +46,6 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
-        name: Setup Rust
-        with:
-          profile: minimal
-          toolchain: 1.73.0
-          override: true
-          components: rustfmt, clippy
       - name: Install sccache (macOS)
         if: matrix.os == 'macos-latest'
         run: brew install sccache
