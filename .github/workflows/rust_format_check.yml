@@ -16,6 +16,9 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v4
+        - name: Setup rust
+          run: |
+            rustup toolchain install nightly
         - name: Run rust format check
           run: |
             if [ ${{ inputs.fail_if_not_formatted }} == true ]; then
