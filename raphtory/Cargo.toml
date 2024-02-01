@@ -77,6 +77,7 @@ ahash = { version = "0.8.3", optional = true, features = ["serde"]}
 tempfile = { version = "3.8.0", optional = true }
 xxhash-rust = "0.8.7"
 strum = { version = "0.25", features = ["derive"], optional = true}
+bytemuck = { version = "1.14.1", optional = true }
 
 [dev-dependencies]
 csv = "1"
@@ -100,7 +101,7 @@ search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
-arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:serde_json",
+arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:serde_json", "dep:bytemuck",
     "arrow2?/io_ipc",
     "arrow2?/io_parquet",
     "arrow2?/io_parquet_compression",

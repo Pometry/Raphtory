@@ -287,11 +287,11 @@ impl TempColGraphFragment {
     }
 
     pub fn node_additions(&mut self, temp_prop_chunk_size: usize) -> Result<(), super::Error> {
-        let (arrays, offsets) = make_node_additions(self, temp_prop_chunk_size)?;
-        let chunked_t_array = ChunkedArray::from(arrays);
+        // let (arrays, offsets) = make_node_additions(self, temp_prop_chunk_size)?;
+        // let chunked_t_array = ChunkedArray::from(arrays);
 
-        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
-        self.nodes.additions = chunked_list_array;
+        // let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
+        // self.nodes.additions = chunked_list_array;
         Ok(())
     }
 
@@ -460,6 +460,7 @@ impl TempColGraphFragment {
         layer_id: usize,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
+        concurrent_files: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         gids: Box<dyn Array>,
@@ -476,6 +477,7 @@ impl TempColGraphFragment {
             el.time_col,
             exclude_cols,
             num_threads,
+            concurrent_files,
             edge_chunk_size,
             t_props_chunk_size,
             gids,
@@ -494,6 +496,7 @@ impl TempColGraphFragment {
         time_col: &str,
         exclude_cols: &[&str],
         num_threads: NonZeroUsize,
+        concurrent_files: usize,
         edge_chunk_size: usize,
         t_props_chunk_size: usize,
         gids: Box<dyn Array>,
@@ -504,7 +507,7 @@ impl TempColGraphFragment {
 
         let source = ParquetSource::new(
             files.into_iter().cloned().collect(),
-            8,
+            concurrent_files,
             Some(vec![src_col, dst_col]),
             |chunk| {
                 // get the source and dest and map them to their IDs also dedupe them

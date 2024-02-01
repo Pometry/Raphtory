@@ -62,6 +62,8 @@ pub enum Error {
     InvalidFile(PathBuf),
     #[error("Invalid metadata: {0:?}")]
     MetadataError(#[from] Box<bincode::ErrorKind>),
+    #[error("Failed to cast mmap_mut to [i64]: {0:?}")]
+    SliceCastError(bytemuck::PodCastError),
 }
 
 unsafe impl Send for Error {} // heed::Error can't be made Send

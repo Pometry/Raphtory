@@ -2,7 +2,7 @@ use std::{cmp::Reverse, time::Instant};
 
 use itertools::Itertools;
 use raphtory::{
-    algorithms::components::weakly_connected_components, arrow::graph_impl::Graph2, prelude::*,
+    algorithms::components::weakly_connected_components, arrow::{algorithms::connected_components, graph_impl::Graph2}, prelude::*,
 };
 
 fn main() {
@@ -21,8 +21,8 @@ fn main() {
         Graph2::open_path(graph_dir).expect("Cannot open graph")
     } else {
         let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
-        let chunk_size = 33_554_432;
-        let t_props_chunk_size = 83_880_400;
+        let chunk_size = 1_000_000_000;
+        let t_props_chunk_size = chunk_size / 2;
         let now = Instant::now();
         let graph = Graph2::load_from_dir(
             graph_dir,
@@ -35,32 +35,36 @@ fn main() {
             chunk_size,
             t_props_chunk_size,
             Some(4_000_000),
-            Some(16),
+            Some(8),
         )
         .expect("Cannot load graph");
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
     };
 
+    let g = &graph2.layers()[0];
+
+
     println!("Graph has {} nodes", graph2.count_nodes());
     println!("Graph has {} edges", graph2.count_edges());
 
     let now = Instant::now();
-    let ccs = weakly_connected_components(&graph2, 100, None).group_by();
-    println!("########## Arrow CC took {:?} ########## ", now.elapsed());
+    // let ccs = weakly_connected_components(&graph2, 100, None).group_by();
+    let out = connected_components::connected_components(g);
+    println!("########## Arrow CC took {:?} ########## len: {}", now.elapsed(), out.len());
 
-    let actual = ccs
-        .into_iter()
-        .map(|(cc, group)| (cc, Reverse(group.len())))
-        .sorted_by_key(|(key, count)| (*count, *key))
-        .map(|(cc, count)| (cc, count.0))
-        .take(2)
-        .collect::<Vec<_>>();
+    // let actual = ccs
+    //     .into_iter()
+    //     .map(|(cc, group)| (cc, Reverse(group.len())))
+    //     .sorted_by_key(|(key, count)| (*count, *key))
+    //     .map(|(cc, count)| (cc, count.0))
+    //     .take(2)
+    //     .collect::<Vec<_>>();
 
-    println!("Top 2 connected components by size: {}", actual.len());
-    for (cc, count) in actual {
-        println!("{}: {}", cc, count);
-    }
+    // println!("Top 2 connected components by size: {}", actual.len());
+    // for (cc, count) in actual {
+    //     println!("{}: {}", cc, count);
+    // }
 
     //     // println!("{:?}", graph2.layer_names());
 
