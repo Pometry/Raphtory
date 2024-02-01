@@ -128,13 +128,6 @@ jobs:
             ~/.cargo/git/db/
           key: doc-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: doc-${{ runner.os }}-cargo-
-      - uses: actions-rs/toolchain@v1
-        name: Setup Rust
-        with:
-          profile: minimal
-          toolchain: 1.73.0
-          override: true
-          components: rustfmt, clippy
       - name: Install sccache (Ubuntu)
         run: |
           curl -L https://github.com/mozilla/sccache/releases/download/v0.5.4/sccache-v0.5.4-x86_64-unknown-linux-musl.tar.gz | tar xz
