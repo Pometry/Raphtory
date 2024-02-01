@@ -253,7 +253,7 @@ impl TempColGraphFragment {
             println!("Node additions took {:?}", now.elapsed());
         } else {
             grapho.nodes.additions = ChunkedListArray::new_from_parts(
-                ChunkedArray::from(node_additions_chunks),
+                ChunkedArray::from_non_nulls(node_additions_chunks),
                 ChunkedOffsets::from(node_additions_offsets),
             );
         }
@@ -283,7 +283,7 @@ impl TempColGraphFragment {
         temp_prop_chunk_size: usize,
     ) -> Result<(), super::Error> {
         let (arrays, offsets) = make_node_additions(self, chunk_size, temp_prop_chunk_size)?;
-        let chunked_t_array = ChunkedArray::from(arrays);
+        let chunked_t_array = ChunkedArray::from_non_nulls(arrays);
 
         let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
         self.nodes.additions = chunked_list_array;

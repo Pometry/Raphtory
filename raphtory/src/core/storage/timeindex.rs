@@ -494,7 +494,7 @@ mod test {
     };
     use itertools::Itertools;
 
-    use crate::core::{entities::LayerIds, storage::locked_view::LockedView};
+    use crate::{arrow::chunked_array::chunked_array::NonNull, core::{entities::LayerIds, storage::locked_view::LockedView}};
 
     use crate::arrow::{
         chunked_array::{
@@ -592,18 +592,15 @@ mod test {
             LockedView::Locked(locked_t_index.read()),
         ));
 
-        let make_chunks = make_chunks(vec![3], 1);
-        let slice = make_chunks.slice(0..);
-        let time_chunks = slice.into_non_null_primitive_col::<Time>(0).unwrap();
-
-        let ts: TimeStamps<'_, TimeIndexEntry> = TimeStamps::new(time_chunks, None);
+        let time_chunks = make_chunks(vec![3], 1);
+        let ts: TimeStamps<'_, TimeIndexEntry> = TimeStamps::new(time_chunks.slice(0..), None);
         let arr_t_index: LockedLayeredIndex<'_, TimeIndexEntry> =
             LockedLayeredIndex::External(Box::new(ts));
 
         f(&vec_t_index, &arr_t_index);
     }
 
-    fn make_chunks(data: Vec<i64>, chunk_size: usize) -> ChunkedArray<StructArray> {
+    fn make_chunks(data: Vec<i64>, chunk_size: usize) -> ChunkedArray<PrimitiveArray<i64>, NonNull> {
         let data = data
             .into_iter()
             .chunks(chunk_size)
@@ -611,18 +608,8 @@ mod test {
             .map(|c| c.collect_vec())
             .collect_vec();
 
-        let dtype = DataType::Struct(vec![Field::new("test", DataType::Int64, false)]);
-        let arrays = data
-            .into_iter()
-            .map(|v| {
-                StructArray::new(
-                    dtype.clone(),
-                    vec![PrimitiveArray::from_vec(v).boxed()],
-                    None,
-                )
-            })
-            .collect_vec();
-        let chunks: ChunkedArray<StructArray> = arrays.into();
-        chunks
+        ChunkedArray::from_non_nulls(data.into_iter()
+            .map(|c| PrimitiveArray::from_vec(c))
+            .collect::<Vec<_>>())
     }
 }
