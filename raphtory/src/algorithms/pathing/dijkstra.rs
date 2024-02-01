@@ -39,7 +39,7 @@ impl PartialOrd for State {
 /// * `graph`: The graph to search in.
 /// * `source`: The source node.
 /// * `targets`: A vector of target nodes.
-/// * `weight`: The name of the weight property for the edges.
+/// * `weight`: Option, The name of the weight property for the edges. If not set then defaults all edges to weight=1.
 ///
 /// # Returns
 ///
@@ -50,28 +50,35 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
     graph: &G,
     source: T,
     targets: Vec<T>,
-    weight: String,
+    weight: Option<String>,
 ) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
     let source_node = match graph.node(source) {
         Some(src) => src,
         None => return Err("Source node not found"),
     };
-    let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&weight) {
-        Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
-        None => graph
+    let mut weight_type = Some(PropType::U8);
+    if weight.is_some() {
+        weight_type = match graph
             .edge_meta()
-            .const_prop_meta()
-            .get_id(&weight)
-            .map(|weight_id| {
-                graph
-                    .edge_meta()
-                    .const_prop_meta()
-                    .get_dtype(weight_id)
-                    .unwrap()
-            }),
-    };
-    if weight_type.is_none() {
-        return Err("Weight property not found on edges");
+            .temporal_prop_meta()
+            .get_id(&weight.clone().unwrap())
+        {
+            Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
+            None => graph
+                .edge_meta()
+                .const_prop_meta()
+                .get_id(&weight.clone().unwrap())
+                .map(|weight_id| {
+                    graph
+                        .edge_meta()
+                        .const_prop_meta()
+                        .get_dtype(weight_id)
+                        .unwrap()
+                }),
+        };
+        if weight_type.is_none() {
+            return Err("Weight property not found on edges");
+        }
     }
 
     let target_nodes: Vec<String> = targets
@@ -152,9 +159,13 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         // Replace this loop with your actual logic to iterate over the outgoing edges
         for edge in graph.node(node_name.clone()).unwrap().out_edges() {
             let next_node_name = edge.dst().name();
-            let edge_val = match edge.properties().get(&weight) {
-                Some(prop) => prop,
-                _ => continue,
+            let edge_val = if weight.is_none() {
+                Prop::U8(1)
+            } else {
+                match edge.properties().get(&weight.clone().unwrap()) {
+                    Some(prop) => prop,
+                    _ => continue,
+                }
             };
             let next_cost = cost.clone().add(edge_val).unwrap();
             if next_cost
@@ -210,7 +221,7 @@ mod dijkstra_tests {
 
         let targets: Vec<&str> = vec!["D", "F"];
         let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
+            dijkstra_single_source_shortest_paths(&graph, "A", targets, Some("weight".to_string()));
 
         let results = results.unwrap();
 
@@ -222,7 +233,7 @@ mod dijkstra_tests {
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
         let results =
-            dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
+            dijkstra_single_source_shortest_paths(&graph, "B", targets, Some("weight".to_string()));
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::F32(5.0f32));
         assert_eq!(results.get("E").unwrap().0, Prop::F32(3.0f32));
@@ -230,6 +241,16 @@ mod dijkstra_tests {
         assert_eq!(results.get("D").unwrap().1, vec!["B", "C", "D"]);
         assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
         assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
+    }
+
+    #[test]
+    fn test_dijkstra_no_weight() {
+        let graph = basic_graph();
+        let targets: Vec<&str> = vec!["C", "E", "F"];
+        let results = dijkstra_single_source_shortest_paths(&graph, "A", targets, None).unwrap();
+        assert_eq!(results.get("C").unwrap().1, vec!["A", "C"]);
+        assert_eq!(results.get("E").unwrap().1, vec!["A", "C", "E"]);
+        assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
     }
 
     #[test]
@@ -253,7 +274,7 @@ mod dijkstra_tests {
 
         let targets: Vec<&str> = vec!["D", "F"];
         let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, "weight".to_string());
+            dijkstra_single_source_shortest_paths(&graph, "A", targets, Some("weight".to_string()));
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
         assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
@@ -263,7 +284,7 @@ mod dijkstra_tests {
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
         let results =
-            dijkstra_single_source_shortest_paths(&graph, "B", targets, "weight".to_string());
+            dijkstra_single_source_shortest_paths(&graph, "B", targets, Some("weight".to_string()));
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(5u64));
         assert_eq!(results.get("E").unwrap().0, Prop::U64(3u64));
