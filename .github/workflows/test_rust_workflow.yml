@@ -28,6 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
+      - name: Update Rust
+        run: rustup update
       - name: Cache sccache
         uses: actions/cache@v3
         with:
@@ -108,6 +110,8 @@ jobs:
       SCCACHE_DIR: /home/runner/.cache/sccache
       SCCACHE_PATH: /home/runner/.cache/sccache
     steps:
+      - name: Update Rust
+        run: rustup update
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Cache sccache
