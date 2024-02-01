@@ -58,7 +58,11 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
     };
     let mut weight_type = Some(PropType::U8);
     if weight.is_some() {
-        weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&weight.clone().unwrap()) {
+        weight_type = match graph
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_id(&weight.clone().unwrap())
+        {
             Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
             None => graph
                 .edge_meta()
@@ -242,9 +246,8 @@ mod dijkstra_tests {
     #[test]
     fn test_dijkstra_no_weight() {
         let graph = basic_graph();
-        let targets : Vec<&str> = vec!["C", "E", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, None).unwrap();
+        let targets: Vec<&str> = vec!["C", "E", "F"];
+        let results = dijkstra_single_source_shortest_paths(&graph, "A", targets, None).unwrap();
         assert_eq!(results.get("C").unwrap().1, vec!["A", "C"]);
         assert_eq!(results.get("E").unwrap().1, vec!["A", "C", "E"]);
         assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
