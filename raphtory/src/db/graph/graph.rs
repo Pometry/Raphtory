@@ -345,7 +345,7 @@ mod db_tests {
             )
             .unwrap();
         let gg = Graph::new();
-        gg.add_node(0, "B", NO_PROPS);
+        let _ = gg.add_node(0, "B", NO_PROPS);
         let res = gg.import_edge(&e_a_b_p, None).expect("Failed to add edge");
         assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
 

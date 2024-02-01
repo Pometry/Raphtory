@@ -570,7 +570,7 @@ pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: PyInputNode,
     targets: Vec<PyInputNode>,
-    weight: String,
+    weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
     match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
         Ok(result) => Ok(result),
