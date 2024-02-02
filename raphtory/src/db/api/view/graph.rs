@@ -153,7 +153,7 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
 
         for v in self.nodes().iter() {
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS)?;
+                g.add_node(h, v.name(), NO_PROPS, v.node_type())?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {

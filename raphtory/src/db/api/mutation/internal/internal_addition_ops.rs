@@ -47,6 +47,7 @@ pub trait InternalAdditionOps {
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type: Option<&str>,
     ) -> Result<(), GraphError>;
 
     /// add edge update
@@ -130,8 +131,9 @@ impl<G: DelegateAdditionOps> InternalAdditionOps for G {
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.graph().internal_add_node(t, v, props)
+        self.graph().internal_add_node(t, v, props, node_type)
     }
 
     #[inline(always)]

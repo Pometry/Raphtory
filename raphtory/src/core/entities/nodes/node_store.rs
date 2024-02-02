@@ -36,6 +36,7 @@ pub struct NodeStore {
     pub(crate) layers: Vec<Adj>,
     // props for node
     pub(crate) props: Option<Props>,
+    pub(crate) node_type: Option<String>,
 }
 
 impl NodeStore {
@@ -49,6 +50,7 @@ impl NodeStore {
             timestamps: TimeIndex::one(*t.t()),
             layers,
             props: None,
+            node_type: None,
         }
     }
 
@@ -62,6 +64,7 @@ impl NodeStore {
             timestamps: TimeIndex::Empty,
             layers,
             props: None,
+            node_type: None,
         }
     }
 
@@ -84,6 +87,17 @@ impl NodeStore {
             }
             Some(old) => debug_assert_eq!(old, name), // one-to-one mapping between name and id, name should never change
         }
+    }
+
+    pub fn update_type(&mut self, node_type: &str) {
+        self.node_type = Some(node_type.to_owned());
+    }
+
+    pub fn add_type(
+        &mut self,
+        node_type: Option<&str>
+    ) {
+        let node_type = self.update_type(node_type.unwrap_or("_default"));
     }
 
     pub fn add_prop(

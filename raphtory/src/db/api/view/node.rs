@@ -177,6 +177,10 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(|g, v| g.node_name(v))
     }
     #[inline]
+    fn type(&self) -> Self::ValueType<String> {
+        self.map(|g, v| g.node_type(v))
+    }
+    #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
         self.map(|g, v| g.node_earliest_time(v))
     }

@@ -71,8 +71,9 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.inner().add_node_internal(t, v, props)
+        self.inner().add_node_internal(t, v, props, node_type)
     }
 
     #[inline]

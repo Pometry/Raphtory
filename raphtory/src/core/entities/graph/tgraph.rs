@@ -367,8 +367,10 @@ impl<const N: usize> TemporalGraph<N> {
         time: TimeIndexEntry,
         v_id: VID,
         props: Vec<(usize, Prop)>,
+        node_type: Option<&str>,
     ) -> Result<(), GraphError> {
         let mut node = self.add_node_no_props(time, v_id);
+        node.add_type(node_type);
         for (id, prop) in props {
             node.add_prop(time, id, prop)?;
         }

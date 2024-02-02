@@ -341,7 +341,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        self.graph.internal_add_node(t, self.node, properties)
+        self.graph.internal_add_node(t, self.node, properties, None)
     }
 }
 

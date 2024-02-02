@@ -784,6 +784,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type: Option<&str>,
     ) -> Result<(), GraphError> {
         let mut document = Document::new();
         // add time to the document
@@ -804,7 +805,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
             }
         }
         // add the node id to the document
-        self.graph.internal_add_node(t, v, props)?;
+        self.graph.internal_add_node(t, v, props, node_type)?;
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
         let node_id_rev = self.node_index.schema().get_field(fields::VERTEX_ID_REV)?;
