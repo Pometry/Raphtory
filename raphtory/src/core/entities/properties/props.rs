@@ -143,7 +143,7 @@ impl Meta {
         Self {
             meta_prop_temporal: PropMapper::default(),
             meta_prop_constant: PropMapper::default(),
-            meta_layer, // layer 0 is the default layer
+            meta_layer,     // layer 0 is the default layer
             meta_node_type, // type 0 is the default type for a node
         }
     }
@@ -177,7 +177,6 @@ impl Meta {
     pub fn get_or_create_layer_id(&self, name: &str) -> usize {
         self.meta_layer.get_or_create_id(name)
     }
-
 
     #[inline]
     pub fn get_default_node_type_id(&self) -> usize {
@@ -222,7 +221,6 @@ impl Meta {
             .map(|entry| *entry.value())
             .collect()
     }
-
 
     pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
         if is_static {

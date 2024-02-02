@@ -1033,7 +1033,7 @@ mod views_test {
             0,
             1,
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
-            None
+            None,
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1042,7 +1042,7 @@ mod views_test {
             -1,
             2,
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
-            None
+            None,
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1051,7 +1051,7 @@ mod views_test {
             6,
             3,
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
-            None
+            None,
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1076,7 +1076,7 @@ mod views_test {
             0,
             1,
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
-            None
+            None,
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1085,7 +1085,7 @@ mod views_test {
             -1,
             2,
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
-            None
+            None,
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1094,7 +1094,7 @@ mod views_test {
             6,
             3,
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
-            None
+            None,
         )
         .map_err(|err| println!("{:?}", err))
         .ok();

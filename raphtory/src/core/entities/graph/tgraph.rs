@@ -281,7 +281,11 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn node_type(&self, v: VID) -> String {
         let node = self.storage.get_node(v);
-        self.node_meta.get_node_type_name_by_id(node.node_type).clone().0.to_string()
+        self.node_meta
+            .get_node_type_name_by_id(node.node_type)
+            .clone()
+            .0
+            .to_string()
     }
 
     #[inline]
@@ -371,7 +375,12 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn add_node_no_props(&self, time: TimeIndexEntry, v_id: VID, node_type_id: usize) -> EntryMut<NodeStore> {
+    pub(crate) fn add_node_no_props(
+        &self,
+        time: TimeIndexEntry,
+        v_id: VID,
+        node_type_id: usize,
+    ) -> EntryMut<NodeStore> {
         self.update_time(time);
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);

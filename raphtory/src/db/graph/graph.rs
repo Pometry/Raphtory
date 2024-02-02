@@ -1115,7 +1115,8 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None).unwrap();
+        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
+            .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);

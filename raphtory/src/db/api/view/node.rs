@@ -74,7 +74,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn name(&self) -> Self::ValueType<String>;
 
     fn node_type(&self) -> Self::ValueType<String>;
-    
+
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 

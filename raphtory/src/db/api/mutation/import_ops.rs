@@ -134,7 +134,12 @@ impl<
         }
         for (name, prop_view) in node.properties().temporal().iter() {
             for (t, prop) in prop_view.iter() {
-                self.add_node(t, node.name(), [(name.clone(), prop)], Some(&node.node_type()))?;
+                self.add_node(
+                    t,
+                    node.name(),
+                    [(name.clone(), prop)],
+                    Some(&node.node_type()),
+                )?;
             }
         }
         self.node(node.id())

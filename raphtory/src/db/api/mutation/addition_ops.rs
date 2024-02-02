@@ -51,7 +51,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         t: T,
         v: V,
         props: PI,
-        node_type: Option<&str>
+        node_type: Option<&str>,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<V: InputNode, PI: CollectProperties>(
@@ -60,7 +60,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         fmt: &str,
         v: V,
         props: PI,
-        node_type: Option<&str>
+        node_type: Option<&str>,
     ) -> Result<NodeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_node(time, v, props, node_type)

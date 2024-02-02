@@ -1059,8 +1059,12 @@ mod test_deletions {
     #[test]
     fn test_node_property_semantics() {
         let g = GraphWithDeletions::new();
-        let _v = g.add_node(1, 1, [("test_prop", "test value")], None).unwrap();
-        let v = g.add_node(11, 1, [("test_prop", "test value 2")], None).unwrap();
+        let _v = g
+            .add_node(1, 1, [("test_prop", "test value")], None)
+            .unwrap();
+        let v = g
+            .add_node(11, 1, [("test_prop", "test value 2")], None)
+            .unwrap();
         let v_from_graph = g.at(10).node(1).unwrap();
         assert_eq!(v.properties().get("test_prop").unwrap_str(), "test value 2");
         assert_eq!(
