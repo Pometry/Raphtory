@@ -745,6 +745,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
+    fn resolve_node_type(&self, node_type: Option<&str>) -> usize {
+        self.graph.resolve_node_type(node_type)
+    }
+    
+    #[inline]
     fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
         self.graph.resolve_node(id, name)
     }
@@ -784,6 +789,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type_id: usize,
     ) -> Result<(), GraphError> {
         let mut document = Document::new();
         // add time to the document
@@ -804,7 +810,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
             }
         }
         // add the node id to the document
-        self.graph.internal_add_node(t, v, props)?;
+        self.graph.internal_add_node(t, v, props, node_type_id)?;
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
         let node_id_rev = self.node_index.schema().get_field(fields::VERTEX_ID_REV)?;

@@ -115,6 +115,7 @@ pub struct Meta {
     meta_prop_temporal: PropMapper,
     meta_prop_constant: PropMapper,
     meta_layer: DictMapper,
+    meta_node_type: DictMapper,
 }
 
 impl Meta {
@@ -130,13 +131,20 @@ impl Meta {
         &self.meta_layer
     }
 
+    pub fn node_type_meta(&self) -> &DictMapper {
+        &self.meta_node_type
+    }
+
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default");
+        let meta_node_type = DictMapper::default();
+        meta_node_type.get_or_create_id("_default");
         Self {
             meta_prop_temporal: PropMapper::default(),
             meta_prop_constant: PropMapper::default(),
             meta_layer, // layer 0 is the default layer
+            meta_node_type, // type 0 is the default type for a node
         }
     }
 
@@ -170,13 +178,33 @@ impl Meta {
         self.meta_layer.get_or_create_id(name)
     }
 
+
+    #[inline]
+    pub fn get_default_node_type_id(&self) -> usize {
+        0usize
+    }
+
+    #[inline]
+    pub fn get_or_create_node_type_id(&self, node_type: &str) -> usize {
+        self.meta_node_type.get_or_create_id(node_type)
+    }
+
     #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.meta_layer.map.get(name).as_deref().copied()
     }
 
+    #[inline]
+    pub fn get_node_type_id(&self, node_type: &str) -> Option<usize> {
+        self.meta_node_type.map.get(node_type).as_deref().copied()
+    }
+
     pub fn get_layer_name_by_id(&self, id: usize) -> ArcStr {
         self.meta_layer.get_name(id)
+    }
+
+    pub fn get_node_type_name_by_id(&self, id: usize) -> ArcStr {
+        self.meta_node_type.get_name(id)
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
@@ -186,6 +214,15 @@ impl Meta {
             .map(|entry| *entry.value())
             .collect()
     }
+
+    pub fn get_all_node_types(&self) -> Vec<usize> {
+        self.meta_node_type
+            .map
+            .iter()
+            .map(|entry| *entry.value())
+            .collect()
+    }
+
 
     pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
         if is_static {

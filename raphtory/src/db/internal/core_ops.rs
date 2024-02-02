@@ -51,6 +51,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn node_type(&self, v: VID) -> String {
+        self.inner().node_type(v)
+    }
+
+    #[inline]
     fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.inner().edge_meta.get_layer_id(name)
     }

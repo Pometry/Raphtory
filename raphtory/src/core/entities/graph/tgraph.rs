@@ -279,6 +279,11 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
+    pub(crate) fn node_type(&self, v: VID) -> String {
+        let node = self.storage.get_node(v);
+        self.node_meta.get_node_type_name_by_id(node.node_type).clone().0.to_string()
+    }
+
     #[inline]
     pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore, N> {
         self.storage.get_node(v.into())
@@ -353,6 +358,16 @@ impl<const N: usize> TemporalGraph<N> {
         }))
     }
 
+    pub(crate) fn resolve_node_type(&self, node_type: Option<&str>) -> usize {
+        let node_type_meta = self.node_meta.node_type_meta();
+        match node_type {
+            None => self.node_meta.get_default_node_type_id(),
+            Some(node_type) => {
+                node_type_meta.get_or_create_id(node_type)
+            }
+        }
+    }
+
     #[inline]
     pub(crate) fn add_node_no_props(&self, time: TimeIndexEntry, v_id: VID) -> EntryMut<NodeStore> {
         self.update_time(time);
@@ -367,7 +382,9 @@ impl<const N: usize> TemporalGraph<N> {
         time: TimeIndexEntry,
         v_id: VID,
         props: Vec<(usize, Prop)>,
+        node_type_id: usize,
     ) -> Result<(), GraphError> {
+        //! TODO NOT SURE WHAT THIS DOES?
         let mut node = self.add_node_no_props(time, v_id);
         for (id, prop) in props {
             node.add_prop(time, id, prop)?;
@@ -456,6 +473,12 @@ impl<const N: usize> TemporalGraph<N> {
     fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
         layer
             .map(|layer| self.edge_meta.get_or_create_layer_id(layer))
+            .unwrap_or(0)
+    }
+
+    fn get_or_allocate_node_type(&self, layer: Option<&str>) -> usize {
+        layer
+            .map(|layer| self.node_meta.get_or_create_node_type_id(layer))
             .unwrap_or(0)
     }
 

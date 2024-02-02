@@ -51,6 +51,7 @@ pub trait AdditionOps: StaticGraphViewOps {
         t: T,
         v: V,
         props: PI,
+        node_type: Option<&str>
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<V: InputNode, PI: CollectProperties>(
@@ -59,9 +60,10 @@ pub trait AdditionOps: StaticGraphViewOps {
         fmt: &str,
         v: V,
         props: PI,
+        node_type: Option<&str>
     ) -> Result<NodeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_node(time, v, props)
+        self.add_node(time, v, props, node_type)
     }
 
     // TODO: Node.name which gets ._id property else numba as string
@@ -113,14 +115,17 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         t: T,
         v: V,
         props: PI,
+        node_type: Option<&str>,
     ) -> Result<NodeView<G, G>, GraphError> {
+        //!TODO ADD NODE LIKE LAYER
         let properties = props.collect_properties(
             |name, dtype| self.resolve_node_property(name, dtype, false),
             |prop| self.process_prop_value(prop),
         )?;
         let ti = TimeIndexEntry::from_input(self, t)?;
         let v_id = self.resolve_node(v.id(), v.id_str());
-        self.internal_add_node(ti, v_id, properties)?;
+        let type_id = self.resolve_node_type(node_type);
+        self.internal_add_node(ti, v_id, properties, type_id)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 

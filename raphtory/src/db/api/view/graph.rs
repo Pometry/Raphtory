@@ -153,11 +153,11 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
 
         for v in self.nodes().iter() {
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS)?;
+                g.add_node(h, v.name(), NO_PROPS, Some(&v.node_type()))?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_node(t, v.name(), [(name.clone(), prop)])?;
+                    g.add_node(t, v.name(), [(name.clone(), prop)], Some(&v.node_type()))?;
                 }
             }
             g.node(v.id())
@@ -320,6 +320,15 @@ mod test_materialize {
             .properties()
             .temporal()
             .contains("layer1"));
+    }
+
+    #[test]
+    fn testing_node_types() {
+        let g = Graph::new();
+        let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
+        assert!(node_a.node_type(), "_default");
+        assert!(node_b.node_type(), "H");
     }
 
     #[test]

@@ -36,6 +36,7 @@ pub struct NodeStore {
     pub(crate) layers: Vec<Adj>,
     // props for node
     pub(crate) props: Option<Props>,
+    pub(crate) node_type: usize,
 }
 
 impl NodeStore {
@@ -49,6 +50,7 @@ impl NodeStore {
             timestamps: TimeIndex::one(*t.t()),
             layers,
             props: None,
+            node_type: 0,
         }
     }
 
@@ -62,6 +64,7 @@ impl NodeStore {
             timestamps: TimeIndex::Empty,
             layers,
             props: None,
+            node_type: 0,
         }
     }
 
