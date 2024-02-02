@@ -80,6 +80,10 @@ impl NodeStore {
         self.timestamps.insert(*t.t());
     }
 
+    pub fn update_node_type(&mut self, node_type: usize) {
+        self.node_type = node_type;
+    }
+
     pub fn update_name(&mut self, name: &str) {
         match &self.name {
             None => {

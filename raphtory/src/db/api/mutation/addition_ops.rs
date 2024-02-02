@@ -43,8 +43,8 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// ```
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// let v = g.add_node(0, "Alice", NO_PROPS);
-    /// let v = g.add_node(0, 5, NO_PROPS);
+    /// let v = g.add_node(0, "Alice", NO_PROPS, None);
+    /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
     fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
@@ -82,8 +82,8 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new();
-    /// graph.add_node(1, "Alice", NO_PROPS).unwrap();
-    /// graph.add_node(2, "Bob", NO_PROPS).unwrap();
+    /// graph.add_node(1, "Alice", NO_PROPS, None).unwrap();
+    /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
     fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
@@ -117,14 +117,13 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<G, G>, GraphError> {
-        //!TODO ADD NODE LIKE LAYER
         let properties = props.collect_properties(
             |name, dtype| self.resolve_node_property(name, dtype, false),
             |prop| self.process_prop_value(prop),
         )?;
         let ti = TimeIndexEntry::from_input(self, t)?;
         let v_id = self.resolve_node(v.id(), v.id_str());
-        let type_id = self.resolve_node_type(node_type);
+        let type_id = self.resolve_node_type(v_id, node_type);
         self.internal_add_node(ti, v_id, properties, type_id)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }

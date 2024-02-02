@@ -520,10 +520,10 @@ mod csv_loader_test {
                 let dst_id = calculate_hash(&lotr.dst_id);
                 let time = lotr.time;
 
-                g.add_node(time, src_id, [("name", Prop::str("Character"))])
+                g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
-                g.add_node(time, dst_id, [("name", Prop::str("Character"))])
+                g.add_node(time, dst_id, [("name", Prop::str("Character"))], None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
                 g.add_edge(
@@ -554,10 +554,10 @@ mod csv_loader_test {
                     .unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
-                g.add_node(time, src_id, [("name", Prop::str("Character"))])
+                g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
-                g.add_node(time, dst_id, [("name", Prop::str("Character"))])
+                g.add_node(time, dst_id, [("name", Prop::str("Character"))], None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
                 g.add_edge(

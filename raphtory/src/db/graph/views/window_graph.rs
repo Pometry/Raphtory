@@ -810,7 +810,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, v) in &vs {
-            g.add_node(*t, *v, NO_PROPS)
+            g.add_node(*t, *v, NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -835,7 +835,7 @@ mod views_test {
         let g = Graph::new();
 
         for (t, v) in &vs {
-            g.add_node(*t, *v, NO_PROPS)
+            g.add_node(*t, *v, NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -1033,6 +1033,7 @@ mod views_test {
             0,
             1,
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
+            None
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1041,6 +1042,7 @@ mod views_test {
             -1,
             2,
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
+            None
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1049,6 +1051,7 @@ mod views_test {
             6,
             3,
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
+            None
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1073,6 +1076,7 @@ mod views_test {
             0,
             1,
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
+            None
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1081,6 +1085,7 @@ mod views_test {
             -1,
             2,
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
+            None
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1089,6 +1094,7 @@ mod views_test {
             6,
             3,
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
+            None
         )
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -1153,10 +1159,10 @@ mod views_test {
     #[test]
     fn test_entity_history() {
         let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS).unwrap();
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        let v = g.add_node(3, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        let v = g.add_node(3, 1, NO_PROPS, None).unwrap();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();

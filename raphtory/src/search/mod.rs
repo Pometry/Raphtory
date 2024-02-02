@@ -745,8 +745,8 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
-    fn resolve_node_type(&self, node_type: Option<&str>) -> usize {
-        self.graph.resolve_node_type(node_type)
+    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> usize {
+        self.graph.resolve_node_type(v_id, node_type)
     }
     
     #[inline]

@@ -171,7 +171,7 @@ mod vector_tests {
     #[tokio::test]
     async fn test_embedding_cache() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         // the following succeeds with no cache set up
         g.vectorise(Box::new(fake_embedding), None, true, false)
@@ -286,7 +286,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_multi_embedding() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         let vectors = g
             .vectorise_with_template(
@@ -343,7 +343,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_window() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g

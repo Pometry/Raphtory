@@ -327,8 +327,8 @@ mod test_materialize {
         let g = Graph::new();
         let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
-        assert!(node_a.node_type(), "_default");
-        assert!(node_b.node_type(), "H");
+        assert_eq!(node_a.node_type(), "_default");
+        assert_eq!(node_b.node_type(), "H");
     }
 
     #[test]
@@ -339,8 +339,8 @@ mod test_materialize {
         g.add_properties(0, props_0.clone()).unwrap();
         assert!(g.add_properties(1, props_1.clone()).is_err());
 
-        g.add_node(0, 1, props_0.clone()).unwrap();
-        assert!(g.add_node(1, 1, props_1.clone()).is_err());
+        g.add_node(0, 1, props_0.clone(), None).unwrap();
+        assert!(g.add_node(1, 1, props_1.clone(), None).is_err());
 
         g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
         assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());

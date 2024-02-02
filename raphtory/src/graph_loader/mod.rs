@@ -219,9 +219,9 @@ mod graph_loader_test {
                     let src_id = hashing::calculate_hash(&src);
                     let dst_id = hashing::calculate_hash(&dst);
 
-                    g.add_node(t, src_id, [("name", Prop::str("Character"))])
+                    g.add_node(t, src_id, [("name", Prop::str("Character"))], None)
                         .unwrap();
-                    g.add_node(t, dst_id, [("name", Prop::str("Character"))])
+                    g.add_node(t, dst_id, [("name", Prop::str("Character"))], None)
                         .unwrap();
                     g.add_edge(
                         t,
