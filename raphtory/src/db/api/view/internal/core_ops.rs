@@ -46,6 +46,7 @@ pub trait CoreGraphOps {
     /// Returns the string name for a node
     fn node_name(&self, v: VID) -> String;
 
+    /// Returns the type of node
     fn node_type(&self, v: VID) -> String;
 
     /// Get all the addition timestamps for an edge

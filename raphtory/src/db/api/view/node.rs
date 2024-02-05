@@ -73,6 +73,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// The name of the node if one exists, otherwise the ID as a string.
     fn name(&self) -> Self::ValueType<String>;
 
+    /// Returns the type of node
     fn node_type(&self) -> Self::ValueType<String>;
 
     /// Get the timestamp for the earliest activity of the node

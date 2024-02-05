@@ -141,7 +141,7 @@ impl PyGraph {
     ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
     ///    id (str or int): The id of the node.
     ///    properties (dict): The properties of the node (optional).
-    ///
+    ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
     ///   None
     #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]

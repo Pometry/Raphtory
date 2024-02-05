@@ -33,6 +33,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// * `t` - The time
     /// * `v` - The node (can be a string or integer)
     /// * `props` - The properties of the node
+    /// * `node_type` - The optional string which will be used as a node type
     ///
     /// Returns:
     ///

@@ -173,6 +173,7 @@ impl PyNode {
         self.node.properties()
     }
 
+    /// Returns the type of node
     #[getter]
     pub fn node_type(&self) -> String {
         self.node.node_type()
@@ -477,12 +478,12 @@ impl PyNodes {
     /// Returns:
     ///    A list of unix timestamps.
     ///
-
     fn history(&self) -> I64VecIterable {
         let nodes = self.nodes.clone();
         (move || nodes.history()).into()
     }
 
+    /// Returns the type of node
     #[getter]
     fn node_type(&self) -> StringIterable {
         let nodes = self.nodes.clone();
