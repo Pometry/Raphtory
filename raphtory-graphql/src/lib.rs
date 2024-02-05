@@ -51,10 +51,20 @@ mod graphql_test {
     async fn search_for_gandalf_query() {
         let graph = GraphWithDeletions::new();
         graph
-            .add_node(0, "Gandalf", [("kind".to_string(), Prop::str("wizard"))])
+            .add_node(
+                0,
+                "Gandalf",
+                [("kind".to_string(), Prop::str("wizard"))],
+                None,
+            )
             .expect("Could not add node!");
         graph
-            .add_node(0, "Frodo", [("kind".to_string(), Prop::str("Hobbit"))])
+            .add_node(
+                0,
+                "Frodo",
+                [("kind".to_string(), Prop::str("Hobbit"))],
+                None,
+            )
             .expect("Could not add node!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
@@ -92,7 +102,7 @@ mod graphql_test {
     async fn basic_query() {
         let graph = GraphWithDeletions::new();
         graph
-            .add_node(0, 11, NO_PROPS)
+            .add_node(0, 11, NO_PROPS, None)
             .expect("Could not add node!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
