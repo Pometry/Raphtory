@@ -38,7 +38,7 @@ impl<T: NativeType + Into<Prop>> LayeredTProp for TPropColumn<'_, ChunkedPrimiti
                 .iter_t()
                 .copied()
                 .zip(self.props.iter())
-                .filter_map(|(t, v)| v.map(|v| (t, v.into()))),
+                .filter_map(|(t, v)| v.copied().map(|v| (t, v.into()))),
         )
     }
 
@@ -129,8 +129,8 @@ fn new_tprop_column<T: NativeType>(edge: Edge, id: usize) -> Option<Box<dyn Laye
 where
     Prop: From<T>,
 {
-    let props = edge.clone().into_props::<T>(id)?;
-    let timestamps = TimeStamps::new(edge.into_timestamps(), None);
+    let props = edge.prop_values::<T>(id)?;
+    let timestamps = TimeStamps::new(edge.timestamps(), None);
     Some(Box::new(TPropColumn { props, timestamps }))
 }
 
@@ -147,13 +147,13 @@ pub fn read_tprop_column(
         DataType::Float32 => new_tprop_column::<f32>(edge, id),
         DataType::Float64 => new_tprop_column::<f64>(edge, id),
         DataType::Utf8 => {
-            let props = edge.clone().into_utf8_props::<i32>(id)?;
-            let timestamps = TimeStamps::new(edge.into_timestamps(), None);
+            let props = edge.prop_str_values::<i32>(id)?;
+            let timestamps = TimeStamps::new(edge.timestamps(), None);
             Some(Box::new(TPropColumn { props, timestamps }))
         }
         DataType::LargeUtf8 => {
-            let props = edge.clone().into_utf8_props::<i64>(id)?;
-            let timestamps = TimeStamps::new(edge.into_timestamps(), None);
+            let props = edge.prop_str_values::<i64>(id)?;
+            let timestamps = TimeStamps::new(edge.timestamps(), None);
             Some(Box::new(TPropColumn { props, timestamps }))
         }
         _ => todo!(),

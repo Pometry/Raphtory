@@ -208,10 +208,10 @@ impl TempColGraphFragment {
             }
         }
 
-        let edges = Edges::from_parts(
+        let edges = Edges::new(
             src_ids_chunks,
             dst_ids_chunks,
-            t_props,
+            t_props.into(),
             edge_tprops_offsets_chunks,
             layer_id,
         );
@@ -422,10 +422,10 @@ impl TempColGraphFragment {
         let edge_props_values = edge_props_builder
             .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
 
-        let edges = Edges::from_parts(
+        let edges = Edges::new(
             edge_builder.src_chunks,
             edge_builder.dst_chunks,
-            edge_props_values,
+            edge_props_values.into(),
             edge_builder.edge_offsets,
             layer_id,
         );
@@ -532,10 +532,10 @@ impl TempColGraphFragment {
         println!("COPY T prop values took {:?}", now.elapsed());
 
         let edge_offsets = edge_builder.edge_offsets;
-        let edges = Edges::from_parts(
+        let edges = Edges::new(
             edge_builder.src_chunks,
             edge_builder.dst_chunks,
-            t_prop_values,
+            t_prop_values.into(),
             edge_offsets,
             layer_id,
         );

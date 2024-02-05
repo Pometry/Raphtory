@@ -40,7 +40,7 @@ impl CoreEdgeView<'_> {
         match self {
             CoreEdgeView::Mem(e, _) => e.has_temporal_prop(layer_ids, prop_id),
             #[cfg(feature = "arrow")]
-            CoreEdgeView::Arrow(e) => e.has_temporal_prop(layer_ids, prop_id),
+            CoreEdgeView::Arrow(e) => e.has_temporal_prop(prop_id),
         }
     }
 
