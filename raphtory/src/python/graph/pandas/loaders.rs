@@ -31,7 +31,6 @@ pub(crate) fn load_nodes_from_df<'a>(
             .zip(time)
             .zip(node_types)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
-        // let zipped = numbers.into_iter().zip(items.into_iter()).zip(names.into_iter());
         load_nodes_from_num_iter(
             graph,
             size,
