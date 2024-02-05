@@ -1,23 +1,14 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode, LayerIds},
+        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
         storage::timeindex::TimeIndexEntry,
-        utils::{
-            errors::{
-                GraphError,
-                GraphError::{EdgeExistsError, NodeExistsError},
-            },
-            time::IntoTimeWithFormat,
-        },
+        utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
     db::{
         api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                CollectProperties, TryIntoInputTime,
-            },
-            view::{IntoDynamic, StaticGraphViewOps},
+            mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+            view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
