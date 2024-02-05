@@ -859,6 +859,7 @@ mod test {
                     ("age".to_string(), Prop::U64(42)),
                     ("balance".to_string(), Prop::I64(-1234)),
                 ],
+                None,
             )
             .expect("failed to add node");
 
@@ -901,7 +902,12 @@ mod test {
         let graph = Graph::new();
 
         graph
-            .add_node(1, "Gandalf", [("kind".to_string(), Prop::str("Wizard"))])
+            .add_node(
+                1,
+                "Gandalf",
+                [("kind".to_string(), Prop::str("Wizard"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
@@ -912,31 +918,62 @@ mod test {
                     ("kind".to_string(), Prop::str("Hobbit")),
                     ("has_ring".to_string(), Prop::str("yes")),
                 ],
+                None,
             )
             .expect("add node failed");
 
         graph
-            .add_node(2, "Merry", [("kind".to_string(), Prop::str("Hobbit"))])
+            .add_node(
+                2,
+                "Merry",
+                [("kind".to_string(), Prop::str("Hobbit"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(4, "Gollum", [("kind".to_string(), Prop::str("Creature"))])
+            .add_node(
+                4,
+                "Gollum",
+                [("kind".to_string(), Prop::str("Creature"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(9, "Gollum", [("has_ring".to_string(), Prop::str("yes"))])
+            .add_node(
+                9,
+                "Gollum",
+                [("has_ring".to_string(), Prop::str("yes"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(9, "Frodo", [("has_ring".to_string(), Prop::str("no"))])
+            .add_node(
+                9,
+                "Frodo",
+                [("has_ring".to_string(), Prop::str("no"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(10, "Frodo", [("has_ring".to_string(), Prop::str("yes"))])
+            .add_node(
+                10,
+                "Frodo",
+                [("has_ring".to_string(), Prop::str("yes"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(10, "Gollum", [("has_ring".to_string(), Prop::str("no"))])
+            .add_node(
+                10,
+                "Gollum",
+                [("has_ring".to_string(), Prop::str("no"))],
+                None,
+            )
             .expect("add node failed");
 
         let indexed_graph: IndexedGraph<Graph> =
@@ -982,7 +1019,7 @@ mod test {
         let graph = IndexedGraph::new(Graph::new(), NO_PROPS, NO_PROPS);
 
         graph
-            .add_node(1, "Gandalf", NO_PROPS)
+            .add_node(1, "Gandalf", NO_PROPS, None)
             .expect("add node failed");
 
         graph.reload().expect("reload failed");
@@ -1006,6 +1043,7 @@ mod test {
                 1,
                 "Bilbo",
                 [("description".to_string(), Prop::str("A hobbit"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1014,6 +1052,7 @@ mod test {
                 2,
                 "Gandalf",
                 [("description".to_string(), Prop::str("A wizard"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1043,6 +1082,7 @@ mod test {
                 1,
                 "Gandalf",
                 [("description".to_string(), Prop::str("The wizard"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1051,6 +1091,7 @@ mod test {
                 2,
                 "Saruman",
                 [("description".to_string(), Prop::str("Another wizard"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1222,7 +1263,7 @@ mod test {
     #[test]
     fn property_name_on_node_does_not_crash() {
         let g = Graph::new();
-        g.add_node(0, "test", [("name", "test")]).unwrap();
+        g.add_node(0, "test", [("name", "test")], None).unwrap();
         let _gi: IndexedGraph<_> = g.into();
     }
 }

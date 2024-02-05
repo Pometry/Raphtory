@@ -229,6 +229,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
 
@@ -400,6 +401,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("wizard")),
                 ("age".to_string(), Prop::str("120")),
             ],
+            None,
         )
         .unwrap();
         g.add_node(
@@ -409,6 +411,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
@@ -420,6 +423,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("human")),
                 ("age".to_string(), Prop::str("40")),
             ],
+            None,
         )
         .unwrap();
 

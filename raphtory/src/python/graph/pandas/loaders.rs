@@ -19,7 +19,7 @@ pub(crate) fn load_nodes_from_df<'a>(
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
-
+    // TODO ADD SUPPORT FOR NODE_TYPE
     if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id), df.iter_col::<i64>(time)) {
         let iter = node_id.map(|i| i.copied()).zip(time);
         load_nodes_from_num_iter(
@@ -53,7 +53,7 @@ pub(crate) fn load_nodes_from_df<'a>(
             unit_scale = true
         ) {
             if let (Some(node_id), Some(time)) = (node_id, time) {
-                let v = graph.add_node(*time, node_id, props)?;
+                let v = graph.add_node(*time, node_id, props, None)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
@@ -71,7 +71,7 @@ pub(crate) fn load_nodes_from_df<'a>(
             unit_scale = true
         ) {
             if let (Some(node_id), Some(time)) = (node_id, time) {
-                let v = graph.add_node(*time, node_id, props)?;
+                let v = graph.add_node(*time, node_id, props, None)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props)?;
@@ -451,7 +451,7 @@ fn load_nodes_from_num_iter<
         unit_scale = true
     ) {
         if let (Some(v), Some(t), props, const_props) = (node, time, props, const_props) {
-            let v = graph.add_node(*t, v, props)?;
+            let v = graph.add_node(*t, v, props, None)?;
             v.add_constant_properties(const_props)?;
 
             if let Some(shared_const_props) = &shared_const_props {

@@ -173,6 +173,11 @@ impl PyNode {
         self.node.properties()
     }
 
+    #[getter]
+    pub fn node_type(&self) -> String {
+        self.node.node_type()
+    }
+
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
     /// Returns
@@ -478,6 +483,12 @@ impl PyNodes {
         (move || nodes.history()).into()
     }
 
+    #[getter]
+    fn node_type(&self) -> StringIterable {
+        let nodes = self.nodes.clone();
+        (move || nodes.node_type()).into()
+    }
+
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
     ///
     /// Returns:
@@ -569,6 +580,12 @@ impl PyPathFromGraph {
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
+    }
+
+    #[getter]
+    fn node_type(&self) -> NestedStringIterable {
+        let path = self.path.clone();
+        (move || path.node_type()).into()
     }
 
     #[getter]
@@ -715,6 +732,12 @@ impl PyPathFromNode {
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
+    }
+
+    #[getter]
+    fn node_type(&self) -> StringIterable {
+        let path = self.path.clone();
+        (move || path.node_type()).into()
     }
 
     #[getter]

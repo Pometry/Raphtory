@@ -144,15 +144,16 @@ impl PyGraph {
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None))]
+    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
         self.graph
-            .add_node(timestamp, id, properties.unwrap_or_default())
+            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
 
     /// Adds properties to the graph.
