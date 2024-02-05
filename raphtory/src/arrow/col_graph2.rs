@@ -21,7 +21,7 @@ use crate::{
         edge::{Edge, ExplodedEdge},
         file_prefix::GraphPaths,
         global_order::GlobalMap,
-        graph_builder::{edge_props_builder::EdgePropsBuilder, EdgeFrameBuilder},
+        graph_builder::{edge_props_builder::EdgePropsBuilder, EFBResult, EdgeFrameBuilder},
         load::{ipc::read_schema, mmap::mmap_buffer, parquet_reader::ParquetReader},
         prepare_graph_dir, Error,
     },
@@ -59,6 +59,8 @@ pub struct TempColGraphFragment {
 pub(crate) struct Metadata {
     earliest_time: Time,
     latest_time: Time,
+    chunk_size: usize,
+    t_props_chunk_size: usize,
 }
 
 impl Default for Metadata {
@@ -66,20 +68,24 @@ impl Default for Metadata {
         Self {
             earliest_time: Time::MIN,
             latest_time: Time::MAX,
+            chunk_size: 0,
+            t_props_chunk_size: 0,
         }
     }
 }
 
-impl From<(Time, Time)> for Metadata {
-    fn from((earliest_time, latest_time): (Time, Time)) -> Self {
+
+impl Metadata {
+
+    fn new(earliest_time: Time, latest_time: Time, chunk_size: usize, t_props_chunk_size: usize) -> Self {
         Self {
             earliest_time,
             latest_time,
+            chunk_size,
+            t_props_chunk_size,
         }
     }
-}
 
-impl Metadata {
     fn from_path(graph_dir: &Path) -> Result<Self, Error> {
         let path = GraphPaths::Metadata.to_path(graph_dir, 0);
         let metadata = std::fs::read(path)?;
@@ -208,11 +214,17 @@ impl TempColGraphFragment {
             }
         }
 
+        assert!(metadata.chunk_size > 0, "Metadata chunk size is 0");
+        assert!(
+            metadata.t_props_chunk_size > 0,
+            "Metadata t_props_chunk_size is 0"
+        );
+
         let edges = Edges::new(
-            src_ids_chunks,
-            dst_ids_chunks,
+            ChunkedArray::from_non_nulls(src_ids_chunks, metadata.chunk_size),
+            ChunkedArray::from_non_nulls(dst_ids_chunks, metadata.chunk_size),
             t_props.into(),
-            edge_tprops_offsets_chunks,
+            edge_tprops_offsets_chunks.into(),
             layer_id,
         );
 
@@ -224,20 +236,19 @@ impl TempColGraphFragment {
                 adj_in_offsets_chunks,
                 adj_in_srcs_chunks,
                 adj_in_eids_chunks,
+                metadata.chunk_size,
             )
         } else {
             println!("No inbounds edges, building them");
             Nodes::new(
                 graph_dir,
                 node_gids,
-                adj_out_offsets_chunks,
+                adj_out_offsets_chunks.into(),
                 edges.dst_ids.clone(),
             )?
         };
 
         let has_additions = node_additions_chunks.len() > 0;
-
-        let edges_chunk_size = edges.t_props_chunk_size();
 
         let mut grapho = Self {
             nodes,
@@ -249,12 +260,12 @@ impl TempColGraphFragment {
         if !has_additions {
             println!("No additions found, building them");
             let now = std::time::Instant::now();
-            grapho.node_additions(1, edges_chunk_size)?;
+            grapho.node_additions(metadata.t_props_chunk_size)?;
             println!("Node additions took {:?}", now.elapsed());
         } else {
             grapho.nodes.additions = ChunkedListArray::new_from_parts(
-                ChunkedArray::from_non_nulls(node_additions_chunks),
-                ChunkedOffsets::from(node_additions_offsets),
+                ChunkedArray::from_non_nulls(node_additions_chunks, metadata.t_props_chunk_size),
+                ChunkedOffsets::new(node_additions_offsets, metadata.chunk_size),
             );
         }
 
@@ -279,11 +290,10 @@ impl TempColGraphFragment {
 
     pub fn node_additions(
         &mut self,
-        chunk_size: usize,
-        temp_prop_chunk_size: usize,
+        t_prop_chunk_size: usize,
     ) -> Result<(), super::Error> {
-        let (arrays, offsets) = make_node_additions(self, chunk_size, temp_prop_chunk_size)?;
-        let chunked_t_array = ChunkedArray::from_non_nulls(arrays);
+        let (arrays, offsets) = make_node_additions(self, t_prop_chunk_size)?;
+        let chunked_t_array = ChunkedArray::from_non_nulls(arrays, t_prop_chunk_size);
 
         let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
         self.nodes.additions = chunked_list_array;
@@ -407,7 +417,7 @@ impl TempColGraphFragment {
             return Err(Error::EmptyChunk);
         }
         prepare_graph_dir(graph_dir)?;
-        let mut edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
+        let edge_builder = EdgeFrameBuilder::new(edge_chunk_size, graph_dir);
         let edge_props_builder = EdgePropsBuilder::new(graph_dir, 0);
 
         let (edges, props): (Vec<_>, Vec<_>) = edge_list
@@ -415,7 +425,12 @@ impl TempColGraphFragment {
             .map(|chunk| split_struct_chunk(chunk, src_col_idx, dst_col_idx, time_col_idx))
             .unzip();
 
-        load_chunks(&mut edge_builder, go, edges.iter().cloned())?;
+        let EFBResult {
+            adj_out_offsets,
+            src_chunks,
+            dst_chunks,
+            edge_offsets,
+        } = load_chunks(edge_builder, go, edges.iter().cloned())?;
 
         let offset_iter = ParquetOffsetIter::new(props.iter(), t_props_chunk_size);
         let edge_chunks = offset_iter.collect_vec();
@@ -423,21 +438,17 @@ impl TempColGraphFragment {
             .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
 
         let edges = Edges::new(
-            edge_builder.src_chunks,
-            edge_builder.dst_chunks,
+            src_chunks,
+            dst_chunks,
             edge_props_values.into(),
-            edge_builder.edge_offsets,
+            edge_offsets,
             layer_id,
         );
 
-        let nodes = Nodes::new(
-            graph_dir,
-            node_gids,
-            edge_builder.adj_out_offsets,
-            edges.dst_ids.clone(),
-        )?;
+        let nodes = Nodes::new(graph_dir, node_gids, adj_out_offsets, edges.dst_ids.clone())?;
 
-        let metadata = edges.earliest_latest().into();
+        let (earliest, latest_time) = edges.earliest_latest();
+        let metadata = Metadata::new(earliest, latest_time, edge_chunk_size, t_props_chunk_size);
         Metadata::write_to_path(&metadata, &graph_dir)?;
 
         Ok(TempColGraphFragment {
@@ -517,7 +528,12 @@ impl TempColGraphFragment {
         })?;
 
         // finalize edge_builder
-        edge_builder.finalize(global_order.len())?;
+        let EFBResult {
+            adj_out_offsets,
+            src_chunks,
+            dst_chunks,
+            edge_offsets,
+        } = edge_builder.finalize(global_order.len())?;
 
         println!("Edge builder took {:?}", now.elapsed());
 
@@ -531,21 +547,22 @@ impl TempColGraphFragment {
         let t_prop_values = reader.load_t_edge_values(num_threads, t_props_chunk_size)?;
         println!("COPY T prop values took {:?}", now.elapsed());
 
-        let edge_offsets = edge_builder.edge_offsets;
+        let edge_offsets = edge_offsets;
         let edges = Edges::new(
-            edge_builder.src_chunks,
-            edge_builder.dst_chunks,
+            src_chunks,
+            dst_chunks,
             t_prop_values.into(),
             edge_offsets,
             layer_id,
         );
 
-        let metadata = edges.earliest_latest().into();
+        let (earliest, latest_time) = edges.earliest_latest();
+        let metadata = Metadata::new(earliest, latest_time, edge_chunk_size, t_props_chunk_size);
         Metadata::write_to_path(&metadata, &graph_dir)?;
 
         let dst_ids = edges.dst_ids.clone();
 
-        let nodes = Nodes::new(graph_dir, gids, edge_builder.adj_out_offsets, dst_ids)?;
+        let nodes = Nodes::new(graph_dir, gids, adj_out_offsets, dst_ids)?;
 
         Ok(TempColGraphFragment {
             nodes,
@@ -669,18 +686,17 @@ fn read_or_mmap_chunk(mmap: bool, path: &PathBuf) -> Result<Chunk<Box<dyn Array>
 }
 
 pub(crate) fn load_chunks<GO: GlobalOrder + Send + Sync, C: Borrow<GraphChunk>>(
-    edge_builder: &mut EdgeFrameBuilder,
+    mut edge_builder: EdgeFrameBuilder,
     go: impl AsRef<GO>,
     chunks_iter: impl IntoIterator<Item = C>,
-) -> Result<(), Error> {
+) -> Result<EFBResult, Error> {
     // g_id, [{v_id1, e_id1}, {v_id2, e_id2}, ...]
     for chunk in chunks_iter.into_iter().map(|c| c.borrow().to_chunk()) {
         let state = resolve_and_dedup_chunk(chunk, go.as_ref())?;
         edge_builder.push_update_state(state)?;
     }
     // finalize edge_builder
-    edge_builder.finalize(go.as_ref().len())?;
-    Ok(())
+    edge_builder.finalize(go.as_ref().len())
 }
 
 #[cfg(test)]
@@ -763,7 +779,7 @@ mod test {
             2,
             triples,
         )?;
-        graph.node_additions(chunk_size, t_props_chunk_size)?;
+        graph.node_additions(t_props_chunk_size)?;
         Ok(graph)
     }
 
@@ -1350,7 +1366,7 @@ mod test {
             (VID(1), VID(2), 3),
         ];
         assert_eq!(all_exploded, expected);
-        graph.node_additions(1, 2).unwrap();
+        graph.node_additions(2).unwrap();
 
         let node_gids = PrimitiveArray::from_slice([0u64, 1, 2]).boxed();
         let reloaded_graph =
@@ -1392,7 +1408,7 @@ mod test {
                     .expect("failed to create graph");
 
             graph
-                .node_additions(1, chunk_size)
+                .node_additions(chunk_size)
                 .expect("failed to make node additions");
 
             for (v_id, node) in nodes.into_iter().enumerate() {

@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
 use raphtory_storage::exfiltration::list::query;
 use rayon::prelude::*;
