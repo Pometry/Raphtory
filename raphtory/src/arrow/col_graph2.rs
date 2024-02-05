@@ -1083,10 +1083,10 @@ mod test {
         assert_eq!(actual, expected);
 
         let e0 = graph.edge(0.into());
-        assert_eq!(e0.timestamps().into_iter().next().unwrap(), 0i64);
+        assert_eq!(*e0.timestamps().into_iter().next().unwrap(), 0i64);
 
         let e5 = graph.edge(5.into());
-        assert_eq!(e5.timestamps().into_iter().next().unwrap(), 5i64);
+        assert_eq!(*e5.timestamps().into_iter().next().unwrap(), 5i64);
     }
 
     #[test]
