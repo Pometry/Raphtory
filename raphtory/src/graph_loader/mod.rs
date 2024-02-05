@@ -53,6 +53,7 @@
 //!         lotr.time,
 //!         lotr.src_id.clone(),
 //!         [("type", Prop::str("Character"))],
+//!         None,
 //!     )
 //!     .expect("Failed to add node");
 //!
@@ -60,6 +61,7 @@
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
 //!         [("type", Prop::str("Character"))],
+//!         None
 //!     )
 //!     .expect("Failed to add node");
 //!

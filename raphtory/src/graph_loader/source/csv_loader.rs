@@ -33,6 +33,7 @@
 //!              time,
 //!              src_id,
 //!              [("name", Prop::str("Character"))],
+//!              None,
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
@@ -40,6 +41,7 @@
 //!              time,
 //!              dst_id,
 //!              [("name", Prop::str("Character"))],
+//!              None,
 //!          )
 //!          .map_err(|err| println!("{:?}", err))
 //!          .ok();
