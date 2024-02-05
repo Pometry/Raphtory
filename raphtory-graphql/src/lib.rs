@@ -225,10 +225,14 @@ mod graphql_test {
         if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
             panic!("Could not add node! {:?}", err);
         }
-        if let Err(err) = graph.add_node(0, "bilbo", [("food".to_string(), Prop::str("lots"))], None) {
+        if let Err(err) =
+            graph.add_node(0, "bilbo", [("food".to_string(), Prop::str("lots"))], None)
+        {
             panic!("Could not add node! {:?}", err);
         }
-        if let Err(err) = graph.add_node(0, "frodo", [("food".to_string(), Prop::str("some"))], None) {
+        if let Err(err) =
+            graph.add_node(0, "frodo", [("food".to_string(), Prop::str("some"))], None)
+        {
             panic!("Could not add node! {:?}", err);
         }
 
