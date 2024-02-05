@@ -16,12 +16,23 @@ pub(crate) fn load_nodes_from_df<'a>(
     props: Option<Vec<&str>>,
     const_props: Option<Vec<&str>>,
     shared_const_props: Option<HashMap<String, Prop>>,
+    node_type: Option<&str>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
+    let node_type_col = node_type.unwrap_or("node_type");
     // TODO ADD SUPPORT FOR NODE_TYPE
-    if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id), df.iter_col::<i64>(time)) {
-        let iter = node_id.map(|i| i.copied()).zip(time);
+    if let (Some(node_id), Some(time), Some(node_types)) = (
+        df.iter_col::<u64>(node_id),
+        df.iter_col::<i64>(time),
+        df.utf8::<i64>(node_type_col),
+    ) {
+        let iter = node_id
+            .map(|i| i.copied())
+            .zip(time)
+            .zip(node_types)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+        // let zipped = numbers.into_iter().zip(items.into_iter()).zip(names.into_iter());
         load_nodes_from_num_iter(
             graph,
             size,
@@ -30,10 +41,16 @@ pub(crate) fn load_nodes_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(node_id), Some(time)) =
-        (df.iter_col::<i64>(node_id), df.iter_col::<i64>(time))
-    {
+    } else if let (Some(node_id), Some(time), Some(node_types)) = (
+        df.iter_col::<i64>(node_id),
+        df.iter_col::<i64>(time),
+        df.utf8::<i64>(node_type_col),
+    ) {
         let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
+        let iter = iter
+            .zip(node_types)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+
         load_nodes_from_num_iter(
             graph,
             size,
@@ -42,36 +59,50 @@ pub(crate) fn load_nodes_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.iter_col::<i64>(time))
-    {
+    } else if let (Some(node_id), Some(time), Some(node_types)) = (
+        df.utf8::<i32>(node_id),
+        df.iter_col::<i64>(time),
+        df.utf8::<i64>(node_type_col),
+    ) {
         let iter = node_id.into_iter().zip(time);
-        for (((node_id, time), props), const_props) in tqdm!(
+        let iter = iter
+            .zip(node_types)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+
+        for (((node_id, time, n_t), props), const_props) in tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
             desc = "Loading nodes",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let (Some(node_id), Some(time)) = (node_id, time) {
-                let v = graph.add_node(*time, node_id, props, None)?;
+            if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
+                let v = graph.add_node(*time, node_id, props, n_t)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
-    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.iter_col::<i64>(time))
-    {
+    } else if let (Some(node_id), Some(time), Some(node_types)) = (
+        df.utf8::<i64>(node_id),
+        df.iter_col::<i64>(time),
+        df.utf8::<i64>(node_type_col),
+    ) {
         let iter = node_id.into_iter().zip(time);
-        for (((node_id, time), props), const_props) in tqdm!(
+        let iter = iter
+            .zip(node_types)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+
+        for (((node_id, time, n_t), props), const_props) in tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
             desc = "Loading nodes",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let (Some(node_id), Some(time)) = (node_id, time) {
-                let v = graph.add_node(*time, node_id, props, None)?;
+            if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
+                let v = graph.add_node(*time, node_id, props, n_t)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props)?;
@@ -433,7 +464,7 @@ fn load_edges_from_num_iter<
 fn load_nodes_from_num_iter<
     'a,
     S: AsRef<str>,
-    I: Iterator<Item = (Option<u64>, Option<&'a i64>)>,
+    I: Iterator<Item = (Option<u64>, Option<&'a i64>, Option<&'a str>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
     graph: &Graph,
@@ -443,15 +474,17 @@ fn load_nodes_from_num_iter<
     const_props: PI,
     shared_const_props: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    for (((node, time), props), const_props) in tqdm!(
+    for (((node, time, node_type), props), const_props) in tqdm!(
         nodes.zip(props).zip(const_props),
         desc = "Loading nodes",
         total = size,
         animation = kdam::Animation::FillUp,
         unit_scale = true
     ) {
-        if let (Some(v), Some(t), props, const_props) = (node, time, props, const_props) {
-            let v = graph.add_node(*t, v, props, None)?;
+        if let (Some(v), Some(t), n_t, props, const_props) =
+            (node, time, node_type, props, const_props)
+        {
+            let v = graph.add_node(*t, v, props, n_t)?;
             v.add_constant_properties(const_props)?;
 
             if let Some(shared_const_props) = &shared_const_props {

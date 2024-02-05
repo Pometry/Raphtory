@@ -392,7 +392,8 @@ impl PyGraph {
     ///      Graph: The loaded Graph object.
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
-    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None, node_const_props = None, node_shared_const_props = None))]
+    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None,
+    node_const_props = None, node_shared_const_props = None, node_type = None))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -409,6 +410,7 @@ impl PyGraph {
         node_props: Option<Vec<&str>>,
         node_const_props: Option<Vec<&str>>,
         node_shared_const_props: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -432,6 +434,7 @@ impl PyGraph {
                 node_props,
                 node_const_props,
                 node_shared_const_props,
+                node_type,
             )?;
         }
         Ok(graph.graph)
@@ -446,10 +449,10 @@ impl PyGraph {
     ///     props (List<str>): List of node property column names. Defaults to None. (optional)
     ///     const_props (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_const_props (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///
+    ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, props = None, const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, time, props = None, const_props = None, shared_const_props = None, node_type = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
@@ -458,6 +461,7 @@ impl PyGraph {
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
@@ -484,6 +488,7 @@ impl PyGraph {
                 props,
                 const_props,
                 shared_const_props,
+                node_type,
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
