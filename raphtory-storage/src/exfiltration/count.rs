@@ -172,7 +172,6 @@ fn merge_nft_prog1(
 ) -> Option<Vec<(Time, usize)>> {
     let prog_events = events_1v_edge
         .prop_items_unchecked::<i64>(prop_id)
-        .unwrap()
         .filter_map(|(t, v)| (v == 4688).then_some(t))
         .rev();
     let mut nft_events_iter = nft_events.into_iter();

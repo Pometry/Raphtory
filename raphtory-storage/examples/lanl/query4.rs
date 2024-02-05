@@ -48,7 +48,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
+                let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
                 let edge_ts = edge.timestamps();
                 let len = event_ids.len();
 
@@ -76,7 +76,6 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                         for (i, t) in edge
                             .prop_items::<i64>(event_id_prop_id_1v)
-                            .unwrap()
                             .enumerate()
                             .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                         {
@@ -88,7 +87,6 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                                         for (nf2_t, duration) in nf2
                                             .prop_items::<i64>(duration)
-                                            .unwrap()
                                             .filter_map(|(t, duration)| {
                                                 duration
                                                     .filter(|d| d >= &SESSION_DURATION)
@@ -108,7 +106,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                     .zip(edge_ts.slice(i + 1..len))
                                                 {
                                                     if program_t < &t
-                                                        || nft1_t < &program_t
+                                                        || nft1_t < program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
                                                         break;
@@ -163,7 +161,7 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
     let pool = thread_pool(NUM_THREADS);
     pool.install(|| {
         g.all_edges_par(events_1v).for_each(|edge| {
-            let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
+            let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
             let edge_ts = edge.timestamps();
             let len = event_ids.len();
 
@@ -188,7 +186,6 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                     let mut count = 0;
                     for (i, t) in edge
                         .prop_items::<i64>(event_id_prop_id_1v)
-                        .unwrap()
                         .enumerate()
                         .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                     {
@@ -199,7 +196,7 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                                     .into_iter()
                                     .zip(edge_ts.slice(i + 1..len))
                                 {
-                                    if program_t < &t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                    if program_t < &t || nft_t < program_t || nft_t - t >= WINDOW {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {

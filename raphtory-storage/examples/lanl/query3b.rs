@@ -38,13 +38,13 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
+                let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
                 let len = event_ids.len();
 
                 let mut count_boot: usize = 0;
                 let mut count_program: usize = 0;
 
-                for event in event_ids.iter().flatten() {
+                for event in event_ids.iter().flatten().copied() {
                     if event == PROGRAM {
                         count_program += 1;
                     } else if event == BOOT {
@@ -61,7 +61,6 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                     .map(|(eid, b)| {
                         g.edge(eid, nft)
                             .prop_items::<i64>(src_port_prop_id)
-                            .unwrap()
                             .filter(|(_, v)| *v == Some(SRCPORT))
                             .count()
                     })
