@@ -21,7 +21,6 @@ pub(crate) fn load_nodes_from_df<'a>(
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
     let node_type_col = node_type.unwrap_or("node_type");
-    // TODO ADD SUPPORT FOR NODE_TYPE
     if let (Some(node_id), Some(time), Some(node_types)) = (
         df.iter_col::<u64>(node_id),
         df.iter_col::<i64>(time),
