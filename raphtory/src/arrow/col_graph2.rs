@@ -74,10 +74,13 @@ impl Default for Metadata {
     }
 }
 
-
 impl Metadata {
-
-    fn new(earliest_time: Time, latest_time: Time, chunk_size: usize, t_props_chunk_size: usize) -> Self {
+    fn new(
+        earliest_time: Time,
+        latest_time: Time,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> Self {
         Self {
             earliest_time,
             latest_time,
@@ -288,10 +291,7 @@ impl TempColGraphFragment {
         self.edges.data_type()
     }
 
-    pub fn node_additions(
-        &mut self,
-        t_prop_chunk_size: usize,
-    ) -> Result<(), super::Error> {
+    pub fn node_additions(&mut self, t_prop_chunk_size: usize) -> Result<(), super::Error> {
         let (arrays, offsets) = make_node_additions(self, t_prop_chunk_size)?;
         let chunked_t_array = ChunkedArray::from_non_nulls(arrays, t_prop_chunk_size);
 
@@ -1436,6 +1436,12 @@ mod test {
         #[test]
         fn one_edge_bounds_chunk_remainder() {
             let edges = vec![(0, 0u64, 1, 1.)];
+            compare_raphtory_graph(edges, 3);
+        }
+
+        #[test]
+        fn same_edge_twice() {
+            let edges = vec![(0, 0, 1, 1.0), (1, 0, 1, 1.0)];
             compare_raphtory_graph(edges, 3);
         }
 
