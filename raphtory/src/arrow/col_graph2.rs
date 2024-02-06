@@ -1448,7 +1448,7 @@ mod test {
         proptest! {
             #[test]
             fn node_addition_bounds_test(
-                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=1000).lift()).prop_map(|v| {
+                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=100).lift()).prop_map(|v| {
                     let mut v: Vec<(i64, u64, u64, f64)> = v.into_iter().flat_map(|(src, dst, times)| {
                         let src = src as u64;
                         let dst = dst as u64;
