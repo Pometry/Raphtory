@@ -21,10 +21,11 @@ pub(crate) fn load_nodes_from_df<'a>(
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
     let node_type_col = node_type.unwrap_or("node_type");
-    if let (Some(node_id), Some(time), Some(node_types)) = (
+    let node_types = df.utf8::<i32>(node_type_col).unwrap();
+
+    if let (Some(node_id), Some(time)) = (
         df.iter_col::<u64>(node_id),
         df.iter_col::<i64>(time),
-        df.utf8::<i64>(node_type_col),
     ) {
         let iter = node_id
             .map(|i| i.copied())
@@ -39,10 +40,9 @@ pub(crate) fn load_nodes_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(node_id), Some(time), Some(node_types)) = (
+    } else if let (Some(node_id), Some(time)) = (
         df.iter_col::<i64>(node_id),
         df.iter_col::<i64>(time),
-        df.utf8::<i64>(node_type_col),
     ) {
         let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
         let iter = iter
@@ -57,10 +57,9 @@ pub(crate) fn load_nodes_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(node_id), Some(time), Some(node_types)) = (
+    } else if let (Some(node_id), Some(time)) = (
         df.utf8::<i32>(node_id),
         df.iter_col::<i64>(time),
-        df.utf8::<i64>(node_type_col),
     ) {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
@@ -82,10 +81,9 @@ pub(crate) fn load_nodes_from_df<'a>(
                 }
             }
         }
-    } else if let (Some(node_id), Some(time), Some(node_types)) = (
+    } else if let (Some(node_id), Some(time)) = (
         df.utf8::<i64>(node_id),
         df.iter_col::<i64>(time),
-        df.utf8::<i64>(node_type_col),
     ) {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
