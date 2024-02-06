@@ -12,14 +12,11 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            view::{
-                internal::{CoreGraphOps, InternalMaterialize},
-                IntoDynamic, StaticGraphViewOps,
-            },
+            view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{AdditionOps, EdgeViewOps, NodeViewOps, NO_PROPS},
 };
 
 pub trait ImportOps:

@@ -68,7 +68,7 @@ impl PyGlobalPlugins {
     ) -> Vec<PyDocument> {
         self.search_graph_documents_with_scores(py, query, limit, window)
             .into_iter()
-            .map(|(doc, score)| doc)
+            .map(|(doc, _score)| doc)
             .collect()
     }
 

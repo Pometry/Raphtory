@@ -12,7 +12,6 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::*,
 };
 
 pub trait AdditionOps: StaticGraphViewOps {

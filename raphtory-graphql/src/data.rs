@@ -63,6 +63,7 @@ impl Data {
     }
 
     // TODO: use this for loading both regular and vectorised graphs
+    #[allow(dead_code)]
     pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
     where
         F: Fn(&Path) -> T + 'static,

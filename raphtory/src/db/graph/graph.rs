@@ -19,7 +19,7 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
-        mutation::internal::{InheritAdditionOps, InheritMutationOps, InheritPropertyAdditionOps},
+        mutation::internal::InheritMutationOps,
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,

@@ -1,6 +1,4 @@
-use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 

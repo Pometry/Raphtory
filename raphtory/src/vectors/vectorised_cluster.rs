@@ -29,7 +29,7 @@ impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G,
     ) -> Vec<Document> {
         self.search_graph_documents_with_scores(query, limit, window)
             .into_iter()
-            .map(|(document, score)| document)
+            .map(|(document, _score)| document)
             .collect_vec()
     }
 
@@ -42,7 +42,7 @@ impl<'a, G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedCluster<'a, G,
         let documents = self
             .graphs
             .iter()
-            .flat_map(|(name, graph)| graph.graph_documents.iter().cloned())
+            .flat_map(|(_name, graph)| graph.graph_documents.iter().cloned())
             .filter(|doc| doc.exists_on_window::<Graph>(None, window))
             .collect_vec();
         let scored_documents = score_documents(query, documents);
