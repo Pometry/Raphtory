@@ -285,8 +285,9 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 document.add_text(prop_field, prop_text);
             }
             Prop::DTime(prop_time) => {
-                let time =
-                    tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
+                let time = tantivy::DateTime::from_timestamp_nanos(
+                    prop_time.and_utc().timestamp_nanos_opt().unwrap(),
+                );
                 document.add_date(prop_field, time);
             }
             Prop::U8(prop_u8) => {

@@ -69,7 +69,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                             .enumerate()
                             .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                         {
-                            for (b, nft_ts) in nft_ts.iter() {
+                            for (_, nft_ts) in nft_ts.iter() {
                                 for nft_t in nft_ts {
                                     for (v, program_t) in event_ids
                                         .slice(i + 1..len)

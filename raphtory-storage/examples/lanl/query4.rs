@@ -183,7 +183,6 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                         })
                         .collect::<Vec<_>>();
 
-                    let mut count = 0;
                     for (i, t) in edge
                         .prop_items::<i64>(event_id_prop_id_1v)
                         .enumerate()
@@ -247,12 +246,12 @@ fn expand_nf2_hop(
     duration_prop_id: usize,
 ) -> usize {
     let mut count = 0;
-    for (e_id, c) in g
+    for (e_id, _) in g
         .edges_iter(b, Direction::OUT, nft_layer)
         .filter(|(_, c)| *c != a && *c != b)
     {
         let edge = g.edge(e_id, nft_layer);
-        for (t, dur) in edge
+        for (t, _) in edge
             .prop_history::<i64>(duration_prop_id)
             .filter(|(t, duration)| duration >= &SESSION_DURATION && t + duration >= nf1_t)
         {

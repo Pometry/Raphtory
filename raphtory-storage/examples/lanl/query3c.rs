@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use raphtory::{arrow::graph::TemporalGraph, core::Direction};
+use raphtory::arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 
 use crate::{thread_pool, NUM_THREADS};

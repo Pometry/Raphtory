@@ -1,10 +1,4 @@
-use raphtory::{
-    arrow::{
-        graph::TemporalGraph,
-        prelude::{ArrayOps, BaseArrayOps},
-    },
-    core::Direction,
-};
+use raphtory::arrow::{graph::TemporalGraph, prelude::ArrayOps};
 use rayon::prelude::*;
 
 use crate::{thread_pool, NUM_THREADS};
@@ -39,8 +33,6 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
         g.all_edges_par(events_1v)
             .map(|edge| {
                 let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
-                let len = event_ids.len();
-
                 let mut count_boot: usize = 0;
                 let mut count_program: usize = 0;
 
@@ -57,8 +49,8 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let nfts: usize = g
                     .layer(nft)
                     .in_edges_par(a)
-                    .filter(|(eid, b)| &a != b)
-                    .map(|(eid, b)| {
+                    .filter(|(_, b)| &a != b)
+                    .map(|(eid, _)| {
                         g.edge(eid, nft)
                             .prop_items::<i64>(src_port_prop_id)
                             .filter(|(_, v)| *v == Some(SRCPORT))

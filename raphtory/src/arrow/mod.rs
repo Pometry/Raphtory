@@ -189,16 +189,6 @@ pub(crate) struct GraphChunk {
 }
 
 impl GraphChunk {
-    pub fn from_chunk(
-        chunk: Chunk<Box<dyn Array>>,
-        src_col_idx: usize,
-        dst_col_idx: usize,
-    ) -> Self {
-        let srcs = chunk[src_col_idx].clone();
-        let dsts = chunk[dst_col_idx].clone();
-        Self { srcs, dsts }
-    }
-
     pub fn to_chunk(&self) -> Chunk<Box<dyn Array>> {
         Chunk::new(vec![self.srcs.clone(), self.dsts.clone()])
     }
