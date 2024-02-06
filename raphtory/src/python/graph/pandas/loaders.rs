@@ -16,21 +16,32 @@ pub(crate) fn load_nodes_from_df<'a>(
     props: Option<Vec<&str>>,
     const_props: Option<Vec<&str>>,
     shared_const_props: Option<HashMap<String, Prop>>,
-    node_type: Option<&str>,
+    node_type_col: &str,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
-    let node_type_col = node_type.unwrap_or("node_type");
-    let node_types = df.utf8::<i32>(node_type_col).unwrap();
+    let mut collected_node_types: Vec<Option<&str>> = Vec::new();
+    if df.utf8::<i32>(node_type_col).is_some() {
+        let node_types = df.utf8::<i32>(node_type_col).unwrap();
+        for node_type in node_types {
+            collected_node_types.push(node_type);
+        }
+    } else if df.utf8::<i64>(node_type_col).is_some() {
+        let node_types = df.utf8::<i64>(node_type_col).unwrap();
+        for node_type in node_types {
+            collected_node_types.push(node_type);
+        }
+    } else {
+        return Err(GraphError::LoadFailure(
+            "Unable to convert / find node_type column in dataframe.".to_string(),
+        ));
+    }
 
-    if let (Some(node_id), Some(time)) = (
-        df.iter_col::<u64>(node_id),
-        df.iter_col::<i64>(time),
-    ) {
+    if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id), df.iter_col::<i64>(time)) {
         let iter = node_id
             .map(|i| i.copied())
             .zip(time)
-            .zip(node_types)
+            .zip(collected_node_types)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
         load_nodes_from_num_iter(
             graph,
@@ -40,13 +51,12 @@ pub(crate) fn load_nodes_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(node_id), Some(time)) = (
-        df.iter_col::<i64>(node_id),
-        df.iter_col::<i64>(time),
-    ) {
+    } else if let (Some(node_id), Some(time)) =
+        (df.iter_col::<i64>(node_id), df.iter_col::<i64>(time))
+    {
         let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
         let iter = iter
-            .zip(node_types)
+            .zip(collected_node_types)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
         load_nodes_from_num_iter(
@@ -57,13 +67,11 @@ pub(crate) fn load_nodes_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(node_id), Some(time)) = (
-        df.utf8::<i32>(node_id),
-        df.iter_col::<i64>(time),
-    ) {
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.iter_col::<i64>(time))
+    {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
-            .zip(node_types)
+            .zip(collected_node_types)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
         for (((node_id, time, n_t), props), const_props) in tqdm!(
@@ -81,13 +89,11 @@ pub(crate) fn load_nodes_from_df<'a>(
                 }
             }
         }
-    } else if let (Some(node_id), Some(time)) = (
-        df.utf8::<i64>(node_id),
-        df.iter_col::<i64>(time),
-    ) {
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.iter_col::<i64>(time))
+    {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
-            .zip(node_types)
+            .zip(collected_node_types)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
         for (((node_id, time, n_t), props), const_props) in tqdm!(

@@ -61,12 +61,13 @@ def test_load_from_pandas_into_existing_graph():
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
+            "node_type": [ "p", "p", "p", "p", "p", "p" ]
         }
     )
 
     g = Graph()
 
-    g.load_nodes_from_pandas(nodes_df, "id", "time", ["name"])
+    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"])
 
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
 
@@ -116,6 +117,7 @@ def test_load_from_pandas_nodes():
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
+            "node_type": ["P","P","P","P","P","P"]
         }
     )
 
@@ -129,6 +131,7 @@ def test_load_from_pandas_nodes():
         node_id="id",
         node_time="time",
         node_props=["name"],
+        node_type="node_type"
     )
 
     assert g.nodes.id.collect() == [1, 2, 3, 4, 5, 6]
@@ -186,6 +189,14 @@ def test_load_from_pandas_with_types():
                 "Person 5",
                 "Person 6",
             ],
+            "node_type": [
+                "Person",
+                "Person",
+                "Person",
+                "Person",
+                "Person",
+                "Person",
+            ]
         }
     )
     g = Graph()
@@ -193,10 +204,11 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         "time",
+        "node_type",
         ["name"],
-        shared_const_props={"type": "Person", "tag": "test_tag"},
+        shared_const_props={"tag": "test_tag"},
     )
-    assert g.nodes.properties.constant.get("type").collect() == [
+    assert g.nodes.node_type == [
         "Person",
         "Person",
         "Person",
@@ -214,7 +226,7 @@ def test_load_from_pandas_with_types():
     ]
 
     g = Graph()
-    g.load_nodes_from_pandas(nodes_df, "id", "time", ["name"], const_props=["type"])
+    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"], const_props=["type"])
     assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
@@ -402,6 +414,7 @@ def test_missing_columns():
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
+            "node_type": ["P", "P", "P", "P", "P", "P"]
         }
     )
 

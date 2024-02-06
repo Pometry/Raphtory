@@ -17,6 +17,7 @@ def build_graph():
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
+    nodes_df["node_type"] = "_default"
 
     return Graph.load_from_pandas(
         edge_df=edges_df,
@@ -33,6 +34,7 @@ def build_graph():
         node_props=["OS_version", "primary_function", "uptime_days"],
         node_const_props=["server_name", "hardware_type"],
         node_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
+        node_type = "node_type"
     )
 
 

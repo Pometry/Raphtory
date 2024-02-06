@@ -393,7 +393,7 @@ impl PyGraph {
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
     edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None,
-    node_const_props = None, node_shared_const_props = None, node_type = None))]
+    node_const_props = None, node_shared_const_props = None, node_type = "node_type"))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -410,7 +410,7 @@ impl PyGraph {
         node_props: Option<Vec<&str>>,
         node_const_props: Option<Vec<&str>>,
         node_shared_const_props: Option<HashMap<String, Prop>>,
-        node_type: Option<&str>,
+        node_type: &str,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -431,10 +431,10 @@ impl PyGraph {
                 node_df,
                 node_id,
                 node_time,
+                node_type,
                 node_props,
                 node_const_props,
                 node_shared_const_props,
-                node_type,
             )?;
         }
         Ok(graph.graph)
@@ -452,16 +452,16 @@ impl PyGraph {
     ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, props = None, const_props = None, shared_const_props = None, node_type = None))]
+    #[pyo3(signature = (df, id, time, node_type, props = None, const_props = None, shared_const_props = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
         time: &str,
+        node_type: &str,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
-        node_type: Option<&str>,
     ) -> Result<(), GraphError> {
         let graph = &self.graph;
         Python::with_gil(|py| {
@@ -473,7 +473,7 @@ impl PyGraph {
                 )?
                 .extract()?;
 
-            let mut cols_to_check = vec![id, time];
+            let mut cols_to_check = vec![id, time, node_type];
             cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
 
