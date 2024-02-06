@@ -494,7 +494,10 @@ mod test {
     };
     use itertools::Itertools;
 
-    use crate::{arrow::chunked_array::chunked_array::NonNull, core::{entities::LayerIds, storage::locked_view::LockedView}};
+    use crate::{
+        arrow::chunked_array::chunked_array::NonNull,
+        core::{entities::LayerIds, storage::locked_view::LockedView},
+    };
 
     use crate::arrow::{
         chunked_array::{
@@ -600,7 +603,10 @@ mod test {
         f(&vec_t_index, &arr_t_index);
     }
 
-    fn make_chunks(data: Vec<i64>, chunk_size: usize) -> ChunkedArray<PrimitiveArray<i64>, NonNull> {
+    fn make_chunks(
+        data: Vec<i64>,
+        chunk_size: usize,
+    ) -> ChunkedArray<PrimitiveArray<i64>, NonNull> {
         let data = data
             .into_iter()
             .chunks(chunk_size)
@@ -608,8 +614,11 @@ mod test {
             .map(|c| c.collect_vec())
             .collect_vec();
 
-        ChunkedArray::from_non_nulls(data.into_iter()
-            .map(|c| PrimitiveArray::from_vec(c))
-            .collect::<Vec<_>>(), chunk_size)
+        ChunkedArray::from_non_nulls(
+            data.into_iter()
+                .map(|c| PrimitiveArray::from_vec(c))
+                .collect::<Vec<_>>(),
+            chunk_size,
+        )
     }
 }

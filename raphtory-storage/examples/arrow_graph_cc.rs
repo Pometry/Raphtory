@@ -2,7 +2,9 @@ use std::{cmp::Reverse, time::Instant};
 
 use itertools::Itertools;
 use raphtory::{
-    algorithms::components::weakly_connected_components, arrow::{algorithms::connected_components, graph_impl::Graph2}, prelude::*,
+    algorithms::components::weakly_connected_components,
+    arrow::{algorithms::connected_components, graph_impl::Graph2},
+    prelude::*,
 };
 
 fn main() {
@@ -44,14 +46,17 @@ fn main() {
 
     let g = &graph2.layers()[0];
 
-
     println!("Graph has {} nodes", graph2.count_nodes());
     println!("Graph has {} edges", graph2.count_edges());
 
     let now = Instant::now();
     // let ccs = weakly_connected_components(&graph2, 100, None).group_by();
     let out = connected_components::connected_components(g);
-    println!("########## Arrow CC took {:?} ########## len: {}", now.elapsed(), out.len());
+    println!(
+        "########## Arrow CC took {:?} ########## len: {}",
+        now.elapsed(),
+        out.len()
+    );
 
     // let actual = ccs
     //     .into_iter()
