@@ -69,7 +69,7 @@ fn query1_v7(
                 .filter(|edge| {
                     edge.par_prop_items_unchecked::<i64>(event_id_prop_id_1v)
                         .unwrap()
-                        .any(|(_, event_id)| *event_id == 4688)
+                        .any(|(_, event_id)| event_id == 4688)
                 })
                 .map(|e| e.dst())
                 .collect()
@@ -88,7 +88,7 @@ fn query1_v7(
                 .filter(|edge| {
                     edge.par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
                         .unwrap()
-                        .any(|(_, event_id)| *event_id == 4624)
+                        .any(|(_, event_id)| event_id == 4624)
                 })
                 .map(|e| e.dst())
                 .collect()
@@ -112,7 +112,7 @@ fn query1_v7(
                         let nf1 = g.edge(b2e, nft);
                         nf1.par_prop_items_unchecked::<i64>(bytes_prop_id)
                             .unwrap()
-                            .filter(|(_, &v)| v > 100_000_000)
+                            .filter(|(_, v)| *v > 100_000_000)
                             .for_each(|(nf1_t, _)| {
                                 g.out_adj_par(b, events_1v)
                                     .filter(|(_, v)| v == &b && b_prog1_filter.contains(v))
@@ -123,7 +123,7 @@ fn query1_v7(
                                             .par_prop_items_unchecked::<i64>(event_id_prop_id_1v)
                                             .unwrap()
                                             .for_each(|(prog1_t, prog1_event_id)| {
-                                                if *prog1_event_id == 4688
+                                                if prog1_event_id == 4688
                                                     && prog1_t < nf1_t
                                                     && nf1_t - prog1_t <= 30
                                                 {
@@ -221,7 +221,7 @@ fn query1_v7(
 
 #[inline]
 fn binary_search_join_par_4<'a>(
-    login_events: impl ParallelIterator<Item = (&'a Time, &'a i64)>,
+    login_events: impl ParallelIterator<Item = (&'a Time, i64)>,
     prog1: &[Time],
     nft: &[Time],
     e: &[VID],
@@ -229,7 +229,7 @@ fn binary_search_join_par_4<'a>(
     count: &'a AtomicUsize,
 ) {
     let c = login_events
-        .filter(|(_, &login1_event_id)| login1_event_id == 4624)
+        .filter(|(_, login1_event_id)| *login1_event_id == 4624)
         .filter_map(|(login1_t, _)| {
             let pos = prog1.partition_point(|prog1_t| prog1_t < login1_t);
             if pos == prog1.len() {

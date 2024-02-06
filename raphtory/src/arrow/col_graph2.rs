@@ -1442,14 +1442,14 @@ mod test {
         proptest! {
             #[test]
             fn node_addition_bounds_test(
-                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=10).lift()).prop_map(|v| {
+                edges in any_with::<Vec<(u8, u8, Vec<i64>)>>(size_range(1..=1000).lift()).prop_map(|v| {
                     let mut v: Vec<(i64, u64, u64, f64)> = v.into_iter().flat_map(|(src, dst, times)| {
                         let src = src as u64;
                         let dst = dst as u64;
                         times.into_iter().map(move |t| (t, src, dst, 1f64))}).collect();
                     v.sort_by_key(|(t, src, dst, _)| (*src, *dst, *t));
                     v}).prop_filter("edge list mut have one edge at least",|edges| edges.len() > 0),
-                chunk_size in 1..5usize,
+                chunk_size in 1..300usize,
             ) {
                 compare_raphtory_graph(edges, chunk_size);
             }
