@@ -104,6 +104,16 @@ impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
     }
 }
 
+pub trait OptionAsStr {
+    fn as_str(&self) -> Option<&str>;
+}
+
+impl<O: AsRef<str>> OptionAsStr for Option<O> {
+    fn as_str(&self) -> Option<&str> {
+        self.as_ref().map(|s| s.as_ref())
+    }
+}
+
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Direction {
@@ -687,7 +697,7 @@ mod serde_value_into_prop {
 
 #[cfg(test)]
 mod test_arc_str {
-    use crate::core::ArcStr;
+    use crate::core::{ArcStr, OptionAsStr};
     use std::sync::Arc;
 
     #[test]
@@ -697,5 +707,18 @@ mod test_arc_str {
         assert_eq!(test, "test".to_string());
         assert_eq!(test, Arc::from("test"));
         assert_eq!(&test, &"test".to_string())
+    }
+
+    #[test]
+    fn test_option_conv() {
+        let test: Option<ArcStr> = Some("test".into());
+
+        let opt_str = test.as_str();
+
+        let test2 = Some("test".to_string());
+        let opt_str_2 = test2.as_str();
+
+        assert_eq!(opt_str, Some("test"));
+        assert_eq!(opt_str_2, Some("test"));
     }
 }
