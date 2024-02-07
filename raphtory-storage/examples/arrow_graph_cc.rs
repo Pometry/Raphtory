@@ -43,6 +43,9 @@ fn main() {
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
     };
+    // } else {
+    //     panic!("Graph directory does not exist")
+    // };
 
     let g = &graph2.layers()[0];
 

@@ -261,7 +261,7 @@ impl TempColGraphFragment {
         };
 
         if !has_additions {
-            println!("No additions found, building them");
+            println!("No additions found, building them [t_prop_chunk_size: {}]", metadata.t_props_chunk_size);
             let now = std::time::Instant::now();
             grapho.node_additions(metadata.t_props_chunk_size)?;
             println!("Node additions took {:?}", now.elapsed());
