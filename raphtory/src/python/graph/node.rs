@@ -36,6 +36,7 @@ use pyo3::{
 };
 use python::types::repr::{iterator_repr, Repr};
 use std::collections::HashMap;
+use crate::core::ArcStr;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]
@@ -175,7 +176,7 @@ impl PyNode {
 
     /// Returns the type of node
     #[getter]
-    pub fn node_type(&self) -> String {
+    pub fn node_type(&self) -> Option<ArcStr> {
         self.node.node_type()
     }
 
@@ -485,7 +486,7 @@ impl PyNodes {
 
     /// Returns the type of node
     #[getter]
-    fn node_type(&self) -> StringIterable {
+    fn node_type(&self) -> OptionArcStringIterable {
         let nodes = self.nodes.clone();
         (move || nodes.node_type()).into()
     }
@@ -584,7 +585,7 @@ impl PyPathFromGraph {
     }
 
     #[getter]
-    fn node_type(&self) -> NestedStringIterable {
+    fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
@@ -736,7 +737,7 @@ impl PyPathFromNode {
     }
 
     #[getter]
-    fn node_type(&self) -> StringIterable {
+    fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }

@@ -152,12 +152,14 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         }
 
         for v in self.nodes().iter() {
+            let v_type_string = v.node_type().map(|v| v.to_string()); //stop it being dropped
+            let v_type_str = v_type_string.as_deref();
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS, Some(&v.node_type()))?;
+                g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_node(t, v.name(), [(name.clone(), prop)], Some(&v.node_type()))?;
+                    g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
             g.node(v.id())
@@ -327,8 +329,11 @@ mod test_materialize {
         let g = Graph::new();
         let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
-        assert_eq!(node_a.node_type(), "_default");
-        assert_eq!(node_b.node_type(), "H");
+        let node_a_ref = node_a.node_type().map(|v| v.to_string()); //stop it being dropped
+        let node_a_type_str = node_a_ref.as_deref();
+
+        assert_eq!(node_a_type_str, Some("_default"));
+        assert_eq!(node_b.node_type().map(|v| v.to_string()).as_deref(), Some("H"));
     }
 
     #[test]

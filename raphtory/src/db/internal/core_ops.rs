@@ -51,7 +51,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn node_type(&self, v: VID) -> String {
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
         self.inner().node_type(v)
     }
 

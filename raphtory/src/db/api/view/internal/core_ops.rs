@@ -47,7 +47,7 @@ pub trait CoreGraphOps {
     fn node_name(&self, v: VID) -> String;
 
     /// Returns the type of node
-    fn node_type(&self, v: VID) -> String;
+    fn node_type(&self, v: VID) -> Option<ArcStr>;
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -271,7 +271,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn node_type(&self, v: VID) -> String {
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
         self.graph().node_type(v)
     }
 

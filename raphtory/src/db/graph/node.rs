@@ -341,12 +341,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let node_type_str = self.graph.node(self.node).unwrap().node_type();
-        let node_internal_type_id = self
-            .graph
-            .node_meta()
-            .get_node_type_id(&node_type_str)
-            .unwrap_or(0);
+        let node_internal_type_id = self.graph.core_node(self.node).node_type;
         self.graph
             .internal_add_node(t, self.node, properties, node_internal_type_id)
     }

@@ -19,7 +19,7 @@ use raphtory::{
         EmbeddingFunction,
     },
 };
-use std::{collections::HashMap, ops::Deref, path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 use tokio::{
     io::Result as IoResult,
     signal,

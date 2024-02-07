@@ -18,6 +18,9 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, NodeViewOps, NO_PROPS},
 };
+use crate::core::Prop;
+use crate::db::api::view::internal::{DelegateCoreOps, DelegateTimeSemantics};
+use crate::prelude::GraphViewOps;
 
 pub trait ImportOps:
     StaticGraphViewOps
@@ -126,16 +129,21 @@ impl<
             }
         }
 
+        let node_internal_type_id = node.graph.core_node(node.node).node_type;
+
         for h in node.history() {
-            self.add_node(h, node.name(), NO_PROPS, Some(&node.node_type()))?;
+            let t = TimeIndexEntry::from_input(self, h)?;
+            let node_internal  = self.resolve_node(node.id(), node.graph.core_node(node.node).name.as_ref());
+            self.internal_add_node(t, node.node, vec![], node_internal_type_id).expect("Unable to add node during import")
         }
         for (name, prop_view) in node.properties().temporal().iter() {
-            for (t, prop) in prop_view.iter() {
-                self.add_node(
+            for (h, prop) in prop_view.iter() {
+                let t = TimeIndexEntry::from_input(self, h)?;
+                self.internal_add_node(
                     t,
-                    node.name(),
-                    [(name.clone(), prop)],
-                    Some(&node.node_type()),
+                    node.node,
+                    vec![], // [(name.clone(), prop)],
+                    node_internal_type_id,
                 )?;
             }
         }

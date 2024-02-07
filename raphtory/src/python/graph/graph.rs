@@ -393,7 +393,7 @@ impl PyGraph {
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
     edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None,
-    node_const_props = None, node_shared_const_props = None, node_type = "node_type"))]
+    node_const_props = None, node_shared_const_props = None, node_type = None))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,

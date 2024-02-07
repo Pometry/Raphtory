@@ -202,8 +202,13 @@ impl Meta {
         self.meta_layer.get_name(id)
     }
 
-    pub fn get_node_type_name_by_id(&self, id: usize) -> ArcStr {
-        self.meta_node_type.get_name(id)
+    pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {
+        if self.meta_node_type.has_name(id) {
+            Some(self.meta_node_type.get_name(id))
+        }
+        else {
+            None
+        }
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
@@ -214,12 +219,8 @@ impl Meta {
             .collect()
     }
 
-    pub fn get_all_node_types(&self) -> Vec<usize> {
-        self.meta_node_type
-            .map
-            .iter()
-            .map(|entry| *entry.value())
-            .collect()
+    pub fn get_all_node_types(&self) -> ArcReadLockedVec<ArcStr> {
+        self.meta_node_type.get_keys()
     }
 
     pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
@@ -314,6 +315,12 @@ impl DictMapper {
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
         self.map.get(name).map(|id| *id)
+    }
+
+
+    pub fn has_name(&self, id: usize) -> bool {
+        let guard = self.reverse_map.read();
+        guard.get(id).is_some()
     }
 
     pub fn get_name(&self, id: usize) -> ArcStr {

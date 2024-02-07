@@ -279,13 +279,10 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
-    pub(crate) fn node_type(&self, v: VID) -> String {
+    pub(crate) fn node_type(&self, v: VID) -> Option<ArcStr> {
         let node = self.storage.get_node(v);
         self.node_meta
             .get_node_type_name_by_id(node.node_type)
-            .clone()
-            .0
-            .to_string()
     }
 
     #[inline]
@@ -365,11 +362,19 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> usize {
         match node_type {
             None => self.node_meta.get_default_node_type_id(),
-            Some(node_type) => {
+            Some(node_type)  => {
                 let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
                 let mut node = self.storage.get_node_mut(v_id);
-                node.update_node_type(node_type_id);
-                node_type_id
+                match node.node_type {
+                    0 => {
+                        node.update_node_type(node_type_id);
+                        node_type_id
+                    }
+                    _ => {
+                        // Returns the original node type to prevent type being changed
+                        node.node_type
+                    }
+                }
             }
         }
     }
@@ -385,6 +390,7 @@ impl<const N: usize> TemporalGraph<N> {
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);
         node.update_time(time);
+        node.update_node_type(node_type_id);
         node
     }
 
@@ -486,9 +492,9 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or(0)
     }
 
-    fn get_or_allocate_node_type(&self, layer: Option<&str>) -> usize {
-        layer
-            .map(|layer| self.node_meta.get_or_create_node_type_id(layer))
+    fn get_or_allocate_node_type(&self, node_type: Option<&str>) -> usize {
+        node_type
+            .map(|node_type_str| self.node_meta.get_or_create_node_type_id(node_type_str))
             .unwrap_or(0)
     }
 

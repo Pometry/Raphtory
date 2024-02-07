@@ -12,6 +12,7 @@ mod test {
         },
     };
     use arrow2::array::{PrimitiveArray, Utf8Array};
+    use crate::core::ArcStr;
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -141,8 +142,8 @@ mod test {
         assert_eq!(
             actual,
             vec![
-                (1, Some(1), Some(Prop::str("a")), String::from("atype")),
-                (2, Some(2), Some(Prop::str("b")), String::from("btype")),
+                (1, Some(1), Some(Prop::str("a")), Some(ArcStr::from("atype"))),
+                (2, Some(2), Some(Prop::str("b")), Some(ArcStr::from("btype"))),
             ]
         );
     }

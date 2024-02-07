@@ -119,7 +119,7 @@ impl Graph {
         };
 
         let opt_string = node_type.as_string();
-        let node_type_rust: Option<&str> = opt_string.as_deref().map_or(Some("_default"), Some);
+        let node_type_rust = opt_string.as_deref();
 
         match JsNode::try_from(id)? {
             JsNode::Str(node) => self
@@ -196,8 +196,8 @@ mod js_test {
     fn add_one_edge_get_neighbours() -> Result<(), super::JSError> {
         let graph = super::Graph::new();
 
-        graph.add_node_js(2, "Bob".into(), Object::new(), JsValue::from("_default"))?;
-        graph.add_node_js(3, "Alice".into(), Object::new(), JsValue::from("_default"))?;
+        graph.add_node_js(2, "Bob".into(), Object::new(), JsValue::from("H"))?;
+        graph.add_node_js(3, "Alice".into(), Object::new(), JsValue::null())?;
 
         let js_weight = JsValue::from_f64(3.14);
 
