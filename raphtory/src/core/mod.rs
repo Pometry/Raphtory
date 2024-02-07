@@ -713,12 +713,16 @@ mod test_arc_str {
     fn test_option_conv() {
         let test: Option<ArcStr> = Some("test".into());
 
+        let test_ref = test.as_ref();
+
         let opt_str = test.as_str();
+        let opt_str3 = test_ref.as_str();
 
         let test2 = Some("test".to_string());
         let opt_str_2 = test2.as_str();
 
         assert_eq!(opt_str, Some("test"));
         assert_eq!(opt_str_2, Some("test"));
+        assert_eq!(opt_str3, Some("test"));
     }
 }
