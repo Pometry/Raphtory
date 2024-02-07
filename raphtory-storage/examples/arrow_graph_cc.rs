@@ -21,31 +21,31 @@ fn main() {
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
         Graph2::open_path(graph_dir).expect("Cannot open graph")
-    } else {
-        let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
-        let chunk_size = 1_000_000_000;
-        let t_props_chunk_size = chunk_size / 2;
-        let now = Instant::now();
-        let graph = Graph2::load_from_dir(
-            graph_dir,
-            parquet_dir,
-            "src",
-            "src_hash",
-            "dst",
-            "dst_hash",
-            "time",
-            chunk_size,
-            t_props_chunk_size,
-            Some(4_000_000),
-            Some(8),
-        )
-        .expect("Cannot load graph");
-        println!("########## Load took {:?} ########## ", now.elapsed());
-        graph
-    };
     // } else {
-    //     panic!("Graph directory does not exist")
+    //     let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
+    //     let chunk_size = 1_000_000_000;
+    //     let t_props_chunk_size = chunk_size / 2;
+    //     let now = Instant::now();
+    //     let graph = Graph2::load_from_dir(
+    //         graph_dir,
+    //         parquet_dir,
+    //         "src",
+    //         "src_hash",
+    //         "dst",
+    //         "dst_hash",
+    //         "time",
+    //         chunk_size,
+    //         t_props_chunk_size,
+    //         Some(4_000_000),
+    //         Some(8),
+    //     )
+    //     .expect("Cannot load graph");
+    //     println!("########## Load took {:?} ########## ", now.elapsed());
+    //     graph
     // };
+    } else {
+        panic!("Graph directory does not exist")
+    };
 
     let g = &graph2.layers()[0];
 
