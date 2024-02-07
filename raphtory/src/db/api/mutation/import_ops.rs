@@ -18,8 +18,8 @@ use crate::{
     },
     prelude::{AdditionOps, EdgeViewOps, NodeViewOps, NO_PROPS},
 };
-use crate::core::Prop;
-use crate::db::api::view::internal::{DelegateCoreOps, DelegateTimeSemantics};
+use crate::core::{OptionAsStr, Prop};
+use crate::db::api::view::internal::{CoreGraphOps, DelegateCoreOps, DelegateTimeSemantics};
 use crate::prelude::GraphViewOps;
 
 pub trait ImportOps:
@@ -129,20 +129,24 @@ impl<
             }
         }
 
-        let node_internal_type_id = node.graph.core_node(node.node).node_type;
+        let node_internal  = self.resolve_node(node.id(), node.graph.core_node(node.node).name.as_str());
+        let node_internal_type_id = self.resolve_node_type(node_internal, node.node_type().as_str());
 
         for h in node.history() {
             let t = TimeIndexEntry::from_input(self, h)?;
-            let node_internal  = self.resolve_node(node.id(), node.graph.core_node(node.node).name.as_ref());
-            self.internal_add_node(t, node.node, vec![], node_internal_type_id).expect("Unable to add node during import")
+            self.internal_add_node(t, node_internal, vec![], node_internal_type_id).expect("Unable to add node during import")
         }
         for (name, prop_view) in node.properties().temporal().iter() {
+            let old_prop_id = node.graph.node_meta().temporal_prop_meta().get_id(&name).unwrap();
+            let dtype = node.graph.node_meta().temporal_prop_meta().get_dtype(old_prop_id).unwrap();
+            let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
             for (h, prop) in prop_view.iter() {
+                let new_prop = self.process_prop_value(prop);
                 let t = TimeIndexEntry::from_input(self, h)?;
                 self.internal_add_node(
                     t,
-                    node.node,
-                    vec![], // [(name.clone(), prop)],
+                    node_internal,
+                    vec![(new_prop_id, new_prop)],
                     node_internal_type_id,
                 )?;
             }
