@@ -2162,9 +2162,9 @@ def test_node_types():
     g = Graph()
     a = g.add_node(0, "A", None, None)
     b = g.add_node(0, "B", None, "BTYPE")
-    assert a.node_type == "_default"
+    assert a.node_type == None
     assert b.node_type == "BTYPE"
-    assert set(g.nodes.node_type) == set(["_default", "BTYPE"])
+    assert set(g.nodes.node_type) == set([None, "BTYPE"])
 
 
 def test_fuzzy_search():

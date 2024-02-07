@@ -83,7 +83,8 @@ pub(crate) fn load_nodes_from_df<'a>(
             unit_scale = true
         ) {
             if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
-                let v = graph.add_node(*time, node_id, props, n_t)?;
+                let actual_type = extract_out_default_type(n_t);
+                let v = graph.add_node(*time, node_id, props, actual_type)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
@@ -104,7 +105,8 @@ pub(crate) fn load_nodes_from_df<'a>(
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
+            let actual_type = extract_out_default_type(n_t);
+            if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
                 let v = graph.add_node(*time, node_id, props, n_t)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
@@ -119,6 +121,14 @@ pub(crate) fn load_nodes_from_df<'a>(
     }
 
     Ok(())
+}
+
+fn extract_out_default_type(n_t: Option<&str>) -> Option<&str> {
+    if n_t == Some("_default") {
+        None
+    } else {
+        n_t
+    }
 }
 
 pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
@@ -487,7 +497,8 @@ fn load_nodes_from_num_iter<
         if let (Some(v), Some(t), n_t, props, const_props) =
             (node, time, node_type, props, const_props)
         {
-            let v = graph.add_node(*t, v, props, n_t)?;
+            let actual_node_type = extract_out_default_type(n_t);
+            let v = graph.add_node(*t, v, props, actual_node_type)?;
             v.add_constant_properties(const_props)?;
 
             if let Some(shared_const_props) = &shared_const_props {
