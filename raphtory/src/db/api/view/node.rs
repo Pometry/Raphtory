@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
-        Direction,
+        ArcStr, Direction,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
@@ -14,7 +14,6 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
-use crate::core::ArcStr;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;

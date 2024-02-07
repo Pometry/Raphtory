@@ -2,7 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
     db::{
         api::{
             properties::Properties,
@@ -36,7 +36,6 @@ use pyo3::{
 };
 use python::types::repr::{iterator_repr, Repr};
 use std::collections::HashMap;
-use crate::core::ArcStr;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]

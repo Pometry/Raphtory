@@ -24,7 +24,7 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> usize {
+    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
         self.inner().resolve_node_type(v_id, node_type)
     }
 

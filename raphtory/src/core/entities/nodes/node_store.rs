@@ -80,15 +80,17 @@ impl NodeStore {
         self.timestamps.insert(*t.t());
     }
 
-    pub fn update_node_type(&mut self, node_type: usize) -> Result<usize, GraphError>{
+    pub fn update_node_type(&mut self, node_type: usize) -> Result<usize, GraphError> {
         // if the current type is default, then allow it to be changed
         if self.node_type == 0 {
             self.node_type = node_type;
         }
-            // if the current type and new type dont match, then raise an error, do not change
-            // detected node type being changed
+        // if the current type and new type dont match, then raise an error, do not change
+        // detected node type being changed
         else if self.node_type != node_type {
-            return Err(GraphError::NodeTypeError("Node already has a non-default type".parse().unwrap()))
+            return Err(GraphError::NodeTypeError(
+                "Node already has a non-default type".parse().unwrap(),
+            ));
         }
         Ok(node_type)
     }

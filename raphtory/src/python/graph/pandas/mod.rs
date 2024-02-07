@@ -5,6 +5,7 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
+        core::ArcStr,
         prelude::*,
         python::graph::pandas::{
             dataframe::PretendDF,
@@ -12,7 +13,6 @@ mod test {
         },
     };
     use arrow2::array::{PrimitiveArray, Utf8Array};
-    use crate::core::ArcStr;
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -142,8 +142,18 @@ mod test {
         assert_eq!(
             actual,
             vec![
-                (1, Some(1), Some(Prop::str("a")), Some(ArcStr::from("atype"))),
-                (2, Some(2), Some(Prop::str("b")), Some(ArcStr::from("btype"))),
+                (
+                    1,
+                    Some(1),
+                    Some(Prop::str("a")),
+                    Some(ArcStr::from("atype"))
+                ),
+                (
+                    2,
+                    Some(2),
+                    Some(Prop::str("b")),
+                    Some(ArcStr::from("btype"))
+                ),
             ]
         );
     }

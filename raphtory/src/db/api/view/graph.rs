@@ -3,7 +3,7 @@ use crate::{
         entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
-        ArcStr,
+        ArcStr, OptionAsStr,
     },
     db::{
         api::{
@@ -152,8 +152,13 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         }
 
         for v in self.nodes().iter() {
-            let v_type_string = v.node_type().map(|v| v.to_string()); //stop it being dropped
-            let v_type_str = v_type_string.as_deref();
+            let v_type_string = v.node_type(); //.map(|v| v.to_string()); //stop it being dropped
+            let v_type_str = v_type_string.as_str();
+            // let v_type_str = if v_type_string.as_deref() == Some("_default") {
+            //     None
+            // } else {
+            //     v_type_string.as_deref()
+            // };
             for h in v.history() {
                 g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
             }
@@ -332,8 +337,11 @@ mod test_materialize {
         let node_a_ref = node_a.node_type().map(|v| v.to_string()); //stop it being dropped
         let node_a_type_str = node_a_ref.as_deref();
 
-        assert_eq!(node_a_type_str, Some("_default"));
-        assert_eq!(node_b.node_type().map(|v| v.to_string()).as_deref(), Some("H"));
+        assert_eq!(node_a_type_str, None);
+        assert_eq!(
+            node_b.node_type().map(|v| v.to_string()).as_deref(),
+            Some("H")
+        );
     }
 
     #[test]

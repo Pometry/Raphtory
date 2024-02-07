@@ -281,8 +281,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn node_type(&self, v: VID) -> Option<ArcStr> {
         let node = self.storage.get_node(v);
-        self.node_meta
-            .get_node_type_name_by_id(node.node_type)
+        self.node_meta.get_node_type_name_by_id(node.node_type)
     }
 
     #[inline]
@@ -359,20 +358,31 @@ impl<const N: usize> TemporalGraph<N> {
         }))
     }
 
-    pub(crate) fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> usize {
+    pub(crate) fn resolve_node_type(
+        &self,
+        v_id: VID,
+        node_type: Option<&str>,
+    ) -> Result<usize, GraphError> {
         match node_type {
-            None => self.node_meta.get_default_node_type_id(),
-            Some(node_type)  => {
+            None => Ok(self.node_meta.get_default_node_type_id()),
+            Some(node_type) => {
+                if node_type == "_default" {
+                    return Err(GraphError::NodeTypeError(
+                        "_default type is not allowed to be used on nodes"
+                            .parse()
+                            .unwrap(),
+                    ));
+                }
                 let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
                 let mut node = self.storage.get_node_mut(v_id);
                 match node.node_type {
                     0 => {
                         node.update_node_type(node_type_id);
-                        node_type_id
+                        Ok(node_type_id)
                     }
                     _ => {
                         // Returns the original node type to prevent type being changed
-                        node.node_type
+                        Ok(node.node_type)
                     }
                 }
             }

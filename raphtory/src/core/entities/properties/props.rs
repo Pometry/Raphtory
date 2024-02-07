@@ -203,10 +203,9 @@ impl Meta {
     }
 
     pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {
-        if self.meta_node_type.has_name(id) {
+        if self.meta_node_type.has_name(id) && self.meta_node_type.get_name(id) != "_default" {
             Some(self.meta_node_type.get_name(id))
-        }
-        else {
+        } else {
             None
         }
     }
@@ -316,7 +315,6 @@ impl DictMapper {
     pub fn get_id(&self, name: &str) -> Option<usize> {
         self.map.get(name).map(|id| *id)
     }
-
 
     pub fn has_name(&self, id: usize) -> bool {
         let guard = self.reverse_map.read();
