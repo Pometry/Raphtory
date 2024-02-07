@@ -104,13 +104,19 @@ impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
     }
 }
 
-pub trait OptionAsStr {
-    fn as_str(&self) -> Option<&str>;
+pub trait OptionAsStr<'a> {
+    fn as_str(self) -> Option<&'a str>;
 }
 
-impl<O: AsRef<str>> OptionAsStr for Option<O> {
-    fn as_str(&self) -> Option<&str> {
+impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for &'a Option<O> {
+    fn as_str(self) -> Option<&'a str> {
         self.as_ref().map(|s| s.as_ref())
+    }
+}
+
+impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
+    fn as_str(self) -> Option<&'a str> {
+        self.map(|s| s.as_ref())
     }
 }
 
