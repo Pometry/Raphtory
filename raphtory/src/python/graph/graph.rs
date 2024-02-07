@@ -410,7 +410,7 @@ impl PyGraph {
         node_props: Option<Vec<&str>>,
         node_const_props: Option<Vec<&str>>,
         node_shared_const_props: Option<HashMap<String, Prop>>,
-        node_type: &str,
+        node_type: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -458,7 +458,7 @@ impl PyGraph {
         df: &PyAny,
         id: &str,
         time: &str,
-        node_type: &str,
+        node_type: Option<&str>,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
@@ -473,7 +473,10 @@ impl PyGraph {
                 )?
                 .extract()?;
 
-            let mut cols_to_check = vec![id, time, node_type];
+            let mut cols_to_check = vec![id, time];
+            if let Some(node_type) = node_type {
+                cols_to_check.push(node_type);
+            }
             cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
 

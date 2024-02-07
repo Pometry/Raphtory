@@ -117,7 +117,7 @@ mod test {
             Some(vec!["name"]),
             None,
             None,
-            "node_type",
+            Some("node_type"),
             &graph,
         )
         .expect("failed to load nodes from pretend df");
