@@ -1103,6 +1103,16 @@ mod test {
         let expected = vec!["Gandalf"];
 
         assert_eq!(actual, expected);
+
+        let nodes = graph
+            .search_nodes(r#"node_type:_default"#, 10, 0)
+            .expect("search failed");
+
+        let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let expected = vec!["Bilbo"];
+
+        assert_eq!(actual, expected);
+
     }
 
     #[test]
