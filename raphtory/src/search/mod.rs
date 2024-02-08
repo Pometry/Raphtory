@@ -16,7 +16,7 @@ use crate::{
         entities::{nodes::node_ref::NodeRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr, PropType,
+        ArcStr, OptionAsStr, PropType,
     },
     db::{
         api::{
@@ -61,7 +61,7 @@ pub(in crate::search) mod fields {
     pub const VERTEX_ID: &str = "node_id";
     pub const VERTEX_ID_REV: &str = "node_id_rev";
     pub const NAME: &str = "name";
-
+    pub const NODE_TYPE: &str = "node_type";
     // edges
     // pub const SRC_ID: &str = "src_id";
     pub const SOURCE: &str = "from";
@@ -110,6 +110,8 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.add_u64_field(fields::VERTEX_ID_REV, FAST | STORED);
         // add name
         schema.add_text_field(fields::NAME, TEXT);
+        // add node_type
+        schema.add_text_field(fields::NODE_TYPE, TEXT);
         schema
     }
 
@@ -807,6 +809,14 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
                 }
             }
         }
+        // add the node type to the document
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+        let node_type = self
+            .graph
+            .node_meta()
+            .get_node_type_name_by_id(node_type_id);
+        document.add_text(node_type_field, node_type.as_str().unwrap_or("_default"));
+
         // add the node id to the document
         self.graph.internal_add_node(t, v, props, node_type_id)?;
         // get the field from the index
@@ -1068,6 +1078,30 @@ mod test {
             .expect("search failed");
         let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
         let expected = vec!["Bilbo"];
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn add_node_search_by_node_type() {
+        let graph = IndexedGraph::new(Graph::new(), NO_PROPS, NO_PROPS);
+
+        graph
+            .add_node(1, "Gandalf", NO_PROPS, Some("wizard"))
+            .expect("add node failed");
+
+        graph
+            .add_node(1, "Bilbo", NO_PROPS, None)
+            .expect("add node failed");
+
+        graph.reload().expect("reload failed");
+
+        let nodes = graph
+            .search_nodes(r#"node_type:wizard"#, 10, 0)
+            .expect("search failed");
+
+        let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
+        let expected = vec!["Gandalf"];
+
         assert_eq!(actual, expected);
     }
 
