@@ -815,7 +815,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
             .graph
             .node_meta()
             .get_node_type_name_by_id(node_type_id);
-        document.add_text(node_type_field, node_type.as_str().unwrap_or("_default"));
+        document.add_text(node_type_field, node_type.as_str().unwrap_or(""));
 
         // add the node id to the document
         self.graph.internal_add_node(t, v, props, node_type_id)?;
@@ -1099,17 +1099,17 @@ mod test {
             .search_nodes(r#"node_type:wizard"#, 10, 0)
             .expect("search failed");
 
-        let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        let expected = vec!["Gandalf"];
+        let actual = nodes.into_iter().map(|v| v.node_type().unwrap().to_string()).collect::<Vec<_>>();
+        let expected = vec!["wizard"];
 
         assert_eq!(actual, expected);
 
         let nodes = graph
-            .search_nodes(r#"node_type:_default"#, 10, 0)
+            .search_nodes(r#"node_type:''"#, 10, 0)
             .expect("search failed");
 
-        let actual = nodes.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        let expected = vec!["Bilbo"];
+        let actual = nodes.into_iter().map(|v| v.node_type().unwrap().to_string()).collect::<Vec<_>>();
+        let expected: Vec<String> = vec![];
 
         assert_eq!(actual, expected);
     }
