@@ -1112,7 +1112,6 @@ mod test {
         let expected = vec!["Bilbo"];
 
         assert_eq!(actual, expected);
-
     }
 
     #[test]
