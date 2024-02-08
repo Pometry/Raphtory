@@ -25,6 +25,7 @@ pub mod graph_impl;
 pub mod load;
 pub(crate) mod nodes;
 pub(crate) mod timestamps;
+pub mod query;
 
 pub type Time = i64;
 
