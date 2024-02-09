@@ -1,3 +1,4 @@
+use async_graphql::{indexmap::IndexMap, Error, Name, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory::{
     core::Prop,
@@ -6,9 +7,8 @@ use raphtory::{
         TemporalPropertyView,
     },
 };
-use async_graphql::{Error, Value as GqlValue};
-use serde_json::Value as JsonValue;
-use serde_json::json;
+use serde_json::{json, Value as JsonValue};
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Scalar)]
 pub struct GqlJson(JsonValue);
@@ -19,15 +19,29 @@ impl ScalarValue for GqlJson {
             GqlValue::Object(obj) => {
                 let json_value: JsonValue = json!(obj);
                 Ok(GqlJson(json_value))
-            },
+            }
             _ => Err(async_graphql::Error::new("Unable to convert")),
         }
     }
 
     fn to_value(&self) -> GqlValue {
-        match serde_json::to_string(&self.0) {
-            Ok(str) => GqlValue::String(str),
-            Err(_) => GqlValue::Null,
+        json_to_gql(&self.0)
+    }
+}
+
+fn json_to_gql(json: &JsonValue) -> GqlValue {
+    match json {
+        JsonValue::Null => GqlValue::Null,
+        JsonValue::Bool(b) => GqlValue::Boolean(*b),
+        JsonValue::Number(n) => GqlValue::Number(n.clone()),
+        JsonValue::String(s) => GqlValue::String(s.clone()),
+        JsonValue::Array(arr) => GqlValue::List(arr.iter().map(json_to_gql).collect()),
+        JsonValue::Object(obj) => {
+            let mut map: IndexMap<Name, GqlValue> = IndexMap::new();
+            for (key, value) in obj {
+                map.insert(Name::new(key.clone()), json_to_gql(value));
+            }
+            GqlValue::Object(map)
         }
     }
 }
