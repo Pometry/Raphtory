@@ -211,6 +211,7 @@ mod db_tests {
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
+    use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
 
@@ -311,26 +312,63 @@ mod db_tests {
         let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        assert_eq!(
-            e.properties().constant().get("aprop").unwrap().to_json(),
-            true
-        );
         let ee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERA")).unwrap();
         ee.add_constant_properties(
             vec![("aprop".to_string(), Prop::Bool(false))],
             Some(&"LAYERA"),
         )
         .unwrap();
-        println!(
-            "{:?}",
-            g.edge("A", "B")
-                .unwrap()
-                .properties()
-                .constant()
-                .get("aprop")
-                .unwrap()
-                .to_json()
-        );
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("aprop")
+            .unwrap()
+            .to_json();
+        let json_as_map = json_res.as_object().unwrap();
+        assert_eq!(json_as_map.len(), 2);
+        assert_eq!(json_as_map.get("LAYERA"), Some(&Value::Bool(false)));
+        assert_eq!(json_as_map.get("_default"), Some(&Value::Bool(true)));
+
+        let eee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERB")).unwrap();
+        let v: Vec<Prop> = vec![Prop::Bool(true), Prop::Bool(false), Prop::U64(0)];
+        eee.add_constant_properties(
+            vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
+            Some(&"LAYERB"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("bprop")
+            .unwrap()
+            .to_json();
+        let list_res = json_res.as_object().unwrap().get("LAYERB").unwrap();
+        assert_eq!(list_res.as_array().unwrap().len(), 3);
+
+        let eeee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERC")).unwrap();
+        let v: HashMap<ArcStr, Prop> = HashMap::from([
+            (ArcStr::from("H".to_string()), Prop::Bool(false)),
+            (ArcStr::from("Y".to_string()), Prop::U64(0)),
+        ]);
+        eeee.add_constant_properties(
+            vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
+            Some(&"LAYERC"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("mymap")
+            .unwrap()
+            .to_json();
+        let map_res = json_res.as_object().unwrap().get("LAYERC").unwrap();
+        assert_eq!(map_res.as_object().unwrap().len(), 2);
     }
 
     #[test]
