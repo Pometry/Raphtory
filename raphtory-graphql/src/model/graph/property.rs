@@ -1,53 +1,76 @@
-use async_graphql::{indexmap::IndexMap, Error, Name, Value as GqlValue};
+use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory::{
-    core::Prop,
+    core::{IntoPropMap, Prop},
     db::api::properties::{
         dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
 };
-use serde_json::{json, Value as JsonValue};
+use serde_json::Number;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Scalar)]
-pub struct GqlJson(JsonValue);
+pub struct GqlPropValue(pub Prop);
 
-impl ScalarValue for GqlJson {
-    fn from_value(value: GqlValue) -> Result<GqlJson, async_graphql::Error> {
-        match value {
-            GqlValue::Object(obj) => {
-                let json_value: JsonValue = json!(obj);
-                Ok(GqlJson(json_value))
-            }
-            _ => Err(async_graphql::Error::new("Unable to convert")),
-        }
+impl ScalarValue for GqlPropValue {
+    fn from_value(value: GqlValue) -> Result<GqlPropValue, Error> {
+        Ok(GqlPropValue(gql_to_prop(value)?))
     }
 
     fn to_value(&self) -> GqlValue {
-        json_to_gql(&self.0)
+        prop_to_gql(&self.0)
     }
 }
 
-fn json_to_gql(json: &JsonValue) -> GqlValue {
-    match json {
-        JsonValue::Null => GqlValue::Null,
-        JsonValue::Bool(b) => GqlValue::Boolean(*b),
-        JsonValue::Number(n) => GqlValue::Number(n.clone()),
-        JsonValue::String(s) => GqlValue::String(s.clone()),
-        JsonValue::Array(arr) => GqlValue::List(arr.iter().map(json_to_gql).collect()),
-        JsonValue::Object(obj) => {
-            let mut map: IndexMap<Name, GqlValue> = IndexMap::new();
-            for (key, value) in obj {
-                map.insert(Name::new(key.clone()), json_to_gql(value));
+fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
+    match value {
+        GqlValue::Number(n) => {
+            if let Some(n) = n.as_i64() {
+                Ok(Prop::I64(n))
+            } else if let Some(n) = n.as_f64() {
+                Ok(Prop::F64(n))
+            } else {
+                Err(async_graphql::Error::new("Unable to convert"))
             }
-            GqlValue::Object(map)
         }
+        GqlValue::Boolean(b) => Ok(Prop::Bool(b)),
+        GqlValue::Object(obj) => Ok(obj
+            .into_iter()
+            .map(|(k, v)| gql_to_prop(v).map(|vv| (k.to_string(), vv)))
+            .collect::<Result<HashMap<String, Prop>, Error>>()?
+            .into_prop_map()),
+        GqlValue::String(s) => Ok(Prop::Str(s.into())),
+        GqlValue::List(arr) => Ok(Prop::List(
+            arr.into_iter()
+                .map(gql_to_prop)
+                .collect::<Result<Vec<Prop>, Error>>()?
+                .into(),
+        )),
+        _ => Err(async_graphql::Error::new("Unable to convert")),
     }
 }
 
-impl From<JsonValue> for GqlJson {
-    fn from(value: JsonValue) -> Self {
-        GqlJson(value)
+fn prop_to_gql(prop: &Prop) -> GqlValue {
+    match prop {
+        Prop::Str(s) => GqlValue::String(s.to_string()),
+        Prop::U8(u) => GqlValue::Number(Number::from(*u)),
+        Prop::U16(u) => GqlValue::Number(Number::from(*u)),
+        Prop::I32(u) => GqlValue::Number(Number::from(*u)),
+        Prop::I64(u) => GqlValue::Number(Number::from(*u)),
+        Prop::U32(u) => GqlValue::Number(Number::from(*u)),
+        Prop::U64(u) => GqlValue::Number(Number::from(*u)),
+        Prop::F32(u) => GqlValue::Number(Number::from_f64(*u as f64).unwrap()),
+        Prop::F64(u) => GqlValue::Number(Number::from_f64(*u).unwrap()),
+        Prop::Bool(b) => GqlValue::Boolean(*b),
+        Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(pp)).collect()),
+        Prop::Map(m) => GqlValue::Object(
+            m.iter()
+                .map(|(k, v)| (Name::new(k.to_string()), prop_to_gql(v)))
+                .collect(),
+        ),
+        Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
+        Prop::Graph(g) => GqlValue::String(g.to_string()),
     }
 }
 
@@ -76,9 +99,8 @@ impl GqlProp {
         self.prop.to_string()
     }
 
-    async fn value(&self) -> GqlJson {
-        let json_value: JsonValue = self.prop.to_json();
-        GqlJson::from(json_value)
+    async fn value(&self) -> GqlPropValue {
+        GqlPropValue(self.prop.clone())
     }
 }
 
