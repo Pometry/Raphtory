@@ -8,7 +8,6 @@ use raphtory::{
     },
 };
 use serde_json::{json, Value as JsonValue};
-use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Scalar)]
 pub struct GqlJson(JsonValue);
@@ -77,7 +76,7 @@ impl GqlProp {
         self.prop.to_string()
     }
 
-    async fn to_json(&self) -> GqlJson {
+    async fn value(&self) -> GqlJson {
         let json_value: JsonValue = self.prop.to_json();
         GqlJson::from(json_value)
     }
