@@ -304,6 +304,36 @@ mod db_tests {
     }
 
     #[test]
+    fn prop_json_test() {
+        let g = Graph::new();
+        let _ = g.add_node(0, "A", NO_PROPS).unwrap();
+        let _ = g.add_node(0, "B", NO_PROPS).unwrap();
+        let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
+        e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        assert_eq!(
+            e.properties().constant().get("aprop").unwrap().to_json(),
+            true
+        );
+        let ee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERA")).unwrap();
+        ee.add_constant_properties(
+            vec![("aprop".to_string(), Prop::Bool(false))],
+            Some(&"LAYERA"),
+        )
+        .unwrap();
+        println!(
+            "{:?}",
+            g.edge("A", "B")
+                .unwrap()
+                .properties()
+                .constant()
+                .get("aprop")
+                .unwrap()
+                .to_json()
+        );
+    }
+
+    #[test]
     fn import_from_another_graph() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS).unwrap();
@@ -353,6 +383,20 @@ mod db_tests {
         let gg = Graph::new();
         let res = gg.import_edges(vec![&e_a_b, &e_c_d], None).unwrap();
         assert_eq!(res.len(), 2);
+    }
+
+    #[test]
+    fn props_with_layers() {
+        let g = Graph::new();
+        g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
+        let ed = g.edge("A", "B").unwrap();
+        ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
+            .unwrap();
+        println!("{:?}", ed.properties().constant().as_map());
+        g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
+        ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
+            .unwrap();
+        println!("{:?}", ed.properties().constant().as_map());
     }
 
     #[test]

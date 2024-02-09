@@ -6,6 +6,7 @@ use raphtory::{
         TemporalPropertyView,
     },
 };
+use std::collections::HashMap;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlProp {
