@@ -1,4 +1,4 @@
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory::{
     core::Prop,
     db::api::properties::{
@@ -6,7 +6,37 @@ use raphtory::{
         TemporalPropertyView,
     },
 };
-use std::collections::HashMap;
+use async_graphql::{Error, Value as GqlValue};
+use serde_json::Value as JsonValue;
+use serde_json::json;
+
+#[derive(Clone, Debug, Scalar)]
+pub struct GqlJson(JsonValue);
+
+impl ScalarValue for GqlJson {
+    fn from_value(value: GqlValue) -> Result<GqlJson, async_graphql::Error> {
+        match value {
+            GqlValue::Object(obj) => {
+                let json_value: JsonValue = json!(obj);
+                Ok(GqlJson(json_value))
+            },
+            _ => Err(async_graphql::Error::new("Unable to convert")),
+        }
+    }
+
+    fn to_value(&self) -> GqlValue {
+        match serde_json::to_string(&self.0) {
+            Ok(str) => GqlValue::String(str),
+            Err(_) => GqlValue::Null,
+        }
+    }
+}
+
+impl From<JsonValue> for GqlJson {
+    fn from(value: JsonValue) -> Self {
+        GqlJson(value)
+    }
+}
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlProp {
@@ -31,6 +61,11 @@ impl GqlProp {
     }
     async fn as_string(&self) -> String {
         self.prop.to_string()
+    }
+
+    async fn to_json(&self) -> GqlJson {
+        let json_value: JsonValue = self.prop.to_json();
+        GqlJson::from(json_value)
     }
 }
 
