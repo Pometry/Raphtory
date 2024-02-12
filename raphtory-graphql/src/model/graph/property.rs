@@ -1,11 +1,78 @@
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use async_graphql::{Error, Name, Value as GqlValue};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory::{
-    core::Prop,
+    core::{IntoPropMap, Prop},
     db::api::properties::{
         dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
 };
+use serde_json::Number;
+use std::collections::HashMap;
+
+#[derive(Clone, Debug, Scalar)]
+pub struct GqlPropValue(pub Prop);
+
+impl ScalarValue for GqlPropValue {
+    fn from_value(value: GqlValue) -> Result<GqlPropValue, Error> {
+        Ok(GqlPropValue(gql_to_prop(value)?))
+    }
+
+    fn to_value(&self) -> GqlValue {
+        prop_to_gql(&self.0)
+    }
+}
+
+fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
+    match value {
+        GqlValue::Number(n) => {
+            if let Some(n) = n.as_i64() {
+                Ok(Prop::I64(n))
+            } else if let Some(n) = n.as_f64() {
+                Ok(Prop::F64(n))
+            } else {
+                Err(async_graphql::Error::new("Unable to convert"))
+            }
+        }
+        GqlValue::Boolean(b) => Ok(Prop::Bool(b)),
+        GqlValue::Object(obj) => Ok(obj
+            .into_iter()
+            .map(|(k, v)| gql_to_prop(v).map(|vv| (k.to_string(), vv)))
+            .collect::<Result<HashMap<String, Prop>, Error>>()?
+            .into_prop_map()),
+        GqlValue::String(s) => Ok(Prop::Str(s.into())),
+        GqlValue::List(arr) => Ok(Prop::List(
+            arr.into_iter()
+                .map(gql_to_prop)
+                .collect::<Result<Vec<Prop>, Error>>()?
+                .into(),
+        )),
+        _ => Err(async_graphql::Error::new("Unable to convert")),
+    }
+}
+
+fn prop_to_gql(prop: &Prop) -> GqlValue {
+    match prop {
+        Prop::Str(s) => GqlValue::String(s.to_string()),
+        Prop::U8(u) => GqlValue::Number(Number::from(*u)),
+        Prop::U16(u) => GqlValue::Number(Number::from(*u)),
+        Prop::I32(u) => GqlValue::Number(Number::from(*u)),
+        Prop::I64(u) => GqlValue::Number(Number::from(*u)),
+        Prop::U32(u) => GqlValue::Number(Number::from(*u)),
+        Prop::U64(u) => GqlValue::Number(Number::from(*u)),
+        Prop::F32(u) => GqlValue::Number(Number::from_f64(*u as f64).unwrap()),
+        Prop::F64(u) => GqlValue::Number(Number::from_f64(*u).unwrap()),
+        Prop::Bool(b) => GqlValue::Boolean(*b),
+        Prop::List(l) => GqlValue::List(l.iter().map(|pp| prop_to_gql(pp)).collect()),
+        Prop::Map(m) => GqlValue::Object(
+            m.iter()
+                .map(|(k, v)| (Name::new(k.to_string()), prop_to_gql(v)))
+                .collect(),
+        ),
+        Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
+        Prop::Graph(g) => GqlValue::String(g.to_string()),
+    }
+}
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlProp {
@@ -30,6 +97,10 @@ impl GqlProp {
     }
     async fn as_string(&self) -> String {
         self.prop.to_string()
+    }
+
+    async fn value(&self) -> GqlPropValue {
+        GqlPropValue(self.prop.clone())
     }
 }
 

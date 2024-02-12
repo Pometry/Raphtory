@@ -211,6 +211,7 @@ mod db_tests {
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
+    use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
 
@@ -304,6 +305,73 @@ mod db_tests {
     }
 
     #[test]
+    fn prop_json_test() {
+        let g = Graph::new();
+        let _ = g.add_node(0, "A", NO_PROPS).unwrap();
+        let _ = g.add_node(0, "B", NO_PROPS).unwrap();
+        let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
+        e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let ee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERA")).unwrap();
+        ee.add_constant_properties(
+            vec![("aprop".to_string(), Prop::Bool(false))],
+            Some(&"LAYERA"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("aprop")
+            .unwrap()
+            .to_json();
+        let json_as_map = json_res.as_object().unwrap();
+        assert_eq!(json_as_map.len(), 2);
+        assert_eq!(json_as_map.get("LAYERA"), Some(&Value::Bool(false)));
+        assert_eq!(json_as_map.get("_default"), Some(&Value::Bool(true)));
+
+        let eee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERB")).unwrap();
+        let v: Vec<Prop> = vec![Prop::Bool(true), Prop::Bool(false), Prop::U64(0)];
+        eee.add_constant_properties(
+            vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
+            Some(&"LAYERB"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("bprop")
+            .unwrap()
+            .to_json();
+        let list_res = json_res.as_object().unwrap().get("LAYERB").unwrap();
+        assert_eq!(list_res.as_array().unwrap().len(), 3);
+
+        let eeee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERC")).unwrap();
+        let v: HashMap<ArcStr, Prop> = HashMap::from([
+            (ArcStr::from("H".to_string()), Prop::Bool(false)),
+            (ArcStr::from("Y".to_string()), Prop::U64(0)),
+        ]);
+        eeee.add_constant_properties(
+            vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
+            Some(&"LAYERC"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("mymap")
+            .unwrap()
+            .to_json();
+        let map_res = json_res.as_object().unwrap().get("LAYERC").unwrap();
+        assert_eq!(map_res.as_object().unwrap().len(), 2);
+    }
+
+    #[test]
     fn import_from_another_graph() {
         let g = Graph::new();
         let g_a = g.add_node(0, "A", NO_PROPS).unwrap();
@@ -353,6 +421,20 @@ mod db_tests {
         let gg = Graph::new();
         let res = gg.import_edges(vec![&e_a_b, &e_c_d], None).unwrap();
         assert_eq!(res.len(), 2);
+    }
+
+    #[test]
+    fn props_with_layers() {
+        let g = Graph::new();
+        g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
+        let ed = g.edge("A", "B").unwrap();
+        ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
+            .unwrap();
+        println!("{:?}", ed.properties().constant().as_map());
+        g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
+        ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
+            .unwrap();
+        println!("{:?}", ed.properties().constant().as_map());
     }
 
     #[test]

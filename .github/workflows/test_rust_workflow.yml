@@ -50,9 +50,15 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: 1.73.0
+          toolchain: 1.75.0
           override: true
           components: rustfmt, clippy
+      - name: Free up space (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Install sccache (macOS)
         if: matrix.os == 'macos-latest'
         run: brew install sccache
@@ -139,7 +145,7 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: 1.73.0
+          toolchain: 1.75.0
           override: true
           components: rustfmt, clippy
       - name: Install sccache (Ubuntu)
