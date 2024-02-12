@@ -5,7 +5,7 @@ use crate::{
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
-                props::{ArcReadLockedVec, Meta},
+                props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
             LayerIds, EID, VID,

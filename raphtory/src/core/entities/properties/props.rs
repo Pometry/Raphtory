@@ -224,7 +224,7 @@ impl Meta {
             .iter()
             .filter_map(|entry| {
                 let key = entry.key();
-                if key.as_str() != "_default" {
+                if key != "_default" {
                     Some(key.clone())
                 } else {
                     None
