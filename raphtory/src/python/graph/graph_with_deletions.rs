@@ -14,7 +14,7 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::GraphWithDeletions},
     },
-    prelude::{DeletionOps, Graph, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},

@@ -9,7 +9,6 @@ use crate::{
             internal::{InternalAdditionOps, InternalDeletionOps},
             TryIntoInputTime,
         },
-        view::StaticGraphViewOps,
     },
 };
 

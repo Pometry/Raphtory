@@ -4,15 +4,15 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{utils::errors::GraphError, ArcStr},
-    db::api::view::{internal::MaterializedGraph, BaseNodeViewOps},
+    core::{utils::errors::GraphError},
+    db::api::view::{internal::MaterializedGraph},
     prelude::*,
     python::{
         graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{prelude::*};
 
 use crate::{
     core::entities::nodes::node_ref::NodeRef,

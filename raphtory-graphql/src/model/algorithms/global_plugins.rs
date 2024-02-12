@@ -1,5 +1,5 @@
 use crate::model::algorithms::{
-    algorithm::{Algorithm, Pagerank},
+    algorithm::{Algorithm},
     algorithm_entry_point::AlgorithmEntryPoint,
     global_search::GlobalSearch,
     RegisterFunction,

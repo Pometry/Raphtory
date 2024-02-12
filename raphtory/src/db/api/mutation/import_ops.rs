@@ -13,13 +13,13 @@ use crate::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
             view::{
-                internal::{CoreGraphOps, InternalMaterialize},
+                internal::{InternalMaterialize},
                 IntoDynamic, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{AdditionOps, EdgeViewOps, NodeViewOps, NO_PROPS},
 };
 
 pub trait ImportOps:

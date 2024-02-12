@@ -19,7 +19,7 @@ use raphtory::{
         EmbeddingFunction,
     },
 };
-use std::{collections::HashMap, ops::Deref, path::Path, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 use tokio::{
     io::Result as IoResult,
     signal,
@@ -88,7 +88,7 @@ impl RaphtoryServer {
 
         for graph_name in graph_names {
             let graph_cache = cache.join(&graph_name);
-            let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
+            let graph = graphs.read().get(&graph_name).unwrap().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .into_dynamic()

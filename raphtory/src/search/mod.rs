@@ -21,7 +21,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::{
-                InheritPropertyAdditionOps, InternalAdditionOps, InternalPropertyAdditionOps,
+                InheritPropertyAdditionOps, InternalAdditionOps,
             },
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
