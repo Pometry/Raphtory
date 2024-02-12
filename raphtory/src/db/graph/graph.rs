@@ -307,8 +307,8 @@ mod db_tests {
     #[test]
     fn prop_json_test() {
         let g = Graph::new();
-        let _ = g.add_node(0, "A", NO_PROPS).unwrap();
-        let _ = g.add_node(0, "B", NO_PROPS).unwrap();
+        let _ = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let _ = g.add_node(0, "B", NO_PROPS, None).unwrap();
         let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
             .unwrap();
