@@ -560,3 +560,23 @@ def test_unparsable_props():
             edge_time="time",
             edge_props=["marbles"],
         )
+
+
+def test_load_node_from_pandas_with_node_types():
+    nodes_df = pd.DataFrame({
+        "id": ["A", "B", "C", "D"],
+        "time": [1, 2, 3, 4],
+    })
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "id", "time")
+    assert g.get_all_node_types() == []
+    assert g.count_nodes() == 4
+
+    edges_df = pd.DataFrame({
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+    })
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
+    assert g.get_all_node_types() == []
+    assert g.count_nodes() == 4

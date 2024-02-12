@@ -460,7 +460,7 @@ impl PyGraph {
     ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, node_type, props = None, const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, time, node_type = None, props = None, const_props = None, shared_const_props = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
