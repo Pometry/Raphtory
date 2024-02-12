@@ -261,13 +261,16 @@ impl TempColGraphFragment {
         };
 
         if !has_additions {
-            println!("No additions found, building them [t_prop_chunk_size: {}]", metadata.t_props_chunk_size);
+            println!(
+                "No additions found, building them [chunk_size: {}]",
+                metadata.chunk_size
+            );
             let now = std::time::Instant::now();
-            grapho.node_additions(metadata.t_props_chunk_size)?;
+            grapho.node_additions(metadata.chunk_size)?;
             println!("Node additions took {:?}", now.elapsed());
         } else {
             grapho.nodes.additions = ChunkedListArray::new_from_parts(
-                ChunkedArray::from_non_nulls(node_additions_chunks, metadata.t_props_chunk_size),
+                ChunkedArray::from_non_nulls(node_additions_chunks, metadata.chunk_size),
                 ChunkedOffsets::new(node_additions_offsets, metadata.chunk_size),
             );
         }
@@ -291,12 +294,9 @@ impl TempColGraphFragment {
         self.edges.data_type()
     }
 
-    pub fn node_additions(&mut self, t_prop_chunk_size: usize) -> Result<(), super::Error> {
-        let (arrays, offsets) = make_node_additions(self, t_prop_chunk_size)?;
-        let chunked_t_array = ChunkedArray::from_non_nulls(arrays, t_prop_chunk_size);
-
-        let chunked_list_array = ChunkedListArray::new_from_parts(chunked_t_array, offsets);
-        self.nodes.additions = chunked_list_array;
+    pub fn node_additions(&mut self, chunk_size: usize) -> Result<(), super::Error> {
+        let additions = make_node_additions(&self, chunk_size)?;
+        self.nodes.additions = additions;
         Ok(())
     }
 
@@ -779,7 +779,7 @@ mod test {
             2,
             triples,
         )?;
-        graph.node_additions(t_props_chunk_size)?;
+        graph.node_additions(chunk_size)?;
         Ok(graph)
     }
 
