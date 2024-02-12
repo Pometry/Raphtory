@@ -547,7 +547,6 @@ impl TempColGraphFragment {
         let t_prop_values = reader.load_t_edge_values(num_threads, t_props_chunk_size)?;
         println!("COPY T prop values took {:?}", now.elapsed());
 
-        let edge_offsets = edge_offsets;
         let edges = Edges::new(
             src_chunks,
             dst_chunks,
@@ -555,13 +554,13 @@ impl TempColGraphFragment {
             edge_offsets,
             layer_id,
         );
-
+        let now = std::time::Instant::now();
         let (earliest, latest_time) = edges.earliest_latest();
         let metadata = Metadata::new(earliest, latest_time, edge_chunk_size, t_props_chunk_size);
         Metadata::write_to_path(&metadata, &graph_dir)?;
+        println!("Graph metadata took {:?}", now.elapsed());
 
         let dst_ids = edges.dst_ids.clone();
-
         let nodes = Nodes::new(graph_dir, gids, adj_out_offsets, dst_ids)?;
 
         Ok(TempColGraphFragment {
@@ -587,7 +586,7 @@ impl TempColGraphFragment {
         &self,
         node_id: VID,
         dir: Direction,
-    ) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
+    ) -> Box<dyn Iterator<Item = (EID, VID)> + Send + '_> {
         match dir {
             Direction::OUT => Box::new(self.nodes.out_adj_list(node_id)),
             Direction::IN => Box::new(self.nodes.in_adj_list(node_id)),
@@ -596,6 +595,45 @@ impl TempColGraphFragment {
                 let inb = self.edges(node_id, Direction::IN);
                 Box::new(out.merge_by(inb, |(v1, _), (v2, _)| v1 < v2))
             }
+        }
+    }
+
+    pub fn edges_cloned(
+        &self,
+        node_id: VID,
+        dir: Direction,
+    ) -> Box<dyn Iterator<Item = (EID, VID)> + Send> {
+        match dir {
+            Direction::OUT => {
+                let (start, end) = self.nodes.adj_out.offsets().start_end(node_id.0);
+                Box::new(
+                    (start..end).map(EID).zip(
+                        self.nodes
+                            .adj_out
+                            .clone()
+                            .into_value(node_id.0)
+                            .map(|id| VID(id as usize)),
+                    ),
+                )
+            }
+            Direction::IN => Box::new(
+                self.nodes
+                    .adj_in_edges
+                    .clone()
+                    .into_value(node_id.0)
+                    .map(|eid| EID(eid as usize))
+                    .zip(
+                        self.nodes
+                            .adj_in_neighbours
+                            .clone()
+                            .into_value(node_id.0)
+                            .map(|vid| VID(vid as usize)),
+                    ),
+            ),
+            Direction::BOTH => Box::new(
+                self.edges_cloned(node_id, Direction::OUT)
+                    .chain(self.edges_cloned(node_id, Direction::IN)),
+            ),
         }
     }
 
@@ -629,7 +667,7 @@ impl TempColGraphFragment {
         &self,
         node_id: VID,
         dir: Direction,
-    ) -> Box<dyn DoubleEndedIterator<Item = (EID, VID)> + Send> {
+    ) -> Box<dyn DoubleEndedIterator<Item = (EID, VID)> + Send + '_> {
         match dir {
             Direction::OUT => Box::new(self.nodes.out_adj_list(node_id)),
             Direction::IN => Box::new(self.nodes.in_adj_list(node_id)),

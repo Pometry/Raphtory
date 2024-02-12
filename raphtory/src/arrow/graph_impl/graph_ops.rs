@@ -204,11 +204,13 @@ impl<'graph> GraphOps<'graph> for Graph2 {
         };
         let filter = filter.cloned();
         let self_cloned = self.clone();
-        let iter = self.edges(src, d, layer_id).map(move |(e_id, v)| match d {
-            core::Direction::OUT => EdgeRef::new_outgoing(e_id, src, v),
-            core::Direction::IN => EdgeRef::new_incoming(e_id, v, src),
-            core::Direction::BOTH => todo!("BOTH"),
-        });
+        let iter = self
+            .edges_cloned(src, d, layer_id)
+            .map(move |(e_id, v)| match d {
+                core::Direction::OUT => EdgeRef::new_outgoing(e_id, src, v),
+                core::Direction::IN => EdgeRef::new_incoming(e_id, v, src),
+                core::Direction::BOTH => todo!("BOTH"),
+            });
 
         if filter.is_some() {
             Box::new(iter.filter(move |e_ref| {
@@ -233,7 +235,7 @@ impl<'graph> GraphOps<'graph> for Graph2 {
         };
         let filter = filter.cloned();
         let self_cloned = self.clone();
-        let iter = self.edges(src, d, layer_id);
+        let iter = self.edges_cloned(src, d, layer_id);
 
         if filter.is_some() {
             Box::new(
