@@ -47,7 +47,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.inner().edge_meta.layer_meta().get_name(layer_id)
+        self.inner().edge_meta.layer_meta().get_name(layer_id).clone()
     }
 
     #[inline]

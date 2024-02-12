@@ -373,14 +373,20 @@ impl<const N: usize> TemporalGraph<N> {
                             .unwrap(),
                     ));
                 }
-                let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
                 let mut node = self.storage.get_node_mut(v_id);
                 match node.node_type {
                     0 => {
+                        let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
                         node.update_node_type(node_type_id);
                         Ok(node_type_id)
                     }
                     _ => {
+                        let new_node_type_id = self.node_meta.get_node_type_id(node_type).unwrap_or(0);
+                        if node.node_type != new_node_type_id {
+                            return Err(GraphError::NodeTypeError(
+                                "Node already has a non-default type".parse().unwrap(),
+                            ));
+                        }
                         // Returns the original node type to prevent type being changed
                         Ok(node.node_type)
                     }
@@ -499,12 +505,6 @@ impl<const N: usize> TemporalGraph<N> {
     fn get_or_allocate_layer(&self, layer: Option<&str>) -> usize {
         layer
             .map(|layer| self.edge_meta.get_or_create_layer_id(layer))
-            .unwrap_or(0)
-    }
-
-    fn get_or_allocate_node_type(&self, node_type: Option<&str>) -> usize {
-        node_type
-            .map(|node_type_str| self.node_meta.get_or_create_node_type_id(node_type_str))
             .unwrap_or(0)
     }
 

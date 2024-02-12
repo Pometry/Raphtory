@@ -114,10 +114,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         )?;
         let ti = TimeIndexEntry::from_input(self, t)?;
         let v_id = self.resolve_node(v.id(), v.id_str());
-        let type_id = self.resolve_node_type(v_id, node_type).expect(&format!(
-            "Error when running resolve_node_type {:?}",
-            node_type
-        ));
+        let type_id = self.resolve_node_type(v_id, node_type)?;
         self.internal_add_node(ti, v_id, properties, type_id)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }

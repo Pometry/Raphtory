@@ -203,10 +203,10 @@ impl Meta {
     }
 
     pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {
-        if self.meta_node_type.has_name(id) && self.meta_node_type.get_name(id) != "_default" {
-            Some(self.meta_node_type.get_name(id))
-        } else {
+        if id == 0 {
             None
+        } else {
+            Some(self.meta_node_type.get_name(id))
         }
     }
 

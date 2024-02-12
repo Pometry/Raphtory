@@ -2164,7 +2164,7 @@ def test_node_types():
     b = g.add_node(0, "B", None, "BTYPE")
     assert a.node_type == None
     assert b.node_type == "BTYPE"
-    assert set(g.nodes.node_type) == set([None, "BTYPE"])
+    assert set(g.nodes.node_type) == {None, "BTYPE"}
 
 
 def test_fuzzy_search():

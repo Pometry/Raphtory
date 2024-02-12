@@ -152,13 +152,8 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         }
 
         for v in self.nodes().iter() {
-            let v_type_string = v.node_type(); //.map(|v| v.to_string()); //stop it being dropped
+            let v_type_string = v.node_type(); //stop it being dropped
             let v_type_str = v_type_string.as_str();
-            // let v_type_str = if v_type_string.as_deref() == Some("_default") {
-            //     None
-            // } else {
-            //     v_type_string.as_deref()
-            // };
             for h in v.history() {
                 g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
             }
@@ -294,6 +289,7 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
+    use crate::core::OptionAsStr;
     use crate::prelude::*;
 
     #[test]
@@ -334,14 +330,20 @@ mod test_materialize {
         let g = Graph::new();
         let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
-        let node_a_ref = node_a.node_type().map(|v| v.to_string()); //stop it being dropped
-        let node_a_type_str = node_a_ref.as_deref();
+        let node_a_type = node_a.node_type();
+        let node_a_type_str = node_a_type.as_str();
 
         assert_eq!(node_a_type_str, None);
         assert_eq!(
-            node_b.node_type().map(|v| v.to_string()).as_deref(),
+            node_b.node_type().as_str(),
             Some("H")
         );
+
+        // Check that overwriting a node type returns an error
+        // Double check that the type did not actually change
+        // Check that the update is not added to the graph
+
+
     }
 
     #[test]

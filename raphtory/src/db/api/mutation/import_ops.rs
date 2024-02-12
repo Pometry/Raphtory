@@ -135,8 +135,7 @@ impl<
 
         for h in node.history() {
             let t = TimeIndexEntry::from_input(self, h)?;
-            self.internal_add_node(t, node_internal, vec![], node_internal_type_id)
-                .expect("Unable to add node during import")
+            self.internal_add_node(t, node_internal, vec![], node_internal_type_id)?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
             let old_prop_id = node
