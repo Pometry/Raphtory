@@ -289,8 +289,7 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::core::OptionAsStr;
-    use crate::prelude::*;
+    use crate::{core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*};
 
     #[test]
     fn test_materialize() {
@@ -334,16 +333,19 @@ mod test_materialize {
         let node_a_type_str = node_a_type.as_str();
 
         assert_eq!(node_a_type_str, None);
-        assert_eq!(
-            node_b.node_type().as_str(),
-            Some("H")
-        );
+        assert_eq!(node_b.node_type().as_str(), Some("H"));
+
+        // Nodes with No type can be overwritten
+        let node_a = g.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
+        assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
 
         // Check that overwriting a node type returns an error
+        assert!(g.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
         // Double check that the type did not actually change
+        assert_eq!(g.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
         // Check that the update is not added to the graph
-
-
+        let all_node_types = g.get_all_node_types();
+        assert_eq!(all_node_types.len(), 2);
     }
 
     #[test]

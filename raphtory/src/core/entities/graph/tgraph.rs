@@ -284,6 +284,10 @@ impl<const N: usize> TemporalGraph<N> {
         self.node_meta.get_node_type_name_by_id(node.node_type)
     }
 
+    pub(crate) fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.node_meta.get_all_node_types()
+    }
+
     #[inline]
     pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore, N> {
         self.storage.get_node(v.into())
@@ -381,7 +385,8 @@ impl<const N: usize> TemporalGraph<N> {
                         Ok(node_type_id)
                     }
                     _ => {
-                        let new_node_type_id = self.node_meta.get_node_type_id(node_type).unwrap_or(0);
+                        let new_node_type_id =
+                            self.node_meta.get_node_type_id(node_type).unwrap_or(0);
                         if node.node_type != new_node_type_id {
                             return Err(GraphError::NodeTypeError(
                                 "Node already has a non-default type".parse().unwrap(),

@@ -1099,7 +1099,10 @@ mod test {
             .search_nodes(r#"node_type:wizard"#, 10, 0)
             .expect("search failed");
 
-        let actual = nodes.into_iter().map(|v| v.node_type().unwrap().to_string()).collect::<Vec<_>>();
+        let actual = nodes
+            .into_iter()
+            .map(|v| v.node_type().unwrap().to_string())
+            .collect::<Vec<_>>();
         let expected = vec!["wizard"];
 
         assert_eq!(actual, expected);
@@ -1108,7 +1111,10 @@ mod test {
             .search_nodes(r#"node_type:''"#, 10, 0)
             .expect("search failed");
 
-        let actual = nodes.into_iter().map(|v| v.node_type().unwrap().to_string()).collect::<Vec<_>>();
+        let actual = nodes
+            .into_iter()
+            .map(|v| v.node_type().unwrap().to_string())
+            .collect::<Vec<_>>();
         let expected: Vec<String> = vec![];
 
         assert_eq!(actual, expected);

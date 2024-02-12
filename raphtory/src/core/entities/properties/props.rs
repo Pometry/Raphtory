@@ -218,8 +218,19 @@ impl Meta {
             .collect()
     }
 
-    pub fn get_all_node_types(&self) -> ArcReadLockedVec<ArcStr> {
-        self.meta_node_type.get_keys()
+    pub fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.meta_node_type
+            .map
+            .iter()
+            .filter_map(|entry| {
+                let key = entry.key();
+                if key.as_str() != "_default" {
+                    Some(key.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {

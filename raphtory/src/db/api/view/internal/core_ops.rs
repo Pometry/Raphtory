@@ -5,7 +5,7 @@ use crate::{
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
-                props::Meta,
+                props::{ArcReadLockedVec, Meta},
                 tprop::{LockedLayeredTProp, TProp},
             },
             LayerIds, EID, VID,
@@ -39,6 +39,9 @@ pub trait CoreGraphOps {
 
     /// Get the layer name for a given id
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
+
+    /// Get all node types
+    fn get_all_node_types(&self) -> Vec<ArcStr>;
 
     /// Returns the external ID for a node
     fn node_id(&self, v: VID) -> u64;
@@ -248,6 +251,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
         self.graph().get_layer_name(layer_id)
+    }
+
+    #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph().node_meta().get_all_node_types()
     }
 
     #[inline]

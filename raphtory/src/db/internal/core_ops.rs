@@ -47,12 +47,21 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.inner().edge_meta.layer_meta().get_name(layer_id).clone()
+        self.inner()
+            .edge_meta
+            .layer_meta()
+            .get_name(layer_id)
+            .clone()
     }
 
     #[inline]
     fn node_type(&self, v: VID) -> Option<ArcStr> {
         self.inner().node_type(v)
+    }
+
+    #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.inner().get_all_node_types()
     }
 
     #[inline]

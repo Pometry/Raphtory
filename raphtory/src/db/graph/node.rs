@@ -178,7 +178,11 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, 
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_meta().temporal_prop_meta().get_name(id).clone()
+        self.graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
@@ -237,7 +241,11 @@ impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
     }
 
     fn get_const_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_meta().const_prop_meta().get_name(id).clone()
+        self.graph
+            .node_meta()
+            .const_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {

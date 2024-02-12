@@ -15,9 +15,9 @@ use crate::{
 use pyo3::prelude::*;
 
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::{entities::nodes::node_ref::NodeRef, ArcStr},
     db::{
-        api::view::internal::{DynamicGraph, IntoDynamic},
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
     },
     python::graph::{
@@ -361,6 +361,14 @@ impl PyGraph {
     /// None
     pub fn save_to_file(&self, path: &str) -> Result<(), GraphError> {
         self.graph.save_to_file(Path::new(path))
+    }
+
+    /// Returns all the node types in the graph.
+    ///
+    /// Returns:
+    /// A list of node types
+    pub fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph.get_all_node_types()
     }
 
     /// Get bincode encoded graph
