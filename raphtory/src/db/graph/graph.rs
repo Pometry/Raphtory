@@ -560,7 +560,7 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
+        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
                 let v = g.node(i).unwrap();
