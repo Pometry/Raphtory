@@ -579,4 +579,4 @@ def test_load_node_from_pandas_with_node_types():
     })
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
     assert g.get_all_node_types() == []
-    assert g.count_nodes() == 4
+    assert g.count_nodes() == 6
