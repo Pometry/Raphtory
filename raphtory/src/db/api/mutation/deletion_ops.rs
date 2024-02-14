@@ -4,11 +4,9 @@ use crate::{
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
     },
-    db::api::{
-        mutation::{
-            internal::{InternalAdditionOps, InternalDeletionOps},
-            TryIntoInputTime,
-        },
+    db::api::mutation::{
+        internal::{InternalAdditionOps, InternalDeletionOps},
+        TryIntoInputTime,
     },
 };
 

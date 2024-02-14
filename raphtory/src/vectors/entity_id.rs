@@ -36,6 +36,7 @@ impl EntityId {
             dst: edge.dst().id(),
         }
     }
+
     #[allow(dead_code)]
     pub(crate) fn is_graph(&self) -> bool {
         match self {

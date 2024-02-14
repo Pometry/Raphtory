@@ -2,21 +2,13 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
         storage::timeindex::TimeIndexEntry,
-        utils::{
-            errors::{
-                GraphError,
-            },
-            time::IntoTimeWithFormat,
-        },
+        utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
     db::{
         api::{
-            mutation::{
-                internal::{InternalAdditionOps},
-                CollectProperties, TryIntoInputTime,
-            },
-            view::{StaticGraphViewOps},
+            mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+            view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
@@ -31,6 +23,7 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// * `t` - The time
     /// * `v` - The node (can be a string or integer)
     /// * `props` - The properties of the node
+    /// * `node_type` - The optional string which will be used as a node type
     ///
     /// Returns:
     ///
@@ -41,14 +34,15 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// ```
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// let v = g.add_node(0, "Alice", NO_PROPS);
-    /// let v = g.add_node(0, 5, NO_PROPS);
+    /// let v = g.add_node(0, "Alice", NO_PROPS, None);
+    /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
     fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
         props: PI,
+        node_type: Option<&str>,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<V: InputNode, PI: CollectProperties>(
@@ -57,9 +51,10 @@ pub trait AdditionOps: StaticGraphViewOps {
         fmt: &str,
         v: V,
         props: PI,
+        node_type: Option<&str>,
     ) -> Result<NodeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_node(time, v, props)
+        self.add_node(time, v, props, node_type)
     }
 
     // TODO: Node.name which gets ._id property else numba as string
@@ -78,8 +73,8 @@ pub trait AdditionOps: StaticGraphViewOps {
     /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new();
-    /// graph.add_node(1, "Alice", NO_PROPS).unwrap();
-    /// graph.add_node(2, "Bob", NO_PROPS).unwrap();
+    /// graph.add_node(1, "Alice", NO_PROPS, None).unwrap();
+    /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
     fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
@@ -111,6 +106,7 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         t: T,
         v: V,
         props: PI,
+        node_type: Option<&str>,
     ) -> Result<NodeView<G, G>, GraphError> {
         let properties = props.collect_properties(
             |name, dtype| self.resolve_node_property(name, dtype, false),
@@ -118,7 +114,8 @@ impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
         )?;
         let ti = TimeIndexEntry::from_input(self, t)?;
         let v_id = self.resolve_node(v.id(), v.id_str());
-        self.internal_add_node(ti, v_id, properties)?;
+        let type_id = self.resolve_node_type(v_id, node_type)?;
+        self.internal_add_node(ti, v_id, properties, type_id)?;
         Ok(NodeView::new_internal(self.clone(), v_id))
     }
 

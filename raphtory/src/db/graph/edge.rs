@@ -69,6 +69,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
             edge,
         }
     }
+
     #[allow(dead_code)]
     fn layer_ids(&self) -> LayerIds {
         self.graph.layer_ids().constrain_from_edge(self.edge)
@@ -264,7 +265,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
     }
 
     fn get_const_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_meta().const_prop_meta().get_name(id)
+        self.graph
+            .edge_meta()
+            .const_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
@@ -324,7 +329,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_meta().temporal_prop_meta().get_name(id)
+        self.graph
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {

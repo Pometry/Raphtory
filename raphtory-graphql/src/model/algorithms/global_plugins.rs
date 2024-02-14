@@ -1,7 +1,5 @@
 use crate::model::algorithms::{
-    algorithm::{Algorithm},
-    algorithm_entry_point::AlgorithmEntryPoint,
-    global_search::GlobalSearch,
+    algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint, global_search::GlobalSearch,
     RegisterFunction,
 };
 use async_graphql::{dynamic::FieldValue, Context};

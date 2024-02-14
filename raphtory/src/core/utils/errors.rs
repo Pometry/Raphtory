@@ -50,6 +50,9 @@ pub enum GraphError {
     #[error("No Node with name {0}")]
     NodeNameError(String),
 
+    #[error("Node Type Error {0}")]
+    NodeTypeError(String),
+
     #[error("No Edge between {src} and {dst}")]
     EdgeIdError { src: u64, dst: u64 },
 

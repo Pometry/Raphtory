@@ -173,6 +173,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
             }
             Direction::BOTH => Box::new(
                 self.node_edges(v, Direction::IN, layers.clone(), filter)
+                    .filter(|e| e.src() != e.dst())
                     .merge(self.node_edges(v, Direction::OUT, layers, filter)),
             ),
         }

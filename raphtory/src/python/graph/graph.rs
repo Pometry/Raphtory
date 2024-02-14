@@ -4,20 +4,20 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{utils::errors::GraphError},
-    db::api::view::{internal::MaterializedGraph},
+    core::utils::errors::GraphError,
+    db::api::view::internal::MaterializedGraph,
     prelude::*,
     python::{
         graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::{prelude::*};
+use pyo3::prelude::*;
 
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::{entities::nodes::node_ref::NodeRef, ArcStr},
     db::{
-        api::view::internal::{DynamicGraph, IntoDynamic},
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
     },
     python::graph::{
@@ -141,18 +141,19 @@ impl PyGraph {
     ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
     ///    id (str or int): The id of the node.
     ///    properties (dict): The properties of the node (optional).
-    ///
+    ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None))]
+    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
         self.graph
-            .add_node(timestamp, id, properties.unwrap_or_default())
+            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
 
     /// Adds properties to the graph.
@@ -362,6 +363,14 @@ impl PyGraph {
         self.graph.save_to_file(Path::new(path))
     }
 
+    /// Returns all the node types in the graph.
+    ///
+    /// Returns:
+    /// A list of node types
+    pub fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph.get_all_node_types()
+    }
+
     /// Get bincode encoded graph
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
@@ -391,7 +400,8 @@ impl PyGraph {
     ///      Graph: The loaded Graph object.
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
-    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None, node_const_props = None, node_shared_const_props = None))]
+    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None,
+    node_const_props = None, node_shared_const_props = None, node_type = None))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -408,6 +418,7 @@ impl PyGraph {
         node_props: Option<Vec<&str>>,
         node_const_props: Option<Vec<&str>>,
         node_shared_const_props: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -428,6 +439,7 @@ impl PyGraph {
                 node_df,
                 node_id,
                 node_time,
+                node_type,
                 node_props,
                 node_const_props,
                 node_shared_const_props,
@@ -445,15 +457,16 @@ impl PyGraph {
     ///     props (List<str>): List of node property column names. Defaults to None. (optional)
     ///     const_props (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_const_props (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///
+    ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, props = None, const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, time, node_type = None, props = None, const_props = None, shared_const_props = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
         time: &str,
+        node_type: Option<&str>,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
@@ -469,6 +482,9 @@ impl PyGraph {
                 .extract()?;
 
             let mut cols_to_check = vec![id, time];
+            if let Some(node_type) = node_type {
+                cols_to_check.push(node_type);
+            }
             cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
 
@@ -483,6 +499,7 @@ impl PyGraph {
                 props,
                 const_props,
                 shared_const_props,
+                node_type,
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

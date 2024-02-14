@@ -37,12 +37,14 @@
 //!   1,
 //!   "Gandalf",
 //!   [("type", Prop::str("Character"))],
+//!   None
 //! ).unwrap();
 //!
 //! graph.add_node(
 //!   2,
 //!   "Frodo",
 //!   [("type", Prop::str("Character"))],
+//!   None,
 //! ).unwrap();
 //!
 //! graph.add_edge(
