@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1707908740846,
+  "lastUpdate": 1707926430770,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -39901,6 +39901,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 126544,
             "range": "± 255",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "Haaroon@users.noreply.github.com",
+            "name": "Haaroon Y",
+            "username": "Haaroon"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a88caa742ae7bde1a3aefa53a46bb998e882b130",
+          "message": "Added type property to node (#1480)\n\n* first version of name\r\n\r\n* fixed issue with wrong type\r\n\r\n* fmt\r\n\r\n* fix tests\r\n\r\n* add types to python, add test, fix other rust fns\r\n\r\n* fix js lib, fmt\r\n\r\n* fix tests\r\n\r\n* fix tests\r\n\r\n* fix tests\r\n\r\n* fmt\r\n\r\n* add docs, fmt\r\n\r\n* add support to types when loading from df\r\n\r\n* remove some imports\r\n\r\n* remove todo\r\n\r\n* not sure wehre errorr is\r\n\r\n* fix the type for now\r\n\r\n* fix issues with load_from_pandas and all tests\r\n\r\n* fix issues with load_from_pandas and all tests\r\n\r\n* instead of retesting just do cargo checks, also empty out space on the vm\r\n\r\n* fix all warnings\r\n\r\n* make the node_type column optional when loading from dataframe\r\n\r\n* make Option<String> and Option<ArcStr> conversions to Option<&str> easier\r\n\r\n* test on reference as well\r\n\r\n* change the conversion trait so it consumes the option if it contains a reference\r\n\r\n* addressed nearly all comments\r\n\r\n* everything works\r\n\r\n* fix all node_type issues\r\n\r\n* fix issues with _default types\r\n\r\n* made node type searchable\r\n\r\n* made node type searchable\r\n\r\n* fmt\r\n\r\n* blank node type not default\r\n\r\n* all comments addressed\r\n\r\n* all comments done\r\n\r\n* fix issue with _default appearing on get_all_x\r\n\r\n* fix test from merge\r\n\r\n* add test for node_type in pandas when empty\r\n\r\n* bad test\r\n\r\n---------\r\n\r\nCo-authored-by: Lucas Jeub <lucas.jeub@pometry.com>",
+          "timestamp": "2024-02-14T15:54:08Z",
+          "tree_id": "80b854b040de3c80de430fe8a12d0277d5aa7adc",
+          "url": "https://github.com/Pometry/Raphtory/commit/a88caa742ae7bde1a3aefa53a46bb998e882b130"
+        },
+        "date": 1707926428781,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 256476,
+            "range": "± 2062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 268064,
+            "range": "± 2427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 330754,
+            "range": "± 4494",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 536357,
+            "range": "± 85448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 699989,
+            "range": "± 81368",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 28,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 26,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_nodes",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_existing",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_nonexisting",
+            "value": 6,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 1196,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 28195,
+            "range": "± 117",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 21706,
+            "range": "± 445",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 37,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 27,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_nodes",
+            "value": 3048,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_existing",
+            "value": 29,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_nonexisting",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 4458,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 186833,
+            "range": "± 2022",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 21359,
+            "range": "± 530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 40,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 27,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_nodes",
+            "value": 3014,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_existing",
+            "value": 38,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_nonexisting",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 3813,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 128250,
+            "range": "± 1797",
             "unit": "ns/iter"
           }
         ]
