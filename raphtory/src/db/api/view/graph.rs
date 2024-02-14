@@ -3,7 +3,7 @@ use crate::{
         entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
-        ArcStr,
+        ArcStr, OptionAsStr,
     },
     db::{
         api::{
@@ -152,12 +152,14 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         }
 
         for v in self.nodes().iter() {
+            let v_type_string = v.node_type(); //stop it being dropped
+            let v_type_str = v_type_string.as_str();
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS)?;
+                g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_node(t, v.name(), [(name.clone(), prop)])?;
+                    g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
             g.node(v.id())
@@ -287,7 +289,7 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::prelude::*;
+    use crate::{core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*};
 
     #[test]
     fn test_materialize() {
@@ -323,6 +325,30 @@ mod test_materialize {
     }
 
     #[test]
+    fn testing_node_types() {
+        let g = Graph::new();
+        let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
+        let node_a_type = node_a.node_type();
+        let node_a_type_str = node_a_type.as_str();
+
+        assert_eq!(node_a_type_str, None);
+        assert_eq!(node_b.node_type().as_str(), Some("H"));
+
+        // Nodes with No type can be overwritten
+        let node_a = g.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
+        assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
+
+        // Check that overwriting a node type returns an error
+        assert!(g.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
+        // Double check that the type did not actually change
+        assert_eq!(g.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
+        // Check that the update is not added to the graph
+        let all_node_types = g.get_all_node_types();
+        assert_eq!(all_node_types.len(), 2);
+    }
+
+    #[test]
     fn changing_property_type_errors() {
         let g = Graph::new();
         let props_0 = [("test", Prop::U64(1))];
@@ -330,8 +356,8 @@ mod test_materialize {
         g.add_properties(0, props_0.clone()).unwrap();
         assert!(g.add_properties(1, props_1.clone()).is_err());
 
-        g.add_node(0, 1, props_0.clone()).unwrap();
-        assert!(g.add_node(1, 1, props_1.clone()).is_err());
+        g.add_node(0, 1, props_0.clone(), None).unwrap();
+        assert!(g.add_node(1, 1, props_1.clone(), None).is_err());
 
         g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
         assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());

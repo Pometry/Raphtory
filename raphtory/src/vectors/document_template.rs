@@ -38,7 +38,7 @@ pub struct DefaultTemplate;
 const DEFAULT_MAX_SIZE: usize = 1000;
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for DefaultTemplate {
-    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn graph(&self, _graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
         Box::new(std::iter::empty())
     }
 

@@ -6,20 +6,18 @@ use crate::{
             GraphError,
             GraphError::{EdgeExistsError, NodeExistsError},
         },
+        OptionAsStr,
     },
     db::{
         api::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
-            view::{
-                internal::{CoreGraphOps, InternalMaterialize},
-                IntoDynamic, StaticGraphViewOps,
-            },
+            view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps, NO_PROPS},
+    prelude::{AdditionOps, EdgeViewOps, NodeViewOps},
 };
 
 pub trait ImportOps:
@@ -129,12 +127,39 @@ impl<
             }
         }
 
+        let node_internal =
+            self.resolve_node(node.id(), node.graph.core_node(node.node).name.as_str());
+        let node_internal_type_id = self
+            .resolve_node_type(node_internal, node.node_type().as_str())
+            .unwrap_or(0usize);
+
         for h in node.history() {
-            self.add_node(h, node.name(), NO_PROPS)?;
+            let t = TimeIndexEntry::from_input(self, h)?;
+            self.internal_add_node(t, node_internal, vec![], node_internal_type_id)?;
         }
         for (name, prop_view) in node.properties().temporal().iter() {
-            for (t, prop) in prop_view.iter() {
-                self.add_node(t, node.name(), [(name.clone(), prop)])?;
+            let old_prop_id = node
+                .graph
+                .node_meta()
+                .temporal_prop_meta()
+                .get_id(&name)
+                .unwrap();
+            let dtype = node
+                .graph
+                .node_meta()
+                .temporal_prop_meta()
+                .get_dtype(old_prop_id)
+                .unwrap();
+            let new_prop_id = self.resolve_node_property(&name, dtype, false)?;
+            for (h, prop) in prop_view.iter() {
+                let new_prop = self.process_prop_value(prop);
+                let t = TimeIndexEntry::from_input(self, h)?;
+                self.internal_add_node(
+                    t,
+                    node_internal,
+                    vec![(new_prop_id, new_prop)],
+                    node_internal_type_id,
+                )?;
             }
         }
         self.node(node.id())
