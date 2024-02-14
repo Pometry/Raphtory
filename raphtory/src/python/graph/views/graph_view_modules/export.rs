@@ -182,12 +182,14 @@ impl PyGraphView {
                 let networkx = py.import("networkx")?.getattr("MultiDiGraph")?.call0()?;
                 let mut node_tuples = Vec::new();
 
-                for v in &self.graph.nodes().iter() {
+                for v in self.graph.nodes().iter() {
                     let properties = PyDict::new(py);
 
                     if include_node_properties.unwrap_or(true) {
                         if include_property_histories.unwrap_or(true) {
-                            properties.set_item("constant", v.properties().constant().as_map().to_object(py))?;
+                            properties.set_item("constant", v.properties().constant().map(|k, v| {
+
+                            }))?;
                             properties.set_item("temporal", v.properties().temporal().histories().to_object(py))?;
                         } else {
                             for (key, value) in v.properties().as_map() {
