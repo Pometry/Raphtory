@@ -167,7 +167,7 @@ def test_windowed_graph_edges():
         for e in e_iter:
             edges.append([e.src.id, e.dst.id])
 
-    assert edges == [[1, 1], [1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
+    assert edges == [[1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
 
     tedges = [v.in_edges for v in view.nodes]
     in_edges = []
