@@ -279,6 +279,15 @@ impl<const N: usize> TemporalGraph<N> {
             .unwrap_or_else(|| node.global_id().to_string())
     }
 
+    pub(crate) fn node_type(&self, v: VID) -> Option<ArcStr> {
+        let node = self.storage.get_node(v);
+        self.node_meta.get_node_type_name_by_id(node.node_type)
+    }
+
+    pub(crate) fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.node_meta.get_all_node_types()
+    }
+
     #[inline]
     pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore, N> {
         self.storage.get_node(v.into())
@@ -353,12 +362,56 @@ impl<const N: usize> TemporalGraph<N> {
         }))
     }
 
+    pub(crate) fn resolve_node_type(
+        &self,
+        v_id: VID,
+        node_type: Option<&str>,
+    ) -> Result<usize, GraphError> {
+        match node_type {
+            None => Ok(self.node_meta.get_default_node_type_id()),
+            Some(node_type) => {
+                if node_type == "_default" {
+                    return Err(GraphError::NodeTypeError(
+                        "_default type is not allowed to be used on nodes"
+                            .parse()
+                            .unwrap(),
+                    ));
+                }
+                let mut node = self.storage.get_node_mut(v_id);
+                match node.node_type {
+                    0 => {
+                        let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
+                        node.update_node_type(node_type_id);
+                        Ok(node_type_id)
+                    }
+                    _ => {
+                        let new_node_type_id =
+                            self.node_meta.get_node_type_id(node_type).unwrap_or(0);
+                        if node.node_type != new_node_type_id {
+                            return Err(GraphError::NodeTypeError(
+                                "Node already has a non-default type".parse().unwrap(),
+                            ));
+                        }
+                        // Returns the original node type to prevent type being changed
+                        Ok(node.node_type)
+                    }
+                }
+            }
+        }
+    }
+
     #[inline]
-    pub(crate) fn add_node_no_props(&self, time: TimeIndexEntry, v_id: VID) -> EntryMut<NodeStore> {
+    pub(crate) fn add_node_no_props(
+        &self,
+        time: TimeIndexEntry,
+        v_id: VID,
+        node_type_id: usize,
+    ) -> EntryMut<NodeStore> {
         self.update_time(time);
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);
         node.update_time(time);
+        node.update_node_type(node_type_id);
         node
     }
 
@@ -367,8 +420,9 @@ impl<const N: usize> TemporalGraph<N> {
         time: TimeIndexEntry,
         v_id: VID,
         props: Vec<(usize, Prop)>,
+        node_type_id: usize,
     ) -> Result<(), GraphError> {
-        let mut node = self.add_node_no_props(time, v_id);
+        let mut node = self.add_node_no_props(time, v_id, node_type_id);
         for (id, prop) in props {
             node.add_prop(time, id, prop)?;
         }

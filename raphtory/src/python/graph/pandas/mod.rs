@@ -5,6 +5,7 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
+        core::ArcStr,
         prelude::*,
         python::graph::pandas::{
             dataframe::PretendDF,
@@ -88,7 +89,7 @@ mod test {
     #[test]
     fn load_nodes_from_pretend_df() {
         let df = PretendDF {
-            names: vec!["id", "name", "time"]
+            names: vec!["id", "name", "time", "node_type"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -97,18 +98,30 @@ mod test {
                     Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
                     Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
                     Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
+                    Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
                 ],
                 vec![
                     Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
                     Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
                     Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
+                    Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
                 ],
             ],
         };
         let graph = Graph::new();
 
-        load_nodes_from_df(&df, 3, "id", "time", Some(vec!["name"]), None, None, &graph)
-            .expect("failed to load nodes from pretend df");
+        load_nodes_from_df(
+            &df,
+            3,
+            "id",
+            "time",
+            Some(vec!["name"]),
+            None,
+            None,
+            Some("node_type"),
+            &graph,
+        )
+        .expect("failed to load nodes from pretend df");
 
         let actual = graph
             .nodes()
@@ -121,6 +134,7 @@ mod test {
                         .temporal()
                         .get("name")
                         .and_then(|v| v.latest()),
+                    v.node_type(),
                 )
             })
             .collect::<Vec<_>>();
@@ -128,8 +142,18 @@ mod test {
         assert_eq!(
             actual,
             vec![
-                (1, Some(1), Some(Prop::str("a"))),
-                (2, Some(2), Some(Prop::str("b"))),
+                (
+                    1,
+                    Some(1),
+                    Some(Prop::str("a")),
+                    Some(ArcStr::from("atype"))
+                ),
+                (
+                    2,
+                    Some(2),
+                    Some(Prop::str("b")),
+                    Some(ArcStr::from("btype"))
+                ),
             ]
         );
     }

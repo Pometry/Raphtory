@@ -9,8 +9,8 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! let graph = Graph::new();
-//! graph.add_node(0, "Alice", NO_PROPS).unwrap();
-//! graph.add_node(1, "Bob", NO_PROPS).unwrap();
+//! graph.add_node(0, "Alice", NO_PROPS, None).unwrap();
+//! graph.add_node(1, "Bob", NO_PROPS, None).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", NO_PROPS, None).unwrap();
 //! graph.count_edges();
 //! ```
@@ -19,7 +19,7 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
-        mutation::internal::{InheritAdditionOps, InheritMutationOps, InheritPropertyAdditionOps},
+        mutation::internal::InheritMutationOps,
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
@@ -230,7 +230,7 @@ mod db_tests {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_node(t, v, NO_PROPS)
+            g.add_node(t, v, NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -244,7 +244,7 @@ mod db_tests {
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
-            g.add_node(t as i64, name.clone(), NO_PROPS)
+            g.add_node(t as i64, name.clone(), NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -307,8 +307,8 @@ mod db_tests {
     #[test]
     fn prop_json_test() {
         let g = Graph::new();
-        let _ = g.add_node(0, "A", NO_PROPS).unwrap();
-        let _ = g.add_node(0, "B", NO_PROPS).unwrap();
+        let _ = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let _ = g.add_node(0, "B", NO_PROPS, None).unwrap();
         let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
             .unwrap();
@@ -374,9 +374,9 @@ mod db_tests {
     #[test]
     fn import_from_another_graph() {
         let g = Graph::new();
-        let g_a = g.add_node(0, "A", NO_PROPS).unwrap();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
         let g_b = g
-            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))])
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
         let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
@@ -413,7 +413,7 @@ mod db_tests {
             )
             .unwrap();
         let gg = Graph::new();
-        let _ = gg.add_node(0, "B", NO_PROPS);
+        let _ = gg.add_node(0, "B", NO_PROPS, None);
         let res = gg.import_edge(&e_a_b_p, None).expect("Failed to add edge");
         assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
 
@@ -582,7 +582,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
-        g.add_node(5, 1, NO_PROPS)
+        g.add_node(5, 1, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
 
@@ -595,7 +595,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(10));
 
-        g.add_node(5, 1, NO_PROPS)
+        g.add_node(5, 1, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
         assert_eq!(g.latest_time(), Some(10));
@@ -624,7 +624,7 @@ mod db_tests {
         .unwrap();
         g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
-        g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
+        g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
         g.add_edge(0, 44, 55, NO_PROPS, None).unwrap();
         let v11 = g.node(11).unwrap();
@@ -703,7 +703,7 @@ mod db_tests {
     fn temporal_props_node() {
         let g = Graph::new();
 
-        g.add_node(0, 1, [("cool".to_string(), Prop::Bool(true))])
+        g.add_node(0, 1, [("cool".to_string(), Prop::Bool(true))], None)
             .unwrap();
 
         let v = g.node(1).unwrap();
@@ -712,7 +712,7 @@ mod db_tests {
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
-        g.add_node(3, 1, [("cool".to_string(), Prop::Bool(false))])
+        g.add_node(3, 1, [("cool".to_string(), Prop::Bool(false))], None)
             .unwrap();
 
         let wg = g.window(3, 15);
@@ -806,9 +806,9 @@ mod db_tests {
     fn test_add_node_with_strings() {
         let g = Graph::new();
 
-        g.add_node(0, "haaroon", NO_PROPS).unwrap();
-        g.add_node(1, "hamza", NO_PROPS).unwrap();
-        g.add_node(1, 831, NO_PROPS).unwrap();
+        g.add_node(0, "haaroon", NO_PROPS, None).unwrap();
+        g.add_node(1, "hamza", NO_PROPS, None).unwrap();
+        g.add_node(1, 831, NO_PROPS, None).unwrap();
 
         assert!(g.has_node(831));
         assert!(g.has_node("haaroon"));
@@ -1065,16 +1065,16 @@ mod db_tests {
     fn check_node_history() {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        g.add_node(3, 1, NO_PROPS).unwrap();
-        g.add_node(4, 1, NO_PROPS).unwrap();
-        g.add_node(8, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        g.add_node(3, 1, NO_PROPS, None).unwrap();
+        g.add_node(4, 1, NO_PROPS, None).unwrap();
+        g.add_node(8, 1, NO_PROPS, None).unwrap();
 
-        g.add_node(4, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(6, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(7, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(8, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
         let times_of_one = g.node(1).unwrap().history();
         let times_of_farquaad = g.node("Lord Farquaad").unwrap().history();
@@ -1145,21 +1145,21 @@ mod db_tests {
     fn check_node_history_multiple_shards() {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        g.add_node(3, 1, NO_PROPS).unwrap();
-        g.add_node(4, 1, NO_PROPS).unwrap();
-        g.add_node(5, 2, NO_PROPS).unwrap();
-        g.add_node(6, 2, NO_PROPS).unwrap();
-        g.add_node(7, 2, NO_PROPS).unwrap();
-        g.add_node(8, 1, NO_PROPS).unwrap();
-        g.add_node(9, 2, NO_PROPS).unwrap();
-        g.add_node(10, 2, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        g.add_node(3, 1, NO_PROPS, None).unwrap();
+        g.add_node(4, 1, NO_PROPS, None).unwrap();
+        g.add_node(5, 2, NO_PROPS, None).unwrap();
+        g.add_node(6, 2, NO_PROPS, None).unwrap();
+        g.add_node(7, 2, NO_PROPS, None).unwrap();
+        g.add_node(8, 1, NO_PROPS, None).unwrap();
+        g.add_node(9, 2, NO_PROPS, None).unwrap();
+        g.add_node(10, 2, NO_PROPS, None).unwrap();
 
-        g.add_node(4, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(6, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(7, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(8, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
         let times_of_one = g.node(1).unwrap().history();
         let times_of_farquaad = g.node("Lord Farquaad").unwrap().history();
@@ -1197,7 +1197,8 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS).unwrap();
+        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
+            .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
@@ -1206,7 +1207,7 @@ mod db_tests {
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
 
-        g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS)
+        g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS, None)
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
@@ -1385,9 +1386,9 @@ mod db_tests {
     #[test]
     fn test_node_early_late_times() {
         let g = Graph::new();
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        g.add_node(3, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        g.add_node(3, 1, NO_PROPS, None).unwrap();
 
         assert_eq!(g.node(1).unwrap().earliest_time(), Some(1));
         assert_eq!(g.node(1).unwrap().latest_time(), Some(3));
@@ -1405,9 +1406,9 @@ mod db_tests {
     #[test]
     fn test_node_ids() {
         let g = Graph::new();
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(1, 2, NO_PROPS).unwrap();
-        g.add_node(2, 3, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(1, 2, NO_PROPS, None).unwrap();
+        g.add_node(2, 3, NO_PROPS, None).unwrap();
 
         assert_eq!(g.nodes().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
 
@@ -1700,7 +1701,7 @@ mod db_tests {
     // fn node_from_id_is_consistent(nodes: Vec<u64>) -> bool {
     //     let g = Graph::new();
     //     for v in nodes.iter() {
-    //         g.add_node(0, *v, NO_PROPS).unwrap();
+    //         g.add_node(0, *v, NO_PROPS, None).unwrap();
     //     }
     //     g.nodes()
     //         .name()

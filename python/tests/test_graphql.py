@@ -46,16 +46,90 @@ def test_graphql():
     query_g3 = """{graph(name: "g3") {nodes {list {name}}}}"""
     query_g4 = """{graph(name: "g4") {nodes {list {name}}}}"""
 
-    assert map_server.query(query_g1) == {'graph': {'nodes': {"list": [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}
-    assert map_server.query(query_g1_window) == {'graph': {'nodes': {"before": {"list": [{'name': 'ben'}, {'name': 'hamza'}]}}}}
-    assert map_server.query(query_g2) == {'graph': {'nodes': {"list": [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}
-    assert dir_server.query(query_g3) == {'graph': {'nodes': {"list": [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}
-    assert dir_server.query(query_g4) == {'graph': {'nodes': {"list": [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}
+    assert map_server.query(query_g1) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    assert map_server.query(query_g1_window) == {
+        "graph": {"nodes": {"before": {"list": [{"name": "ben"}, {"name": "hamza"}]}}}
+    }
+    assert map_server.query(query_g2) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi"},
+                    {"name": "Shivam"},
+                    {"name": "Pedro"},
+                    {"name": "Rachel"},
+                ]
+            }
+        }
+    }
+    assert dir_server.query(query_g3) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "ben_saved"},
+                    {"name": "hamza_saved"},
+                    {"name": "haaroon_saved"},
+                ]
+            }
+        }
+    }
+    assert dir_server.query(query_g4) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi_saved"},
+                    {"name": "Shivam_saved"},
+                    {"name": "Pedro_saved"},
+                    {"name": "Rachel_saved"},
+                ]
+            }
+        }
+    }
 
-    assert map_dir_server.query(query_g1) == {'graph': {'nodes': {"list": [{'name': 'ben'}, {'name': 'hamza'}, {'name': 'haaroon'}]}}}
-    assert map_dir_server.query(query_g2) == {'graph': {'nodes': {"list": [{'name': 'Naomi'}, {'name': 'Shivam'}, {'name': 'Pedro'}, {'name': 'Rachel'}]}}}
-    assert map_dir_server.query(query_g4) == {'graph': {'nodes': {"list": [{'name': 'Naomi_saved'}, {'name': 'Shivam_saved'}, {'name': 'Pedro_saved'}, {'name': 'Rachel_saved'}]}}}
-    assert map_dir_server.query(query_g3) == {'graph': {'nodes': {"list": [{'name': 'ben_saved'}, {'name': 'hamza_saved'}, {'name': 'haaroon_saved'}]}}}
+    assert map_dir_server.query(query_g1) == {
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
+    }
+    assert map_dir_server.query(query_g2) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi"},
+                    {"name": "Shivam"},
+                    {"name": "Pedro"},
+                    {"name": "Rachel"},
+                ]
+            }
+        }
+    }
+    assert map_dir_server.query(query_g4) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "Naomi_saved"},
+                    {"name": "Shivam_saved"},
+                    {"name": "Pedro_saved"},
+                    {"name": "Rachel_saved"},
+                ]
+            }
+        }
+    }
+    assert map_dir_server.query(query_g3) == {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {"name": "ben_saved"},
+                    {"name": "hamza_saved"},
+                    {"name": "haaroon_saved"},
+                ]
+            }
+        }
+    }
 
     map_server.stop()
     dir_server.stop()
@@ -112,7 +186,9 @@ def generic_client_test(raphtory_client, temp_dir):
     variables = {"graphname": "g1.bincode"}
     res = raphtory_client.query(query, variables)
     assert res == {
-        "graph": {"nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}}
+        "graph": {
+            "nodes": {"list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]}
+        }
     }
 
     # load a new graph into the client from a path

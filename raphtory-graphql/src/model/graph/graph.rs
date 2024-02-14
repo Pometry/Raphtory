@@ -24,7 +24,6 @@ use raphtory::{
 use std::{
     collections::{HashMap, HashSet},
     convert::Into,
-    ops::Deref,
 };
 
 #[derive(ResolvedObject)]

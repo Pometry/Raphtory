@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
-        Direction,
+        ArcStr, Direction,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
@@ -72,6 +72,9 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ///
     /// The name of the node if one exists, otherwise the ID as a string.
     fn name(&self) -> Self::ValueType<String>;
+
+    /// Returns the type of node
+    fn node_type(&self) -> Self::ValueType<Option<ArcStr>>;
 
     /// Get the timestamp for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
@@ -175,6 +178,10 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn name(&self) -> Self::ValueType<String> {
         self.map(|g, v| g.node_name(v))
+    }
+    #[inline]
+    fn node_type(&self) -> Self::ValueType<Option<ArcStr>> {
+        self.map(|g, v| g.node_type(v))
     }
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {

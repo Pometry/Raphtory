@@ -46,9 +46,9 @@ mod state_test {
     fn tiny_graph() -> Graph {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(1, 2, NO_PROPS).unwrap();
-        g.add_node(1, 3, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(1, 2, NO_PROPS, None).unwrap();
+        g.add_node(1, 3, NO_PROPS, None).unwrap();
         g
     }
 

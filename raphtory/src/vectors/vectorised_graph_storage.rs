@@ -73,7 +73,7 @@ fn from_document_vector(stored_documents: &Vec<StoredDocument>) -> Vec<DocumentI
 }
 
 impl<G: StaticGraphViewOps> DocumentTemplate<G> for StoredDocumentTemplate<G> {
-    fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+    fn graph(&self, _graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
         // TODO: should be having Arc inside of StoredDocumentTemplate to avoid clonig here as cannot have lifetimes in the output
         let cloned = self.graph_documents.clone();
         Box::new(cloned.into_iter())
@@ -97,7 +97,7 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for StoredDocumentTemplate<G> {
 struct MissingEmbedding;
 
 impl EmbeddingFunction for MissingEmbedding {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
+    fn call(&self, _texts: Vec<String>) -> BoxFuture<'static, Vec<Embedding>> {
         panic!("Missing embedding function as the graph was loaded from a file");
     }
 }

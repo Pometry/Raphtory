@@ -151,6 +151,7 @@ pub fn into_py_document(
     }
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "python")]
 pub struct PyDocumentTemplate {
     graph_document: Option<String>,

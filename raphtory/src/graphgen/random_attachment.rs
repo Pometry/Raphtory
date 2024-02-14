@@ -65,7 +65,7 @@ pub fn random_attachment(
         max_id += 1;
         latest_time += 1;
         graph
-            .add_node(latest_time, max_id, NO_PROPS)
+            .add_node(latest_time, max_id, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
         ids.push(max_id);
@@ -101,7 +101,7 @@ mod random_graph_test {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_node(i, i as u64, NO_PROPS)
+                .add_node(i, i as u64, NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }

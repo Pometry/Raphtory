@@ -354,7 +354,7 @@ impl Mut {
     async fn archive_graph<'a>(
         ctx: &Context<'a>,
         graph_name: String,
-        parent_graph_name: String,
+        _parent_graph_name: String,
         is_archive: u8,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>().graphs.write();

@@ -3,7 +3,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, NodeViewOps},
 };
 use serde::{Deserialize, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -37,6 +37,7 @@ impl EntityId {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_graph(&self) -> bool {
         match self {
             EntityId::Graph { .. } => true,

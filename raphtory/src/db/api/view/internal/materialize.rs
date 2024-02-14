@@ -284,7 +284,7 @@ mod test_materialised_graph_dispatch {
 
         let mg = g.materialize().unwrap();
 
-        let v = mg.add_node(0, 1, NO_PROPS).unwrap();
+        let v = mg.add_node(0, 1, NO_PROPS, None).unwrap();
         assert_eq!(v.id(), 1)
     }
 }

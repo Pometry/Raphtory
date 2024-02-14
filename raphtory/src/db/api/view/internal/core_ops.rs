@@ -40,11 +40,17 @@ pub trait CoreGraphOps {
     /// Get the layer name for a given id
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
 
+    /// Get all node types
+    fn get_all_node_types(&self) -> Vec<ArcStr>;
+
     /// Returns the external ID for a node
     fn node_id(&self, v: VID) -> u64;
 
     /// Returns the string name for a node
     fn node_name(&self, v: VID) -> String;
+
+    /// Returns the type of node
+    fn node_type(&self, v: VID) -> Option<ArcStr>;
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -248,6 +254,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph().node_meta().get_all_node_types()
+    }
+
+    #[inline]
     fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.graph().get_layer_id(name)
     }
@@ -265,6 +276,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn node_name(&self, v: VID) -> String {
         self.graph().node_name(v)
+    }
+
+    #[inline]
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        self.graph().node_type(v)
     }
 
     #[inline]

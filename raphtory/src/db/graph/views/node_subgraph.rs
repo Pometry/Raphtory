@@ -221,8 +221,8 @@ mod subgraph_tests {
     fn test_materialize_no_edges() {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 2, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 2, NO_PROPS, None).unwrap();
         let sg = g.subgraph([1, 2]);
 
         let actual = sg.materialize().unwrap().into_events().unwrap();

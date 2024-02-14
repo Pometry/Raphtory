@@ -68,10 +68,10 @@ pub fn lotr_graph() -> Graph {
                 let dst_id = lotr.dst_id;
                 let time = lotr.time;
 
-                g.add_node(time, src_id.clone(), NO_PROPS)
+                g.add_node(time, src_id.clone(), NO_PROPS, None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
-                g.add_node(time, dst_id.clone(), NO_PROPS)
+                g.add_node(time, dst_id.clone(), NO_PROPS, None)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
                 g.add_edge(time, src_id.clone(), dst_id.clone(), NO_PROPS, None)
