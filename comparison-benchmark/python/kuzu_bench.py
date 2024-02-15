@@ -30,8 +30,6 @@ class KuzuBench(BenchmarkBase):
     def run_query(self, query):
         print("Running query: " + query)
         res = self.conn.execute(query)
-        if not res.is_success():
-            raise Exception("Error running query")
         return res
 
     def setup(self):
