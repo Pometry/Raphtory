@@ -122,26 +122,24 @@ You will see the following
     ... 
     Welcome to the Raphtory Benchmarking Tool
     Running local benchmarking...
-    ** Running for Neo4j...
+    ** Running for XX...
     ** Running setup...
-    setup time: 19.72971820831299
+    setup time: xx
     ** Running degree...
-    degree time: 0.30420994758605957
+    degree time: xx
     ** Running out_neighbours...
-    out_neighbours time: 0.12140679359436035
+    out_neighbours time: xx
     ** Running page_rank...
-    page_rank time: 0.6003847122192383
+    page_rank time: xx
     ** Running connected_components...
-    connected_components time: 0.3989684581756592
-    setup      degree   out_neighbours  page_rank  connected_components
-    Neo4j  19.729718  0.30421  0.121407        0.600385   0.398968
+    connected_components time: xx
+                setup      degree   out_neighbours  page_rank  connected_components
+    XX          xx      xx              xx          xx          xx
     
     Completed command...
     Benchmark completed, retrieving results...
     Removing container...
     Docker container exited with code 0
-    Logs: setup,degree,out_neighbours,page_rank,connected_components
-    19.72971820831299,0.30420994758605957,0.12140679359436035,0.6003847122192383,0.3989684581756592
 
 ## Alternative args
 
@@ -159,7 +157,7 @@ All the scripts and data were stored on the instance NVME drive.
 | GraphTool | 194.09 | 0.008  | 43.30          | 4.75      | 3.83                 |
 | Kuzu      | 18.17  | 1.13   | 89.03          | NOT IMPL  | NOT IMPL             |
 | NetworkX  | 130.57 | 1.17   | 24.42          | 162.0     | 160.99               |
-| Neo4J     |        |        |                |           |                      |
+| Neo4J     | 61.09  | 9.40   | 8.68           |           |                      |
 | MemGraph  | 498.38 | 73.08  | 75.574         | 131.46    | 142.55               |
 | Cozo      | 137.82 | 35.36  | 35.17          | 32.83     | N/A SEG FAULT        |
 
@@ -185,6 +183,10 @@ Some key notes:
     However, it means the data ingested by neo is ever so larger
   - The admin ingestion also required that we use both a node list and edge list, which we did
     not need for some of the other tools. 
+  - To run the neo4j benchmark first run the command `python3 benchmark_driver.py -b neo` this will setup the docker
+    container, then one its finished setup it runs a `tail -f /dev/dull`. Quit the process and the container will still
+    be online. Then run `docker ps` to get the container name, then `docker exec -it <container name> bash` to login to
+    the container. Then `cd /var/lib/neo4j/import/data2/` and run `python3 benchmark_driver.py -b neo --no-docker`
 
 - Memgraph 
   - It was advised to create indexes with the node list prior to relationships, which was done

@@ -40,7 +40,7 @@ def get_out_neighbors(tx):
     result = tx.run(
         """
         MATCH p=(n)-[:FOLLOWS]->(neighbor)
-        RETURN n.id, COUNT(p)
+        RETURN n.id, p
     """
     )
     return list(result)
@@ -52,11 +52,7 @@ def run_pagerank(tx):
 
 
 def run_connected_components(tx):
-    result = tx.run(
-        """
-        CALL gds.wcc.stream("social")
-    """
-    )
+    result = tx.run("""CALL gds.wcc.stream("social")""")
     return list(result)
 
 
@@ -68,18 +64,15 @@ def execute_bash_command(command, background=False, timeout=60):
         )
         return
     try:
-        child = pexpect.spawn(command, timeout=timeout)
+        child = pexpect.spawn("/bin/bash", ["-c", command + " 2>&1"], timeout=timeout)  # Redirect stderr to stdout
         child.expect(pexpect.EOF)
-        stdout = child.before.decode("utf-8")
-        stderr = child.stderr.decode("utf-8") if child.stderr else None
+        output = child.before.decode("utf-8")
     except pexpect.TIMEOUT:
         print("Command timed out")
         child.terminate(force=True)
-        stdout, stderr = None, None
-    except Exception as e:
-        print("Error executing command: ", str(e))
-        stdout, stderr = None, None
-    return stdout, stderr
+        output = None
+    return output
+
 
 def write_array_to_csv(arr, file_path):
     with open(file_path, "w", newline="") as csv_file:
@@ -128,7 +121,7 @@ def import_data():
         "--nodes=/var/lib/neo4j/import/data2/data/simple-profiles-header-neo4j.csv,"
         "/var/lib/neo4j/import/data2/data/simple-profiles-neo4j.csv "
         "--relationships=/var/lib/neo4j/import/data2/data/simple-relationships-headers-neo4j.csv,"
-        "/var/lib/neo4j/import/data2/data/simple-relationships-neo4j.csv neo4j"
+        "/var/lib/neo4j/import/data2/data/simple-relationships-neo4j.csv neo4j2"
     )
     # tx.run("""
     # LOAD CSV FROM 'file:///data2/data/simple-relationships.csv' AS row
@@ -155,7 +148,7 @@ class Neo4jBench(BenchmarkBase):
             '/bin/bash -c "python3 -m pip install pexpect neo4j requests tqdm pandas numpy docker matplotlib scipy raphtory"',
             # '/bin/bash -c "neo4j start"',
             # '/bin/bash -c "sleep 15"',
-            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
+            # '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
         ]
         # image_path = 'DockerFiles/pyneo' image_path ports
         code, contents = super().start_docker(
@@ -185,9 +178,8 @@ class Neo4jBench(BenchmarkBase):
         print("Logging into neo4j")
         # self.driver = GraphDatabase.driver(uri, auth=(username, password))
         print("Importing data")
-        stout, sterr = import_data()
+        stout = import_data()
         print("status: ", stout)
-        print("error: ", sterr)
         print("Starting neo4j")
         execute_bash_command(
             'export NEO4J_AUTH="neo4j/password"; export NEO4J_PLUGINS=\'['
@@ -208,11 +200,11 @@ class Neo4jBench(BenchmarkBase):
         print("Done")
 
     def execute_read(self, query):
-        with self.driver.session() as session:
+        with self.driver.session(database="neo4j2") as session:
             return session.execute_read(query)
 
     def execute_write(self, query):
-        with self.driver.session() as session:
+        with self.driver.session(database="neo4j2") as session:
             session.execute_write(query)
 
     def degree(self):
