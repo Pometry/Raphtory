@@ -434,8 +434,8 @@ impl TempColGraphFragment {
 
         let offset_iter = ParquetOffsetIter::new(props.iter(), t_props_chunk_size);
         let edge_chunks = offset_iter.collect_vec();
-        let edge_props_values = edge_props_builder
-            .load_t_edges_from_par_structs(num_threads, edge_chunks.into_par_iter())?;
+        let edge_props_values =
+            edge_props_builder.load_t_edges_from_par_structs(1, edge_chunks.into_par_iter())?;
 
         let edges = Edges::new(
             src_chunks,
