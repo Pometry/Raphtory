@@ -48,9 +48,19 @@ class KuzuBench(BenchmarkBase):
 
     def out_neighbours(self):
         self.conn.set_query_timeout(600000)  # 600 seconds
-        query = "MATCH (u:User)-[:Follows]->(n:User) RETURN u.id, COLLECT(n.id) AS out_neighbours"
-        res = self.run_query(query)
-        df = res.get_as_df()
+        #query = "MATCH (u:User) RETURN MAX(u.id) AS max_user_id"
+        #res = self.run_query(query)
+        max_user_id = 1632803 # res.get_as_df().iloc[0]['max_user_id']
+        batch_size = 100000
+        for i in range(0, max_user_id, batch_size):
+            start_id = i + 1
+            end_id = min(i + batch_size, max_user_id + 1)
+            query = f"MATCH (u:User) WHERE u.id >= {start_id} AND u.id < {end_id} WITH u MATCH (u)-[:Follows]->(n:User) RETURN u.id, COLLECT(n.id) AS out_neighbours"
+            res = self.run_query(query)
+            df = res.get_as_df()
+        #query = "MATCH (u:User)-[:Follows]->(n:User) RETURN u.id, COUNT(n.id) AS out_neighbours"
+        #res = self.run_query(query)
+        #df = res.get_as_df()
 
     def page_rank(self):
         print("NOT IMPLEMENTED IN KUZU")

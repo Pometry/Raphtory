@@ -30,32 +30,20 @@ This only does a light benchmark of raphtory, as it is designed to be used stand
 
 First download the example file by cd'ing into the `raphtory-rust-benchmark` folder and running
 
-    cargo run -- --download
+    cargo run --release -- --download
 
 This will download the example file into tmp folder on your system, it will give you the file path.
 
 You can then run the benchmark by running, with the file path it has given you
 
-    cargo run -- --file-path <file_path>
+    cargo run --release -- --file-path <file_path>
 
 You can also provide your own file path, but please ensure you have set the correct arguments. 
 I.e Whether it has a header, what the delimiter is, and what columns are what.
 
 e.g.
 
-    cargo run -- --file-path="/Users/1337/Documents/dev/Data/lotr.csv" --delimiter="," --from-column=0 --to-column=1
-
-The results for a 1000 edge file are below
-
-    Raphtory Quick Benchmark
-    Running setup...
-    Setup took 0.015264357 seconds
-    Graph has 864 nodes and 1000 edges
-    Degree: 0.001719875 seconds
-    Out neighbours: 0.000247832 seconds
-    Page rank: 0.012001127 seconds
-    Connected components: 0.025755603 seconds
-
+    cargo run --release -- --file-path="/Users/1337/Documents/dev/Data/lotr.csv" --delimiter="," --from-column=0 --to-column=1
 
 
 ## Python Suite
@@ -89,6 +77,10 @@ More information available [here](https://snap.stanford.edu/data/soc-pokec.html)
       - pandas
       - raphtory
       - neo4j
+
+# Install if you are not using docker
+
+    pip install networkx scipy matplotlib raphtory kuzu neo4j 
 
 # How to run
 
@@ -161,20 +153,26 @@ You will see the following
 These benchmarks were run on Amazon AWS m5ad.4xlarge instances. 
 All the scripts and data were stored on the instance NVME drive.
 
-|           | Setup   | Degree   | Out Neighbours | Page Rank | Connected Components |
-|-----------|---------|----------|----------------|-----------|----------------------|
-| Raphtory  | 121.04  | 3.90     | 28.69          | 153.22    | 67.6301              |
-| GraphTool | 194.09  | 0.008    | 43.30          | 4.75      | 3.83                 |
-| Kuzu      | 63.30   | 1.08     | 0.591856       | NOT IMPL  | NOT IMPL             |
-| NetworkX  | 130.66  | 0.000027 |                |           |                      |
-| Neo4J     |         |          |                |           |                      |
-| MemGraph  | 498.38  | 73.08    |  75.574        | 131.46    | 142.55               |
-| Cozo      | 137.82  | 35.36    |  35.17         | 32.83     | N/A SEG FAULT        |
+|           | Setup  | Degree | Out Neighbours | Page Rank | Connected Components |
+|-----------|--------|--------|----------------|-----------|----------------------|
+| Raphtory  | 110.13 | 2.49   | 23.04          | 1.09      | 17.89                |
+| GraphTool | 194.09 | 0.008  | 43.30          | 4.75      | 3.83                 |
+| Kuzu      | 18.17  | 1.13   | 89.03          | NOT IMPL  | NOT IMPL             |
+| NetworkX  | 130.57 | 1.17   | 24.42          | 162.0     | 160.99               |
+| Neo4J     |        |        |                |           |                      |
+| MemGraph  | 498.38 | 73.08  | 75.574         | 131.46    | 142.55               |
+| Cozo      | 137.82 | 35.36  | 35.17          | 32.83     | N/A SEG FAULT        |
 
 Some key notes:
+
+- Network
+  - We compared the results of our pagerank in Raphtory with NetworkX using a directed graph
+  and the results are identical. 
+
 - Kuzu
   - Does not support page rank or connected components
-  - Out neighbours was run as a count as Kuzu emitted runtime errors if you attempt to get all the results
+  - Out neighbours was run in batches of 100k users at a time, as if you attempt to get all users results it crashes and
+  exceeds some buffer size
 
 - Neo4J
   - Due to the way Neo4J imports batch data, the data import was run in offline mode using
