@@ -5,6 +5,7 @@ import time
 from benchmark_base import BenchmarkBase
 import pandas as pd
 import csv
+import pexpect
 
 # Dont fail if not imported locally
 try:
@@ -59,19 +60,26 @@ def run_connected_components(tx):
     return list(result)
 
 
-def execute_bash_command(command, background=False):
+def execute_bash_command(command, background=False, timeout=60):
     print("Executing command: ", command)
     if background:
         subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         return
-    process = subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    stdout, stderr = process.communicate()
-    return stdout.decode("utf-8"), stderr.decode("utf-8")
-
+    try:
+        child = pexpect.spawn(command, timeout=timeout)
+        child.expect(pexpect.EOF)
+        stdout = child.before.decode("utf-8")
+        stderr = child.stderr.decode("utf-8") if child.stderr else None
+    except pexpect.TIMEOUT:
+        print("Command timed out")
+        child.terminate(force=True)
+        stdout, stderr = None, None
+    except Exception as e:
+        print("Error executing command: ", str(e))
+        stdout, stderr = None, None
+    return stdout, stderr
 
 def write_array_to_csv(arr, file_path):
     with open(file_path, "w", newline="") as csv_file:
@@ -144,7 +152,7 @@ class Neo4jBench(BenchmarkBase):
         ports = {"7474": "7474", "7687": "7687"}
         exec_commands = [
             '/bin/bash -c "apt update && apt install python3-pip -y"',
-            '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker matplotlib scipy raphtory"',
+            '/bin/bash -c "python3 -m pip install pexpect neo4j requests tqdm pandas numpy docker matplotlib scipy raphtory"',
             # '/bin/bash -c "neo4j start"',
             # '/bin/bash -c "sleep 15"',
             '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
