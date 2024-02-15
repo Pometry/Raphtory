@@ -135,7 +135,7 @@ def import_data():
 class Neo4jBench(BenchmarkBase):
     def start_docker(self, **kwargs):
         modify_data()
-        image_name = "neo4j:5.8.0"
+        image_name = "neo4j:5.16.0"
         container_folder = "/var/lib/neo4j/import/data2/"
         envs = {
             "NEO4J_AUTH": "neo4j/password",
@@ -144,7 +144,7 @@ class Neo4jBench(BenchmarkBase):
         ports = {"7474": "7474", "7687": "7687"}
         exec_commands = [
             '/bin/bash -c "apt update && apt install python3-pip -y"',
-            '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker"',
+            '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker matplotlib scipy raphtory"',
             # '/bin/bash -c "neo4j start"',
             # '/bin/bash -c "sleep 15"',
             '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',

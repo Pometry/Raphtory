@@ -155,7 +155,7 @@ All the scripts and data were stored on the instance NVME drive.
 
 |           | Setup  | Degree | Out Neighbours | Page Rank | Connected Components |
 |-----------|--------|--------|----------------|-----------|----------------------|
-| Raphtory  | 110.13 | 2.49   | 23.04          | 1.09      | 17.89                |
+| Raphtory  | 63.68  | 2.49   | 23.04          | 1.09      | 17.89                |
 | GraphTool | 194.09 | 0.008  | 43.30          | 4.75      | 3.83                 |
 | Kuzu      | 18.17  | 1.13   | 89.03          | NOT IMPL  | NOT IMPL             |
 | NetworkX  | 130.57 | 1.17   | 24.42          | 162.0     | 160.99               |
