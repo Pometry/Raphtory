@@ -22,3 +22,7 @@ keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
 rust-version = "1.67.1"
 edition = "2021"
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
