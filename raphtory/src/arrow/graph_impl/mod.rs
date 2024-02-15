@@ -123,6 +123,7 @@ impl Graph2 {
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
+        num_threads: usize,
     ) -> Result<Graph2, Error> {
         let edge_list = ExternalEdgeList::new(
             "default",
@@ -134,7 +135,7 @@ impl Graph2 {
             time_col,
         )?;
         let t_graph = TemporalGraph::from_edge_lists(
-            32,
+            num_threads,
             chunk_size,
             t_props_chunk_size,
             read_chunk_size,
