@@ -39,20 +39,24 @@ def query_degree(tx):
 def get_out_neighbors(tx):
     result = tx.run(
         """
-        MATCH p=(n)-[:FOLLOWS]->(neighbor)
-        RETURN n.id, p
+	MATCH (n)-[r]->(m)
+	RETURN n, collect(m) as outgoing_neighbors
     """
     )
     return list(result)
 
 
 def run_pagerank(tx):
-    result = tx.run("""CALL gds.pageRank.stream("social")""")
+    result = tx.run("""CALL gds.pageRank.stream("social") YIELD nodeId, score RETURN nodeId, score""")
     return list(result)
 
 
 def run_connected_components(tx):
-    result = tx.run("""CALL gds.wcc.stream("social")""")
+    result = tx.run(
+        """
+        CALL gds.wcc.stream("social") YIELD nodeId, componentId RETURN componentId, collect(nodeId) as nodes
+    """
+    )
     return list(result)
 
 
@@ -94,7 +98,7 @@ def modify_data():
         write_array_to_csv(
             [["node:START_ID", "node:END_ID", ":TYPE"]],
             file_dir + "simple-relationships-headers-neo4j.csv",
-        )
+            )
 
         print("Generating node data")
         df = pd.read_csv(file_dir + "simple-profiles.csv", sep="\t", header=None)
@@ -111,17 +115,18 @@ def modify_data():
             sep="\t",
             index=None,
             header=None,
-        )
+            )
         print("Done")
 
 
 def import_data():
+    execute_bash_command("chmod -R 777 /var/lib/neo4j/import/data2/")
     return execute_bash_command(
         "neo4j-admin database import full --overwrite-destination --delimiter='TAB' "
         "--nodes=/var/lib/neo4j/import/data2/data/simple-profiles-header-neo4j.csv,"
         "/var/lib/neo4j/import/data2/data/simple-profiles-neo4j.csv "
         "--relationships=/var/lib/neo4j/import/data2/data/simple-relationships-headers-neo4j.csv,"
-        "/var/lib/neo4j/import/data2/data/simple-relationships-neo4j.csv neo4j2"
+        "/var/lib/neo4j/import/data2/data/simple-relationships-neo4j.csv neo4j"
     )
     # tx.run("""
     # LOAD CSV FROM 'file:///data2/data/simple-relationships.csv' AS row
@@ -148,7 +153,8 @@ class Neo4jBench(BenchmarkBase):
             '/bin/bash -c "python3 -m pip install pexpect neo4j requests tqdm pandas numpy docker matplotlib scipy raphtory"',
             # '/bin/bash -c "neo4j start"',
             # '/bin/bash -c "sleep 15"',
-            # '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
+            #'/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
+            'tail -f /dev/null',
         ]
         # image_path = 'DockerFiles/pyneo' image_path ports
         code, contents = super().start_docker(
@@ -200,11 +206,11 @@ class Neo4jBench(BenchmarkBase):
         print("Done")
 
     def execute_read(self, query):
-        with self.driver.session(database="neo4j2") as session:
+        with self.driver.session() as session:
             return session.execute_read(query)
 
     def execute_write(self, query):
-        with self.driver.session(database="neo4j2") as session:
+        with self.driver.session() as session:
             session.execute_write(query)
 
     def degree(self):
