@@ -546,7 +546,8 @@ impl TempColGraphFragment {
 
         let reader = ParquetReader::new_from_filelist(graph_dir, files, time_col, &excluded_cols)?;
 
-        let t_prop_values = reader.load_t_edge_values(num_threads, t_props_chunk_size)?;
+        let t_prop_values =
+            reader.load_t_edge_values(NonZeroUsize::new(1).unwrap(), t_props_chunk_size)?;
         println!("COPY T prop values took {:?}", now.elapsed());
 
         let edges = Edges::new(
