@@ -1,5 +1,5 @@
 from benchmark_base import BenchmarkBase
-import csv
+import pandas as pd
 import multiprocessing
 
 # Dont fail if not imported locally
@@ -42,11 +42,9 @@ class RaphtoryBench(BenchmarkBase):
 
     def setup(self):
         # Load edges
-        self.graph = raphtory.Graph()
-        with open(simple_relationship_file, "r") as f:
-            reader = csv.reader(f, delimiter="\t")
-            for row in reader:
-                self.graph.add_edge(1, row[0], row[1], {})
+        df = pd.read_csv("simple-relationships.csv", delimiter="\t", header=None, names=["src", "dst"])
+        df['time'] = 1
+        self.graph = raphtory.Graph.load_from_pandas(df, "src", "dst", "time")
 
     def degree(self):
         return self.graph.nodes.degree().collect()
