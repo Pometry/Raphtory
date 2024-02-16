@@ -157,7 +157,7 @@ All the scripts and data were stored on the instance NVME drive.
 | GraphTool | 194.09 | 0.008  | 43.30          | 4.75      | 3.83                 |
 | Kuzu      | 18.17  | 1.13   | 89.03          | NOT IMPL  | NOT IMPL             |
 | NetworkX  | 130.57 | 1.17   | 24.42          | 162.0     | 160.99               |
-| Neo4J     | 61.09  | 9.40   | 8.68           |           |                      |
+| Neo4J     | 61.09  | 9.40   | 1296.30        |           |                      |
 | MemGraph  | 498.38 | 73.08  | 75.574         | 131.46    | 142.55               |
 | Cozo      | 137.82 | 35.36  | 35.17          | 32.83     | N/A SEG FAULT        |
 
