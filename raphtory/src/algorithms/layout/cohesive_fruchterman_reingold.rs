@@ -1,10 +1,18 @@
-use crate::algorithms::components::weakly_connected_components;
-use crate::db::api::properties::internal::ConstPropertiesOps;
-use crate::db::api::view::internal::{CoreGraphOps, GraphOps};
-use crate::db::api::view::MaterializedGraph;
-use crate::db::graph::node::NodeView;
 use crate::{
-    algorithms::layout::{fruchterman_reingold::fruchterman_reingold_unbounded, NodeVectors},
+    algorithms::{
+        components::weakly_connected_components,
+        layout::{fruchterman_reingold::fruchterman_reingold_unbounded, NodeVectors},
+    },
+    db::{
+        api::{
+            properties::internal::ConstPropertiesOps,
+            view::{
+                internal::{CoreGraphOps, GraphOps},
+                MaterializedGraph,
+            },
+        },
+        graph::node::NodeView,
+    },
     prelude::{AdditionOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
 use itertools::Itertools;
