@@ -1,10 +1,12 @@
+use std::any::Any;
+
 use itertools::Itertools;
 use num_integer::average_floor;
 // use num::integer::average_floor;
 extern crate num_integer;
 
 use crate::{
-    core::entities::vertices::vertex_ref::VertexRef,
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             mutation::AdditionOps,
@@ -15,7 +17,7 @@ use crate::{
         },
         graph::graph::Graph,
     },
-    prelude::{EdgeListOps, EdgeViewOps, GraphViewOps, PropUnwrap, VertexViewOps, NO_PROPS},
+    prelude::*,
 };
 
 #[derive(Clone)]
@@ -24,28 +26,34 @@ struct Visitor {
     time: i64,
 }
 
-pub fn temporal_bipartite_projection<G: GraphViewOps>(
+pub fn temporal_bipartite_projection<G: StaticGraphViewOps>(
     graph: &G,
     delta: i64,
     pivot_type: String,
 ) -> Graph {
     let new_graph = Graph::new();
     let nodes = graph
-        .vertices()
+        .nodes()
         .iter()
-        .filter(|v| v.properties().get("Type").unwrap_str() == pivot_type);
+        .filter(|v| v.node_type().unwrap() == pivot_type);
     for v in nodes {
         populate_edges(graph, &new_graph, v, delta)
     }
     new_graph
 }
 
-fn populate_edges<G: GraphViewOps, V: Into<VertexRef>>(g: &G, new_graph: &Graph, v: V, delta: i64) {
-    if let Some(vertex) = g.vertex(v) {
+fn populate_edges<G: StaticGraphViewOps, V: Into<NodeRef>>(
+    g: &G,
+    new_graph: &Graph,
+    v: V,
+    delta: i64,
+) {
+    if let Some(vertex) = g.node(v) {
         // get vector of vertices which need connecting up
         let mut visitors = vertex
             .in_edges()
             .explode()
+            .iter()
             .map(|e| Visitor {
                 name: e.src().name(),
                 time: e.time().unwrap(),
@@ -100,18 +108,16 @@ mod bipartite_graph_tests {
             (11, "B", "4"),
         ];
         for (t, src, dst) in &vs {
-            g.add_vertex(*t, *src, [("Type", Prop::Str("Left".into()))])
-                .unwrap();
-            g.add_vertex(*t, *dst, [("Type", Prop::Str("Right".into()))])
-                .unwrap();
+            g.add_node(*t, *src, NO_PROPS, Some("Left")).unwrap();
+            g.add_node(*t, *dst, NO_PROPS, Some("Right")).unwrap();
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
         let new_graph = temporal_bipartite_projection(&g, 1, "Right".to_string());
-        assert!(new_graph.has_edge("A", "B", Layer::All));
+        assert!(new_graph.has_edge("A", "B"));
         assert_eq!(new_graph.edge("A", "B").unwrap().latest_time(), Some(3));
-        assert!(new_graph.has_edge("C", "B", Layer::All));
+        assert!(new_graph.has_edge("C", "B"));
         assert_eq!(new_graph.edge("C", "B").unwrap().latest_time(), Some(10));
-        assert!(!new_graph.has_edge("A", "C", Layer::All));
+        assert!(!new_graph.has_edge("A", "C"));
     }
 
     #[test]
@@ -128,19 +134,17 @@ mod bipartite_graph_tests {
             (11, "B", "4"),
         ];
         for (t, src, dst) in &vs {
-            g.add_vertex(*t, *src, [("Type", Prop::Str("Left".into()))])
-                .unwrap();
-            g.add_vertex(*t, *dst, [("Type", Prop::Str("Right".into()))])
-                .unwrap();
+            g.add_node(*t, *src, NO_PROPS, Some("Left")).unwrap();
+            g.add_node(*t, *dst, NO_PROPS, Some("Right")).unwrap();
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
         let new_graph = temporal_bipartite_projection(&g, 3, "Right".to_string());
-        assert!(new_graph.has_edge("A", "B", Layer::All));
+        assert!(new_graph.has_edge("A", "B"));
         assert_eq!(new_graph.edge("A", "B").unwrap().earliest_time(), Some(3));
         assert_eq!(new_graph.edge("B", "A").unwrap().latest_time(), Some(7));
-        assert!(new_graph.has_edge("C", "B", Layer::All));
+        assert!(new_graph.has_edge("C", "B"));
         assert_eq!(new_graph.edge("C", "B").unwrap().earliest_time(), Some(5));
         assert_eq!(new_graph.edge("C", "B").unwrap().latest_time(), Some(10));
-        assert!(!new_graph.has_edge("A", "C", Layer::All));
+        assert!(!new_graph.has_edge("A", "C"));
     }
 }
