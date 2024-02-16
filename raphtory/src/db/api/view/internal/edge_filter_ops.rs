@@ -49,11 +49,11 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         }
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
-            TimeIndexLike::TimeIndex(ref t) => t.iter_t(),
-            TimeIndexLike::External(ref t) => t.iter_t(),
-            TimeIndexLike::BoxExternal(ref t) => t.iter_t(),
+            TimeIndexLike::TimeIndex(ref t) => t.iter(),
+            TimeIndexLike::External(ref t) => t.iter(),
+            TimeIndexLike::BoxExternal(ref t) => t.iter(),
         }
     }
 }

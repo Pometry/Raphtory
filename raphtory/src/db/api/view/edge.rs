@@ -190,10 +190,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn active(&self, t: i64) -> Self::ValueType<bool> {
         self.map(move |g, e| match e.time() {
             Some(tt) => {
-                *tt.t() <= t
+                tt.t() <= t
                     && t <= g
                         .edge_latest_time(e, g.layer_ids().constrain_from_edge(e))
-                        .unwrap_or(*tt.t())
+                        .unwrap_or(tt.t())
             }
             None => {
                 let window_filter = g.include_edge_window();

@@ -11,6 +11,7 @@ use std::{
     cmp::{max, min},
     collections::BTreeSet,
     fmt::Debug,
+    iter,
     marker::PhantomData,
     ops::{Deref, Range},
     sync::Arc,
@@ -20,10 +21,10 @@ use std::{
 pub struct TimeIndexEntry(pub i64, pub usize);
 
 pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync {
-    fn t(&self) -> &i64;
+    fn t(&self) -> i64;
 
     fn dt(&self) -> Option<DateTime<Utc>> {
-        let t = *self.t();
+        let t = self.t();
         NaiveDateTime::from_timestamp_millis(t).map(|dt| dt.and_utc())
     }
 
@@ -65,8 +66,8 @@ impl TimeIndexEntry {
 }
 
 impl AsTime for i64 {
-    fn t(&self) -> &i64 {
-        self
+    fn t(&self) -> i64 {
+        *self
     }
 
     fn range(w: Range<i64>) -> Range<Self> {
@@ -75,8 +76,8 @@ impl AsTime for i64 {
 }
 
 impl AsTime for TimeIndexEntry {
-    fn t(&self) -> &i64 {
-        &self.0
+    fn t(&self) -> i64 {
+        self.0
     }
     fn range(w: Range<i64>) -> Range<Self> {
         Self::start(w.start)..Self::start(w.end)
@@ -128,33 +129,33 @@ impl<T: AsTime> TimeIndex<T> {
     pub(crate) fn contains(&self, w: Range<i64>) -> bool {
         match self {
             TimeIndex::Empty => false,
-            TimeIndex::One(t) => w.contains(t.t()),
+            TimeIndex::One(t) => w.contains(&t.t()),
             TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
         }
     }
 
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = &T> + Send + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
         match self {
-            TimeIndex::Empty => Box::new(std::iter::empty()),
-            TimeIndex::One(t) => Box::new(std::iter::once(t)),
-            TimeIndex::Set(ts) => Box::new(ts.iter()),
+            TimeIndex::Empty => Box::new(iter::empty()),
+            TimeIndex::One(t) => Box::new(iter::once(*t)),
+            TimeIndex::Set(ts) => Box::new(ts.iter().copied()),
         }
     }
 
     pub(crate) fn range_iter(
         &self,
         w: Range<i64>,
-    ) -> Box<dyn DoubleEndedIterator<Item = &T> + Send + '_> {
+    ) -> Box<dyn DoubleEndedIterator<Item = T> + Send + '_> {
         match self {
-            TimeIndex::Empty => Box::new(std::iter::empty()),
+            TimeIndex::Empty => Box::new(iter::empty()),
             TimeIndex::One(t) => {
-                if w.contains(t.t()) {
-                    Box::new(std::iter::once(t))
+                if w.contains(&t.t()) {
+                    Box::new(iter::once(*t))
                 } else {
-                    Box::new(std::iter::empty())
+                    Box::new(iter::empty())
                 }
             }
-            TimeIndex::Set(ts) => Box::new(ts.range(T::range(w))),
+            TimeIndex::Set(ts) => Box::new(ts.range(T::range(w)).copied()),
         }
     }
 
@@ -163,7 +164,7 @@ impl<T: AsTime> TimeIndex<T> {
     pub(crate) fn range_iter_forward(
         &self,
         w: Range<i64>,
-    ) -> Box<dyn Iterator<Item = &T> + Send + '_> {
+    ) -> Box<dyn Iterator<Item = T> + Send + '_> {
         Box::new(self.range_iter(w))
     }
 }
@@ -179,24 +180,6 @@ pub enum TimeIndexWindow<'a, T: AsTime> {
 
 pub struct LayeredTimeIndexWindow<'a, T: AsTime> {
     timeindex: Vec<Box<dyn TimeIndexOps<IndexType = T> + 'a>>,
-}
-
-pub enum WindowIter<'a> {
-    Empty,
-    TimeIndexRange(Box<dyn Iterator<Item = &'a i64> + Send + 'a>),
-    All(Box<dyn Iterator<Item = &'a i64> + Send + 'a>),
-}
-
-impl<'a> Iterator for WindowIter<'a> {
-    type Item = &'a i64;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            WindowIter::Empty => None,
-            WindowIter::TimeIndexRange(iter) => iter.next(),
-            WindowIter::All(iter) => iter.next(),
-        }
-    }
 }
 
 pub enum LockedLayeredIndex<'a, T: AsTime> {
@@ -235,10 +218,10 @@ impl<'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
         }
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
-            LockedLayeredIndex::LayeredIndex(t) => t.iter_t(),
-            LockedLayeredIndex::External(t) => t.iter_t(),
+            LockedLayeredIndex::LayeredIndex(t) => t.iter(),
+            LockedLayeredIndex::External(t) => t.iter(),
         }
     }
 }
@@ -288,9 +271,8 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> TimeIndexOps
         self.view.iter().flat_map(|t| t.last()).max()
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
-        let iter = self.view.iter().map(|t| t.iter_t()).kmerge().dedup();
-        Box::new(iter)
+    fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
+        Box::new(self.view.iter().map(|t| t.iter()).kmerge().dedup())
     }
 }
 
@@ -299,24 +281,49 @@ pub trait TimeIndexOps {
 
     fn active(&self, w: Range<i64>) -> bool;
 
-    fn range<'a>(
-        &'a self,
-        w: Range<i64>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
 
     fn first_t(&self) -> Option<i64> {
-        self.first().map(|ti| *ti.t())
+        self.first().map(|ti| ti.t())
     }
 
     fn first(&self) -> Option<Self::IndexType>;
 
     fn last_t(&self) -> Option<i64> {
-        self.last().map(|ti| *ti.t())
+        self.last().map(|ti| ti.t())
     }
 
     fn last(&self) -> Option<Self::IndexType>;
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_>;
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_>;
+
+    fn iter_t(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
+        Box::new(self.iter().map(|time| time.t()))
+    }
+}
+
+impl<'a, T: TimeIndexOps> TimeIndexOps for &'a T {
+    type IndexType = T::IndexType;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        T::active(self, w)
+    }
+
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        T::range(self, w)
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        T::first(self)
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        T::last(self)
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = T::IndexType> + Send + '_> {
+        T::iter(self)
+    }
 }
 
 impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
@@ -326,7 +333,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     fn active(&self, w: Range<i64>) -> bool {
         match &self {
             TimeIndex::Empty => false,
-            TimeIndex::One(t) => w.contains(t.t()),
+            TimeIndex::One(t) => w.contains(&t.t()),
             TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
         }
     }
@@ -335,7 +342,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         match &self {
             TimeIndex::Empty => Box::new(TimeIndexWindow::Empty),
             TimeIndex::One(t) => {
-                if w.contains(t.t()) {
+                if w.contains(&t.t()) {
                     Box::new(TimeIndexWindow::All(self))
                 } else {
                     Box::new(TimeIndexWindow::Empty)
@@ -344,7 +351,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
             TimeIndex::Set(ts) => {
                 if let Some(min_val) = ts.first() {
                     if let Some(max_val) = ts.last() {
-                        if min_val.t() >= &w.start && max_val.t() < &w.end {
+                        if min_val.t() >= w.start && max_val.t() < w.end {
                             Box::new(TimeIndexWindow::All(self))
                         } else {
                             Box::new(TimeIndexWindow::TimeIndexRange {
@@ -378,11 +385,11 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
         }
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
-            TimeIndex::Empty => Box::new(std::iter::empty()),
-            TimeIndex::One(t) => Box::new(std::iter::once(t.t())),
-            TimeIndex::Set(ts) => Box::new(ts.iter().map(|ti| ti.t())),
+            TimeIndex::Empty => Box::new(iter::empty()),
+            TimeIndex::One(t) => Box::new(iter::once(*t)),
+            TimeIndex::Set(ts) => Box::new(ts.iter().copied()),
         }
     }
 }
@@ -428,7 +435,7 @@ where
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next().copied()
+                timeindex.range_iter(range.clone()).next()
             }
             TimeIndexWindow::All(timeindex) => timeindex.first(),
         }
@@ -438,21 +445,19 @@ where
         match self {
             TimeIndexWindow::Empty => None,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                timeindex.range_iter(range.clone()).next_back().copied()
+                timeindex.range_iter(range.clone()).next_back()
             }
             TimeIndexWindow::All(timeindex) => timeindex.last(),
         }
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
         match self {
-            TimeIndexWindow::Empty => Box::new(WindowIter::Empty),
+            TimeIndexWindow::Empty => Box::new(iter::empty()),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
-                Box::new(WindowIter::TimeIndexRange(Box::new(
-                    timeindex.range_iter_forward(range.clone()).map(|t| t.t()),
-                )))
+                Box::new(timeindex.range_iter_forward(range.clone()))
             }
-            TimeIndexWindow::All(timeindex) => Box::new(WindowIter::All(timeindex.iter_t())),
+            TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter()),
         }
     }
 }
@@ -487,7 +492,7 @@ where
         self.timeindex.iter().flat_map(|t| t.last()).max()
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
-        Box::new(self.timeindex.iter().map(|t| t.iter_t()).kmerge())
+    fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
+        Box::new(self.timeindex.iter().map(|t| t.iter()).kmerge())
     }
 }
