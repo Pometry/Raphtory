@@ -1,11 +1,16 @@
+use crate::{
+    core::{ArcStr, Prop},
+    db::api::view::node::BaseNodeViewOps,
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    python::graph::views::graph_view::PyGraphView,
+};
+use pyo3::{
+    prelude::PyModule,
+    pymethods,
+    types::{PyDict, PyList, PyTuple},
+    IntoPy, PyObject, PyResult, Python, ToPyObject,
+};
 use std::collections::HashMap;
-use pyo3::{pymethods, PyObject, PyResult, Python, ToPyObject};
-use pyo3::prelude::PyModule;
-use pyo3::types::{PyDict, PyTuple};
-use crate::core::{ArcStr, Prop};
-use crate::prelude::{EdgeViewOps, GraphViewOps, NodeViewOps};
-use crate::python::graph::views::graph_view::PyGraphView;
-use crate::db::api::view::node::BaseNodeViewOps;
 #[pymethods]
 impl PyGraphView {
     /// Converts the graph's nodes into a Pandas DataFrame.
@@ -170,44 +175,106 @@ impl PyGraphView {
     ///     Returns:
     ///         A Networkx MultiDiGraph.
     #[pyo3(signature = (explode_edges=false, include_node_properties=true, include_edge_properties=true,include_update_history=true,include_property_histories=true))]
-    pub fn to_networkx(&self,
-        explode_edges:Option<bool>,
+    pub fn to_networkx(
+        &self,
+        explode_edges: Option<bool>,
         include_node_properties: Option<bool>,
         include_edge_properties: Option<bool>,
         include_update_history: Option<bool>,
-        include_property_histories: Option<bool>
+        include_property_histories: Option<bool>,
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            Python::with_gil(|py| {
-                let networkx = py.import("networkx")?.getattr("MultiDiGraph")?.call0()?;
-                let mut node_tuples = Vec::new();
+            let networkx = py.import("networkx")?.getattr("MultiDiGraph")?.call0()?;
 
-                for v in self.graph.nodes().iter() {
-                    let properties = PyDict::new(py);
-
-                    if include_node_properties.unwrap_or(true) {
-                        if include_property_histories.unwrap_or(true) {
-                            properties.set_item("constant", v.properties().constant().map(|k, v| {
-
-                            }))?;
-                            properties.set_item("temporal", v.properties().temporal().histories().to_object(py))?;
-                        } else {
-                            for (key, value) in v.properties().as_map() {
-                                properties.set_item(key, value.to_object(py))?;
-                            }
+            let mut node_tuples = Vec::new();
+            for v in self.graph.nodes().iter() {
+                let properties = PyDict::new(py);
+                if include_node_properties.unwrap_or(true) {
+                    if include_property_histories.unwrap_or(true) {
+                        let const_props = v.properties().constant().as_map();
+                        let const_props_py = PyDict::new(py);
+                        for (key, value) in const_props {
+                            const_props_py.set_item(key, value.into_py(py))?;
+                        }
+                        properties.set_item("constant", const_props_py)?;
+                        properties.set_item(
+                            "temporal",
+                            PyList::new(py, v.properties().temporal().histories()),
+                        )?;
+                    } else {
+                        for (key, value) in v.properties().as_map() {
+                            properties.set_item(key, value.into_py(py))?;
                         }
                     }
-                    if include_update_history.unwrap_or(true) {
-                        properties.set_item("update_history", v.history().to_object(py))?;
-                    }
-
-                    let node_tuple = PyTuple::new(py, &[v.name().to_object(py), properties.to_object(py)]);
-                    node_tuples.push(node_tuple);
                 }
+                if include_update_history.unwrap_or(true) {
+                    properties.set_item("update_history", v.history().to_object(py))?;
+                }
+                let node_tuple =
+                    PyTuple::new(py, &[v.name().to_object(py), properties.to_object(py)]);
+                node_tuples.push(node_tuple);
+            }
+            networkx.call_method1("add_nodes_from", (node_tuples,))?;
 
-                networkx.call_method1("add_nodes_from", (node_tuples,))?;
-                Ok(networkx.to_object(py))
-            })
+            let mut edge_tuples = Vec::new();
+            let edges = if explode_edges.unwrap_or(false) {
+                self.graph.edges().explode()
+            } else {
+                self.graph.edges().explode_layers()
+            };
+
+            for e in edges.iter() {
+                let properties = PyDict::new(py);
+                let src = e.src().name();
+                let dst = e.dst().name();
+                if include_edge_properties.unwrap_or(true) {
+                    if include_property_histories.unwrap_or(true) {
+                        let const_props = e.properties().constant().as_map();
+                        let const_props_py = PyDict::new(py);
+                        for (key, value) in const_props {
+                            const_props_py.set_item(key, value.into_py(py))?;
+                        }
+                        properties.set_item("constant", const_props_py)?;
+                        let prop_hist = e.properties().temporal().histories();
+                        let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
+                        for (key, value) in prop_hist {
+                            prop_hist_map.entry(key).or_insert_with(Vec::new).push(value);
+                        }
+                        let output: Vec<(ArcStr, Vec<(i64, Prop)>)> = prop_hist_map.into_iter().collect();
+                        properties.set_item(
+                            "temporal",
+                            PyList::new(py, output),
+                        )?;
+                    } else {
+                        for (key, value) in e.properties().as_map() {
+                            properties.set_item(key, value.into_py(py))?;
+                        }
+                    }
+                }
+                let layer = e.layer_name();
+                if layer.is_some() {
+                    properties.set_item("layer", layer)?;
+                }
+                if include_update_history.unwrap_or(true) {
+                    if explode_edges.unwrap_or(true) {
+                        properties.set_item("update_history", e.time())?;
+                    } else {
+                        properties.set_item("update_history", e.history())?;
+                    }
+                }
+                let edge_tuple = PyTuple::new(
+                    py,
+                    &[
+                        src.to_object(py),
+                        dst.to_object(py),
+                        properties.to_object(py),
+                    ],
+                );
+                edge_tuples.push(edge_tuple);
+            }
+            networkx.call_method1("add_edges_from", (edge_tuples,))?;
+
+            Ok(networkx.to_object(py))
         })
     }
 }

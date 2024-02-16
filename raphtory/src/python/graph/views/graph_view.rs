@@ -27,10 +27,7 @@ use crate::{
     },
 };
 use chrono::prelude::*;
-use pyo3::{
-    prelude::*,
-    types::{PyBytes},
-};
+use pyo3::{prelude::*, types::PyBytes};
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
@@ -277,7 +274,6 @@ impl PyGraphView {
     pub fn __repr__(&self) -> String {
         self.repr()
     }
-
 }
 
 impl Repr for PyGraphView {

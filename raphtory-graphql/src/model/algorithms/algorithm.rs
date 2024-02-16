@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::model::algorithms::{
     algorithm_entry_point::AlgorithmEntryPoint, graph_algorithms::GraphAlgorithms,
 };
@@ -14,15 +12,9 @@ use dynamic_graphql::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::{
-    algorithms::{
-        centrality::pagerank::unweighted_page_rank,
-        pathing::{
-            dijkstra::dijkstra_single_source_shortest_paths,
-            single_source_shortest_path::single_source_shortest_path,
-        },
-    },
-    db::api::view::LayerOps,
+use raphtory::algorithms::{
+    centrality::pagerank::unweighted_page_rank,
+    pathing::dijkstra::dijkstra_single_source_shortest_paths,
 };
 
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
