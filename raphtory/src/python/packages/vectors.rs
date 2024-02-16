@@ -28,7 +28,7 @@ use itertools::Itertools;
 use pyo3::{
     exceptions::{PyAttributeError, PyException, PyTypeError},
     prelude::*,
-    types::{PyFunction, PyList},
+    types::{PyFunction, PyList, PyTuple},
 };
 use std::{path::PathBuf, sync::Arc};
 

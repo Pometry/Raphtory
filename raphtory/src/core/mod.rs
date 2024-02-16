@@ -236,6 +236,7 @@ impl Prop {
             }
             Prop::DTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+            Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()),
         }
     }
 

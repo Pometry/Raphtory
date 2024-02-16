@@ -302,7 +302,8 @@ age: 30"###;
         for doc_content in FAKE_DOCUMENTS {
             assert!(
                 docs.iter().any(|doc| match doc {
-                    Document::Node { content, name } => content == doc_content && name == "test",
+                    Document::Node { content, name, .. } =>
+                        content == doc_content && name == "test",
                     _ => false,
                 }),
                 "document {doc_content:?} is not present in the result: {docs:?}"
@@ -363,7 +364,8 @@ age: 30"###;
             .get_documents();
         assert!(
             match &docs[..] {
-                [Document::Node { name, content }] => name == "test" && content == "event at 20",
+                [Document::Node { name, content, .. }] =>
+                    name == "test" && content == "event at 20",
                 _ => false,
             },
             "{docs:?} has the wrong content"
@@ -375,7 +377,7 @@ age: 30"###;
             .get_documents();
         assert!(
             match &docs[..] {
-                [Document::Node { name, content }] =>
+                [Document::Node { name, content, .. }] =>
                     name == "test" && content == "interval from 30 to 40",
                 _ => false,
             },

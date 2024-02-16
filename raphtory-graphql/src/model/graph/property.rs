@@ -71,6 +71,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         ),
         Prop::DTime(t) => GqlValue::Number(t.timestamp_millis().into()),
         Prop::Graph(g) => GqlValue::String(g.to_string()),
+        Prop::Document(d) => GqlValue::String(d.content.to_owned()), // TODO: GqlDocument??
     }
 }
 
