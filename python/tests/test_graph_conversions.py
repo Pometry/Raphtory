@@ -40,110 +40,115 @@ def test_py_vis():
     g = build_graph()
     pyvis_g = export.to_pyvis(g, directed=True)
 
-    compare_list_of_dicts(pyvis_g.nodes, [
-        {
-            "color": "#97c2fc",
-            "id": 7678824742430955432,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerA",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 7718004695861170879,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerB",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 17918514325589227856,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerC",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 14902018402467198225,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerD",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 11577954539736240602,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerE",
-            "shape": "dot",
-        },
-    ])
+    compare_list_of_dicts(
+        pyvis_g.nodes,
+        [
+            {
+                "color": "#97c2fc",
+                "id": 7678824742430955432,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerA",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 7718004695861170879,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerB",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 17918514325589227856,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerC",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 14902018402467198225,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerD",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 11577954539736240602,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerE",
+                "shape": "dot",
+            },
+        ],
+    )
 
-
-    compare_list_of_dicts(pyvis_g.edges, [
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7678824742430955432,
-            "title": "",
-            "to": 7718004695861170879,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7678824742430955432,
-            "title": "",
-            "to": 17918514325589227856,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7718004695861170879,
-            "title": "",
-            "to": 14902018402467198225,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 17918514325589227856,
-            "title": "",
-            "to": 7678824742430955432,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 14902018402467198225,
-            "title": "",
-            "to": 17918514325589227856,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 14902018402467198225,
-            "title": "",
-            "to": 11577954539736240602,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 11577954539736240602,
-            "title": "",
-            "to": 7718004695861170879,
-            "value": 1,
-        },
-    ])
+    compare_list_of_dicts(
+        pyvis_g.edges,
+        [
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7678824742430955432,
+                "title": "",
+                "to": 7718004695861170879,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7678824742430955432,
+                "title": "",
+                "to": 17918514325589227856,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7718004695861170879,
+                "title": "",
+                "to": 14902018402467198225,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 17918514325589227856,
+                "title": "",
+                "to": 7678824742430955432,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 14902018402467198225,
+                "title": "",
+                "to": 17918514325589227856,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 14902018402467198225,
+                "title": "",
+                "to": 11577954539736240602,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 11577954539736240602,
+                "title": "",
+                "to": 7718004695861170879,
+                "value": 1,
+            },
+        ],
+    )
 
 
 def test_networkx_full_history():
@@ -903,33 +908,33 @@ def save_df_to_json(df, filename):
 def build_to_df():
     g = build_graph()
 
-    edge_df = export.to_edge_df(g)
+    edge_df = g.to_edge_df()
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_all.json")
-    edge_df = export.to_edge_df(g, include_edge_properties=False)
+    edge_df = g.to_edge_df(include_edge_properties=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_props.json")
-    edge_df = export.to_edge_df(g, include_update_history=False)
+    edge_df = g.to_edge_df(include_update_history=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_hist.json")
-    edge_df = export.to_edge_df(g, include_property_histories=False)
+    edge_df = g.to_edge_df(include_property_histories=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_prop_hist.json")
 
-    edge_df = export.to_edge_df(g, explode_edges=True)
+    edge_df = g.to_edfe_df(explode_edges=True)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded.json")
-    edge_df = export.to_edge_df(g, explode_edges=True, include_edge_properties=False)
+    edge_df = g.to_edfe_df(explode_edges=True, include_edge_properties=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_props.json")
-    edge_df = export.to_edge_df(g, explode_edges=True, include_update_history=False)
+    edge_df = g.to_edfe_df(explode_edges=True, include_update_history=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_hist.json")
-    edge_df = export.to_edge_df(g, explode_edges=True, include_property_histories=False)
+    edge_df = g.to_edfe_df(explode_edges=True, include_property_histories=False)
     save_df_to_json(
         edge_df, "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
     )
 
-    node_df = export.to_node_df(g)
+    node_df = g.to_edge_df()
     save_df_to_json(node_df, "expected/dataframe_output/node_df_all.json")
-    node_df = export.to_node_df(g, include_node_properties=False)
+    node_df = g.to_edge_df(include_node_properties=False)
     save_df_to_json(node_df, "expected/dataframe_output/node_df_no_props.json")
-    node_df = export.to_node_df(g, include_update_history=False)
+    node_df = g.to_edge_df(include_update_history=False)
     save_df_to_json(node_df, "expected/dataframe_output/node_df_no_hist.json")
-    node_df = export.to_node_df(g, include_property_histories=False)
+    node_df = g.to_edge_df(include_property_histories=False)
     save_df_to_json(node_df, "expected/dataframe_output/node_df_no_prop_hist.json")
 
 
@@ -959,73 +964,73 @@ def normalise_dict(d):
 
 
 def compare_list_of_dicts(list1, list2):
-    assert sorted(normalise_dict(v) for v in list1) == sorted(normalise_dict(v) for v in list2)
-
+    assert sorted(normalise_dict(v) for v in list1) == sorted(
+        normalise_dict(v) for v in list2
+    )
 
 
 def test_to_df():
     g = build_graph()
 
     compare_df(
-        export.to_edge_df(g),
+        g.to_edge_df(),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, include_edge_properties=False),
+        g.to_edge_df(include_edge_properties=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, include_update_history=False),
+        g.to_edge_df(include_update_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_hist.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, include_property_histories=False),
+        g.to_edge_df(include_property_histories=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_prop_hist.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, explode_edges=True),
+        g.to_edge_df(explode_edges=True),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded.json"),
     )
+
     compare_df(
-        export.to_edge_df(g, explode_edges=True, include_edge_properties=False),
+        g.to_edge_df(explode_edges=True, include_edge_properties=False),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"
         ),
     )
 
     compare_df(
-        export.to_edge_df(g, explode_edges=True, include_update_history=False),
+        g.to_edge_df(explode_edges=True, include_update_history=False),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"
         ),
     )
 
     compare_df(
-        export.to_edge_df(g, explode_edges=True, include_property_histories=False),
+        g.to_edge_df(explode_edges=True, include_property_histories=False),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
         ),
     )
 
     compare_df(
-        export.to_node_df(g),
+        g.to_node_df(),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_all.json"),
     )
     compare_df(
-        export.to_node_df(g, include_node_properties=False),
+        g.to_node_df(include_node_properties=False),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_props.json"),
     )
     compare_df(
-        export.to_node_df(g, include_update_history=False),
+        g.to_node_df(include_update_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_hist.json"),
     )
     compare_df(
-        export.to_node_df(g, include_property_histories=False),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"
-        ),
+        g.to_node_df(include_property_histories=False),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"),
     )

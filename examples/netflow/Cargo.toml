@@ -7,11 +7,11 @@ edition = "2021"
 
 [dependencies]
 raphtory = {path = "../../raphtory", features = ["python"]}
-pyo3 = "0.19.2"
+pyo3 = "0.20.0"
 
 [lib]
 crate-type = ["cdylib"]
 
 
 [build-dependencies]
-pyo3-build-config = "0.19.2"
+pyo3-build-config = "0.20.0"

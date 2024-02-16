@@ -12,6 +12,7 @@ pub async fn openai_embedding(texts: Vec<String>) -> Vec<Embedding> {
         model: "text-embedding-ada-002".to_owned(),
         input: EmbeddingInput::StringArray(texts),
         user: None,
+        encoding_format: None,
     };
     let response = client.embeddings().create(request).await.unwrap();
     println!("Generated embeddings successfully");

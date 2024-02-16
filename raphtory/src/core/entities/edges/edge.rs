@@ -106,7 +106,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let t_index = entry.map(|entry| entry.additions());
+                let t_index = entry.map(|entry| &entry.additions);
                 Some(LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
                     layer_ids, t_index,
                 )))
@@ -121,7 +121,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     ) -> Option<LockedLayeredIndex<'a, TimeIndexEntry>> {
         match self.edge_id {
             ERef::ERef(entry) => {
-                let t_index = entry.map(|entry| entry.deletions());
+                let t_index = entry.map(|entry| &entry.deletions);
                 Some(LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
                     layer_ids, t_index,
                 )))
@@ -274,9 +274,9 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         f: F,
     ) -> bool {
         match layer_ids {
-            LayerIds::All => e.additions().iter().any(f),
-            LayerIds::One(id) => f(&e.additions()[id]),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| f(&e.additions()[*id])),
+            LayerIds::All => e.additions.iter().any(f),
+            LayerIds::One(id) => f(&e.additions[id]),
+            LayerIds::Multiple(ids) => ids.iter().any(|id| f(&e.additions[*id])),
             LayerIds::None => false,
         }
     }

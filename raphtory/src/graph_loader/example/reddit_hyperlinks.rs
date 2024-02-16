@@ -131,10 +131,10 @@ pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
                                     Prop::F64(post_properties[20]),
                                 ),
                             ];
-                            g.add_node(time, *src_id, NO_PROPS)
+                            g.add_node(time, *src_id, NO_PROPS, None)
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
-                            g.add_node(time, *dst_id, NO_PROPS)
+                            g.add_node(time, *dst_id, NO_PROPS, None)
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
                             g.add_edge(time, *src_id, *dst_id, edge_properties, None)

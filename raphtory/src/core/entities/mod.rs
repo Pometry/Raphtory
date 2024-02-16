@@ -23,6 +23,10 @@ pub mod properties;
 pub struct VID(pub usize);
 
 impl VID {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
     pub fn as_u64(&self) -> u64 {
         self.0 as u64
     }
@@ -180,6 +184,10 @@ impl LayerIds {
 
     pub fn contains(&self, layer_id: &usize) -> bool {
         self.find(*layer_id).is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, LayerIds::None)
     }
 }
 

@@ -132,8 +132,9 @@ impl ArcEdge {
         &self,
         layer: LayerIds,
     ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + Send + '_ {
-        let adds = self.e.additions();
-        adds.iter()
+        self.e
+            .additions
+            .iter()
             .enumerate()
             .filter_map(|(layer_id, t)| {
                 layer
@@ -156,8 +157,9 @@ impl ArcEdge {
         layer: LayerIds,
         w: Range<i64>,
     ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + '_ {
-        let adds = self.e.additions();
-        adds.iter()
+        self.e
+            .additions
+            .iter()
             .enumerate()
             .filter_map(|(layer_id, t)| {
                 layer

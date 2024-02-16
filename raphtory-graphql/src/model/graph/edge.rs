@@ -34,11 +34,11 @@ impl Edge {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Option<Edge> {
-        self.ee.layer(names).map(move |v| v.into())
+    async fn layers(&self, names: Vec<String>) -> Edge {
+        self.ee.valid_layers(names).into()
     }
-    async fn layer(&self, name: String) -> Option<Edge> {
-        self.ee.layer(name).map(|v| v.into())
+    async fn layer(&self, name: String) -> Edge {
+        self.ee.valid_layers(name).into()
     }
     async fn window(&self, start: i64, end: i64) -> Edge {
         self.ee.window(start, end).into()
@@ -54,12 +54,30 @@ impl Edge {
         self.ee.after(time).into()
     }
 
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        self.ee.shrink_window(start, end).into()
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        self.ee.shrink_start(start).into()
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        self.ee.shrink_end(end).into()
+    }
+
     async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
+    }
+    async fn first_update(&self) -> Option<i64> {
+        self.ee.history().first().cloned()
     }
 
     async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
+    }
+    async fn last_update(&self) -> Option<i64> {
+        self.ee.history().last().cloned()
     }
 
     async fn time(&self) -> Option<i64> {
@@ -111,5 +129,17 @@ impl Edge {
 
     async fn history(&self) -> Vec<i64> {
         self.ee.history()
+    }
+
+    async fn deletions(&self) -> Vec<i64> {
+        self.ee.deletions()
+    }
+
+    async fn is_valid(&self) -> bool {
+        self.ee.is_valid()
+    }
+
+    async fn is_deleted(&self) -> bool {
+        self.ee.is_deleted()
     }
 }

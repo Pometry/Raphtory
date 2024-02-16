@@ -13,10 +13,10 @@ use crate::{
         utils::errors::{GraphError, MutateGraphError},
         Prop,
     },
-    db::api::view::{BoxedLIter, IntoDynBoxed},
+    db::api::view::{internal::EdgeLike, BoxedLIter, IntoDynBoxed},
     prelude::TimeOps,
 };
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
@@ -26,11 +26,11 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct EdgeStore {
     pub(crate) eid: EID,
-    src: VID,
-    dst: VID,
-    layers: Vec<EdgeLayer>, // each layer has its own set of properties
-    additions: Vec<TimeIndex<TimeIndexEntry>>,
-    deletions: Vec<TimeIndex<TimeIndexEntry>>,
+    pub(crate) src: VID,
+    pub(crate) dst: VID,
+    pub(crate) layers: Vec<EdgeLayer>, // each layer has its own set of properties
+    pub(crate) additions: Vec<TimeIndex<TimeIndexEntry>>,
+    pub(crate) deletions: Vec<TimeIndex<TimeIndexEntry>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
@@ -150,6 +150,44 @@ impl EdgeStore {
         self.layers.iter()
     }
 
+    /// Iterate over (layer_id, additions, deletions) triplets for edge
+    pub fn updates_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            &'a TimeIndex<TimeIndexEntry>,
+            &'a TimeIndex<TimeIndexEntry>,
+        ),
+    > + 'a {
+        match layers {
+            LayerIds::None => Box::new(iter::empty()),
+            LayerIds::All => self
+                .additions_iter(layers)
+                .zip_longest(self.deletions_iter(layers))
+                .enumerate()
+                .map(|(l, zipped)| match zipped {
+                    EitherOrBoth::Both(additions, deletions) => (l, additions, deletions),
+                    EitherOrBoth::Left(additions) => (l, additions, &TimeIndex::Empty),
+                    EitherOrBoth::Right(deletions) => (l, &TimeIndex::Empty, deletions),
+                })
+                .into_dyn_boxed(),
+            LayerIds::One(id) => Box::new(iter::once((
+                *id,
+                self.additions.get(*id).unwrap_or(&TimeIndex::Empty),
+                self.deletions.get(*id).unwrap_or(&TimeIndex::Empty),
+            ))),
+            LayerIds::Multiple(ids) => Box::new(ids.iter().map(|id| {
+                (
+                    *id,
+                    self.additions.get(*id).unwrap_or(&TimeIndex::Empty),
+                    self.deletions.get(*id).unwrap_or(&TimeIndex::Empty),
+                )
+            })),
+        }
+    }
+
     pub fn additions_iter<'a>(
         &'a self,
         layers: &'a LayerIds,
@@ -165,36 +203,35 @@ impl EdgeStore {
         }
     }
 
+    pub fn deletions_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
+        match layers {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => self.deletions.iter().into_dyn_boxed(),
+            LayerIds::One(id) => self.deletions.get(*id).into_iter().into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids
+                .iter()
+                .flat_map(|id| self.deletions.get(*id))
+                .into_dyn_boxed(),
+        }
+    }
+
     pub fn layer_ids_iter(&self) -> impl Iterator<Item = usize> + '_ {
-        let layer_ids = self
+        let from_additions = self
             .additions
             .iter()
             .enumerate()
-            .zip_longest(self.deletions.iter().enumerate())
-            .flat_map(|e| match e {
-                itertools::EitherOrBoth::Both((i, t1), (_, t2)) => {
-                    if !t1.is_empty() || !t2.is_empty() {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }
-                itertools::EitherOrBoth::Left((i, t)) => {
-                    if !t.is_empty() {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }
-                itertools::EitherOrBoth::Right((i, t)) => {
-                    if !t.is_empty() {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }
-            });
-        layer_ids
+            .map(|(i, t)| (!t.is_empty()).then_some(i));
+        let from_deletions = self
+            .deletions
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (!t.is_empty()).then_some(i));
+        from_additions
+            .zip_longest(from_deletions)
+            .flat_map(|v| v.reduce(|l, r| l.or(r)))
     }
 
     pub fn layer_ids_window_iter(&self, w: Range<i64>) -> impl Iterator<Item = usize> + '_ {
@@ -245,24 +282,16 @@ impl EdgeStore {
         self.layers.get(layer_id)
     }
 
-    pub fn additions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
-        &self.additions
-    }
-
-    pub fn deletions(&self) -> &Vec<TimeIndex<TimeIndexEntry>> {
-        &self.deletions
-    }
-
     /// an edge is active in a window if it has an addition event in any of the layers
     pub fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self
-                .additions()
+                .additions
                 .iter()
                 .any(|t_index| t_index.contains(w.clone())),
             LayerIds::One(l_id) => self
-                .additions()
+                .additions
                 .get(*l_id)
                 .map(|t_index| t_index.contains(w))
                 .unwrap_or(false),
@@ -275,7 +304,7 @@ impl EdgeStore {
     pub fn last_deletion(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => self.deletions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::All => self.deletions.iter().flat_map(|d| d.last()).max(),
             LayerIds::One(id) => self.deletions.get(*id).and_then(|t| t.last()),
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -287,7 +316,7 @@ impl EdgeStore {
     pub fn last_addition(&self, layer_ids: &LayerIds) -> Option<TimeIndexEntry> {
         match layer_ids {
             LayerIds::None => None,
-            LayerIds::All => self.additions().iter().flat_map(|d| d.last()).max(),
+            LayerIds::All => self.additions.iter().flat_map(|d| d.last()).max(),
             LayerIds::One(id) => self.additions.get(*id).and_then(|t| t.last()),
             LayerIds::Multiple(ids) => ids
                 .iter()
@@ -300,7 +329,7 @@ impl EdgeStore {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => self
-                .deletions()
+                .deletions
                 .iter()
                 .flat_map(|dels| dels.range(i64::MIN..t).last())
                 .max(),
@@ -376,24 +405,24 @@ impl EdgeStore {
         }
     }
 
-    pub(crate) fn temporal_prop_layer(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
+    pub fn temporal_prop_layer(&self, layer_id: usize, prop_id: usize) -> Option<&TProp> {
         self.layers
             .get(layer_id)
             .and_then(|layer| layer.temporal_property(prop_id))
     }
 
-    pub(crate) fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
+    pub fn layer_mut(&mut self, layer_id: usize) -> impl DerefMut<Target = EdgeLayer> + '_ {
         self.get_or_allocate_layer(layer_id)
     }
 
-    pub(crate) fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
+    pub fn deletions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if self.deletions.len() <= layer_id {
             self.deletions.resize_with(layer_id + 1, Default::default);
         }
         &mut self.deletions[layer_id]
     }
 
-    pub(crate) fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
+    pub fn additions_mut(&mut self, layer_id: usize) -> &mut TimeIndex<TimeIndexEntry> {
         if self.additions.len() <= layer_id {
             self.additions.resize_with(layer_id + 1, Default::default);
         }

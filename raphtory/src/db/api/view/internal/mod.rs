@@ -7,10 +7,9 @@ mod inherit;
 mod into_dynamic;
 mod layer_ops;
 mod materialize;
+mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
-
-mod one_hop_filter;
 
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
@@ -152,7 +151,7 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS, None).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
         assert_eq!(boxed.nodes().id().collect_vec(), vec![1])
     }

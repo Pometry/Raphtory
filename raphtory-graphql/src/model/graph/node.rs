@@ -43,11 +43,11 @@ impl Node {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    async fn layers(&self, names: Vec<String>) -> Option<Node> {
-        self.vv.layer(names).map(|v| v.into())
+    async fn layers(&self, names: Vec<String>) -> Node {
+        self.vv.valid_layers(names).into()
     }
-    async fn layer(&self, name: String) -> Option<Node> {
-        self.vv.layer(name).map(|v| v.into())
+    async fn layer(&self, name: String) -> Node {
+        self.vv.valid_layers(name).into()
     }
     async fn window(&self, start: i64, end: i64) -> Node {
         self.vv.window(start, end).into()
@@ -64,6 +64,18 @@ impl Node {
         self.vv.after(time).into()
     }
 
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        self.vv.shrink_window(start, end).into()
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        self.vv.shrink_start(start).into()
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        self.vv.shrink_end(end).into()
+    }
+
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////
@@ -72,8 +84,16 @@ impl Node {
         self.vv.earliest_time()
     }
 
+    async fn first_update(&self) -> Option<i64> {
+        self.vv.history().first().cloned()
+    }
+
     async fn latest_time(&self) -> Option<i64> {
         self.vv.latest_time()
+    }
+
+    async fn last_update(&self) -> Option<i64> {
+        self.vv.history().last().cloned()
     }
 
     async fn start(&self) -> Option<i64> {
@@ -124,10 +144,11 @@ impl Node {
             Some(filter) => self
                 .vv
                 .edges()
+                .iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.edges().map(|ee| ee.into()).collect(),
+            None => self.vv.edges().iter().map(|ee| ee.into()).collect(),
         }
     }
     async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
@@ -135,10 +156,11 @@ impl Node {
             Some(filter) => self
                 .vv
                 .out_edges()
+                .iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.edges().map(|ee| ee.into()).collect(),
+            None => self.vv.out_edges().iter().map(|ee| ee.into()).collect(),
         }
     }
 
@@ -146,11 +168,12 @@ impl Node {
         match filter {
             Some(filter) => self
                 .vv
-                .edges()
+                .in_edges()
+                .iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
                 .collect(),
-            None => self.vv.in_edges().map(|ee| ee.into()).collect(),
+            None => self.vv.in_edges().iter().map(|ee| ee.into()).collect(),
         }
     }
 

@@ -5,13 +5,14 @@
 use crate::{
     core::{
         entities::nodes::{input_node::InputNode, node_ref::NodeRef},
+        storage::timeindex::AsTime,
         utils::time::{error::ParseTimeError, Interval, IntoTime, TryIntoTime},
     },
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::NaiveDateTime;
-use pyo3::{exceptions::PyTypeError, prelude::*};
+use chrono::{DateTime, NaiveDateTime, Utc};
+use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
 use std::{future::Future, thread};
 
 pub mod errors;
@@ -71,11 +72,15 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
             return Ok(PyTime::new(parsed_datetime.try_into_time()?));
         }
-        let message = format!("time '{time}' must be a str, dt or an integer");
+        if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
+            let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
+            return Ok(PyTime::new(time));
+        }
+
+        let message = format!("time '{time}' must be a str, datetime or an integer");
         Err(PyTypeError::new_err(message))
     }
 }
-
 impl PyTime {
     fn new(parsing_result: i64) -> Self {
         Self { parsing_result }
@@ -204,11 +209,11 @@ where
 
         if window_set.temporal() {
             let iterable = move || {
-                let iter: Box<dyn Iterator<Item = NaiveDateTime> + Send> = Box::new(
+                let iter: Box<dyn Iterator<Item = DateTime<Utc>> + Send> = Box::new(
                     window_set
                         .clone()
                         .time_index(center)
-                        .map(|epoch| NaiveDateTime::from_timestamp_millis(epoch).unwrap()),
+                        .flat_map(|epoch| epoch.dt()),
                 );
                 iter
             };

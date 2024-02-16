@@ -36,6 +36,7 @@ use crate::{
         ArcStr, Direction, Prop, PropUnwrap,
     },
     db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
+    prelude::DeletionOps,
 };
 use dashmap::{DashMap, DashSet};
 use itertools::Itertools;
@@ -59,6 +60,8 @@ pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
+
+impl<const N: usize> DeletionOps for InnerTemporalGraph<N> {}
 
 impl<const N: usize> InnerTemporalGraph<N> {
     #[inline]
@@ -170,8 +173,44 @@ impl<const N: usize> TemporalGraph<N> {
         self.edge_meta.get_all_layers()
     }
 
-    pub(crate) fn layer_id(&self, key: Layer) -> LayerIds {
+    pub(crate) fn layer_ids(&self, key: Layer) -> Result<LayerIds, GraphError> {
         match key {
+            Layer::None => Ok(LayerIds::None),
+            Layer::All => Ok(LayerIds::All),
+            Layer::Default => Ok(LayerIds::One(0)),
+            Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
+                Some(id) => Ok(LayerIds::One(id)),
+                None => Err(GraphError::InvalidLayer(id.to_string())),
+            },
+            Layer::Multiple(ids) => {
+                let mut new_layers = ids
+                    .iter()
+                    .map(|id| {
+                        self.edge_meta
+                            .get_layer_id(id)
+                            .ok_or_else(|| GraphError::InvalidLayer(id.to_string()))
+                    })
+                    .collect::<Result<Vec<_>, GraphError>>()?;
+                let num_layers = self.num_layers();
+                let num_new_layers = new_layers.len();
+                if num_new_layers == 0 {
+                    Ok(LayerIds::None)
+                } else if num_new_layers == 1 {
+                    Ok(LayerIds::One(new_layers[0]))
+                } else if num_new_layers == num_layers {
+                    Ok(LayerIds::All)
+                } else {
+                    new_layers.sort_unstable();
+                    new_layers.dedup();
+                    Ok(LayerIds::Multiple(new_layers.into()))
+                }
+            }
+        }
+    }
+
+    pub(crate) fn valid_layer_ids(&self, key: Layer) -> LayerIds {
+        match key {
+            Layer::None => LayerIds::None,
             Layer::All => LayerIds::All,
             Layer::Default => LayerIds::One(0),
             Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
@@ -181,7 +220,7 @@ impl<const N: usize> TemporalGraph<N> {
             Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
-                    .filter_map(|id| self.edge_meta.get_layer_id(id))
+                    .flat_map(|id| self.edge_meta.get_layer_id(id))
                     .collect::<Vec<_>>();
                 let num_layers = self.num_layers();
                 let num_new_layers = new_layers.len();
@@ -238,6 +277,15 @@ impl<const N: usize> TemporalGraph<N> {
         node.name
             .clone()
             .unwrap_or_else(|| node.global_id().to_string())
+    }
+
+    pub(crate) fn node_type(&self, v: VID) -> Option<ArcStr> {
+        let node = self.storage.get_node(v);
+        self.node_meta.get_node_type_name_by_id(node.node_type)
+    }
+
+    pub(crate) fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.node_meta.get_all_node_types()
     }
 
     #[inline]
@@ -314,12 +362,56 @@ impl<const N: usize> TemporalGraph<N> {
         }))
     }
 
+    pub(crate) fn resolve_node_type(
+        &self,
+        v_id: VID,
+        node_type: Option<&str>,
+    ) -> Result<usize, GraphError> {
+        match node_type {
+            None => Ok(self.node_meta.get_default_node_type_id()),
+            Some(node_type) => {
+                if node_type == "_default" {
+                    return Err(GraphError::NodeTypeError(
+                        "_default type is not allowed to be used on nodes"
+                            .parse()
+                            .unwrap(),
+                    ));
+                }
+                let mut node = self.storage.get_node_mut(v_id);
+                match node.node_type {
+                    0 => {
+                        let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
+                        node.update_node_type(node_type_id);
+                        Ok(node_type_id)
+                    }
+                    _ => {
+                        let new_node_type_id =
+                            self.node_meta.get_node_type_id(node_type).unwrap_or(0);
+                        if node.node_type != new_node_type_id {
+                            return Err(GraphError::NodeTypeError(
+                                "Node already has a non-default type".parse().unwrap(),
+                            ));
+                        }
+                        // Returns the original node type to prevent type being changed
+                        Ok(node.node_type)
+                    }
+                }
+            }
+        }
+    }
+
     #[inline]
-    pub(crate) fn add_node_no_props(&self, time: TimeIndexEntry, v_id: VID) -> EntryMut<NodeStore> {
+    pub(crate) fn add_node_no_props(
+        &self,
+        time: TimeIndexEntry,
+        v_id: VID,
+        node_type_id: usize,
+    ) -> EntryMut<NodeStore> {
         self.update_time(time);
         // get the node and update the time index
         let mut node = self.storage.get_node_mut(v_id);
         node.update_time(time);
+        node.update_node_type(node_type_id);
         node
     }
 
@@ -328,8 +420,9 @@ impl<const N: usize> TemporalGraph<N> {
         time: TimeIndexEntry,
         v_id: VID,
         props: Vec<(usize, Prop)>,
+        node_type_id: usize,
     ) -> Result<(), GraphError> {
-        let mut node = self.add_node_no_props(time, v_id);
+        let mut node = self.add_node_no_props(time, v_id, node_type_id);
         for (id, prop) in props {
             node.add_prop(time, id, prop)?;
         }

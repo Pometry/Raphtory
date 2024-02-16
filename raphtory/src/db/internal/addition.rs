@@ -24,6 +24,11 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
+        self.inner().resolve_node_type(v_id, node_type)
+    }
+
+    #[inline]
     fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
         self.inner().resolve_node(id, name)
     }
@@ -71,8 +76,9 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type_id: usize,
     ) -> Result<(), GraphError> {
-        self.inner().add_node_internal(t, v, props)
+        self.inner().add_node_internal(t, v, props, node_type_id)
     }
 
     #[inline]

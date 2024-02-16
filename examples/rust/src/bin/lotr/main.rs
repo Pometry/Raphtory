@@ -59,6 +59,7 @@ fn main() {
                     lotr.time,
                     lotr.src_id.clone(),
                     [("type", Prop::str("Character"))],
+                    None,
                 )
                 .expect("Failed to add node");
 
@@ -66,6 +67,7 @@ fn main() {
                     lotr.time,
                     lotr.dst_id.clone(),
                     [("type", Prop::str("Character"))],
+                    None,
                 )
                 .expect("Failed to add node");
 

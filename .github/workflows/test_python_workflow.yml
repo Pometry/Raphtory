@@ -46,8 +46,6 @@ jobs:
       SCCACHE_DIR: ${{ matrix.sccache-path }}
       SCCACHE_PATH: ${{ matrix.sccache-path }}
     steps:
-      - name: Update Rust
-        run: rustup update
       - name: Setting sccache-path
         run: echo "SCCACHE_PATH=${{ matrix.sccache-path }}"
         if: matrix.os == 'macos-latest'
@@ -79,6 +77,13 @@ jobs:
             target/release
           key: pytest-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: pytest-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/toolchain@v1
+        name: Setup Rust
+        with:
+          profile: minimal
+          toolchain: 1.75.0
+          override: true
+          components: rustfmt, clippy
       - name: Install sccache (macOS)
         if: matrix.os == 'macos-latest'
         run: brew install sccache

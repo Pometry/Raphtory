@@ -75,6 +75,16 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
     }
+
+    /// Number of properties
+    pub fn len(&self) -> usize {
+        self.keys().count()
+    }
+
+    /// Check if there are no properties
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {

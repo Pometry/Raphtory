@@ -38,11 +38,20 @@ pub enum GraphError {
         source: ParseTimeError,
     },
 
+    #[error("Node already exists with ID {0}")]
+    NodeExistsError(u64),
+
+    #[error("Edge already exists for nodes {0} {1}")]
+    EdgeExistsError(u64, u64),
+
     #[error("No Node with ID {0}")]
     NodeIdError(u64),
 
     #[error("No Node with name {0}")]
     NodeNameError(String),
+
+    #[error("Node Type Error {0}")]
+    NodeTypeError(String),
 
     #[error("No Edge between {src} and {dst}")]
     EdgeIdError { src: u64, dst: u64 },
@@ -54,6 +63,12 @@ pub enum GraphError {
     NodeIdNotStringOrNumber,
     #[error("Invalid layer {0}.")]
     InvalidLayer(String),
+    #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
+    InvalidEdgeLayer {
+        layer: String,
+        src: String,
+        dst: String,
+    },
     #[error("Bincode operation failed")]
     BinCodeError {
         #[from]
@@ -116,6 +131,10 @@ pub enum MutateGraphError {
         dst_id: u64,
         source: IllegalMutate,
     },
+    #[error("Cannot add properties to edge view with no layers")]
+    NoLayersError,
+    #[error("Cannot add properties to edge view with more than one layer")]
+    AmbiguousLayersError,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

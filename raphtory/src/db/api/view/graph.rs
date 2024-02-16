@@ -1,20 +1,26 @@
 use crate::{
     core::{
         entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
+        storage::timeindex::AsTime,
         utils::errors::GraphError,
-        ArcStr,
+        ArcStr, OptionAsStr,
     },
     db::{
         api::{
-            mutation::{AdditionOps, PropertyAdditionOps},
+            mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
             properties::Properties,
             view::{internal::*, *},
         },
-        graph::{edge::EdgeView, node::NodeView, nodes::Nodes, views::node_subgraph::NodeSubgraph},
+        graph::{
+            edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes,
+            views::node_subgraph::NodeSubgraph,
+        },
     },
     prelude::{DeletionOps, NO_PROPS},
 };
+use chrono::{DateTime, Utc};
 use rustc_hash::FxHashSet;
+use std::sync::Arc;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -23,7 +29,7 @@ use rustc_hash::FxHashSet;
 ///
 pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph>;
+    fn edges(&self) -> Edges<'graph, Self, Self>;
 
     /// Return a View of the nodes in the Graph
     fn nodes(&self) -> Nodes<'graph, Self, Self>;
@@ -41,8 +47,18 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of earliest activity in the graph
+    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.earliest_time()?.dt()
+    }
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of latest activity in the graph
+    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.latest_time()?.dt()
+    }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -61,7 +77,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of nodes `(src, dst)`.
-    fn has_edge<T: Into<NodeRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
+    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
     fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>>;
@@ -78,13 +94,14 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
 }
 
 impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self, Self>> + Send + 'graph> {
-        let layer_ids = self.layer_ids();
-        let edge_filter = self.edge_filter();
-        let g = self.clone();
-        self.edge_refs(layer_ids, edge_filter)
-            .map(move |eref| EdgeView::new(g.clone(), eref))
-            .into_dyn_boxed()
+    fn edges(&self) -> Edges<'graph, Self, Self> {
+        let graph = self.clone();
+        let edges = Arc::new(move || graph.edge_refs(graph.layer_ids(), graph.edge_filter()));
+        Edges {
+            base_graph: self.clone(),
+            graph: self.clone(),
+            edges,
+        }
     }
 
     fn nodes(&self) -> Nodes<'graph, Self, Self> {
@@ -93,6 +110,12 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
     }
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InnerTemporalGraph::default();
+
+        // make sure we preserve all layers even if they are empty
+        // skip default layer
+        for layer in self.unique_layers().skip(1) {
+            g.resolve_layer(Some(&layer));
+        }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {
             // FIXME: this needs to be verified
@@ -129,12 +152,14 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         }
 
         for v in self.nodes().iter() {
+            let v_type_string = v.node_type(); //stop it being dropped
+            let v_type_str = v_type_string.as_str();
             for h in v.history() {
-                g.add_node(h, v.name(), NO_PROPS)?;
+                g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_node(t, v.name(), [(name.clone(), prop)])?;
+                    g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
             g.node(v.id())
@@ -186,13 +211,12 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.has_node_ref(v.into(), &self.layer_ids(), self.edge_filter())
     }
 
-    fn has_edge<T: Into<NodeRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
+    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool {
         let src_ref = src.into();
         let dst_ref = dst.into();
-        let layers = self.layer_ids_from_names(layer.into());
         if let Some(src) = self.internalise_node(src_ref) {
             if let Some(dst) = self.internalise_node(dst_ref) {
-                return self.has_edge_ref(src, dst, &layers, self.edge_filter());
+                return self.has_edge_ref(src, dst, &self.layer_ids(), self.edge_filter());
             }
         }
         false
@@ -227,10 +251,15 @@ pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
 impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
-    type Graph = G;
+    type BaseGraph = G;
+    type FilteredGraph = G;
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
 
-    fn current_filter(&self) -> &Self::Graph {
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self
     }
 
@@ -260,7 +289,7 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::prelude::*;
+    use crate::{core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*};
 
     #[test]
     fn test_materialize() {
@@ -276,7 +305,7 @@ mod test_materialize {
             .eq(&vec!["1", "2"]));
 
         assert!(!g
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
@@ -286,13 +315,37 @@ mod test_materialize {
         assert!(!gm
             .into_events()
             .unwrap()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
             .properties()
             .temporal()
             .contains("layer1"));
+    }
+
+    #[test]
+    fn testing_node_types() {
+        let g = Graph::new();
+        let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
+        let node_a_type = node_a.node_type();
+        let node_a_type_str = node_a_type.as_str();
+
+        assert_eq!(node_a_type_str, None);
+        assert_eq!(node_b.node_type().as_str(), Some("H"));
+
+        // Nodes with No type can be overwritten
+        let node_a = g.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
+        assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
+
+        // Check that overwriting a node type returns an error
+        assert!(g.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
+        // Double check that the type did not actually change
+        assert_eq!(g.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
+        // Check that the update is not added to the graph
+        let all_node_types = g.get_all_node_types();
+        assert_eq!(all_node_types.len(), 2);
     }
 
     #[test]
@@ -303,8 +356,8 @@ mod test_materialize {
         g.add_properties(0, props_0.clone()).unwrap();
         assert!(g.add_properties(1, props_1.clone()).is_err());
 
-        g.add_node(0, 1, props_0.clone()).unwrap();
-        assert!(g.add_node(1, 1, props_1.clone()).is_err());
+        g.add_node(0, 1, props_0.clone(), None).unwrap();
+        assert!(g.add_node(1, 1, props_1.clone(), None).is_err());
 
         g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
         assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());

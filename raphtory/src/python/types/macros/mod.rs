@@ -6,4 +6,4 @@ pub mod nested_iterable;
 pub mod cmp;
 
 #[macro_use]
-pub mod timeops;
+pub mod trait_impl;

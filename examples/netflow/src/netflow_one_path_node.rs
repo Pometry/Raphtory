@@ -13,17 +13,18 @@ use raphtory::{
             task_runner::TaskRunner,
         },
     },
-    prelude::{EdgeListOps, EdgeViewOps, LayerOps, PropUnwrap, TimeOps},
+    prelude::{EdgeViewOps, LayerOps, PropUnwrap, TimeOps},
 };
 
 fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
     evv: &EvalNodeView<'graph, '_, G, ()>,
     no_time: bool,
 ) -> usize {
-    evv.layer("Netflow")
+    evv.layers("Netflow")
         .unwrap()
         .in_edges()
         .explode()
+        .iter()
         .map(|nf_e_edge_expl| one_path_algorithm(nf_e_edge_expl, no_time))
         .sum::<usize>()
 }
@@ -78,10 +79,11 @@ fn one_path_algorithm<
     let event_count = nf_e_edge_expl
         .src()
         .window(time_bound, nf1_time)
-        .layer("Events2v4624")
+        .layers("Events2v4624")
         .into_iter()
         .flat_map(|v| {
             v.in_edges()
+                .iter()
                 .filter(|e| e.src().id() != a_id && e.src().id() != b_id)
                 .flat_map(|e| e.explode())
         })
@@ -89,10 +91,11 @@ fn one_path_algorithm<
             login_exp
                 .dst()
                 .window(login_exp.time().unwrap().saturating_add(1), nf1_time)
-                .layer("Events1v4688")
+                .layers("Events1v4688")
         })
         .flat_map(|v| {
             v.out_edges()
+                .iter()
                 .filter(|e| e.src().id() == e.dst().id())
                 .flat_map(|e| e.explode())
         })
