@@ -210,6 +210,9 @@ impl PyGraphView {
                 if include_update_history.unwrap_or(true) {
                     properties.set_item("update_history", v.history().to_object(py))?;
                 }
+                if v.node_type().is_some() {
+                    properties.set_item("node_type", v.node_type().unwrap())?;
+                }
                 let node_tuple =
                     PyTuple::new(py, &[v.name().to_object(py), properties.to_object(py)]);
                 node_tuples.push(node_tuple);
