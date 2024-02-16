@@ -19,6 +19,7 @@ use raphtory::{
     prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
+use serde_json::Value;
 use std::{
     collections::HashMap,
     error::Error,
@@ -163,7 +164,8 @@ impl Mut {
             let timestamp: i64 = dt.timestamp();
             new_subgraph
                 .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-
+            new_subgraph
+                .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             new_subgraph.save_to_file(path)?;
 
             let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
@@ -175,6 +177,28 @@ impl Mut {
         Ok(true)
     }
 
+    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, graph_name: String) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>().graphs.write();
+
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+
+        let dt = Utc::now();
+        let timestamp: i64 = dt.timestamp();
+
+        subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+
+        let path = subgraph
+            .properties()
+            .constant()
+            .get("path")
+            .ok_or("Path is missing")?
+            .to_string();
+
+        subgraph.save_to_file(path)?;
+
+        Ok(true)
+    }
+
     async fn save_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
@@ -182,7 +206,7 @@ impl Mut {
         new_graph_name: String,
         props: String,
         is_archive: u8,
-        graph_nodes: Vec<String>,
+        graph_nodes: String,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
@@ -213,7 +237,12 @@ impl Mut {
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
 
-        let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
+        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
+        let node_map = deserialized_node_map
+            .as_object()
+            .ok_or("graph_nodes not object")?;
+        let node_ids = node_map.keys().map(|key| key.as_str());
+        let new_subgraph = parent_graph.subgraph(node_ids).materialize()?;
 
         new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
@@ -246,9 +275,33 @@ impl Mut {
         }
 
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+
+        // Temporary hack to allow adding of arbitrary maps of data to nodes
+        for node in new_subgraph.nodes() {
+            if !node_map.contains_key(&node.name().to_string()) {
+                println!("Could not find key! {} {:?}", node.name(), node_map);
+                panic!()
+            }
+            let node_props = node_map
+                .get(node.name().to_string().as_str())
+                .ok_or(format!(
+                    "Could not find node {} in provided map",
+                    node.name()
+                ))?;
+            let node_props_as_obj = node_props
+                .as_object()
+                .ok_or("node_props must be an object")?
+                .to_owned();
+            let values = node_props_as_obj
+                .into_iter()
+                .map(|(key, value)| Ok((key, value.try_into()?)))
+                .collect::<Result<Vec<(String, Prop)>>>()?;
+            node.update_constant_properties(values)?;
+        }
 
         new_subgraph.save_to_file(path)?;
 
@@ -301,12 +354,12 @@ impl Mut {
     async fn archive_graph<'a>(
         ctx: &Context<'a>,
         graph_name: String,
-        parent_graph_name: String,
+        _parent_graph_name: String,
         is_archive: u8,
     ) -> Result<bool> {
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
-
+        let data = ctx.data_unchecked::<Data>().graphs.write();
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+        subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         let path = subgraph
             .properties()
@@ -314,24 +367,7 @@ impl Mut {
             .get("path")
             .ok_or("Path is missing")?
             .to_string();
-
-        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
-        let new_subgraph = parent_graph
-            .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
-            .materialize()?;
-
-        let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph
-            .properties()
-            .into_iter()
-            .filter(|(a, _)| a != "isArchive")
-            .collect_vec();
-        new_subgraph.update_constant_properties(static_props_without_isactive)?;
-        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-        new_subgraph.save_to_file(path)?;
-
-        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
-
-        data.insert(graph_name, gi);
+        subgraph.save_to_file(path)?;
 
         Ok(true)
     }

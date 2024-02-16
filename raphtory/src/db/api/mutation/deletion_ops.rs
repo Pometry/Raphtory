@@ -10,29 +10,7 @@ use crate::{
     },
 };
 
-pub trait DeletionOps {
-    fn delete_edge<V: InputNode, T: TryIntoInputTime>(
-        &self,
-        t: T,
-        src: V,
-        dst: V,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError>;
-
-    fn delete_edge_with_custom_time_format<V: InputNode>(
-        &self,
-        t: &str,
-        fmt: &str,
-        src: V,
-        dst: V,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let time: i64 = t.parse_time(fmt)?;
-        self.delete_edge(time, src, dst, layer)
-    }
-}
-
-impl<G: InternalDeletionOps + InternalAdditionOps> DeletionOps for G {
+pub trait DeletionOps: InternalDeletionOps + InternalAdditionOps + Sized {
     fn delete_edge<V: InputNode, T: TryIntoInputTime>(
         &self,
         t: T,
@@ -45,5 +23,17 @@ impl<G: InternalDeletionOps + InternalAdditionOps> DeletionOps for G {
         let dst_id = self.resolve_node(dst.id(), src.id_str());
         let layer = self.resolve_layer(layer);
         self.internal_delete_edge(ti, src_id, dst_id, layer)
+    }
+
+    fn delete_edge_with_custom_time_format<V: InputNode>(
+        &self,
+        t: &str,
+        fmt: &str,
+        src: V,
+        dst: V,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let time: i64 = t.parse_time(fmt)?;
+        self.delete_edge(time, src, dst, layer)
     }
 }

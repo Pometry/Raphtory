@@ -9,8 +9,8 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! let graph = Graph::new();
-//! graph.add_node(0, "Alice", NO_PROPS).unwrap();
-//! graph.add_node(1, "Bob", NO_PROPS).unwrap();
+//! graph.add_node(0, "Alice", NO_PROPS, None).unwrap();
+//! graph.add_node(1, "Bob", NO_PROPS, None).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", NO_PROPS, None).unwrap();
 //! graph.count_edges();
 //! ```
@@ -19,7 +19,7 @@
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::{
-        mutation::internal::{InheritAdditionOps, InheritPropertyAdditionOps},
+        mutation::internal::InheritMutationOps,
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
     },
     prelude::*,
@@ -30,6 +30,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+
 const SEG: usize = 16;
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
@@ -134,8 +135,7 @@ impl Base for Graph {
     }
 }
 
-impl InheritAdditionOps for Graph {}
-impl InheritPropertyAdditionOps for Graph {}
+impl InheritMutationOps for Graph {}
 impl InheritViewOps for Graph {}
 
 impl Graph {
@@ -211,6 +211,7 @@ mod db_tests {
     use quickcheck::Arbitrary;
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
+    use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
 
@@ -229,7 +230,7 @@ mod db_tests {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_node(t, v, NO_PROPS)
+            g.add_node(t, v, NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -243,7 +244,7 @@ mod db_tests {
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
-            g.add_node(t as i64, name.clone(), NO_PROPS)
+            g.add_node(t as i64, name.clone(), NO_PROPS, None)
                 .map_err(|err| println!("{:?}", err))
                 .ok();
         }
@@ -301,6 +302,139 @@ mod db_tests {
         edges
             .iter()
             .all(|&(_, src, dst)| g.edge(src, dst).is_some())
+    }
+
+    #[test]
+    fn prop_json_test() {
+        let g = Graph::new();
+        let _ = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let _ = g.add_node(0, "B", NO_PROPS, None).unwrap();
+        let e = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
+        e.add_constant_properties(vec![("aprop".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let ee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERA")).unwrap();
+        ee.add_constant_properties(
+            vec![("aprop".to_string(), Prop::Bool(false))],
+            Some(&"LAYERA"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("aprop")
+            .unwrap()
+            .to_json();
+        let json_as_map = json_res.as_object().unwrap();
+        assert_eq!(json_as_map.len(), 2);
+        assert_eq!(json_as_map.get("LAYERA"), Some(&Value::Bool(false)));
+        assert_eq!(json_as_map.get("_default"), Some(&Value::Bool(true)));
+
+        let eee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERB")).unwrap();
+        let v: Vec<Prop> = vec![Prop::Bool(true), Prop::Bool(false), Prop::U64(0)];
+        eee.add_constant_properties(
+            vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
+            Some(&"LAYERB"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("bprop")
+            .unwrap()
+            .to_json();
+        let list_res = json_res.as_object().unwrap().get("LAYERB").unwrap();
+        assert_eq!(list_res.as_array().unwrap().len(), 3);
+
+        let eeee = g.add_edge(0, "A", "B", NO_PROPS, Some(&"LAYERC")).unwrap();
+        let v: HashMap<ArcStr, Prop> = HashMap::from([
+            (ArcStr::from("H".to_string()), Prop::Bool(false)),
+            (ArcStr::from("Y".to_string()), Prop::U64(0)),
+        ]);
+        eeee.add_constant_properties(
+            vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
+            Some(&"LAYERC"),
+        )
+        .unwrap();
+        let json_res = g
+            .edge("A", "B")
+            .unwrap()
+            .properties()
+            .constant()
+            .get("mymap")
+            .unwrap()
+            .to_json();
+        let map_res = json_res.as_object().unwrap().get("LAYERC").unwrap();
+        assert_eq!(map_res.as_object().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn import_from_another_graph() {
+        let g = Graph::new();
+        let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let g_b = g
+            .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+            .unwrap();
+        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let gg = Graph::new();
+        let res = gg.import_node(&g_a, None).unwrap();
+        assert_eq!(res.name(), "A");
+        assert_eq!(res.history(), vec![0]);
+        let res = gg.import_node(&g_b, None).unwrap();
+        assert_eq!(res.name(), "B");
+        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
+        assert_eq!(
+            res.properties().constant().get("con").unwrap(),
+            Prop::I64(11)
+        );
+
+        let gg = Graph::new();
+        let res = gg.import_nodes(vec![&g_a, &g_b], None).unwrap();
+        assert_eq!(res.len(), 2);
+        assert_eq!(res.iter().map(|n| n.name()).collect_vec(), vec!["A", "B"]);
+
+        let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
+        let res = gg.import_edge(&e_a_b, None).unwrap();
+        assert_eq!(
+            (res.src().name(), res.dst().name()),
+            (e_a_b.src().name(), e_a_b.dst().name())
+        );
+        let e_a_b_p = g
+            .add_edge(
+                3,
+                "A",
+                "B",
+                vec![("etemp".to_string(), Prop::Bool(false))],
+                None,
+            )
+            .unwrap();
+        let gg = Graph::new();
+        let _ = gg.add_node(0, "B", NO_PROPS, None);
+        let res = gg.import_edge(&e_a_b_p, None).expect("Failed to add edge");
+        assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
+
+        let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
+        let gg = Graph::new();
+        let res = gg.import_edges(vec![&e_a_b, &e_c_d], None).unwrap();
+        assert_eq!(res.len(), 2);
+    }
+
+    #[test]
+    fn props_with_layers() {
+        let g = Graph::new();
+        g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
+        let ed = g.edge("A", "B").unwrap();
+        ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
+            .unwrap();
+        println!("{:?}", ed.properties().constant().as_map());
+        g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
+        ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
+            .unwrap();
+        println!("{:?}", ed.properties().constant().as_map());
     }
 
     #[test]
@@ -426,7 +560,7 @@ mod db_tests {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let expected = vec![(2, 3, 2), (1, 0, 0), (1, 0, 0)];
+        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
         let actual = (1..=3)
             .map(|i| {
                 let v = g.node(i).unwrap();
@@ -448,7 +582,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), None);
         assert_eq!(g.earliest_time(), None);
 
-        g.add_node(5, 1, NO_PROPS)
+        g.add_node(5, 1, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
 
@@ -461,7 +595,7 @@ mod db_tests {
         assert_eq!(g.latest_time(), Some(10));
         assert_eq!(g.earliest_time(), Some(10));
 
-        g.add_node(5, 1, NO_PROPS)
+        g.add_node(5, 1, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
         assert_eq!(g.latest_time(), Some(10));
@@ -490,7 +624,7 @@ mod db_tests {
         .unwrap();
         g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
-        g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))])
+        g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
         g.add_edge(0, 44, 55, NO_PROPS, None).unwrap();
         let v11 = g.node(11).unwrap();
@@ -569,7 +703,7 @@ mod db_tests {
     fn temporal_props_node() {
         let g = Graph::new();
 
-        g.add_node(0, 1, [("cool".to_string(), Prop::Bool(true))])
+        g.add_node(0, 1, [("cool".to_string(), Prop::Bool(true))], None)
             .unwrap();
 
         let v = g.node(1).unwrap();
@@ -578,7 +712,7 @@ mod db_tests {
         assert_eq!(actual, Some(Prop::Bool(true)));
 
         // we flip cool from true to false after t 3
-        g.add_node(3, 1, [("cool".to_string(), Prop::Bool(false))])
+        g.add_node(3, 1, [("cool".to_string(), Prop::Bool(false))], None)
             .unwrap();
 
         let wg = g.window(3, 15);
@@ -672,9 +806,9 @@ mod db_tests {
     fn test_add_node_with_strings() {
         let g = Graph::new();
 
-        g.add_node(0, "haaroon", NO_PROPS).unwrap();
-        g.add_node(1, "hamza", NO_PROPS).unwrap();
-        g.add_node(1, 831, NO_PROPS).unwrap();
+        g.add_node(0, "haaroon", NO_PROPS, None).unwrap();
+        g.add_node(1, "hamza", NO_PROPS, None).unwrap();
+        g.add_node(1, 831, NO_PROPS, None).unwrap();
 
         assert!(g.has_node(831));
         assert!(g.has_node("haaroon"));
@@ -931,16 +1065,16 @@ mod db_tests {
     fn check_node_history() {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        g.add_node(3, 1, NO_PROPS).unwrap();
-        g.add_node(4, 1, NO_PROPS).unwrap();
-        g.add_node(8, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        g.add_node(3, 1, NO_PROPS, None).unwrap();
+        g.add_node(4, 1, NO_PROPS, None).unwrap();
+        g.add_node(8, 1, NO_PROPS, None).unwrap();
 
-        g.add_node(4, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(6, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(7, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(8, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
         let times_of_one = g.node(1).unwrap().history();
         let times_of_farquaad = g.node("Lord Farquaad").unwrap().history();
@@ -1011,21 +1145,21 @@ mod db_tests {
     fn check_node_history_multiple_shards() {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        g.add_node(3, 1, NO_PROPS).unwrap();
-        g.add_node(4, 1, NO_PROPS).unwrap();
-        g.add_node(5, 2, NO_PROPS).unwrap();
-        g.add_node(6, 2, NO_PROPS).unwrap();
-        g.add_node(7, 2, NO_PROPS).unwrap();
-        g.add_node(8, 1, NO_PROPS).unwrap();
-        g.add_node(9, 2, NO_PROPS).unwrap();
-        g.add_node(10, 2, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        g.add_node(3, 1, NO_PROPS, None).unwrap();
+        g.add_node(4, 1, NO_PROPS, None).unwrap();
+        g.add_node(5, 2, NO_PROPS, None).unwrap();
+        g.add_node(6, 2, NO_PROPS, None).unwrap();
+        g.add_node(7, 2, NO_PROPS, None).unwrap();
+        g.add_node(8, 1, NO_PROPS, None).unwrap();
+        g.add_node(9, 2, NO_PROPS, None).unwrap();
+        g.add_node(10, 2, NO_PROPS, None).unwrap();
 
-        g.add_node(4, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(6, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(7, "Lord Farquaad", NO_PROPS).unwrap();
-        g.add_node(8, "Lord Farquaad", NO_PROPS).unwrap();
+        g.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
+        g.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
         let times_of_one = g.node(1).unwrap().history();
         let times_of_farquaad = g.node("Lord Farquaad").unwrap().history();
@@ -1063,7 +1197,8 @@ mod db_tests {
         let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
 
         let g = Graph::new();
-        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS).unwrap();
+        g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
+            .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
         assert_eq!(g.earliest_time().unwrap(), earliest_time);
@@ -1072,7 +1207,7 @@ mod db_tests {
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
 
-        g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS)
+        g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS, None)
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
@@ -1251,9 +1386,9 @@ mod db_tests {
     #[test]
     fn test_node_early_late_times() {
         let g = Graph::new();
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
-        g.add_node(3, 1, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
+        g.add_node(3, 1, NO_PROPS, None).unwrap();
 
         assert_eq!(g.node(1).unwrap().earliest_time(), Some(1));
         assert_eq!(g.node(1).unwrap().latest_time(), Some(3));
@@ -1271,9 +1406,9 @@ mod db_tests {
     #[test]
     fn test_node_ids() {
         let g = Graph::new();
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(1, 2, NO_PROPS).unwrap();
-        g.add_node(2, 3, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(1, 2, NO_PROPS, None).unwrap();
+        g.add_node(2, 3, NO_PROPS, None).unwrap();
 
         assert_eq!(g.nodes().id().collect::<Vec<u64>>(), vec![1, 2, 3]);
 
@@ -1566,7 +1701,7 @@ mod db_tests {
     // fn node_from_id_is_consistent(nodes: Vec<u64>) -> bool {
     //     let g = Graph::new();
     //     for v in nodes.iter() {
-    //         g.add_node(0, *v, NO_PROPS).unwrap();
+    //         g.add_node(0, *v, NO_PROPS, None).unwrap();
     //     }
     //     g.nodes()
     //         .name()

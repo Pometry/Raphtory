@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::model::algorithms::{
     algorithm_entry_point::AlgorithmEntryPoint, graph_algorithms::GraphAlgorithms,
 };
@@ -12,7 +14,16 @@ use dynamic_graphql::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
+use raphtory::{
+    algorithms::{
+        centrality::pagerank::unweighted_page_rank,
+        pathing::{
+            dijkstra::dijkstra_single_source_shortest_paths,
+            single_source_shortest_path::single_source_shortest_path,
+        },
+    },
+    db::api::view::LayerOps,
+};
 
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
     type OutputType: Register + 'static;
@@ -115,5 +126,62 @@ fn apply_pagerank<'b>(
         .into_iter()
         .map(|pair| FieldValue::owned_any(PagerankOutput::from(pair)))
         .collect_vec();
+    Ok(Some(FieldValue::list(result)))
+}
+
+pub(crate) struct ShortestPath;
+#[derive(SimpleObject)]
+pub(crate) struct ShortestPathOutput {
+    target: String,
+    nodes: Vec<String>,
+}
+
+impl From<(String, Vec<String>)> for ShortestPathOutput {
+    fn from((target, nodes): (String, Vec<String>)) -> Self {
+        Self { target, nodes }
+    }
+}
+
+impl<'a> Algorithm<'a, GraphAlgorithms> for ShortestPath {
+    type OutputType = ShortestPathOutput;
+
+    fn output_type() -> TypeRef {
+        TypeRef::named_nn_list_nn(ShortestPathOutput::get_type_name())
+    }
+    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
+        vec![
+            ("source", TypeRef::named_nn(TypeRef::STRING)), // _nn stands for not null
+            ("targets", TypeRef::named_nn_list_nn(TypeRef::STRING)),
+        ]
+    }
+    fn apply_algo<'b>(
+        entry_point: &GraphAlgorithms,
+        ctx: ResolverContext,
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        let result = apply_shortest_path(entry_point, ctx);
+        Box::pin(async move { result })
+    }
+}
+
+fn apply_shortest_path<'b>(
+    entry_point: &GraphAlgorithms,
+    ctx: ResolverContext,
+) -> FieldResult<Option<FieldValue<'b>>> {
+    let source = ctx.args.try_get("source")?.string()?;
+    let targets = ctx.args.try_get("targets")?.list()?;
+    let targets = targets
+        .iter()
+        .map(|v| v.string())
+        .collect::<Result<Vec<&str>, _>>()?;
+    let binding = dijkstra_single_source_shortest_paths(&entry_point.graph, source, targets, None);
+    let result: Vec<FieldValue> = binding
+        .into_iter()
+        .flat_map(|pair| {
+            pair.into_iter()
+                .map(|(key, value)| ShortestPathOutput::from((key.to_string(), value.1)))
+        })
+        .map(FieldValue::owned_any)
+        .collect();
+
     Ok(Some(FieldValue::list(result)))
 }

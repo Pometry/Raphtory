@@ -16,7 +16,7 @@ use raphtory::{
             properties::dyn_props::DynProperties,
             view::{DynamicGraph, NodeViewOps, TimeOps},
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
@@ -24,7 +24,6 @@ use raphtory::{
 use std::{
     collections::{HashMap, HashSet},
     convert::Into,
-    ops::Deref,
 };
 
 #[derive(ResolvedObject)]
@@ -335,10 +334,10 @@ impl GqlGraph {
         self.name.clone()
     }
     async fn schema(&self) -> GraphSchema {
-        GraphSchema::new(&self.graph)
+        GraphSchema::new(self.graph.graph())
     }
     async fn algorithms(&self) -> GraphAlgorithms {
-        self.graph.deref().clone().into()
+        self.graph.graph().clone().into()
     }
 
     async fn node_names(&self) -> Vec<String> {
@@ -397,6 +396,33 @@ impl GqlGraph {
                 .filter(|ev| filter.matches(ev))
                 .collect(),
             None => fetched_edges,
+        }
+    }
+
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
+        if selected_nodes.is_empty() {
+            return vec![];
+        }
+
+        let neighbours: Vec<HashSet<NodeView<IndexedGraph<DynamicGraph>>>> = selected_nodes
+            .iter()
+            .filter_map(|n| self.graph.node(Into::<NodeRef>::into(n.clone())))
+            .map(|n| {
+                n.neighbours()
+                    .collect()
+                    .iter()
+                    .map(|vv| vv.clone())
+                    .collect::<HashSet<NodeView<IndexedGraph<DynamicGraph>>>>()
+            })
+            .collect();
+
+        let intersection = neighbours.iter().fold(None, |acc, n| match acc {
+            None => Some(n.clone()),
+            Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
+        });
+        match intersection {
+            Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
+            None => vec![],
         }
     }
 }

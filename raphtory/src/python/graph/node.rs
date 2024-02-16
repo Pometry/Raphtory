@@ -2,7 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
     db::{
         api::{
             properties::Properties,
@@ -41,7 +41,7 @@ use std::collections::HashMap;
 #[pyclass(name = "Node", subclass)]
 #[derive(Clone)]
 pub struct PyNode {
-    pub(crate) node: NodeView<DynamicGraph, DynamicGraph>,
+    pub node: NodeView<DynamicGraph, DynamicGraph>,
 }
 
 impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
@@ -171,6 +171,12 @@ impl PyNode {
     #[getter]
     pub fn properties(&self) -> Properties<NodeView<DynamicGraph, DynamicGraph>> {
         self.node.properties()
+    }
+
+    /// Returns the type of node
+    #[getter]
+    pub fn node_type(&self) -> Option<ArcStr> {
+        self.node.node_type()
     }
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
@@ -472,10 +478,16 @@ impl PyNodes {
     /// Returns:
     ///    A list of unix timestamps.
     ///
-
     fn history(&self) -> I64VecIterable {
         let nodes = self.nodes.clone();
         (move || nodes.history()).into()
+    }
+
+    /// Returns the type of node
+    #[getter]
+    fn node_type(&self) -> OptionArcStringIterable {
+        let nodes = self.nodes.clone();
+        (move || nodes.node_type()).into()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
@@ -569,6 +581,12 @@ impl PyPathFromGraph {
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
+    }
+
+    #[getter]
+    fn node_type(&self) -> NestedOptionArcStringIterable {
+        let path = self.path.clone();
+        (move || path.node_type()).into()
     }
 
     #[getter]
@@ -715,6 +733,12 @@ impl PyPathFromNode {
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
+    }
+
+    #[getter]
+    fn node_type(&self) -> OptionArcStringIterable {
+        let path = self.path.clone();
+        (move || path.node_type()).into()
     }
 
     #[getter]

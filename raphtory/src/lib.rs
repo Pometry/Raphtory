@@ -37,12 +37,14 @@
 //!   1,
 //!   "Gandalf",
 //!   [("type", Prop::str("Character"))],
+//!   None
 //! ).unwrap();
 //!
 //! graph.add_node(
 //!   2,
 //!   "Frodo",
 //!   [("type", Prop::str("Character"))],
+//!   None,
 //! ).unwrap();
 //!
 //! graph.add_edge(
@@ -105,7 +107,7 @@ pub mod prelude {
         core::{IntoProp, Prop, PropUnwrap},
         db::{
             api::{
-                mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
+                mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
             },
             graph::graph::Graph,

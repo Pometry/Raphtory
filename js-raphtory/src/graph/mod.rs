@@ -97,7 +97,13 @@ impl Graph {
     }
 
     #[wasm_bindgen(js_name = addNode)]
-    pub fn add_node_js(&self, t: i64, id: JsValue, js_props: Object) -> Result<Node, JSError> {
+    pub fn add_node_js(
+        &self,
+        t: i64,
+        id: JsValue,
+        js_props: Object,
+        node_type: JsValue,
+    ) -> Result<Node, JSError> {
         let rust_props = if js_props.is_string() {
             vec![("name".to_string(), Prop::str(js_props.as_string().unwrap()))]
         } else if js_props.is_object() {
@@ -112,15 +118,18 @@ impl Graph {
             vec![]
         };
 
+        let opt_string = node_type.as_string();
+        let node_type_rust = opt_string.as_deref();
+
         match JsNode::try_from(id)? {
             JsNode::Str(node) => self
                 .mutable_graph()
-                .add_node(t, node, rust_props)
+                .add_node(t, node, rust_props, node_type_rust)
                 .map(|v| v.into())
                 .map_err(JSError),
             JsNode::Number(node) => self
                 .mutable_graph()
-                .add_node(t, node, rust_props)
+                .add_node(t, node, rust_props, node_type_rust)
                 .map(|v| v.into())
                 .map_err(JSError),
         }
@@ -187,8 +196,8 @@ mod js_test {
     fn add_one_edge_get_neighbours() -> Result<(), super::JSError> {
         let graph = super::Graph::new();
 
-        graph.add_node_js(2, "Bob".into(), Object::new())?;
-        graph.add_node_js(3, "Alice".into(), Object::new())?;
+        graph.add_node_js(2, "Bob".into(), Object::new(), JsValue::from("H"))?;
+        graph.add_node_js(3, "Alice".into(), Object::new(), JsValue::null())?;
 
         let js_weight = JsValue::from_f64(3.14);
 

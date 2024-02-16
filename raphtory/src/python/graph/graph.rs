@@ -15,14 +15,18 @@ use crate::{
 use pyo3::prelude::*;
 
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::{entities::nodes::node_ref::NodeRef, ArcStr},
     db::{
-        api::view::internal::{DynamicGraph, IntoDynamic},
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
     },
-    python::graph::pandas::{
-        dataframe::{process_pandas_py_df, GraphLoadException},
-        loaders::{load_edges_props_from_df, load_node_props_from_df},
+    python::graph::{
+        edge::PyEdge,
+        node::PyNode,
+        pandas::{
+            dataframe::{process_pandas_py_df, GraphLoadException},
+            loaders::{load_edges_props_from_df, load_node_props_from_df},
+        },
     },
 };
 use pyo3::types::{IntoPyDict, PyBytes};
@@ -137,18 +141,19 @@ impl PyGraph {
     ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
     ///    id (str or int): The id of the node.
     ///    properties (dict): The properties of the node (optional).
-    ///
+    ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None))]
+    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
         self.graph
-            .add_node(timestamp, id, properties.unwrap_or_default())
+            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
 
     /// Adds properties to the graph.
@@ -219,6 +224,91 @@ impl PyGraph {
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
+    /// Import a single node into the graph.
+    ///
+    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the node even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///     node (Node) - A PyNode object representing the node to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+    ///
+    /// Returns:
+    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+    #[pyo3(signature = (node, force=false))]
+    pub fn import_node(
+        &self,
+        node: PyNode,
+        force: Option<bool>,
+    ) -> Result<NodeView<Graph, Graph>, GraphError> {
+        self.graph.import_node(&node.node, force)
+    }
+
+    /// Import multiple nodes into the graph.
+    ///
+    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the nodes even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+    ///
+    /// Returns:
+    ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
+    #[pyo3(signature = (nodes, force=false))]
+    pub fn import_nodes(
+        &self,
+        nodes: Vec<PyNode>,
+        force: Option<bool>,
+    ) -> Result<Vec<NodeView<Graph, Graph>>, GraphError> {
+        let nodeviews = nodes.iter().map(|node| &node.node).collect();
+        self.graph.import_nodes(nodeviews, force)
+    }
+
+    /// Import a single edge into the graph.
+    ///
+    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edge even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edge (Edge) - A PyEdge object representing the edge to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+    ///
+    /// Returns:
+    ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+    #[pyo3(signature = (edge, force=false))]
+    pub fn import_edge(
+        &self,
+        edge: PyEdge,
+        force: Option<bool>,
+    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+        self.graph.import_edge(&edge.edge, force)
+    }
+
+    /// Import multiple edges into the graph.
+    ///
+    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edges even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
+    ///
+    /// Returns:
+    ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
+    #[pyo3(signature = (edges, force=false))]
+    pub fn import_edges(
+        &self,
+        edges: Vec<PyEdge>,
+        force: Option<bool>,
+    ) -> Result<Vec<EdgeView<Graph, Graph>>, GraphError> {
+        let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
+        self.graph.import_edges(edgeviews, force)
+    }
+
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
     /// Gets the node with the specified id
     ///
@@ -273,6 +363,14 @@ impl PyGraph {
         self.graph.save_to_file(Path::new(path))
     }
 
+    /// Returns all the node types in the graph.
+    ///
+    /// Returns:
+    /// A list of node types
+    pub fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph.get_all_node_types()
+    }
+
     /// Get bincode encoded graph
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
@@ -302,7 +400,8 @@ impl PyGraph {
     ///      Graph: The loaded Graph object.
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
-    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None, node_const_props = None, node_shared_const_props = None))]
+    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None,
+    node_const_props = None, node_shared_const_props = None, node_type = None))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -319,6 +418,7 @@ impl PyGraph {
         node_props: Option<Vec<&str>>,
         node_const_props: Option<Vec<&str>>,
         node_shared_const_props: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -339,6 +439,7 @@ impl PyGraph {
                 node_df,
                 node_id,
                 node_time,
+                node_type,
                 node_props,
                 node_const_props,
                 node_shared_const_props,
@@ -356,15 +457,16 @@ impl PyGraph {
     ///     props (List<str>): List of node property column names. Defaults to None. (optional)
     ///     const_props (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_const_props (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///
+    ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, props = None, const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, time, node_type = None, props = None, const_props = None, shared_const_props = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
         time: &str,
+        node_type: Option<&str>,
         props: Option<Vec<&str>>,
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
@@ -380,6 +482,9 @@ impl PyGraph {
                 .extract()?;
 
             let mut cols_to_check = vec![id, time];
+            if let Some(node_type) = node_type {
+                cols_to_check.push(node_type);
+            }
             cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
 
@@ -394,6 +499,7 @@ impl PyGraph {
                 props,
                 const_props,
                 shared_const_props,
+                node_type,
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

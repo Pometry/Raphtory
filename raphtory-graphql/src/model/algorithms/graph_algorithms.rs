@@ -13,6 +13,8 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 
+use super::algorithm::ShortestPath;
+
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
@@ -28,10 +30,16 @@ impl From<DynamicGraph> for GraphAlgorithms {
 
 impl<'a> AlgorithmEntryPoint<'a> for GraphAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::from([(
-            "pagerank",
-            Box::new(Pagerank::register_algo) as RegisterFunction,
-        )])
+        HashMap::from([
+            (
+                "pagerank",
+                Box::new(Pagerank::register_algo) as RegisterFunction,
+            ),
+            (
+                "shortest_path",
+                Box::new(ShortestPath::register_algo) as RegisterFunction,
+            ),
+        ])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         GRAPH_ALGO_PLUGINS.lock().unwrap()

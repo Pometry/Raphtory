@@ -56,10 +56,10 @@ fn main() {
         CsvLoader::new(data_dir)
             .set_delimiter("\t")
             .load_into_graph(&g, |lotr: Benchr, g: &Graph| {
-                g.add_node(1, lotr.src_id.clone(), NO_PROPS)
+                g.add_node(1, lotr.src_id.clone(), NO_PROPS, None)
                     .expect("Failed to add node");
 
-                g.add_node(1, lotr.dst_id.clone(), NO_PROPS)
+                g.add_node(1, lotr.dst_id.clone(), NO_PROPS, None)
                     .expect("Failed to add node");
 
                 g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), NO_PROPS, None)
