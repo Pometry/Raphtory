@@ -31,7 +31,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
             .map(|edge| {
                 let mut count = 0;
                 let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
-                let edge_ts = edge.timestamps();
+                let edge_ts = edge.timestamp_slice();
                 let len = event_ids.len();
 
                 for (i, t) in edge

@@ -74,20 +74,28 @@ impl CoreGraphOps for Graph2 {
         }
     }
 
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        todo!()
+    }
+
     fn node_id(&self, v: VID) -> u64 {
         match self.node_gid(v).unwrap() {
-            crate::arrow::GID::U64(n) => n,
-            crate::arrow::GID::I64(n) => n as u64,
-            crate::arrow::GID::Str(s) => calculate_hash(&s),
+            GID::U64(n) => n,
+            GID::I64(n) => n as u64,
+            GID::Str(s) => calculate_hash(&s),
         }
     }
 
     fn node_name(&self, v: VID) -> String {
         match self.node_gid(v).unwrap() {
-            crate::arrow::GID::U64(n) => n.to_string(),
+            GID::U64(n) => n.to_string(),
             crate::arrow::GID::I64(n) => n.to_string(),
             crate::arrow::GID::Str(s) => s,
         }
+    }
+
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        todo!()
     }
 
     fn edge_additions(
@@ -103,12 +111,12 @@ impl CoreGraphOps for Graph2 {
         };
 
         let edge = self.edge(eref.pid(), layer_id);
-        LockedLayeredIndex::External(Box::new(edge.into_distinct_timestamps()))
+        LockedLayeredIndex::External(Box::new(edge.timestamps()))
     }
 
     fn node_additions(&self, v: VID) -> NodeAdditions {
         let node = self.internal_node(v, 0);
-        NodeAdditions::Col(node.into_timestamps())
+        NodeAdditions::Col(node.timestamps())
     }
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {

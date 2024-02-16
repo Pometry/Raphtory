@@ -36,7 +36,6 @@ impl<T: NativeType + Into<Prop>> LayeredTProp for TPropColumn<'_, ChunkedPrimiti
         Box::new(
             self.timestamps
                 .iter_t()
-                .copied()
                 .zip(self.props.iter())
                 .filter_map(|(t, v)| v.copied().map(|v| (t, v.into()))),
         )
@@ -86,7 +85,6 @@ impl<I: Offset> LayeredTProp for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
         Box::new(
             self.timestamps
                 .iter_t()
-                .copied()
                 .zip(self.props.iter())
                 .filter_map(|(t, v)| v.map(|v| (t, v.into()))),
         )
@@ -130,7 +128,7 @@ where
     Prop: From<T>,
 {
     let props = edge.prop_values::<T>(id)?;
-    let timestamps = TimeStamps::new(edge.timestamps(), None);
+    let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
     Some(Box::new(TPropColumn { props, timestamps }))
 }
 
@@ -148,12 +146,12 @@ pub fn read_tprop_column(
         DataType::Float64 => new_tprop_column::<f64>(edge, id),
         DataType::Utf8 => {
             let props = edge.prop_str_values::<i32>(id)?;
-            let timestamps = TimeStamps::new(edge.timestamps(), None);
+            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
             Some(Box::new(TPropColumn { props, timestamps }))
         }
         DataType::LargeUtf8 => {
             let props = edge.prop_str_values::<i64>(id)?;
-            let timestamps = TimeStamps::new(edge.timestamps(), None);
+            let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
             Some(Box::new(TPropColumn { props, timestamps }))
         }
         _ => todo!(),

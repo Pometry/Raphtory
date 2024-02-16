@@ -20,10 +20,10 @@ pub trait TimeSemantics {
     /// Return the latest time for a node
     fn node_latest_time(&self, v: VID) -> Option<i64>;
 
-    /// Returns the default start time for perspectives over the view
+    /// Returns the start of the current view or `None` if unbounded
     fn view_start(&self) -> Option<i64>;
 
-    /// Returns the default end time for perspectives over the view
+    /// Returns the end of the current view or `None` if unbounded
     fn view_end(&self) -> Option<i64>;
 
     /// Returns the timestamp for the earliest activity

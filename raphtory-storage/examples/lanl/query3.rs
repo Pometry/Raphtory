@@ -40,7 +40,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
         g.all_edges_par(events_1v)
             .map(|edge| {
                 let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
-                let edge_ts = edge.timestamps();
+                let edge_ts = edge.timestamp_slice();
                 let len = event_ids.len();
 
                 let count: usize = g

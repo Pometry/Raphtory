@@ -433,11 +433,11 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         }
     }
 
-    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
         match self {
-            NodeAdditions::Mem(index) => index.iter_t(),
+            NodeAdditions::Mem(index) => index.iter(),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.iter_t(),
+            NodeAdditions::Col(index) => index.iter(),
         }
     }
 }

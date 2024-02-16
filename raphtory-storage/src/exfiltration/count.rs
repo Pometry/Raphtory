@@ -213,7 +213,7 @@ fn local_login_count(
     prop_id: usize,
     prog1_map: &[(Time, usize)],
 ) -> Option<usize> {
-    if login_edge.timestamps().iter().copied().next()? >= prog1_map.first()?.0 {
+    if login_edge.timestamp_slice().iter().copied().next()? >= prog1_map.first()?.0 {
         return None;
     }
     login_edge

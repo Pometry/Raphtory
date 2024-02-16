@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref};
+use std::{iter, marker::PhantomData, ops::Deref};
 
 use crate::{
     core::{
@@ -14,6 +14,10 @@ use crate::{
 
 #[cfg(feature = "arrow")]
 use crate::arrow::edge::Edge;
+use crate::{
+    core::storage::timeindex::{TimeIndex, TimeIndexOps},
+    db::api::view::IntoDynBoxed,
+};
 
 use super::EdgeLike;
 
@@ -84,6 +88,43 @@ impl CoreEdgeView<'_> {
             CoreEdgeView::Mem(e, _) => e.layer_ids(),
             #[cfg(feature = "arrow")]
             CoreEdgeView::Arrow(e) => e.layer_ids(),
+        }
+    }
+
+    pub fn updates_iter<'a>(
+        &'a self,
+        layers: &'a LayerIds,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    usize,
+                    Box<dyn TimeIndexOps<IndexType = TimeIndexEntry> + Send + Sync + 'a>,
+                    &'a TimeIndex<TimeIndexEntry>,
+                ),
+            > + 'a,
+    > {
+        match self {
+            CoreEdgeView::Mem(e, _) => e
+                .updates_iter(layers)
+                .map(|(l, a, d)| {
+                    let boxed: Box<
+                        dyn TimeIndexOps<IndexType = TimeIndexEntry> + Send + Sync + 'a,
+                    > = Box::new(a);
+                    (l, boxed, d)
+                })
+                .into_dyn_boxed(),
+            #[cfg(feature = "arrow")]
+            CoreEdgeView::Arrow(e) => {
+                let layer = e.layer();
+                if layers.contains(&layer) {
+                    let boxed: Box<
+                        dyn TimeIndexOps<IndexType = TimeIndexEntry> + Send + Sync + 'a,
+                    > = Box::new(e.timestamps());
+                    iter::once((layer, boxed, &TimeIndex::Empty)).into_dyn_boxed()
+                } else {
+                    iter::empty().into_dyn_boxed()
+                }
+            }
         }
     }
 }

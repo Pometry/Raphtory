@@ -348,7 +348,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     #[inline]
     fn update_time(&self, time: TimeIndexEntry) {
-        let t = *time.t();
+        let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
     }

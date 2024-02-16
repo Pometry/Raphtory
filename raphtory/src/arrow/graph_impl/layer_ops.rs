@@ -1,4 +1,8 @@
-use crate::{core::entities::LayerIds, db::api::view::internal::InternalLayerOps, prelude::Layer};
+use crate::{
+    core::{entities::LayerIds, utils::errors::GraphError},
+    db::api::view::internal::InternalLayerOps,
+    prelude::Layer,
+};
 
 use super::Graph2;
 
@@ -7,29 +11,35 @@ impl InternalLayerOps for Graph2 {
         LayerIds::One(0)
     }
 
-    fn layer_ids_from_names(&self, key: Layer) -> LayerIds {
+    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
         match key {
-            Layer::All | Layer::Default => LayerIds::One(0),
+            Layer::All | Layer::Default => Ok(LayerIds::One(0)), // FIXME: need to handle all correctly
             Layer::One(name) => {
-                if name == "default" {
-                    LayerIds::One(0)
-                } else {
-                    let name = name.as_ref();
-                    self.layer_names()
-                        .iter()
-                        .enumerate()
-                        .find(move |(_, ref n)| n == &name)
-                        .map(|(i, _)| LayerIds::One(i))
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "Layer name {} not found in graph. Available layers: {:?}",
-                                name,
-                                self.layer_names()
-                            )
-                        })
-                }
+                let name = name.as_ref();
+                self.layer_names()
+                    .iter()
+                    .enumerate()
+                    .find(move |(_, ref n)| n == &name)
+                    .map(|(i, _)| LayerIds::One(i))
+                    .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))
             }
-            _ => todo!("Layer ids from names not implemented for Graph2"),
+            _ => todo!("Layer ids for multiple names not implemented for Graph2"),
+        }
+    }
+
+    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
+        match key {
+            Layer::All | Layer::Default => LayerIds::One(0), // FIXME: need to handle all correctly
+            Layer::One(name) => {
+                let name = name.as_ref();
+                self.layer_names()
+                    .iter()
+                    .enumerate()
+                    .find(move |(_, ref n)| n == &name)
+                    .map(|(i, _)| LayerIds::One(i))
+                    .unwrap_or(LayerIds::None)
+            }
+            _ => todo!("Layer ids for multiple names not implemented for Graph2"),
         }
     }
 }

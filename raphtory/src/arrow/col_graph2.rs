@@ -47,11 +47,11 @@ use super::{
     split_struct_chunk, GraphChunk, Time, GID,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TempColGraphFragment {
     pub(crate) nodes: Nodes,
     pub(crate) edges: Edges,
-    pub(crate) graph_dir: Box<Path>,
+    pub(crate) graph_dir: Arc<Path>,
     pub(crate) metadata: Metadata,
 }
 
@@ -1140,10 +1140,10 @@ mod test {
         assert_eq!(actual, expected);
 
         let e0 = graph.edge(0.into());
-        assert_eq!(*e0.timestamps().into_iter().next().unwrap(), 0i64);
+        assert_eq!(*e0.timestamp_slice().into_iter().next().unwrap(), 0i64);
 
         let e5 = graph.edge(5.into());
-        assert_eq!(*e5.timestamps().into_iter().next().unwrap(), 5i64);
+        assert_eq!(*e5.timestamp_slice().into_iter().next().unwrap(), 5i64);
     }
 
     #[test]
@@ -1456,7 +1456,7 @@ mod test {
                 let node = rg.node(node).expect("failed to get node id");
                 let expected = node.history();
                 let node = graph.node(v_id.into());
-                let actual = node.into_timestamps().into_iter_t().collect::<Vec<_>>();
+                let actual = node.timestamps().into_iter_t().collect::<Vec<_>>();
                 assert_eq!(actual, expected);
             }
         }

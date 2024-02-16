@@ -190,7 +190,7 @@ fn query1_v7(
                         if !prog1.is_empty() {
                             let max_prog1 = *prog1.last().unwrap() as i64;
 
-                            let login1_ts = login1.timestamps();
+                            let login1_ts = login1.timestamp_slice();
 
                             let min_login1 = login1_ts.iter().next().unwrap();
                             if min_login1 > &max_prog1 {

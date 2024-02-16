@@ -1,9 +1,11 @@
 use arrow2::array::StructArray;
 
 use crate::{
-    core::entities::properties::graph_props::GraphProps,
+    arrow::col_graph2::TempColGraphFragment,
+    core::entities::{properties::graph_props::GraphProps, LayerIds},
     db::api::view::{DynamicGraph, IntoDynamic},
 };
+use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
 
 use crate::core::entities::properties::props::Meta;
@@ -154,6 +156,28 @@ impl Graph2 {
 
         Ok(grapho)
     }
+
+    pub fn filtered_layers_par<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
+        self.layers
+            .par_iter()
+            .enumerate()
+            .filter(|(l_id, _)| layer_ids.contains(l_id))
+            .map(|(_, layer)| layer)
+    }
+
+    pub fn filtered_layers_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
+        self.layers
+            .iter()
+            .enumerate()
+            .filter(|(l_id, _)| layer_ids.contains(l_id))
+            .map(|(_, layer)| layer)
+    }
 }
 
 #[cfg(test)]
@@ -235,9 +259,7 @@ mod test {
             .iter()
             .all(|(src, dst, _, _)| g.edge(*src, *dst).is_some()));
 
-        assert!(edges
-            .iter()
-            .all(|(src, dst, _, _)| g.has_edge(*src, *dst, Layer::All)));
+        assert!(edges.iter().all(|(src, dst, _, _)| g.has_edge(*src, *dst)));
 
         // check earlies_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
@@ -249,16 +271,14 @@ mod test {
 
         // get edges over window
 
-        let g = g.window(i64::MIN, i64::MAX).layer(Layer::Default).unwrap();
+        let g = g.window(i64::MIN, i64::MAX).layers(Layer::Default).unwrap();
 
         // get edges back from full windows with all layers
         assert!(edges
             .iter()
             .all(|(src, dst, _, _)| g.edge(*src, *dst).is_some()));
 
-        assert!(edges
-            .iter()
-            .all(|(src, dst, _, _)| g.has_edge(*src, *dst, Layer::All)));
+        assert!(edges.iter().all(|(src, dst, _, _)| g.has_edge(*src, *dst)));
 
         // check earlies_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
@@ -394,6 +414,7 @@ mod test {
     fn weight_props(g: &impl StaticGraphViewOps) -> Vec<(i64, f64)> {
         let edge_t_props: Vec<_> = g
             .edges()
+            .into_iter()
             .flat_map(|e| {
                 e.properties()
                     .temporal()

@@ -77,7 +77,7 @@ impl<'graph> GraphOps<'graph> for Graph2 {
                 if let Some(ef) = filter {
                     self.all_edges_par(*layer_id)
                         .filter(|edge| ef(edge, &layer))
-                        .map(|edge| edge.timestamps().len())
+                        .map(|edge| edge.timestamp_slice().len())
                         .sum::<usize>()
                 } else {
                     self.t_len(*layer_id)
