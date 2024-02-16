@@ -1,6 +1,5 @@
 use dynamic_graphql::SimpleObject;
-use raphtory::core::Lifespan;
-use raphtory::vectors::Document;
+use raphtory::{core::Lifespan, vectors::Document};
 
 #[derive(SimpleObject)]
 pub struct GqlDocument {

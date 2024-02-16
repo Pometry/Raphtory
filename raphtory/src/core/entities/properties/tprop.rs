@@ -1,4 +1,3 @@
-use crate::core::DocumentInput;
 use crate::{
     core::{
         entities::{
@@ -7,7 +6,7 @@ use crate::{
         },
         storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr, Prop, PropType,
+        ArcStr, DocumentInput, Prop, PropType,
     },
     db::graph::graph::Graph,
 };

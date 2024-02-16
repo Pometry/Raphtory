@@ -1,8 +1,8 @@
-use crate::core::{DocumentInput, Lifespan};
-use crate::python::packages::vectors::PyDocument;
 use crate::{
-    core::Prop,
-    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
+    core::{DocumentInput, Prop},
+    python::{
+        graph::views::graph_view::PyGraphView, packages::vectors::PyDocument, types::repr::Repr,
+    },
 };
 use pyo3::{
     exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,

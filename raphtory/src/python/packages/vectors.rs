@@ -1,7 +1,7 @@
-use crate::core::{DocumentInput, Lifespan};
-use crate::vectors::graph_entity::GraphEntity;
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime, Prop},
+    core::{
+        entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
+    },
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
@@ -16,6 +16,7 @@ use crate::{
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
+        graph_entity::GraphEntity,
         vectorisable::Vectorisable,
         vectorised_graph::DynamicVectorisedGraph,
         Document, Embedding, EmbeddingFunction,
@@ -24,10 +25,8 @@ use crate::{
 use chrono::NaiveDateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
-use pyo3::exceptions::PyAttributeError;
-use pyo3::types::PyTuple;
 use pyo3::{
-    exceptions::{PyException, PyTypeError},
+    exceptions::{PyAttributeError, PyException, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList},
 };
@@ -597,7 +596,7 @@ impl PyVectorisedGraph {
     ///
     /// Args:
     ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add  
+    ///   limit (int): the maximum number of new documents to add
     ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
     ///
     /// Returns:
