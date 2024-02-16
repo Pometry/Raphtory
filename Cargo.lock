@@ -2914,6 +2914,7 @@ dependencies = [
  "lock_api",
  "neo4rs",
  "num",
+ "num-integer",
  "num-traits",
  "once_cell",
  "ordered-float 3.7.0",
