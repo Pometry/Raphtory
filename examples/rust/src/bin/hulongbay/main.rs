@@ -2,10 +2,7 @@
 #![allow(dead_code)]
 use itertools::Itertools;
 use raphtory::{
-    algorithms::{
-        community_detection::connected_components::weakly_connected_components,
-        motifs::triangle_count::triangle_count,
-    },
+    algorithms::{components::weakly_connected_components, motifs::triangle_count::triangle_count},
     graph_loader::source::csv_loader::CsvLoader,
     prelude::*,
 };
@@ -63,9 +60,9 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
         let g = Graph::load_from_file(encoded_data_dir.as_path())?;
 
         println!(
-            "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
+            "Loaded graph from path {} with {} nodes, {} edges, took {} seconds",
             encoded_data_dir.display(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -94,9 +91,9 @@ pub fn loader(data_dir: &Path) -> Result<Graph, Box<dyn Error>> {
             })?;
 
         println!(
-            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.display(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -133,7 +130,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
         .rev()
         .take(50)
         .for_each(|(cc, count)| {
-            println!("CC {} has {} vertices", cc, count);
+            println!("CC {} has {} nodes", cc, count);
         });
 
     println!(
@@ -142,7 +139,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     );
 
     let now = Instant::now();
-    let num_edges: usize = graph.vertices().out_degree().sum();
+    let num_edges: usize = graph.nodes().out_degree().sum();
     println!(
         "Counting edges by summing degrees returned {} in {} seconds",
         num_edges,
@@ -156,7 +153,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
     println!("Creating window took {} seconds", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let num_windowed_edges: usize = window.vertices().out_degree().sum();
+    let num_windowed_edges: usize = window.nodes().out_degree().sum();
     println!(
         "Counting edges in window by summing degrees returned {} in {} seconds",
         num_windowed_edges,
@@ -181,7 +178,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     let graph = loader(data_dir)?;
 
     let now = Instant::now();
-    let num_edges: usize = graph.vertices().iter().map(|v| v.out_degree()).sum();
+    let num_edges: usize = graph.nodes().iter().map(|v| v.out_degree()).sum();
     println!(
         "Counting edges by summing degrees returned {} in {} milliseconds",
         num_edges,
@@ -200,7 +197,7 @@ fn try_main_bm() -> Result<(), Box<dyn Error>> {
     );
 
     let now = Instant::now();
-    let num_exploded_edges = graph.edges().explode().count();
+    let num_exploded_edges = graph.edges().explode().iter().count();
     println!(
         "counted {} exploded edges in {} milliseconds",
         num_exploded_edges,

@@ -1,13 +1,17 @@
 use crate::{
     core::{ArcStr, Prop},
     db::api::{
-        properties::{internal::PropertiesOps, Properties},
+        properties::{
+            dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
+            internal::PropertiesOps,
+            Properties,
+        },
         view::internal::{DynamicGraph, Static},
     },
     python::{
         graph::properties::{
-            DynConstProperties, DynProps, DynTemporalProperties, PyConstProperties,
-            PyConstPropsList, PyConstPropsListList, PyTemporalPropsList, PyTemporalPropsListList,
+            PyConstProperties, PyConstPropsList, PyConstPropsListList, PyTemporalPropsList,
+            PyTemporalPropsListList,
         },
         types::{
             repr::{iterator_dict_repr, Repr},
@@ -22,8 +26,6 @@ use pyo3::{
     prelude::*,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-
-pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 
 #[derive(PartialEq, Clone)]
 pub struct PyPropsComp(HashMap<ArcStr, Prop>);
@@ -139,21 +141,6 @@ impl PyProperties {
     /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
-    }
-}
-
-impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<Properties<P>>
-    for DynProperties
-{
-    fn from(value: Properties<P>) -> Self {
-        Properties::new(Arc::new(value.props))
-    }
-}
-
-impl From<Properties<DynamicGraph>> for DynProperties {
-    fn from(value: Properties<DynamicGraph>) -> Self {
-        let props: DynProps = Arc::new(value.props);
-        Properties::new(props)
     }
 }
 

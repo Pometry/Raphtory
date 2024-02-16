@@ -1,45 +1,38 @@
 //! The API for querying a view of the graph in a read-only state
 
 use crate::{
-    core::{
-        entities::vertices::vertex_ref::VertexRef,
-        utils::{errors::GraphError, time::error::ParseTimeError},
-        ArcStr,
-    },
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
     db::{
         api::{
             properties::Properties,
             view::{
                 internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
-                LayerOps, WindowSet,
+                node::BaseNodeViewOps,
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
             edge::EdgeView,
-            vertex::VertexView,
+            edges::Edges,
+            node::NodeView,
+            nodes::Nodes,
             views::{
-                layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph,
-                window_graph::WindowedGraph,
+                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
             },
         },
     },
     prelude::*,
     python::{
-        graph::{edge::PyEdges, index::GraphIndex, vertex::PyVertices},
-        packages::vectors::{spawn_async_task, DynamicVectorisedGraph, PyDocumentTemplate},
-        types::repr::Repr,
-        utils::{PyInterval, PyTime},
+        types::repr::{Repr, StructReprBuilder},
+        utils::PyTime,
     },
-    vectors::vectorisable::Vectorisable,
-    *,
 };
 use chrono::prelude::*;
-use itertools::Itertools;
 use pyo3::{
     prelude::*,
-    types::{PyBytes, PyFunction},
+    types::{PyBytes, PyDict},
 };
-use std::{ops::Deref, path::PathBuf};
+use std::collections::HashMap;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
@@ -72,13 +65,17 @@ impl<'source> FromPyObject<'source> for DynamicGraph {
 /// Graph view is a read-only version of a graph at a certain point in time.
 
 #[pyclass(name = "GraphView", frozen, subclass)]
+#[derive(Clone)]
 #[repr(C)]
 pub struct PyGraphView {
     pub graph: DynamicGraph,
 }
 
+impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
+impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
+
 /// Graph view is a read-only version of a graph at a certain point in time.
-impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
+impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
     fn from(value: G) -> Self {
         PyGraphView {
             graph: value.into_dynamic(),
@@ -86,19 +83,19 @@ impl<G: GraphViewOps + IntoDynamic> From<G> for PyGraphView {
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for WindowedGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
 }
 
-impl<G: GraphViewOps + IntoDynamic> IntoPy<PyObject> for VertexSubgraph<G> {
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -129,9 +126,8 @@ impl PyGraphView {
     /// Returns:
     ///     the datetime of the earliest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<NaiveDateTime> {
-        let earliest_time = self.graph.earliest_time()?;
-        NaiveDateTime::from_timestamp_millis(earliest_time)
+    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph.earliest_date_time()
     }
 
     /// Timestamp of latest activity in the graph
@@ -143,14 +139,159 @@ impl PyGraphView {
         self.graph.latest_time()
     }
 
+    /// Converts the graph's nodes into a Pandas DataFrame.
+    ///
+    /// This method will create a DataFrame with the following columns:
+    /// - "name": The name of the node.
+    /// - "properties": The properties of the node. This column will be included if `include_node_properties` is set to `true`.
+    /// - "property_history": The history of the node's properties. This column will be included if both `include_node_properties` and `include_property_histories` are set to `true`.
+    /// - "update_history": The update history of the node. This column will be included if `include_update_history` is set to `true`.
+    ///
+    /// Args:
+    ///     include_node_properties (bool): A boolean wrapped in an Option. If set to `true`, the "properties" and "property_history" columns will be included in the DataFrame. Defaults to `true`.
+    ///     include_update_history (bool): A boolean wrapped in an Option. If set to `true`, the "update_history" column will be included in the DataFrame. Defaults to `true`.
+    ///     include_property_histories (bool): A boolean wrapped in an Option. If set to `true`, the "property_history" column will be included in the DataFrame. Defaults to `true`.
+    ///
+    /// Returns:
+    ///     If successful, this PyObject will be a Pandas DataFrame.
+    #[pyo3(signature = (include_node_properties=true, include_update_history=true, include_property_histories=true))]
+    pub fn to_node_df(
+        &self,
+        include_node_properties: Option<bool>,
+        include_update_history: Option<bool>,
+        include_property_histories: Option<bool>,
+    ) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let pandas = PyModule::import(py, "pandas")?;
+            let column_names = vec!["name", "properties", "property_history", "update_history"];
+            let node_tuples: Vec<_> = self
+                .graph
+                .nodes()
+                .map(|g, b| {
+                    let v = g.node(b).unwrap();
+                    let mut properties: Option<HashMap<ArcStr, Prop>> = None;
+                    let mut temporal_properties: Option<Vec<(ArcStr, (i64, Prop))>> = None;
+                    let mut update_history: Option<Vec<_>> = None;
+                    if include_node_properties == Some(true) {
+                        if include_property_histories == Some(true) {
+                            properties = Some(v.properties().constant().as_map());
+                            temporal_properties = Some(v.properties().temporal().histories());
+                        } else {
+                            properties = Some(v.properties().as_map());
+                        }
+                    }
+                    if include_update_history == Some(true) {
+                        update_history = Some(v.history());
+                    }
+                    (v.name(), properties, temporal_properties, update_history)
+                })
+                .collect();
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("columns", column_names)?;
+            let df = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
+            let kwargs_drop = PyDict::new(py);
+            kwargs_drop.set_item("how", "all")?;
+            kwargs_drop.set_item("axis", 1)?;
+            kwargs_drop.set_item("inplace", true)?;
+            df.call_method("dropna", (), Some(kwargs_drop))?;
+            Ok(df.to_object(py))
+        })
+    }
+
+    /// Converts the graph's edges into a Pandas DataFrame.
+    ///
+    /// This method will create a DataFrame with the following columns:
+    /// - "src": The source node of the edge.
+    /// - "dst": The destination node of the edge.
+    /// - "layer": The layer of the edge.
+    /// - "properties": The properties of the edge. This column will be included if `include_edge_properties` is set to `true`.
+    /// - "property_histories": The history of the edge's properties. This column will be included if both `include_edge_properties` and `include_property_histories` are set to `true`.
+    /// - "update_history": The update history of the edge. This column will be included if `include_update_history` is set to `true`.
+    /// - "update_history_exploded": The exploded update history of the edge. This column will be included if `explode_edges` is set to `true`.
+    ///
+    /// Args:
+    ///     explode_edges (bool): A boolean wrapped in an Option. If set to `true`, the "update_history_exploded" column will be included in the DataFrame. Defaults to `false`.
+    ///     include_edge_properties (bool): A boolean wrapped in an Option. If set to `true`, the "properties" and "property_histories" columns will be included in the DataFrame. Defaults to `true`.
+    ///     include_update_history (bool): A boolean wrapped in an Option. If set to `true`, the "update_history" column will be included in the DataFrame. Defaults to `true`.
+    ///     include_property_histories (bool): A boolean wrapped in an Option. If set to `true`, the "property_histories" column will be included in the DataFrame. Defaults to `true`.
+    ///
+    /// Returns:
+    ///     If successful, this PyObject will be a Pandas DataFrame.
+    #[pyo3(signature = (explode_edges=false, include_edge_properties=true, include_update_history=true, include_property_histories=true))]
+    pub fn to_edge_df(
+        &self,
+        explode_edges: Option<bool>,
+        include_edge_properties: Option<bool>,
+        include_update_history: Option<bool>,
+        include_property_histories: Option<bool>,
+    ) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let pandas = PyModule::import(py, "pandas")?;
+            let column_names = vec![
+                "src",
+                "dst",
+                "layer",
+                "properties",
+                "property_histories",
+                "update_history",
+                "update_history_exploded",
+            ];
+            let mut edges = self.graph.edges();
+            if explode_edges == Some(true) {
+                edges = self.graph.edges().explode_layers().explode();
+            }
+            let edge_tuples: Vec<_> = edges
+                .iter()
+                .map(|e| {
+                    let mut properties: Option<HashMap<ArcStr, Prop>> = None;
+                    let mut temporal_properties: Option<Vec<(ArcStr, (i64, Prop))>> = None;
+                    if include_edge_properties == Some(true) {
+                        if include_property_histories == Some(true) {
+                            properties = Some(e.properties().constant().as_map());
+                            temporal_properties = Some(e.properties().temporal().histories());
+                        } else {
+                            properties = Some(e.properties().as_map());
+                        }
+                    }
+                    let mut update_history_exploded: Option<i64> = None;
+                    let mut update_history: Option<Vec<_>> = None;
+                    if include_update_history == Some(true) {
+                        if explode_edges == Some(true) {
+                            update_history_exploded = e.time();
+                        } else {
+                            update_history = Some(e.history());
+                        }
+                    }
+                    (
+                        e.src().name(),
+                        e.dst().name(),
+                        e.layer_name(),
+                        properties,
+                        temporal_properties,
+                        update_history,
+                        update_history_exploded,
+                    )
+                })
+                .collect();
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("columns", column_names)?;
+            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(kwargs))?;
+            let kwargs_drop = PyDict::new(py);
+            kwargs_drop.set_item("how", "all")?;
+            kwargs_drop.set_item("axis", 1)?;
+            kwargs_drop.set_item("inplace", true)?;
+            df.call_method("dropna", (), Some(kwargs_drop))?;
+            Ok(df.to_object(py))
+        })
+    }
+
     /// DateTime of latest activity in the graph
     ///
     /// Returns:
     ///     the datetime of the latest activity in the graph
     #[getter]
-    pub fn latest_date_time(&self) -> Option<NaiveDateTime> {
-        let latest_time = self.graph.latest_time()?;
-        NaiveDateTime::from_timestamp_millis(latest_time)
+    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.graph.latest_date_time()
     }
 
     /// Number of edges in the graph
@@ -169,72 +310,71 @@ impl PyGraphView {
         self.graph.count_temporal_edges()
     }
 
-    /// Number of vertices in the graph
+    /// Number of nodes in the graph
     ///
     /// Returns:
-    ///   the number of vertices in the graph
-    pub fn count_vertices(&self) -> usize {
-        self.graph.count_vertices()
+    ///   the number of nodes in the graph
+    pub fn count_nodes(&self) -> usize {
+        self.graph.count_nodes()
     }
 
-    /// Returns true if the graph contains the specified vertex
+    /// Returns true if the graph contains the specified node
     ///
     /// Arguments:
-    ///    id (str or int): the vertex id
+    ///    id (str or int): the node id
     ///
     /// Returns:
-    ///   true if the graph contains the specified vertex, false otherwise
-    pub fn has_vertex(&self, id: VertexRef) -> bool {
-        self.graph.has_vertex(id)
+    ///   true if the graph contains the specified node, false otherwise
+    pub fn has_node(&self, id: NodeRef) -> bool {
+        self.graph.has_node(id)
     }
 
     /// Returns true if the graph contains the specified edge
     ///
     /// Arguments:
-    ///   src (str or int): the source vertex id
-    ///   dst (str or int): the destination vertex id  
-    ///   layer (str): the edge layer (optional)
+    ///   src (str or int): the source node id
+    ///   dst (str or int): the destination node id
     ///
     /// Returns:
     ///  true if the graph contains the specified edge, false otherwise
-    #[pyo3(signature = (src, dst, layer=None))]
-    pub fn has_edge(&self, src: VertexRef, dst: VertexRef, layer: Option<&str>) -> bool {
-        self.graph.has_edge(src, dst, layer)
+    #[pyo3(signature = (src, dst))]
+    pub fn has_edge(&self, src: NodeRef, dst: NodeRef) -> bool {
+        self.graph.has_edge(src, dst)
     }
 
     //******  Getter APIs ******//
 
-    /// Gets the vertex with the specified id
+    /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str or int): the vertex id
+    ///   id (str or int): the node id
     ///
     /// Returns:
-    ///   the vertex with the specified id, or None if the vertex does not exist
-    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<DynamicGraph>> {
-        self.graph.vertex(id)
+    ///   the node with the specified id, or None if the node does not exist
+    pub fn node(&self, id: NodeRef) -> Option<NodeView<DynamicGraph>> {
+        self.graph.node(id)
     }
 
-    /// Gets the vertices in the graph
+    /// Gets the nodes in the graph
     ///
     /// Returns:
-    ///  the vertices in the graph
+    ///  the nodes in the graph
     #[getter]
-    pub fn vertices(&self) -> PyVertices {
-        self.graph.vertices().into()
+    pub fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+        self.graph.nodes()
     }
 
-    /// Gets the edge with the specified source and destination vertices
+    /// Gets the edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str or int): the source vertex id
-    ///     dst (str or int): the destination vertex id
+    ///     src (str or int): the source node id
+    ///     dst (str or int): the destination node id
     ///     layer (str): the edge layer (optional)
     ///
     /// Returns:
-    ///     the edge with the specified source and destination vertices, or None if the edge does not exist
+    ///     the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<DynamicGraph>> {
+    pub fn edge(&self, src: NodeRef, dst: NodeRef) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -243,26 +383,8 @@ impl PyGraphView {
     /// Returns:
     ///  the edges in the graph
     #[getter]
-    pub fn edges(&self) -> PyEdges {
-        let clone = self.graph.clone();
-        (move || clone.edges()).into()
-    }
-
-    #[doc = default_layer_doc_string!()]
-    pub fn default_layer(&self) -> LayeredGraph<DynamicGraph> {
-        self.graph.default_layer()
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (names))]
-    pub fn layers(&self, names: Vec<String>) -> Option<LayeredGraph<DynamicGraph>> {
-        self.graph.layer(names)
-    }
-
-    #[doc = layers_doc_string!()]
-    #[pyo3(signature = (name))]
-    pub fn layer(&self, name: String) -> Option<LayeredGraph<DynamicGraph>> {
-        self.graph.layer(name)
+    pub fn edges(&self) -> Edges<'static, DynamicGraph> {
+        self.graph.edges()
     }
 
     /// Get all graph properties
@@ -275,15 +397,15 @@ impl PyGraphView {
         self.graph.properties()
     }
 
-    /// Returns a subgraph given a set of vertices
+    /// Returns a subgraph given a set of nodes
     ///
     /// Arguments:
-    ///   * `vertices`: set of vertices
+    ///   * `nodes`: set of nodes
     ///
     /// Returns:
     ///    GraphView - Returns the subgraph
-    fn subgraph(&self, vertices: Vec<VertexRef>) -> VertexSubgraph<DynamicGraph> {
-        self.graph.subgraph(vertices)
+    fn subgraph(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
+        self.graph.subgraph(nodes)
     }
 
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
@@ -292,36 +414,6 @@ impl PyGraphView {
     ///    GraphView - Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
-    }
-
-    /// Indexes all vertex and edge properties.
-    /// Returns a GraphIndex which allows the user to search the edges and vertices of the graph via tantivity fuzzy matching queries.
-    /// Note this is currently immutable and will not update if the graph changes. This is to be improved in a future release.
-    ///
-    /// Returns:
-    ///    GraphIndex - Returns a GraphIndex
-    fn index(&self) -> GraphIndex {
-        GraphIndex::new(self.graph.clone())
-    }
-
-    #[pyo3(signature = (embedding, cache = None, node_document = None, edge_document = None, verbose = false))]
-    fn vectorise(
-        &self,
-        embedding: &PyFunction,
-        cache: Option<String>,
-        node_document: Option<String>,
-        edge_document: Option<String>,
-        verbose: bool,
-    ) -> DynamicVectorisedGraph {
-        let embedding: Py<PyFunction> = embedding.into();
-        let graph = self.graph.clone();
-        let cache = cache.map(PathBuf::from);
-        let template = PyDocumentTemplate::new(node_document, edge_document);
-        spawn_async_task(move || async move {
-            graph
-                .vectorise_with_template(Box::new(embedding.clone()), cache, template, verbose)
-                .await
-        })
     }
 
     /// Get bincode encoded graph
@@ -336,32 +428,31 @@ impl PyGraphView {
     }
 }
 
-impl_timeops!(PyGraphView, graph, DynamicGraph, "graph");
-
 impl Repr for PyGraphView {
     fn repr(&self) -> String {
-        let num_edges = self.graph.count_edges();
-        let num_vertices = self.graph.count_vertices();
-        let num_temporal_edges: usize = self.graph.count_temporal_edges();
-        let earliest_time = self.graph.earliest_time().repr();
-        let latest_time = self.graph.latest_time().repr();
-        let properties: String = self
-            .graph
-            .properties()
-            .iter()
-            .map(|(k, v)| format!("{}: {}", k.deref(), v))
-            .join(", ");
-        if properties.is_empty() {
-            return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?})",
-                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time
-            );
+        if self.properties().is_empty() {
+            StructReprBuilder::new("Graph")
+                .add_field("number_of_nodes", self.graph.count_nodes())
+                .add_field("number_of_edges", self.graph.count_edges())
+                .add_field(
+                    "number_of_temporal_edges",
+                    self.graph.count_temporal_edges(),
+                )
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .finish()
         } else {
-            let property_string: String = format!("{{{properties}}}");
-            return format!(
-                "Graph(number_of_edges={:?}, number_of_vertices={:?}, number_of_temporal_edges={:?}, earliest_time={:?}, latest_time={:?}, properties={})",
-                num_edges, num_vertices, num_temporal_edges, earliest_time, latest_time, property_string
-            );
+            StructReprBuilder::new("Graph")
+                .add_field("number_of_nodes", self.graph.count_nodes())
+                .add_field("number_of_edges", self.graph.count_edges())
+                .add_field(
+                    "number_of_temporal_edges",
+                    self.graph.count_temporal_edges(),
+                )
+                .add_field("earliest_time", self.earliest_time())
+                .add_field("latest_time", self.latest_time())
+                .add_field("properties", self.properties())
+                .finish()
         }
     }
 }

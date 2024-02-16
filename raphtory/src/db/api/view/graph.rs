@@ -1,84 +1,38 @@
 use crate::{
     core::{
-        entities::{
-            graph::tgraph::InnerTemporalGraph, vertices::vertex_ref::VertexRef, LayerIds, VID,
-        },
-        utils::{errors::GraphError, time::IntoTime},
-        ArcStr,
+        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
+        storage::timeindex::AsTime,
+        utils::errors::GraphError,
+        ArcStr, OptionAsStr,
     },
     db::{
         api::{
-            mutation::{AdditionOps, PropertyAdditionOps},
+            mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
             properties::Properties,
-            view::{internal::*, layer::LayerOps, *},
+            view::{internal::*, *},
         },
         graph::{
-            edge::EdgeView,
-            vertex::VertexView,
-            vertices::Vertices,
-            views::{
-                layer_graph::LayeredGraph, vertex_subgraph::VertexSubgraph,
-                window_graph::WindowedGraph,
-            },
+            edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes,
+            views::node_subgraph::NodeSubgraph,
         },
     },
     prelude::{DeletionOps, NO_PROPS},
 };
+use chrono::{DateTime, Utc};
 use rustc_hash::FxHashSet;
+use std::sync::Arc;
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
-/// that are used to define the type of the vertices, edges
+/// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
-pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
-        &self,
-        vertices: I,
-    ) -> VertexSubgraph<Self>;
-    /// Return all the layer ids in the graph
-    fn unique_layers(&self) -> BoxedIter<ArcStr>;
-    /// Timestamp of earliest activity in the graph
-    fn earliest_time(&self) -> Option<i64>;
-    /// Timestamp of latest activity in the graph
-    fn latest_time(&self) -> Option<i64>;
-    /// Return the number of vertices in the graph.
-    fn count_vertices(&self) -> usize;
-
-    /// Check if the graph is empty.
-    fn is_empty(&self) -> bool {
-        self.count_vertices() == 0
-    }
-
-    /// Return the number of edges in the graph.
-    fn count_edges(&self) -> usize;
-
-    // Return the number of temporal edges in the graph.
-    fn count_temporal_edges(&self) -> usize;
-
-    /// Check if the graph contains a vertex `v`.
-    fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool;
-
-    /// Check if the graph contains an edge given a pair of vertices `(src, dst)`.
-    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool;
-
-    /// Get a vertex `v`.
-    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>>;
-
-    /// Return a View of the vertices in the Graph
-    fn vertices(&self) -> Vertices<Self>;
-
-    /// Get an edge `(src, dst)`.
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
-
+///
+pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send>;
+    fn edges(&self) -> Edges<'graph, Self, Self>;
 
-    /// Get all property values of this graph.
-    ///
-    /// Returns:
-    ///
-    /// A view of the properties of the graph
-    fn properties(&self) -> Properties<Self>;
+    /// Return a View of the nodes in the Graph
+    fn nodes(&self) -> Nodes<'graph, Self, Self>;
 
     /// Get a graph clone
     ///
@@ -87,99 +41,82 @@ pub trait GraphViewOps: BoxableGraphView + Clone + Sized {
     /// Returns:
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I)
+        -> NodeSubgraph<Self>;
+    /// Return all the layer ids in the graph
+    fn unique_layers(&self) -> BoxedIter<ArcStr>;
+    /// Timestamp of earliest activity in the graph
+    fn earliest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of earliest activity in the graph
+    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.earliest_time()?.dt()
+    }
+    /// Timestamp of latest activity in the graph
+    fn latest_time(&self) -> Option<i64>;
+
+    /// UTC DateTime of latest activity in the graph
+    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+        self.latest_time()?.dt()
+    }
+    /// Return the number of nodes in the graph.
+    fn count_nodes(&self) -> usize;
+
+    /// Check if the graph is empty.
+    fn is_empty(&self) -> bool {
+        self.count_nodes() == 0
+    }
+
+    /// Return the number of edges in the graph.
+    fn count_edges(&self) -> usize;
+
+    // Return the number of temporal edges in the graph.
+    fn count_temporal_edges(&self) -> usize;
+
+    /// Check if the graph contains a node `v`.
+    fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool;
+
+    /// Check if the graph contains an edge given a pair of nodes `(src, dst)`.
+    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool;
+
+    /// Get a node `v`.
+    fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>>;
+
+    /// Get an edge `(src, dst)`.
+    fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
+
+    /// Get all property values of this graph.
+    ///
+    /// Returns:
+    ///
+    /// A view of the properties of the graph
+    fn properties(&self) -> Properties<Self>;
 }
 
-impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<VertexRef>>(
-        &self,
-        vertices: I,
-    ) -> VertexSubgraph<G> {
-        let filter = self.edge_filter();
-        let layer_ids = self.layer_ids();
-        let vertices: FxHashSet<VID> = vertices
-            .into_iter()
-            .flat_map(|v| self.internal_vertex_ref(v.into(), &layer_ids, filter))
-            .collect();
-        VertexSubgraph::new(self.clone(), vertices)
-    }
-
-    /// Return all the layer ids in the graph
-    fn unique_layers(&self) -> BoxedIter<ArcStr> {
-        self.get_layer_names_from_ids(self.layer_ids())
-    }
-
-    fn earliest_time(&self) -> Option<i64> {
-        self.earliest_time_global()
-    }
-
-    fn latest_time(&self) -> Option<i64> {
-        self.latest_time_global()
-    }
-
-    fn count_vertices(&self) -> usize {
-        self.vertices_len(self.layer_ids(), self.edge_filter())
-    }
-
-    fn count_temporal_edges(&self) -> usize {
-        self.edges().explode().count()
-    }
-
-    #[inline]
-    fn count_edges(&self) -> usize {
-        self.edges_len(self.layer_ids(), self.edge_filter())
-    }
-
-    fn has_vertex<T: Into<VertexRef>>(&self, v: T) -> bool {
-        self.has_vertex_ref(v.into(), &self.layer_ids(), self.edge_filter())
-    }
-
-    fn has_edge<T: Into<VertexRef>, L: Into<Layer>>(&self, src: T, dst: T, layer: L) -> bool {
-        let src_ref = src.into();
-        let dst_ref = dst.into();
-        let layers = self.layer_ids_from_names(layer.into());
-        if let Some(src) = self.internalise_vertex(src_ref) {
-            if let Some(dst) = self.internalise_vertex(dst_ref) {
-                return self.has_edge_ref(src, dst, &layers, self.edge_filter());
-            }
-        }
-        false
-    }
-
-    fn vertex<T: Into<VertexRef>>(&self, v: T) -> Option<VertexView<Self>> {
-        let v = v.into();
-        self.internal_vertex_ref(v, &self.layer_ids(), self.edge_filter())
-            .map(|v| VertexView::new_internal(self.clone(), v))
-    }
-
-    fn vertices(&self) -> Vertices<Self> {
+impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+    fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        Vertices::new(graph)
-    }
-
-    fn edge<T: Into<VertexRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
-        let layer_ids = self.layer_ids();
-        let edge_filter = self.edge_filter();
-        if let Some(src) = self.internal_vertex_ref(src.into(), &layer_ids, edge_filter) {
-            if let Some(dst) = self.internal_vertex_ref(dst.into(), &layer_ids, edge_filter) {
-                return self
-                    .edge_ref(src, dst, &layer_ids, edge_filter)
-                    .map(|e| EdgeView::new(self.clone(), e));
-            }
+        let edges = Arc::new(move || graph.edge_refs(graph.layer_ids(), graph.edge_filter()));
+        Edges {
+            base_graph: self.clone(),
+            graph: self.clone(),
+            edges,
         }
-        None
     }
 
-    fn edges(&self) -> Box<dyn Iterator<Item = EdgeView<Self>> + Send> {
-        Box::new(self.vertices().iter().flat_map(|v| v.out_edges()))
+    fn nodes(&self) -> Nodes<'graph, Self, Self> {
+        let graph = self.clone();
+        Nodes::new(graph)
     }
-
-    fn properties(&self) -> Properties<Self> {
-        Properties::new(self.clone())
-    }
-
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         let g = InnerTemporalGraph::default();
-        // Add edges first so we definitely have all associated vertices (important in case of persistent edges)
+
+        // make sure we preserve all layers even if they are empty
+        // skip default layer
+        for layer in self.unique_layers().skip(1) {
+            g.resolve_layer(Some(&layer));
+        }
+        // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         for e in self.edges() {
             // FIXME: this needs to be verified
             for ee in e.explode_layers() {
@@ -214,17 +151,19 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
             }
         }
 
-        for v in self.vertices().iter() {
+        for v in self.nodes().iter() {
+            let v_type_string = v.node_type(); //stop it being dropped
+            let v_type_str = v_type_string.as_str();
             for h in v.history() {
-                g.add_vertex(h, v.name(), NO_PROPS)?;
+                g.add_node(h, v.name(), NO_PROPS, v_type_str)?;
             }
             for (name, prop_view) in v.properties().temporal().iter() {
                 for (t, prop) in prop_view.iter() {
-                    g.add_vertex(t, v.name(), [(name.clone(), prop)])?;
+                    g.add_node(t, v.name(), [(name.clone(), prop)], v_type_str)?;
                 }
             }
-            g.vertex(v.id())
-                .expect("vertex added")
+            g.node(v.id())
+                .expect("node added")
                 .add_constant_properties(v.properties().constant())?;
         }
 
@@ -232,38 +171,103 @@ impl<G: BoxableGraphView + Sized + Clone> GraphViewOps for G {
 
         Ok(self.new_base_graph(g))
     }
-}
-
-impl<G: GraphViewOps> TimeOps for G {
-    type WindowedViewType = WindowedGraph<Self>;
-
-    fn start(&self) -> Option<i64> {
-        self.view_start()
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
+        let filter = self.edge_filter();
+        let layer_ids = self.layer_ids();
+        let nodes: FxHashSet<VID> = nodes
+            .into_iter()
+            .flat_map(|v| self.internal_node_ref(v.into(), &layer_ids, filter))
+            .collect();
+        NodeSubgraph::new(self.clone(), nodes)
     }
 
-    fn end(&self) -> Option<i64> {
-        self.view_end()
+    /// Return all the layer ids in the graph
+    fn unique_layers(&self) -> BoxedIter<ArcStr> {
+        self.get_layer_names_from_ids(self.layer_ids())
     }
 
-    fn window<T: IntoTime>(&self, start: T, end: T) -> WindowedGraph<Self> {
-        WindowedGraph::new(self.clone(), start, end)
-    }
-}
-
-impl<G: GraphViewOps> LayerOps for G {
-    type LayeredViewType = LayeredGraph<G>;
-
-    fn default_layer(&self) -> Self::LayeredViewType {
-        LayeredGraph::new(self.clone(), 0.into())
+    fn earliest_time(&self) -> Option<i64> {
+        self.earliest_time_global()
     }
 
-    fn layer<L: Into<Layer>>(&self, layers: L) -> Option<Self::LayeredViewType> {
-        let layers = layers.into();
-        let ids = self.layer_ids_from_names(layers);
-        match ids {
-            LayerIds::None => None,
-            _ => Some(LayeredGraph::new(self.clone(), ids)),
+    fn latest_time(&self) -> Option<i64> {
+        self.latest_time_global()
+    }
+
+    fn count_nodes(&self) -> usize {
+        self.nodes_len(self.layer_ids(), self.edge_filter())
+    }
+
+    #[inline]
+    fn count_edges(&self) -> usize {
+        self.edges_len(self.layer_ids(), self.edge_filter())
+    }
+
+    fn count_temporal_edges(&self) -> usize {
+        self.temporal_edges_len(self.layer_ids(), self.edge_filter())
+    }
+
+    fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool {
+        self.has_node_ref(v.into(), &self.layer_ids(), self.edge_filter())
+    }
+
+    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool {
+        let src_ref = src.into();
+        let dst_ref = dst.into();
+        if let Some(src) = self.internalise_node(src_ref) {
+            if let Some(dst) = self.internalise_node(dst_ref) {
+                return self.has_edge_ref(src, dst, &self.layer_ids(), self.edge_filter());
+            }
         }
+        false
+    }
+
+    fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>> {
+        let v = v.into();
+        self.internal_node_ref(v, &self.layer_ids(), self.edge_filter())
+            .map(|v| NodeView::new_internal(self.clone(), v))
+    }
+
+    fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
+        let layer_ids = self.layer_ids();
+        let edge_filter = self.edge_filter();
+        if let Some(src) = self.internal_node_ref(src.into(), &layer_ids, edge_filter) {
+            if let Some(dst) = self.internal_node_ref(dst.into(), &layer_ids, edge_filter) {
+                return self
+                    .edge_ref(src, dst, &layer_ids, edge_filter)
+                    .map(|e| EdgeView::new(self.clone(), e));
+            }
+        }
+        None
+    }
+
+    fn properties(&self) -> Properties<Self> {
+        Properties::new(self.clone())
+    }
+}
+
+pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
+
+impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
+
+impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
+    type BaseGraph = G;
+    type FilteredGraph = G;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
+
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self
+    }
+
+    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: GH,
+    ) -> Self::Filtered<GH> {
+        filtered_graph
     }
 }
 
@@ -285,7 +289,7 @@ mod test_exploded_edges {
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::prelude::*;
+    use crate::{core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*};
 
     #[test]
     fn test_materialize() {
@@ -295,13 +299,13 @@ mod test_materialize {
 
         let gm = g.materialize().unwrap();
         assert!(gm
-            .vertices()
+            .nodes()
             .name()
             .collect::<Vec<String>>()
             .eq(&vec!["1", "2"]));
 
         assert!(!g
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
@@ -311,13 +315,37 @@ mod test_materialize {
         assert!(!gm
             .into_events()
             .unwrap()
-            .layer("2")
+            .layers("2")
             .unwrap()
             .edge(1, 2)
             .unwrap()
             .properties()
             .temporal()
             .contains("layer1"));
+    }
+
+    #[test]
+    fn testing_node_types() {
+        let g = Graph::new();
+        let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+        let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
+        let node_a_type = node_a.node_type();
+        let node_a_type_str = node_a_type.as_str();
+
+        assert_eq!(node_a_type_str, None);
+        assert_eq!(node_b.node_type().as_str(), Some("H"));
+
+        // Nodes with No type can be overwritten
+        let node_a = g.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
+        assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
+
+        // Check that overwriting a node type returns an error
+        assert!(g.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
+        // Double check that the type did not actually change
+        assert_eq!(g.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
+        // Check that the update is not added to the graph
+        let all_node_types = g.get_all_node_types();
+        assert_eq!(all_node_types.len(), 2);
     }
 
     #[test]
@@ -328,8 +356,8 @@ mod test_materialize {
         g.add_properties(0, props_0.clone()).unwrap();
         assert!(g.add_properties(1, props_1.clone()).is_err());
 
-        g.add_vertex(0, 1, props_0.clone()).unwrap();
-        assert!(g.add_vertex(1, 1, props_1.clone()).is_err());
+        g.add_node(0, 1, props_0.clone(), None).unwrap();
+        assert!(g.add_node(1, 1, props_1.clone(), None).is_err());
 
         g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
         assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());

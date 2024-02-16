@@ -41,14 +41,13 @@ pub mod accumulators {
     use super::AccId;
     use crate::core::state::{
         agg::{
-            set::{BitSet, Set},
+            set::Set,
             topk::{TopK, TopKHeap},
             Accumulator, AndDef, ArrConst, AvgDef, MaxDef, MinDef, OrDef, SumDef, ValDef,
         },
         StateType,
     };
     use num_traits::{Bounded, Zero};
-    use roaring::{RoaringBitmap, RoaringTreemap};
     use rustc_hash::FxHashSet;
     use std::{
         cmp::Eq,
@@ -130,20 +129,6 @@ pub mod accumulators {
     pub fn hash_set<A: StateType + Hash + Eq>(
         id: u32,
     ) -> AccId<FxHashSet<A>, A, FxHashSet<A>, Set<A>> {
-        AccId {
-            id,
-            _a: std::marker::PhantomData,
-        }
-    }
-
-    pub fn bit_set_32(id: u32) -> AccId<RoaringBitmap, u32, RoaringBitmap, BitSet<u32>> {
-        AccId {
-            id,
-            _a: std::marker::PhantomData,
-        }
-    }
-
-    pub fn bit_set_64(id: u32) -> AccId<RoaringTreemap, u64, RoaringTreemap, BitSet<u64>> {
         AccId {
             id,
             _a: std::marker::PhantomData,

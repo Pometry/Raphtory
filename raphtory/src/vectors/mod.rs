@@ -1,5 +1,5 @@
-use crate::vectors::document_ref::DocumentRef;
 use futures_util::future::BoxFuture;
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 
 mod document_ref;
@@ -8,14 +8,21 @@ mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
+mod similarity_search_utils;
 pub mod splitting;
 pub mod vectorisable;
+pub mod vectorised_cluster;
 pub mod vectorised_graph;
+pub mod vectorised_graph_storage;
 
 pub type Embedding = Vec<f32>;
 
 #[derive(Debug)]
 pub enum Document {
+    Graph {
+        name: String,
+        content: String,
+    },
     Node {
         name: String,
         content: String,
@@ -36,12 +43,14 @@ pub trait DocumentOps {
 impl DocumentOps for Document {
     fn content(&self) -> &str {
         match self {
+            Document::Graph { content, .. } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
     }
     fn into_content(self) -> String {
         match self {
+            Document::Graph { content, .. } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
@@ -56,7 +65,7 @@ pub struct DocumentInput {
     pub life: Lifespan,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
@@ -100,11 +109,16 @@ mod vector_tests {
     use super::*;
     use crate::{
         core::Prop,
-        db::graph::{edge::EdgeView, vertex::VertexView},
-        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, VertexViewOps},
+        db::{
+            api::view::StaticGraphViewOps,
+            graph::{edge::EdgeView, node::NodeView},
+        },
+        prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
         vectors::{
-            document_template::DocumentTemplate, embeddings::openai_embedding,
-            graph_entity::GraphEntity, vectorisable::Vectorisable,
+            document_template::{DefaultTemplate, DocumentTemplate},
+            embeddings::openai_embedding,
+            graph_entity::GraphEntity,
+            vectorisable::Vectorisable,
         },
     };
     use dotenv::dotenv;
@@ -122,24 +136,28 @@ mod vector_tests {
         texts.into_iter().map(|_| vec![1.0, 0.0, 0.0]).collect_vec()
     }
 
-    async fn panicking_embedding(texts: Vec<String>) -> Vec<Embedding> {
+    async fn panicking_embedding(_texts: Vec<String>) -> Vec<Embedding> {
         panic!("embedding function was called")
     }
 
     struct CustomTemplate;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for CustomTemplate {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
-            let name = vertex.name();
-            let node_type = vertex.properties().get("type").unwrap().to_string();
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
+        fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+            let name = node.name();
+            let node_type = node.properties().get("type").unwrap().to_string();
             let property_list =
-                vertex.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
+                node.generate_property_list(&format_time, vec!["type", "_id"], vec![]);
             let content =
                 format!("{name} is a {node_type} with the following details:\n{property_list}");
             Box::new(std::iter::once(content.into()))
         }
 
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let src = edge.src().name();
             let dst = edge.dst().name();
             let lines = edge.history().iter().join(",");
@@ -151,23 +169,30 @@ mod vector_tests {
     #[tokio::test]
     async fn test_embedding_cache() {
         let g = Graph::new();
-        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         // the following succeeds with no cache set up
-        g.vectorise(Box::new(fake_embedding), None, false).await;
+        g.vectorise(Box::new(fake_embedding), None, true, false)
+            .await;
 
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
         let _ = remove_file(path);
 
         // the following creates the embeddings, and store them on the cache
-        g.vectorise(Box::new(fake_embedding), Some(PathBuf::from(path)), false)
-            .await;
+        g.vectorise(
+            Box::new(fake_embedding),
+            Some(PathBuf::from(path)),
+            true,
+            false,
+        )
+        .await;
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
         g.vectorise(
             Box::new(panicking_embedding),
             Some(PathBuf::from(path)),
+            true,
             false,
         )
         .await;
@@ -180,7 +205,7 @@ mod vector_tests {
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
         let vectors = g
-            .vectorise(Box::new(fake_embedding), Some(cache), false)
+            .vectorise(Box::new(fake_embedding), Some(cache), true, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
@@ -195,19 +220,20 @@ mod vector_tests {
     #[test]
     fn test_node_into_doc() {
         let g = Graph::new();
-        g.add_vertex(
+        g.add_node(
             0,
             "Frodo",
             [
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
 
         let custom_template = CustomTemplate;
         let doc: DocumentInput = custom_template
-            .node(&g.vertex("Frodo").unwrap())
+            .node(&g.node("Frodo").unwrap())
             .next()
             .unwrap()
             .into();
@@ -239,15 +265,19 @@ age: 30"###;
     const FAKE_DOCUMENTS: [&str; 3] = ["doc1", "doc2", "doc3"];
     struct FakeMultiDocumentTemplate;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
+        fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
                     .into_iter()
                     .map(|text| text.into()),
             )
         }
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }
@@ -255,12 +285,13 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_multi_embedding() {
         let g = Graph::new();
-        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         let vectors = g
             .vectorise_with_template(
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-multi-test")),
+                true,
                 FakeMultiDocumentTemplate,
                 false,
             )
@@ -286,8 +317,12 @@ age: 30"###;
 
     struct FakeTemplateWithIntervals;
 
-    impl<G: GraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
-        fn node(&self, vertex: &VertexView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
+        fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
                 life: Lifespan::Event { time: 20 },
@@ -299,7 +334,7 @@ age: 30"###;
             };
             Box::new(vec![doc_event_20, doc_interval_30_40].into_iter())
         }
-        fn edge(&self, edge: &EdgeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+        fn edge(&self, _edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(std::iter::empty())
         }
     }
@@ -307,13 +342,14 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_window() {
         let g = Graph::new();
-        g.add_vertex(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
             .vectorise_with_template(
                 Box::new(fake_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
+                true,
                 FakeTemplateWithIntervals,
                 false,
             )
@@ -356,33 +392,36 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store() {
         let g = Graph::new();
-        g.add_vertex(
+        g.add_node(
             0,
             "Gandalf",
             [
                 ("type".to_string(), Prop::str("wizard")),
                 ("age".to_string(), Prop::str("120")),
             ],
+            None,
         )
         .unwrap();
-        g.add_vertex(
+        g.add_node(
             0,
             "Frodo",
             [
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
             .unwrap();
-        g.add_vertex(
+        g.add_node(
             2,
             "Aragorn",
             [
                 ("type".to_string(), Prop::str("human")),
                 ("age".to_string(), Prop::str("40")),
             ],
+            None,
         )
         .unwrap();
 
@@ -391,6 +430,7 @@ age: 30"###;
             .vectorise_with_template(
                 Box::new(openai_embedding),
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-lotr-test")),
+                true,
                 CustomTemplate,
                 false,
             )

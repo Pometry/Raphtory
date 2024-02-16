@@ -1,6 +1,5 @@
 use crate::{
-    db::api::view::internal::IntoDynamic,
-    prelude::GraphViewOps,
+    db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     vectors::{
         document_ref::DocumentRef,
         document_template::{DefaultTemplate, DocumentTemplate},
@@ -25,54 +24,89 @@ struct IndexedDocumentInput {
 }
 
 #[async_trait(?Send)]
-pub trait Vectorisable<G: GraphViewOps> {
+pub trait Vectorisable<G: StaticGraphViewOps> {
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// # Arguments:
+    ///   * embedding - the embedding function to translate documents to embeddings
+    ///   * cache - the file to be used as a cache to avoid calling the embedding function
+    ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
+    ///   * verbose - whether or not to print logs reporting the progress
+    ///   
+    /// # Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
+        override_cache: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate>;
 
+    /// Create a VectorisedGraph from the current graph
+    ///
+    /// # Arguments:
+    ///   * embedding - the embedding function to translate documents to embeddings
+    ///   * cache - the file to be used as a cache to avoid calling the embedding function
+    ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
+    ///   * template - the template to use to translate entities into documents
+    ///   * verbose - whether or not to print logs reporting the progress
+    ///   
+    /// # Returns:
+    ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
+        cache: Option<PathBuf>,
+        override_cache: bool,
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T>;
 }
 
 #[async_trait(?Send)]
-impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
+impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
     async fn vectorise(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
+        cache: Option<PathBuf>,
+        overwrite_cache: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate> {
-        self.vectorise_with_template(embedding, cache_file, DefaultTemplate, verbose)
+        self.vectorise_with_template(embedding, cache, overwrite_cache, DefaultTemplate, verbose)
             .await
     }
 
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
         &self,
         embedding: Box<dyn EmbeddingFunction>,
-        cache_file: Option<PathBuf>,
+        cache: Option<PathBuf>,
+        overwrite_cache: bool,
         template: T,
         verbose: bool,
     ) -> VectorisedGraph<G, T> {
-        let nodes = self.vertices().iter().flat_map(|vertex| {
+        let graph_docs =
             template
-                .node(&vertex)
+                .graph(self)
                 .enumerate()
                 .map(move |(index, doc)| IndexedDocumentInput {
-                    entity_id: EntityId::from_node(&vertex),
+                    entity_id: EntityId::from_graph(self),
+                    content: doc.content,
+                    index,
+                    life: doc.life,
+                });
+        let nodes = self.nodes().iter().flat_map(|node| {
+            template
+                .node(&node)
+                .enumerate()
+                .map(move |(index, doc)| IndexedDocumentInput {
+                    entity_id: EntityId::from_node(&node),
                     content: doc.content,
                     index,
                     life: doc.life,
                 })
         });
-        let edges = self.edges().flat_map(|edge| {
+        let edges = self.edges().iter().flat_map(|edge| {
             template
                 .edge(&edge)
                 .enumerate()
@@ -84,24 +118,38 @@ impl<G: GraphViewOps + IntoDynamic> Vectorisable<G> for G {
                 })
         });
 
-        let cache = cache_file.map(EmbeddingCache::from_path);
+        let cache_storage = cache.map(EmbeddingCache::from_path);
 
         if verbose {
-            println!("compute embeddings for nodes");
+            println!("computing embeddings for graph");
         }
-        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache).await;
+        let graph_ref_map =
+            compute_embedding_groups(graph_docs, embedding.as_ref(), &cache_storage).await;
+        let graph_refs = graph_ref_map
+            .into_iter()
+            .next()
+            .map(|(_, graph_refs)| graph_refs)
+            .unwrap_or_else(|| vec![]); // there should be only one value here, TODO: check that's true
 
         if verbose {
-            println!("compute embeddings for edges");
+            println!("computing embeddings for nodes");
         }
-        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache).await; // FIXME: re-enable
+        let node_refs = compute_embedding_groups(nodes, embedding.as_ref(), &cache_storage).await;
 
-        cache.iter().for_each(|cache| cache.dump_to_disk());
+        if verbose {
+            println!("computing embeddings for edges");
+        }
+        let edge_refs = compute_embedding_groups(edges, embedding.as_ref(), &cache_storage).await; // FIXME: re-enable
+
+        if overwrite_cache {
+            cache_storage.iter().for_each(|cache| cache.dump_to_disk());
+        }
 
         VectorisedGraph::new(
             self.clone(),
             template.into(),
             embedding.into(),
+            graph_refs.into(),
             node_refs.into(),
             edge_refs.into(),
             vec![],
@@ -124,7 +172,7 @@ where
             match embedding_groups.get_mut(&doc.entity_id) {
                 Some(group) => group.push(doc),
                 None => {
-                    embedding_groups.insert(doc.entity_id, vec![doc]);
+                    embedding_groups.insert(doc.entity_id.clone(), vec![doc]);
                 }
             }
         }

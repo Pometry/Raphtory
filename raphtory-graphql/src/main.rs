@@ -1,5 +1,4 @@
 use crate::server::RaphtoryServer;
-use dotenv::dotenv;
 use std::env;
 
 mod data;
@@ -7,10 +6,6 @@ mod model;
 mod observability;
 mod routes;
 mod server;
-
-fn default_cache_dir() -> String {
-    "".to_owned()
-}
 
 #[tokio::main]
 async fn main() {

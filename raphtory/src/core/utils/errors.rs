@@ -38,11 +38,20 @@ pub enum GraphError {
         source: ParseTimeError,
     },
 
-    #[error("No Vertex with ID {0}")]
-    VertexIdError(u64),
+    #[error("Node already exists with ID {0}")]
+    NodeExistsError(u64),
 
-    #[error("No Vertex with name {0}")]
-    VertexNameError(String),
+    #[error("Edge already exists for nodes {0} {1}")]
+    EdgeExistsError(u64, u64),
+
+    #[error("No Node with ID {0}")]
+    NodeIdError(u64),
+
+    #[error("No Node with name {0}")]
+    NodeNameError(String),
+
+    #[error("Node Type Error {0}")]
+    NodeTypeError(String),
 
     #[error("No Edge between {src} and {dst}")]
     EdgeIdError { src: u64, dst: u64 },
@@ -50,10 +59,16 @@ pub enum GraphError {
     #[error("No Edge between {src} and {dst}")]
     EdgeNameError { src: String, dst: String },
     // wasm
-    #[error("Vertex is not String or Number")]
-    VertexIdNotStringOrNumber,
+    #[error("Node is not String or Number")]
+    NodeIdNotStringOrNumber,
     #[error("Invalid layer {0}.")]
     InvalidLayer(String),
+    #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
+    InvalidEdgeLayer {
+        layer: String,
+        src: String,
+        dst: String,
+    },
     #[error("Bincode operation failed")]
     BinCodeError {
         #[from]
@@ -96,15 +111,12 @@ pub enum GraphError {
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum MutateGraphError {
-    #[error("Create vertex '{vertex_id}' first before adding static properties to it")]
-    VertexNotFoundError { vertex_id: u64 },
+    #[error("Create node '{node_id}' first before adding static properties to it")]
+    NodeNotFoundError { node_id: u64 },
     #[error("Unable to find layer '{layer_name}' to add property to")]
     LayerNotFoundError { layer_name: String },
-    #[error("cannot change property for vertex '{vertex_id}'")]
-    IllegalVertexPropertyChange {
-        vertex_id: u64,
-        source: IllegalMutate,
-    },
+    #[error("cannot change property for node '{node_id}'")]
+    IllegalNodePropertyChange { node_id: u64, source: IllegalMutate },
     #[error("Tried to change constant graph property {name}, old value: {old_value}, new value: {new_value}")]
     IllegalGraphPropertyChange {
         name: String,
@@ -119,6 +131,10 @@ pub enum MutateGraphError {
         dst_id: u64,
         source: IllegalMutate,
     },
+    #[error("Cannot add properties to edge view with no layers")]
+    NoLayersError,
+    #[error("Cannot add properties to edge view with more than one layer")]
+    AmbiguousLayersError,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

@@ -66,9 +66,9 @@ fn main() {
             .expect("Failed to load graph from encoded data files");
 
         println!(
-            "Loaded graph from path {} with {} vertices, {} edges, took {} seconds",
+            "Loaded graph from path {} with {} nodes, {} edges, took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -102,9 +102,9 @@ fn main() {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -115,23 +115,23 @@ fn main() {
         g
     };
 
-    assert_eq!(graph.count_vertices(), 9132396);
+    assert_eq!(graph.count_nodes(), 9132396);
     assert_eq!(graph.count_edges(), 5087223);
 
     let windowed_graph = graph.window(0, i64::MAX);
 
-    assert!(windowed_graph.has_vertex(test_v));
-    let v = windowed_graph.vertex(test_v).unwrap();
+    assert!(windowed_graph.has_node(test_v));
+    let v = windowed_graph.node(test_v).unwrap();
 
-    let deg_out = v.out_edges().count();
-    let deg_in = v.in_edges().count();
+    let deg_out = v.out_edges().iter().count();
+    let deg_in = v.in_edges().iter().count();
 
     assert_eq!(deg_out, 22);
     assert_eq!(deg_in, 1);
 }
 
 mod custom_date_format {
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
     use serde::{self, Deserialize, Deserializer, Serializer};
 
     const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
@@ -163,7 +163,7 @@ mod custom_date_format {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Utc.datetime_from_str(&s, FORMAT)
-            .map_err(serde::de::Error::custom)
+        let dt = NaiveDateTime::parse_from_str(&s, FORMAT).map_err(serde::de::Error::custom)?;
+        Ok(dt.and_utc())
     }
 }

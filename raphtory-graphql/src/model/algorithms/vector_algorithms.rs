@@ -1,13 +1,11 @@
-use crate::{
-    data::DynamicVectorisedGraph,
-    model::algorithms::{
-        algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint,
-        similarity_search::SimilaritySearch, RegisterFunction,
-    },
+use crate::model::algorithms::{
+    algorithm::Algorithm, algorithm_entry_point::AlgorithmEntryPoint,
+    similarity_search::SimilaritySearch, RegisterFunction,
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
+use raphtory::vectors::vectorised_graph::DynamicVectorisedGraph;
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -31,7 +29,7 @@ impl<'a> AlgorithmEntryPoint<'a> for VectorAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
             "similaritySearch",
-            SimilaritySearch::register_algo as RegisterFunction,
+            Box::new(SimilaritySearch::register_algo) as RegisterFunction,
         )])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {

@@ -2,23 +2,24 @@ use itertools::Itertools;
 use raphtory::{
     core::ArcStr,
     db::{
-        api::view::internal::DynamicGraph,
-        graph::{edge::EdgeView, vertex::VertexView},
+        api::view::DynamicGraph,
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, VertexViewOps},
+    prelude::{EdgeViewOps, NodeViewOps},
 };
 use std::collections::HashSet;
 
 pub(crate) mod edge;
+mod edges;
 pub(crate) mod graph;
 pub(crate) mod node;
+mod nodes;
 pub(crate) mod property;
-pub(crate) mod property_update;
 pub(crate) mod vectorised_graph;
 
 fn get_expanded_edges(
     graph_nodes: HashSet<String>,
-    vv: VertexView<DynamicGraph>,
+    vv: NodeView<DynamicGraph>,
     maybe_layers: Option<Vec<String>>,
 ) -> Vec<EdgeView<DynamicGraph>> {
     let node_found_in_graph_nodes =
@@ -71,6 +72,7 @@ fn get_expanded_edges(
             let mut r = e
                 .dst()
                 .edges()
+                .iter()
                 .filter(|e| {
                     (node_found_in_first_hop_nodes(e.src().name())
                         && node_found_in_first_hop_nodes(e.dst().name()))
@@ -84,6 +86,7 @@ fn get_expanded_edges(
             let mut r = e
                 .src()
                 .edges()
+                .iter()
                 .filter(|e| {
                     (node_found_in_first_hop_nodes(e.src().name())
                         && node_found_in_first_hop_nodes(e.dst().name()))

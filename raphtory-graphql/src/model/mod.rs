@@ -1,8 +1,8 @@
 use crate::{
     data::Data,
-    model::graph::{
-        graph::{GqlGraph, GraphMeta},
-        vectorised_graph::GqlVectorisedGraph,
+    model::{
+        algorithms::global_plugins::GlobalPlugins,
+        graph::{graph::GqlGraph, vectorised_graph::GqlVectorisedGraph},
     },
 };
 use async_graphql::Context;
@@ -15,26 +15,24 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
-    db::api::view::internal::{IntoDynamic, MaterializedGraph},
-    prelude::{GraphViewOps, PropertyAdditionOps, VertexViewOps},
+    db::api::view::MaterializedGraph,
+    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
-    vectors::embeddings::openai_embedding,
 };
+use serde_json::Value;
 use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
     io::BufReader,
-    ops::Deref,
+    path::Path,
 };
-use utils::path_prefix;
 use uuid::Uuid;
 
 pub mod algorithms;
 pub(crate) mod filters;
 pub(crate) mod graph;
 pub(crate) mod schema;
-pub(crate) mod utils;
 
 #[derive(Debug)]
 pub struct MissingGraph;
@@ -61,7 +59,7 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.graphs.read().get(name).cloned()?;
-        Some(GqlGraph::new(g.into_dynamic_indexed()))
+        Some(GqlGraph::new(name.to_string(), g))
     }
 
     async fn vectorised_graph<'a>(ctx: &Context<'a>, name: &str) -> Option<GqlVectorisedGraph> {
@@ -70,22 +68,21 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn subgraph<'a>(ctx: &Context<'a>, name: &str) -> Option<GraphMeta> {
-        let data = ctx.data_unchecked::<Data>();
-        let g = data.graphs.read().get(name).cloned()?;
-        Some(GraphMeta::new(
-            name.to_string(),
-            g.deref().clone().into_dynamic(),
-        ))
-    }
-
-    async fn subgraphs<'a>(ctx: &Context<'a>) -> Vec<GraphMeta> {
+    async fn graphs<'a>(ctx: &Context<'a>) -> Vec<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         data.graphs
             .read()
             .iter()
-            .map(|(name, g)| GraphMeta::new(name.clone(), g.deref().clone().into_dynamic()))
+            .map(|(name, g)| GqlGraph::new(name.clone(), g.clone()))
             .collect_vec()
+    }
+
+    async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
+        let data = ctx.data_unchecked::<Data>();
+        GlobalPlugins {
+            graphs: data.graphs.clone(),
+            vectorised_graphs: data.vector_stores.clone(),
+        }
     }
 
     async fn receive_graph<'a>(ctx: &Context<'a>, name: &str) -> Result<String> {
@@ -149,7 +146,7 @@ impl Mut {
 
             let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
             let new_subgraph = parent_graph
-                .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
+                .subgraph(subgraph.nodes().iter().map(|v| v.name()).collect_vec())
                 .materialize()?;
 
             let static_props_without_name: Vec<(ArcStr, Prop)> = subgraph
@@ -167,7 +164,8 @@ impl Mut {
             let timestamp: i64 = dt.timestamp();
             new_subgraph
                 .update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
-
+            new_subgraph
+                .update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
             new_subgraph.save_to_file(path)?;
 
             let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
@@ -179,6 +177,28 @@ impl Mut {
         Ok(true)
     }
 
+    async fn update_graph_last_opened<'a>(ctx: &Context<'a>, graph_name: String) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>().graphs.write();
+
+        let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+
+        let dt = Utc::now();
+        let timestamp: i64 = dt.timestamp();
+
+        subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
+
+        let path = subgraph
+            .properties()
+            .constant()
+            .get("path")
+            .ok_or("Path is missing")?
+            .to_string();
+
+        subgraph.save_to_file(path)?;
+
+        Ok(true)
+    }
+
     async fn save_graph<'a>(
         ctx: &Context<'a>,
         parent_graph_name: String,
@@ -186,25 +206,43 @@ impl Mut {
         new_graph_name: String,
         props: String,
         is_archive: u8,
-        graph_nodes: Vec<String>,
+        graph_nodes: String,
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
-        let mut path = subgraph
-            .properties()
-            .constant()
-            .get("path")
-            .ok_or("Path is missing")?
-            .to_string();
 
-        if new_graph_name.ne(&graph_name) {
-            path = path_prefix(path)? + "/" + &Uuid::new_v4().hyphenated().to_string();
-        }
+        let path = match data.get(&new_graph_name) {
+            Some(new_graph) => new_graph
+                .properties()
+                .constant()
+                .get("path")
+                .ok_or("Path is missing")?
+                .to_string(),
+            None => {
+                let base_path = subgraph
+                    .properties()
+                    .constant()
+                    .get("path")
+                    .ok_or("Path is missing")?
+                    .to_string();
+                let path: &Path = Path::new(base_path.as_str());
+                path.with_file_name(Uuid::new_v4().hyphenated().to_string())
+                    .to_str()
+                    .ok_or("Invalid path")?
+                    .to_string()
+            }
+        };
+        println!("Saving graph to path {path}");
 
         let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
 
-        let new_subgraph = parent_graph.subgraph(graph_nodes).materialize()?;
+        let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
+        let node_map = deserialized_node_map
+            .as_object()
+            .ok_or("graph_nodes not object")?;
+        let node_ids = node_map.keys().map(|key| key.as_str());
+        let new_subgraph = parent_graph.subgraph(node_ids).materialize()?;
 
         new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
@@ -237,9 +275,33 @@ impl Mut {
         }
 
         new_subgraph.update_constant_properties([("lastUpdated", Prop::I64(timestamp * 1000))])?;
+        new_subgraph.update_constant_properties([("lastOpened", Prop::I64(timestamp * 1000))])?;
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
+
+        // Temporary hack to allow adding of arbitrary maps of data to nodes
+        for node in new_subgraph.nodes() {
+            if !node_map.contains_key(&node.name().to_string()) {
+                println!("Could not find key! {} {:?}", node.name(), node_map);
+                panic!()
+            }
+            let node_props = node_map
+                .get(node.name().to_string().as_str())
+                .ok_or(format!(
+                    "Could not find node {} in provided map",
+                    node.name()
+                ))?;
+            let node_props_as_obj = node_props
+                .as_object()
+                .ok_or("node_props must be an object")?
+                .to_owned();
+            let values = node_props_as_obj
+                .into_iter()
+                .map(|(key, value)| Ok((key, value.try_into()?)))
+                .collect::<Result<Vec<(String, Prop)>>>()?;
+            node.update_constant_properties(values)?;
+        }
 
         new_subgraph.save_to_file(path)?;
 
@@ -292,12 +354,12 @@ impl Mut {
     async fn archive_graph<'a>(
         ctx: &Context<'a>,
         graph_name: String,
-        parent_graph_name: String,
+        _parent_graph_name: String,
         is_archive: u8,
     ) -> Result<bool> {
-        let mut data = ctx.data_unchecked::<Data>().graphs.write();
-
+        let data = ctx.data_unchecked::<Data>().graphs.write();
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
+        subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         let path = subgraph
             .properties()
@@ -305,24 +367,7 @@ impl Mut {
             .get("path")
             .ok_or("Path is missing")?
             .to_string();
-
-        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
-        let new_subgraph = parent_graph
-            .subgraph(subgraph.vertices().iter().map(|v| v.name()).collect_vec())
-            .materialize()?;
-
-        let static_props_without_isactive: Vec<(ArcStr, Prop)> = subgraph
-            .properties()
-            .into_iter()
-            .filter(|(a, _)| a != "isArchive")
-            .collect_vec();
-        new_subgraph.update_constant_properties(static_props_without_isactive)?;
-        new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-        new_subgraph.save_to_file(path)?;
-
-        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
-
-        data.insert(graph_name, gi);
+        subgraph.save_to_file(path)?;
 
         Ok(true)
     }

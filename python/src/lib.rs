@@ -6,18 +6,19 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
-        edge::{PyDirection, PyEdge, PyEdges},
+        edge::{PyDirection, PyEdge, PyMutableEdge},
+        edges::PyEdges,
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
+        node::{PyMutableNode, PyNode, PyNodes},
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
-        vertex::{PyMutableVertex, PyVertex, PyVertices},
     },
     packages::{
         algorithms::*,
         graph_gen::*,
         graph_loader::*,
-        vectors::{PyGraphDocument, PyVectorisedGraph},
+        vectors::{PyDocument, PyVectorisedGraph},
     },
 };
 
@@ -45,11 +46,12 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         m,
         PyGraph,
         PyGraphWithDeletions,
-        PyVertex,
-        PyVertices,
-        PyMutableVertex,
+        PyNode,
+        PyNodes,
+        PyMutableNode,
         PyEdge,
         PyEdges,
+        PyMutableEdge,
         PyProperties,
         PyConstProperties,
         PyTemporalProperties,
@@ -60,15 +62,11 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     );
 
     //GRAPHQL
-    let graphql_module = PyModule::new(py, "internal_graphql")?;
-    add_functions!(
-        graphql_module,
-        from_map,
-        from_directory,
-        from_map_and_directory,
-        encode_graph,
-        decode_graph
-    );
+    let graphql_module = PyModule::new(py, "graphql")?;
+    graphql_module.add_class::<PyGlobalPlugins>()?;
+    graphql_module.add_class::<PyRaphtoryServer>()?;
+    graphql_module.add_class::<PyRunningRaphtoryServer>()?;
+    graphql_module.add_class::<PyRaphtoryClient>()?;
     m.add_submodule(graphql_module)?;
 
     //ALGORITHMS
@@ -106,12 +104,16 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         hits,
         balance,
         label_propagation,
+        temporal_SEIR,
+        louvain,
+        fruchterman_reingold,
+        cohesive_fruchterman_reingold,
     );
     m.add_submodule(algorithm_module)?;
 
-    let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
-    add_functions!(usecase_algorithm_module, one_path_vertex);
-    m.add_submodule(usecase_algorithm_module)?;
+    // let usecase_algorithm_module = PyModule::new(py, "usecase_algorithms")?;
+    // add_functions!(usecase_algorithm_module, one_path_node);
+    // m.add_submodule(usecase_algorithm_module)?;
 
     //GRAPH LOADER
     let graph_loader_module = PyModule::new(py, "graph_loader")?;
@@ -137,7 +139,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // VECTORS
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
-    vectors_module.add_class::<PyGraphDocument>()?;
+    vectors_module.add_class::<PyDocument>()?;
     m.add_submodule(vectors_module)?;
 
     Ok(())

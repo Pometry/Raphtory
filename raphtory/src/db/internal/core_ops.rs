@@ -3,12 +3,12 @@ use crate::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
         storage::{
@@ -26,13 +26,13 @@ use std::{collections::HashMap, iter};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
-    fn unfiltered_num_vertices(&self) -> usize {
-        self.inner().internal_num_vertices()
+    fn unfiltered_num_nodes(&self) -> usize {
+        self.inner().internal_num_nodes()
     }
 
     #[inline]
-    fn vertex_meta(&self) -> &Meta {
-        &self.inner().vertex_meta
+    fn node_meta(&self) -> &Meta {
+        &self.inner().node_meta
     }
 
     #[inline]
@@ -47,7 +47,21 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.inner().edge_meta.layer_meta().get_name(layer_id)
+        self.inner()
+            .edge_meta
+            .layer_meta()
+            .get_name(layer_id)
+            .clone()
+    }
+
+    #[inline]
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        self.inner().node_type(v)
+    }
+
+    #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.inner().get_all_node_types()
     }
 
     #[inline]
@@ -61,13 +75,13 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn vertex_id(&self, v: VID) -> u64 {
-        self.inner().global_vertex_id(v)
+    fn node_id(&self, v: VID) -> u64 {
+        self.inner().global_node_id(v)
     }
 
     #[inline]
-    fn vertex_name(&self, v: VID) -> String {
-        self.inner().vertex_name(v)
+    fn node_name(&self, v: VID) -> String {
+        self.inner().node_name(v)
     }
 
     #[inline]
@@ -82,21 +96,21 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn vertex_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
-        let vertex = self.inner().vertex(v);
-        vertex.additions().unwrap()
+    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
+        let node = self.inner().node(v);
+        node.additions().unwrap()
     }
 
     #[inline]
-    fn internalise_vertex(&self, v: VertexRef) -> Option<VID> {
-        self.inner().resolve_vertex_ref(v)
+    fn internalise_node(&self, v: NodeRef) -> Option<VID> {
+        self.inner().resolve_node_ref(v)
     }
 
     #[inline]
-    fn internalise_vertex_unchecked(&self, v: VertexRef) -> VID {
+    fn internalise_node_unchecked(&self, v: NodeRef) -> VID {
         match v {
-            VertexRef::Internal(l) => l,
-            VertexRef::External(_) => self.inner().resolve_vertex_ref(v).unwrap(),
+            NodeRef::Internal(l) => l,
+            NodeRef::External(_) => self.inner().resolve_node_ref(v).unwrap(),
         }
     }
 
@@ -111,13 +125,13 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn constant_vertex_prop(&self, v: VID, prop_id: usize) -> Option<Prop> {
+    fn constant_node_prop(&self, v: VID, prop_id: usize) -> Option<Prop> {
         let entry = self.inner().node_entry(v);
         entry.const_prop(prop_id).cloned()
     }
 
     #[inline]
-    fn constant_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         // FIXME: revisit the locking scheme so we don't have to collect the ids
         Box::new(
             self.inner()
@@ -129,13 +143,13 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn temporal_vertex_prop(&self, v: VID, prop_id: usize) -> Option<LockedView<TProp>> {
-        let vertex = self.inner().vertex(v);
-        vertex.temporal_property(prop_id)
+    fn temporal_node_prop(&self, v: VID, prop_id: usize) -> Option<LockedView<TProp>> {
+        let node = self.inner().node(v);
+        node.temporal_property(prop_id)
     }
 
     #[inline]
-    fn temporal_vertex_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         // FIXME: revisit the locking scheme so we don't have to collect the ids
         Box::new(
             self.inner()
@@ -271,12 +285,12 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_vertices(&self) -> Box<dyn Iterator<Item = ArcEntry<VertexStore>>> {
+    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
         Box::new(self.inner().storage.nodes.read_lock().into_iter())
     }
 
     #[inline]
-    fn core_vertex(&self, vid: VID) -> ArcEntry<VertexStore> {
+    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
         self.inner().storage.nodes.entry_arc(vid.into())
     }
 }
@@ -326,7 +340,7 @@ mod test_edges {
             vec![0.into(), 1.into()]
         );
 
-        let e = g.edge(1, 2).unwrap().layer("layer1").unwrap();
+        let e = g.edge(1, 2).unwrap().layers("layer1").unwrap();
         assert!(e.properties().constant().contains("layer1"));
     }
 }

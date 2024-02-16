@@ -1,5 +1,5 @@
 use crate::core::{storage::locked_view::LockedView, ArcStr};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, TimeZone};
 use itertools::Itertools;
 use std::{collections::HashMap, ops::Deref};
 
@@ -21,6 +21,38 @@ pub fn iterator_dict_repr<I: Iterator<Item = (K, V)>, K: Repr, V: Repr>(iter: I)
         values.join(", ")
     } else {
         values[0..10].join(", ") + ", ..."
+    }
+}
+
+pub struct StructReprBuilder {
+    value: String,
+    has_fields: bool,
+}
+
+impl StructReprBuilder {
+    pub fn new(name: &str) -> Self {
+        Self {
+            value: name.to_owned() + "(",
+            has_fields: false,
+        }
+    }
+
+    pub fn add_field<V: Repr>(mut self, name: &str, value: V) -> Self {
+        if self.has_fields {
+            self.value.push_str(", ");
+        } else {
+            self.has_fields = true;
+        }
+        self.value.push_str(name);
+        self.value.push('=');
+        self.value.push_str(&value.repr());
+        self
+    }
+
+    pub fn finish(self) -> String {
+        let mut value = self.value;
+        value.push(')');
+        value
     }
 }
 
@@ -100,19 +132,7 @@ impl Repr for ArcStr {
     }
 }
 
-impl Repr for &ArcStr {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
 impl Repr for &str {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl Repr for &NaiveDateTime {
     fn repr(&self) -> String {
         self.to_string()
     }
@@ -121,6 +141,12 @@ impl Repr for &NaiveDateTime {
 impl Repr for NaiveDateTime {
     fn repr(&self) -> String {
         self.to_string()
+    }
+}
+
+impl<T: TimeZone> Repr for DateTime<T> {
+    fn repr(&self) -> String {
+        self.to_rfc2822()
     }
 }
 
@@ -162,6 +188,11 @@ impl<'a, T: Repr> Repr for LockedView<'a, T> {
     }
 }
 
+impl<'a, R: Repr> Repr for &'a R {
+    fn repr(&self) -> String {
+        R::repr(self)
+    }
+}
 #[cfg(test)]
 mod repr_tests {
     use super::*;

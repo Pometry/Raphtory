@@ -1,21 +1,128 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
+    core::{
+        entities::{edges::edge_store::EdgeStore, LayerIds, VID},
+        storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+    },
     db::api::view::internal::Base,
 };
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
-pub fn extend_filter(
-    old: Option<EdgeFilter>,
-    filter: impl Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync + 'static,
-) -> EdgeFilter {
-    match old {
-        Some(f) => Arc::new(move |e, l| f(e, l) && filter(e, l)),
-        None => Arc::new(filter),
+pub enum TimeIndexLike<'a> {
+    TimeIndex(&'a TimeIndex<TimeIndexEntry>),
+    External(&'a dyn TimeIndexOps<IndexType = TimeIndexEntry>),
+    BoxExternal(Box<dyn TimeIndexOps<IndexType = TimeIndexEntry> + 'a>),
+}
+
+impl<'a> TimeIndexOps for TimeIndexLike<'a> {
+    type IndexType = TimeIndexEntry;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.active(w),
+            TimeIndexLike::External(ref t) => t.active(w),
+            TimeIndexLike::BoxExternal(ref t) => t.active(w),
+        }
+    }
+
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.range(w),
+            TimeIndexLike::External(ref t) => t.range(w),
+            TimeIndexLike::BoxExternal(ref t) => t.range(w),
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.first(),
+            TimeIndexLike::External(ref t) => t.first(),
+            TimeIndexLike::BoxExternal(ref t) => t.first(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.last(),
+            TimeIndexLike::External(ref t) => t.last(),
+            TimeIndexLike::BoxExternal(ref t) => t.last(),
+        }
+    }
+
+    fn iter_t(&self) -> Box<dyn Iterator<Item = &i64> + Send + '_> {
+        match self {
+            TimeIndexLike::TimeIndex(ref t) => t.iter_t(),
+            TimeIndexLike::External(ref t) => t.iter_t(),
+            TimeIndexLike::BoxExternal(ref t) => t.iter_t(),
+        }
     }
 }
 
-pub type EdgeFilter = Arc<dyn Fn(&EdgeStore, &LayerIds) -> bool + Send + Sync>;
+pub trait EdgeLike {
+    fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
+    fn has_layer(&self, layer_ids: &LayerIds) -> bool;
+    fn src(&self) -> VID;
+    fn dst(&self) -> VID;
+
+    fn additions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
+    fn deletions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
+
+    fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
+    fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>>;
+}
+
+impl EdgeLike for EdgeStore {
+    fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
+        self.active(layer_ids, w)
+    }
+
+    fn has_layer(&self, layer_ids: &LayerIds) -> bool {
+        self.has_layer(layer_ids)
+    }
+
+    fn src(&self) -> VID {
+        self.src()
+    }
+
+    fn dst(&self) -> VID {
+        self.dst()
+    }
+
+    fn additions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
+        Box::new(self.additions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
+    }
+
+    fn deletions_iter<'a>(
+        &'a self,
+        layer_ids: &'a LayerIds,
+    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
+        Box::new(self.deletions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
+    }
+
+    fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
+        self.additions
+            .get(layer_id)
+            .map(|x| TimeIndexLike::TimeIndex(x))
+    }
+
+    fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
+        self.deletions
+            .get(layer_id)
+            .map(|x| TimeIndexLike::TimeIndex(x))
+    }
+}
+
+pub type EdgeFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds) -> bool + Send + Sync>;
+pub type EdgeWindowFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds, Range<i64>) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {
@@ -53,5 +160,10 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
     fn edge_filter(&self) -> Option<&EdgeFilter> {
         self.graph().edge_filter()
+    }
+
+    #[inline]
+    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
+        self.graph().edge_filter_window()
     }
 }

@@ -308,13 +308,13 @@ mod tests {
     fn test_json_rec(g: Graph, loader: JsonLinesLoader<TestRecord>) {
         loader
             .load_into_graph(&g, |testrec: TestRecord, g: &Graph| {
-                let _ = g.add_vertex(testrec.time.clone(), testrec.name.clone(), NO_PROPS);
+                let _ = g.add_node(testrec.time.clone(), testrec.name.clone(), NO_PROPS, None);
                 Ok(())
             })
-            .expect("Unable to add vertex to graph");
-        assert_eq!(g.count_vertices(), 3);
+            .expect("Unable to add node to graph");
+        assert_eq!(g.count_nodes(), 3);
         assert_eq!(g.count_edges(), 0);
-        let mut names = g.vertices().into_iter().name().collect::<Vec<String>>();
+        let mut names = g.nodes().name().collect::<Vec<String>>();
         names.sort();
         assert_eq!(names, vec!["test", "testbz", "testgz"]);
     }

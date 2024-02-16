@@ -37,21 +37,24 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 //!
-use crate::{core::entities::vertices::vertex_ref::VertexRef, db::api::view::*};
+use crate::{core::entities::nodes::node_ref::NodeRef, db::api::view::*};
 use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
-pub fn local_triangle_count<G: GraphViewOps, V: Into<VertexRef>>(graph: &G, v: V) -> Option<usize> {
-    if let Some(vertex) = graph.vertex(v) {
-        if vertex.degree() >= 2 {
-            let len = vertex
+pub fn local_triangle_count<G: StaticGraphViewOps, V: Into<NodeRef>>(
+    graph: &G,
+    v: V,
+) -> Option<usize> {
+    if let Some(node) = graph.node(v) {
+        if node.degree() >= 2 {
+            let len = node
                 .neighbours()
                 .id()
                 .into_iter()
                 .combinations(2)
-                .filter_map(|nb| match graph.has_edge(nb[0], nb[1], Layer::All) {
+                .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
                     true => Some(1),
-                    false => match graph.has_edge(nb[1], nb[0], Layer::All) {
+                    false => match graph.has_edge(nb[1], nb[0]) {
                         true => Some(1),
                         false => None,
                     },

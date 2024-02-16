@@ -7,23 +7,44 @@ use crate::{
     },
 };
 use kdam::tqdm;
-use std::collections::HashMap;
-pub(crate) fn load_vertices_from_df<'a>(
+use std::{collections::HashMap, iter};
+
+pub(crate) fn load_nodes_from_df<'a>(
     df: &'a PretendDF,
     size: usize,
-    vertex_id: &str,
+    node_id: &str,
     time: &str,
     props: Option<Vec<&str>>,
     const_props: Option<Vec<&str>>,
     shared_const_props: Option<HashMap<String, Prop>>,
+    node_type_col: Option<&str>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
+    let node_type_iter: Box<dyn Iterator<Item = Option<&str>>> = match node_type_col {
+        Some(node_type_col) => {
+            let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
+                if let Some(node_types) = df.utf8::<i32>(node_type_col) {
+                    Ok(Box::new(node_types))
+                } else if let Some(node_types) = df.utf8::<i64>(node_type_col) {
+                    Ok(Box::new(node_types))
+                } else {
+                    Err(GraphError::LoadFailure(
+                        "Unable to convert / find node_type column in dataframe.".to_string(),
+                    ))
+                };
+            iter_res?
+        }
+        None => Box::new(iter::repeat(None)),
+    };
 
-    if let (Some(vertex_id), Some(time)) = (df.iter_col::<u64>(vertex_id), df.iter_col::<i64>(time))
-    {
-        let iter = vertex_id.map(|i| i.copied()).zip(time);
-        load_vertices_from_num_iter(
+    if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id), df.iter_col::<i64>(time)) {
+        let iter = node_id
+            .map(|i| i.copied())
+            .zip(time)
+            .zip(node_type_iter)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+        load_nodes_from_num_iter(
             graph,
             size,
             iter,
@@ -31,11 +52,15 @@ pub(crate) fn load_vertices_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(vertex_id), Some(time)) =
-        (df.iter_col::<i64>(vertex_id), df.iter_col::<i64>(time))
+    } else if let (Some(node_id), Some(time)) =
+        (df.iter_col::<i64>(node_id), df.iter_col::<i64>(time))
     {
-        let iter = vertex_id.map(i64_opt_into_u64_opt).zip(time);
-        load_vertices_from_num_iter(
+        let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
+        let iter = iter
+            .zip(node_type_iter)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+
+        load_nodes_from_num_iter(
             graph,
             size,
             iter,
@@ -43,38 +68,46 @@ pub(crate) fn load_vertices_from_df<'a>(
             const_prop_iter,
             shared_const_props,
         )?;
-    } else if let (Some(vertex_id), Some(time)) =
-        (df.utf8::<i32>(vertex_id), df.iter_col::<i64>(time))
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.iter_col::<i64>(time))
     {
-        let iter = vertex_id.into_iter().zip(time);
-        for (((vertex_id, time), props), const_props) in tqdm!(
+        let iter = node_id.into_iter().zip(time);
+        let iter = iter
+            .zip(node_type_iter)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+
+        for (((node_id, time, n_t), props), const_props) in tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
-            desc = "Loading vertices",
+            desc = "Loading nodes",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
-                let v = graph.add_vertex(*time, vertex_id, props)?;
+            if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
+                let actual_type = extract_out_default_type(n_t);
+                let v = graph.add_node(*time, node_id, props, actual_type)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
-    } else if let (Some(vertex_id), Some(time)) =
-        (df.utf8::<i64>(vertex_id), df.iter_col::<i64>(time))
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.iter_col::<i64>(time))
     {
-        let iter = vertex_id.into_iter().zip(time);
-        for (((vertex_id, time), props), const_props) in tqdm!(
+        let iter = node_id.into_iter().zip(time);
+        let iter = iter
+            .zip(node_type_iter)
+            .map(|((node_id, time), n_t)| (node_id, time, n_t));
+
+        for (((node_id, time, n_t), props), const_props) in tqdm!(
             iter.zip(prop_iter).zip(const_prop_iter),
-            desc = "Loading vertices",
+            desc = "Loading nodes",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let (Some(vertex_id), Some(time)) = (vertex_id, time) {
-                let v = graph.add_vertex(*time, vertex_id, props)?;
+            let actual_type = extract_out_default_type(n_t);
+            if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
+                let v = graph.add_node(*time, node_id, props, n_t)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props)?;
@@ -83,11 +116,19 @@ pub(crate) fn load_vertices_from_df<'a>(
         }
     } else {
         return Err(GraphError::LoadFailure(
-            "vertex id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
+            "node id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
         ));
     }
 
     Ok(())
+}
+
+fn extract_out_default_type(n_t: Option<&str>) -> Option<&str> {
+    if n_t == Some("_default") {
+        None
+    } else {
+        n_t
+    }
 }
 
 pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
@@ -194,86 +235,86 @@ pub(crate) fn load_edges_from_df<'a, S: AsRef<str>>(
     Ok(())
 }
 
-pub(crate) fn load_vertex_props_from_df<'a>(
+pub(crate) fn load_node_props_from_df<'a>(
     df: &'a PretendDF,
     size: usize,
-    vertex_id: &str,
+    node_id: &str,
     const_props: Option<Vec<&str>>,
     shared_const_props: Option<HashMap<String, Prop>>,
     graph: &Graph,
 ) -> Result<(), GraphError> {
     let (_, const_prop_iter) = get_prop_rows(df, None, const_props)?;
 
-    if let Some(vertex_id) = df.iter_col::<u64>(vertex_id) {
-        let iter = vertex_id.map(|i| i.copied());
-        for (vertex_id, const_props) in tqdm!(
+    if let Some(node_id) = df.iter_col::<u64>(node_id) {
+        let iter = node_id.map(|i| i.copied());
+        for (node_id, const_props) in tqdm!(
             iter.zip(const_prop_iter),
-            desc = "Loading vertex properties",
+            desc = "Loading node properties",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let Some(vertex_id) = vertex_id {
+            if let Some(node_id) = node_id {
                 let v = graph
-                    .vertex(vertex_id)
-                    .ok_or(GraphError::VertexIdError(vertex_id))?;
+                    .node(node_id)
+                    .ok_or(GraphError::NodeIdError(node_id))?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
-    } else if let Some(vertex_id) = df.iter_col::<i64>(vertex_id) {
-        let iter = vertex_id.map(i64_opt_into_u64_opt);
-        for (vertex_id, const_props) in tqdm!(
+    } else if let Some(node_id) = df.iter_col::<i64>(node_id) {
+        let iter = node_id.map(i64_opt_into_u64_opt);
+        for (node_id, const_props) in tqdm!(
             iter.zip(const_prop_iter),
-            desc = "Loading vertex properties",
+            desc = "Loading node properties",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let Some(vertex_id) = vertex_id {
+            if let Some(node_id) = node_id {
                 let v = graph
-                    .vertex(vertex_id)
-                    .ok_or(GraphError::VertexIdError(vertex_id))?;
+                    .node(node_id)
+                    .ok_or(GraphError::NodeIdError(node_id))?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
-    } else if let Some(vertex_id) = df.utf8::<i32>(vertex_id) {
-        let iter = vertex_id.into_iter();
-        for (vertex_id, const_props) in tqdm!(
+    } else if let Some(node_id) = df.utf8::<i32>(node_id) {
+        let iter = node_id.into_iter();
+        for (node_id, const_props) in tqdm!(
             iter.zip(const_prop_iter),
-            desc = "Loading vertex properties",
+            desc = "Loading node properties",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let Some(vertex_id) = vertex_id {
+            if let Some(node_id) = node_id {
                 let v = graph
-                    .vertex(vertex_id)
-                    .ok_or_else(|| GraphError::VertexNameError(vertex_id.to_owned()))?;
+                    .node(node_id)
+                    .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
-    } else if let Some(vertex_id) = df.utf8::<i64>(vertex_id) {
-        let iter = vertex_id.into_iter();
-        for (vertex_id, const_props) in tqdm!(
+    } else if let Some(node_id) = df.utf8::<i64>(node_id) {
+        let iter = node_id.into_iter();
+        for (node_id, const_props) in tqdm!(
             iter.zip(const_prop_iter),
-            desc = "Loading vertex properties",
+            desc = "Loading node properties",
             total = size,
             animation = kdam::Animation::FillUp,
             unit_scale = true
         ) {
-            if let Some(vertex_id) = vertex_id {
+            if let Some(node_id) = node_id {
                 let v = graph
-                    .vertex(vertex_id)
-                    .ok_or_else(|| GraphError::VertexNameError(vertex_id.to_owned()))?;
+                    .node(node_id)
+                    .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_props {
                     v.add_constant_properties(shared_const_props.iter())?;
@@ -282,7 +323,7 @@ pub(crate) fn load_vertex_props_from_df<'a>(
         }
     } else {
         return Err(GraphError::LoadFailure(
-            "vertex id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
+            "node id column must be either u64 or text, time column must be i64. Ensure these contain no NaN, Null or None values.".to_string(),
         ));
     }
     Ok(())
@@ -433,28 +474,31 @@ fn load_edges_from_num_iter<
     Ok(())
 }
 
-fn load_vertices_from_num_iter<
+fn load_nodes_from_num_iter<
     'a,
     S: AsRef<str>,
-    I: Iterator<Item = (Option<u64>, Option<&'a i64>)>,
+    I: Iterator<Item = (Option<u64>, Option<&'a i64>, Option<&'a str>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
     graph: &Graph,
     size: usize,
-    vertices: I,
+    nodes: I,
     props: PI,
     const_props: PI,
     shared_const_props: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
-    for (((vertex, time), props), const_props) in tqdm!(
-        vertices.zip(props).zip(const_props),
-        desc = "Loading vertices",
+    for (((node, time, node_type), props), const_props) in tqdm!(
+        nodes.zip(props).zip(const_props),
+        desc = "Loading nodes",
         total = size,
         animation = kdam::Animation::FillUp,
         unit_scale = true
     ) {
-        if let (Some(v), Some(t), props, const_props) = (vertex, time, props, const_props) {
-            let v = graph.add_vertex(*t, v, props)?;
+        if let (Some(v), Some(t), n_t, props, const_props) =
+            (node, time, node_type, props, const_props)
+        {
+            let actual_node_type = extract_out_default_type(n_t);
+            let v = graph.add_node(*t, v, props, actual_node_type)?;
             v.add_constant_properties(const_props)?;
 
             if let Some(shared_const_props) = &shared_const_props {

@@ -6,7 +6,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
-/// View of the properties of an entity (graph|vertex|edge)
+/// View of the properties of an entity (graph|node|edge)
 #[derive(Clone)]
 pub struct Properties<P: PropertiesOps + Clone> {
     pub(crate) props: P,
@@ -74,6 +74,16 @@ impl<P: PropertiesOps + Clone> Properties<P> {
     /// Collect properties into map
     pub fn as_map(&self) -> HashMap<ArcStr, Prop> {
         self.iter().map(|(k, v)| (k.clone(), v)).collect()
+    }
+
+    /// Number of properties
+    pub fn len(&self) -> usize {
+        self.keys().count()
+    }
+
+    /// Check if there are no properties
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 

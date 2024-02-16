@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use raphtory::{core::entities::vertices::input_vertex::InputVertex, prelude::*};
+use raphtory::{core::entities::nodes::input_node::InputNode, prelude::*};
 
 mod common;
 use rand::{
@@ -12,7 +12,7 @@ fn random_string(n: usize) -> String {
 }
 
 pub fn graph(c: &mut Criterion) {
-    let mut id_group = c.benchmark_group("input vertex");
+    let mut id_group = c.benchmark_group("input node");
     id_group.bench_function("string input", |bencher| {
         let src: String = random_string(16);
         bencher.iter(|| src.id())

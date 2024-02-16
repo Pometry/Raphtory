@@ -38,9 +38,9 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 .ok()?;
 
             println!(
-                "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
+                "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
                 encoded_data_dir.to_str().unwrap(),
-                g.count_vertices(),
+                g.count_nodes(),
                 g.count_edges(),
                 now.elapsed().as_secs()
             );
@@ -73,21 +73,23 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                 //     None => None
                 // };
 
-                g.add_vertex(
+                g.add_node(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
                     NO_PROPS,
+                    None,
                 )
-                .expect("Failed to add vertex")
+                .expect("Failed to add node")
                 .add_constant_properties([("type", "owner")])
-                .expect("Failed to add vertex static property");
+                .expect("Failed to add node static property");
 
-                g.add_vertex(
+                g.add_node(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     NO_PROPS,
+                    None,
                 )
-                .expect("Failed to add vertex")
+                .expect("Failed to add node")
                 .add_constant_properties([
                     ("type", "company".into_prop()),
                     (
@@ -95,14 +97,15 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                         (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
                     ),
                 ])
-                .expect("Failed to add vertex static property");
+                .expect("Failed to add node static property");
 
-                g.add_vertex(
+                g.add_node(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     address.clone(),
                     NO_PROPS,
+                    None,
                 )
-                .expect("Failed to add vertex")
+                .expect("Failed to add node")
                 .add_constant_properties([
                     ("type", "address".into_prop()),
                     (
@@ -110,7 +113,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                         (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
                     ),
                 ])
-                .expect("Failed to add vertex static property");
+                .expect("Failed to add node static property");
 
                 g.add_edge(
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
@@ -137,9 +140,9 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -156,7 +159,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
 #[cfg(test)]
 mod company_house_graph_test {
     use super::*;
-    use crate::db::api::view::{TimeOps, VertexViewOps};
+    use crate::db::api::view::{NodeViewOps, TimeOps};
 
     #[test]
     #[ignore]
@@ -165,8 +168,8 @@ mod company_house_graph_test {
         assert_eq!(g.start().unwrap(), 1000);
         assert_eq!(g.end().unwrap(), 1001);
         g.window(1000, 1001)
-            .vertices()
+            .nodes()
             .into_iter()
-            .for_each(|v| println!("vertexid = {}", v.id()));
+            .for_each(|v| println!("nodeid = {}", v.id()));
     }
 }

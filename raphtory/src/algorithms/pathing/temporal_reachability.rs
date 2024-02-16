@@ -1,17 +1,20 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::vertices::input_vertex::InputVertex,
+        entities::nodes::input_node::InputNode,
         state::{
             accumulator_id::accumulators::{hash_set, min, or},
             compute_state::ComputeStateVec,
         },
     },
-    db::task::{
-        context::Context,
-        task::{ATask, Job, Step},
-        task_runner::TaskRunner,
-        vertex::eval_vertex::EvalVertexView,
+    db::{
+        api::view::StaticGraphViewOps,
+        task::{
+            context::Context,
+            node::eval_node::EvalNodeView,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+        },
     },
     prelude::*,
 };
@@ -22,7 +25,7 @@ use std::{collections::HashMap, ops::Add};
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
     pub event_time: i64,
-    pub src_vertex: String,
+    pub src_node: String,
 }
 
 impl Add for TaintMessage {
@@ -37,7 +40,7 @@ impl Zero for TaintMessage {
     fn zero() -> Self {
         TaintMessage {
             event_time: -1,
-            src_vertex: "".to_string(),
+            src_node: "".to_string(),
         }
     }
 
@@ -49,7 +52,7 @@ impl Zero for TaintMessage {
         *self
             == TaintMessage {
                 event_time: -1,
-                src_vertex: "".to_string(),
+                src_node: "".to_string(),
             }
     }
 }
@@ -60,10 +63,10 @@ impl Zero for TaintMessage {
 ///
 /// Returns
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to a vector of tuples containing the time at which
-/// the vertex was tainted and the ID of the vertex that tainted it
+/// * An AlgorithmResult object containing the mapping from node ID to a vector of tuples containing the time at which
+/// the node was tainted and the ID of the node that tainted it
 ///
-pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
+pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
     g: &G,
     threads: Option<usize>,
     max_hops: usize,
@@ -92,41 +95,37 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
     let earliest_taint_time = min::<i64>(3);
     ctx.agg(earliest_taint_time);
 
-    let tainted_vertices = hash_set::<u64>(4);
-    ctx.global_agg(tainted_vertices);
+    let tainted_nodes = hash_set::<u64>(4);
+    ctx.global_agg(tainted_nodes);
 
-    let step1 = ATask::new(
-        move |evv: &mut EvalVertexView<'_, G, ComputeStateVec, ()>| {
-            if infected_nodes.contains(&evv.id()) {
-                evv.global_update(&tainted_vertices, evv.id());
-                evv.update(&taint_status, true);
-                evv.update(&earliest_taint_time, start_time);
-                evv.update(
-                    &taint_history,
-                    TaintMessage {
-                        event_time: start_time,
-                        src_vertex: "start".to_string(),
-                    },
-                );
-                evv.window(start_time, i64::MAX)
-                    .out_edges()
-                    .for_each(|eev| {
-                        let dst = eev.dst();
-                        eev.history().into_iter().for_each(|t| {
-                            dst.update(&earliest_taint_time, t);
-                            dst.update(
-                                &recv_tainted_msgs,
-                                TaintMessage {
-                                    event_time: t,
-                                    src_vertex: evv.name(),
-                                },
-                            )
-                        });
-                    });
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, ()>| {
+        if infected_nodes.contains(&evv.id()) {
+            evv.global_update(&tainted_nodes, evv.id());
+            evv.update(&taint_status, true);
+            evv.update(&earliest_taint_time, start_time);
+            evv.update(
+                &taint_history,
+                TaintMessage {
+                    event_time: start_time,
+                    src_node: "start".to_string(),
+                },
+            );
+            for eev in evv.window(start_time, i64::MAX).out_edges() {
+                let dst = eev.dst();
+                eev.history().into_iter().for_each(|t| {
+                    dst.update(&earliest_taint_time, t);
+                    dst.update(
+                        &recv_tainted_msgs,
+                        TaintMessage {
+                            event_time: t,
+                            src_node: evv.name(),
+                        },
+                    )
+                });
             }
-            Step::Continue
-        },
-    );
+        }
+        Step::Continue
+    });
 
     let step2 = ATask::new(move |evv| {
         let msgs = evv.read(&recv_tainted_msgs);
@@ -134,7 +133,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
         // println!("v = {}, msgs = {:?}, taint_history = {:?}", evv.global_id(), msgs, evv.read(&taint_history));
 
         if !msgs.is_empty() {
-            evv.global_update(&tainted_vertices, evv.id());
+            evv.global_update(&tainted_nodes, evv.id());
 
             if !evv.read(&taint_status) {
                 evv.update(&taint_status, true);
@@ -147,27 +146,27 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
 
             if stop_nodes.is_empty() || !stop_nodes.contains(&evv.id()) {
                 let earliest = evv.read(&earliest_taint_time);
-                evv.window(earliest, i64::MAX).out_edges().for_each(|eev| {
+                for eev in evv.window(earliest, i64::MAX).out_edges() {
                     let dst = eev.dst();
-                    eev.history().into_iter().for_each(|t| {
+                    for t in eev.history() {
                         dst.update(&earliest_taint_time, t);
                         dst.update(
                             &recv_tainted_msgs,
                             TaintMessage {
                                 event_time: t,
-                                src_vertex: evv.name(),
+                                src_node: evv.name(),
                             },
                         )
-                    });
-                });
+                    }
+                }
             }
         }
         Step::Continue
     });
 
     let step3 = Job::Check(Box::new(move |state| {
-        let prev_tainted_vs = state.read_prev(&tainted_vertices);
-        let curr_tainted_vs = state.read(&tainted_vertices);
+        let prev_tainted_vs = state.read_prev(&tainted_nodes);
+        let curr_tainted_vs = state.read(&tainted_nodes);
         let difference: Vec<_> = curr_tainted_vs
             .iter()
             .filter(|item| !prev_tainted_vs.contains(*item))
@@ -188,7 +187,7 @@ pub fn temporally_reachable_nodes<G: GraphViewOps, T: InputVertex>(
             ess.finalize(&taint_history, |taint_history| {
                 taint_history
                     .into_iter()
-                    .map(|tmsg| (tmsg.event_time, tmsg.src_vertex))
+                    .map(|tmsg| (tmsg.event_time, tmsg.src_node))
                     .collect_vec()
             })
         },
@@ -208,14 +207,12 @@ mod generic_taint_tests {
     use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
 
     fn sort_inner_by_string(
-        data: HashMap<String, Option<Vec<(i64, String)>>>,
-    ) -> Vec<(String, Option<Vec<(i64, String)>>)> {
+        data: HashMap<String, Vec<(i64, String)>>,
+    ) -> Vec<(String, Vec<(i64, String)>)> {
         let mut vec: Vec<_> = data.into_iter().collect();
         vec.sort_by(|a, b| a.0.cmp(&b.0));
-        for (_, value_option) in &mut vec {
-            if let Some(inner_vec) = value_option {
-                inner_vec.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
-            }
+        for (_, inner_vec) in &mut vec {
+            inner_vec.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
         }
         vec
     }
@@ -229,13 +226,13 @@ mod generic_taint_tests {
         graph
     }
 
-    fn test_generic_taint<T: InputVertex>(
+    fn test_generic_taint<T: InputNode>(
         graph: Graph,
         iter_count: usize,
         start_time: i64,
         infected_nodes: Vec<T>,
         stop_nodes: Option<Vec<T>>,
-    ) -> HashMap<String, Option<Vec<(i64, String)>>> {
+    ) -> HashMap<String, Vec<(i64, String)>> {
         temporally_reachable_nodes(
             &graph,
             None,
@@ -263,21 +260,21 @@ mod generic_taint_tests {
         ]);
 
         let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![2], None));
-        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
-            ("1".to_string(), Some(vec![])),
-            ("2".to_string(), Some(vec![(11i64, "start".to_string())])),
-            ("3".to_string(), Some(vec![])),
+        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+            ("1".to_string(), vec![]),
+            ("2".to_string(), vec![(11i64, "start".to_string())]),
+            ("3".to_string(), vec![]),
             (
                 "4".to_string(),
-                Some(vec![(12i64, "2".to_string()), (14i64, "5".to_string())]),
+                vec![(12i64, "2".to_string()), (14i64, "5".to_string())],
             ),
             (
                 "5".to_string(),
-                Some(vec![(13i64, "2".to_string()), (14i64, "5".to_string())]),
+                vec![(13i64, "2".to_string()), (14i64, "5".to_string())],
             ),
-            ("6".to_string(), Some(vec![])),
-            ("7".to_string(), Some(vec![(15i64, "4".to_string())])),
-            ("8".to_string(), Some(vec![])),
+            ("6".to_string(), vec![]),
+            ("7".to_string(), vec![(15i64, "4".to_string())]),
+            ("8".to_string(), vec![]),
         ]);
         assert_eq!(results, expected);
     }
@@ -298,24 +295,24 @@ mod generic_taint_tests {
         ]);
 
         let results = sort_inner_by_string(test_generic_taint(graph, 20, 11, vec![1, 2], None));
-        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
-            ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
+        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+            ("1".to_string(), vec![(11i64, "start".to_string())]),
             (
                 "2".to_string(),
-                Some(vec![(11i64, "start".to_string()), (11i64, "1".to_string())]),
+                vec![(11i64, "start".to_string()), (11i64, "1".to_string())],
             ),
-            ("3".to_string(), Some(vec![])),
+            ("3".to_string(), vec![]),
             (
                 "4".to_string(),
-                Some(vec![(12i64, "2".to_string()), (14i64, "5".to_string())]),
+                vec![(12i64, "2".to_string()), (14i64, "5".to_string())],
             ),
             (
                 "5".to_string(),
-                Some(vec![(13i64, "2".to_string()), (14i64, "5".to_string())]),
+                vec![(13i64, "2".to_string()), (14i64, "5".to_string())],
             ),
-            ("6".to_string(), Some(vec![])),
-            ("7".to_string(), Some(vec![(15i64, "4".to_string())])),
-            ("8".to_string(), Some(vec![])),
+            ("6".to_string(), vec![]),
+            ("7".to_string(), vec![(15i64, "4".to_string())]),
+            ("8".to_string(), vec![]),
         ]);
         assert_eq!(results, expected);
     }
@@ -342,18 +339,18 @@ mod generic_taint_tests {
             vec![1, 2],
             Some(vec![4, 5]),
         ));
-        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
-            ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
+        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+            ("1".to_string(), vec![(11i64, "start".to_string())]),
             (
                 "2".to_string(),
-                Some(vec![(11i64, "start".to_string()), (11i64, "1".to_string())]),
+                vec![(11i64, "start".to_string()), (11i64, "1".to_string())],
             ),
-            ("3".to_string(), Some(vec![])),
-            ("4".to_string(), Some(vec![(12i64, "2".to_string())])),
-            ("5".to_string(), Some(vec![(13i64, "2".to_string())])),
-            ("6".to_string(), Some(vec![])),
-            ("7".to_string(), Some(vec![])),
-            ("8".to_string(), Some(vec![])),
+            ("3".to_string(), vec![]),
+            ("4".to_string(), vec![(12i64, "2".to_string())]),
+            ("5".to_string(), vec![(13i64, "2".to_string())]),
+            ("6".to_string(), vec![]),
+            ("7".to_string(), vec![]),
+            ("8".to_string(), vec![]),
         ]);
         assert_eq!(results, expected);
     }
@@ -382,22 +379,22 @@ mod generic_taint_tests {
             vec![1, 2],
             Some(vec![4, 5]),
         ));
-        let expected: Vec<(String, Option<Vec<(i64, String)>>)> = Vec::from([
-            ("1".to_string(), Some(vec![(11i64, "start".to_string())])),
+        let expected: Vec<(String, Vec<(i64, String)>)> = Vec::from([
+            ("1".to_string(), vec![(11i64, "start".to_string())]),
             (
                 "2".to_string(),
-                Some(vec![
+                vec![
                     (11i64, "start".to_string()),
                     (11i64, "1".to_string()),
                     (12i64, "1".to_string()),
-                ]),
+                ],
             ),
-            ("3".to_string(), Some(vec![])),
-            ("4".to_string(), Some(vec![(12i64, "2".to_string())])),
-            ("5".to_string(), Some(vec![(13i64, "2".to_string())])),
-            ("6".to_string(), Some(vec![])),
-            ("7".to_string(), Some(vec![])),
-            ("8".to_string(), Some(vec![])),
+            ("3".to_string(), vec![]),
+            ("4".to_string(), vec![(12i64, "2".to_string())]),
+            ("5".to_string(), vec![(13i64, "2".to_string())]),
+            ("6".to_string(), vec![]),
+            ("7".to_string(), vec![]),
+            ("8".to_string(), vec![]),
         ]);
         assert_eq!(results, expected);
     }

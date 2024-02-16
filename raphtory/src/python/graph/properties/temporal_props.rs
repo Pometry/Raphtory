@@ -1,11 +1,15 @@
 use crate::{
     core::{utils::time::IntoTime, ArcStr, Prop},
     db::api::{
-        properties::{internal::PropertiesOps, TemporalProperties, TemporalPropertyView},
+        properties::{
+            dyn_props::{DynTemporalProperties, DynTemporalProperty},
+            internal::PropertiesOps,
+            TemporalProperties, TemporalPropertyView,
+        },
         view::internal::{DynamicGraph, Static},
     },
     python::{
-        graph::properties::{DynProps, PyPropValueList, PyPropValueListList},
+        graph::properties::{PyPropValueList, PyPropValueListList},
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
@@ -19,30 +23,13 @@ use crate::{
         utils::{PyGenericIterator, PyTime},
     },
 };
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
-
-pub type DynTemporalProperties = TemporalProperties<DynProps>;
-pub type DynTemporalProperty = TemporalPropertyView<DynProps>;
-
-impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<TemporalProperties<P>>
-    for DynTemporalProperties
-{
-    fn from(value: TemporalProperties<P>) -> Self {
-        TemporalProperties::new(Arc::new(value.props))
-    }
-}
-
-impl From<TemporalProperties<DynamicGraph>> for DynTemporalProperties {
-    fn from(value: TemporalProperties<DynamicGraph>) -> Self {
-        let props: Arc<dyn PropertiesOps + Send + Sync> = Arc::new(value.props);
-        TemporalProperties::new(props)
-    }
-}
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
     fn from(value: P) -> Self {
@@ -132,6 +119,17 @@ impl PyTemporalProperties {
         self.props
             .iter()
             .map(|(k, v)| (k.clone(), v.iter().collect()))
+            .collect()
+    }
+
+    /// Get the histories of all properties
+    ///
+    /// Returns:
+    ///     dict[str, list[(datetime, Any)]]: the mapping of property keys to histories
+    fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
+        self.props
+            .iter()
+            .map(|(k, v)| (k, v.histories_date_time().map(|h| h.collect())))
             .collect()
     }
 
@@ -227,6 +225,11 @@ impl PyTemporalProp {
         self.prop.history()
     }
 
+    /// Get the timestamps at which the property was updated
+    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
+        self.prop.history_date_time()
+    }
+
     /// Get the property values for each update
     pub fn values(&self) -> Vec<Prop> {
         self.prop.values()
@@ -235,6 +238,11 @@ impl PyTemporalProp {
     /// List update timestamps and corresponding property values
     pub fn items(&self) -> Vec<(i64, Prop)> {
         self.prop.iter().collect()
+    }
+
+    /// List update timestamps and corresponding property values
+    pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
+        Some(self.prop.histories_date_time()?.collect())
     }
 
     /// Iterate over `items`

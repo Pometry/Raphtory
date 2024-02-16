@@ -3,7 +3,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank,
-        community_detection::connected_components::weakly_connected_components,
+        components::weakly_connected_components,
         metrics::{
             clustering_coefficient::clustering_coefficient,
             local_clustering_coefficient::local_clustering_coefficient,
@@ -40,9 +40,9 @@ pub fn local_triangle_count_analysis(c: &mut Criterion) {
         let windowed_graph = g.window(i64::MIN, i64::MAX);
 
         b.iter(|| {
-            let vertex_ids = windowed_graph.vertices().id().collect::<Vec<_>>();
+            let node_ids = windowed_graph.nodes().id().collect::<Vec<_>>();
 
-            vertex_ids.into_par_iter().for_each(|v| {
+            node_ids.into_par_iter().for_each(|v| {
                 local_triangle_count(&windowed_graph, v).unwrap();
             });
         })

@@ -6,12 +6,14 @@ use crate::model::algorithms::{
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use raphtory::db::api::view::internal::DynamicGraph;
+use raphtory::db::api::view::DynamicGraph;
 use std::{
     borrow::Cow,
     collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
+
+use super::algorithm::ShortestPath;
 
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -28,7 +30,16 @@ impl From<DynamicGraph> for GraphAlgorithms {
 
 impl<'a> AlgorithmEntryPoint<'a> for GraphAlgorithms {
     fn predefined_algos() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::from([("pagerank", Pagerank::register_algo as RegisterFunction)])
+        HashMap::from([
+            (
+                "pagerank",
+                Box::new(Pagerank::register_algo) as RegisterFunction,
+            ),
+            (
+                "shortest_path",
+                Box::new(ShortestPath::register_algo) as RegisterFunction,
+            ),
+        ])
     }
     fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
         GRAPH_ALGO_PLUGINS.lock().unwrap()

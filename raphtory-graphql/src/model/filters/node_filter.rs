@@ -8,9 +8,9 @@ use crate::model::{
     graph::node::Node,
 };
 use dynamic_graphql::InputObject;
-use raphtory::db::api::view::VertexViewOps;
+use raphtory::db::api::view::NodeViewOps;
 
-#[derive(InputObject)]
+#[derive(InputObject, Clone)]
 pub struct NodeFilter {
     ids: Option<StringVecFilter>,
     names: Option<StringVecFilter>,

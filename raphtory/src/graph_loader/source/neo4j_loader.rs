@@ -49,12 +49,9 @@ impl Neo4JConnection {
 #[cfg(test)]
 mod neo_loader_test {
     use crate::{
-        db::{
-            api::{mutation::AdditionOps, view::GraphViewOps},
-            graph::graph as rap,
-        },
+        db::{api::mutation::AdditionOps, graph::graph as rap},
         graph_loader::source::neo4j_loader::Neo4JConnection,
-        prelude::{IntoProp, NO_PROPS},
+        prelude::*,
     };
     use neo4rs::*;
 
@@ -72,12 +69,12 @@ mod neo_loader_test {
         let relation_type = relation.typ();
 
         graph
-            .add_vertex(actor_born, actor_name.clone(), NO_PROPS)
+            .add_node(actor_born, actor_name.clone(), NO_PROPS, None)
             .unwrap()
             .add_constant_properties([("type", "actor")])
             .unwrap();
         graph
-            .add_vertex(film_release, film_title.clone(), NO_PROPS)
+            .add_node(film_release, film_title.clone(), NO_PROPS, None)
             .unwrap()
             .add_constant_properties([
                 ("type", "film".into_prop()),

@@ -41,9 +41,9 @@ fn main() {
             .expect("Failed to load graph from encoded data files");
 
         println!(
-            "Loaded graph from encoded data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from encoded data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );
@@ -56,11 +56,11 @@ fn main() {
         CsvLoader::new(data_dir)
             .set_delimiter("\t")
             .load_into_graph(&g, |lotr: Benchr, g: &Graph| {
-                g.add_vertex(1, lotr.src_id.clone(), NO_PROPS)
-                    .expect("Failed to add vertex");
+                g.add_node(1, lotr.src_id.clone(), NO_PROPS, None)
+                    .expect("Failed to add node");
 
-                g.add_vertex(1, lotr.dst_id.clone(), NO_PROPS)
-                    .expect("Failed to add vertex");
+                g.add_node(1, lotr.dst_id.clone(), NO_PROPS, None)
+                    .expect("Failed to add node");
 
                 g.add_edge(1, lotr.src_id.clone(), lotr.dst_id.clone(), NO_PROPS, None)
                     .expect("Failed to add edge");
@@ -68,9 +68,9 @@ fn main() {
             .expect("Failed to load graph from CSV data files");
 
         println!(
-            "Loaded graph from CSV data files {} with {} vertices, {} edges which took {} seconds",
+            "Loaded graph from CSV data files {} with {} nodes, {} edges which took {} seconds",
             encoded_data_dir.to_str().unwrap(),
-            g.count_vertices(),
+            g.count_nodes(),
             g.count_edges(),
             now.elapsed().as_secs()
         );

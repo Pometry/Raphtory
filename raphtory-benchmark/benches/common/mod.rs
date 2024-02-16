@@ -2,7 +2,7 @@
 
 use criterion::{measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId};
 use rand::{distributions::Uniform, seq::*, Rng};
-use raphtory::prelude::*;
+use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use std::collections::HashSet;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
@@ -17,11 +17,11 @@ fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
     Box::new(rng.sample_iter(range))
 }
 
-pub fn bootstrap_graph(num_vertices: usize) -> Graph {
+pub fn bootstrap_graph(num_nodes: usize) -> Graph {
     let graph = Graph::new();
     let mut indexes = make_index_gen();
     let mut times = make_time_gen();
-    let num_edges = num_vertices / 2;
+    let num_edges = num_nodes / 2;
     for _ in 0..num_edges {
         let source = indexes.next().unwrap();
         let target = indexes.next().unwrap();
@@ -65,24 +65,24 @@ pub fn run_ingestion_benchmarks<F>(
 
     bench(
         group,
-        "existing vertex varying time",
+        "existing node varying time",
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_vertex(*t, 0, NO_PROPS),
+                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None),
                 BatchSize::SmallInput,
             )
         },
     );
     bench(
         group,
-        "new vertex constant time",
+        "new node constant time",
         parameter,
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_vertex(0, *v, NO_PROPS),
+                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None),
                 BatchSize::SmallInput,
             )
         },
@@ -261,7 +261,7 @@ pub fn run_analysis_benchmarks<F, G>(
     parameter: Option<usize>,
 ) where
     F: Fn() -> G,
-    G: GraphViewOps,
+    G: StaticGraphViewOps,
 {
     let graph = make_graph();
     let edges: HashSet<(u64, u64)> = graph
@@ -269,7 +269,7 @@ pub fn run_analysis_benchmarks<F, G>(
         .into_iter()
         .map(|e| (e.src().id(), e.dst().id()))
         .collect();
-    let vertices: HashSet<u64> = graph.vertices().id().collect();
+    let nodes: HashSet<u64> = graph.nodes().id().collect();
 
     bench(group, "num_edges", parameter, |b: &mut Bencher| {
         b.iter(|| graph.count_edges())
@@ -278,7 +278,7 @@ pub fn run_analysis_benchmarks<F, G>(
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
         let edge = edges.iter().choose(&mut rng).expect("non-empty graph");
-        b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
+        b.iter(|| graph.has_edge(edge.0, edge.1))
     });
 
     bench(
@@ -289,54 +289,49 @@ pub fn run_analysis_benchmarks<F, G>(
             let mut rng = rand::thread_rng();
             let edge = loop {
                 let edge: (u64, u64) = (
-                    *vertices.iter().choose(&mut rng).expect("non-empty graph"),
-                    *vertices.iter().choose(&mut rng).expect("non-empty graph"),
+                    *nodes.iter().choose(&mut rng).expect("non-empty graph"),
+                    *nodes.iter().choose(&mut rng).expect("non-empty graph"),
                 );
                 if !edges.contains(&edge) {
                     break edge;
                 }
             };
-            b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
+            b.iter(|| graph.has_edge(edge.0, edge.1))
         },
     );
 
-    bench(group, "num_vertices", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.count_vertices())
+    bench(group, "num_nodes", parameter, |b: &mut Bencher| {
+        b.iter(|| graph.count_nodes())
+    });
+
+    bench(group, "has_node_existing", parameter, |b: &mut Bencher| {
+        let mut rng = rand::thread_rng();
+        let v = *nodes.iter().choose(&mut rng).expect("non-empty graph");
+        b.iter(|| graph.has_node(v))
     });
 
     bench(
         group,
-        "has_vertex_existing",
-        parameter,
-        |b: &mut Bencher| {
-            let mut rng = rand::thread_rng();
-            let v = *vertices.iter().choose(&mut rng).expect("non-empty graph");
-            b.iter(|| graph.has_vertex(v))
-        },
-    );
-
-    bench(
-        group,
-        "has_vertex_nonexisting",
+        "has_node_nonexisting",
         parameter,
         |b: &mut Bencher| {
             let mut rng = rand::thread_rng();
             let v: u64 = loop {
                 let v: u64 = rng.gen();
-                if !vertices.contains(&v) {
+                if !nodes.contains(&v) {
                     break v;
                 }
             };
-            b.iter(|| graph.has_vertex(v))
+            b.iter(|| graph.has_node(v))
         },
     );
 
     bench(group, "max_id", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.vertices().id().max())
+        b.iter(|| graph.nodes().id().max())
     });
 
     bench(group, "max_degree", parameter, |b: &mut Bencher| {
-        b.iter(|| graph.vertices().degree().max())
+        b.iter(|| graph.nodes().degree().max())
     });
 
     // Too noisy due to degree variability and confuses criterion
@@ -347,8 +342,8 @@ pub fn run_analysis_benchmarks<F, G>(
     //     |b: &mut Bencher| {
     //         let mut rng = rand::thread_rng();
     //         let v = graph
-    //             .vertex(*vertices.iter().choose(&mut rng).expect("non-empty graph"))
-    //             .expect("existing vertex");
+    //             .node(*nodes.iter().choose(&mut rng).expect("non-empty graph"))
+    //             .expect("existing node");
     //         b.iter(|| v.neighbours().degree().max())
     //     },
     // );

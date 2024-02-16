@@ -7,14 +7,14 @@ use super::{
 use crate::{
     core::state::agg::Accumulator,
     db::{
-        api::view::GraphViewOps,
+        api::view::StaticGraphViewOps,
         task::task_state::{Global, Shard},
     },
 };
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
-pub struct ShuffleComputeState<CS: ComputeState + Send> {
+pub struct ShuffleComputeState<CS> {
     morcel_size: usize,
     pub global: MorcelComputeState<CS>,
     pub parts: Vec<MorcelComputeState<CS>>,
@@ -205,7 +205,7 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             .read::<A, IN, OUT, ACC>(GLOBAL_STATE_KEY, agg_ref.id(), ss)
     }
 
-    pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: GraphViewOps>(
+    pub fn finalize<A, B, F, IN, OUT, ACC: Accumulator<A, IN, OUT>, G: StaticGraphViewOps>(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
         ss: usize,
@@ -280,13 +280,13 @@ impl<CS: ComputeState + Send> EvalGlobalState<CS> {
 }
 
 #[derive(Debug)]
-pub struct EvalShardState<G: GraphViewOps, CS: ComputeState + Send> {
+pub struct EvalShardState<G: StaticGraphViewOps, CS: ComputeState + Send> {
     ss: usize,
     g: G,
     shard_states: Shard<CS>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
+impl<G: StaticGraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
     pub fn new(ss: usize, g: G, shard_states: Shard<CS>) -> EvalShardState<G, CS> {
         Self {
             ss,
@@ -318,13 +318,13 @@ impl<G: GraphViewOps, CS: ComputeState + Send> EvalShardState<G, CS> {
     }
 }
 
-pub struct EvalLocalState<G: GraphViewOps, CS: ComputeState + Send> {
+pub struct EvalLocalState<G: StaticGraphViewOps, CS: ComputeState + Send> {
     ss: usize,
     g: G,
     local_states: Vec<Arc<Option<ShuffleComputeState<CS>>>>,
 }
 
-impl<G: GraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
+impl<G: StaticGraphViewOps, CS: ComputeState + Send> EvalLocalState<G, CS> {
     pub fn new(
         ss: usize,
         g: G,

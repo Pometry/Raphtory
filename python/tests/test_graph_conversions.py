@@ -13,8 +13,8 @@ def build_graph():
         "datetime64[ms, UTC]"
     )
 
-    vertices_df = pd.read_csv(base_dir / "data/network_traffic_vertices.csv")
-    vertices_df["timestamp"] = pd.to_datetime(vertices_df["timestamp"]).astype(
+    nodes_df = pd.read_csv(base_dir / "data/network_traffic_nodes.csv")
+    nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"]).astype(
         "datetime64[ms, UTC]"
     )
 
@@ -27,12 +27,12 @@ def build_graph():
         edge_layer="transaction_type",
         edge_const_props=["is_encrypted"],
         edge_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
-        vertex_df=vertices_df,
-        vertex_id="server_id",
-        vertex_time="timestamp",
-        vertex_props=["OS_version", "primary_function", "uptime_days"],
-        vertex_const_props=["server_name", "hardware_type"],
-        vertex_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
+        node_df=nodes_df,
+        node_id="server_id",
+        node_time="timestamp",
+        node_props=["OS_version", "primary_function", "uptime_days"],
+        node_const_props=["server_name", "hardware_type"],
+        node_shared_const_props={"datasource": "data/network_traffic_edges.csv"},
     )
 
 
@@ -40,108 +40,115 @@ def test_py_vis():
     g = build_graph()
     pyvis_g = export.to_pyvis(g, directed=True)
 
-    assert pyvis_g.nodes == [
-        {
-            "color": "#97c2fc",
-            "id": 7678824742430955432,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerA",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 7718004695861170879,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerB",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 17918514325589227856,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerC",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 14902018402467198225,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerD",
-            "shape": "dot",
-        },
-        {
-            "color": "#97c2fc",
-            "id": 11577954539736240602,
-            "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
-            "label": "ServerE",
-            "shape": "dot",
-        },
-    ]
-    assert pyvis_g.edges == [
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7678824742430955432,
-            "title": "",
-            "to": 7718004695861170879,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7678824742430955432,
-            "title": "",
-            "to": 17918514325589227856,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 7718004695861170879,
-            "title": "",
-            "to": 14902018402467198225,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 17918514325589227856,
-            "title": "",
-            "to": 7678824742430955432,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 14902018402467198225,
-            "title": "",
-            "to": 17918514325589227856,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 14902018402467198225,
-            "title": "",
-            "to": 11577954539736240602,
-            "value": 1,
-        },
-        {
-            "arrowStrikethrough": False,
-            "arrows": "to",
-            "color": "#000000",
-            "from": 11577954539736240602,
-            "title": "",
-            "to": 7718004695861170879,
-            "value": 1,
-        },
-    ]
+    compare_list_of_dicts(
+        pyvis_g.nodes,
+        [
+            {
+                "color": "#97c2fc",
+                "id": 7678824742430955432,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerA",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 7718004695861170879,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerB",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 17918514325589227856,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerC",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 14902018402467198225,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerD",
+                "shape": "dot",
+            },
+            {
+                "color": "#97c2fc",
+                "id": 11577954539736240602,
+                "image": "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                "label": "ServerE",
+                "shape": "dot",
+            },
+        ],
+    )
+
+    compare_list_of_dicts(
+        pyvis_g.edges,
+        [
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7678824742430955432,
+                "title": "",
+                "to": 7718004695861170879,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7678824742430955432,
+                "title": "",
+                "to": 17918514325589227856,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 7718004695861170879,
+                "title": "",
+                "to": 14902018402467198225,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 17918514325589227856,
+                "title": "",
+                "to": 7678824742430955432,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 14902018402467198225,
+                "title": "",
+                "to": 17918514325589227856,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 14902018402467198225,
+                "title": "",
+                "to": 11577954539736240602,
+                "value": 1,
+            },
+            {
+                "arrowStrikethrough": False,
+                "arrows": "to",
+                "color": "#000000",
+                "from": 11577954539736240602,
+                "title": "",
+                "to": 7718004695861170879,
+                "value": 1,
+            },
+        ],
+    )
 
 
 def test_networkx_full_history():
@@ -250,7 +257,7 @@ def test_networkx_full_history():
             },
         ),
     ]
-    assert nodeList == server_list
+    compare_list_of_dicts(nodeList, server_list)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -336,7 +343,7 @@ def test_networkx_full_history():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def test_networkx_exploded():
@@ -448,14 +455,14 @@ def test_networkx_exploded():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def test_networkx_no_props():
     g = build_graph()
 
     networkxGraph = export.to_networkx(
-        g, include_vertex_properties=False, include_edge_properties=False
+        g, include_node_properties=False, include_edge_properties=False
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -510,7 +517,7 @@ def test_networkx_no_props():
         ),
         ("ServerE", {"update_history": [1693556100000, 1693556400000, 1693556700000]}),
     ]
-    assert nodeList == resultList
+    compare_list_of_dicts(nodeList, resultList)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -553,11 +560,11 @@ def test_networkx_no_props():
             {"layer": "File Transfer", "update_history": [1693556700000]},
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
     networkxGraph = export.to_networkx(
         g,
-        include_vertex_properties=False,
+        include_node_properties=False,
         include_edge_properties=False,
         include_update_history=False,
     )
@@ -570,7 +577,7 @@ def test_networkx_no_props():
         ("ServerD", {}),
         ("ServerE", {}),
     ]
-    assert nodeList == resultList
+    compare_list_of_dicts(nodeList, resultList)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -582,7 +589,7 @@ def test_networkx_no_props():
         ("ServerD", "ServerE", {"layer": "Administrative Command"}),
         ("ServerE", "ServerB", {"layer": "File Transfer"}),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
     networkxGraph = export.to_networkx(
         g, include_edge_properties=False, explode_edges=True
@@ -635,7 +642,7 @@ def test_networkx_no_props():
             {"layer": "File Transfer", "update_history": 1693556700000},
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def test_networkx_no_history():
@@ -703,7 +710,7 @@ def test_networkx_no_history():
             },
         ),
     ]
-    assert nodeList == resultList
+    compare_list_of_dicts(nodeList, resultList)
 
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
@@ -778,7 +785,7 @@ def test_networkx_no_history():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
     networkxGraph = export.to_networkx(
         g, include_property_histories=False, explode_edges=True
@@ -885,7 +892,7 @@ def test_networkx_no_history():
             },
         ),
     ]
-    assert edgeList == resultList
+    compare_list_of_dicts(edgeList, resultList)
 
 
 def save_df_to_json(df, filename):
@@ -901,108 +908,129 @@ def save_df_to_json(df, filename):
 def build_to_df():
     g = build_graph()
 
-    edge_df = export.to_edge_df(g)
+    edge_df = g.to_edge_df()
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_all.json")
-    edge_df = export.to_edge_df(g, include_edge_properties=False)
+    edge_df = g.to_edge_df(include_edge_properties=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_props.json")
-    edge_df = export.to_edge_df(g, include_update_history=False)
+    edge_df = g.to_edge_df(include_update_history=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_hist.json")
-    edge_df = export.to_edge_df(g, include_property_histories=False)
+    edge_df = g.to_edge_df(include_property_histories=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_prop_hist.json")
 
-    edge_df = export.to_edge_df(g, explode_edges=True)
+    edge_df = g.to_edfe_df(explode_edges=True)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded.json")
-    edge_df = export.to_edge_df(g, explode_edges=True, include_edge_properties=False)
+    edge_df = g.to_edfe_df(explode_edges=True, include_edge_properties=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_props.json")
-    edge_df = export.to_edge_df(g, explode_edges=True, include_update_history=False)
+    edge_df = g.to_edfe_df(explode_edges=True, include_update_history=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_hist.json")
-    edge_df = export.to_edge_df(g, explode_edges=True, include_property_histories=False)
+    edge_df = g.to_edfe_df(explode_edges=True, include_property_histories=False)
     save_df_to_json(
         edge_df, "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
     )
 
-    vertex_df = export.to_vertex_df(g)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_all.json")
-    vertex_df = export.to_vertex_df(g, include_vertex_properties=False)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_props.json")
-    vertex_df = export.to_vertex_df(g, include_update_history=False)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_hist.json")
-    vertex_df = export.to_vertex_df(g, include_property_histories=False)
-    save_df_to_json(vertex_df, "expected/dataframe_output/vertex_df_no_prop_hist.json")
+    node_df = g.to_edge_df()
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_all.json")
+    node_df = g.to_edge_df(include_node_properties=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_props.json")
+    node_df = g.to_edge_df(include_update_history=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_hist.json")
+    node_df = g.to_edge_df(include_property_histories=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_prop_hist.json")
+
+
+def jsonify_df(df):
+    """
+    normalises data frame using json with sorted keys to enable order-invariant comparison of rows between data frames
+    """
+    lines = []
+    for _, row in df.iterrows():
+        values = sorted(zip(df.columns, (normalise_dict(v) for v in row)))
+        lines.append(values)
+    lines.sort()
+    return lines
 
 
 def compare_df(df1, df2):
     # Have to do this way due to the number of maps inside the dataframes
-    s1 = df1.to_json()
-    s2 = df2.to_json()
-    data1 = json.loads(s1)
-    data2 = json.loads(s2)
-    assert data1 == data2
+    # Comparison is invariant to the order of rows and columns
+    s1 = jsonify_df(df1)
+    s2 = jsonify_df(df2)
+    assert s1 == s2
+
+
+def normalise_dict(d):
+    s = json.dumps(d, ensure_ascii=True, sort_keys=True)
+    return s
+
+
+def compare_list_of_dicts(list1, list2):
+    assert sorted(normalise_dict(v) for v in list1) == sorted(
+        normalise_dict(v) for v in list2
+    )
 
 
 def test_to_df():
     g = build_graph()
 
     compare_df(
-        export.to_edge_df(g),
+        g.to_edge_df(),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, include_edge_properties=False),
+        g.to_edge_df(include_edge_properties=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, include_update_history=False),
+        g.to_edge_df(include_update_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_hist.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, include_property_histories=False),
+        g.to_edge_df(include_property_histories=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_prop_hist.json"),
     )
 
     compare_df(
-        export.to_edge_df(g, explode_edges=True),
+        g.to_edge_df(explode_edges=True),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded.json"),
     )
+
     compare_df(
-        export.to_edge_df(g, explode_edges=True, include_edge_properties=False),
+        g.to_edge_df(explode_edges=True, include_edge_properties=False),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"
         ),
     )
 
     compare_df(
-        export.to_edge_df(g, explode_edges=True, include_update_history=False),
+        g.to_edge_df(explode_edges=True, include_update_history=False),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"
         ),
     )
 
     compare_df(
-        export.to_edge_df(g, explode_edges=True, include_property_histories=False),
+        g.to_edge_df(explode_edges=True, include_property_histories=False),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
         ),
     )
 
     compare_df(
-        export.to_vertex_df(g),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_all.json"),
+        g.to_node_df(),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_all.json"),
     )
     compare_df(
-        export.to_vertex_df(g, include_vertex_properties=False),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_props.json"),
+        g.to_node_df(include_node_properties=False),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_props.json"),
     )
     compare_df(
-        export.to_vertex_df(g, include_update_history=False),
-        pd.read_json(base_dir / "expected/dataframe_output/vertex_df_no_hist.json"),
+        g.to_node_df(include_update_history=False),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_hist.json"),
     )
     compare_df(
-        export.to_vertex_df(g, include_property_histories=False),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/vertex_df_no_prop_hist.json"
-        ),
+        g.to_node_df(include_property_histories=False),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"),
     )

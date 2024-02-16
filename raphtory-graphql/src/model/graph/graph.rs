@@ -1,204 +1,129 @@
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Deref,
-};
-
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
-    graph::{edge::Edge, get_expanded_edges, node::Node, property::Property},
+    graph::{
+        edge::Edge, edges::GqlEdges, get_expanded_edges, node::Node, nodes::GqlNodes,
+        property::GqlProperties,
+    },
     schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
+    core::entities::nodes::node_ref::NodeRef,
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            GraphViewOps, TimeOps, VertexViewOps,
+        api::{
+            properties::dyn_props::DynProperties,
+            view::{DynamicGraph, NodeViewOps, TimeOps},
         },
-        graph::edge::EdgeView,
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeListOps, EdgeViewOps},
-    search::IndexedGraph,
+    prelude::*,
+    search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
+};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::Into,
 };
 
 #[derive(ResolvedObject)]
-pub(crate) struct GraphMeta {
-    name: String,
-    graph: DynamicGraph,
-}
-
-impl GraphMeta {
-    pub fn new(name: String, graph: DynamicGraph) -> Self {
-        Self { name, graph }
-    }
-}
-
-#[ResolvedObjectFields]
-impl GraphMeta {
-    async fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    async fn static_properties(&self) -> Vec<Property> {
-        self.graph
-            .properties()
-            .constant()
-            .into_iter()
-            .map(|(k, v)| Property::new(k.into(), v))
-            .collect()
-    }
-
-    async fn node_names(&self) -> Vec<String> {
-        self.graph
-            .vertices()
-            .into_iter()
-            .map(|v| v.name())
-            .collect_vec()
-    }
-}
-
-#[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {
+    name: String,
     graph: IndexedGraph<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<IndexedGraph<G>> for GqlGraph {
-    fn from(value: IndexedGraph<G>) -> Self {
-        Self {
-            graph: value.into_dynamic_indexed(),
-        }
-    }
-}
-
 impl GqlGraph {
-    pub(crate) fn new(graph: IndexedGraph<DynamicGraph>) -> Self {
-        Self { graph }
+    pub fn new<G: DynamicIndexedGraph>(name: String, graph: G) -> Self {
+        Self {
+            name,
+            graph: graph.into_dynamic_indexed(),
+        }
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlGraph {
-    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
-    async fn window(&self, start: i64, end: i64) -> GqlGraph {
-        let w = self.graph.window(start, end);
-        w.into_dynamic_indexed().into()
-    }
+    ////////////////////////
+    // LAYERS AND WINDOWS //
+    ////////////////////////
 
-    async fn layer_names(&self) -> Vec<String> {
+    async fn unique_layers(&self) -> Vec<String> {
         self.graph.unique_layers().map_into().collect()
     }
 
-    async fn static_properties(&self) -> Vec<Property> {
-        self.graph
-            .properties()
-            .constant()
-            .into_iter()
-            .map(|(k, v)| Property::new(k.into(), v))
-            .collect()
+    async fn default_layer(&self) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.default_layer())
     }
 
-    async fn nodes(&self, filter: Option<NodeFilter>) -> Vec<Node> {
-        match filter {
-            Some(filter) => self
-                .graph
-                .vertices()
-                .iter()
-                .map(|vv| vv.into())
-                .filter(|n| filter.matches(n))
-                .collect(),
-            None => self.graph.vertices().iter().map(|vv| vv.into()).collect(),
-        }
+    async fn layers(&self, names: Vec<String>) -> GqlGraph {
+        let name = self.name.clone();
+        GqlGraph::new(name, self.graph.valid_layers(names))
+    }
+    async fn layer(&self, name: String) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.valid_layers(name))
     }
 
-    /// Returns the schema of this graph
-    async fn schema(&self) -> GraphSchema {
-        GraphSchema::new(&self.graph)
+    async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
+        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
-    async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
-        self.graph
-            .search_nodes(&query, limit, offset)
-            .into_iter()
-            .flat_map(|vv| vv)
-            .map(|vv| vv.into())
-            .collect()
+    async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
+        let nodes: Vec<NodeRef> = nodes
+            .iter()
+            .map(|v| {
+                let v = *v;
+                let v: NodeRef = v.into();
+                v
+            })
+            .collect();
+        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
-    async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
-        self.graph
-            .search_edges(&query, limit, offset)
-            .into_iter()
-            .flat_map(|vv| vv)
-            .map(|vv| vv.into())
-            .collect()
+    /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+    async fn window(&self, start: i64, end: i64) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.window(start, end))
+    }
+    async fn at(&self, time: i64) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.at(time))
     }
 
-    async fn fuzzy_search_nodes(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Vec<Node> {
-        self.graph
-            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
-            .into_iter()
-            .flat_map(|vv| vv)
-            .map(|vv| vv.into())
-            .collect()
+    async fn before(&self, time: i64) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.before(time))
     }
 
-    async fn fuzzy_search_edges(
-        &self,
-        query: String,
-        limit: usize,
-        offset: usize,
-        prefix: bool,
-        levenshtein_distance: u8,
-    ) -> Vec<Edge> {
-        self.graph
-            .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
-            .into_iter()
-            .flat_map(|vv| vv)
-            .map(|vv| vv.into())
-            .collect()
+    async fn after(&self, time: i64) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.after(time))
     }
 
-    async fn search_vertex_count(&self, query: String) -> usize {
-        self.graph.search_vertex_count(&query).unwrap_or(0)
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_window(start, end))
     }
 
-    async fn search_edge_count(&self, query: String) -> usize {
-        self.graph.search_edge_count(&query).unwrap_or(0)
+    async fn shrink_start(&self, start: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_start(start))
     }
 
-    async fn node_count(&self, filter: Option<NodeFilter>) -> usize {
-        if let Some(filter) = filter {
-            self.graph
-                .vertices()
-                .iter()
-                .map(|vv| vv.into())
-                .filter(|n| filter.matches(n))
-                .count()
-        } else {
-            self.graph.count_vertices()
-        }
+    async fn shrink_end(&self, end: i64) -> Self {
+        GqlGraph::new(self.name.clone(), self.graph.shrink_end(end))
     }
 
-    async fn edge_count(&self, filter: Option<EdgeFilter>) -> usize {
-        if let Some(filter) = filter {
-            self.graph
-                .edges()
-                .into_iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .count()
-        } else {
-            self.graph.count_edges()
-        }
+    ////////////////////////
+    //// TIME QUERIES //////
+    ////////////////////////
+    async fn earliest_time(&self) -> Option<i64> {
+        self.graph.earliest_time()
+    }
+
+    async fn latest_time(&self) -> Option<i64> {
+        self.graph.latest_time()
+    }
+    async fn start(&self) -> Option<i64> {
+        self.graph.start()
+    }
+
+    async fn end(&self) -> Option<i64> {
+        self.graph.end()
     }
 
     async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
@@ -226,91 +151,202 @@ impl GqlGraph {
         return all_edges;
     }
 
-    async fn edges<'a>(
-        &self,
-        filter: Option<EdgeFilter>,
-        limit: Option<usize>,
-        offset: Option<usize>,
-    ) -> Vec<Edge> {
-        match (filter, limit, offset) {
-            (None, None, None) => {
-                return self.graph.edges().into_iter().map(|ev| ev.into()).collect()
-            }
-            (Some(filter), None, None) => return get_edges_with_filter(&self.graph, filter),
-            (None, Some(limit), Some(offset)) => {
-                return get_edges_with_limit(&self.graph, limit, offset)
-            }
-            (Some(filter), Some(limit), Some(offset)) => {
-                return get_edges_with_filter_limit(&self.graph, filter, limit, offset);
-            }
-            (Some(filter), None, Some(offset)) => {
-                return get_edges_with_filter_limit(&self.graph, filter, 10, offset)
-            }
-            (Some(filter), Some(limit), None) => {
-                return get_edges_with_filter_limit(&self.graph, filter, limit, 0)
-            }
-            (None, None, Some(offset)) => return get_edges_with_limit(&self.graph, 10, offset),
-            (None, Some(limit), None) => return get_edges_with_limit(&self.graph, limit, 0),
-        }
+    ////////////////////////
+    //////// COUNTERS //////
+    ////////////////////////
 
-        fn get_edges_with_filter_limit(
-            graph: &IndexedGraph<DynamicGraph>,
-            filter: EdgeFilter,
-            limit: usize,
-            offset: usize,
-        ) -> Vec<Edge> {
-            let start_position = limit * offset;
-            let end_position = start_position + limit;
-            graph
-                .edges()
-                .into_iter()
-                .enumerate()
-                .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
-                .filter_map(|(i, ev)| {
-                    if filter.matches(&ev) && i >= start_position && i < end_position {
-                        Some(ev)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        }
-
-        fn get_edges_with_filter(
-            graph: &IndexedGraph<DynamicGraph>,
-            filter: EdgeFilter,
-        ) -> Vec<Edge> {
-            graph
+    async fn count_edges(&self, filter: Option<EdgeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
                 .edges()
                 .into_iter()
                 .map(|ev| ev.into())
                 .filter(|ev| filter.matches(ev))
-                .collect()
-        }
-
-        fn get_edges_with_limit(
-            graph: &IndexedGraph<DynamicGraph>,
-            limit: usize,
-            offset: usize,
-        ) -> Vec<Edge> {
-            let start_position = limit * offset;
-            let end_position = start_position + limit;
-            graph
-                .edges()
-                .into_iter()
-                .enumerate()
-                .map(|(i, ev)| (i, std::convert::Into::<Edge>::into(ev)))
-                .filter_map(|(i, ev)| {
-                    if i >= start_position && i < end_position {
-                        Some(ev)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
+                .count()
+        } else {
+            self.graph.count_edges()
         }
     }
 
+    async fn count_temporal_edges(&self, filter: Option<EdgeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
+                .edges()
+                .explode()
+                .into_iter()
+                .map(|ev| ev.into())
+                .filter(|ev| filter.matches(ev))
+                .count()
+        } else {
+            self.graph.count_temporal_edges()
+        }
+    }
+
+    async fn search_edge_count(&self, query: String) -> usize {
+        self.graph.search_edge_count(&query).unwrap_or(0)
+    }
+
+    async fn count_nodes(&self, filter: Option<NodeFilter>) -> usize {
+        if let Some(filter) = filter {
+            self.graph
+                .nodes()
+                .iter()
+                .map(|vv| vv.into())
+                .filter(|n| filter.matches(n))
+                .count()
+        } else {
+            self.graph.count_nodes()
+        }
+    }
+    async fn search_node_count(&self, query: String) -> usize {
+        self.graph.search_node_count(&query).unwrap_or(0)
+    }
+
+    ////////////////////////
+    //// EXISTS CHECKERS ///
+    ////////////////////////
+
+    async fn has_node(&self, name: String) -> bool {
+        let v_ref: NodeRef = name.into();
+        self.graph.has_node(v_ref)
+    }
+    async fn has_node_id(&self, id: u64) -> bool {
+        let v_ref: NodeRef = id.into();
+        self.graph.has_node(v_ref)
+    }
+    async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
+        match layer {
+            Some(name) => self
+                .graph
+                .layers(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
+    }
+
+    async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
+        match layer {
+            Some(name) => self
+                .graph
+                .layers(name)
+                .map(|l| l.has_edge(src, dst))
+                .unwrap_or(false),
+            None => self.graph.has_edge(src, dst),
+        }
+    }
+
+    ////////////////////////
+    //////// GETTERS ///////
+    ////////////////////////
+    async fn node(&self, name: String) -> Option<Node> {
+        let v_ref: NodeRef = name.into();
+        self.graph.node(v_ref).map(|v| v.into())
+    }
+    async fn node_id(&self, id: u64) -> Option<Node> {
+        let v_ref: NodeRef = id.into();
+        self.graph.node(v_ref).map(|v| v.into())
+    }
+
+    async fn nodes(&self, filter: Option<NodeFilter>) -> GqlNodes {
+        GqlNodes::new(self.graph.nodes(), filter)
+    }
+
+    async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
+        self.graph
+            .search_nodes(&query, limit, offset)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect()
+    }
+    async fn fuzzy_search_nodes(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Vec<Node> {
+        self.graph
+            .fuzzy_search_nodes(&query, limit, offset, prefix, levenshtein_distance)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect()
+    }
+
+    pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
+        self.graph.edge(src, dst).map(|e| e.into())
+    }
+
+    pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
+        let src: NodeRef = src.into();
+        let dst: NodeRef = dst.into();
+        self.graph.edge(src, dst).map(|e| e.into())
+    }
+
+    async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> GqlEdges {
+        GqlEdges::new(self.graph.edges(), filter)
+    }
+
+    async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
+        self.graph
+            .search_edges(&query, limit, offset)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect()
+    }
+    async fn fuzzy_search_edges(
+        &self,
+        query: String,
+        limit: usize,
+        offset: usize,
+        prefix: bool,
+        levenshtein_distance: u8,
+    ) -> Vec<Edge> {
+        self.graph
+            .fuzzy_search_edges(&query, limit, offset, prefix, levenshtein_distance)
+            .into_iter()
+            .flatten()
+            .map(|vv| vv.into())
+            .collect()
+    }
+
+    ////////////////////////
+    /////// PROPERTIES /////
+    ////////////////////////
+    async fn properties(&self) -> GqlProperties {
+        Into::<DynProperties>::into(self.graph.properties()).into()
+    }
+    ////////////////////////
+    // GRAPHQL SPECIFIC ////
+    ////////////////////////
+
+    async fn name(&self) -> String {
+        self.name.clone()
+    }
+    async fn schema(&self) -> GraphSchema {
+        GraphSchema::new(self.graph.graph())
+    }
+    async fn algorithms(&self) -> GraphAlgorithms {
+        self.graph.graph().clone().into()
+    }
+
+    async fn node_names(&self) -> Vec<String> {
+        self.graph
+            .nodes()
+            .into_iter()
+            .map(|v| v.name())
+            .collect_vec()
+    }
     async fn expanded_edges(
         &self,
         nodes_to_expand: Vec<String>,
@@ -323,7 +359,7 @@ impl GqlGraph {
 
         let nodes: Vec<Node> = self
             .graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|vv| vv.into())
             .filter(|n| NodeFilter::new(nodes_to_expand.clone()).matches(n))
@@ -363,31 +399,30 @@ impl GqlGraph {
         }
     }
 
-    async fn node(&self, name: String) -> Option<Node> {
-        self.graph
-            .vertices()
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
+        if selected_nodes.is_empty() {
+            return vec![];
+        }
+
+        let neighbours: Vec<HashSet<NodeView<IndexedGraph<DynamicGraph>>>> = selected_nodes
             .iter()
-            .find(|vv| &vv.name() == &name)
-            .map(|vv| vv.into())
-    }
+            .filter_map(|n| self.graph.node(Into::<NodeRef>::into(n.clone())))
+            .map(|n| {
+                n.neighbours()
+                    .collect()
+                    .iter()
+                    .map(|vv| vv.clone())
+                    .collect::<HashSet<NodeView<IndexedGraph<DynamicGraph>>>>()
+            })
+            .collect();
 
-    async fn node_id(&self, id: u64) -> Option<Node> {
-        self.graph
-            .vertices()
-            .iter()
-            .find(|vv| vv.id() == id)
-            .map(|vv| vv.into())
-    }
-
-    async fn algorithms(&self) -> GraphAlgorithms {
-        self.graph.deref().clone().into()
-    }
-
-    async fn earliest_time(&self) -> Option<i64> {
-        self.graph.earliest_time()
-    }
-
-    async fn latest_time(&self) -> Option<i64> {
-        self.graph.latest_time()
+        let intersection = neighbours.iter().fold(None, |acc, n| match acc {
+            None => Some(n.clone()),
+            Some(acc) => Some(acc.intersection(n).map(|vv| vv.clone()).collect()),
+        });
+        match intersection {
+            Some(intersection) => intersection.into_iter().map(|vv| vv.into()).collect(),
+            None => vec![],
+        }
     }
 }

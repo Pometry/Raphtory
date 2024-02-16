@@ -1,19 +1,19 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::vertices::vertex_ref::VertexRef,
+        entities::nodes::node_ref::NodeRef,
         state::{
             accumulator_id::accumulators::{max, sum},
             compute_state::ComputeStateVec,
         },
     },
     db::{
-        api::view::{GraphViewOps, VertexViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
+            node::eval_node::EvalNodeView,
             task::{ATask, Job, Step},
             task_runner::TaskRunner,
-            vertex::eval_vertex::EvalVertexView,
         },
     },
 };
@@ -37,17 +37,16 @@ impl Default for Hits {
 }
 
 /// HITS (Hubs and Authority) Algorithm:
-/// AuthScore of a vertex (A) = Sum of HubScore of all vertices pointing at vertex (A) from previous iteration /
-///     Sum of HubScore of all vertices in the current iteration
+/// AuthScore of a node (A) = Sum of HubScore of all nodes pointing at node (A) from previous iteration /
+///     Sum of HubScore of all nodes in the current iteration
 ///
-/// HubScore of a vertex (A) = Sum of AuthScore of all vertices pointing away from vertex (A) from previous iteration /
-///     Sum of AuthScore of all vertices in the current iteration
+/// HubScore of a node (A) = Sum of AuthScore of all nodes pointing away from node (A) from previous iteration /
+///     Sum of AuthScore of all nodes in the current iteration
 ///
 /// Returns
 ///
-/// * An AlgorithmResult object containing the mapping from vertex ID to the hub and authority score of the vertex
-#[allow(unused_variables)]
-pub fn hits<G: GraphViewOps>(
+/// * An AlgorithmResult object containing the mapping from node ID to the hub and authority score of the node
+pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
@@ -76,7 +75,7 @@ pub fn hits<G: GraphViewOps>(
     ctx.global_agg_reset(max_diff_hub_score);
     ctx.global_agg_reset(max_diff_auth_score);
 
-    let step2 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+    let step2 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let hub_score = evv.get().hub_score;
         let auth_score = evv.get().auth_score;
         for t in evv.out_neighbours() {
@@ -88,7 +87,7 @@ pub fn hits<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step3 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+    let step3 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -97,7 +96,7 @@ pub fn hits<G: GraphViewOps>(
         Step::Continue
     });
 
-    let step4 = ATask::new(move |evv: &mut EvalVertexView<G, ComputeStateVec, Hits>| {
+    let step4 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -139,14 +138,14 @@ pub fn hits<G: GraphViewOps>(
         vec![],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
-        |_, _, els, local| {
+        |_, _, _, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
             let layers = g.layer_ids();
             let edge_filter = g.edge_filter();
             for (v_ref, hit) in local.iter().enumerate() {
-                if g.has_vertex_ref(VertexRef::Internal(v_ref.into()), &layers, edge_filter) {
-                    let v_gid = g.vertex_name(v_ref.into());
+                if g.has_node_ref(NodeRef::Internal(v_ref.into()), &layers, edge_filter) {
+                    let v_gid = g.node_name(v_ref.into());
                     hubs.insert(v_gid.clone(), hit.hub_score);
                     auths.insert(v_gid, hit.auth_score);
                 }
@@ -162,11 +161,11 @@ pub fn hits<G: GraphViewOps>(
     let mut results: HashMap<usize, (f32, f32)> = HashMap::new();
 
     hub_scores.into_iter().for_each(|(k, v)| {
-        results.insert(g.vertex(k).unwrap().vertex.0, (v, 0.0));
+        results.insert(g.node(k).unwrap().node.0, (v, 0.0));
     });
 
     auth_scores.into_iter().for_each(|(k, v)| {
-        let vid = g.vertex(k).unwrap().vertex.0;
+        let vid = g.node(k).unwrap().node.0;
         let (a, _) = results.get(&vid).unwrap();
         results.insert(vid, (*a, v));
     });
@@ -218,14 +217,14 @@ mod hits_tests {
         assert_eq!(
             results,
             HashMap::from([
-                ("1".to_string(), Some((0.0431365, 0.096625775))),
-                ("2".to_string(), Some((0.14359662, 0.18366566))),
-                ("3".to_string(), Some((0.030866561, 0.36886504))),
-                ("4".to_string(), Some((0.1865414, 0.12442485))),
-                ("5".to_string(), Some((0.26667944, 0.05943252))),
-                ("6".to_string(), Some((0.14359662, 0.10755368))),
-                ("7".to_string(), Some((0.15471625, 0.0))),
-                ("8".to_string(), Some((0.030866561, 0.05943252)))
+                ("1".to_string(), (0.0431365, 0.096625775)),
+                ("2".to_string(), (0.14359662, 0.18366566)),
+                ("3".to_string(), (0.030866561, 0.36886504)),
+                ("4".to_string(), (0.1865414, 0.12442485)),
+                ("5".to_string(), (0.26667944, 0.05943252)),
+                ("6".to_string(), (0.14359662, 0.10755368)),
+                ("7".to_string(), (0.15471625, 0.0)),
+                ("8".to_string(), (0.030866561, 0.05943252))
             ])
         );
     }

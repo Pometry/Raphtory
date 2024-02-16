@@ -2,12 +2,12 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            vertices::{vertex_ref::VertexRef, vertex_store::VertexStore},
             LayerIds, EID, VID,
         },
         storage::{
@@ -24,7 +24,7 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::*, BoxedIter},
+            view::{internal::*, BoxedIter, BoxedLIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
@@ -33,16 +33,15 @@ use crate::{
     },
     prelude::{Layer, Prop},
 };
+use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
-#[enum_dispatch(GraphOps)]
-#[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(InternalLayerOps)]
-#[enum_dispatch(IntoDynamic)]
 #[enum_dispatch(TimeSemantics)]
+#[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
@@ -53,6 +52,125 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
+}
+
+impl Static for MaterializedGraph {}
+
+impl<'graph> GraphOps<'graph> for MaterializedGraph {
+    fn internal_node_ref(
+        &self,
+        v: NodeRef,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.internal_node_ref(v, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.internal_node_ref(v, layer_ids, filter),
+        }
+    }
+
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
+        }
+    }
+
+    fn nodes_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.nodes_len(layer_ids, filter),
+            MaterializedGraph::PersistentGraph(g) => g.nodes_len(layer_ids, filter),
+        }
+    }
+
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edges_len(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edges_len(layers, filter),
+        }
+    }
+
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.temporal_edges_len(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.temporal_edges_len(layers, filter),
+        }
+    }
+
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> usize {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.degree(v, d, layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.degree(v, d, layers, filter),
+        }
+    }
+
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_ref(src, dst, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edge_ref(src, dst, layer, filter),
+        }
+    }
+
+    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.node_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.node_refs(layers, filter),
+        }
+    }
+
+    fn edge_refs(
+        &self,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.edge_refs(layers, filter),
+        }
+    }
+
+    fn node_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.node_edges(v, d, layer, filter),
+            MaterializedGraph::PersistentGraph(g) => g.node_edges(v, d, layer, filter),
+        }
+    }
+
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        match self {
+            MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),
+            MaterializedGraph::PersistentGraph(g) => g.neighbours(v, d, layers, filter),
+        }
+    }
 }
 
 impl MaterializedGraph {
@@ -128,13 +246,13 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_core_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.unfiltered_num_vertices(), 0);
+        assert_eq!(mg.unfiltered_num_nodes(), 0);
     }
 
     #[test]
     fn materialised_graph_has_graph_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.vertices_len(mg.layer_ids(), mg.edge_filter()), 0);
+        assert_eq!(mg.nodes_len(mg.layer_ids(), mg.edge_filter()), 0);
     }
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
@@ -166,7 +284,7 @@ mod test_materialised_graph_dispatch {
 
         let mg = g.materialize().unwrap();
 
-        let v = mg.add_vertex(0, 1, NO_PROPS).unwrap();
+        let v = mg.add_node(0, 1, NO_PROPS, None).unwrap();
         assert_eq!(v.id(), 1)
     }
 }

@@ -34,7 +34,7 @@
 //!
 //! let graph = reddit_graph(120, false);
 //!
-//! println!("The graph has {:?} vertices", graph.count_vertices());
+//! println!("The graph has {:?} nodes", graph.count_nodes());
 //! println!("The graph has {:?} edges", graph.count_edges());
 //! ```
 
@@ -131,10 +131,10 @@ pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
                                     Prop::F64(post_properties[20]),
                                 ),
                             ];
-                            g.add_vertex(time, *src_id, NO_PROPS)
+                            g.add_node(time, *src_id, NO_PROPS, None)
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
-                            g.add_vertex(time, *dst_id, NO_PROPS)
+                            g.add_node(time, *dst_id, NO_PROPS, None)
                                 .map_err(|err| println!("{:?}", err))
                                 .ok();
                             g.add_edge(time, *src_id, *dst_id, edge_properties, None)
@@ -169,7 +169,7 @@ mod reddit_test {
     #[test]
     fn check_graph() {
         let graph = reddit_graph(100, true);
-        assert_eq!(graph.count_vertices(), 16);
+        assert_eq!(graph.count_nodes(), 16);
         assert_eq!(graph.count_edges(), 9);
     }
 }

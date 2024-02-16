@@ -24,9 +24,10 @@
 //!    * `macOS`
 //!
 
-use crate::db::{api::view::GraphViewOps, graph::graph::Graph};
+use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
     borrow::Borrow,
     cmp::Ordering,
@@ -45,7 +46,7 @@ pub mod state;
 pub(crate) mod storage;
 pub mod utils;
 
-/// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
+// this is here because Arc<str> annoyingly doesn't implement all the expected comparisons
 #[derive(Clone, Debug, Eq, Ord, Hash, Serialize, Deserialize)]
 pub struct ArcStr(pub(crate) Arc<str>);
 
@@ -101,6 +102,22 @@ impl<T: Borrow<str> + ?Sized> PartialEq<T> for ArcStr {
 impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
     fn partial_cmp(&self, other: &T) -> Option<Ordering> {
         <ArcStr as Borrow<str>>::borrow(self).partial_cmp(other.borrow())
+    }
+}
+
+pub trait OptionAsStr<'a> {
+    fn as_str(self) -> Option<&'a str>;
+}
+
+impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for &'a Option<O> {
+    fn as_str(self) -> Option<&'a str> {
+        self.as_ref().map(|s| s.as_ref())
+    }
+}
+
+impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
+    fn as_str(self) -> Option<&'a str> {
+        self.map(|s| s.as_ref())
     }
 }
 
@@ -171,6 +188,34 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn to_json(&self) -> Value {
+        match self {
+            Prop::Str(value) => Value::String(value.to_string()),
+            Prop::U8(value) => Value::Number((*value).into()),
+            Prop::U16(value) => Value::Number((*value).into()),
+            Prop::I32(value) => Value::Number((*value).into()),
+            Prop::I64(value) => Value::Number((*value).into()),
+            Prop::U32(value) => Value::Number((*value).into()),
+            Prop::U64(value) => Value::Number((*value).into()),
+            Prop::F32(value) => Value::Number(serde_json::Number::from_f64(*value as f64).unwrap()),
+            Prop::F64(value) => Value::Number(serde_json::Number::from_f64(*value).unwrap()),
+            Prop::Bool(value) => Value::Bool(*value),
+            Prop::List(value) => {
+                let vec: Vec<Value> = value.iter().map(|v| v.to_json()).collect();
+                Value::Array(vec)
+            }
+            Prop::Map(value) => {
+                let map: serde_json::Map<String, Value> = value
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_json()))
+                    .collect();
+                Value::Object(map)
+            }
+            Prop::DTime(value) => Value::String(value.to_string()),
+            Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+        }
+    }
+
     pub fn dtype(&self) -> PropType {
         match self {
             Prop::Str(_) => PropType::Str,
@@ -484,8 +529,8 @@ impl fmt::Display for Prop {
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::Graph(value) => write!(
                 f,
-                "Graph(num_vertices={}, num_edges={})",
-                value.count_vertices(),
+                "Graph(num_nodes={}, num_edges={})",
+                value.count_nodes(),
                 value.count_edges()
             ),
             Prop::List(value) => {
@@ -647,9 +692,47 @@ impl<T: Into<Prop>> IntoProp for T {
     }
 }
 
+#[cfg(feature = "io")]
+mod serde_value_into_prop {
+    use std::collections::HashMap;
+
+    use super::{IntoPropMap, Prop};
+    use serde_json::Value;
+
+    impl TryFrom<Value> for Prop {
+        type Error = String;
+
+        fn try_from(value: Value) -> Result<Self, Self::Error> {
+            match value {
+                Value::Null => Err("Null property not valid".to_string()),
+                Value::Bool(value) => Ok(value.into()),
+                Value::Number(value) => value
+                    .as_i64()
+                    .map(|num| num.into())
+                    .or_else(|| value.as_f64().map(|num| num.into()))
+                    .ok_or(format!("Number conversion error for: {}", value)),
+                Value::String(value) => Ok(value.into()),
+                Value::Array(value) => value
+                    .into_iter()
+                    .map(|item| item.try_into())
+                    .collect::<Result<Vec<Prop>, Self::Error>>()
+                    .map(|item| item.into()),
+                Value::Object(value) => value
+                    .into_iter()
+                    .map(|(key, value)| {
+                        let prop = value.try_into()?;
+                        Ok((key, prop))
+                    })
+                    .collect::<Result<HashMap<String, Prop>, Self::Error>>()
+                    .map(|item| item.into_prop_map()),
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test_arc_str {
-    use crate::core::ArcStr;
+    use crate::core::{ArcStr, OptionAsStr};
     use std::sync::Arc;
 
     #[test]
@@ -659,5 +742,22 @@ mod test_arc_str {
         assert_eq!(test, "test".to_string());
         assert_eq!(test, Arc::from("test"));
         assert_eq!(&test, &"test".to_string())
+    }
+
+    #[test]
+    fn test_option_conv() {
+        let test: Option<ArcStr> = Some("test".into());
+
+        let test_ref = test.as_ref();
+
+        let opt_str = test.as_str();
+        let opt_str3 = test_ref.as_str();
+
+        let test2 = Some("test".to_string());
+        let opt_str_2 = test2.as_str();
+
+        assert_eq!(opt_str, Some("test"));
+        assert_eq!(opt_str_2, Some("test"));
+        assert_eq!(opt_str3, Some("test"));
     }
 }

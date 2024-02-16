@@ -1,65 +1,70 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, vertices::input_vertex::InputVertex},
+        entities::{edges::edge_ref::EdgeRef, nodes::input_node::InputNode},
         storage::timeindex::TimeIndexEntry,
         utils::{errors::GraphError, time::IntoTimeWithFormat},
         Prop,
     },
     db::{
-        api::mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
-        graph::{edge::EdgeView, vertex::VertexView},
+        api::{
+            mutation::{internal::InternalAdditionOps, CollectProperties, TryIntoInputTime},
+            view::StaticGraphViewOps,
+        },
+        graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::GraphViewOps,
 };
 
-pub trait AdditionOps: GraphViewOps {
+pub trait AdditionOps: StaticGraphViewOps {
     // TODO: Probably add vector reference here like add
-    /// Add a vertex to the graph
+    /// Add a node to the graph
     ///
     /// # Arguments
     ///
     /// * `t` - The time
-    /// * `v` - The vertex (can be a string or integer)
-    /// * `props` - The properties of the vertex
+    /// * `v` - The node (can be a string or integer)
+    /// * `props` - The properties of the node
+    /// * `node_type` - The optional string which will be used as a node type
     ///
     /// Returns:
     ///
-    /// A result containing the vertex id
+    /// A result containing the node id
     ///
     /// # Example
     ///
     /// ```
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// let v = g.add_vertex(0, "Alice", NO_PROPS);
-    /// let v = g.add_vertex(0, 5, NO_PROPS);
+    /// let v = g.add_node(0, "Alice", NO_PROPS, None);
+    /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
-    fn add_vertex<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
         props: PI,
-    ) -> Result<VertexView<Self>, GraphError>;
+        node_type: Option<&str>,
+    ) -> Result<NodeView<Self, Self>, GraphError>;
 
-    fn add_vertex_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
+    fn add_node_with_custom_time_format<V: InputNode, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
         v: V,
         props: PI,
-    ) -> Result<VertexView<Self>, GraphError> {
+        node_type: Option<&str>,
+    ) -> Result<NodeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_vertex(time, v, props)
+        self.add_node(time, v, props, node_type)
     }
 
-    // TODO: Vertex.name which gets ._id property else numba as string
-    /// Adds an edge between the source and destination vertices with the given timestamp and properties.
+    // TODO: Node.name which gets ._id property else numba as string
+    /// Adds an edge between the source and destination nodes with the given timestamp and properties.
     ///
     /// # Arguments
     ///
     /// * `t` - The timestamp of the edge.
-    /// * `src` - An instance of `T` that implements the `InputVertex` trait representing the source vertex.
-    /// * `dst` - An instance of `T` that implements the `InputVertex` trait representing the destination vertex.
+    /// * `src` - An instance of `T` that implements the `InputNode` trait representing the source node.
+    /// * `dst` - An instance of `T` that implements the `InputNode` trait representing the destination node.
     /// * `props` - A vector of tuples containing the property name and value pairs to add to the edge.
     ///
     /// # Example
@@ -68,20 +73,20 @@ pub trait AdditionOps: GraphViewOps {
     /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new();
-    /// graph.add_vertex(1, "Alice", NO_PROPS).unwrap();
-    /// graph.add_vertex(2, "Bob", NO_PROPS).unwrap();
+    /// graph.add_node(1, "Alice", NO_PROPS, None).unwrap();
+    /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```    
-    fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self>, GraphError>;
+    ) -> Result<EdgeView<Self, Self>, GraphError>;
 
-    fn add_edge_with_custom_time_format<V: InputVertex, PI: CollectProperties>(
+    fn add_edge_with_custom_time_format<V: InputNode, PI: CollectProperties>(
         &self,
         t: &str,
         fmt: &str,
@@ -89,40 +94,42 @@ pub trait AdditionOps: GraphViewOps {
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self>, GraphError> {
+    ) -> Result<EdgeView<Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
 }
 
-impl<G: InternalAdditionOps + GraphViewOps> AdditionOps for G {
-    fn add_vertex<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
+impl<G: InternalAdditionOps + StaticGraphViewOps> AdditionOps for G {
+    fn add_node<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         v: V,
         props: PI,
-    ) -> Result<VertexView<G>, GraphError> {
+        node_type: Option<&str>,
+    ) -> Result<NodeView<G, G>, GraphError> {
         let properties = props.collect_properties(
-            |name, dtype| self.resolve_vertex_property(name, dtype, false),
+            |name, dtype| self.resolve_node_property(name, dtype, false),
             |prop| self.process_prop_value(prop),
         )?;
         let ti = TimeIndexEntry::from_input(self, t)?;
-        let v_id = self.resolve_vertex(v.id(), v.id_str());
-        self.internal_add_vertex(ti, v_id, properties)?;
-        Ok(VertexView::new_internal(self.clone(), v_id))
+        let v_id = self.resolve_node(v.id(), v.id_str());
+        let type_id = self.resolve_node_type(v_id, node_type)?;
+        self.internal_add_node(ti, v_id, properties, type_id)?;
+        Ok(NodeView::new_internal(self.clone(), v_id))
     }
 
-    fn add_edge<V: InputVertex, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_edge<V: InputNode, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
         t: T,
         src: V,
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<G>, GraphError> {
+    ) -> Result<EdgeView<G, G>, GraphError> {
         let ti = TimeIndexEntry::from_input(self, t)?;
-        let src_id = self.resolve_vertex(src.id(), src.id_str());
-        let dst_id = self.resolve_vertex(dst.id(), dst.id_str());
+        let src_id = self.resolve_node(src.id(), src.id_str());
+        let dst_id = self.resolve_node(dst.id(), dst.id_str());
         let layer_id = self.resolve_layer(layer);
 
         let properties: Vec<(usize, Prop)> = props.collect_properties(

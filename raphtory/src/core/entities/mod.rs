@@ -5,22 +5,28 @@ use std::{ops::Deref, sync::Arc};
 use crate::core::entities::edges::edge_ref::EdgeRef;
 use edges::edge::ERef;
 use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
+use nodes::{node_ref::NodeRef, node_store::NodeStore};
 use serde::{Deserialize, Serialize};
-use vertices::{vertex_ref::VertexRef, vertex_store::VertexStore};
 
 use super::{storage::Entry, Direction};
 
 pub mod edges;
 pub mod graph;
+pub mod nodes;
 pub mod properties;
-pub mod vertices;
 
-// the only reason this is public is because the physical ids of the vertices don't move
+// the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
 pub struct VID(pub usize);
+
+impl VID {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct LocalID {
@@ -59,8 +65,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, VertexStore, N>), // returned from graph.vertex
-    LockedEntry(GraphEntry<VertexStore, N>), // returned from locked_vertices
+    Entry(Entry<'a, NodeStore, N>),        // returned from graph.node
+    LockedEntry(GraphEntry<NodeStore, N>), // returned from locked_nodes
 }
 
 // return index -> usize for VRef
@@ -84,7 +90,7 @@ impl<'a, const N: usize> VRef<'a, N> {
 }
 
 impl<'a, const N: usize> Deref for VRef<'a, N> {
-    type Target = VertexStore;
+    type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -128,6 +134,34 @@ impl LayerIds {
         }
     }
 
+    pub fn intersect(&self, other: &LayerIds) -> LayerIds {
+        match (self, other) {
+            (LayerIds::None, _) => LayerIds::None,
+            (_, LayerIds::None) => LayerIds::None,
+            (LayerIds::All, other) => other.clone(),
+            (this, LayerIds::All) => this.clone(),
+            (LayerIds::One(id), other) => {
+                if other.contains(id) {
+                    LayerIds::One(*id)
+                } else {
+                    LayerIds::None
+                }
+            }
+            (LayerIds::Multiple(ids), other) => {
+                let ids: Vec<usize> = ids
+                    .iter()
+                    .filter(|id| other.contains(id))
+                    .copied()
+                    .collect();
+                match ids.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(ids[0]),
+                    _ => LayerIds::Multiple(ids.into()),
+                }
+            }
+        }
+    }
+
     pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
         match e.layer() {
             None => self,
@@ -140,6 +174,10 @@ impl LayerIds {
 
     pub fn contains(&self, layer_id: &usize) -> bool {
         self.find(*layer_id).is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        matches!(self, LayerIds::None)
     }
 }
 

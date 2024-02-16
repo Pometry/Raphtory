@@ -29,7 +29,7 @@ def test_load_from_pandas():
 
     g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
 
-    assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
+    assert g.nodes.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges:
         weight = e["weight"]
@@ -56,21 +56,22 @@ def test_load_from_pandas_into_existing_graph():
         }
     )
 
-    vertices_df = pd.DataFrame(
+    nodes_df = pd.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
+            "node_type": [ "p", "p", "p", "p", "p", "p" ]
         }
     )
 
     g = Graph()
 
-    g.load_vertices_from_pandas(vertices_df, "id", "time", ["name"])
+    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"])
 
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
 
-    assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
+    assert g.nodes.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges:
         weight = e["weight"]
@@ -85,12 +86,12 @@ def test_load_from_pandas_into_existing_graph():
         (5, 6, 5.0, "purple"),
     ]
 
-    vertices = []
-    for v in g.vertices:
+    nodes = []
+    for v in g.nodes:
         name = v["name"]
-        vertices.append((v.id, name))
+        nodes.append((v.id, name))
 
-    assert vertices == [
+    assert nodes == [
         (1, "Alice"),
         (2, "Bob"),
         (3, "Carol"),
@@ -100,7 +101,7 @@ def test_load_from_pandas_into_existing_graph():
     ]
 
 
-def test_load_from_pandas_vertices():
+def test_load_from_pandas_nodes():
     edges_df = pd.DataFrame(
         {
             "src": [1, 2, 3, 4, 5],
@@ -111,11 +112,12 @@ def test_load_from_pandas_vertices():
         }
     )
 
-    vertices_df = pd.DataFrame(
+    nodes_df = pd.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
+            "node_type": ["P","P","P","P","P","P"]
         }
     )
 
@@ -125,13 +127,14 @@ def test_load_from_pandas_vertices():
         edge_dst="dst",
         edge_time="time",
         edge_props=["weight", "marbles"],
-        vertex_df=vertices_df,
-        vertex_id="id",
-        vertex_time="time",
-        vertex_props=["name"],
+        node_df=nodes_df,
+        node_id="id",
+        node_time="time",
+        node_props=["name"],
+        node_type="node_type"
     )
 
-    assert g.vertices.id.collect() == [1, 2, 3, 4, 5, 6]
+    assert g.nodes.id.collect() == [1, 2, 3, 4, 5, 6]
     edges = []
     for e in g.edges:
         weight = e["weight"]
@@ -146,12 +149,12 @@ def test_load_from_pandas_vertices():
         (5, 6, 5.0, "purple"),
     ]
 
-    vertices = []
-    for v in g.vertices:
+    nodes = []
+    for v in g.nodes:
         name = v["name"]
-        vertices.append((v.id, name))
+        nodes.append((v.id, name))
 
-    assert vertices == [
+    assert nodes == [
         (1, "Alice"),
         (2, "Bob"),
         (3, "Carol"),
@@ -173,7 +176,7 @@ def test_load_from_pandas_with_types():
             "layers": ["layer 1", "layer 2", "layer 3", "layer 4", "layer 5"],
         }
     )
-    vertices_df = pd.DataFrame(
+    nodes_df = pd.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
@@ -186,17 +189,26 @@ def test_load_from_pandas_with_types():
                 "Person 5",
                 "Person 6",
             ],
+            "node_type": [
+                "Person",
+                "Person",
+                "Person",
+                "Person",
+                "Person",
+                "Person",
+            ]
         }
     )
     g = Graph()
-    g.load_vertices_from_pandas(
-        vertices_df,
+    g.load_nodes_from_pandas(
+        nodes_df,
         "id",
         "time",
+        "node_type",
         ["name"],
-        shared_const_props={"type": "Person", "tag": "test_tag"},
+        shared_const_props={"tag": "test_tag"},
     )
-    assert g.vertices.properties.constant.get("type").collect() == [
+    assert g.nodes.node_type == [
         "Person",
         "Person",
         "Person",
@@ -204,7 +216,7 @@ def test_load_from_pandas_with_types():
         "Person",
         "Person",
     ]
-    assert g.vertices.properties.constant.get("tag").collect() == [
+    assert g.nodes.properties.constant.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -214,10 +226,8 @@ def test_load_from_pandas_with_types():
     ]
 
     g = Graph()
-    g.load_vertices_from_pandas(
-        vertices_df, "id", "time", ["name"], const_props=["type"]
-    )
-    assert g.vertices.properties.constant.get("type").collect() == [
+    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"], const_props=["type"])
+    assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
         "Person 3",
@@ -236,7 +246,7 @@ def test_load_from_pandas_with_types():
         const_props=["marbles_const"],
         shared_const_props={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
-        layer_in_df=False
+        layer_in_df=False,
     )
 
     assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
@@ -286,13 +296,13 @@ def test_load_from_pandas_with_types():
         "time",
         edge_layer="test_layer",
         layer_in_df=False,
-        vertex_df=vertices_df,
-        vertex_id="id",
-        vertex_time="time",
-        vertex_props=["name"],
-        vertex_shared_const_props={"type": "Person"},
+        node_df=nodes_df,
+        node_id="id",
+        node_time="time",
+        node_props=["name"],
+        node_shared_const_props={"type": "Person"},
     )
-    assert g.vertices.properties.constant.get("type").collect() == [
+    assert g.nodes.properties.constant.get("type").collect() == [
         "Person",
         "Person",
         "Person",
@@ -308,13 +318,13 @@ def test_load_from_pandas_with_types():
         "dst",
         "time",
         edge_layer="layers",
-        vertex_df=vertices_df,
-        vertex_id="id",
-        vertex_time="time",
-        vertex_props=["name"],
-        vertex_const_props=["type"],
+        node_df=nodes_df,
+        node_id="id",
+        node_time="time",
+        node_props=["name"],
+        node_const_props=["type"],
     )
-    assert g.vertices.properties.constant.get("type").collect() == [
+    assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
         "Person 3",
@@ -341,17 +351,17 @@ def test_load_from_pandas_with_types():
         edge_dst="dst",
         edge_time="time",
         edge_props=["weight", "marbles"],
-        vertex_df=vertices_df,
-        vertex_id="id",
-        vertex_time="time",
-        vertex_props=["name"],
+        node_df=nodes_df,
+        node_id="id",
+        node_time="time",
+        node_props=["name"],
         edge_layer="layers",
     )
 
-    g.load_vertex_props_from_pandas(
-        vertices_df, "id", const_props=["type"], shared_const_props={"tag": "test_tag"}
+    g.load_node_props_from_pandas(
+        nodes_df, "id", const_props=["type"], shared_const_props={"tag": "test_tag"}
     )
-    assert g.vertices.properties.constant.get("type").collect() == [
+    assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
         "Person 3",
@@ -359,7 +369,7 @@ def test_load_from_pandas_with_types():
         "Person 5",
         "Person 6",
     ]
-    assert g.vertices.properties.constant.get("tag").collect() == [
+    assert g.nodes.properties.constant.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -387,6 +397,7 @@ def test_load_from_pandas_with_types():
         {"layer 5": "test_tag"},
     ]
 
+
 def test_missing_columns():
     edges_df = pd.DataFrame(
         {
@@ -398,15 +409,21 @@ def test_missing_columns():
         }
     )
 
-    vertices_df = pd.DataFrame(
+    nodes_df = pd.DataFrame(
         {
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
+            "node_type": ["P", "P", "P", "P", "P", "P"]
         }
     )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_src, not_dst, not_time')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_src, not_dst, not_time"
+        ),
+    ):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="not_src",
@@ -414,7 +431,12 @@ def test_missing_columns():
             edge_time="not_time",
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_weight, bleep_bloop')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_weight, bleep_bloop"
+        ),
+    ):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -422,26 +444,36 @@ def test_missing_columns():
             edge_time="time",
             edge_props=["not_weight", "marbles"],
             edge_const_props=["bleep_bloop"],
-            vertex_df=vertices_df,
-            vertex_id="id",
-            vertex_time="time",
-            vertex_props=["name"],
+            node_df=nodes_df,
+            node_id="id",
+            node_time="time",
+            node_props=["name"],
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: not_id, not_time, not_name')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: not_id, not_time, not_name"
+        ),
+    ):
         g = Graph.load_from_pandas(
             edges_df,
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
             edge_props=["weight", "marbles"],
-            vertex_df=vertices_df,
-            vertex_id="not_id",
-            vertex_time="not_time",
-            vertex_props=["not_name"],
+            node_df=nodes_df,
+            node_id="not_id",
+            node_time="not_time",
+            node_props=["not_name"],
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: sauce, dist, wait, marples')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, dist, wait, marples"
+        ),
+    ):
         g = Graph()
         g.load_edge_props_from_pandas(
             edges_df,
@@ -450,10 +482,15 @@ def test_missing_columns():
             const_props=["wait", "marples"],
         )
 
-    with pytest.raises(Exception, match=re.escape('columns are not present within the dataframe: sauce, wait, marples')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "columns are not present within the dataframe: sauce, wait, marples"
+        ),
+    ):
         g = Graph()
-        g.load_vertex_props_from_pandas(
-            vertices_df,
+        g.load_node_props_from_pandas(
+            nodes_df,
             id="sauce",
             const_props=["wait", "marples"],
         )
@@ -461,46 +498,29 @@ def test_missing_columns():
 
 def test_none_columns_edges():
     edges_df = pd.DataFrame(
-        {
-            "src": [1, None, 3, 4, 5],
-            "dst": [2, 3, 4, 5, 6],
-            "time": [1, 2, 3, 4, 5]}
+        {"src": [1, None, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, 3, 4, 5]}
     )
-    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
-        Graph.load_from_pandas(
-            edges_df,
-            "src",
-            "dst",
-            "time"
-        )
+    with pytest.raises(
+        Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
+    ):
+        Graph.load_from_pandas(edges_df, "src", "dst", "time")
 
     edges_df = pd.DataFrame(
-        {
-            "src": [1, 2, 3, 4, 5],
-            "dst": [2, 3, 4, None, 6],
-            "time": [1, 2, 3, 4, 5]}
+        {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, None, 6], "time": [1, 2, 3, 4, 5]}
     )
-    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
-        Graph.load_from_pandas(
-            edges_df,
-            "src",
-            "dst",
-            "time"
-        )
+    with pytest.raises(
+        Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
+    ):
+        Graph.load_from_pandas(edges_df, "src", "dst", "time")
 
     edges_df = pd.DataFrame(
-        {
-            "src": [1, 2, 3, 4, 5],
-            "dst": [2, 3, 4, 5, 6],
-            "time": [1, 2, None, 4, 5]}
+        {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, None, 4, 5]}
     )
-    with pytest.raises(Exception, match=re.escape('Ensure these contain no NaN, Null or None values.')):
-        Graph.load_from_pandas(
-            edges_df,
-            "src",
-            "dst",
-            "time"
-        )
+    with pytest.raises(
+        Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
+    ):
+        Graph.load_from_pandas(edges_df, "src", "dst", "time")
+
 
 def test_unparsable_props():
     edges_df = pd.DataFrame(
@@ -513,7 +533,12 @@ def test_unparsable_props():
         }
     )
 
-    with pytest.raises(Exception, match=re.escape(""""Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'""")):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
+        ),
+    ):
         Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -522,7 +547,12 @@ def test_unparsable_props():
             edge_props=["weight"],
         )
 
-    with pytest.raises(Exception, match=re.escape('Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values.')):
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            "Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values."
+        ),
+    ):
         Graph.load_from_pandas(
             edges_df,
             edge_src="src",
@@ -530,3 +560,23 @@ def test_unparsable_props():
             edge_time="time",
             edge_props=["marbles"],
         )
+
+
+def test_load_node_from_pandas_with_node_types():
+    nodes_df = pd.DataFrame({
+        "id": ["A", "B", "C", "D"],
+        "time": [1, 2, 3, 4],
+    })
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "id", "time")
+    assert g.get_all_node_types() == []
+    assert g.count_nodes() == 4
+
+    edges_df = pd.DataFrame({
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+    })
+    g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
+    assert g.get_all_node_types() == []
+    assert g.count_nodes() == 6

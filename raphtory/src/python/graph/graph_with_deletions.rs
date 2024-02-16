@@ -1,23 +1,23 @@
 //! Defines the `GraphWithDeletions` class, which represents a raphtory graph in memory.
 //! Unlike in the `Graph` which has event semantics, `GraphWithDeletions` has edges that persist until explicitly deleted.
 //!
-//! This is the base class used to create a temporal graph, add vertices and edges,
+//! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{entities::vertices::vertex_ref::VertexRef, utils::errors::GraphError, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
             view::internal::MaterializedGraph,
         },
-        graph::{edge::EdgeView, vertex::VertexView, views::deletion_graph::GraphWithDeletions},
+        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::GraphWithDeletions},
     },
-    prelude::{DeletionOps, GraphViewOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
-        graph::views::graph_view::PyGraphView,
-        utils::{PyInputVertex, PyTime},
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        utils::{PyInputNode, PyTime},
     },
 };
 use pyo3::{prelude::*, types::PyBytes};
@@ -88,24 +88,26 @@ impl PyGraphWithDeletions {
         )
     }
 
-    /// Adds a new vertex with the given id and properties to the graph.
+    /// Adds a new node with the given id and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int, str, or datetime(utc)): The timestamp of the vertex.
-    ///    id (str or int): The id of the vertex.
-    ///    properties (dict): The properties of the vertex.
+    ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
+    ///    id (str or int): The id of the node.
+    ///    properties (dict): The properties of the node.
+    ///    node_type (str) : The optional string which will be used as a node type
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None))]
-    pub fn add_vertex(
+    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
+    pub fn add_node(
         &self,
         timestamp: PyTime,
-        id: PyInputVertex,
+        id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<VertexView<GraphWithDeletions>, GraphError> {
+        node_type: Option<&str>,
+    ) -> Result<NodeView<GraphWithDeletions>, GraphError> {
         self.graph
-            .add_vertex(timestamp, id, properties.unwrap_or_default())
+            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
 
     /// Adds properties to the graph.
@@ -152,12 +154,12 @@ impl PyGraphWithDeletions {
         self.graph.update_constant_properties(properties)
     }
 
-    /// Adds a new edge with the given source and destination vertices and properties to the graph.
+    /// Adds a new edge with the given source and destination nodes and properties to the graph.
     ///
     /// Arguments:
     ///    timestamp (int): The timestamp of the edge.
-    ///    src (str or int): The id of the source vertex.
-    ///    dst (str or int): The id of the destination vertex.
+    ///    src (str or int): The id of the source node.
+    ///    dst (str or int): The id of the destination node.
     ///    properties (dict): The properties of the edge, as a dict of string and properties
     ///    layer (str): The layer of the edge.
     ///
@@ -167,21 +169,21 @@ impl PyGraphWithDeletions {
     pub fn add_edge(
         &self,
         timestamp: PyTime,
-        src: PyInputVertex,
-        dst: PyInputVertex,
+        src: PyInputNode,
+        dst: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<EdgeView<GraphWithDeletions>, GraphError> {
+    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
 
-    /// Deletes an edge given the timestamp, src and dst vertices and layer (optional)
+    /// Deletes an edge given the timestamp, src and dst nodes and layer (optional)
     ///
     /// Arguments:
     ///   timestamp (int): The timestamp of the edge.
-    ///   src (str or int): The id of the source vertex.
-    ///   dst (str or int): The id of the destination vertex.
+    ///   src (str or int): The id of the source node.
+    ///   dst (str or int): The id of the destination node.
     ///   layer (str): The layer of the edge. (optional)
     ///
     /// Returns:
@@ -189,37 +191,126 @@ impl PyGraphWithDeletions {
     pub fn delete_edge(
         &self,
         timestamp: PyTime,
-        src: PyInputVertex,
-        dst: PyInputVertex,
+        src: PyInputNode,
+        dst: PyInputNode,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.graph.delete_edge(timestamp, src, dst, layer)
     }
 
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
-    /// Gets the vertex with the specified id
+    /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str or int): the vertex id
+    ///   id (str or int): the node id
     ///
     /// Returns:
-    ///   the vertex with the specified id, or None if the vertex does not exist
-    pub fn vertex(&self, id: VertexRef) -> Option<VertexView<GraphWithDeletions>> {
-        self.graph.vertex(id)
+    ///   the node with the specified id, or None if the node does not exist
+    pub fn node(&self, id: NodeRef) -> Option<NodeView<GraphWithDeletions>> {
+        self.graph.node(id)
     }
 
     //FIXME: This is reimplemented here to get mutable views. If we switch the underlying graph to enum dispatch, this won't be necessary!
-    /// Gets the edge with the specified source and destination vertices
+    /// Gets the edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str or int): the source vertex id
-    ///     dst (str or int): the destination vertex id
+    ///     src (str or int): the source node id
+    ///     dst (str or int): the destination node id
     ///
     /// Returns:
-    ///     the edge with the specified source and destination vertices, or None if the edge does not exist
+    ///     the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: VertexRef, dst: VertexRef) -> Option<EdgeView<GraphWithDeletions>> {
+    pub fn edge(
+        &self,
+        src: NodeRef,
+        dst: NodeRef,
+    ) -> Option<EdgeView<GraphWithDeletions, GraphWithDeletions>> {
         self.graph.edge(src, dst)
+    }
+
+    /// Import a single node into the graph.
+    ///
+    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the node even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///     node (Node) - A PyNode object representing the node to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+    ///
+    /// Returns:
+    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+    #[pyo3(signature = (node, force=false))]
+    pub fn import_node(
+        &self,
+        node: PyNode,
+        force: Option<bool>,
+    ) -> Result<NodeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+        self.graph.import_node(&node.node, force)
+    }
+
+    /// Import multiple nodes into the graph.
+    ///
+    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the nodes even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+    ///
+    /// Returns:
+    ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
+    #[pyo3(signature = (nodes, force=false))]
+    pub fn import_nodes(
+        &self,
+        nodes: Vec<PyNode>,
+        force: Option<bool>,
+    ) -> Result<Vec<NodeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+        let nodeviews = nodes.iter().map(|node| &node.node).collect();
+        self.graph.import_nodes(nodeviews, force)
+    }
+
+    /// Import a single edge into the graph.
+    ///
+    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edge even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edge (Edge) - A PyEdge object representing the edge to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+    ///
+    /// Returns:
+    ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+    #[pyo3(signature = (edge, force=false))]
+    pub fn import_edge(
+        &self,
+        edge: PyEdge,
+        force: Option<bool>,
+    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+        self.graph.import_edge(&edge.edge, force)
+    }
+
+    /// Import multiple edges into the graph.
+    ///
+    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edges even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
+    ///
+    /// Returns:
+    ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
+    #[pyo3(signature = (edges, force=false))]
+    pub fn import_edges(
+        &self,
+        edges: Vec<PyEdge>,
+        force: Option<bool>,
+    ) -> Result<Vec<EdgeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+        let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
+        self.graph.import_edges(edgeviews, force)
     }
 
     //******  Saving And Loading  ******//

@@ -32,17 +32,19 @@
 //! // Create your GraphDB object and state the number of shards you would like, here we have 2
 //! let graph = Graph::new();
 //!
-//! // Add vertex and edges to your graph with the respective properties
-//! graph.add_vertex(
+//! // Add node and edges to your graph with the respective properties
+//! graph.add_node(
 //!   1,
 //!   "Gandalf",
 //!   [("type", Prop::str("Character"))],
+//!   None
 //! ).unwrap();
 //!
-//! graph.add_vertex(
+//! graph.add_node(
 //!   2,
 //!   "Frodo",
 //!   [("type", Prop::str("Character"))],
+//!   None,
 //! ).unwrap();
 //!
 //! graph.add_edge(
@@ -57,7 +59,7 @@
 //! ).unwrap();
 //!
 //! // Get the in-degree, out-degree and degree of Gandalf
-//! println!("Number of vertices {:?}", graph.count_vertices());
+//! println!("Number of nodes {:?}", graph.count_nodes());
 //! println!("Number of Edges {:?}", graph.count_edges());
 //! ```
 //!
@@ -81,16 +83,13 @@
 //! We are always looking for contributors to help us improve the library.
 //! If you are interested in contributing, please see
 //! our [Github repository](https://github.com/Raphtory/raphtory)
-#[allow(unused_imports)]
-#[macro_use(quickcheck)]
-extern crate quickcheck_macros;
-
 pub mod algorithms;
 pub mod core;
 pub mod db;
 pub mod graphgen;
 
-#[cfg(feature = "python")]
+#[cfg(all(feature = "python", not(doctest)))]
+// no doctests in python as the docstrings are python not rust format
 pub mod python;
 
 #[cfg(feature = "io")]
@@ -108,11 +107,8 @@ pub mod prelude {
         core::{IntoProp, Prop, PropUnwrap},
         db::{
             api::{
-                mutation::{AdditionOps, DeletionOps, PropertyAdditionOps},
-                view::{
-                    EdgeListOps, EdgeViewOps, GraphViewOps, Layer, LayerOps, TimeOps,
-                    VertexListOps, VertexViewOps,
-                },
+                mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
+                view::{EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
             },
             graph::graph::Graph,
         },

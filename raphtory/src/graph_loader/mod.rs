@@ -15,10 +15,10 @@
 //! let graph = lotr_graph();
 //!
 //! // Get the in-degree, out-degree of Gandalf
-//! // The graph.vertex option returns a result of an option,
+//! // The graph.node option returns a result of an option,
 //! // so we need to unwrap the result and the option or
 //! // we can use this if let instead
-//! if let Some(gandalf) = graph.vertex("Gandalf") {
+//! if let Some(gandalf) = graph.node("Gandalf") {
 //!    println!("Gandalf in degree: {:?}", gandalf.in_degree());
 //!   println!("Gandalf out degree: {:?}", gandalf.out_degree());
 //! }
@@ -49,19 +49,21 @@
 //!
 //! CsvLoader::new(data_dir)
 //! .load_into_graph(&g, |lotr: Lotr, g: &Graph| {
-//!     g.add_vertex(
+//!     g.add_node(
 //!         lotr.time,
 //!         lotr.src_id.clone(),
 //!         [("type", Prop::str("Character"))],
+//!         None,
 //!     )
-//!     .expect("Failed to add vertex");
+//!     .expect("Failed to add node");
 //!
-//!     g.add_vertex(
+//!     g.add_node(
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
 //!         [("type", Prop::str("Character"))],
+//!         None
 //!     )
-//!     .expect("Failed to add vertex");
+//!     .expect("Failed to add node");
 //!
 //!     g.add_edge(
 //!         lotr.time,
@@ -187,15 +189,15 @@ mod graph_loader_test {
         let g_astart = g.at(7059);
         let g_at_another = g.at(28373);
 
-        assert_eq!(g_at_empty.count_vertices(), 0);
-        assert_eq!(g_astart.count_vertices(), 3);
-        assert_eq!(g_at_another.count_vertices(), 4);
+        assert_eq!(g_at_empty.count_nodes(), 0);
+        assert_eq!(g_astart.count_nodes(), 3);
+        assert_eq!(g_at_another.count_nodes(), 4);
     }
 
     #[test]
     fn test_karate_graph() {
         let g = crate::graph_loader::example::karate_club::karate_club_graph();
-        assert_eq!(g.count_vertices(), 34);
+        assert_eq!(g.count_nodes(), 34);
         assert_eq!(g.count_edges(), 155);
     }
 
@@ -219,9 +221,9 @@ mod graph_loader_test {
                     let src_id = hashing::calculate_hash(&src);
                     let dst_id = hashing::calculate_hash(&dst);
 
-                    g.add_vertex(t, src_id, [("name", Prop::str("Character"))])
+                    g.add_node(t, src_id, [("name", Prop::str("Character"))], None)
                         .unwrap();
-                    g.add_vertex(t, dst_id, [("name", Prop::str("Character"))])
+                    g.add_node(t, dst_id, [("name", Prop::str("Character"))], None)
                         .unwrap();
                     g.add_edge(
                         t,
@@ -236,8 +238,8 @@ mod graph_loader_test {
         }
 
         let gandalf = hashing::calculate_hash(&"Gandalf");
-        assert!(g.has_vertex(gandalf));
-        assert!(g.has_vertex("Gandalf"))
+        assert!(g.has_node(gandalf));
+        assert!(g.has_node("Gandalf"))
     }
 
     #[test]
@@ -245,22 +247,16 @@ mod graph_loader_test {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
-        assert_eq!(g.vertex("Gandalf").unwrap().degree(), 49);
+        assert_eq!(g.node("Gandalf").unwrap().degree(), 49);
+        assert_eq!(g.node("Gandalf").unwrap().window(1356, 24792).degree(), 34);
+        assert_eq!(g.node("Gandalf").unwrap().in_degree(), 24);
         assert_eq!(
-            g.vertex("Gandalf").unwrap().window(1356, 24792).degree(),
-            34
-        );
-        assert_eq!(g.vertex("Gandalf").unwrap().in_degree(), 24);
-        assert_eq!(
-            g.vertex("Gandalf").unwrap().window(1356, 24792).in_degree(),
+            g.node("Gandalf").unwrap().window(1356, 24792).in_degree(),
             16
         );
-        assert_eq!(g.vertex("Gandalf").unwrap().out_degree(), 35);
+        assert_eq!(g.node("Gandalf").unwrap().out_degree(), 35);
         assert_eq!(
-            g.vertex("Gandalf")
-                .unwrap()
-                .window(1356, 24792)
-                .out_degree(),
+            g.node("Gandalf").unwrap().window(1356, 24792).out_degree(),
             20
         );
     }
@@ -270,10 +266,10 @@ mod graph_loader_test {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
-        assert_eq!(g.vertex("Gandalf").unwrap().neighbours().iter().count(), 49);
+        assert_eq!(g.node("Gandalf").unwrap().neighbours().iter().count(), 49);
 
         for v in g
-            .vertex("Gandalf")
+            .node("Gandalf")
             .unwrap()
             .window(1356, 24792)
             .neighbours()
@@ -282,7 +278,7 @@ mod graph_loader_test {
             println!("{:?}", v.id())
         }
         assert_eq!(
-            g.vertex("Gandalf")
+            g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .neighbours()
@@ -291,11 +287,11 @@ mod graph_loader_test {
             34
         );
         assert_eq!(
-            g.vertex("Gandalf").unwrap().in_neighbours().iter().count(),
+            g.node("Gandalf").unwrap().in_neighbours().iter().count(),
             24
         );
         assert_eq!(
-            g.vertex("Gandalf")
+            g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .in_neighbours()
@@ -304,11 +300,11 @@ mod graph_loader_test {
             16
         );
         assert_eq!(
-            g.vertex("Gandalf").unwrap().out_neighbours().iter().count(),
+            g.node("Gandalf").unwrap().out_neighbours().iter().count(),
             35
         );
         assert_eq!(
-            g.vertex("Gandalf")
+            g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .out_neighbours()
@@ -323,30 +319,33 @@ mod graph_loader_test {
         let g = crate::graph_loader::example::lotr_graph::lotr_graph();
 
         assert_eq!(g.count_edges(), 701);
-        assert_eq!(g.vertex("Gandalf").unwrap().edges().count(), 59);
+        assert_eq!(g.node("Gandalf").unwrap().edges().iter().count(), 59);
         assert_eq!(
-            g.vertex("Gandalf")
+            g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .edges()
+                .iter()
                 .count(),
             36
         );
-        assert_eq!(g.vertex("Gandalf").unwrap().in_edges().count(), 24);
+        assert_eq!(g.node("Gandalf").unwrap().in_edges().iter().count(), 24);
         assert_eq!(
-            g.vertex("Gandalf")
+            g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .in_edges()
+                .iter()
                 .count(),
             16
         );
-        assert_eq!(g.vertex("Gandalf").unwrap().out_edges().count(), 35);
+        assert_eq!(g.node("Gandalf").unwrap().out_edges().iter().count(), 35);
         assert_eq!(
-            g.vertex("Gandalf")
+            g.node("Gandalf")
                 .unwrap()
                 .window(1356, 24792)
                 .out_edges()
+                .iter()
                 .count(),
             20
         );

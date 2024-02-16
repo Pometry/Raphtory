@@ -5,10 +5,11 @@ mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        prelude::{EdgeViewOps, Graph, GraphViewOps, Prop, VertexViewOps},
+        core::ArcStr,
+        prelude::*,
         python::graph::pandas::{
             dataframe::PretendDF,
-            loaders::{load_edges_from_df, load_vertices_from_df},
+            loaders::{load_edges_from_df, load_nodes_from_df},
         },
     };
     use arrow2::array::{PrimitiveArray, Utf8Array};
@@ -57,6 +58,7 @@ mod test {
 
         let actual = graph
             .edges()
+            .iter()
             .map(|e| {
                 (
                     e.src().id(),
@@ -85,9 +87,9 @@ mod test {
     }
 
     #[test]
-    fn load_vertices_from_pretend_df() {
+    fn load_nodes_from_pretend_df() {
         let df = PretendDF {
-            names: vec!["id", "name", "time"]
+            names: vec!["id", "name", "time", "node_type"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -96,21 +98,33 @@ mod test {
                     Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
                     Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
                     Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
+                    Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
                 ],
                 vec![
                     Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
                     Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
                     Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
+                    Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
                 ],
             ],
         };
         let graph = Graph::new();
 
-        load_vertices_from_df(&df, 3, "id", "time", Some(vec!["name"]), None, None, &graph)
-            .expect("failed to load vertices from pretend df");
+        load_nodes_from_df(
+            &df,
+            3,
+            "id",
+            "time",
+            Some(vec!["name"]),
+            None,
+            None,
+            Some("node_type"),
+            &graph,
+        )
+        .expect("failed to load nodes from pretend df");
 
         let actual = graph
-            .vertices()
+            .nodes()
             .iter()
             .map(|v| {
                 (
@@ -120,6 +134,7 @@ mod test {
                         .temporal()
                         .get("name")
                         .and_then(|v| v.latest()),
+                    v.node_type(),
                 )
             })
             .collect::<Vec<_>>();
@@ -127,8 +142,18 @@ mod test {
         assert_eq!(
             actual,
             vec![
-                (1, Some(1), Some(Prop::str("a"))),
-                (2, Some(2), Some(Prop::str("b"))),
+                (
+                    1,
+                    Some(1),
+                    Some(Prop::str("a")),
+                    Some(ArcStr::from("atype"))
+                ),
+                (
+                    2,
+                    Some(2),
+                    Some(Prop::str("b")),
+                    Some(ArcStr::from("btype"))
+                ),
             ]
         );
     }

@@ -20,7 +20,7 @@ fn main() {
 
     let g = stable_coin_graph(data_dir, true);
 
-    assert_eq!(g.count_vertices(), 1523333);
+    assert_eq!(g.count_nodes(), 1523333);
     assert_eq!(g.count_edges(), 2814155);
 
     assert_eq!(
@@ -39,13 +39,13 @@ fn main() {
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g.layer("USDT").unwrap(), 20, None, None, true);
+    let _ = unweighted_page_rank(&g.layers("USDT").unwrap(), 20, None, None, true);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     println!("Generic taint");
     let now = Instant::now();
     let _ = temporally_reachable_nodes(
-        &g.layer("USDT").unwrap(),
+        &g.layers("USDT").unwrap(),
         None,
         20,
         1651105815,

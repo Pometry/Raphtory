@@ -1,12 +1,9 @@
-use crate::model::graph::node::Node;
+use crate::model::graph::{node::Node, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{
-            internal::{DynamicGraph, IntoDynamic},
-            EdgeViewOps, GraphViewOps,
-        },
+        api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
     prelude::{LayerOps, TimeOps},
@@ -17,11 +14,14 @@ pub(crate) struct Edge {
     pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
-impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for Edge {
-    fn from(value: EdgeView<G>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<EdgeView<G, GH>> for Edge
+{
+    fn from(value: EdgeView<G, GH>) -> Self {
         Self {
             ee: EdgeView {
-                graph: value.graph.clone().into_dynamic(),
+                base_graph: value.base_graph.into_dynamic(),
+                graph: value.graph.into_dynamic(),
                 edge: value.edge,
             },
         }
@@ -30,12 +30,58 @@ impl<G: GraphViewOps + IntoDynamic> From<EdgeView<G>> for Edge {
 
 #[ResolvedObjectFields]
 impl Edge {
+    ////////////////////////
+    // LAYERS AND WINDOWS //
+    ////////////////////////
+
+    async fn layers(&self, names: Vec<String>) -> Edge {
+        self.ee.valid_layers(names).into()
+    }
+    async fn layer(&self, name: String) -> Edge {
+        self.ee.valid_layers(name).into()
+    }
+    async fn window(&self, start: i64, end: i64) -> Edge {
+        self.ee.window(start, end).into()
+    }
+    async fn at(&self, time: i64) -> Edge {
+        self.ee.at(time).into()
+    }
+
+    async fn before(&self, time: i64) -> Edge {
+        self.ee.before(time).into()
+    }
+    async fn after(&self, time: i64) -> Edge {
+        self.ee.after(time).into()
+    }
+
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        self.ee.shrink_window(start, end).into()
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        self.ee.shrink_start(start).into()
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        self.ee.shrink_end(end).into()
+    }
+
     async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
+    }
+    async fn first_update(&self) -> Option<i64> {
+        self.ee.history().first().cloned()
     }
 
     async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
+    }
+    async fn last_update(&self) -> Option<i64> {
+        self.ee.history().last().cloned()
+    }
+
+    async fn time(&self) -> Option<i64> {
+        self.ee.time()
     }
 
     async fn start(&self) -> Option<i64> {
@@ -54,19 +100,26 @@ impl Edge {
         self.ee.dst().into()
     }
 
-    async fn property(&self, name: &str) -> Option<String> {
-        self.ee.properties().get(name).map(|prop| prop.to_string())
+    async fn properties(&self) -> GqlProperties {
+        self.ee.properties().into()
     }
 
-    async fn layer(&self, layer_name: &str) -> Option<Edge> {
-        self.ee.layer(layer_name).map(|ee| ee.into())
+    async fn layer_names(&self) -> Vec<String> {
+        self.ee.layer_names().map(|x| x.into()).collect()
+    }
+    async fn layer_name(&self) -> Option<String> {
+        self.ee.layer_name().map(|x| x.into())
     }
 
-    async fn layers(&self) -> Vec<String> {
-        self.ee.layer_names().map_into().collect()
+    async fn explode(&self) -> Vec<Edge> {
+        self.ee
+            .explode()
+            .into_iter()
+            .map(|ee| ee.into())
+            .collect_vec()
     }
 
-    async fn layer_exploded_edges(&self) -> Vec<Edge> {
+    async fn explode_layers(&self) -> Vec<Edge> {
         self.ee
             .explode_layers()
             .into_iter()
@@ -76,5 +129,17 @@ impl Edge {
 
     async fn history(&self) -> Vec<i64> {
         self.ee.history()
+    }
+
+    async fn deletions(&self) -> Vec<i64> {
+        self.ee.deletions()
+    }
+
+    async fn is_valid(&self) -> bool {
+        self.ee.is_valid()
+    }
+
+    async fn is_deleted(&self) -> bool {
+        self.ee.is_deleted()
     }
 }
