@@ -45,6 +45,7 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
@@ -396,6 +397,16 @@ pub fn global_clustering_coefficient(g: &PyGraphView) -> f64 {
 #[pyfunction]
 pub fn global_temporal_three_node_motif(g: &PyGraphView, delta: i64) -> [usize; 40] {
     global_temporal_three_node_motif_rs(&g.graph, delta, None)
+}
+
+#[pyfunction]
+#[pyo3(signature = (g, delta, pivot_type))]
+pub fn temporal_bipartite_graph_projection(
+    g: &PyGraphView,
+    delta: i64,
+    pivot_type: String,
+) -> PyGraphView {
+    temporal_bipartite_rs(&g.graph, delta, pivot_type).into()
 }
 
 /// Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
