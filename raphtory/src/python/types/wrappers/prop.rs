@@ -3,9 +3,31 @@ use crate::{
     python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
 use pyo3::{
-    exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult, Python,
+    exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
+    Python, ToPyObject,
 };
 use std::{ops::Deref, sync::Arc};
+
+impl ToPyObject for Prop {
+    fn to_object(&self, py: Python) -> PyObject {
+        match self {
+            Prop::Str(s) => s.clone().into_py(py),
+            Prop::Bool(bool) => bool.into_py(py),
+            Prop::U8(u8) => u8.into_py(py),
+            Prop::U16(u16) => u16.into_py(py),
+            Prop::I64(i64) => i64.into_py(py),
+            Prop::U64(u64) => u64.into_py(py),
+            Prop::F64(f64) => f64.into_py(py),
+            Prop::DTime(dtime) => dtime.into_py(py),
+            Prop::Graph(g) => g.clone().into_py(py), // Need to find a better way
+            Prop::I32(v) => v.into_py(py),
+            Prop::U32(v) => v.into_py(py),
+            Prop::F32(v) => v.into_py(py),
+            Prop::List(v) => v.deref().clone().into_py(py), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_py(py),
+        }
+    }
+}
 
 impl IntoPy<PyObject> for Prop {
     fn into_py(self, py: Python<'_>) -> PyObject {
