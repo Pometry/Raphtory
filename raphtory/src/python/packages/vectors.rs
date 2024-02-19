@@ -300,37 +300,49 @@ fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
     properties: Properties<P>,
     name: &str,
 ) -> Box<dyn Iterator<Item = DocumentInput>> {
-    let prop = properties.temporal().iter().find(|(key, _)| *key == name);
+    let prop = properties.temporal().get(name);
 
     match prop {
-        Some((_, prop)) => {
+        Some(prop) => {
             let props = prop.iter();
-            let docs = props.map(|(time, prop)| prop_to_doc(&prop, Lifespan::event(time)));
+            let docs = props
+                .map(|(time, prop)| prop_to_docs(&prop, Lifespan::event(time)).collect_vec())
+                .flatten();
             Box::new(docs)
         }
         None => match properties.get(name) {
-            Some(Prop::List(props)) => {
-                let doc_list = props.iter().map(|prop| constant_to_doc(prop)).collect_vec();
-                Box::new(doc_list.into_iter())
-            }
-            Some(prop) => Box::new(std::iter::once(constant_to_doc(&prop))),
+            Some(prop) => Box::new(
+                prop_to_docs(&prop, Lifespan::Inherited)
+                    .collect_vec()
+                    .into_iter(),
+            ),
             _ => Box::new(std::iter::empty()),
         },
     }
 }
 
-fn constant_to_doc(prop: &Prop) -> DocumentInput {
-    prop_to_doc(prop, Lifespan::Inherited)
-}
-
-fn prop_to_doc(prop: &Prop, default_lifespan: Lifespan) -> DocumentInput {
+fn prop_to_docs(
+    prop: &Prop,
+    default_lifespan: Lifespan,
+) -> Box<dyn Iterator<Item = DocumentInput> + '_> {
     // FIXME: this needs to improve, what happens with temporal documents. Does document lifespan take precedence or the event time?
     match prop {
-        Prop::Document(document) => document.clone(),
-        prop => DocumentInput {
+        Prop::List(docs) => Box::new(
+            docs.iter()
+                .map(move |prop| prop_to_docs(prop, default_lifespan))
+                .flatten(),
+        ),
+        Prop::Map(doc_map) => Box::new(
+            doc_map
+                .values()
+                .map(move |prop| prop_to_docs(prop, default_lifespan))
+                .flatten(),
+        ),
+        Prop::Document(document) => Box::new(std::iter::once(document.clone())),
+        prop => Box::new(std::iter::once(DocumentInput {
             content: prop.to_string(),
             life: default_lifespan,
-        },
+        })),
     }
 }
 
