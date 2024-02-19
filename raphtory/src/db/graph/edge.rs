@@ -196,11 +196,10 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
-        if self
+        if !self
             .graph
-            .edge_layers(self.edge, LayerIds::One(input_layer_id))
-            .next()
-            .is_none()
+            .core_edge(self.edge.pid())
+            .has_layer(&LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {
                 layer: layer.unwrap_or("_default").to_string(),
