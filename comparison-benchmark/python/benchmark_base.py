@@ -52,7 +52,7 @@ class BenchmarkBase(ABC):
                 tty=True,
                 environment=envs,
                 ports=ports,
-                mem_limit="4g",
+                mem_limit="55g",
             )
         else:
             self.container = self.docker.containers.run(
@@ -64,7 +64,7 @@ class BenchmarkBase(ABC):
                 tty=True,
                 environment=envs,
                 ports=ports,
-                mem_limit="4g",
+                mem_limit="55g",
             )
 
         time.sleep(wait)
