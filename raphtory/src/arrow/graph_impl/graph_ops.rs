@@ -1,5 +1,6 @@
 use itertools::{EitherOrBoth, Itertools};
 use rayon::iter::ParallelIterator;
+use std::iter;
 
 use crate::{
     arrow::GID,
@@ -142,16 +143,13 @@ impl<'graph> GraphOps<'graph> for Graph2 {
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
-        let layer_id = match layers {
-            LayerIds::One(layer_id) => *layer_id,
-            _ => todo!(),
-        };
+        let layer_id = self.layer_from_ids(layers)?;
         let eid = self.layers[layer_id].nodes().find_edge(src, dst)?;
         match filter {
-            None => Some(EdgeRef::new_outgoing(eid, src, dst)),
+            None => Some(EdgeRef::new_outgoing(eid, src, dst).at_layer(layer_id)),
             Some(ef) => {
                 if self.filter_edge(eid, ef, layer_id) {
-                    Some(EdgeRef::new_outgoing(eid, src, dst))
+                    Some(EdgeRef::new_outgoing(eid, src, dst).at_layer(layer_id))
                 } else {
                     None
                 }
@@ -172,21 +170,31 @@ impl<'graph> GraphOps<'graph> for Graph2 {
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> view::BoxedLIter<'graph, EdgeRef> {
-        let layer_id = match layers {
-            LayerIds::One(layer_id) => layer_id,
-            _ => todo!(),
-        };
-
+        let layer = self.layer_from_ids(&layers);
         let filter = filter.cloned();
         let self_clone = self.clone();
-        let iter = self.all_edge_ids(layer_id).filter_map(move |eid| {
-            let edge = self_clone.edge(eid, layer_id);
-            filter
-                .as_ref()
-                .map(|f| f(&edge, &layers))
-                .unwrap_or(true)
-                .then(|| EdgeRef::new_outgoing(eid, edge.src(), edge.dst()))
-        });
+        let iter = layer
+            .into_iter()
+            .filter_map(move |layer_id| {
+                if layers.contains(&layer_id) {
+                    let filter = filter.clone();
+                    let self_clone = self_clone.clone();
+                    Some(self_clone.all_edge_ids(layer_id).filter_map(move |eid| {
+                        let edge = self_clone.edge(eid, layer_id);
+                        filter
+                            .as_ref()
+                            .map(|f| f(&edge, &LayerIds::One(layer_id)))
+                            .unwrap_or(true)
+                            .then(|| {
+                                EdgeRef::new_outgoing(eid, edge.src(), edge.dst())
+                                    .at_layer(layer_id)
+                            })
+                    }))
+                } else {
+                    None
+                }
+            })
+            .flatten();
 
         Box::new(iter)
     }
@@ -198,27 +206,33 @@ impl<'graph> GraphOps<'graph> for Graph2 {
         layer: LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> view::BoxedLIter<'graph, EdgeRef> {
-        let layer_id = match layer {
-            LayerIds::One(layer_id) => layer_id,
-            _ => todo!(),
-        };
-        let filter = filter.cloned();
-        let self_cloned = self.clone();
-        let iter = self
-            .edges_cloned(src, d, layer_id)
-            .map(move |(e_id, v)| match d {
-                core::Direction::OUT => EdgeRef::new_outgoing(e_id, src, v),
-                core::Direction::IN => EdgeRef::new_incoming(e_id, v, src),
-                core::Direction::BOTH => todo!("BOTH"),
-            });
+        let layer_id = self.layer_from_ids(&layer);
+        match layer_id {
+            Some(layer_id) => {
+                let filter = filter.cloned();
+                let self_cloned = self.clone();
+                let iter = self
+                    .edges_cloned(src, d, layer_id)
+                    .map(move |(e_id, v)| match d {
+                        core::Direction::OUT => {
+                            EdgeRef::new_outgoing(e_id, src, v).at_layer(layer_id)
+                        }
+                        core::Direction::IN => {
+                            EdgeRef::new_incoming(e_id, v, src).at_layer(layer_id)
+                        }
+                        core::Direction::BOTH => todo!("BOTH"),
+                    });
 
-        if filter.is_some() {
-            Box::new(iter.filter(move |e_ref| {
-                let edge = self_cloned.edge(e_ref.pid(), layer_id);
-                filter.as_ref().map(|f| f(&edge, &layer)).unwrap_or(true)
-            }))
-        } else {
-            Box::new(iter)
+                if filter.is_some() {
+                    Box::new(iter.filter(move |e_ref| {
+                        let edge = self_cloned.edge(e_ref.pid(), layer_id);
+                        filter.as_ref().map(|f| f(&edge, &layer)).unwrap_or(true)
+                    }))
+                } else {
+                    Box::new(iter)
+                }
+            }
+            None => Box::new(iter::empty()),
         }
     }
 
