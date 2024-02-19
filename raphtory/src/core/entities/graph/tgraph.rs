@@ -26,7 +26,7 @@ use crate::{
         storage::{
             lazy_vec::IllegalSet,
             locked_view::LockedView,
-            timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexOps},
+            timeindex::{AsTime, LayeredIndex, TimeIndexEntry, TimeIndexRefOps},
             ArcEntry, Entry, EntryMut,
         },
         utils::{

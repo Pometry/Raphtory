@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, properties::tprop::LayeredTProp, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexRefOps},
         utils::errors::GraphError,
         Prop,
     },
@@ -54,8 +54,8 @@ impl Display for GraphWithDeletions {
 }
 
 fn alive_before<
-    A: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
-    D: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
+    A: TimeIndexRefOps<IndexType = TimeIndexEntry> + ?Sized,
+    D: TimeIndexRefOps<IndexType = TimeIndexEntry> + ?Sized,
 >(
     additions: &A,
     deletions: &D,
@@ -335,7 +335,7 @@ impl TimeSemantics for GraphWithDeletions {
         let alive_layers: Vec<_> = edge
             .updates_iter(&layer_ids)
             .filter_map(|(l, additions, deletions)| {
-                let alive_before_start = alive_before(additions.deref(), deletions, w.start);
+                let alive_before_start = alive_before(&additions, deletions, w.start);
                 let deleted_at_start = match (
                     additions.range(w.start..w.start.saturating_add(1)).first(),
                     deletions.range(w.start..w.start.saturating_add(1)).first(),

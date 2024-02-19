@@ -8,7 +8,7 @@ use crate::{
         storage::{
             lazy_vec::IllegalSet,
             locked_view::LockedView,
-            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+            timeindex::{TimeIndex, TimeIndexEntry, TimeIndexRefOps},
         },
         utils::errors::{GraphError, MutateGraphError},
         Prop,

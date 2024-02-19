@@ -14,7 +14,7 @@ use crate::core::{
     },
     storage::{
         locked_view::LockedView,
-        timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+        timeindex::{TimeIndex, TimeIndexEntry, TimeIndexRefOps},
         ArcEntry, Entry,
     },
     Direction, Prop,

@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
             properties::tprop::LayeredTProp, LayerIds, VID,
         },
-        storage::timeindex::{AsTime, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndexRefOps},
     },
     db::api::view::{
         internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
@@ -202,7 +202,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
-                .map(|index| index.iter()),
+                .map(|index| index.into_iter()),
         )
         .map(|te| te.t())
         .collect()
@@ -213,7 +213,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
-                .map(move |index| index.range(w.clone()).iter_t()),
+                .map(move |index| index.into_range(w.clone()).iter_t()),
         )
         .collect()
     }

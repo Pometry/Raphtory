@@ -1,59 +1,81 @@
 use crate::{
+    arrow::timestamps::TimeStamps,
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexRefOps},
     },
-    db::api::view::internal::Base,
+    db::api::view::{internal::Base, IntoDynBoxed},
 };
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),
-    External(&'a dyn TimeIndexOps<IndexType = TimeIndexEntry>),
-    BoxExternal(Box<dyn TimeIndexOps<IndexType = TimeIndexEntry> + 'a>),
+    ExternalRef(&'a dyn TimeIndexRefOps<IndexType = TimeIndexEntry>),
+    External(TimeStamps<'a, TimeIndexEntry>),
 }
 
-impl<'a> TimeIndexOps for TimeIndexLike<'a> {
+impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
     type IndexType = TimeIndexEntry;
 
     fn active(&self, w: Range<i64>) -> bool {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.active(w),
+            TimeIndexLike::ExternalRef(ref t) => t.active(w),
             TimeIndexLike::External(ref t) => t.active(w),
-            TimeIndexLike::BoxExternal(ref t) => t.active(w),
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.range(w),
+            TimeIndexLike::ExternalRef(ref t) => t.range(w),
             TimeIndexLike::External(ref t) => t.range(w),
-            TimeIndexLike::BoxExternal(ref t) => t.range(w),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.first(),
+            TimeIndexLike::ExternalRef(ref t) => t.first(),
             TimeIndexLike::External(ref t) => t.first(),
-            TimeIndexLike::BoxExternal(ref t) => t.first(),
         }
     }
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.last(),
+            TimeIndexLike::ExternalRef(ref t) => t.last(),
             TimeIndexLike::External(ref t) => t.last(),
-            TimeIndexLike::BoxExternal(ref t) => t.last(),
         }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.iter(),
+            TimeIndexLike::ExternalRef(ref t) => t.iter(),
             TimeIndexLike::External(ref t) => t.iter(),
-            TimeIndexLike::BoxExternal(ref t) => t.iter(),
+        }
+    }
+}
+
+impl<'a> TimeIndexLike<'a> {
+    pub fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + 'a {
+        match self {
+            TimeIndexLike::TimeIndex(t) => t.iter(),
+            TimeIndexLike::ExternalRef(t) => t.iter(),
+            TimeIndexLike::External(t) => t.into_iter().into_dyn_boxed(),
+        }
+    }
+
+    pub fn into_range(
+        self,
+        w: Range<i64>,
+    ) -> Box<dyn TimeIndexRefOps<IndexType = TimeIndexEntry> + 'a> {
+        match self {
+            TimeIndexLike::TimeIndex(t) => t.range(w),
+            TimeIndexLike::ExternalRef(t) => t.range(w),
+            TimeIndexLike::External(t) => Box::new(t.into_range(w)),
         }
     }
 }

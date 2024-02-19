@@ -9,7 +9,7 @@ use crate::{
         storage::{
             iter::Iter,
             lazy_vec::IllegalSet,
-            timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexOps},
+            timeindex::{AsTime, TimeIndex, TimeIndexEntry, TimeIndexRefOps},
             ArcEntry,
         },
         utils::errors::{GraphError, MutateGraphError},
