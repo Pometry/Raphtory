@@ -36,4 +36,4 @@ extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [build-dependencies]
-pyo3-build-config = "0.19.2"
+pyo3-build-config = "0.20.2"

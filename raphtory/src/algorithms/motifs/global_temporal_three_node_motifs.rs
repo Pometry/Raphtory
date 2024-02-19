@@ -255,7 +255,7 @@ where
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let star_mc = deltas
         .iter()
-        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32))
+        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1i64) as u32))
         .collect_vec();
 
     let star_clone = star_mc.clone();

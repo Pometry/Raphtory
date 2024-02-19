@@ -8,7 +8,7 @@ use rand::{
 };
 
 fn random_string(n: usize) -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), n)
+    Alphanumeric.sample_string(&mut thread_rng(), n)
 }
 
 pub fn graph(c: &mut Criterion) {

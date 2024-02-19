@@ -187,7 +187,7 @@ impl<CS: ComputeState> GlobalState<CS> {
     ) -> OUT
     where
         A: StateType,
-        OUT: std::fmt::Debug,
+        OUT: Debug,
     {
         self.state
             .inner()
@@ -201,7 +201,7 @@ impl<CS: ComputeState> GlobalState<CS> {
     ) -> OUT
     where
         A: StateType,
-        OUT: std::fmt::Debug,
+        OUT: Debug,
     {
         self.state
             .inner()

@@ -229,7 +229,7 @@ impl TProp {
         r: Range<TimeIndexEntry>,
     ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + '_> {
         match self {
-            TProp::Empty => Box::new(std::iter::empty()),
+            TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::Str(value.clone()))),
@@ -297,7 +297,7 @@ impl TProp {
         r: Range<i64>,
     ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
-            TProp::Empty => Box::new(std::iter::empty()),
+            TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (t, Prop::Str(value.clone()))),
