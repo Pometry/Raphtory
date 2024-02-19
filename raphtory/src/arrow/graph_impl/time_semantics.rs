@@ -17,6 +17,7 @@ use crate::{
 
 use crate::{
     arrow::prelude::{ArrayOps, BaseArrayOps},
+    core::storage::timeindex::TimeIndexOwnedOps,
     prelude::{LayerOps, TimeIndexEntry},
 };
 use rayon::prelude::*;
@@ -121,7 +122,7 @@ impl TimeSemantics for Graph2 {
     fn node_history(&self, v: VID) -> Vec<i64> {
         self.layers
             .iter()
-            .map(|layer| layer.node(v).timestamps().iter_t())
+            .map(|layer| layer.node(v).timestamps().into_iter_t())
             .kmerge()
             .dedup()
             .collect()
@@ -130,7 +131,13 @@ impl TimeSemantics for Graph2 {
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.layers
             .iter()
-            .map(|layer| layer.node(v).timestamps().range(w.clone()).iter_t())
+            .map(|layer| {
+                layer
+                    .node(v)
+                    .timestamps()
+                    .into_range(w.clone())
+                    .into_iter_t()
+            })
             .kmerge()
             .dedup()
             .collect()
@@ -191,7 +198,7 @@ impl TimeSemantics for Graph2 {
                     Box::new(
                         layer_times
                             .into_iter()
-                            .map(|t| e.at(TimeIndexEntry::start(t))),
+                            .map(move |t| e.at(TimeIndexEntry::start(t))),
                     )
                 } else {
                     Box::new(iter::empty())

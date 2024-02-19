@@ -2,7 +2,9 @@ use crate::{
     arrow::timestamps::TimeStamps,
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::timeindex::{TimeIndex, TimeIndexEntry, TimeIndexRefOps},
+        storage::timeindex::{
+            TimeIndex, TimeIndexEntry, TimeIndexOwnedOps, TimeIndexRefOps, TimeIndexWindow,
+        },
     },
     db::api::view::{internal::Base, IntoDynBoxed},
 };
@@ -11,7 +13,7 @@ use std::{ops::Range, sync::Arc};
 
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),
-    ExternalRef(&'a dyn TimeIndexRefOps<IndexType = TimeIndexEntry>),
+    TimeIndexRange(TimeIndexWindow<'a, TimeIndexEntry>),
     External(TimeStamps<'a, TimeIndexEntry>),
 }
 
@@ -21,23 +23,23 @@ impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
     fn active(&self, w: Range<i64>) -> bool {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.active(w),
-            TimeIndexLike::ExternalRef(ref t) => t.active(w),
             TimeIndexLike::External(ref t) => t.active(w),
+            TimeIndexLike::TimeIndexRange(ref t) => t.active(w),
         }
     }
 
     fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.range(w),
-            TimeIndexLike::ExternalRef(ref t) => t.range(w),
             TimeIndexLike::External(ref t) => t.range(w),
+            TimeIndexLike::TimeIndexRange(ref t) => t.range(w),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.first(),
-            TimeIndexLike::ExternalRef(ref t) => t.first(),
+            TimeIndexLike::TimeIndexRange(ref t) => t.first(),
             TimeIndexLike::External(ref t) => t.first(),
         }
     }
@@ -45,7 +47,7 @@ impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
     fn last(&self) -> Option<Self::IndexType> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.last(),
-            TimeIndexLike::ExternalRef(ref t) => t.last(),
+            TimeIndexLike::TimeIndexRange(ref t) => t.last(),
             TimeIndexLike::External(ref t) => t.last(),
         }
     }
@@ -53,29 +55,29 @@ impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.iter(),
-            TimeIndexLike::ExternalRef(ref t) => t.iter(),
+            TimeIndexLike::TimeIndexRange(ref t) => t.iter(),
             TimeIndexLike::External(ref t) => t.iter(),
         }
     }
 }
 
-impl<'a> TimeIndexLike<'a> {
-    pub fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + 'a {
+impl<'a> TimeIndexOwnedOps for TimeIndexLike<'a> {
+    type IndexType = TimeIndexEntry;
+
+    type RangeType = Self;
+
+    fn into_range(self, w: Range<i64>) -> TimeIndexLike<'a> {
         match self {
-            TimeIndexLike::TimeIndex(t) => t.iter(),
-            TimeIndexLike::ExternalRef(t) => t.iter(),
-            TimeIndexLike::External(t) => t.into_iter().into_dyn_boxed(),
+            TimeIndexLike::TimeIndex(t) => TimeIndexLike::TimeIndexRange(t.range_inner(w)),
+            TimeIndexLike::External(t) => TimeIndexLike::External(t.into_range(w)),
+            TimeIndexLike::TimeIndexRange(t) => TimeIndexLike::TimeIndexRange(t.into_range(w)),
         }
     }
-
-    pub fn into_range(
-        self,
-        w: Range<i64>,
-    ) -> Box<dyn TimeIndexRefOps<IndexType = TimeIndexEntry> + 'a> {
+    fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + 'a {
         match self {
-            TimeIndexLike::TimeIndex(t) => t.range(w),
-            TimeIndexLike::ExternalRef(t) => t.range(w),
-            TimeIndexLike::External(t) => Box::new(t.into_range(w)),
+            TimeIndexLike::TimeIndex(t) => t.iter(),
+            TimeIndexLike::TimeIndexRange(t) => t.into_iter().into_dyn_boxed(),
+            TimeIndexLike::External(t) => t.into_iter().into_dyn_boxed(),
         }
     }
 }

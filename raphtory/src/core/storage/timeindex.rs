@@ -167,6 +167,37 @@ impl<T: AsTime> TimeIndex<T> {
     ) -> Box<dyn Iterator<Item = T> + Send + '_> {
         Box::new(self.range_iter(w))
     }
+
+    pub(crate) fn range_inner(&self, w: Range<i64>) -> TimeIndexWindow<T> {
+        match &self {
+            TimeIndex::Empty => TimeIndexWindow::Empty,
+            TimeIndex::One(t) => {
+                if w.contains(&t.t()) {
+                    TimeIndexWindow::All(self)
+                } else {
+                    TimeIndexWindow::Empty
+                }
+            }
+            TimeIndex::Set(ts) => {
+                if let Some(min_val) = ts.first() {
+                    if let Some(max_val) = ts.last() {
+                        if min_val.t() >= w.start && max_val.t() < w.end {
+                            TimeIndexWindow::All(self)
+                        } else {
+                            TimeIndexWindow::TimeIndexRange {
+                                timeindex: self,
+                                range: w,
+                            }
+                        }
+                    } else {
+                        TimeIndexWindow::Empty
+                    }
+                } else {
+                    TimeIndexWindow::Empty
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -177,6 +208,40 @@ pub enum TimeIndexWindow<'a, T: AsTime> {
         range: Range<i64>,
     },
     All(&'a TimeIndex<T>),
+}
+
+impl<'a, T: AsTime> TimeIndexOwnedOps for TimeIndexWindow<'a, T> {
+    type IndexType = T;
+    type RangeType = Self;
+
+    fn into_range(self, w: Range<i64>) -> Self {
+        match self {
+            TimeIndexWindow::Empty => TimeIndexWindow::Empty,
+            TimeIndexWindow::TimeIndexRange { range, timeindex } => {
+                let start = range.start.max(w.start);
+                let end = range.start.min(w.end);
+                if end <= start {
+                    TimeIndexWindow::Empty
+                } else {
+                    TimeIndexWindow::TimeIndexRange {
+                        timeindex,
+                        range: start..end,
+                    }
+                }
+            }
+            TimeIndexWindow::All(timeindex) => timeindex.range_inner(w),
+        }
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send {
+        match self {
+            TimeIndexWindow::Empty => Box::new(iter::empty()),
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                timeindex.range_iter_forward(range)
+            }
+            TimeIndexWindow::All(timeindex) => timeindex.iter(),
+        }
+    }
 }
 
 pub struct LayeredTimeIndexWindow<'a, T: AsTime> {
@@ -303,8 +368,9 @@ pub trait TimeIndexRefOps: Send + Sync {
 
 pub trait TimeIndexOwnedOps: Sized {
     type IndexType: AsTime;
+    type RangeType: TimeIndexOwnedOps<IndexType = Self::IndexType>;
 
-    fn into_range(self, w: Range<i64>) -> impl TimeIndexOwnedOps<IndexType = Self::IndexType>;
+    fn into_range(self, w: Range<i64>) -> Self::RangeType;
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send;
 
