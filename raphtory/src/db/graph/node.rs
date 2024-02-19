@@ -327,6 +327,15 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             .internal_add_constant_node_properties(self.node, properties)
     }
 
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        let res = self.graph.resolve_node_type(self.node, Some(new_type));
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(res.err().unwrap())
+        }
+    }
+
     pub fn update_constant_properties<C: CollectProperties>(
         &self,
         props: C,
