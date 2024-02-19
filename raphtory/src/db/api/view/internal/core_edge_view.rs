@@ -15,7 +15,7 @@ use crate::{
 #[cfg(feature = "arrow")]
 use crate::arrow::edge::Edge;
 use crate::{
-    core::storage::timeindex::{TimeIndex, TimeIndexRefOps},
+    core::storage::timeindex::{TimeIndex, TimeIndexOps},
     db::api::view::IntoDynBoxed,
 };
 

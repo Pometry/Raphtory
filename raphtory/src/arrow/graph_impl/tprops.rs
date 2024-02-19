@@ -16,7 +16,7 @@ use crate::{
         edge::Edge,
         timestamps::TimeStamps,
     },
-    core::{entities::properties::tprop::LayeredTProp, storage::timeindex::TimeIndexRefOps},
+    core::{entities::properties::tprop::LayeredTProp, storage::timeindex::TimeIndexOps},
     prelude::{Prop, TimeIndexEntry},
 };
 

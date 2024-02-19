@@ -210,7 +210,7 @@ pub enum TimeIndexWindow<'a, T: AsTime> {
     All(&'a TimeIndex<T>),
 }
 
-impl<'a, T: AsTime> TimeIndexOwnedOps for TimeIndexWindow<'a, T> {
+impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
     type IndexType = T;
     type RangeType = Self;
 
@@ -245,15 +245,15 @@ impl<'a, T: AsTime> TimeIndexOwnedOps for TimeIndexWindow<'a, T> {
 }
 
 pub struct LayeredTimeIndexWindow<'a, T: AsTime> {
-    timeindex: Vec<Box<dyn TimeIndexRefOps<IndexType = T> + 'a>>,
+    timeindex: Vec<Box<dyn TimeIndexOps<IndexType = T> + 'a>>,
 }
 
 pub enum LockedLayeredIndex<'a, T: AsTime> {
     LayeredIndex(LayeredIndex<'a, T, LockedView<'a, Vec<TimeIndex<T>>>>),
-    External(Box<dyn TimeIndexRefOps<IndexType = T> + 'a>),
+    External(Box<dyn TimeIndexOps<IndexType = T> + 'a>),
 }
 
-impl<'a, T: AsTime> TimeIndexRefOps for LockedLayeredIndex<'a, T> {
+impl<'a, T: AsTime> TimeIndexOps for LockedLayeredIndex<'a, T> {
     type IndexType = T;
 
     fn active(&self, w: Range<i64>) -> bool {
@@ -263,7 +263,7 @@ impl<'a, T: AsTime> TimeIndexRefOps for LockedLayeredIndex<'a, T> {
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             LockedLayeredIndex::LayeredIndex(t) => t.range(w),
             LockedLayeredIndex::External(t) => t.range(w),
@@ -308,7 +308,7 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a> LayeredIndex<'a, 
     }
 }
 
-impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a + Send + Sync> TimeIndexRefOps
+impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a + Send + Sync> TimeIndexOps
     for LayeredIndex<'a, T, V>
 {
     type IndexType = T;
@@ -317,7 +317,7 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a + Send + Sync> Tim
         self.view.iter().any(|t| t.active(w.clone()))
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         let timeindex = self
             .view
             .iter()
@@ -340,12 +340,12 @@ impl<'a, T: AsTime, V: Deref<Target = Vec<TimeIndex<T>>> + 'a + Send + Sync> Tim
     }
 }
 
-pub trait TimeIndexRefOps: Send + Sync {
+pub trait TimeIndexOps: Send + Sync {
     type IndexType: AsTime;
 
     fn active(&self, w: Range<i64>) -> bool;
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_>;
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_>;
 
     fn first_t(&self) -> Option<i64> {
         self.first().map(|ti| ti.t())
@@ -366,9 +366,9 @@ pub trait TimeIndexRefOps: Send + Sync {
     }
 }
 
-pub trait TimeIndexOwnedOps: Sized {
+pub trait TimeIndexIntoOps: Sized {
     type IndexType: AsTime;
-    type RangeType: TimeIndexOwnedOps<IndexType = Self::IndexType>;
+    type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;
 
     fn into_range(self, w: Range<i64>) -> Self::RangeType;
 
@@ -379,7 +379,7 @@ pub trait TimeIndexOwnedOps: Sized {
     }
 }
 
-impl<T: AsTime> TimeIndexRefOps for TimeIndex<T> {
+impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type IndexType = T;
 
     #[inline(always)]
@@ -391,7 +391,7 @@ impl<T: AsTime> TimeIndexRefOps for TimeIndex<T> {
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match &self {
             TimeIndex::Empty => Box::new(TimeIndexWindow::Empty),
             TimeIndex::One(t) => {
@@ -447,7 +447,7 @@ impl<T: AsTime> TimeIndexRefOps for TimeIndex<T> {
     }
 }
 
-impl<'b, T: AsTime> TimeIndexRefOps for TimeIndexWindow<'b, T>
+impl<'b, T: AsTime> TimeIndexOps for TimeIndexWindow<'b, T>
 where
     Self: 'b,
 {
@@ -465,7 +465,7 @@ where
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             TimeIndexWindow::Empty => Box::new(TimeIndexWindow::Empty),
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -515,7 +515,7 @@ where
     }
 }
 
-impl<'b, T: AsTime> TimeIndexRefOps for LayeredTimeIndexWindow<'b, T>
+impl<'b, T: AsTime> TimeIndexOps for LayeredTimeIndexWindow<'b, T>
 where
     Self: 'b,
 {
@@ -528,7 +528,7 @@ where
     fn range<'a>(
         &'a self,
         w: Range<i64>,
-    ) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + 'a> {
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + 'a> {
         let timeindex = self
             .timeindex
             .iter()
@@ -576,7 +576,7 @@ mod test {
         Time,
     };
 
-    use super::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexRefOps};
+    use super::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps};
 
     #[test]
     fn time_index_1() {

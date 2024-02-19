@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, properties::tprop::LayeredTProp, LayerIds, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexRefOps},
+        storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
         utils::errors::GraphError,
         Prop,
     },
@@ -54,8 +54,8 @@ impl Display for GraphWithDeletions {
 }
 
 fn alive_before<
-    A: TimeIndexRefOps<IndexType = TimeIndexEntry> + ?Sized,
-    D: TimeIndexRefOps<IndexType = TimeIndexEntry> + ?Sized,
+    A: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
+    D: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
 >(
     additions: &A,
     deletions: &D,

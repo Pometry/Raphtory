@@ -3,7 +3,7 @@ use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
         storage::timeindex::{
-            TimeIndex, TimeIndexEntry, TimeIndexOwnedOps, TimeIndexRefOps, TimeIndexWindow,
+            TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
         },
     },
     db::api::view::{internal::Base, IntoDynBoxed},
@@ -17,7 +17,7 @@ pub enum TimeIndexLike<'a> {
     External(TimeStamps<'a, TimeIndexEntry>),
 }
 
-impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
+impl<'a> TimeIndexOps for TimeIndexLike<'a> {
     type IndexType = TimeIndexEntry;
 
     fn active(&self, w: Range<i64>) -> bool {
@@ -28,7 +28,7 @@ impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.range(w),
             TimeIndexLike::External(ref t) => t.range(w),
@@ -61,7 +61,7 @@ impl<'a> TimeIndexRefOps for TimeIndexLike<'a> {
     }
 }
 
-impl<'a> TimeIndexOwnedOps for TimeIndexLike<'a> {
+impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
     type IndexType = TimeIndexEntry;
 
     type RangeType = Self;

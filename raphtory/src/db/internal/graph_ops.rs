@@ -6,7 +6,7 @@ use crate::{
             nodes::node_ref::NodeRef,
             LayerIds, EID, VID,
         },
-        storage::timeindex::TimeIndexRefOps,
+        storage::timeindex::TimeIndexOps,
         Direction,
     },
     db::api::view::{

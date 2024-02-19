@@ -12,7 +12,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexRefOps},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry,
         },
         ArcStr, Prop,
@@ -395,7 +395,7 @@ pub enum NodeAdditions<'a> {
     Col(TimeStamps<'a, i64>),
 }
 
-impl<'b> TimeIndexRefOps for NodeAdditions<'b> {
+impl<'b> TimeIndexOps for NodeAdditions<'b> {
     type IndexType = i64;
 
     fn active(&self, w: std::ops::Range<i64>) -> bool {
@@ -409,7 +409,7 @@ impl<'b> TimeIndexRefOps for NodeAdditions<'b> {
     fn range<'a>(
         &'a self,
         w: std::ops::Range<i64>,
-    ) -> Box<dyn TimeIndexRefOps<IndexType = Self::IndexType> + '_> {
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             NodeAdditions::Mem(index) => index.range(w),
             #[cfg(feature = "arrow")]

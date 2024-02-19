@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
             properties::tprop::LayeredTProp, LayerIds, VID,
         },
-        storage::timeindex::{AsTime, TimeIndexOwnedOps, TimeIndexRefOps},
+        storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
         internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},

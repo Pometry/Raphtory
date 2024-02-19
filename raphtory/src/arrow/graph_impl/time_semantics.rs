@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, properties::tprop::LayeredTProp, LayerIds, VID},
-        storage::timeindex::TimeIndexRefOps,
+        storage::timeindex::TimeIndexOps,
     },
     db::api::view::{
         internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
@@ -17,7 +17,7 @@ use crate::{
 
 use crate::{
     arrow::prelude::{ArrayOps, BaseArrayOps},
-    core::storage::timeindex::TimeIndexOwnedOps,
+    core::storage::timeindex::TimeIndexIntoOps,
     prelude::{LayerOps, TimeIndexEntry},
 };
 use rayon::prelude::*;
