@@ -1,7 +1,7 @@
 use crate::{
-    core::{ArcStr, Prop},
+    core::{ArcStr, OptionAsStr, Prop},
     db::api::view::node::BaseNodeViewOps,
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
     python::graph::views::graph_view::PyGraphView,
 };
 use pyo3::{
@@ -11,6 +11,7 @@ use pyo3::{
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 use std::collections::HashMap;
+
 #[pymethods]
 impl PyGraphView {
     /// Converts the graph's nodes into a Pandas DataFrame.
@@ -156,6 +157,115 @@ impl PyGraphView {
             kwargs_drop.set_item("inplace", true)?;
             df.call_method("dropna", (), Some(kwargs_drop))?;
             Ok(df.to_object(py))
+        })
+    }
+
+    /// Draw a graph with PyVis.
+    /// Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
+    /// with ``pip install pyvis``
+    ///
+    ///     Args:
+    ///         graph (graph): A Raphtory graph.
+    ///         explode_edges (bool): A boolean that is set to True if you want to explode the edges in the graph. By default this is set to False.
+    ///         edge_color (str): A string defining the colour of the edges in the graph. By default ``#000000`` (black) is set.
+    ///         shape (str): An optional string defining what the node looks like.
+    ///             There are two types of nodes. One type has the label inside of it and the other type has the label underneath it.
+    ///             The types with the label inside of it are: ellipse, circle, database, box, text.
+    ///             The ones with the label outside of it are: image, circularImage, diamond, dot, star, triangle, triangleDown, square and icon.
+    ///             By default ``"dot"`` is set.
+    ///         node_image (str): An optional string defining the url of a custom node image. By default an image of a circle is set.
+    ///         edge_weight (str): An optional string defining the name of the property where edge weight is set on your Raphtory graph. By default ``1`` is set.
+    ///         edge_label (str): An optional string defining the name of the property where edge label is set on your Raphtory graph. By default, an empty string as the label is set.
+    ///         notebook (bool): A boolean that is set to True if using jupyter notebook. By default this is set to True.
+    ///         kwargs: Additional keyword arguments that are passed to the pyvis Network class.
+    ///
+    ///     Returns:
+    ///         A pyvis network
+    #[pyo3(signature = (explode_edges=false, edge_color="#000000", shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=false, notebook=true, **kwargs))]
+    pub fn to_pyvis(
+        &self,
+        explode_edges: Option<bool>,
+        edge_color: Option<&str>,
+        shape: Option<&str>,
+        node_image: Option<&str>,
+        edge_weight: Option<&str>,
+        edge_label: Option<&str>,
+        colour_nodes_by_type: Option<bool>,
+        notebook: Option<bool>,
+        kwargs: Option<&PyDict>,
+    ) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let pyvis = py.import("pyvis.network")?;
+            let visGraph =
+                pyvis.call_method("Network", ("notebook", notebook.unwrap_or(true)), kwargs)?;
+
+            let mut groups = HashMap::new();
+
+            if colour_nodes_by_type.unwrap_or(false) {
+                let mut index = 1;
+                for node in self.graph.nodes() {
+                    let value = node.node_type().unwrap_or(ArcStr::from("_default"));
+                    groups.insert(value, index);
+                    index += 1;
+                }
+            }
+
+            for v in self.graph.nodes() {
+                let image = match node_image {
+                    Some(image) => v.properties().get(image).unwrap_or(Prop::from(
+                        "https://cdn-icons-png.flaticon.com/512/7584/7584620.png",
+                    )),
+                    None => Prop::from("https://cdn-icons-png.flaticon.com/512/7584/7584620.png"),
+                };
+                let shape = shape.unwrap_or("dot");
+                let kwargs_node = PyDict::new(py);
+                kwargs_node.set_item("label", v.name())?;
+                kwargs_node.set_item("shape", shape)?;
+                kwargs_node.set_item("image", image)?;
+                if colour_nodes_by_type.unwrap_or(false) {
+                    let node_type = v.node_type().unwrap_or(ArcStr::from("_default"));
+                    let group = groups.get(&node_type).unwrap();
+                    kwargs_node.set_item("group", group)?;
+                    visGraph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
+                } else {
+                    visGraph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
+                }
+            }
+
+            let edges = if explode_edges.unwrap_or(false) {
+                self.graph.edges().explode()
+            } else {
+                self.graph.edges().explode_layers()
+            };
+            for edge in edges {
+                let weight = match edge_weight {
+                    Some(weight) => {
+                        let w = edge.properties().get(weight).unwrap_or(Prop::from(1));
+                        w.unwrap_i64()
+                    }
+                    None => 1,
+                };
+                let label = match edge_label {
+                    Some(label) => {
+                        let l = edge.properties().get(label).unwrap_or(Prop::from(""));
+                        l.unwrap_str()
+                    }
+                    None => ArcStr::from(""),
+                };
+                let kwargs = PyDict::new(py);
+                kwargs.set_item("value", weight)?;
+                let edge_col = edge_color.unwrap_or("#000000");
+                kwargs.set_item("color", edge_col)?;
+                kwargs.set_item("title", label)?;
+                kwargs.set_item("arrowStrikethrough", false)?;
+                visGraph.call_method(
+                    "add_edge",
+                    (edge.src().id(), edge.dst().id()),
+                    Some(kwargs),
+                )?;
+            }
+
+            Ok(visGraph.to_object(py))
         })
     }
 

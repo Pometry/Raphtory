@@ -1,5 +1,4 @@
 from raphtory import Graph
-from raphtory import export
 import pandas as pd
 import json
 from pathlib import Path
@@ -38,7 +37,7 @@ def build_graph():
 
 def test_py_vis():
     g = build_graph()
-    pyvis_g = export.to_pyvis(g, directed=True)
+    pyvis_g = g.to_pyvis(directed=True)
 
     compare_list_of_dicts(
         pyvis_g.nodes,
