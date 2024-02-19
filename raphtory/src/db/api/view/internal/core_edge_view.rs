@@ -11,10 +11,10 @@ use crate::{
     db::api::view::IntoDynBoxed,
     prelude::TimeIndexEntry,
 };
-use std::{iter, marker::PhantomData, ops::Deref};
+use std::{marker::PhantomData, ops::Deref};
 
 #[cfg(feature = "arrow")]
-use crate::arrow::edge::Edge;
+use {crate::arrow::edge::Edge, std::iter};
 
 pub enum CoreEdgeView<'a> {
     Mem(ArcEntry<EdgeStore>, PhantomData<&'a ()>),

@@ -1,5 +1,4 @@
 use crate::{
-    arrow::timestamps::TimeStamps,
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
         storage::timeindex::{
@@ -11,9 +10,13 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use std::{ops::Range, sync::Arc};
 
+#[cfg(feature = "arrow")]
+use crate::arrow::timestamps::TimeStamps;
+
 pub enum TimeIndexLike<'a> {
     TimeIndex(&'a TimeIndex<TimeIndexEntry>),
     TimeIndexRange(TimeIndexWindow<'a, TimeIndexEntry>),
+    #[cfg(feature = "arrow")]
     External(TimeStamps<'a, TimeIndexEntry>),
 }
 
@@ -23,6 +26,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
     fn active(&self, w: Range<i64>) -> bool {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.active(w),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.active(w),
             TimeIndexLike::TimeIndexRange(ref t) => t.active(w),
         }
@@ -31,6 +35,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
     fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.range(w),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.range(w),
             TimeIndexLike::TimeIndexRange(ref t) => t.range(w),
         }
@@ -40,6 +45,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.first(),
             TimeIndexLike::TimeIndexRange(ref t) => t.first(),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.first(),
         }
     }
@@ -48,6 +54,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.last(),
             TimeIndexLike::TimeIndexRange(ref t) => t.last(),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.last(),
         }
     }
@@ -56,6 +63,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(ref t) => t.iter(),
             TimeIndexLike::TimeIndexRange(ref t) => t.iter(),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.iter(),
         }
     }
@@ -69,6 +77,7 @@ impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
     fn into_range(self, w: Range<i64>) -> TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(t) => TimeIndexLike::TimeIndexRange(t.range_inner(w)),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(t) => TimeIndexLike::External(t.into_range(w)),
             TimeIndexLike::TimeIndexRange(t) => TimeIndexLike::TimeIndexRange(t.into_range(w)),
         }
@@ -77,6 +86,7 @@ impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::TimeIndex(t) => t.iter(),
             TimeIndexLike::TimeIndexRange(t) => t.into_iter().into_dyn_boxed(),
+            #[cfg(feature = "arrow")]
             TimeIndexLike::External(t) => t.into_iter().into_dyn_boxed(),
         }
     }

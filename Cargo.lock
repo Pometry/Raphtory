@@ -2100,7 +2100,7 @@ name = "netflow_algorithm"
 version = "0.7.0"
 dependencies = [
  "pyo3",
- "pyo3-build-config 0.20.1",
+ "pyo3-build-config",
  "raphtory",
 ]
 
@@ -2752,7 +2752,7 @@ dependencies = [
  "libc",
  "memoffset",
  "parking_lot",
- "pyo3-build-config 0.20.1",
+ "pyo3-build-config",
  "pyo3-ffi",
  "pyo3-macros",
  "unindent",
@@ -2773,19 +2773,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.19.2"
+version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "076c73d0bc438f7a4ef6fdd0c3bb4732149136abd952b110ac93e4edb13a6ba5"
-dependencies = [
- "once_cell",
- "target-lexicon",
-]
-
-[[package]]
-name = "pyo3-build-config"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5503d0b3aee2c7a8dbb389cd87cd9649f675d4c7f60ca33699a3e3859d81a891"
+checksum = "07426f0d8fe5a601f26293f300afd1a7b1ed5e78b2a705870c5f30893c5163be"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -2798,7 +2788,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18a79e8d80486a00d11c0dcb27cd2aa17c022cc95c677b461f01797226ba8f41"
 dependencies = [
  "libc",
- "pyo3-build-config 0.20.1",
+ "pyo3-build-config",
 ]
 
 [[package]]
@@ -3112,7 +3102,7 @@ dependencies = [
  "itertools 0.12.0",
  "openssl",
  "pyo3",
- "pyo3-build-config 0.19.2",
+ "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
  "reqwest",
