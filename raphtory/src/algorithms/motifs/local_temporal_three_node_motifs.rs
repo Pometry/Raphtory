@@ -211,7 +211,7 @@ where
     let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
         let uu = u.get_mut();
         if uu.triangle.len() == 0 {
-            uu.triangle = vec![[0 as usize; 8]; delta_len];
+            uu.triangle = vec![[0usize; 8]; delta_len];
         }
         for v in u.neighbours() {
             // Find triangles on the UV edge
@@ -368,7 +368,7 @@ where
                 let triangles = out1
                     .get(&v_gid)
                     .map(|v| v.clone())
-                    .unwrap_or_else(|| vec![[0 as usize; 8]; delta_len]);
+                    .unwrap_or_else(|| vec![[0usize; 8]; delta_len]);
                 let run_counts = (0..delta_len)
                     .map(|i| {
                         let two_nodes = mc.two_nodes[i].to_vec();

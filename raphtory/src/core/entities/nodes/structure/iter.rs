@@ -59,19 +59,19 @@ impl<'a, const N: usize> Iterator for Paged<'a, N> {
                 .edges_from_last(self.layer_id, self.dir, None, self.size)
         }
 
-        if self.data.is_empty() {
-            return None;
+        return if self.data.is_empty() {
+            None
         } else {
             self.i = 1;
             let e_id = self.guard.edge_ref(self.data[0].1, self.graph);
-            return Some(EdgeView::from_edge_ids(
+            Some(EdgeView::from_edge_ids(
                 self.src,
                 self.data[0].0,
                 e_id,
                 self.dir,
                 self.graph,
-            ));
-        }
+            ))
+        };
     }
 }
 

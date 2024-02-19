@@ -88,9 +88,9 @@ impl<'source> FromPyObject<'source> for MaterializedGraph {
         } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
             Ok(graph.graph.clone().into())
         } else {
-            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions"
-            )))
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions".to_string(),
+            ))
         }
     }
 }

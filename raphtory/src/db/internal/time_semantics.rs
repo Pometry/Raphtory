@@ -108,6 +108,27 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         self.node_additions(v).range(w).iter_t().collect()
     }
 
+    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(|index| index.into_iter()),
+        )
+        .map(|te| te.t())
+        .collect()
+    }
+
+    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
+        let core_edge = self.core_edge(e.pid());
+        kmerge(
+            core_edge
+                .additions_iter(&layer_ids)
+                .map(move |index| index.into_range(w.clone()).into_iter_t()),
+        )
+        .collect()
+    }
+
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
         let arc = self.inner().edge_arc(e.pid());
         let layer_id = layer_ids.constrain_from_edge(e);
@@ -197,27 +218,6 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .or_else(|| self.edge_additions(e, layer_ids).range(w).last_t())
     }
 
-    fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
-        kmerge(
-            core_edge
-                .additions_iter(&layer_ids)
-                .map(|index| index.into_iter()),
-        )
-        .map(|te| te.t())
-        .collect()
-    }
-
-    fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
-        kmerge(
-            core_edge
-                .additions_iter(&layer_ids)
-                .map(move |index| index.into_range(w.clone()).into_iter_t()),
-        )
-        .collect()
-    }
-
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
         self.edge_deletions(e, layer_ids).iter_t().collect()
     }
@@ -232,6 +232,14 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .range(w)
             .iter_t()
             .collect()
+    }
+
+    fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: LayerIds) -> bool {
+        true
+    }
+
+    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_ids: LayerIds, _t: i64) -> bool {
+        true
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
@@ -343,13 +351,5 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
                 None => p.iter().collect(),
             })
             .unwrap_or_default()
-    }
-
-    fn edge_is_valid(&self, _e: EdgeRef, _layer_ids: LayerIds) -> bool {
-        true
-    }
-
-    fn edge_is_valid_at_end(&self, _e: EdgeRef, _layer_ids: LayerIds, _t: i64) -> bool {
-        true
     }
 }

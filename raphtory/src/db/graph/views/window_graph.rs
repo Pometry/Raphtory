@@ -439,75 +439,6 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
-    /// Get an iterator over the references of all nodes as references
-    ///
-    /// Returns:
-    ///
-    /// An iterator over the references of all nodes
-    #[inline]
-    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
-        let g = self.clone();
-        let filter_cloned = filter.cloned();
-        Box::new(
-            self.graph
-                .node_refs(layers.clone(), filter)
-                .filter(move |v| {
-                    g.include_node_window(
-                        *v,
-                        g.start_bound()..g.end_bound(),
-                        &layers,
-                        filter_cloned.as_ref(),
-                    )
-                }),
-        )
-    }
-
-    /// Get an iterator of all edges as references
-    ///
-    /// Returns:
-    ///
-    /// An iterator over all edges as references
-    #[inline]
-    fn edge_refs(
-        &self,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        self.graph.edge_refs(layer, filter)
-    }
-
-    #[inline]
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        self.graph.node_edges(v, d, layer, filter)
-    }
-
-    /// Get the neighbours of a node as references in a given direction
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The node to get the neighbours for
-    /// - `d` - The direction of the edges
-    ///
-    /// Returns:
-    ///
-    /// An iterator over all neighbours in that node direction as references
-    #[inline]
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        self.graph.neighbours(v, d, layer, filter)
-    }
-
     #[inline]
     fn internal_node_ref(
         &self,
@@ -655,6 +586,75 @@ impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.graph.edge_ref(src, dst, layer, filter)
+    }
+
+    /// Get an iterator over the references of all nodes as references
+    ///
+    /// Returns:
+    ///
+    /// An iterator over the references of all nodes
+    #[inline]
+    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
+        let g = self.clone();
+        let filter_cloned = filter.cloned();
+        Box::new(
+            self.graph
+                .node_refs(layers.clone(), filter)
+                .filter(move |v| {
+                    g.include_node_window(
+                        *v,
+                        g.start_bound()..g.end_bound(),
+                        &layers,
+                        filter_cloned.as_ref(),
+                    )
+                }),
+        )
+    }
+
+    /// Get an iterator of all edges as references
+    ///
+    /// Returns:
+    ///
+    /// An iterator over all edges as references
+    #[inline]
+    fn edge_refs(
+        &self,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.graph.edge_refs(layer, filter)
+    }
+
+    #[inline]
+    fn node_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.graph.node_edges(v, d, layer, filter)
+    }
+
+    /// Get the neighbours of a node as references in a given direction
+    ///
+    /// # Arguments
+    ///
+    /// - `v` - The node to get the neighbours for
+    /// - `d` - The direction of the edges
+    ///
+    /// Returns:
+    ///
+    /// An iterator over all neighbours in that node direction as references
+    #[inline]
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        self.graph.neighbours(v, d, layer, filter)
     }
 }
 

@@ -255,11 +255,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn get_all_node_types(&self) -> Vec<ArcStr> {
-        self.graph().node_meta().get_all_node_types()
-    }
-
-    #[inline]
     fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.graph().get_layer_id(name)
     }
@@ -267,6 +262,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
         self.graph().get_layer_names_from_ids(layer_ids)
+    }
+
+    #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph().node_meta().get_all_node_types()
     }
 
     #[inline]
@@ -406,8 +406,8 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         }
     }
 
-    fn range<'a>(
-        &'a self,
+    fn range(
+        &self,
         w: std::ops::Range<i64>,
     ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
         match self {

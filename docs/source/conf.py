@@ -59,8 +59,6 @@ numpydoc_show_class_members = False
 copybutton_prompt_text = r">>> |\.\.\. "
 copybutton_prompt_is_regexp = True
 
-
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
@@ -111,9 +109,9 @@ html_theme_options = {
         },
     ],
     "logo": {
-        "image_auto":  "_static/logos/raphtory-logo-bright-medium.png",
+        "image_auto": "_static/logos/raphtory-logo-bright-medium.png",
         "image_light": "_static/logos/raphtory-logo-bright-medium.png",
-        "image_dark":  "_static/logos/raphtory-logo-bright-medium.png",
+        "image_dark": "_static/logos/raphtory-logo-bright-medium.png",
         "logo_url": "reference/index.html",
         "alt_text": "Raphtory - Home",
     },
@@ -122,8 +120,6 @@ html_theme_options = {
     "check_switcher": False,
     "show_toc_level": 3
 }
-
-
 
 # sphinx-favicon - Add support for custom favicons
 # https://github.com/tcmetzger/sphinx-favicon
@@ -141,6 +137,6 @@ favicons = [
 ]
 
 # sphinx view code
-viewcode_line_numbers=True
+viewcode_line_numbers = True
 
-autodoc_typehints='both'
+autodoc_typehints = 'both'

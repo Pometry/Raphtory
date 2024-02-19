@@ -1,11 +1,8 @@
-use std::{cmp::Reverse, time::Instant};
-
-use itertools::Itertools;
 use raphtory::{
-    algorithms::components::weakly_connected_components,
     arrow::{algorithms::connected_components, graph_impl::Graph2},
     prelude::*,
 };
+use std::time::Instant;
 
 fn main() {
     let graph_dir = std::env::args()

@@ -1,5 +1,4 @@
-use std::{iter, marker::PhantomData, ops::Deref};
-
+use super::{EdgeLike, TimeIndexLike};
 use crate::{
     core::{
         entities::{
@@ -7,19 +6,15 @@ use crate::{
             properties::tprop::{LayeredTProp, LockedLayeredTProp},
             LayerIds,
         },
-        storage::ArcEntry,
+        storage::{timeindex::TimeIndex, ArcEntry},
     },
+    db::api::view::IntoDynBoxed,
     prelude::TimeIndexEntry,
 };
+use std::{iter, marker::PhantomData, ops::Deref};
 
 #[cfg(feature = "arrow")]
 use crate::arrow::edge::Edge;
-use crate::{
-    core::storage::timeindex::{TimeIndex, TimeIndexOps},
-    db::api::view::IntoDynBoxed,
-};
-
-use super::{EdgeLike, TimeIndexLike};
 
 pub enum CoreEdgeView<'a> {
     Mem(ArcEntry<EdgeStore>, PhantomData<&'a ()>),

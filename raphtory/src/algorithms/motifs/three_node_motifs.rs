@@ -334,7 +334,7 @@ impl TriangleCounter {
 }
 pub fn init_tri_count(n: usize) -> TriangleCounter {
     TriangleCounter {
-        n: n,
+        n,
         pre_nodes: vec![0; 4 * n],
         post_nodes: vec![0; 4 * n],
         pre_sum: [0; 8],

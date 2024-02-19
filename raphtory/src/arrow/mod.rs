@@ -278,16 +278,6 @@ pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(
     )
 }
 
-impl GraphChunk {
-    fn sources(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.srcs)
-    }
-
-    fn destinations(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.dsts)
-    }
-}
-
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
     match array.data_type() {
         DataType::UInt64 => {

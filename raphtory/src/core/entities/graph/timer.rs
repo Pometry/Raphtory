@@ -66,12 +66,12 @@ impl TimeCounterTrait for MaxCounter {
     fn cmp(a: i64, b: i64) -> bool {
         a > b
     }
-    fn get(&self) -> i64 {
-        self.counter.load(Ordering::Relaxed)
-    }
-
     fn counter(&self) -> &AtomicI64 {
         &self.counter
+    }
+
+    fn get(&self) -> i64 {
+        self.counter.load(Ordering::Relaxed)
     }
 }
 

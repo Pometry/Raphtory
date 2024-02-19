@@ -31,7 +31,7 @@ fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
             } else if let Some(n) = n.as_f64() {
                 Ok(Prop::F64(n))
             } else {
-                Err(async_graphql::Error::new("Unable to convert"))
+                Err(Error::new("Unable to convert"))
             }
         }
         GqlValue::Boolean(b) => Ok(Prop::Bool(b)),
@@ -47,7 +47,7 @@ fn gql_to_prop(value: GqlValue) -> Result<Prop, Error> {
                 .collect::<Result<Vec<Prop>, Error>>()?
                 .into(),
         )),
-        _ => Err(async_graphql::Error::new("Unable to convert")),
+        _ => Err(Error::new("Unable to convert")),
     }
 }
 

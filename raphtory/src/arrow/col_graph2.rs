@@ -294,7 +294,7 @@ impl TempColGraphFragment {
         self.edges.data_type()
     }
 
-    pub fn node_additions(&mut self, chunk_size: usize) -> Result<(), super::Error> {
+    pub fn node_additions(&mut self, chunk_size: usize) -> Result<(), Error> {
         let additions = make_node_additions(&self, chunk_size)?;
         self.nodes.additions = additions;
         Ok(())

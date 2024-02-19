@@ -293,7 +293,6 @@ mod test {
                 *v += new_v;
                 Some(*v)
             })
-            .map(|v| v as i64)
             .collect();
         values
     }

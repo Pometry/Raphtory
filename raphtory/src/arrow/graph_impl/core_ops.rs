@@ -89,13 +89,13 @@ impl CoreGraphOps for Graph2 {
     fn node_name(&self, v: VID) -> String {
         match self.node_gid(v).unwrap() {
             GID::U64(n) => n.to_string(),
-            crate::arrow::GID::I64(n) => n.to_string(),
-            crate::arrow::GID::Str(s) => s,
+            GID::I64(n) => n.to_string(),
+            GID::Str(s) => s,
         }
     }
 
-    fn node_type(&self, v: VID) -> Option<ArcStr> {
-        todo!()
+    fn node_type(&self, _v: VID) -> Option<ArcStr> {
+        None
     }
 
     fn edge_additions(
@@ -166,12 +166,12 @@ impl CoreGraphOps for Graph2 {
         Box::new(std::iter::empty())
     }
 
-    fn temporal_edge_prop<'a>(
-        &'a self,
+    fn temporal_edge_prop(
+        &self,
         e: EdgeRef,
         id: usize,
         layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp<'a>> {
+    ) -> Option<LockedLayeredTProp> {
         let layer_ids = layer_ids.constrain_from_edge(e);
 
         let layer_id = match layer_ids {

@@ -18,7 +18,7 @@ use crate::{
 use crate::{
     arrow::prelude::{ArrayOps, BaseArrayOps},
     core::storage::timeindex::TimeIndexIntoOps,
-    prelude::{LayerOps, TimeIndexEntry},
+    prelude::TimeIndexEntry,
 };
 use rayon::prelude::*;
 
@@ -375,7 +375,7 @@ impl TimeSemantics for Graph2 {
         layer_ids.contains(layer)
     }
 
-    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+    fn has_temporal_prop(&self, _prop_id: usize) -> bool {
         //FIXME: arrow graph does not have properties yet
         false
     }

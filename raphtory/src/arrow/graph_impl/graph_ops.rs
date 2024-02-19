@@ -5,7 +5,6 @@ use std::iter;
 use crate::{
     arrow::GID,
     core::{
-        self,
         entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
         Direction,
     },
@@ -91,7 +90,7 @@ impl<'graph> GraphOps<'graph> for Graph2 {
     fn degree(
         &self,
         v: VID,
-        d: core::Direction,
+        d: Direction,
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> usize {
@@ -202,7 +201,7 @@ impl<'graph> GraphOps<'graph> for Graph2 {
     fn node_edges(
         &self,
         src: VID,
-        d: core::Direction,
+        d: Direction,
         layer: LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> view::BoxedLIter<'graph, EdgeRef> {
@@ -214,13 +213,9 @@ impl<'graph> GraphOps<'graph> for Graph2 {
                 let iter = self
                     .edges_cloned(src, d, layer_id)
                     .map(move |(e_id, v)| match d {
-                        core::Direction::OUT => {
-                            EdgeRef::new_outgoing(e_id, src, v).at_layer(layer_id)
-                        }
-                        core::Direction::IN => {
-                            EdgeRef::new_incoming(e_id, v, src).at_layer(layer_id)
-                        }
-                        core::Direction::BOTH => todo!("BOTH"),
+                        Direction::OUT => EdgeRef::new_outgoing(e_id, src, v).at_layer(layer_id),
+                        Direction::IN => EdgeRef::new_incoming(e_id, v, src).at_layer(layer_id),
+                        Direction::BOTH => todo!("BOTH"),
                     });
 
                 if filter.is_some() {
@@ -239,7 +234,7 @@ impl<'graph> GraphOps<'graph> for Graph2 {
     fn neighbours(
         &self,
         src: VID,
-        d: core::Direction,
+        d: Direction,
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> view::BoxedLIter<'graph, VID> {

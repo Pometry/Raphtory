@@ -101,11 +101,6 @@ impl<I: Offset> LayeredTProp for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
         )
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
-        let t_index = self.timestamps.position(ti);
-        self.props.get(t_index).map(|v| v.into())
-    }
-
     fn iter_window_te(
         &self,
         r: Range<TimeIndexEntry>,
@@ -120,6 +115,11 @@ impl<I: Offset> LayeredTProp for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
                 .zip(self.props.slice(start..end).into_iter())
                 .filter_map(|(t, v)| v.map(|v| (t, v.into()))),
         )
+    }
+
+    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+        let t_index = self.timestamps.position(ti);
+        self.props.get(t_index).map(|v| v.into())
     }
 }
 
