@@ -2166,6 +2166,13 @@ def test_node_types():
     assert b.node_type == "BTYPE"
     assert set(g.nodes.node_type) == {None, "BTYPE"}
 
+def test_node_types_change():
+    g = Graph()
+    a = g.add_node(0, "A", None, None)
+    assert a.node_type == None
+    a.set_node_type("YO")
+    assert a.node_type == "YO"
+
 
 def test_fuzzy_search():
     g = Graph()
