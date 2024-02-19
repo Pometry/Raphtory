@@ -12,7 +12,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry,
         },
         ArcStr, Prop,

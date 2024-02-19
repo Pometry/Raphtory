@@ -107,9 +107,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| &entry.additions);
-                Some(LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
-                    layer_ids, t_index,
-                )))
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -122,9 +120,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| &entry.deletions);
-                Some(LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
-                    layer_ids, t_index,
-                )))
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
