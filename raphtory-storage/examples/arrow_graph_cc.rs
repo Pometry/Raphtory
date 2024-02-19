@@ -49,7 +49,7 @@ fn main() {
     //     panic!("Graph directory does not exist")
     // };
 
-    let g = &graph2.layers()[0];
+    let g = &graph2.layer(0);
 
     println!("Graph has {} nodes", graph2.count_nodes());
     println!("Graph has {} edges", graph2.count_edges());

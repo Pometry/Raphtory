@@ -240,14 +240,14 @@ impl TimeSemantics for Graph2 {
                         .time_col
                         .clone()
                         .into_value(e.pid().0);
-                    let windowed_times =
-                        windowed_times.sliced(windowed_times.partition_point(|v| v < &w.start)..);
-                    let windowed_times =
-                        windowed_times.sliced(..windowed_times.partition_point(|v| v < &w.end));
+                    let start = windowed_times.partition_point(|v| v < &w.start);
+                    let windowed_times = windowed_times.sliced(start..);
+                    let end = windowed_times.partition_point(|v| v < &w.end);
+                    let windowed_times = windowed_times.sliced(..end);
                     Box::new(
                         windowed_times
                             .into_iter()
-                            .map(|t| e.at(TimeIndexEntry::start(t))),
+                            .map(move |t| e.at(TimeIndexEntry::start(t))),
                     )
                 } else {
                     Box::new(iter::empty())
