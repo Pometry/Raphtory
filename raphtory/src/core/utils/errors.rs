@@ -75,7 +75,7 @@ pub enum GraphError {
         source: Box<bincode::ErrorKind>,
     },
 
-    #[error("The loaded graph is of the wrong kind")]
+    #[error("The loaded graph is of the wrong type. Did you mean Graph / GraphWithDeletions?")]
     GraphLoadError,
 
     #[error("IO operation failed")]
@@ -107,6 +107,11 @@ pub enum GraphError {
         #[from]
         source: QueryParserError,
     },
+
+    #[error(
+        "Failed to load the graph as the version {0} is different to installed version {1}"
+    )]
+    VersionError(String, String)
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

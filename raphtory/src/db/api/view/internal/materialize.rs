@@ -54,6 +54,13 @@ pub enum MaterializedGraph {
     PersistentGraph(GraphWithDeletions),
 }
 
+
+#[derive(Serialize, Deserialize)]
+struct VersionedGraph<T> {
+    version: String,
+    graph: T,
+}
+
 impl Static for MaterializedGraph {}
 
 impl<'graph> GraphOps<'graph> for MaterializedGraph {
@@ -190,13 +197,25 @@ impl MaterializedGraph {
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
         let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
-        Ok(bincode::deserialize_from(&mut reader)?)
+        // First, deserialize only the version number
+        let version: String = bincode::deserialize_from(&mut reader)?;
+        // Check the version number
+        if version != env!("CARGO_PKG_VERSION") {
+            return Err(GraphError::VersionError(version, env!("CARGO_PKG_VERSION").parse().unwrap()));
+        }
+        // If the version number matches, deserialize the rest of the object
+        let data: Self = bincode::deserialize_from(&mut reader)?;
+        Ok(data)
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
-        Ok(bincode::serialize_into(&mut writer, self)?)
+        let versioned_data = VersionedGraph {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            graph: self.clone(),
+        };
+        Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
     }
 
     pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
