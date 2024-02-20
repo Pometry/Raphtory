@@ -250,6 +250,7 @@ pub fn into_py_document(
 
 #[allow(dead_code)]
 #[cfg(feature = "python")] // we dont need this, we already have the flag for the full module
+#[allow(dead_code)]
 pub struct PyDocumentTemplate {
     graph_document: Option<String>,
     node_document: Option<String>,
