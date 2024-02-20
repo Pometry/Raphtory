@@ -22,6 +22,7 @@ impl ToPyObject for Prop {
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
             Prop::Graph(g) => g.clone().into_py(py), // Need to find a better way
+            Prop::Document(d) => d.content.clone().into_py(py), // FIXME: this is awful
             Prop::I32(v) => v.into_py(py),
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
