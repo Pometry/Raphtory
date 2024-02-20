@@ -67,16 +67,6 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
-impl IntoPy<PyObject> for Lifespan {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Lifespan::Inherited => py.None(),
-            Lifespan::Event { time } => time.into_py(py),
-            Lifespan::Interval { start, end } => (start, end).into_py(py),
-        }
-    }
-}
-
 fn format_time(millis: i64) -> String {
     if millis == 0 {
         "unknown time".to_owned()

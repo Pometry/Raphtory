@@ -2,6 +2,16 @@ use crate::core::{DocumentInput, Lifespan};
 use itertools::Itertools;
 use pyo3::{exceptions::PyAttributeError, prelude::*, types::PyTuple};
 
+impl IntoPy<PyObject> for Lifespan {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            Lifespan::Inherited => py.None(),
+            Lifespan::Event { time } => time.into_py(py),
+            Lifespan::Interval { start, end } => (start, end).into_py(py),
+        }
+    }
+}
+
 #[derive(Clone)]
 #[pyclass(name = "Document", frozen, get_all)]
 pub struct PyDocument {
