@@ -78,7 +78,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
 
     /// Check that the latest status of the edge is deleted (i.e., not valid)
     fn is_deleted(&self) -> Self::ValueType<bool>;
-    
+
     /// If the edge is a loop then returns true, else false
     fn is_self_loop(&self) -> Self::ValueType<bool>;
 
