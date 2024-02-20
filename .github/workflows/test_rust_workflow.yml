@@ -78,6 +78,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: update
+      - name: Cargo clean (Windows)
+        if : matrix.os == 'windows-latest'
+        run: cargo clean
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
