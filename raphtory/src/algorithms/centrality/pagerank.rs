@@ -46,6 +46,7 @@ impl PageRankState {
 /// * `threads`: Number of threads to use for parallel execution
 /// * `tol`: The tolerance value for convergence
 /// * `use_l2_norm`: Whether to use L2 norm for convergence
+/// * `damping_factor`: Probability of likelihood the spread will continue
 ///
 /// Result:
 ///
@@ -53,17 +54,19 @@ impl PageRankState {
 ///
 pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     g: &G,
-    iter_count: usize,
+    iter_count: Option<usize>,
     threads: Option<usize>,
     tol: Option<f64>,
     use_l2_norm: bool,
+    damping_factor: Option<f64>,
 ) -> AlgorithmResult<G, f64, OrderedFloat<f64>> {
     let n = g.count_nodes();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let tol: f64 = tol.unwrap_or_else(|| 0.000001f64);
-    let damp = 0.85;
+    let damp = damping_factor.unwrap_or(0.85);
+    let iter_count = iter_count.unwrap_or(20);
     let teleport_prob = (1f64 - damp) / n as f64;
     let factor = damp / n as f64;
 
@@ -211,7 +214,7 @@ mod page_rank_tests {
     fn test_page_rank() {
         let graph = load_graph();
 
-        let results = unweighted_page_rank(&graph, 1000, Some(1), None, true);
+        let results = unweighted_page_rank(&graph, Some(1000), Some(1), None, true, None);
 
         assert_eq_f64(results.get("1"), Some(&0.38694), 5);
         assert_eq_f64(results.get("2"), Some(&0.20195), 5);
@@ -253,7 +256,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = unweighted_page_rank(&graph, 1000, Some(4), None, true);
+        let results = unweighted_page_rank(&graph, Some(1000), Some(4), None, true, None);
 
         assert_eq_f64(results.get("10"), Some(&0.072082), 5);
         assert_eq_f64(results.get("8"), Some(&0.136473), 5);
@@ -278,7 +281,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = unweighted_page_rank(&graph, 1000, Some(4), None, false);
+        let results = unweighted_page_rank(&graph, Some(1000), Some(4), None, false, None);
 
         assert_eq_f64(results.get("1"), Some(&0.5), 3);
         assert_eq_f64(results.get("2"), Some(&0.5), 3);
@@ -294,7 +297,7 @@ mod page_rank_tests {
             graph.add_edge(t as i64, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = unweighted_page_rank(&graph, 10, Some(4), None, false);
+        let results = unweighted_page_rank(&graph, Some(10), Some(4), None, false, None);
 
         assert_eq_f64(results.get("1"), Some(&0.303), 3);
         assert_eq_f64(results.get("2"), Some(&0.393), 3);
@@ -330,7 +333,7 @@ mod page_rank_tests {
             graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let results = unweighted_page_rank(&graph, 1000, Some(4), None, true);
+        let results = unweighted_page_rank(&graph, Some(1000), Some(4), None, true, None);
 
         assert_eq_f64(results.get("1"), Some(&0.055), 3);
         assert_eq_f64(results.get("2"), Some(&0.079), 3);

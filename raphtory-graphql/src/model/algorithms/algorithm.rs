@@ -112,7 +112,19 @@ fn apply_pagerank<'b>(
     let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
     let threads = threads.map(|v| v as usize);
     let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
-    let binding = unweighted_page_rank(&entry_point.graph, iter_count, threads, tol, true);
+    let damping_factor = ctx
+        .args
+        .get("damping_factor")
+        .map(|v| v.f64())
+        .transpose()?;
+    let binding = unweighted_page_rank(
+        &entry_point.graph,
+        Some(iter_count),
+        threads,
+        tol,
+        true,
+        damping_factor,
+    );
     let result = binding
         .get_all_with_names()
         .into_iter()
