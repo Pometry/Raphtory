@@ -207,6 +207,11 @@ impl PyEdge {
     pub fn is_deleted(&self) -> bool {
         self.edge.is_deleted()
     }
+    
+    /// Check if the edge is on the same node
+    pub fn is_self_loop(&self) -> bool {
+        self.edge.is_self_loop()
+    }
 
     /// Returns a view of the properties of the edge.
     ///

@@ -2173,6 +2173,14 @@ def test_node_types_change():
     a.set_node_type("YO")
     assert a.node_type == "YO"
 
+def test_is_self_loop():
+    g = Graph()
+    g.add_node(0, "A", None, None)
+    e = g.add_edge(0, "A", "A", None, None)
+    assert e.is_self_loop()
+    g.add_node(0, "B", None, None)
+    ee = g.add_edge(0, "A", "B", None, None)
+    assert not ee.is_self_loop()
 
 def test_fuzzy_search():
     g = Graph()
