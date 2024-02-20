@@ -49,7 +49,7 @@ fn main() {
 
     let now = Instant::now();
 
-    unweighted_page_rank(&g, 100, None, Some(0.00000001), true);
+    unweighted_page_rank(&g, Some(100), None, Some(0.00000001), true, None);
 
     println!("PageRank took {} millis", now.elapsed().as_millis());
 
