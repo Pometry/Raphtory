@@ -10,6 +10,7 @@ use crate::{
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
+use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph},
@@ -61,7 +62,7 @@ impl RaphtoryServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///   * `graph_names` - the names of the graphs to vectorise.
+    ///   * `graph_names` - the names of the graphs to vectorise. All if None is provided.
     ///   * `embedding` - the embedding function to translate documents to embeddings.
     ///   * `cache` - the directory to use as cache for the embeddings.
     ///   * `template` - the template to use for creating documents.
@@ -70,7 +71,7 @@ impl RaphtoryServer {
     ///    A new server object containing the vectorised graphs.
     pub async fn with_vectorised<F, T>(
         self,
-        graph_names: Vec<String>,
+        graph_names: Option<Vec<String>>,
         embedding: F,
         cache: &Path,
         template: Option<T>,
@@ -85,6 +86,12 @@ impl RaphtoryServer {
         let template = template
             .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>)
             .unwrap_or(Arc::new(DefaultTemplate));
+
+        let graph_names = graph_names.unwrap_or_else(|| {
+            let graphs = graphs.read();
+            let iter = graphs.iter().map(|(graph_name, _)| graph_name).cloned();
+            iter.collect_vec()
+        });
 
         for graph_name in graph_names {
             let graph_cache = cache.join(&graph_name);

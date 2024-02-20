@@ -121,7 +121,7 @@ impl PyRaphtoryServer {
 
     fn with_vectorised_generic_embedding<F: EmbeddingFunction + Clone + 'static>(
         slf: PyRefMut<Self>,
-        graph_names: Vec<String>,
+        graph_names: Option<Vec<String>>,
         embedding: F,
         cache: String,
         graph_document: Option<String>,
@@ -243,7 +243,7 @@ impl PyRaphtoryServer {
     ///   appropriately
     ///
     /// Arguments:
-    ///   * `graph_names`: the names of the graphs to vectorise.
+    ///   * `graph_names`: the names of the graphs to vectorise. All by default.
     ///   * `cache`: the directory to use as cache for the embeddings.
     ///   * `embedding`: the embedding function to translate documents to embeddings.
     ///   * `node_document`: the property name to use as the source for the documents on nodes.
@@ -253,8 +253,8 @@ impl PyRaphtoryServer {
     ///    A new server object containing the vectorised graphs.
     fn with_vectorised(
         slf: PyRefMut<Self>,
-        graph_names: Vec<String>,
         cache: String,
+        graph_names: Option<Vec<String>>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
         embedding: Option<&PyFunction>,
         graph_document: Option<String>,
