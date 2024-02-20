@@ -17,10 +17,13 @@ jobs:
         include:
           - os: macos-latest
             sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
+            cargo-args: ""
           - os: ubuntu-latest
             sccache-path: /home/runner/.cache/sccache
+            cargo-args: ""
           - os: windows-latest
             sccache-path: C:\Users\runner\AppData\Local\Mozilla\sccache
+            cargo-args: "--target-dir=C:\target"
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_CACHE_SIZE: 2G
@@ -78,34 +81,34 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: update
-      - name: Cargo clean (Windows)
+      - name: Make cargo target dir (Windows)
         if : matrix.os == 'windows-latest'
-        run: cargo clean
+        run: mkdir C:\target
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo test --all --no-default-features
+          cargo test ${{ matrix.cargo-args }} --all --no-default-features
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "io"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "io"
       - name: Run Tests (features=python)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "python"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "python"
       - name: Run Tests (features=search)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "search"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "search"
       - name: Run Tests (features=vectors)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "vectors"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "vectors"
       - name: Print sccache stats
         run: sccache --show-stats
       - name: Stop sccache server
