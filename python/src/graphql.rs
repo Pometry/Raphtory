@@ -674,9 +674,10 @@ impl PyRaphtoryClient {
         if online {
             Ok(())
         } else {
-            Err(PyException::new_err(
-                "Failed to connect to the server after {millis} milliseconds",
-            ))
+            Err(PyException::new_err(format!(
+                "Failed to connect to the server after {} milliseconds",
+                millis
+            )))
         }
     }
 

@@ -1,6 +1,5 @@
 use crate::server::RaphtoryServer;
 use std::env;
-use tracing::Level;
 
 mod data;
 mod model;
