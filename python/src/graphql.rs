@@ -15,9 +15,10 @@ use raphtory_core::{
     db::api::view::MaterializedGraph,
     python::{
         packages::vectors::{
-            compute_embedding, into_py_document, translate_py_window, PyDocument,
-            PyDocumentTemplate, PyQuery, PyVectorisedGraph, PyWindow,
+            compute_embedding, into_py_document, translate_py_window, PyDocumentTemplate, PyQuery,
+            PyVectorisedGraph, PyWindow,
         },
+        types::wrappers::document::PyDocument,
         utils::{errors::adapt_err_value, execute_async_task},
     },
     vectors::{

@@ -1,8 +1,7 @@
+use super::document::PyDocument;
 use crate::{
     core::{DocumentInput, Prop},
-    python::{
-        graph::views::graph_view::PyGraphView, packages::vectors::PyDocument, types::repr::Repr,
-    },
+    python::{graph::views::graph_view::PyGraphView, types::repr::Repr},
 };
 use pyo3::{
     exceptions::PyTypeError, types::PyBool, FromPyObject, IntoPy, PyAny, PyObject, PyResult,
