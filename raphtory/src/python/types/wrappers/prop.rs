@@ -22,7 +22,7 @@ impl ToPyObject for Prop {
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
             Prop::Graph(g) => g.clone().into_py(py), // Need to find a better way
-            Prop::Document(d) => d.content.clone().into_py(py), // FIXME: this is awful
+            Prop::Document(d) => PyDocument::from(d.clone()).into_py(py),
             Prop::I32(v) => v.into_py(py),
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
@@ -44,7 +44,7 @@ impl IntoPy<PyObject> for Prop {
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
             Prop::Graph(g) => g.into_py(py), // Need to find a better way
-            Prop::Document(d) => d.content.into_py(py), // FIXME: this is awful
+            Prop::Document(d) => PyDocument::from(d).into_py(py),
             Prop::I32(v) => v.into_py(py),
             Prop::U32(v) => v.into_py(py),
             Prop::F32(v) => v.into_py(py),
@@ -79,7 +79,7 @@ impl<'source> FromPyObject<'source> for Prop {
             return Ok(Prop::Document(DocumentInput {
                 content: d.content,
                 life: d.life,
-            })); // FIXME: need to allow different lifespans!!
+            }));
         }
         if let Ok(list) = ob.extract() {
             return Ok(Prop::List(Arc::new(list)));
@@ -103,7 +103,7 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::Graph(g) => PyGraphView::from(g.clone()).repr(),
-            Prop::Document(d) => d.content.repr(), // FIXME: this is also awful
+            Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),

@@ -12,6 +12,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        types::repr::Repr,
         utils::{execute_async_task, PyTime},
     },
     vectors::{
@@ -26,7 +27,7 @@ use chrono::NaiveDateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::{PyAttributeError, PyException, PyTypeError},
+    exceptions::{PyAttributeError, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList, PyTuple},
 };
@@ -69,8 +70,8 @@ impl<'source> FromPyObject<'source> for PyQuery {
 impl IntoPy<PyObject> for Lifespan {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            Lifespan::Inherited => ().into_py(py),
-            Lifespan::Event { time } => (time,).into_py(py),
+            Lifespan::Inherited => py.None(),
+            Lifespan::Event { time } => time.into_py(py),
             Lifespan::Interval { start, end } => (start, end).into_py(py),
         }
     }
@@ -116,11 +117,20 @@ pub struct PyDocument {
     pub(crate) life: Lifespan,
 }
 
+impl From<DocumentInput> for PyDocument {
+    fn from(value: DocumentInput) -> Self {
+        Self {
+            content: value.content,
+            entity: None,
+            life: value.life,
+        }
+    }
+}
+
 impl PyDocument {
-    // FIXME: this function is not meant to be called from python, so there is no point of returning PyResult
-    pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
+    pub fn extract_rust_document(&self, py: Python) -> Result<Document, String> {
         match &self.entity {
-            None => Err(PyException::new_err("Document entity cannot be None")),
+            None => Err("Document entity cannot be None".to_owned()),
             Some(entity) => {
                 let node = entity.extract::<PyNode>(py);
                 let edge = entity.extract::<PyEdge>(py);
@@ -145,9 +155,7 @@ impl PyDocument {
                         life: self.life,
                     })
                 } else {
-                    Err(PyException::new_err(
-                        "document entity is not a node nor an edge nor a graph",
-                    ))
+                    Err("document entity is not a node nor an edge nor a graph".to_owned())
                 }
             }
         }
@@ -200,9 +208,14 @@ impl PyDocument {
             Ok(repr) => repr.extract::<String>(py).unwrap_or("''".to_owned()),
             Err(_) => "''".to_owned(),
         };
+        let life_repr = match self.life {
+            Lifespan::Inherited => "None".to_owned(),
+            Lifespan::Event { time } => time.to_string(),
+            Lifespan::Interval { start, end } => format!("({start}, {end})"),
+        };
         format!(
-            "Document(content={}, entity={})", // FIXME: add life here?
-            content_repr, entity_repr
+            "Document(content={}, entity={}, life={})",
+            content_repr, entity_repr, life_repr
         )
     }
 }
@@ -297,6 +310,7 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
     }
 }
 
+/// This funtions ignores the time history of temporal props if their type is Document and they have a life different than Lifespan::Inherited
 fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
     properties: Properties<P>,
     name: &str,
@@ -322,11 +336,19 @@ fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
     }
 }
 
+impl Lifespan {
+    fn overwrite_inherited(&self, default_lifespan: Lifespan) -> Self {
+        match self {
+            Lifespan::Inherited => default_lifespan,
+            other => other.clone(),
+        }
+    }
+}
+
 fn prop_to_docs(
     prop: &Prop,
     default_lifespan: Lifespan,
 ) -> Box<dyn Iterator<Item = DocumentInput> + '_> {
-    // FIXME: this needs to improve, what happens with temporal documents. Does document lifespan take precedence or the event time?
     match prop {
         Prop::List(docs) => Box::new(
             docs.iter()
@@ -339,7 +361,10 @@ fn prop_to_docs(
                 .map(move |prop| prop_to_docs(prop, default_lifespan))
                 .flatten(),
         ),
-        Prop::Document(document) => Box::new(std::iter::once(document.clone())),
+        Prop::Document(document) => Box::new(std::iter::once(DocumentInput {
+            life: document.life.overwrite_inherited(default_lifespan),
+            ..document.clone()
+        })),
         prop => Box::new(std::iter::once(DocumentInput {
             content: prop.to_string(),
             life: default_lifespan,

@@ -89,8 +89,8 @@ impl RaphtoryServer {
 
         let graph_names = graph_names.unwrap_or_else(|| {
             let graphs = graphs.read();
-            let iter = graphs.iter().map(|(graph_name, _)| graph_name).cloned();
-            iter.collect_vec()
+            let all_graph_names = graphs.iter().map(|(graph_name, _)| graph_name).cloned();
+            all_graph_names.collect_vec()
         });
 
         for graph_name in graph_names {

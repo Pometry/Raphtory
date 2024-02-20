@@ -33,7 +33,7 @@ use std::{
     cmp::Ordering,
     collections::HashMap,
     fmt,
-    fmt::{Display, Formatter, Write},
+    fmt::{Display, Formatter},
     ops::Deref,
     sync::Arc,
 };
@@ -236,7 +236,7 @@ impl Prop {
             }
             Prop::DTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
-            Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()),
+            Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
         }
     }
 

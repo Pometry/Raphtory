@@ -7,7 +7,6 @@ use crate::{
     prelude::{EdgeViewOps, NodeViewOps},
 };
 use std::{
-    any::Any,
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
