@@ -1,3 +1,4 @@
+use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -22,15 +23,18 @@ pub enum Document {
     Graph {
         name: String,
         content: String,
+        life: Lifespan,
     },
     Node {
         name: String,
         content: String,
+        life: Lifespan,
     },
     Edge {
         src: String,
         dst: String,
         content: String,
+        life: Lifespan,
     },
 }
 
@@ -57,19 +61,10 @@ impl DocumentOps for Document {
     }
 }
 
-/// struct containing all the necessary information to allow Raphtory creating a document and
-/// storing it
-#[derive(Clone)]
-pub struct DocumentInput {
-    pub content: String,
-    pub life: Lifespan,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum Lifespan {
-    Interval { start: i64, end: i64 },
-    Event { time: i64 },
-    Inherited,
+impl Lifespan {
+    pub(crate) fn event(time: i64) -> Self {
+        Self::Event { time }
+    }
 }
 
 impl From<String> for DocumentInput {
@@ -307,7 +302,8 @@ age: 30"###;
         for doc_content in FAKE_DOCUMENTS {
             assert!(
                 docs.iter().any(|doc| match doc {
-                    Document::Node { content, name } => content == doc_content && name == "test",
+                    Document::Node { content, name, .. } =>
+                        content == doc_content && name == "test",
                     _ => false,
                 }),
                 "document {doc_content:?} is not present in the result: {docs:?}"
@@ -368,7 +364,8 @@ age: 30"###;
             .get_documents();
         assert!(
             match &docs[..] {
-                [Document::Node { name, content }] => name == "test" && content == "event at 20",
+                [Document::Node { name, content, .. }] =>
+                    name == "test" && content == "event at 20",
                 _ => false,
             },
             "{docs:?} has the wrong content"
@@ -380,7 +377,7 @@ age: 30"###;
             .get_documents();
         assert!(
             match &docs[..] {
-                [Document::Node { name, content }] =>
+                [Document::Node { name, content, .. }] =>
                     name == "test" && content == "interval from 30 to 40",
                 _ => false,
             },

@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, Prop, PropUnwrap},
+    core::{ArcStr, DocumentInput, Prop, PropUnwrap},
     db::api::properties::internal::PropertiesOps,
     prelude::Graph,
 };
@@ -183,5 +183,9 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.latest().into_graph()
+    }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        self.latest().into_document()
     }
 }
