@@ -1,5 +1,5 @@
 use dynamic_graphql::SimpleObject;
-use raphtory::vectors::Document;
+use raphtory::{core::Lifespan, vectors::Document};
 
 #[derive(SimpleObject)]
 pub struct GqlDocument {
@@ -8,26 +8,51 @@ pub struct GqlDocument {
     /// Return the type of entity: "node" or "edge"
     entity_type: String,
     content: String,
+    life: Vec<i64>,
 }
 
 impl From<Document> for GqlDocument {
     fn from(value: Document) -> Self {
         match value {
-            Document::Graph { name, content } => Self {
+            Document::Graph {
+                name,
+                content,
+                life,
+            } => Self {
                 name: vec![name],
                 entity_type: "graph".to_owned(),
                 content,
+                life: lifespan_into_vec(life),
             },
-            Document::Node { name, content } => Self {
+            Document::Node {
+                name,
+                content,
+                life,
+            } => Self {
                 name: vec![name],
                 entity_type: "node".to_owned(),
                 content,
+                life: lifespan_into_vec(life),
             },
-            Document::Edge { src, dst, content } => Self {
+            Document::Edge {
+                src,
+                dst,
+                content,
+                life,
+            } => Self {
                 name: vec![src, dst],
                 entity_type: "edge".to_owned(),
                 content,
+                life: lifespan_into_vec(life),
             },
         }
+    }
+}
+
+fn lifespan_into_vec(life: Lifespan) -> Vec<i64> {
+    match life {
+        Lifespan::Inherited => vec![],
+        Lifespan::Event { time } => vec![time],
+        Lifespan::Interval { start, end } => vec![start, end],
     }
 }
