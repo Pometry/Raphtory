@@ -153,8 +153,12 @@ impl RaphtoryServer {
                 .with_env_filter(filter)
                 .with_span_events(FmtSpan::CLOSE)
                 .finish();
-            tracing::subscriber::set_global_default(subscriber)
-                .expect("Failed to set global default subscriber");
+            if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+                eprintln!(
+                    "Log level cannot be updated within the same runtime environment: {}",
+                    err
+                );
+            }
         }
 
         fn setup_logger_from_config(log_config_path: &str) {
@@ -165,8 +169,12 @@ impl RaphtoryServer {
 
             let filter = EnvFilter::new(&config.log_level);
             let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
-            tracing::subscriber::set_global_default(subscriber)
-                .expect("Failed to set global default subscriber");
+            if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+                eprintln!(
+                    "Log level cannot be updated within the same runtime environment: {}",
+                    err
+                );
+            }
         }
 
         fn configure_logger(log_config_or_level: &str) {
