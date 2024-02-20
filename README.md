@@ -59,7 +59,7 @@ For python you must be using version 3.8 or higher and can install via pip:
 ```bash
 pip install raphtory
 ``` 
-For Rust, Raphtory is hosted on [crates](https://crates.io/crates/raphtory) and can be included in your project via `cargo add`:
+For Rust, Raphtory is hosted on [crates](https://crates.io/crates/raphtory) for Rust version 1.75 or higher and can be included in your project via `cargo add`:
 ```bash
 cargo add raphtory
 ```
@@ -151,7 +151,7 @@ Below is a small example creating a graph, running a server hosting this data, a
 
 ```python
 from raphtory import Graph
-from raphtory import graphqlserver
+from raphtory.graphql import RaphtoryServer
 import pandas as pd
 
 # URL for lord of the rings data from our main tutorial
@@ -162,7 +162,10 @@ df = pd.read_csv(url)
 graph = Graph.load_from_pandas(df,"src_id","dst_id","time")
 
 #Create a dictionary of queryable graphs and start the graphql server with it. This returns a client we can query with
-client = graphqlserver.run_server({"lotr_graph":graph},daemon=True)
+client = RaphtoryServer({"lotr_graph":graph}).start()
+
+#Wait until the server has started up
+client.wait_for_online()
 
 #Run a basic query to get the names of the characters + their degree
 results = client.query("""{
@@ -204,7 +207,7 @@ To get you up and running with Raphtory we provide a full set of tutorials on th
 * [Basic Graph Queries](https://www.raphtory.com/user-guide/querying/1_intro/)
 * [Time Travelling and Graph views](https://www.raphtory.com/user-guide/views/1_intro/)
 * [Running algorithms](https://www.raphtory.com/user-guide/algorithms/1_intro/)
-* [Integrating with other tools](https://www.raphtory.com/user-guide/algorithms/1_intro/)
+* [Integrating with other tools](https://www.raphtory.com/user-guide/export/1_intro/)
 
 If API documentation is more your thing, you can dive straight in [here](https://docs.raphtory.com/)!
 

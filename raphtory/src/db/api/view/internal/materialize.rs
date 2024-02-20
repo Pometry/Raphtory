@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            edges::edge_ref::EdgeRef,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
@@ -12,7 +12,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LockedLayeredIndex, TimeIndexEntry},
             ArcEntry,
         },
         utils::errors::GraphError,
@@ -33,13 +33,13 @@ use crate::{
     },
     prelude::{Layer, Prop},
 };
+use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
-#[enum_dispatch(IntoDynamic)]
 #[enum_dispatch(TimeSemantics)]
 #[enum_dispatch(EdgeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
@@ -53,6 +53,8 @@ pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
 }
+
+impl Static for MaterializedGraph {}
 
 impl<'graph> GraphOps<'graph> for MaterializedGraph {
     fn internal_node_ref(
@@ -282,7 +284,7 @@ mod test_materialised_graph_dispatch {
 
         let mg = g.materialize().unwrap();
 
-        let v = mg.add_node(0, 1, NO_PROPS).unwrap();
+        let v = mg.add_node(0, 1, NO_PROPS, None).unwrap();
         assert_eq!(v.id(), 1)
     }
 }

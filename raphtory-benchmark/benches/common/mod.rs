@@ -70,7 +70,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS),
+                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None),
                 BatchSize::SmallInput,
             )
         },
@@ -82,7 +82,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS),
+                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None),
                 BatchSize::SmallInput,
             )
         },
@@ -278,7 +278,7 @@ pub fn run_analysis_benchmarks<F, G>(
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
         let edge = edges.iter().choose(&mut rng).expect("non-empty graph");
-        b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
+        b.iter(|| graph.has_edge(edge.0, edge.1))
     });
 
     bench(
@@ -296,7 +296,7 @@ pub fn run_analysis_benchmarks<F, G>(
                     break edge;
                 }
             };
-            b.iter(|| graph.has_edge(edge.0, edge.1, Layer::All))
+            b.iter(|| graph.has_edge(edge.0, edge.1))
         },
     );
 

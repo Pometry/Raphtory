@@ -85,50 +85,6 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph<G> {
-    fn node_refs(
-        &self,
-        _layers: LayerIds,
-        _filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        // this sucks but seems to be the only way currently (see also http://smallcultfollowing.com/babysteps/blog/2018/09/02/rust-pattern-iterating-an-over-a-rc-vec-t/)
-        let verts = Vec::from_iter(self.nodes.iter().copied());
-        Box::new(verts.into_iter())
-    }
-
-    fn edge_refs(
-        &self,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let g1 = self.graph.clone();
-        let nodes = self.nodes.clone().iter().copied().collect_vec();
-        let filter = filter.cloned();
-        Box::new(
-            nodes.into_iter().flat_map(move |v| {
-                g1.node_edges(v, Direction::OUT, layer.clone(), filter.as_ref())
-            }),
-        )
-    }
-
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        self.graph.node_edges(v, d, layer, filter)
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        self.graph.neighbours(v, d, layers, filter)
-    }
     fn internal_node_ref(
         &self,
         v: NodeRef,
@@ -161,7 +117,6 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
             .map(|v| self.degree(*v, Direction::OUT, &layer, filter))
             .sum()
     }
-
     fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         self.nodes
             .par_iter()
@@ -210,18 +165,64 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
     ) -> Option<EdgeRef> {
         self.graph.edge_ref(src, dst, layer, filter)
     }
+
+    fn node_refs(
+        &self,
+        _layers: LayerIds,
+        _filter: Option<&EdgeFilter>,
+    ) -> Box<dyn Iterator<Item = VID> + Send> {
+        // this sucks but seems to be the only way currently (see also http://smallcultfollowing.com/babysteps/blog/2018/09/02/rust-pattern-iterating-an-over-a-rc-vec-t/)
+        let verts = Vec::from_iter(self.nodes.iter().copied());
+        Box::new(verts.into_iter())
+    }
+
+    fn edge_refs(
+        &self,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        let g1 = self.graph.clone();
+        let nodes = self.nodes.clone().iter().copied().collect_vec();
+        let filter = filter.cloned();
+        Box::new(
+            nodes.into_iter().flat_map(move |v| {
+                g1.node_edges(v, Direction::OUT, layer.clone(), filter.as_ref())
+            }),
+        )
+    }
+
+    fn node_edges(
+        &self,
+        v: VID,
+        d: Direction,
+        layer: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, EdgeRef> {
+        self.graph.node_edges(v, d, layer, filter)
+    }
+
+    fn neighbours(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> BoxedLIter<'graph, VID> {
+        self.graph.neighbours(v, d, layers, filter)
+    }
 }
 
 #[cfg(test)]
 mod subgraph_tests {
     use crate::{algorithms::motifs::triangle_count::triangle_count, prelude::*};
+    use itertools::Itertools;
 
     #[test]
     fn test_materialize_no_edges() {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 2, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 2, NO_PROPS, None).unwrap();
         let sg = g.subgraph([1, 2]);
 
         let actual = sg.materialize().unwrap().into_events().unwrap();
@@ -263,5 +264,19 @@ mod subgraph_tests {
         let ts = triangle_count(&subgraph, None);
         let tg = triangle_count(&graph, None);
         assert_eq!(ts, tg)
+    }
+
+    #[test]
+    fn layer_materialize() {
+        let g = Graph::new();
+        g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        g.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
+
+        let sg = g.subgraph([1, 2]);
+        let sgm = sg.materialize().unwrap();
+        assert_eq!(
+            sg.unique_layers().collect_vec(),
+            sgm.unique_layers().collect_vec()
+        );
     }
 }

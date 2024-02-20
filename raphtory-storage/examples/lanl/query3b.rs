@@ -1,10 +1,4 @@
-use raphtory::{
-    arrow::{
-        graph::TemporalGraph,
-        prelude::{ArrayOps, BaseArrayOps},
-    },
-    core::Direction,
-};
+use raphtory::arrow::{graph::TemporalGraph, prelude::ArrayOps};
 use rayon::prelude::*;
 
 use crate::{thread_pool, NUM_THREADS};
@@ -38,13 +32,11 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
-                let len = event_ids.len();
-
+                let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
                 let mut count_boot: usize = 0;
                 let mut count_program: usize = 0;
 
-                for event in event_ids.iter().flatten() {
+                for event in event_ids.iter().flatten().copied() {
                     if event == PROGRAM {
                         count_program += 1;
                     } else if event == BOOT {
@@ -55,12 +47,12 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                 let a = edge.dst();
 
                 let nfts: usize = g
-                    .edges_par(a, Direction::IN, nft)
-                    .filter(|(eid, b)| &a != b)
-                    .map(|(eid, b)| {
+                    .layer(nft)
+                    .in_edges_par(a)
+                    .filter(|(_, b)| &a != b)
+                    .map(|(eid, _)| {
                         g.edge(eid, nft)
                             .prop_items::<i64>(src_port_prop_id)
-                            .unwrap()
                             .filter(|(_, v)| *v == Some(SRCPORT))
                             .count()
                     })

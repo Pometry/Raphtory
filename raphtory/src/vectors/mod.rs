@@ -1,4 +1,5 @@
 use futures_util::future::BoxFuture;
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 
 mod document_ref;
@@ -7,14 +8,21 @@ mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
 pub mod graph_entity;
+mod similarity_search_utils;
 pub mod splitting;
 pub mod vectorisable;
+pub mod vectorised_cluster;
 pub mod vectorised_graph;
+pub mod vectorised_graph_storage;
 
 pub type Embedding = Vec<f32>;
 
 #[derive(Debug)]
 pub enum Document {
+    Graph {
+        name: String,
+        content: String,
+    },
     Node {
         name: String,
         content: String,
@@ -35,12 +43,14 @@ pub trait DocumentOps {
 impl DocumentOps for Document {
     fn content(&self) -> &str {
         match self {
+            Document::Graph { content, .. } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
     }
     fn into_content(self) -> String {
         match self {
+            Document::Graph { content, .. } => content,
             Document::Node { content, .. } => content,
             Document::Edge { content, .. } => content,
         }
@@ -55,7 +65,7 @@ pub struct DocumentInput {
     pub life: Lifespan,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Lifespan {
     Interval { start: i64, end: i64 },
     Event { time: i64 },
@@ -105,8 +115,10 @@ mod vector_tests {
         },
         prelude::{AdditionOps, EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
         vectors::{
-            document_template::DocumentTemplate, embeddings::openai_embedding,
-            graph_entity::GraphEntity, vectorisable::Vectorisable,
+            document_template::{DefaultTemplate, DocumentTemplate},
+            embeddings::openai_embedding,
+            graph_entity::GraphEntity,
+            vectorisable::Vectorisable,
         },
     };
     use dotenv::dotenv;
@@ -131,6 +143,10 @@ mod vector_tests {
     struct CustomTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for CustomTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
         fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let name = node.name();
             let node_type = node.properties().get("type").unwrap().to_string();
@@ -153,7 +169,7 @@ mod vector_tests {
     #[tokio::test]
     async fn test_embedding_cache() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         // the following succeeds with no cache set up
         g.vectorise(Box::new(fake_embedding), None, true, false)
@@ -211,6 +227,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
 
@@ -249,6 +266,10 @@ age: 30"###;
     struct FakeMultiDocumentTemplate;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeMultiDocumentTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
         fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             Box::new(
                 Vec::from(FAKE_DOCUMENTS)
@@ -264,7 +285,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_multi_embedding() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         let vectors = g
             .vectorise_with_template(
@@ -297,6 +318,10 @@ age: 30"###;
     struct FakeTemplateWithIntervals;
 
     impl<G: StaticGraphViewOps> DocumentTemplate<G> for FakeTemplateWithIntervals {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
         fn node(&self, _node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
             let doc_event_20: DocumentInput = DocumentInput {
                 content: "event at 20".to_owned(),
@@ -317,7 +342,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_window() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
@@ -374,6 +399,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("wizard")),
                 ("age".to_string(), Prop::str("120")),
             ],
+            None,
         )
         .unwrap();
         g.add_node(
@@ -383,6 +409,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
@@ -394,6 +421,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("human")),
                 ("age".to_string(), Prop::str("40")),
             ],
+            None,
         )
         .unwrap();
 

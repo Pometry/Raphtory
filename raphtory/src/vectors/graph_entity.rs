@@ -66,7 +66,7 @@ impl<G: StaticGraphViewOps> GraphEntity for NodeView<G> {
                         let time = time_fmt(time);
                         format!("{key} changed to {value} at {time}")
                     });
-            itertools::Itertools::intersperse(events, "\n".to_owned()).collect()
+            Itertools::intersperse(events, "\n".to_owned()).collect()
         });
 
         let prop_storage = self.properties();
@@ -85,7 +85,7 @@ impl<G: StaticGraphViewOps> GraphEntity for NodeView<G> {
         // We sort by length so when cutting out the tail of the document we don't remove small properties
 
         let lines = chain!([min_time, max_time], props);
-        itertools::Itertools::intersperse(lines, "\n".to_owned()).collect()
+        Itertools::intersperse(lines, "\n".to_owned()).collect()
     }
 }
 

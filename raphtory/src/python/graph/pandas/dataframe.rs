@@ -169,40 +169,6 @@ pub(crate) fn process_pandas_py_df(
     Ok(df)
 }
 
-// pub(crate) fn process_pandas_py_df(df: &PyAny, py: Python, _size: usize,col_names:Vec<&str>) -> PyResult<PretendDF> {
-//     is_jupyter(py);
-//     let globals = PyDict::new(py);
-//     globals.set_item("df", df)?;
-//     let module = py.import("pyarrow")?;
-//     let pa_table = module.getattr("Table")?;
-//
-//     let table = pa_table.call_method("from_pandas", (df,), None)?;
-//
-//     let rb = table.call_method0("to_batches")?.extract::<Vec<&PyAny>>()?;
-//     let names:Vec<String> = if let Some(batch0) = rb.get(0) {
-//         let schema = batch0.getattr("schema")?;
-//         schema.getattr("names")?.extract::<Vec<String>>()?
-//     } else {
-//         vec![]
-//     }.into_iter().filter(|x| col_names.contains(&x.as_str())).collect();
-//
-//     let arrays = rb
-//         .iter()
-//         .map(|rb| {
-//             (0..names.len())
-//                 .map(|i| {
-//                     let array = rb.call_method1("column", (i,))?;
-//                     let arr = array_to_rust(array)?;
-//                     Ok::<Box<dyn Array>, PyErr>(arr)
-//                 })
-//                 .collect::<Result<Vec<_>, PyErr>>()
-//         })
-//         .collect::<Result<Vec<_>, PyErr>>()?;
-//
-//     let df = PretendDF { names, arrays };
-//     Ok(df)
-// }
-
 pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
     // prepare a pointer to receive the Array struct
     let array = Box::new(ffi::ArrowArray::empty());

@@ -1,4 +1,4 @@
-use crate::arrow::parquet_reader::{NumRows, TrySlice};
+use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
@@ -6,26 +6,25 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::{
     num::TryFromIntError,
     ops::Range,
     path::{Path, PathBuf},
 };
 
+pub mod algorithms;
 pub(crate) mod chunked_array;
 pub mod col_graph2;
 pub mod edge;
-pub(crate) mod edge_frame_builder;
 pub(crate) mod edges;
 pub mod global_order;
 pub mod graph;
-pub mod ipc;
-pub(crate) mod list_buffer;
-pub mod loader;
-pub mod mmap;
-pub(crate) mod parquet_reader;
-pub(crate) mod vertex_chunk;
-pub(crate) mod vertex_frame_builder;
+pub(crate) mod graph_builder;
+pub mod graph_impl;
+pub mod load;
+pub(crate) mod nodes;
+pub(crate) mod timestamps;
 
 pub type Time = i64;
 
@@ -39,9 +38,10 @@ pub enum Error {
     Arrow(#[from] arrow2::error::Error),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
-    #[error("LMDB error: {0}")]
-    LMDB(#[from] heed::Error),
-    #[error("Bad data type for vertex column: {0:?}")]
+    //serde error
+    #[error("Serde error: {0}")]
+    Serde(#[from] serde_json::Error),
+    #[error("Bad data type for node column: {0:?}")]
     DType(DataType),
     #[error("Graph directory is not empty before loading")]
     GraphDirNotEmpty,
@@ -57,6 +57,12 @@ pub enum Error {
     EmptyChunk,
     #[error("Conversion error: {0}")]
     ArgumentError(#[from] TryFromIntError),
+    #[error("Invalid file: {0:?}")]
+    InvalidFile(PathBuf),
+    #[error("Invalid metadata: {0:?}")]
+    MetadataError(#[from] Box<bincode::ErrorKind>),
+    #[error("Failed to cast mmap_mut to [i64]: {0:?}")]
+    SliceCastError(bytemuck::PodCastError),
 }
 
 unsafe impl Send for Error {} // heed::Error can't be made Send
@@ -78,11 +84,77 @@ pub fn adj_schema() -> DataType {
     ])
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub(crate) mod file_prefix {
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
+    use strum::{AsRefStr, EnumString};
+
+    #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq)]
+    pub enum GraphPaths {
+        EdgeIds,
+        NodeAdditions,
+        NodeAdditionsOffsets,
+        AdjOutOffsets,
+        EdgeTPropsOffsets,
+        EdgeTProps,
+        AdjInSrcs,
+        AdjInEdges,
+        AdjInOffsets,
+        Metadata,
+    }
+
+    impl GraphPaths {
+        pub fn try_from(path: impl AsRef<Path>) -> Option<Self> {
+            let path = path.as_ref();
+            let name = path.file_name().and_then(|name| name.to_str())?;
+            let prefix = name.split('-').next()?;
+            GraphPaths::from_str(prefix).ok()
+        }
+
+        pub fn to_path(&self, location_path: impl AsRef<Path>, id: usize) -> PathBuf {
+            let prefix: &str = self.as_ref();
+            make_path(location_path, prefix, id)
+        }
+    }
+
+    pub fn make_path(location_path: impl AsRef<Path>, prefix: &str, id: usize) -> PathBuf {
+        let file_path = location_path
+            .as_ref()
+            .join(format!("{}-{:08}.ipc", prefix, id));
+        file_path
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum GID {
     U64(u64),
     I64(i64),
     Str(String),
+}
+
+impl GID {
+    pub fn into_str(self) -> Option<String> {
+        match self {
+            GID::Str(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_i64(self) -> Option<i64> {
+        match self {
+            GID::I64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn into_u64(self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 impl From<u64> for GID {
@@ -116,14 +188,8 @@ pub(crate) struct GraphChunk {
 }
 
 impl GraphChunk {
-    pub fn from_chunk(
-        chunk: Chunk<Box<dyn Array>>,
-        src_col_idx: usize,
-        dst_col_idx: usize,
-    ) -> Self {
-        let srcs = chunk[src_col_idx].clone();
-        let dsts = chunk[dst_col_idx].clone();
-        Self { srcs, dsts }
+    pub fn to_chunk(&self) -> Chunk<Box<dyn Array>> {
+        Chunk::new(vec![self.srcs.clone(), self.dsts.clone()])
     }
 }
 
@@ -206,19 +272,10 @@ pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(
         GraphChunk {
             srcs: all_cols[src_col_idx].clone(),
             dsts: all_cols[dst_col_idx].clone(),
+            // time: all_cols[time_col_idx].clone(),
         },
         PropsChunk(t_prop_cols),
     )
-}
-
-impl GraphChunk {
-    fn sources(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.srcs)
-    }
-
-    fn destinations(&self) -> Result<impl Iterator<Item = GID>, Error> {
-        array_as_id_iter(&self.dsts)
-    }
 }
 
 fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {

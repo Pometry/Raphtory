@@ -1,15 +1,3 @@
-use ahash::HashSet;
-use dashmap::DashMap;
-use itertools::Itertools;
-use raphtory::{
-    arrow::{graph::TemporalGraph, loader::ExternalEdgeList, prelude::*, Time},
-    core::{entities::VID, Direction},
-};
-use rayon::{
-    iter::IntoParallelIterator,
-    prelude::{IntoParallelRefIterator, ParallelIterator},
-    ThreadPoolBuilder,
-};
 use std::{
     collections::HashMap,
     sync::{
@@ -17,6 +5,20 @@ use std::{
         Arc,
     },
     time::Instant,
+};
+
+use ahash::HashSet;
+use dashmap::DashMap;
+use itertools::Itertools;
+use rayon::{
+    iter::IntoParallelIterator,
+    prelude::{IntoParallelRefIterator, ParallelIterator},
+    ThreadPoolBuilder,
+};
+
+use raphtory::{
+    arrow::{graph::TemporalGraph, load::ExternalEdgeList, prelude::*, Time},
+    core::entities::VID,
 };
 
 fn query1(g: &TemporalGraph) -> Option<usize> {
@@ -39,7 +41,7 @@ fn query1(g: &TemporalGraph) -> Option<usize> {
         event_id_prop_id_1v,
         event_id_prop_id_2v,
     );
-    println!("vertex count: {:?}", g.num_vertices());
+    println!("node count: {:?}", g.num_nodes());
     Some(res)
 }
 
@@ -67,7 +69,7 @@ fn query1_v7(
                 .filter(|edge| {
                     edge.par_prop_items_unchecked::<i64>(event_id_prop_id_1v)
                         .unwrap()
-                        .any(|(_, event_id)| *event_id == 4688)
+                        .any(|(_, event_id)| event_id == 4688)
                 })
                 .map(|e| e.dst())
                 .collect()
@@ -86,7 +88,7 @@ fn query1_v7(
                 .filter(|edge| {
                     edge.par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
                         .unwrap()
-                        .any(|(_, event_id)| *event_id == 4624)
+                        .any(|(_, event_id)| event_id == 4624)
                 })
                 .map(|e| e.dst())
                 .collect()
@@ -105,14 +107,14 @@ fn query1_v7(
         let now = Instant::now();
         pool.install(|| {
             vs.into_par_iter().for_each(|b| {
-                g.edges_par(b, Direction::OUT, nft).for_each(|(b2e, e)| {
+                g.out_adj_par(b, nft).for_each(|(b2e, e)| {
                     if e != b {
                         let nf1 = g.edge(b2e, nft);
                         nf1.par_prop_items_unchecked::<i64>(bytes_prop_id)
                             .unwrap()
-                            .filter(|(_, &v)| v > 100_000_000)
+                            .filter(|(_, v)| *v > 100_000_000)
                             .for_each(|(nf1_t, _)| {
-                                g.edges_par(b, Direction::OUT, events_1v)
+                                g.out_adj_par(b, events_1v)
                                     .filter(|(_, v)| v == &b && b_prog1_filter.contains(v))
                                     .for_each(|(b2b, _)| {
                                         let prog1 = g.edge(b2b, events_1v);
@@ -121,7 +123,7 @@ fn query1_v7(
                                             .par_prop_items_unchecked::<i64>(event_id_prop_id_1v)
                                             .unwrap()
                                             .for_each(|(prog1_t, prog1_event_id)| {
-                                                if *prog1_event_id == 4688
+                                                if prog1_event_id == 4688
                                                     && prog1_t < nf1_t
                                                     && nf1_t - prog1_t <= 30
                                                 {
@@ -180,33 +182,32 @@ fn query1_v7(
                 let (b, (min_nft_less30, (prog1, nft_less30, e))) = entry;
                 let b = *b;
 
-                g.edges_par(b, Direction::IN, events_2v)
-                    .for_each(|(a2b, a)| {
-                        if a != b {
-                            let login1 = g.edge(a2b, events_2v);
+                g.in_adj_par(b, events_2v).for_each(|(a2b, a)| {
+                    if a != b {
+                        let login1 = g.edge(a2b, events_2v);
 
-                            let mut skip = false;
-                            if !prog1.is_empty() {
-                                let max_prog1 = *prog1.last().unwrap() as i64;
+                        let mut skip = false;
+                        if !prog1.is_empty() {
+                            let max_prog1 = *prog1.last().unwrap() as i64;
 
-                                let login1_ts = login1.timestamps();
+                            let login1_ts = login1.timestamp_slice();
 
-                                let min_login1 = login1_ts.iter().next().unwrap();
-                                if min_login1 > max_prog1 {
-                                    skip = true;
-                                }
-                            }
-
-                            if !skip {
-                                let iter = login1
-                                    .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
-                                    .unwrap()
-                                    .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
-
-                                binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
+                            let min_login1 = login1_ts.iter().next().unwrap();
+                            if min_login1 > &max_prog1 {
+                                skip = true;
                             }
                         }
-                    });
+
+                        if !skip {
+                            let iter = login1
+                                .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
+                                .unwrap()
+                                .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
+
+                            binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
+                        }
+                    }
+                });
             })
         });
 
@@ -220,7 +221,7 @@ fn query1_v7(
 
 #[inline]
 fn binary_search_join_par_4<'a>(
-    login_events: impl ParallelIterator<Item = (&'a Time, &'a i64)>,
+    login_events: impl ParallelIterator<Item = (&'a Time, i64)>,
     prog1: &[Time],
     nft: &[Time],
     e: &[VID],
@@ -228,7 +229,7 @@ fn binary_search_join_par_4<'a>(
     count: &'a AtomicUsize,
 ) {
     let c = login_events
-        .filter(|(_, &login1_event_id)| login1_event_id == 4624)
+        .filter(|(_, login1_event_id)| *login1_event_id == 4624)
         .filter_map(|(login1_t, _)| {
             let pos = prog1.partition_point(|prog1_t| prog1_t < login1_t);
             if pos == prog1.len() {
@@ -327,8 +328,9 @@ fn main() {
         let graph = TemporalGraph::from_edge_lists(
             8,
             chunk_size,
-            chunk_size,
             t_props_chunk_size,
+            None,
+            None,
             graph_dir,
             layered_edge_list,
         )
@@ -337,6 +339,10 @@ fn main() {
     };
     println!("Time taken to load graph: {:?}", now.elapsed());
 
+    println!("graph nodes count {}", graph.num_nodes());
+    println!("graph edges count netflow {}", graph.num_edges(0));
+    println!("graph edges count 1v {}", graph.num_edges(1));
+    println!("graph edges count 2v {}", graph.num_edges(2));
     let now = Instant::now();
 
     //     MATCH

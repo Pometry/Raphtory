@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            edges::edge_ref::EdgeRef,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_props::GraphProps,
@@ -12,7 +12,7 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps},
             ArcEntry,
         },
         ArcStr, Prop,
@@ -20,6 +20,8 @@ use crate::{
     db::api::view::{internal::Base, BoxedIter},
 };
 use enum_dispatch::enum_dispatch;
+
+use super::CoreEdgeView;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
@@ -40,11 +42,17 @@ pub trait CoreGraphOps {
     /// Get the layer name for a given id
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
 
+    /// Get all node types
+    fn get_all_node_types(&self) -> Vec<ArcStr>;
+
     /// Returns the external ID for a node
     fn node_id(&self, v: VID) -> u64;
 
     /// Returns the string name for a node
     fn node_name(&self, v: VID) -> String;
+
+    /// Returns the type of node
+    fn node_type(&self, v: VID) -> Option<ArcStr>;
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -56,7 +64,7 @@ pub trait CoreGraphOps {
 
     /// Get all the addition timestamps for a node
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>>;
+    fn node_additions(&self, v: VID) -> NodeAdditions;
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
     fn internalise_node(&self, v: NodeRef) -> Option<VID>;
@@ -193,10 +201,9 @@ pub trait CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
+    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>>;
 
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>>;
+    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_>;
 
     fn core_node(&self, vid: VID) -> ArcEntry<NodeStore>;
 }
@@ -258,6 +265,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph().node_meta().get_all_node_types()
+    }
+
+    #[inline]
     fn node_id(&self, v: VID) -> u64 {
         self.graph().node_id(v)
     }
@@ -265,6 +277,11 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn node_name(&self, v: VID) -> String {
         self.graph().node_name(v)
+    }
+
+    #[inline]
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        self.graph().node_type(v)
     }
 
     #[inline]
@@ -277,7 +294,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
+    fn node_additions(&self, v: VID) -> NodeAdditions {
         self.graph().node_additions(v)
     }
 
@@ -355,22 +372,72 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
         self.graph().core_edges()
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
         self.graph().core_edge(eid)
-    }
-
-    #[inline]
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
-        self.graph().core_nodes()
     }
 
     #[inline]
     fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
         self.graph().core_node(vid)
+    }
+}
+#[cfg(feature = "arrow")]
+use crate::arrow::timestamps::TimeStamps;
+
+pub enum NodeAdditions<'a> {
+    Mem(LockedView<'a, TimeIndex<i64>>),
+    #[cfg(feature = "arrow")]
+    Col(TimeStamps<'a, i64>),
+}
+
+impl<'b> TimeIndexOps for NodeAdditions<'b> {
+    type IndexType = i64;
+
+    fn active(&self, w: std::ops::Range<i64>) -> bool {
+        match self {
+            NodeAdditions::Mem(index) => index.active(w),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.active(w),
+        }
+    }
+
+    fn range(
+        &self,
+        w: std::ops::Range<i64>,
+    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+        match self {
+            NodeAdditions::Mem(index) => index.range(w),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.range(w),
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            NodeAdditions::Mem(index) => index.first(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.first(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            NodeAdditions::Mem(index) => index.last(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.last(),
+        }
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
+        match self {
+            NodeAdditions::Mem(index) => index.iter(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(index) => index.iter(),
+        }
     }
 }

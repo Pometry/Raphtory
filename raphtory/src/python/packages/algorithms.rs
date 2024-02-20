@@ -1,9 +1,4 @@
-use std::collections::{HashMap, HashSet};
-
-/// Implementations of various graph algorithms that can be run on a graph.
-///
-/// To run an algorithm simply import the module and call the function with the graph as the argument
-///
+#![allow(non_snake_case)]
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -12,43 +7,61 @@ use crate::{
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
         },
-        community_detection::label_propagation::label_propagation as label_propagation_rs,
+        community_detection::{
+            label_propagation::label_propagation as label_propagation_rs,
+            louvain::louvain as louvain_rs, modularity::ModularityUnDir,
+        },
         components,
-        metrics::balance::balance as balance_rs,
-        metrics::degree::{
-            average_degree as average_degree_rs, max_degree as max_degree_rs,
-            max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
-            min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
-            min_out_degree as min_out_degree_rs,
+        dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
+        layout::{
+            cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
+            fruchterman_reingold::fruchterman_reingold_unbounded as fruchterman_reingold_rs,
         },
-        metrics::directed_graph_density::directed_graph_density as directed_graph_density_rs,
-        metrics::local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
-        metrics::reciprocity::{
-            all_local_reciprocity as all_local_reciprocity_rs,
-            global_reciprocity as global_reciprocity_rs,
+        metrics::{
+            balance::balance as balance_rs,
+            degree::{
+                average_degree as average_degree_rs, max_degree as max_degree_rs,
+                max_in_degree as max_in_degree_rs, max_out_degree as max_out_degree_rs,
+                min_degree as min_degree_rs, min_in_degree as min_in_degree_rs,
+                min_out_degree as min_out_degree_rs,
+            },
+            directed_graph_density::directed_graph_density as directed_graph_density_rs,
+            local_clustering_coefficient::local_clustering_coefficient as local_clustering_coefficient_rs,
+            reciprocity::{
+                all_local_reciprocity as all_local_reciprocity_rs,
+                global_reciprocity as global_reciprocity_rs,
+            },
         },
-        motifs::global_temporal_three_node_motifs::{
-            global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
-            temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
+        motifs::{
+            global_temporal_three_node_motifs::{
+                global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
+                temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
+            },
+            local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
+            local_triangle_count::local_triangle_count as local_triangle_count_rs,
         },
-        motifs::local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
-        motifs::local_triangle_count::local_triangle_count as local_triangle_count_rs,
         pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
     },
-    core::entities::nodes::node_ref::NodeRef,
-    python::{graph::views::graph_view::PyGraphView, utils::PyInputNode},
-};
-use crate::{
-    core::Prop,
+    core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
-    python::graph::edge::PyDirection,
+    python::{
+        graph::{edge::PyDirection, views::graph_view::PyGraphView},
+        utils::{PyInputNode, PyTime},
+    },
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
+use rand::{prelude::StdRng, SeedableRng};
+use std::collections::{HashMap, HashSet};
+
+/// Implementations of various graph algorithms that can be run on a graph.
+///
+/// To run an algorithm simply import the module and call the function with the graph as the argument
+///
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
@@ -557,7 +570,7 @@ pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: PyInputNode,
     targets: Vec<PyInputNode>,
-    weight: String,
+    weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
     match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
         Ok(result) => Ok(result),
@@ -573,7 +586,7 @@ pub fn dijkstra_single_source_shortest_paths(
 ///     normalized (boolean, optional): Indicates whether to normalize the centrality values.
 ///
 /// Returns:
-///     Returns an `AlgorithmResult` containing the betweenness centrality of each node.
+///     AlgorithmResult[float]: Returns an `AlgorithmResult` containing the betweenness centrality of each node.
 #[pyfunction]
 #[pyo3[signature = (g, k=None, normalized=true)]]
 pub fn betweenness_centrality(
@@ -603,4 +616,135 @@ pub fn label_propagation(
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+/// Simulate an SEIR dynamic on the network
+///
+/// The algorithm uses the event-based sampling strategy from https://doi.org/10.1371/journal.pone.0246961
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     seeds (int | float | list[Node]): the seeding strategy to use for the initial infection (if `int`, choose fixed number
+///            of nodes at random, if `float` infect each node with this probability, if `[Node]`
+///            initially infect the specified nodes
+///     infection_prob (float): the probability for a contact between infected and susceptible nodes to lead
+///                     to a transmission
+///     initial_infection (int | str | DateTime): the time of the initial infection
+///     recovery_rate (float | None): optional recovery rate (if None, simulates SEI dynamic where nodes never recover)
+///                    the actual recovery time is sampled from an exponential distribution with this rate
+///     incubation_rate ( float | None): optional incubation rate (if None, simulates SI or SIR dynamics where infected
+///                      nodes are infectious at the next time step)
+///                      the actual incubation time is sampled from an exponential distribution with
+///                      this rate
+///     rng_seed (int | None): optional seed for the random number generator
+///
+/// Returns:
+///     AlgorithmResult[Infected]: Returns an `Infected` object for each infected node with attributes
+///     
+///     `infected`: the time stamp of the infection event
+///
+///     `active`: the time stamp at which the node actively starts spreading the infection (i.e., the end of the incubation period)
+///
+///     `recovered`: the time stamp at which the node recovered (i.e., stopped spreading the infection)
+///
+#[pyfunction(name = "temporal_SEIR")]
+pub fn temporal_SEIR(
+    graph: &PyGraphView,
+    seeds: crate::python::algorithm::epidemics::PySeed,
+    infection_prob: f64,
+    initial_infection: PyTime,
+    recovery_rate: Option<f64>,
+    incubation_rate: Option<f64>,
+    rng_seed: Option<u64>,
+) -> Result<AlgorithmResult<DynamicGraph, Infected>, SeedError> {
+    let mut rng = match rng_seed {
+        None => StdRng::from_entropy(),
+        Some(seed) => StdRng::seed_from_u64(seed),
+    };
+    temporal_SEIR_rs(
+        &graph.graph,
+        recovery_rate,
+        incubation_rate,
+        infection_prob,
+        initial_infection,
+        seeds,
+        &mut rng,
+    )
+}
+
+/// Louvain algorithm for community detection
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     resolution (float): the resolution paramter for modularity
+///     weight_prop (str | None): the edge property to use for weights (has to be float)
+///     tol (None | float): the floating point tolerance for deciding if improvements are significant (default: 1e-8)
+#[pyfunction]
+#[pyo3[signature=(graph, resolution=1.0, weight_prop=None, tol=None)]]
+pub fn louvain(
+    graph: &PyGraphView,
+    resolution: f64,
+    weight_prop: Option<&str>,
+    tol: Option<f64>,
+) -> AlgorithmResult<DynamicGraph, usize> {
+    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
+}
+
+/// Fruchterman Reingold layout algorithm
+///
+/// Arguments:
+///     graph (GraphView): the graph view
+///     iterations (int | None): the number of iterations to run (default: 100)
+///     scale (float | None): the scale to apply (default: 1.0)
+///     node_start_size (float | None): the start node size to assign random positions (default: 1.0)
+///     cooloff_factor (float | None): the cool off factor for the algorithm (default: 0.95)
+///     dt (float | None): the time increment between iterations (default: 0.1)
+///
+/// Returns:
+///     a dict with the position for each node as a list with two numbers [x, y]
+#[pyfunction]
+#[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
+pub fn fruchterman_reingold(
+    graph: &PyGraphView,
+    iterations: u64,
+    scale: f32,
+    node_start_size: f32,
+    cooloff_factor: f32,
+    dt: f32,
+) -> HashMap<u64, [f32; 2]> {
+    fruchterman_reingold_rs(
+        &graph.graph,
+        iterations,
+        scale,
+        node_start_size,
+        cooloff_factor,
+        dt,
+    )
+    .into_iter()
+    .map(|(id, vector)| (id, [vector.x, vector.y]))
+    .collect()
+}
+
+/// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
+#[pyfunction]
+#[pyo3[signature=(graph, iterations=100, scale=1.0, node_start_size=1.0, cooloff_factor=0.95, dt=0.1)]]
+pub fn cohesive_fruchterman_reingold(
+    graph: &PyGraphView,
+    iterations: u64,
+    scale: f32,
+    node_start_size: f32,
+    cooloff_factor: f32,
+    dt: f32,
+) -> HashMap<u64, [f32; 2]> {
+    cohesive_fruchterman_reingold_rs(
+        &graph.graph,
+        iterations,
+        scale,
+        node_start_size,
+        cooloff_factor,
+        dt,
+    )
+    .into_iter()
+    .map(|(id, vector)| (id, [vector.x, vector.y]))
+    .collect()
 }

@@ -2,7 +2,7 @@
 
 pub mod into_indexed;
 
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
@@ -16,14 +16,14 @@ use crate::{
         entities::{nodes::node_ref::NodeRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
-        ArcStr, PropType,
+        ArcStr, OptionAsStr, PropType,
     },
     db::{
         api::{
-            mutation::internal::InternalAdditionOps,
+            mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
             view::{
-                internal::{DynamicGraph, InheritViewOps, IntoDynamic},
-                EdgeViewInternalOps, StaticGraphViewOps,
+                internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
+                Base, MaterializedGraph, StaticGraphViewOps,
             },
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -40,28 +40,28 @@ pub struct IndexedGraph<G> {
     pub(crate) edge_reader: IndexReader,
 }
 
-impl<G> Deref for IndexedGraph<G> {
-    type Target = G;
+impl<G> Base for IndexedGraph<G> {
+    type Base = G;
 
-    fn deref(&self) -> &Self::Target {
+    #[inline]
+    fn base(&self) -> &Self::Base {
         &self.graph
     }
 }
 
-impl<G: StaticGraphViewOps> IntoDynamic for IndexedGraph<G> {
-    fn into_dynamic(self) -> DynamicGraph {
-        DynamicGraph::new(self)
-    }
-}
+impl<G: StaticGraphViewOps> Static for IndexedGraph<G> {}
 
 impl<G: StaticGraphViewOps> InheritViewOps for IndexedGraph<G> {}
+
+//FIXME: should index constant properties on updates
+impl<G: StaticGraphViewOps> InheritPropertyAdditionOps for IndexedGraph<G> {}
 
 pub(in crate::search) mod fields {
     pub const TIME: &str = "time";
     pub const VERTEX_ID: &str = "node_id";
     pub const VERTEX_ID_REV: &str = "node_id_rev";
     pub const NAME: &str = "name";
-
+    pub const NODE_TYPE: &str = "node_type";
     // edges
     // pub const SRC_ID: &str = "src_id";
     pub const SOURCE: &str = "from";
@@ -88,7 +88,16 @@ impl<G: GraphViewOps<'static> + IntoDynamic> IndexedGraph<G> {
     }
 }
 
+impl IndexedGraph<MaterializedGraph> {
+    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        self.graph.save_to_file(path)
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
+    pub fn graph(&self) -> &G {
+        &self.graph
+    }
     fn new_node_schema_builder() -> SchemaBuilder {
         let mut schema = Schema::builder();
 
@@ -101,6 +110,8 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.add_u64_field(fields::VERTEX_ID_REV, FAST | STORED);
         // add name
         schema.add_text_field(fields::NAME, TEXT);
+        // add node_type
+        schema.add_text_field(fields::NODE_TYPE, TEXT);
         schema
     }
 
@@ -285,8 +296,9 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 document.add_text(prop_field, prop_text);
             }
             Prop::DTime(prop_time) => {
-                let time =
-                    tantivy::DateTime::from_timestamp_nanos(prop_time.and_utc().timestamp_nanos());
+                let time = tantivy::DateTime::from_timestamp_nanos(
+                    prop_time.and_utc().timestamp_nanos_opt().unwrap(),
+                );
                 document.add_date(prop_field, time);
             }
             Prop::U8(prop_u8) => {
@@ -415,7 +427,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         destination_field: Field,
         edge_id_field: Field,
     ) -> tantivy::Result<()> {
-        let edge_ref = e_ref.eref();
+        let edge_ref = e_ref.edge;
 
         let src = e_ref.src();
         let dst = e_ref.dst();
@@ -733,6 +745,11 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
     }
 
     #[inline]
+    fn resolve_node_type(&self, v_id: VID, node_type: Option<&str>) -> Result<usize, GraphError> {
+        self.graph.resolve_node_type(v_id, node_type)
+    }
+
+    #[inline]
     fn resolve_node(&self, id: u64, name: Option<&str>) -> VID {
         self.graph.resolve_node(id, name)
     }
@@ -772,11 +789,12 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         t: TimeIndexEntry,
         v: VID,
         props: Vec<(usize, Prop)>,
+        node_type_id: usize,
     ) -> Result<(), GraphError> {
         let mut document = Document::new();
         // add time to the document
         let time = self.node_index.schema().get_field(fields::TIME)?;
-        document.add_i64(time, *t.t());
+        document.add_i64(time, t.t());
         // add name to the document
 
         let name = self.node_index.schema().get_field(fields::NAME)?;
@@ -791,8 +809,16 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
                 }
             }
         }
+        // add the node type to the document
+        let node_type_field = self.node_index.schema().get_field(fields::NODE_TYPE)?;
+        let node_type = self
+            .graph
+            .node_meta()
+            .get_node_type_name_by_id(node_type_id);
+        document.add_text(node_type_field, node_type.as_str().unwrap_or(""));
+
         // add the node id to the document
-        self.graph.internal_add_node(t, v, props)?;
+        self.graph.internal_add_node(t, v, props, node_type_id)?;
         // get the field from the index
         let node_id = self.node_index.schema().get_field(fields::VERTEX_ID)?;
         let node_id_rev = self.node_index.schema().get_field(fields::VERTEX_ID_REV)?;
@@ -825,7 +851,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
 #[cfg(test)]
 mod test {
     use std::time::SystemTime;
-    use tantivy::{doc, DocAddress};
+    use tantivy::{doc, DocAddress, Order};
 
     use super::*;
 
@@ -841,6 +867,7 @@ mod test {
                     ("age".to_string(), Prop::U64(42)),
                     ("balance".to_string(), Prop::I64(-1234)),
                 ],
+                None,
             )
             .expect("failed to add node");
 
@@ -883,7 +910,12 @@ mod test {
         let graph = Graph::new();
 
         graph
-            .add_node(1, "Gandalf", [("kind".to_string(), Prop::str("Wizard"))])
+            .add_node(
+                1,
+                "Gandalf",
+                [("kind".to_string(), Prop::str("Wizard"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
@@ -894,31 +926,62 @@ mod test {
                     ("kind".to_string(), Prop::str("Hobbit")),
                     ("has_ring".to_string(), Prop::str("yes")),
                 ],
+                None,
             )
             .expect("add node failed");
 
         graph
-            .add_node(2, "Merry", [("kind".to_string(), Prop::str("Hobbit"))])
+            .add_node(
+                2,
+                "Merry",
+                [("kind".to_string(), Prop::str("Hobbit"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(4, "Gollum", [("kind".to_string(), Prop::str("Creature"))])
+            .add_node(
+                4,
+                "Gollum",
+                [("kind".to_string(), Prop::str("Creature"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(9, "Gollum", [("has_ring".to_string(), Prop::str("yes"))])
+            .add_node(
+                9,
+                "Gollum",
+                [("has_ring".to_string(), Prop::str("yes"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(9, "Frodo", [("has_ring".to_string(), Prop::str("no"))])
+            .add_node(
+                9,
+                "Frodo",
+                [("has_ring".to_string(), Prop::str("no"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(10, "Frodo", [("has_ring".to_string(), Prop::str("yes"))])
+            .add_node(
+                10,
+                "Frodo",
+                [("has_ring".to_string(), Prop::str("yes"))],
+                None,
+            )
             .expect("add node failed");
 
         graph
-            .add_node(10, "Gollum", [("has_ring".to_string(), Prop::str("no"))])
+            .add_node(
+                10,
+                "Gollum",
+                [("has_ring".to_string(), Prop::str("no"))],
+                None,
+            )
             .expect("add node failed");
 
         let indexed_graph: IndexedGraph<Graph> =
@@ -964,7 +1027,7 @@ mod test {
         let graph = IndexedGraph::new(Graph::new(), NO_PROPS, NO_PROPS);
 
         graph
-            .add_node(1, "Gandalf", NO_PROPS)
+            .add_node(1, "Gandalf", NO_PROPS, None)
             .expect("add node failed");
 
         graph.reload().expect("reload failed");
@@ -988,6 +1051,7 @@ mod test {
                 1,
                 "Bilbo",
                 [("description".to_string(), Prop::str("A hobbit"))],
+                None,
             )
             .expect("add node failed");
 
@@ -996,6 +1060,7 @@ mod test {
                 2,
                 "Gandalf",
                 [("description".to_string(), Prop::str("A wizard"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1017,6 +1082,45 @@ mod test {
     }
 
     #[test]
+    fn add_node_search_by_node_type() {
+        let graph = IndexedGraph::new(Graph::new(), NO_PROPS, NO_PROPS);
+
+        graph
+            .add_node(1, "Gandalf", NO_PROPS, Some("wizard"))
+            .expect("add node failed");
+
+        graph
+            .add_node(1, "Bilbo", NO_PROPS, None)
+            .expect("add node failed");
+
+        graph.reload().expect("reload failed");
+
+        let nodes = graph
+            .search_nodes(r#"node_type:wizard"#, 10, 0)
+            .expect("search failed");
+
+        let actual = nodes
+            .into_iter()
+            .map(|v| v.node_type().unwrap().to_string())
+            .collect::<Vec<_>>();
+        let expected = vec!["wizard"];
+
+        assert_eq!(actual, expected);
+
+        let nodes = graph
+            .search_nodes(r#"node_type:''"#, 10, 0)
+            .expect("search failed");
+
+        let actual = nodes
+            .into_iter()
+            .map(|v| v.node_type().unwrap().to_string())
+            .collect::<Vec<_>>();
+        let expected: Vec<String> = vec![];
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn add_node_search_by_description_and_time() {
         let graph = IndexedGraph::new(Graph::new(), [("description", Prop::str(""))], NO_PROPS);
 
@@ -1025,6 +1129,7 @@ mod test {
                 1,
                 "Gandalf",
                 [("description".to_string(), Prop::str("The wizard"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1033,6 +1138,7 @@ mod test {
                 2,
                 "Saruman",
                 [("description".to_string(), Prop::str("Another wizard"))],
+                None,
             )
             .expect("add node failed");
 
@@ -1163,7 +1269,7 @@ mod test {
         // ensure time is part of the index
         schema.add_u64_field("time", INDEXED | STORED);
         // ensure we add node_id as stored to get back the node id after the search
-        schema.add_text_field("node_id", FAST | STORED);
+        schema.add_u64_field("node_id", FAST | STORED);
 
         let index = Index::create_in_ram(schema.build());
 
@@ -1194,7 +1300,8 @@ mod test {
         let query_parser = tantivy::query::QueryParser::for_index(&index, vec![]);
         let query = query_parser.parse_query(r#"name:"gandalf""#).unwrap();
 
-        let ranking = TopDocs::with_limit(10).order_by_u64_field(fields::VERTEX_ID.to_string());
+        let ranking =
+            TopDocs::with_limit(10).order_by_fast_field(fields::VERTEX_ID.to_string(), Order::Asc);
         let top_docs: Vec<(u64, DocAddress)> = searcher.search(&query, &ranking).unwrap();
 
         assert!(!top_docs.is_empty());
@@ -1203,7 +1310,7 @@ mod test {
     #[test]
     fn property_name_on_node_does_not_crash() {
         let g = Graph::new();
-        g.add_node(0, "test", [("name", "test")]).unwrap();
+        g.add_node(0, "test", [("name", "test")], None).unwrap();
         let _gi: IndexedGraph<_> = g.into();
     }
 }

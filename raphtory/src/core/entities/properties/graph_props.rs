@@ -116,11 +116,11 @@ impl GraphProps {
     }
 
     pub fn get_const_prop_name(&self, prop_id: usize) -> ArcStr {
-        self.constant_mapper.get_name(prop_id)
+        self.constant_mapper.get_name(prop_id).clone()
     }
 
     pub fn get_temporal_name(&self, prop_id: usize) -> ArcStr {
-        self.temporal_mapper.get_name(prop_id)
+        self.temporal_mapper.get_name(prop_id).clone()
     }
 
     pub fn get_constant_dtype(&self, prop_id: usize) -> Option<PropType> {

@@ -1,10 +1,7 @@
 use itertools::Itertools;
-use raphtory::{
-    arrow::{
-        graph::TemporalGraph,
-        prelude::{ArrayOps, BaseArrayOps},
-    },
-    core::Direction,
+use raphtory::arrow::{
+    graph::TemporalGraph,
+    prelude::{ArrayOps, BaseArrayOps},
 };
 use rayon::prelude::*;
 
@@ -42,15 +39,17 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
-                let edge_ts = edge.timestamps();
+                let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
+                let edge_ts = edge.timestamp_slice();
                 let len = event_ids.len();
 
                 let count: usize = g
-                    .edges_par(edge.dst(), Direction::OUT, events_1v)
+                    .layer(events_1v)
+                    .out_edges_par(edge.dst())
                     .map(|(_, a)| {
                         let nft_ts = g
-                            .edges_par(a, Direction::IN, nft)
+                            .layer(nft)
+                            .in_edges_par(a)
                             .map(|(eid, b)| {
                                 (
                                     b,
@@ -67,18 +66,17 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                         for (i, t) in edge
                             .prop_items::<i64>(event_id_prop_id_1v)
-                            .unwrap()
                             .enumerate()
                             .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                         {
-                            for (b, nft_ts) in nft_ts.iter() {
+                            for (_, nft_ts) in nft_ts.iter() {
                                 for nft_t in nft_ts {
                                     for (v, program_t) in event_ids
                                         .slice(i + 1..len)
                                         .into_iter()
                                         .zip(edge_ts.slice(i + 1..len))
                                     {
-                                        if program_t < t
+                                        if program_t < &t
                                             || nft_t < &program_t
                                             || nft_t - t >= WINDOW
                                         {
@@ -91,7 +89,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                                     for i in (0..i).rev() {
                                         let (v, program_t) = (event_ids.get(i), edge_ts.get(i));
-                                        if program_t != t
+                                        if program_t != &t
                                             || nft_t < &program_t
                                             || nft_t - t >= WINDOW
                                         {

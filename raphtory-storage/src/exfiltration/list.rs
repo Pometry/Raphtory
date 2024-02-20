@@ -8,15 +8,7 @@ use raphtory::{
     core::{entities::VID, Direction},
 };
 use rayon::{iter::ParallelIterator, prelude::*};
-use std::{
-    cmp::Ordering,
-    collections::VecDeque,
-    fmt::Debug,
-    fs::File,
-    io::{BufWriter, Write},
-    sync::atomic::{AtomicU64, Ordering::Relaxed},
-    time::Instant,
-};
+use std::{cmp::Ordering, collections::VecDeque, fmt::Debug};
 
 #[inline]
 fn valid_netflow_events(
@@ -28,7 +20,6 @@ fn valid_netflow_events(
         nft_graph
             .edges_iter(b_vid, Direction::OUT)
             .into_iter()
-            .flatten()
             .filter(|(_, e_vid)| *e_vid != b_vid)
             .map(move |(edge_id, _)| {
                 nft_graph
@@ -52,7 +43,6 @@ fn login_edges(
         events_2v_graph
             .edges_iter(b_vid, Direction::IN)
             .into_iter()
-            .flatten()
             .filter(|(_, a_vid)| *a_vid != b_vid)
             .map(move |(edge_id, _)| {
                 events_2v_graph
@@ -75,7 +65,6 @@ fn prog1_edges(
     event_1v_graph
         .edges_iter(b_vid, Direction::OUT)
         .into_iter()
-        .flatten()
         .filter(move |(_, vid)| *vid == b_vid)
         .flat_map(move |(eid, _)| {
             event_1v_graph
@@ -406,17 +395,16 @@ pub fn query<GO: GlobalOrder>(
 
 #[cfg(test)]
 mod test {
-    use crate::exfiltration::list::{query, query_per_vertex};
+    use crate::exfiltration::list::query;
     use arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{DataType, Field},
     };
-    use raphtory::{
-        arrow::{col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph},
-        core::entities::VID,
+    use raphtory::arrow::{
+        col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph,
     };
     use rayon::prelude::*;
-    use std::{path::Path, sync::Arc};
+    use std::sync::Arc;
     use tempfile::TempDir;
 
     #[test]
@@ -440,20 +428,20 @@ mod test {
             None,
         );
 
-        let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
+        let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
             vec![chunk],
         )
         .unwrap();
-        graph_events2v.build_inbound_adj_index().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![2u64, 2, 2]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![2u64, 2, 2]).boxed();
@@ -472,11 +460,12 @@ mod test {
 
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -503,11 +492,12 @@ mod test {
 
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -552,20 +542,20 @@ mod test {
             None,
         );
 
-        let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
+        let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
             vec![chunk],
         )
         .unwrap();
-        graph_events2v.build_inbound_adj_index().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![2u64]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![2u64]).boxed();
@@ -584,11 +574,12 @@ mod test {
 
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -613,11 +604,12 @@ mod test {
 
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -638,32 +630,5 @@ mod test {
         let actual: Vec<_> = query(&graph, 30).collect();
         println!("{:?}", actual);
         assert_eq!(actual.len(), 2);
-    }
-    #[test]
-    #[ignore]
-    fn test_broken_vertex() {
-        let data: &Path = "/Users/lucasjeub/Data/netflow".as_ref();
-        let graph = TemporalGraph::new(data).unwrap();
-
-        let vertices = [VID(94592)];
-        let result: Vec<_> = query_per_vertex(&graph, 30, vertices.into_par_iter())
-            .unwrap()
-            .flat_map_iter(|(_, iter)| {
-                iter.map(|(l, p, n)| {
-                    (
-                        l.timestamp(),
-                        p.timestamp(),
-                        n.timestamp(),
-                        l.src().0,
-                        p.src().0,
-                        n.dst().0,
-                    )
-                })
-            })
-            .collect();
-        for res in &result {
-            println!("{res:?}");
-        }
-        assert_eq!(result.len(), 248);
     }
 }

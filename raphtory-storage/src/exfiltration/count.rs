@@ -68,16 +68,15 @@ fn valid_netflow_events(
     bytes_prop_id: usize,
     window: i64,
 ) -> Option<Vec<(VID, Vec<Window>)>> {
-    let mut nft_events: Vec<_> = nft_graph
-        .edges_par_iter(b_vid, Direction::OUT)
-        .unwrap()
+    let nft_events: Vec<_> = nft_graph
+        .out_edges_par(b_vid)
         .filter(|(_, e_vid)| *e_vid != b_vid)
         .filter_map(|(edge_id, e_vid)| {
             let nf1 = nft_graph.edge(edge_id);
             let mut valid_events: Vec<_> = nf1
                 .par_prop_items_unchecked::<i64>(bytes_prop_id)
                 .unwrap()
-                .filter_map(move |(&t, &v)| (v > 100_000_000).then(|| window_bounds(t, window)))
+                .filter_map(move |(&t, v)| (v > 100_000_000).then(|| window_bounds(t, window)))
                 .flatten()
                 .collect();
             if valid_events.is_empty() {
@@ -173,7 +172,6 @@ fn merge_nft_prog1(
 ) -> Option<Vec<(Time, usize)>> {
     let prog_events = events_1v_edge
         .prop_items_unchecked::<i64>(prop_id)
-        .unwrap()
         .filter_map(|(t, v)| (v == 4688).then_some(t))
         .rev();
     let mut nft_events_iter = nft_events.into_iter();
@@ -215,13 +213,13 @@ fn local_login_count(
     prop_id: usize,
     prog1_map: &[(Time, usize)],
 ) -> Option<usize> {
-    if login_edge.timestamps().iter().next()? >= prog1_map.first()?.0 {
+    if login_edge.timestamp_slice().iter().copied().next()? >= prog1_map.first()?.0 {
         return None;
     }
     login_edge
         .par_prop_items_unchecked::<i64>(prop_id)
         .map(|iter| {
-            iter.filter(|(_, &id)| id == 4624)
+            iter.filter(|(_, id)| *id == 4624)
                 .map(|(t, _)| {
                     let index = prog1_map.partition_point(|(ti, _)| ti > t);
                     if index > 0 {
@@ -315,10 +313,9 @@ pub fn query<GO: GlobalOrder>(
     let count_login_ms_ref = count_login_ms.clone();
 
     let count = log_nodes.into_par_iter().flat_map(move |b_vid| {
-        let login_edges = events_2v_graph.edges_par_iter(b_vid, Direction::IN)?;
+        let login_edges = events_2v_graph.in_edges_par(b_vid);
         let (self_loop, _) = events_1v_graph
             .edges_iter(b_vid, Direction::OUT)
-            .unwrap()
             .filter(|(_, n_vid)| *n_vid == b_vid)
             .next()?;
 
@@ -405,20 +402,20 @@ mod test {
             None,
         );
 
-        let mut graph_events2v = TempColGraphFragment::load_from_edge_list(
+        let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
             vec![chunk],
         )
         .unwrap();
-        graph_events2v.build_inbound_adj_index().unwrap();
 
         let srcs = PrimitiveArray::from_vec(vec![2u64, 2, 2]).boxed();
         let dsts = PrimitiveArray::from_vec(vec![2u64, 2, 2]).boxed();
@@ -437,11 +434,12 @@ mod test {
 
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,
@@ -468,11 +466,12 @@ mod test {
 
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
+            0,
             4.try_into().unwrap(),
             100,
             100,
-            100,
             go.clone(),
+            vertices.clone(),
             0,
             1,
             2,

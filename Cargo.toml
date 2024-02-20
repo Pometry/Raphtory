@@ -10,10 +10,10 @@ members = [
 	"raphtory-graphql",
 	"comparison-benchmark/rust/raphtory-rust-benchmark"
 ]
-default-members = ["raphtory", "raphtory-storage"]
+default-members = ["raphtory"]
 
 [workspace.package]
-version = "0.6.1"
+version = "0.7.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -21,7 +21,7 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.67.1"
+rust-version = "1.75.0"
 edition = "2021"
 
 [profile.release-with-debug]

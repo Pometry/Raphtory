@@ -6,7 +6,8 @@ use pyo3::prelude::*;
 use raphtory_core::python::{
     graph::{
         algorithm_result::AlgorithmResult,
-        edge::{PyDirection, PyEdge, PyEdges},
+        edge::{PyDirection, PyEdge, PyMutableEdge},
+        edges::PyEdges,
         graph::PyGraph,
         graph_with_deletions::PyGraphWithDeletions,
         index::GraphIndex,
@@ -17,9 +18,12 @@ use raphtory_core::python::{
         algorithms::*,
         graph_gen::*,
         graph_loader::*,
-        vectors::{PyGraphDocument, PyVectorisedGraph},
+        vectors::{PyDocument, PyVectorisedGraph},
     },
 };
+
+#[cfg(feature = "arrow")]
+use raphtory_core::python::graph::arrow::PyArrowGraph;
 
 macro_rules! add_functions {
     ($module:expr, $($func:ident),* $(,)?) => {
@@ -50,6 +54,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         PyMutableNode,
         PyEdge,
         PyEdges,
+        PyMutableEdge,
         PyProperties,
         PyConstProperties,
         PyTemporalProperties,
@@ -59,8 +64,12 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
+    #[cfg(feature = "arrow")]
+    add_classes!(m, PyArrowGraph,);
+
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;
+    graphql_module.add_class::<PyGlobalPlugins>()?;
     graphql_module.add_class::<PyRaphtoryServer>()?;
     graphql_module.add_class::<PyRunningRaphtoryServer>()?;
     graphql_module.add_class::<PyRaphtoryClient>()?;
@@ -100,6 +109,10 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         hits,
         balance,
         label_propagation,
+        temporal_SEIR,
+        louvain,
+        fruchterman_reingold,
+        cohesive_fruchterman_reingold,
     );
     m.add_submodule(algorithm_module)?;
 
@@ -131,7 +144,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // VECTORS
     let vectors_module = PyModule::new(py, "vectors")?;
     vectors_module.add_class::<PyVectorisedGraph>()?;
-    vectors_module.add_class::<PyGraphDocument>()?;
+    vectors_module.add_class::<PyDocument>()?;
     m.add_submodule(vectors_module)?;
 
     Ok(())

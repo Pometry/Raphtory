@@ -77,6 +77,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
                     NO_PROPS,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_constant_properties([("type", "owner")])
@@ -86,13 +87,18 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     NO_PROPS,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_constant_properties([
                     ("type", "company".into_prop()),
                     (
                         "flag",
-                        (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
+                        company_house
+                            .illegal_hmo
+                            .clone()
+                            .unwrap_or("None".into())
+                            .into_prop(),
                     ),
                 ])
                 .expect("Failed to add node static property");
@@ -101,13 +107,18 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     address.clone(),
                     NO_PROPS,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_constant_properties([
                     ("type", "address".into_prop()),
                     (
                         "flag",
-                        (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
+                        company_house
+                            .illegal_hmo
+                            .clone()
+                            .unwrap_or("None".into())
+                            .into_prop(),
                     ),
                 ])
                 .expect("Failed to add node static property");

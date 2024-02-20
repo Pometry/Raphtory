@@ -1,7 +1,8 @@
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, ArcStr, Prop},
+    core::{entities::graph::tgraph::InnerTemporalGraph, storage::timeindex::AsTime, ArcStr, Prop},
     db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
 };
+use chrono::{DateTime, Utc};
 
 impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
@@ -15,6 +16,12 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
             .get_temporal_prop(id)
             .map(|prop| prop.iter().map(|(t, _)| t).collect())
             .unwrap_or_default()
+    }
+
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+        self.inner()
+            .get_temporal_prop(id)
+            .and_then(|prop| prop.iter().map(|(t, _)| t.dt()).collect())
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {

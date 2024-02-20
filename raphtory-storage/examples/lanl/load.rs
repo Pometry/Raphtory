@@ -1,7 +1,7 @@
 use std::{env::Args, time::Instant};
 
 use itertools::Itertools;
-use raphtory::arrow::{graph::TemporalGraph, loader::ExternalEdgeList};
+use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
 
 pub fn load_graph_from_params(args: Args) -> TemporalGraph {
     let args = args.into_iter().collect_vec();
@@ -68,8 +68,9 @@ pub fn load_graph_from_params(args: Args) -> TemporalGraph {
         let graph = TemporalGraph::from_edge_lists(
             8,
             chunk_size,
-            chunk_size,
             t_props_chunk_size,
+            None,
+            None,
             graph_dir,
             layered_edge_list,
         )

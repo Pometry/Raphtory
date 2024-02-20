@@ -1,5 +1,4 @@
-use itertools::Itertools;
-use raphtory::arrow::{graph::TemporalGraph, loader::ExternalEdgeList};
+use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
 use raphtory_storage::exfiltration::list::query;
 use rayon::prelude::*;
 use std::time::Instant;
@@ -69,8 +68,9 @@ fn main() {
         let graph = TemporalGraph::from_edge_lists(
             8,
             chunk_size,
-            chunk_size,
             t_props_chunk_size,
+            None,
+            None,
             graph_dir,
             layered_edge_list,
         )

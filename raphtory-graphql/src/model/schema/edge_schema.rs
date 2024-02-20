@@ -46,7 +46,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
             src_type == self.src_type && dst_type == self.dst_type
         };
 
-        let filtered_edges = self.graph.edges().filter(filter_types);
+        let filtered_edges = self.graph.edges().iter().filter(filter_types);
 
         let schema: SchemaAggregate = filtered_edges
             .map(collect_edge_schema)

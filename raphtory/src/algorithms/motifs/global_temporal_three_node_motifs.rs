@@ -41,6 +41,7 @@ where
     let events = evv
         .edges()
         .explode()
+        .iter()
         .sorted_by_key(|e| e.time_and_index())
         .map(|edge| {
             if edge.src().id() == evv.id() {
@@ -254,7 +255,7 @@ where
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let star_mc = deltas
         .iter()
-        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32))
+        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1i64) as u32))
         .collect_vec();
 
     let star_clone = star_mc.clone();

@@ -10,8 +10,10 @@ use raphtory::{
 use std::collections::HashSet;
 
 pub(crate) mod edge;
+mod edges;
 pub(crate) mod graph;
 pub(crate) mod node;
+mod nodes;
 pub(crate) mod property;
 pub(crate) mod vectorised_graph;
 
@@ -70,6 +72,7 @@ fn get_expanded_edges(
             let mut r = e
                 .dst()
                 .edges()
+                .iter()
                 .filter(|e| {
                     (node_found_in_first_hop_nodes(e.src().name())
                         && node_found_in_first_hop_nodes(e.dst().name()))
@@ -83,6 +86,7 @@ fn get_expanded_edges(
             let mut r = e
                 .src()
                 .edges()
+                .iter()
                 .filter(|e| {
                     (node_found_in_first_hop_nodes(e.src().name())
                         && node_found_in_first_hop_nodes(e.dst().name()))

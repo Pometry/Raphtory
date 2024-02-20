@@ -12,6 +12,7 @@ impl<T: PartialEq + Clone + std::fmt::Debug + Send + Sync + 'static> StateType f
 #[cfg(test)]
 mod state_test {
     use itertools::Itertools;
+    use quickcheck_macros::quickcheck;
     use rand::Rng;
 
     use crate::{
@@ -45,9 +46,9 @@ mod state_test {
     fn tiny_graph() -> Graph {
         let g = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(1, 2, NO_PROPS).unwrap();
-        g.add_node(1, 3, NO_PROPS).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(1, 2, NO_PROPS, None).unwrap();
+        g.add_node(1, 3, NO_PROPS, None).unwrap();
         g
     }
 
@@ -232,7 +233,7 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                (0, (actual_sum_1 + actual_sum_2)),
+                (0, actual_sum_1 + actual_sum_2),
                 (1, actual_sum_1),
                 (2, actual_sum_2),
             ]
@@ -348,7 +349,7 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                (0, (actual_sum_1 + actual_sum_2)),
+                (0, actual_sum_1 + actual_sum_2),
                 (1, actual_sum_1),
                 (2, actual_sum_2),
             ]

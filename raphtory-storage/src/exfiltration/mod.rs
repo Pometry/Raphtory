@@ -1,28 +1,15 @@
-use raphtory::{
-    arrow::{col_graph2::TempColGraphFragment, global_order::GlobalOrder, graph::TemporalGraph},
-    core::entities::VID,
-};
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use raphtory::{arrow::col_graph2::TempColGraphFragment, core::entities::VID};
+use rayon::iter::ParallelIterator;
 
 pub mod count;
 pub mod list;
 
 #[inline]
 fn find_active_nodes(layer: &TempColGraphFragment) -> Vec<VID> {
-    let chunk_size = layer.vertex_chunk_size();
     layer
-        .outbound()
-        .par_iter()
-        .enumerate()
-        .flat_map_iter(move |(chunk_id, chunk)| {
-            let chunk_start = chunk_id * chunk_size;
-            chunk
-                .adj()
-                .offsets()
-                .lengths()
-                .enumerate()
-                .filter_map(move |(i, d)| (d > 0).then(|| VID(chunk_start + i)))
-        })
+        .all_nodes_par()
+        .filter(|v| v.out_degree() > 0)
+        .map(|node| node.vid())
         .collect()
 }
 

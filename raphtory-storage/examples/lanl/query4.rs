@@ -48,15 +48,17 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     let count = pool.install(|| {
         g.all_edges_par(events_1v)
             .map(|edge| {
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
-                let edge_ts = edge.timestamps();
+                let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
+                let edge_ts = edge.timestamp_slice();
                 let len = event_ids.len();
 
                 let count: usize = g
-                    .edges_par(edge.dst(), Direction::OUT, events_1v)
+                    .layer(events_1v)
+                    .out_edges_par(edge.dst())
                     .map(|(_, a)| {
                         let nft_ts = g
-                            .edges_par(a, Direction::IN, nft)
+                            .layer(nft)
+                            .in_edges_par(a)
                             .filter(|(_, b)| a != *b)
                             .map(|(eid, b)| {
                                 (
@@ -74,19 +76,17 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                         for (i, t) in edge
                             .prop_items::<i64>(event_id_prop_id_1v)
-                            .unwrap()
                             .enumerate()
                             .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                         {
                             for (b, nft1_ts) in nft_ts.iter() {
-                                g.edges(*b, Direction::OUT, nft)
+                                g.edges_iter(*b, Direction::OUT, nft)
                                     .filter(|(_, c)| b != c && a != *c)
                                     .for_each(|(e_id, _)| {
                                         let nf2 = g.edge(e_id, nft);
 
                                         for (nf2_t, duration) in nf2
                                             .prop_items::<i64>(duration)
-                                            .unwrap()
                                             .filter_map(|(t, duration)| {
                                                 duration
                                                     .filter(|d| d >= &SESSION_DURATION)
@@ -105,8 +105,8 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                     .into_iter()
                                                     .zip(edge_ts.slice(i + 1..len))
                                                 {
-                                                    if program_t < t
-                                                        || nft1_t < &program_t
+                                                    if program_t < &t
+                                                        || nft1_t < program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
                                                         break;
@@ -119,7 +119,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                 for i in (0..i).rev() {
                                                     let (v, program_t) =
                                                         (event_ids.get(i), edge_ts.get(i));
-                                                    if program_t != t
+                                                    if program_t != &t
                                                         || nft1_t < &program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
@@ -161,14 +161,16 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
     let pool = thread_pool(NUM_THREADS);
     pool.install(|| {
         g.all_edges_par(events_1v).for_each(|edge| {
-            let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
-            let edge_ts = edge.timestamps();
+            let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
+            let edge_ts = edge.timestamp_slice();
             let len = event_ids.len();
 
-            g.edges_par(edge.dst(), Direction::OUT, events_1v)
+            g.layer(events_1v)
+                .out_edges_par(edge.dst())
                 .for_each(|(_, a)| {
                     let nft_ts = g
-                        .edges_par(a, Direction::IN, nft)
+                        .layer(nft)
+                        .in_edges_par(a)
                         .map(|(eid, b)| {
                             (
                                 b,
@@ -181,10 +183,8 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                         })
                         .collect::<Vec<_>>();
 
-                    let mut count = 0;
                     for (i, t) in edge
                         .prop_items::<i64>(event_id_prop_id_1v)
-                        .unwrap()
                         .enumerate()
                         .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                     {
@@ -195,7 +195,7 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
                                     .into_iter()
                                     .zip(edge_ts.slice(i + 1..len))
                                 {
-                                    if program_t < t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                    if program_t < &t || nft_t < program_t || nft_t - t >= WINDOW {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {
@@ -209,7 +209,8 @@ pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
 
                                 for i in (0..i).rev() {
                                     let (v, program_t) = (event_ids.get(i), edge_ts.get(i));
-                                    if program_t != t || nft_t < &program_t || nft_t - t >= WINDOW {
+                                    if program_t != &t || nft_t < &program_t || nft_t - t >= WINDOW
+                                    {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {
@@ -245,12 +246,12 @@ fn expand_nf2_hop(
     duration_prop_id: usize,
 ) -> usize {
     let mut count = 0;
-    for (e_id, c) in g
-        .edges(b, Direction::OUT, nft_layer)
+    for (e_id, _) in g
+        .edges_iter(b, Direction::OUT, nft_layer)
         .filter(|(_, c)| *c != a && *c != b)
     {
         let edge = g.edge(e_id, nft_layer);
-        for (t, dur) in edge
+        for (t, _) in edge
             .prop_history::<i64>(duration_prop_id)
             .filter(|(t, duration)| duration >= &SESSION_DURATION && t + duration >= nf1_t)
         {

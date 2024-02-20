@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            edges::edge_ref::EdgeRef,
             graph::tgraph::InnerTemporalGraph,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
@@ -13,16 +13,19 @@ use crate::{
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            timeindex::{LockedLayeredIndex, TimeIndexEntry},
             ArcEntry,
         },
         ArcStr,
     },
-    db::api::view::{internal::CoreGraphOps, BoxedIter},
+    db::api::view::{
+        internal::{CoreEdgeView, CoreGraphOps, NodeAdditions},
+        BoxedIter,
+    },
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter};
+use std::{collections::HashMap, iter, marker::PhantomData};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
@@ -47,7 +50,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.inner().edge_meta.layer_meta().get_name(layer_id)
+        self.inner()
+            .edge_meta
+            .layer_meta()
+            .get_name(layer_id)
+            .clone()
     }
 
     #[inline]
@@ -61,6 +68,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.inner().get_all_node_types()
+    }
+
+    #[inline]
     fn node_id(&self, v: VID) -> u64 {
         self.inner().global_node_id(v)
     }
@@ -68,6 +80,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
     fn node_name(&self, v: VID) -> String {
         self.inner().node_name(v)
+    }
+
+    #[inline]
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        self.inner().node_type(v)
     }
 
     #[inline]
@@ -82,9 +99,9 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn node_additions(&self, v: VID) -> LockedView<TimeIndex<i64>> {
+    fn node_additions(&self, v: VID) -> NodeAdditions {
         let node = self.inner().node(v);
-        node.additions().unwrap()
+        node.additions().map(NodeAdditions::Mem).unwrap()
     }
 
     #[inline]
@@ -261,18 +278,23 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
-        Box::new(self.inner().storage.edges.read_lock().into_iter())
+    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
+        Box::new(
+            self.inner()
+                .storage
+                .edges
+                .read_lock()
+                .into_iter()
+                .map(|edge| CoreEdgeView::Mem(edge, PhantomData)),
+        )
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
-        self.inner().storage.edges.entry_arc(eid.into())
-    }
-
-    #[inline]
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
-        Box::new(self.inner().storage.nodes.read_lock().into_iter())
+    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
+        CoreEdgeView::Mem(
+            self.inner().storage.edges.entry_arc(eid.into()),
+            PhantomData,
+        )
     }
 
     #[inline]
@@ -326,7 +348,7 @@ mod test_edges {
             vec![0.into(), 1.into()]
         );
 
-        let e = g.edge(1, 2).unwrap().layer("layer1").unwrap();
+        let e = g.edge(1, 2).unwrap().layers("layer1").unwrap();
         assert!(e.properties().constant().contains("layer1"));
     }
 }

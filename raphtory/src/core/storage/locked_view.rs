@@ -10,9 +10,9 @@ use std::{
 };
 
 pub enum LockedView<'a, T> {
-    LockMapped(parking_lot::MappedRwLockReadGuard<'a, T>),
-    Locked(parking_lot::RwLockReadGuard<'a, T>),
-    DashMap(Ref<'a, usize, T, BuildHasherDefault<rustc_hash::FxHasher>>),
+    LockMapped(MappedRwLockReadGuard<'a, T>),
+    Locked(RwLockReadGuard<'a, T>),
+    DashMap(Ref<'a, usize, T, BuildHasherDefault<FxHasher>>),
 }
 
 impl<'a, T, O> AsRef<T> for LockedView<'a, O>
@@ -65,21 +65,19 @@ impl<'a, T: Hash> Hash for LockedView<'a, T> {
     }
 }
 
-impl<'a, T> From<parking_lot::MappedRwLockReadGuard<'a, T>> for LockedView<'a, T> {
+impl<'a, T> From<MappedRwLockReadGuard<'a, T>> for LockedView<'a, T> {
     fn from(value: MappedRwLockReadGuard<'a, T>) -> Self {
         Self::LockMapped(value)
     }
 }
 
-impl<'a, T> From<parking_lot::RwLockReadGuard<'a, T>> for LockedView<'a, T> {
+impl<'a, T> From<RwLockReadGuard<'a, T>> for LockedView<'a, T> {
     fn from(value: RwLockReadGuard<'a, T>) -> Self {
         Self::Locked(value)
     }
 }
 
-impl<'a, T> From<Ref<'a, usize, T, BuildHasherDefault<rustc_hash::FxHasher>>>
-    for LockedView<'a, T>
-{
+impl<'a, T> From<Ref<'a, usize, T, BuildHasherDefault<FxHasher>>> for LockedView<'a, T> {
     fn from(value: Ref<'a, usize, T, BuildHasherDefault<FxHasher>>) -> Self {
         Self::DashMap(value)
     }

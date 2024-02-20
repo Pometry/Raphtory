@@ -30,13 +30,12 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
         g.all_edges_par(events_1v)
             .map(|edge| {
                 let mut count = 0;
-                let event_ids = edge.props::<i64>(event_id_prop_id_1v).unwrap();
-                let edge_ts = edge.timestamps();
+                let event_ids = edge.prop_values::<i64>(event_id_prop_id_1v).unwrap();
+                let edge_ts = edge.timestamp_slice();
                 let len = event_ids.len();
 
                 for (i, t) in edge
                     .prop_items::<i64>(event_id_prop_id_1v)
-                    .unwrap()
                     .enumerate()
                     .filter_map(|(i, (t, v))| v.filter(|v| *v == BOOT).map(|_| (i, t)))
                 {
@@ -55,7 +54,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                     for i in (0..i).rev() {
                         let (v, program_t) = (event_ids.get(i), edge_ts.get(i));
-                        if program_t != t {
+                        if program_t != &t {
                             break;
                         }
                         if v == Some(PROGRAM) {

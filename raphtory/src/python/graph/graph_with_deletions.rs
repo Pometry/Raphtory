@@ -14,9 +14,9 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::GraphWithDeletions},
     },
-    prelude::{DeletionOps, GraphViewOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
-        graph::views::graph_view::PyGraphView,
+        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
     },
 };
@@ -94,18 +94,20 @@ impl PyGraphWithDeletions {
     ///    timestamp (int, str, or datetime(utc)): The timestamp of the node.
     ///    id (str or int): The id of the node.
     ///    properties (dict): The properties of the node.
+    ///    node_type (str) : The optional string which will be used as a node type
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None))]
+    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
     ) -> Result<NodeView<GraphWithDeletions>, GraphError> {
         self.graph
-            .add_node(timestamp, id, properties.unwrap_or_default())
+            .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
 
     /// Adds properties to the graph.
@@ -224,6 +226,91 @@ impl PyGraphWithDeletions {
         dst: NodeRef,
     ) -> Option<EdgeView<GraphWithDeletions, GraphWithDeletions>> {
         self.graph.edge(src, dst)
+    }
+
+    /// Import a single node into the graph.
+    ///
+    /// This function takes a PyNode object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the node even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///     node (Node) - A PyNode object representing the node to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the node.
+    ///
+    /// Returns:
+    ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
+    #[pyo3(signature = (node, force=false))]
+    pub fn import_node(
+        &self,
+        node: PyNode,
+        force: Option<bool>,
+    ) -> Result<NodeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+        self.graph.import_node(&node.node, force)
+    }
+
+    /// Import multiple nodes into the graph.
+    ///
+    /// This function takes a vector of PyNode objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the nodes even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     nodes (List(Node))- A vector of PyNode objects representing the nodes to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the nodes.
+    ///
+    /// Returns:
+    ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
+    #[pyo3(signature = (nodes, force=false))]
+    pub fn import_nodes(
+        &self,
+        nodes: Vec<PyNode>,
+        force: Option<bool>,
+    ) -> Result<Vec<NodeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+        let nodeviews = nodes.iter().map(|node| &node.node).collect();
+        self.graph.import_nodes(nodeviews, force)
+    }
+
+    /// Import a single edge into the graph.
+    ///
+    /// This function takes a PyEdge object and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edge even if it already exists in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edge (Edge) - A PyEdge object representing the edge to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edge.
+    ///
+    /// Returns:
+    ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
+    #[pyo3(signature = (edge, force=false))]
+    pub fn import_edge(
+        &self,
+        edge: PyEdge,
+        force: Option<bool>,
+    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+        self.graph.import_edge(&edge.edge, force)
+    }
+
+    /// Import multiple edges into the graph.
+    ///
+    /// This function takes a vector of PyEdge objects and an optional boolean flag. If the flag is set to true,
+    /// the function will force the import of the edges even if they already exist in the graph.
+    ///
+    /// Arguments:
+    ///
+    ///     edges (List(edges)) - A vector of PyEdge objects representing the edges to be imported.
+    ///     force (boolean) - An optional boolean flag indicating whether to force the import of the edges.
+    ///
+    /// Returns:
+    ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
+    #[pyo3(signature = (edges, force=false))]
+    pub fn import_edges(
+        &self,
+        edges: Vec<PyEdge>,
+        force: Option<bool>,
+    ) -> Result<Vec<EdgeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+        let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
+        self.graph.import_edges(edgeviews, force)
     }
 
     //******  Saving And Loading  ******//

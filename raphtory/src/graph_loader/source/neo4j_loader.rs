@@ -3,7 +3,7 @@ use neo4rs::*;
 /// A struct that defines the Neo4J loader with configurable options.
 pub struct Neo4JConnection {
     // The created graph object given the arguments
-    pub neo_graph: neo4rs::Graph,
+    pub neo_graph: Graph,
 }
 
 impl Neo4JConnection {
@@ -19,7 +19,7 @@ impl Neo4JConnection {
             .password(password.as_str())
             .db(database.as_str())
             .build()?;
-        let graph: neo4rs::Graph = Graph::connect(config).await?;
+        let graph: Graph = Graph::connect(config).await?;
         Ok(Self { neo_graph: graph })
     }
 
@@ -69,12 +69,12 @@ mod neo_loader_test {
         let relation_type = relation.typ();
 
         graph
-            .add_node(actor_born, actor_name.clone(), NO_PROPS)
+            .add_node(actor_born, actor_name.clone(), NO_PROPS, None)
             .unwrap()
             .add_constant_properties([("type", "actor")])
             .unwrap();
         graph
-            .add_node(film_release, film_title.clone(), NO_PROPS)
+            .add_node(film_release, film_title.clone(), NO_PROPS, None)
             .unwrap()
             .add_constant_properties([
                 ("type", "film".into_prop()),

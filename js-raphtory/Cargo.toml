@@ -21,7 +21,7 @@ default = ["console_error_panic_hook"]
 [dependencies]
 wasm-bindgen = "0.2.63"
 serde = { version = "1.0", features = ["derive"] }
-serde-wasm-bindgen = "0.5.0"
+serde-wasm-bindgen = "0.6.1"
 js-sys = "0.3"
 chrono = "0.4"
 raphtory = { path = "../raphtory" }
