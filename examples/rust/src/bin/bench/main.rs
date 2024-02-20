@@ -81,6 +81,6 @@ fn main() {
         g
     };
     println!("Data loaded\nPageRanking");
-    unweighted_page_rank(&graph, 25, Some(8), None, true);
+    unweighted_page_rank(&graph, Some(25), Some(8), None, true, None);
     println!("Done PR");
 }
