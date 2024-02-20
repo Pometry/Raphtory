@@ -20,8 +20,7 @@ use raphtory::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, fs, path::Path, sync::Arc};
 use tokio::{
     io::Result as IoResult,
     signal,
@@ -31,11 +30,10 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::metadata::ParseLevelError;
-use tracing::Level;
-use tracing_subscriber::fmt::format::FmtSpan;
+use tracing::{metadata::ParseLevelError, Level};
 use tracing_subscriber::{
-    layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber, Registry,
+    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber,
+    Registry,
 };
 
 /// A struct for defining and running a Raphtory GraphQL server
