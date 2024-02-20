@@ -61,7 +61,7 @@ def test_load_from_pandas_into_existing_graph():
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
-            "node_type": [ "p", "p", "p", "p", "p", "p" ]
+            "node_type": ["p", "p", "p", "p", "p", "p"],
         }
     )
 
@@ -117,7 +117,7 @@ def test_load_from_pandas_nodes():
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
-            "node_type": ["P","P","P","P","P","P"]
+            "node_type": ["P", "P", "P", "P", "P", "P"],
         }
     )
 
@@ -131,7 +131,7 @@ def test_load_from_pandas_nodes():
         node_id="id",
         node_time="time",
         node_props=["name"],
-        node_type="node_type"
+        node_type="node_type",
     )
 
     assert g.nodes.id.collect() == [1, 2, 3, 4, 5, 6]
@@ -196,7 +196,7 @@ def test_load_from_pandas_with_types():
                 "Person",
                 "Person",
                 "Person",
-            ]
+            ],
         }
     )
     g = Graph()
@@ -226,7 +226,9 @@ def test_load_from_pandas_with_types():
     ]
 
     g = Graph()
-    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"], const_props=["type"])
+    g.load_nodes_from_pandas(
+        nodes_df, "id", "time", "node_type", ["name"], const_props=["type"]
+    )
     assert g.nodes.properties.constant.get("type").collect() == [
         "Person 1",
         "Person 2",
@@ -414,7 +416,7 @@ def test_missing_columns():
             "id": [1, 2, 3, 4, 5, 6],
             "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
             "time": [1, 2, 3, 4, 5, 6],
-            "node_type": ["P", "P", "P", "P", "P", "P"]
+            "node_type": ["P", "P", "P", "P", "P", "P"],
         }
     )
 
@@ -563,20 +565,24 @@ def test_unparsable_props():
 
 
 def test_load_node_from_pandas_with_node_types():
-    nodes_df = pd.DataFrame({
-        "id": ["A", "B", "C", "D"],
-        "time": [1, 2, 3, 4],
-    })
+    nodes_df = pd.DataFrame(
+        {
+            "id": ["A", "B", "C", "D"],
+            "time": [1, 2, 3, 4],
+        }
+    )
     g = Graph()
     g.load_nodes_from_pandas(nodes_df, "id", "time")
     assert g.get_all_node_types() == []
     assert g.count_nodes() == 4
 
-    edges_df = pd.DataFrame({
-        "src": [1, 2, 3, 4, 5],
-        "dst": [2, 3, 4, 5, 6],
-        "time": [1, 2, 3, 4, 5],
-    })
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, 3, 4, 5],
+        }
+    )
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
     assert g.get_all_node_types() == []
     assert g.count_nodes() == 6
