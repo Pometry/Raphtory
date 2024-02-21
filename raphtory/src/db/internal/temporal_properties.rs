@@ -40,18 +40,18 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
 
 impl<const N: usize> TemporalPropertiesOps for InnerTemporalGraph<N> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.inner().graph_props.get_temporal_id(name)
+        self.inner().graph_meta.get_temporal_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.inner().graph_props.get_temporal_name(id)
+        self.inner().graph_meta.get_temporal_name(id)
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(self.inner().graph_props.temporal_ids())
+        Box::new(self.inner().graph_meta.temporal_ids())
     }
 
     fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
-        Box::new(self.inner().graph_props.temporal_names().into_iter())
+        Box::new(self.inner().graph_meta.temporal_names().into_iter())
     }
 }

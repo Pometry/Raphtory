@@ -237,7 +237,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        prop_id < self.inner().graph_props.temporal_prop_meta().len()
+        prop_id < self.inner().graph_meta.temporal_prop_meta().len()
     }
 
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
@@ -249,7 +249,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
         self.inner()
-            .graph_props
+            .graph_meta
             .get_temporal_prop(prop_id)
             .filter(|p| p.iter_window_t(w).next().is_some())
             .is_some()
