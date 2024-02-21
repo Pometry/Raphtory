@@ -30,32 +30,20 @@ This only does a light benchmark of raphtory, as it is designed to be used stand
 
 First download the example file by cd'ing into the `raphtory-rust-benchmark` folder and running
 
-    cargo run -- --download
+    cargo run --release -- --download
 
 This will download the example file into tmp folder on your system, it will give you the file path.
 
 You can then run the benchmark by running, with the file path it has given you
 
-    cargo run -- --file-path <file_path>
+    cargo run --release -- --file-path <file_path>
 
 You can also provide your own file path, but please ensure you have set the correct arguments. 
 I.e Whether it has a header, what the delimiter is, and what columns are what.
 
 e.g.
 
-    cargo run -- --file-path="/Users/1337/Documents/dev/Data/lotr.csv" --delimiter="," --from-column=0 --to-column=1
-
-The results for a 1000 edge file are below
-
-    Raphtory Quick Benchmark
-    Running setup...
-    Setup took 0.015264357 seconds
-    Graph has 864 nodes and 1000 edges
-    Degree: 0.001719875 seconds
-    Out neighbours: 0.000247832 seconds
-    Page rank: 0.012001127 seconds
-    Connected components: 0.025755603 seconds
-
+    cargo run --release -- --file-path="/Users/1337/Documents/dev/Data/lotr.csv" --delimiter="," --from-column=0 --to-column=1
 
 
 ## Python Suite
@@ -89,6 +77,10 @@ More information available [here](https://snap.stanford.edu/data/soc-pokec.html)
       - pandas
       - raphtory
       - neo4j
+
+# Install if you are not using docker
+
+    pip install networkx scipy matplotlib raphtory kuzu neo4j 
 
 # How to run
 
@@ -130,26 +122,24 @@ You will see the following
     ... 
     Welcome to the Raphtory Benchmarking Tool
     Running local benchmarking...
-    ** Running for Neo4j...
+    ** Running for XX...
     ** Running setup...
-    setup time: 19.72971820831299
+    setup time: xx
     ** Running degree...
-    degree time: 0.30420994758605957
+    degree time: xx
     ** Running out_neighbours...
-    out_neighbours time: 0.12140679359436035
+    out_neighbours time: xx
     ** Running page_rank...
-    page_rank time: 0.6003847122192383
+    page_rank time: xx
     ** Running connected_components...
-    connected_components time: 0.3989684581756592
-    setup      degree   out_neighbours  page_rank  connected_components
-    Neo4j  19.729718  0.30421  0.121407        0.600385   0.398968
+    connected_components time: xx
+                setup      degree   out_neighbours  page_rank  connected_components
+    XX          xx      xx              xx          xx          xx
     
     Completed command...
     Benchmark completed, retrieving results...
     Removing container...
     Docker container exited with code 0
-    Logs: setup,degree,out_neighbours,page_rank,connected_components
-    19.72971820831299,0.30420994758605957,0.12140679359436035,0.6003847122192383,0.3989684581756592
 
 ## Alternative args
 
@@ -161,20 +151,26 @@ You will see the following
 These benchmarks were run on Amazon AWS m5ad.4xlarge instances. 
 All the scripts and data were stored on the instance NVME drive.
 
-|           | Setup   | Degree   | Out Neighbours | Page Rank | Connected Components |
-|-----------|---------|----------|----------------|-----------|----------------------|
-| Raphtory  | 121.04  | 3.90     | 28.69          | 153.22    | 67.6301              |
-| GraphTool | 194.09  | 0.008    | 43.30          | 4.75      | 3.83                 |
-| Kuzu      | 63.30   | 1.08     | 0.591856       | NOT IMPL  | NOT IMPL             |
-| NetworkX  | 130.66  | 0.000027 |                |           |                      |
-| Neo4J     |         |          |                |           |                      |
-| MemGraph  | 498.38  | 73.08    |  75.574        | 131.46    | 142.55               |
-| Cozo      | 137.82  | 35.36    |  35.17         | 32.83     | N/A SEG FAULT        |
+|           | Setup  | Degree | Out Neighbours | Page Rank | Connected Components |
+|-----------|--------|--------|----------------|-----------|----------------------|
+| Raphtory  | 63.68  | 2.49   | 23.04          | 1.09      | 17.89                |
+| GraphTool | 194.09 | 0.008  | 43.30          | 4.75      | 3.83                 |
+| Kuzu      | 18.17  | 1.13   | 89.03          | NOT IMPL  | NOT IMPL             |
+| NetworkX  | 130.57 | 1.17   | 24.42          | 162.0     | 160.99               |
+| Neo4J     | 61.09  | 9.40   | 1296.30        |           |                      |
+| MemGraph  | 498.38 | 73.08  | 75.574         | 131.46    | 142.55               |
+| Cozo      | 137.82 | 35.36  | 35.17          | 32.83     | N/A SEG FAULT        |
 
 Some key notes:
+
+- Network
+  - We compared the results of our pagerank in Raphtory with NetworkX using a directed graph
+  and the results are identical. 
+
 - Kuzu
   - Does not support page rank or connected components
-  - Out neighbours was run as a count as Kuzu emitted runtime errors if you attempt to get all the results
+  - Out neighbours was run in batches of 100k users at a time, as if you attempt to get all users results it crashes and
+  exceeds some buffer size
 
 - Neo4J
   - Due to the way Neo4J imports batch data, the data import was run in offline mode using
@@ -187,6 +183,10 @@ Some key notes:
     However, it means the data ingested by neo is ever so larger
   - The admin ingestion also required that we use both a node list and edge list, which we did
     not need for some of the other tools. 
+  - To run the neo4j benchmark first run the command `python3 benchmark_driver.py -b neo` this will setup the docker
+    container, then one its finished setup it runs a `tail -f /dev/dull`. Quit the process and the container will still
+    be online. Then run `docker ps` to get the container name, then `docker exec -it <container name> bash` to login to
+    the container. Then `cd /var/lib/neo4j/import/data2/` and run `python3 benchmark_driver.py -b neo --no-docker`
 
 - Memgraph 
   - It was advised to create indexes with the node list prior to relationships, which was done

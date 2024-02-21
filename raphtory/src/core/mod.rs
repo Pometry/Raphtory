@@ -27,6 +27,7 @@
 use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
     borrow::Borrow,
     cmp::Ordering,
@@ -104,12 +105,49 @@ impl<T: Borrow<str>> PartialOrd<T> for ArcStr {
     }
 }
 
+pub trait OptionAsStr<'a> {
+    fn as_str(self) -> Option<&'a str>;
+}
+
+impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for &'a Option<O> {
+    fn as_str(self) -> Option<&'a str> {
+        self.as_ref().map(|s| s.as_ref())
+    }
+}
+
+impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
+    fn as_str(self) -> Option<&'a str> {
+        self.map(|s| s.as_ref())
+    }
+}
+
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
 pub enum Direction {
     OUT,
     IN,
     BOTH,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Lifespan {
+    Interval { start: i64, end: i64 },
+    Event { time: i64 },
+    Inherited,
+}
+
+/// struct containing all the necessary information to allow Raphtory creating a document and
+/// storing it
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct DocumentInput {
+    pub content: String,
+    pub life: Lifespan,
+}
+
+impl Display for DocumentInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.content)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
@@ -130,6 +168,7 @@ pub enum PropType {
     Map,
     DTime,
     Graph,
+    Document,
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.
@@ -149,6 +188,7 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     DTime(NaiveDateTime),
     Graph(Graph),
+    Document(DocumentInput),
 }
 
 impl PartialOrd for Prop {
@@ -171,6 +211,35 @@ impl PartialOrd for Prop {
 }
 
 impl Prop {
+    pub fn to_json(&self) -> Value {
+        match self {
+            Prop::Str(value) => Value::String(value.to_string()),
+            Prop::U8(value) => Value::Number((*value).into()),
+            Prop::U16(value) => Value::Number((*value).into()),
+            Prop::I32(value) => Value::Number((*value).into()),
+            Prop::I64(value) => Value::Number((*value).into()),
+            Prop::U32(value) => Value::Number((*value).into()),
+            Prop::U64(value) => Value::Number((*value).into()),
+            Prop::F32(value) => Value::Number(serde_json::Number::from_f64(*value as f64).unwrap()),
+            Prop::F64(value) => Value::Number(serde_json::Number::from_f64(*value).unwrap()),
+            Prop::Bool(value) => Value::Bool(*value),
+            Prop::List(value) => {
+                let vec: Vec<Value> = value.iter().map(|v| v.to_json()).collect();
+                Value::Array(vec)
+            }
+            Prop::Map(value) => {
+                let map: serde_json::Map<String, Value> = value
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), v.to_json()))
+                    .collect();
+                Value::Object(map)
+            }
+            Prop::DTime(value) => Value::String(value.to_string()),
+            Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+            Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
+        }
+    }
+
     pub fn dtype(&self) -> PropType {
         match self {
             Prop::Str(_) => PropType::Str,
@@ -187,6 +256,7 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::DTime(_) => PropType::DTime,
             Prop::Graph(_) => PropType::Graph,
+            Prop::Document(_) => PropType::Document,
         }
     }
 
@@ -294,6 +364,11 @@ pub trait PropUnwrap: Sized {
     fn unwrap_graph(self) -> Graph {
         self.into_graph().unwrap()
     }
+
+    fn into_document(self) -> Option<DocumentInput>;
+    fn unwrap_document(self) -> DocumentInput {
+        self.into_document().unwrap()
+    }
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -351,6 +426,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.and_then(|p| p.into_graph())
+    }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        self.and_then(|p| p.into_document())
     }
 }
 
@@ -466,6 +545,14 @@ impl PropUnwrap for Prop {
             None
         }
     }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        if let Prop::Document(d) = self {
+            Some(d)
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Prop {
@@ -494,6 +581,7 @@ impl fmt::Display for Prop {
             Prop::Map(value) => {
                 write!(f, "{:?}", value)
             }
+            Prop::Document(value) => write!(f, "{}", value),
         }
     }
 }
@@ -687,7 +775,7 @@ mod serde_value_into_prop {
 
 #[cfg(test)]
 mod test_arc_str {
-    use crate::core::ArcStr;
+    use crate::core::{ArcStr, OptionAsStr};
     use std::sync::Arc;
 
     #[test]
@@ -697,5 +785,22 @@ mod test_arc_str {
         assert_eq!(test, "test".to_string());
         assert_eq!(test, Arc::from("test"));
         assert_eq!(&test, &"test".to_string())
+    }
+
+    #[test]
+    fn test_option_conv() {
+        let test: Option<ArcStr> = Some("test".into());
+
+        let test_ref = test.as_ref();
+
+        let opt_str = test.as_str();
+        let opt_str3 = test_ref.as_str();
+
+        let test2 = Some("test".to_string());
+        let opt_str_2 = test2.as_str();
+
+        assert_eq!(opt_str, Some("test"));
+        assert_eq!(opt_str_2, Some("test"));
+        assert_eq!(opt_str3, Some("test"));
     }
 }

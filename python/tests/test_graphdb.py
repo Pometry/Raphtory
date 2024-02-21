@@ -15,6 +15,7 @@ import string
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
 utc = timezone.utc
 
+
 def create_graph():
     g = Graph()
 
@@ -167,7 +168,7 @@ def test_windowed_graph_edges():
         for e in e_iter:
             edges.append([e.src.id, e.dst.id])
 
-    assert edges == [[1, 1], [1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
+    assert edges == [[1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
 
     tedges = [v.in_edges for v in view.nodes]
     in_edges = []
@@ -1412,7 +1413,6 @@ def test_window_size():
     assert g.window(1, 5).window_size == 4
 
 
-
 def test_time_index():
     g = Graph()
 
@@ -2156,6 +2156,22 @@ def test_search_with_subgraphs():
     index = subgraph.index()
 
     assert len(index.search_edges("from:hamza OR to:hamza")) == 2
+
+
+def test_node_types():
+    g = Graph()
+    a = g.add_node(0, "A", None, None)
+    b = g.add_node(0, "B", None, "BTYPE")
+    assert a.node_type == None
+    assert b.node_type == "BTYPE"
+    assert set(g.nodes.node_type) == {None, "BTYPE"}
+
+def test_node_types_change():
+    g = Graph()
+    a = g.add_node(0, "A", None, None)
+    assert a.node_type == None
+    a.set_node_type("YO")
+    assert a.node_type == "YO"
 
 
 def test_fuzzy_search():

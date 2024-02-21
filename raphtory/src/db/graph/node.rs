@@ -178,7 +178,11 @@ impl<G, GH: CoreGraphOps + TimeSemantics> TemporalPropertiesOps for NodeView<G, 
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_meta().temporal_prop_meta().get_name(id)
+        self.graph
+            .node_meta()
+            .temporal_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
@@ -237,7 +241,11 @@ impl<G, GH: CoreGraphOps> ConstPropertiesOps for NodeView<G, GH> {
     }
 
     fn get_const_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_meta().const_prop_meta().get_name(id)
+        self.graph
+            .node_meta()
+            .const_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
@@ -319,6 +327,15 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             .internal_add_constant_node_properties(self.node, properties)
     }
 
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        let res = self.graph.resolve_node_type(self.node, Some(new_type));
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(res.err().unwrap())
+        }
+    }
+
     pub fn update_constant_properties<C: CollectProperties>(
         &self,
         props: C,
@@ -341,7 +358,9 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        self.graph.internal_add_node(t, self.node, properties)
+        let node_internal_type_id = self.graph.core_node(self.node).node_type;
+        self.graph
+            .internal_add_node(t, self.node, properties, node_internal_type_id)
     }
 }
 
@@ -353,9 +372,9 @@ mod node_test {
     #[test]
     fn test_earliest_time() {
         let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS).unwrap();
-        g.add_node(1, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, NO_PROPS).unwrap();
+        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(1, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, NO_PROPS, None).unwrap();
         let view = g.before(2);
         assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
         assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
@@ -381,8 +400,8 @@ mod node_test {
     fn test_properties() {
         let g = Graph::new();
         let props = [("test", "test")];
-        g.add_node(0, 1, NO_PROPS).unwrap();
-        g.add_node(2, 1, props).unwrap();
+        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(2, 1, props, None).unwrap();
 
         let v1 = g.node(1).unwrap();
         let v1_w = g.window(0, 1).node(1).unwrap();
@@ -400,7 +419,7 @@ mod node_test {
     fn test_property_additions() {
         let g = Graph::new();
         let props = [("test", "test")];
-        let v1 = g.add_node(0, 1, NO_PROPS).unwrap();
+        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v1.add_updates(2, props).unwrap();
         let v1_w = v1.window(0, 1);
         assert_eq!(
@@ -416,7 +435,7 @@ mod node_test {
     #[test]
     fn test_constant_property_additions() {
         let g = Graph::new();
-        let v1 = g.add_node(0, 1, NO_PROPS).unwrap();
+        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test".into()))
     }
@@ -424,7 +443,7 @@ mod node_test {
     #[test]
     fn test_constant_property_updates() {
         let g = Graph::new();
-        let v1 = g.add_node(0, 1, NO_PROPS).unwrap();
+        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
         v1.add_constant_properties([("test", "test")]).unwrap();
         v1.update_constant_properties([("test", "test2")]).unwrap();
         assert_eq!(v1.properties().get("test"), Some("test2".into()))
@@ -434,7 +453,7 @@ mod node_test {
     fn test_string_deduplication() {
         let g = Graph::new();
         let v1 = g
-            .add_node(0, 1, [("test1", "test"), ("test2", "test")])
+            .add_node(0, 1, [("test1", "test"), ("test2", "test")], None)
             .unwrap();
         let s1 = v1.properties().get("test1").unwrap_str();
         let s2 = v1.properties().get("test2").unwrap_str();

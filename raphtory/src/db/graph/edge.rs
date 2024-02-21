@@ -70,6 +70,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
         }
     }
 
+    #[allow(dead_code)]
     fn layer_ids(&self) -> LayerIds {
         self.graph.layer_ids().constrain_from_edge(self.edge)
     }
@@ -195,11 +196,10 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
-        if self
+        if !self
             .graph
-            .edge_layers(self.edge, LayerIds::One(input_layer_id))
-            .next()
-            .is_none()
+            .core_edge(self.edge.pid())
+            .has_layer(&LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {
                 layer: layer.unwrap_or("_default").to_string(),
@@ -264,7 +264,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
     }
 
     fn get_const_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_meta().const_prop_meta().get_name(id)
+        self.graph
+            .edge_meta()
+            .const_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
@@ -324,7 +328,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_meta().temporal_prop_meta().get_name(id)
+        self.graph
+            .edge_meta()
+            .temporal_prop_meta()
+            .get_name(id)
+            .clone()
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {

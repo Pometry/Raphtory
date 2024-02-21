@@ -427,13 +427,13 @@ mod algorithm_result_test {
 
     fn create_graph() -> Graph {
         let g = Graph::new();
-        g.add_node(0, "A", NO_PROPS)
+        g.add_node(0, "A", NO_PROPS, None)
             .expect("Could not add node to graph");
-        g.add_node(0, "B", NO_PROPS)
+        g.add_node(0, "B", NO_PROPS, None)
             .expect("Could not add node to graph");
-        g.add_node(0, "C", NO_PROPS)
+        g.add_node(0, "C", NO_PROPS, None)
             .expect("Could not add node to graph");
-        g.add_node(0, "D", NO_PROPS)
+        g.add_node(0, "D", NO_PROPS, None)
             .expect("Could not add node to graph");
         g
     }
@@ -451,13 +451,13 @@ mod algorithm_result_test {
 
     fn create_algo_result_f64() -> AlgorithmResult<Graph, f64, OrderedFloat<f64>> {
         let g = Graph::new();
-        g.add_node(0, "A", NO_PROPS)
+        g.add_node(0, "A", NO_PROPS, None)
             .expect("Could not add node to graph");
-        g.add_node(0, "B", NO_PROPS)
+        g.add_node(0, "B", NO_PROPS, None)
             .expect("Could not add node to graph");
-        g.add_node(0, "C", NO_PROPS)
+        g.add_node(0, "C", NO_PROPS, None)
             .expect("Could not add node to graph");
-        g.add_node(0, "D", NO_PROPS)
+        g.add_node(0, "D", NO_PROPS, None)
             .expect("Could not add node to graph");
         let mut map: HashMap<usize, f64> = HashMap::new();
         map.insert(g.node("A").unwrap().node.0, 10.0);

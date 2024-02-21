@@ -2,7 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
     db::{
         api::{
             properties::Properties,
@@ -173,6 +173,12 @@ impl PyNode {
         self.node.properties()
     }
 
+    /// Returns the type of node
+    #[getter]
+    pub fn node_type(&self) -> Option<ArcStr> {
+        self.node.node_type()
+    }
+
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
     /// Returns
@@ -311,6 +317,18 @@ impl IntoPy<PyObject> for NodeView<MaterializedGraph, MaterializedGraph> {
 
 #[pymethods]
 impl PyMutableNode {
+    /// Set the type on the node. This only works if the type has not been previously set, otherwise will
+    /// throw an error
+    ///
+    /// Parameters:
+    ///     new_type (str): The new type to be set
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        self.node.set_node_type(new_type)
+    }
+
     /// Add updates to a node in the graph at a specified time.
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
@@ -472,10 +490,16 @@ impl PyNodes {
     /// Returns:
     ///    A list of unix timestamps.
     ///
-
     fn history(&self) -> I64VecIterable {
         let nodes = self.nodes.clone();
         (move || nodes.history()).into()
+    }
+
+    /// Returns the type of node
+    #[getter]
+    fn node_type(&self) -> OptionArcStringIterable {
+        let nodes = self.nodes.clone();
+        (move || nodes.node_type()).into()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
@@ -569,6 +593,12 @@ impl PyPathFromGraph {
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
+    }
+
+    #[getter]
+    fn node_type(&self) -> NestedOptionArcStringIterable {
+        let path = self.path.clone();
+        (move || path.node_type()).into()
     }
 
     #[getter]
@@ -715,6 +745,12 @@ impl PyPathFromNode {
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
+    }
+
+    #[getter]
+    fn node_type(&self) -> OptionArcStringIterable {
+        let path = self.path.clone();
+        (move || path.node_type()).into()
     }
 
     #[getter]

@@ -1,6 +1,5 @@
-use crate::vectors::document_ref::DocumentRef;
+use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 
@@ -24,15 +23,18 @@ pub enum Document {
     Graph {
         name: String,
         content: String,
+        life: Lifespan,
     },
     Node {
         name: String,
         content: String,
+        life: Lifespan,
     },
     Edge {
         src: String,
         dst: String,
         content: String,
+        life: Lifespan,
     },
 }
 
@@ -59,19 +61,10 @@ impl DocumentOps for Document {
     }
 }
 
-/// struct containing all the necessary information to allow Raphtory creating a document and
-/// storing it
-#[derive(Clone)]
-pub struct DocumentInput {
-    pub content: String,
-    pub life: Lifespan,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub enum Lifespan {
-    Interval { start: i64, end: i64 },
-    Event { time: i64 },
-    Inherited,
+impl Lifespan {
+    pub(crate) fn event(time: i64) -> Self {
+        Self::Event { time }
+    }
 }
 
 impl From<String> for DocumentInput {
@@ -171,7 +164,7 @@ mod vector_tests {
     #[tokio::test]
     async fn test_embedding_cache() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         // the following succeeds with no cache set up
         g.vectorise(Box::new(fake_embedding), None, true, false)
@@ -229,6 +222,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
 
@@ -286,7 +280,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_multi_embedding() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         let vectors = g
             .vectorise_with_template(
@@ -308,7 +302,8 @@ age: 30"###;
         for doc_content in FAKE_DOCUMENTS {
             assert!(
                 docs.iter().any(|doc| match doc {
-                    Document::Node { content, name } => content == doc_content && name == "test",
+                    Document::Node { content, name, .. } =>
+                        content == doc_content && name == "test",
                     _ => false,
                 }),
                 "document {doc_content:?} is not present in the result: {docs:?}"
@@ -343,7 +338,7 @@ age: 30"###;
     #[tokio::test]
     async fn test_vector_store_with_window() {
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS).unwrap();
+        g.add_node(0, "test", NO_PROPS, None).unwrap();
         g.add_edge(40, "test", "test", NO_PROPS, None).unwrap();
 
         let vectors = g
@@ -369,7 +364,8 @@ age: 30"###;
             .get_documents();
         assert!(
             match &docs[..] {
-                [Document::Node { name, content }] => name == "test" && content == "event at 20",
+                [Document::Node { name, content, .. }] =>
+                    name == "test" && content == "event at 20",
                 _ => false,
             },
             "{docs:?} has the wrong content"
@@ -381,7 +377,7 @@ age: 30"###;
             .get_documents();
         assert!(
             match &docs[..] {
-                [Document::Node { name, content }] =>
+                [Document::Node { name, content, .. }] =>
                     name == "test" && content == "interval from 30 to 40",
                 _ => false,
             },
@@ -400,6 +396,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("wizard")),
                 ("age".to_string(), Prop::str("120")),
             ],
+            None,
         )
         .unwrap();
         g.add_node(
@@ -409,6 +406,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
         )
         .unwrap();
         g.add_edge(0, "Frodo", "Gandalf", NO_PROPS, Some("talk to"))
@@ -420,6 +418,7 @@ age: 30"###;
                 ("type".to_string(), Prop::str("human")),
                 ("age".to_string(), Prop::str("40")),
             ],
+            None,
         )
         .unwrap();
 

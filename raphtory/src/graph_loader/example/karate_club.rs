@@ -67,7 +67,7 @@ pub fn karate_club_graph() -> Graph {
     let graph = Graph::new();
     for i in 0..34 {
         graph
-            .add_node(0, i, NO_PROPS)
+            .add_node(0, i, NO_PROPS, None)
             .map_err(|err| println!("{:?}", err))
             .ok();
     }

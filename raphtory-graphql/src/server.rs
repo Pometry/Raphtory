@@ -10,6 +10,7 @@ use crate::{
     routes::{graphql_playground, health},
 };
 use async_graphql_poem::GraphQL;
+use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};
 use raphtory::{
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph},
@@ -19,7 +20,8 @@ use raphtory::{
         EmbeddingFunction,
     },
 };
-use std::{collections::HashMap, ops::Deref, path::Path, sync::Arc};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fs, path::Path, sync::Arc};
 use tokio::{
     io::Result as IoResult,
     signal,
@@ -29,11 +31,21 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing::{metadata::ParseLevelError, Level};
+use tracing_subscriber::{
+    fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber,
+    Registry,
+};
 
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct RaphtoryServer {
     data: Data,
+}
+
+// Define a struct for log configuration
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LogConfig {
+    log_level: String,
 }
 
 impl RaphtoryServer {
@@ -61,7 +73,7 @@ impl RaphtoryServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///   * `graph_names` - the names of the graphs to vectorise.
+    ///   * `graph_names` - the names of the graphs to vectorise. All if None is provided.
     ///   * `embedding` - the embedding function to translate documents to embeddings.
     ///   * `cache` - the directory to use as cache for the embeddings.
     ///   * `template` - the template to use for creating documents.
@@ -70,7 +82,7 @@ impl RaphtoryServer {
     ///    A new server object containing the vectorised graphs.
     pub async fn with_vectorised<F, T>(
         self,
-        graph_names: Vec<String>,
+        graph_names: Option<Vec<String>>,
         embedding: F,
         cache: &Path,
         template: Option<T>,
@@ -86,9 +98,15 @@ impl RaphtoryServer {
             .map(|template| Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>)
             .unwrap_or(Arc::new(DefaultTemplate));
 
+        let graph_names = graph_names.unwrap_or_else(|| {
+            let graphs = graphs.read();
+            let all_graph_names = graphs.iter().map(|(graph_name, _)| graph_name).cloned();
+            all_graph_names.collect_vec()
+        });
+
         for graph_name in graph_names {
             let graph_cache = cache.join(&graph_name);
-            let graph = graphs.read().get(&graph_name).unwrap().deref().clone();
+            let graph = graphs.read().get(&graph_name).unwrap().clone();
             println!("Loading embeddings for {graph_name} using cache from {graph_cache:?}");
             let vectorised = graph
                 .into_dynamic()
@@ -120,12 +138,62 @@ impl RaphtoryServer {
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub fn start(self) -> RunningRaphtoryServer {
-        self.start_with_port(1736)
+    pub fn start(self, log_config_or_level: &str) -> RunningRaphtoryServer {
+        self.start_with_port(1736, log_config_or_level)
     }
 
     /// Start the server on the port `port` and return a handle to it.
-    pub fn start_with_port(self, port: u16) -> RunningRaphtoryServer {
+    pub fn start_with_port(self, port: u16, log_config_or_level: &str) -> RunningRaphtoryServer {
+        fn parse_log_level(input: &str) -> Option<String> {
+            // Parse log level from string
+            let level: Result<Level, ParseLevelError> = input.trim().parse();
+            match level {
+                Ok(level) => Some(level.to_string()),
+                Err(_) => None,
+            }
+        }
+
+        fn setup_logger_with_level(log_level: String) {
+            let filter = EnvFilter::try_new(log_level)
+                .unwrap_or_else(|_| EnvFilter::try_new("info").unwrap()); // Default to info if the provided level is invalid
+            let subscriber = FmtSubscriber::builder()
+                .with_env_filter(filter)
+                .with_span_events(FmtSpan::CLOSE)
+                .finish();
+            if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+                eprintln!(
+                    "Log level cannot be updated within the same runtime environment: {}",
+                    err
+                );
+            }
+        }
+
+        fn setup_logger_from_config(log_config_path: &str) {
+            let config_content =
+                fs::read_to_string(log_config_path).expect("Failed to read log config file");
+            let config: LogConfig =
+                toml::from_str(&config_content).expect("Failed to deserialize log config");
+
+            let filter = EnvFilter::new(&config.log_level);
+            let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
+            if let Err(err) = tracing::subscriber::set_global_default(subscriber) {
+                eprintln!(
+                    "Log level cannot be updated within the same runtime environment: {}",
+                    err
+                );
+            }
+        }
+
+        fn configure_logger(log_config_or_level: &str) {
+            if let Some(log_level) = parse_log_level(log_config_or_level) {
+                setup_logger_with_level(log_level);
+            } else {
+                setup_logger_from_config(log_config_or_level);
+            }
+        }
+
+        configure_logger(log_config_or_level);
+
         let registry = Registry::default().with(tracing_subscriber::fmt::layer().pretty());
         let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new("INFO"));
 
@@ -161,13 +229,13 @@ impl RaphtoryServer {
     }
 
     /// Run the server on the default port until completion.
-    pub async fn run(self) -> IoResult<()> {
-        self.start().wait().await
+    pub async fn run(self, log_config_or_level: &str) -> IoResult<()> {
+        self.start(log_config_or_level).wait().await
     }
 
     /// Run the server on the port `port` until completion.
-    pub async fn run_with_port(self, port: u16) -> IoResult<()> {
-        self.start_with_port(port).wait().await
+    pub async fn run_with_port(self, port: u16, log_config_or_level: &str) -> IoResult<()> {
+        self.start_with_port(port, log_config_or_level).wait().await
     }
 }
 
@@ -242,7 +310,7 @@ mod server_tests {
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
-        let handler = server.start_with_port(1737);
+        let handler = server.start_with_port(1737, "info");
         sleep(Duration::from_secs(1)).await;
         println!("Calling stop at time {}", Local::now());
         handler.stop().await;

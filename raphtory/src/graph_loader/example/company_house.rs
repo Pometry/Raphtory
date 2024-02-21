@@ -77,6 +77,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     owner.clone(),
                     NO_PROPS,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_constant_properties([("type", "owner")])
@@ -86,6 +87,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     company.clone(),
                     NO_PROPS,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_constant_properties([
@@ -101,6 +103,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     NaiveDateTime::from_timestamp_opt(ts, 0).unwrap(),
                     address.clone(),
                     NO_PROPS,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_constant_properties([

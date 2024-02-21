@@ -115,6 +115,7 @@ pub struct Meta {
     meta_prop_temporal: PropMapper,
     meta_prop_constant: PropMapper,
     meta_layer: DictMapper,
+    meta_node_type: DictMapper,
 }
 
 impl Meta {
@@ -130,13 +131,20 @@ impl Meta {
         &self.meta_layer
     }
 
+    pub fn node_type_meta(&self) -> &DictMapper {
+        &self.meta_node_type
+    }
+
     pub fn new() -> Self {
         let meta_layer = DictMapper::default();
         meta_layer.get_or_create_id("_default");
+        let meta_node_type = DictMapper::default();
+        meta_node_type.get_or_create_id("_default");
         Self {
             meta_prop_temporal: PropMapper::default(),
             meta_prop_constant: PropMapper::default(),
-            meta_layer, // layer 0 is the default layer
+            meta_layer,     // layer 0 is the default layer
+            meta_node_type, // type 0 is the default type for a node
         }
     }
 
@@ -171,12 +179,35 @@ impl Meta {
     }
 
     #[inline]
+    pub fn get_default_node_type_id(&self) -> usize {
+        0usize
+    }
+
+    #[inline]
+    pub fn get_or_create_node_type_id(&self, node_type: &str) -> usize {
+        self.meta_node_type.get_or_create_id(node_type)
+    }
+
+    #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.meta_layer.map.get(name).as_deref().copied()
     }
 
+    #[inline]
+    pub fn get_node_type_id(&self, node_type: &str) -> Option<usize> {
+        self.meta_node_type.map.get(node_type).as_deref().copied()
+    }
+
     pub fn get_layer_name_by_id(&self, id: usize) -> ArcStr {
         self.meta_layer.get_name(id)
+    }
+
+    pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {
+        if id == 0 {
+            None
+        } else {
+            Some(self.meta_node_type.get_name(id))
+        }
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
@@ -184,6 +215,21 @@ impl Meta {
             .map
             .iter()
             .map(|entry| *entry.value())
+            .collect()
+    }
+
+    pub fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.meta_node_type
+            .map
+            .iter()
+            .filter_map(|entry| {
+                let key = entry.key();
+                if key != "_default" {
+                    Some(key.clone())
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 
@@ -279,6 +325,11 @@ impl DictMapper {
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
         self.map.get(name).map(|id| *id)
+    }
+
+    pub fn has_name(&self, id: usize) -> bool {
+        let guard = self.reverse_map.read();
+        guard.get(id).is_some()
     }
 
     pub fn get_name(&self, id: usize) -> ArcStr {
