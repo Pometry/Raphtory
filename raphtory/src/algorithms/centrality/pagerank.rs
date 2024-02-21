@@ -62,7 +62,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let tol: f64 = tol.unwrap_or_else(|| 0.000001f64);
+    let tol: f64 = tol.unwrap_or(0.000001f64);
     let damp = 0.85;
     let teleport_prob = (1f64 - damp) / n as f64;
     let factor = damp / n as f64;

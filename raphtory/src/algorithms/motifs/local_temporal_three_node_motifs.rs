@@ -45,9 +45,9 @@ impl MotifCounter {
     ) -> Self {
         let _ = size;
         Self {
-            two_nodes: two_nodes,
-            star_nodes: star_nodes,
-            triangle: triangle,
+            two_nodes,
+            star_nodes,
+            triangle,
         }
     }
 }
@@ -210,7 +210,7 @@ where
 
     let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
         let uu = u.get_mut();
-        if uu.triangle.len() == 0 {
+        if uu.triangle.is_empty() {
             uu.triangle = vec![[0usize; 8]; delta_len];
         }
         for v in u.neighbours() {
@@ -236,7 +236,7 @@ where
                     .sorted()
                     .permutations(2)
                     .flat_map(|e| {
-                        g.edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
+                        g.edge(*e.first().unwrap(), *e.get(1).unwrap())
                             .iter()
                             .flat_map(|edge| edge.explode())
                             .collect::<Vec<_>>()
@@ -245,7 +245,7 @@ where
                     .map(|e| {
                         let (src_id, dst_id) = (e.src().id(), e.dst().id());
                         let (uid, _vid) = (u.id(), v.id());
-                        if src_id == w.clone() {
+                        if src_id == *w {
                             new_triangle_edge(
                                 false,
                                 if dst_id == uid { 0 } else { 1 },
@@ -253,7 +253,7 @@ where
                                 0,
                                 e.time().unwrap(),
                             )
-                        } else if dst_id == w.clone() {
+                        } else if dst_id == *w {
                             new_triangle_edge(
                                 false,
                                 if src_id == uid { 0 } else { 1 },
@@ -357,7 +357,8 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let out2 = runner.run(
+    
+    runner.run(
         vec![Job::new(step1)],
         vec![],
         None,
@@ -366,8 +367,7 @@ where
             for (vref, mc) in enumerate(local) {
                 let v_gid = g.node_name(vref.into());
                 let triangles = out1
-                    .get(&v_gid)
-                    .map(|v| v.clone())
+                    .get(&v_gid).cloned()
                     .unwrap_or_else(|| vec![[0usize; 8]; delta_len]);
                 let run_counts = (0..delta_len)
                     .map(|i| {
@@ -393,8 +393,7 @@ where
         1,
         None,
         None,
-    );
-    out2
+    )
 }
 
 #[cfg(test)]

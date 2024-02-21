@@ -345,7 +345,7 @@ impl ModularityFunction for ModularityUnDir {
     }
 
     fn candidate_moves(&self, node: &VID) -> Box<dyn Iterator<Item = ComID> + '_> {
-        Box::new(self.adj_com[node.index()].iter().map(|(c, _)| *c))
+        Box::new(self.adj_com[node.index()].keys().copied())
     }
 
     fn aggregate(&mut self) -> Partition {

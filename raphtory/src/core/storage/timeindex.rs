@@ -258,7 +258,7 @@ impl<'a, Ops: TimeIndexOps + 'a> LayeredTimeIndexWindow<'a, Ops> {
     }
 }
 
-pub type LockedLayeredIndex<'a, T: AsTime> =
+pub type LockedLayeredIndex<'a, T> =
     LayeredIndex<'a, TimeIndex<T>, LockedView<'a, Vec<TimeIndex<T>>>>;
 
 pub struct LayeredIndex<'a, Ops: TimeIndexOps + 'a, V: AsRef<Vec<Ops>>> {
@@ -290,13 +290,13 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
         self.view.as_ref().iter().any(|t| t.active(w.clone()))
     }
 
-    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         let timeindex = self
             .view
             .as_ref()
             .iter()
             .enumerate()
-            .filter_map(|(l, t)| self.layers.contains(&l).then(|| t.range(w.clone())))
+            .filter(|&(l, t)| self.layers.contains(&l)).map(|(l, t)| t.range(w.clone()))
             .collect_vec();
         LayeredTimeIndexWindow::new(timeindex)
     }
@@ -322,7 +322,7 @@ pub trait TimeIndexOps: Send + Sync {
 
     fn active(&self, w: Range<i64>) -> bool;
 
-    fn range<'a>(&'a self, w: Range<i64>) -> Self::RangeType<'a>;
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_>;
 
     fn first_t(&self) -> Option<i64> {
         self.first().map(|ti| ti.t())
@@ -444,7 +444,7 @@ where
         }
     }
 
-    fn range<'a>(&'a self, w: Range<i64>) -> Self::RangeType<'a> {
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -502,7 +502,7 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
         self.timeindex.iter().any(|t| t.active(w.clone()))
     }
 
-    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         let timeindex = self
             .timeindex
             .iter()

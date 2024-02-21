@@ -43,7 +43,6 @@ fn star_motif_count<'graph, G: GraphViewOps<'graph>>(graph: &G, v: u64, delta: i
             .iter()
             .enumerate()
             .map(|(num, nb)| (nb.id(), num))
-            .into_iter()
             .collect();
         let mut exploded_edges = node
             .edges()
@@ -307,7 +306,7 @@ pub fn local_temporal_three_node_motifs<'graph, G: GraphViewOps<'graph>>(
         let mut final_cts = Vec::new();
         final_cts.extend(stars.into_iter());
         final_cts.extend(two_nodes.into_iter());
-        final_cts.extend(counts.get(v.clone()).unwrap().into_iter());
+        final_cts.extend(counts.get(v.clone()).unwrap().iter());
         counts.result.insert(v.node.0, final_cts);
     }
 

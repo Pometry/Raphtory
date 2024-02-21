@@ -63,7 +63,7 @@ where
     for (node, label) in labels {
         communities
             .entry(label)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(node.clone());
     }
 

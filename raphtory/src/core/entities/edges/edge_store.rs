@@ -49,7 +49,7 @@ impl EdgeLayer {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), GraphError> {
-        let props = self.props.get_or_insert_with(|| Props::new());
+        let props = self.props.get_or_insert_with(Props::new);
         props.add_prop(t, prop_id, prop)
     }
 
@@ -58,7 +58,7 @@ impl EdgeLayer {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalSet<Option<Prop>>> {
-        let props = self.props.get_or_insert_with(|| Props::new());
+        let props = self.props.get_or_insert_with(Props::new);
         props.add_constant_prop(prop_id, prop)
     }
 

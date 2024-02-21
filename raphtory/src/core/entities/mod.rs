@@ -167,7 +167,7 @@ impl LayerIds {
             None => self,
             Some(l) => self
                 .find(*l)
-                .map(|l| LayerIds::One(l))
+                .map(LayerIds::One)
                 .unwrap_or(LayerIds::None),
         }
     }

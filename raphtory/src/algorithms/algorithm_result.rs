@@ -305,7 +305,7 @@ where
 
         for node in self.graph.nodes().iter() {
             if let Some(value) = self.result.get(&node.node.0) {
-                let entry = groups.entry(value.clone()).or_insert_with(Vec::new);
+                let entry = groups.entry(value.clone()).or_default();
                 entry.push(node.name().to_string());
             }
         }

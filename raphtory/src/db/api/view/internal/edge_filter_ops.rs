@@ -1,11 +1,8 @@
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::{
-            locked_view::LockedView,
-            timeindex::{
-                AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
-            },
+        storage::timeindex::{
+            AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
         },
     },
     db::api::view::{internal::Base, IntoDynBoxed},
@@ -24,28 +21,28 @@ impl<'a, T: AsTime> TimeIndexOps for TimeIndexLike<'a, T> {
 
     fn active(&self, w: Range<i64>) -> bool {
         match self {
-            TimeIndexLike::Ref(ref t) => t.active(w),
+            TimeIndexLike::Ref(t) => t.active(w),
             TimeIndexLike::Range(ref t) => t.active(w),
         }
     }
 
-    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         match self {
-            TimeIndexLike::Ref(ref t) => TimeIndexLike::Range(t.range(w)),
+            TimeIndexLike::Ref(t) => TimeIndexLike::Range(t.range(w)),
             TimeIndexLike::Range(ref t) => TimeIndexLike::Range(t.range(w)),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::Ref(ref t) => t.first(),
+            TimeIndexLike::Ref(t) => t.first(),
             TimeIndexLike::Range(ref t) => t.first(),
         }
     }
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::Ref(ref t) => t.last(),
+            TimeIndexLike::Ref(t) => t.last(),
             TimeIndexLike::Range(ref t) => t.last(),
         }
     }
@@ -128,11 +125,11 @@ impl EdgeLike for EdgeStore {
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_, TimeIndexEntry>> {
-        self.additions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
+        self.additions.get(layer_id).map(TimeIndexLike::Ref)
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_, TimeIndexEntry>> {
-        self.deletions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
+        self.deletions.get(layer_id).map(TimeIndexLike::Ref)
     }
 }
 

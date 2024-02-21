@@ -118,6 +118,12 @@ pub struct Meta {
     meta_node_type: DictMapper,
 }
 
+impl Default for Meta {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Meta {
     pub fn const_prop_meta(&self) -> &PropMapper {
         &self.meta_prop_constant
@@ -335,8 +341,7 @@ impl DictMapper {
     pub fn get_name(&self, id: usize) -> ArcStr {
         let guard = self.reverse_map.read();
         guard
-            .get(id)
-            .map(|v| v.clone())
+            .get(id).cloned()
             .expect("internal ids should always be mapped to a name")
     }
 

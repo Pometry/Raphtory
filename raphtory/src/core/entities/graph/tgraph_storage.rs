@@ -96,7 +96,7 @@ impl<const N: usize> GraphStorage<N> {
         self.edges
             .read_lock()
             .into_iter()
-            .map(|entry| EdgeRef::from(entry))
+            .map(EdgeRef::from)
     }
 }
 
