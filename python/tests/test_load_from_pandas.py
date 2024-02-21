@@ -44,6 +44,26 @@ def test_load_from_pandas():
         (5, 6, 5.0, "purple"),
     ]
 
+def test_load_from_pandas_with_invalid_data():
+    # Create a DataFrame with invalid data
+    df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, 3, 4, 5],
+            "weight": [1.0, 2.0, "3.0 KG", 4.0, 5.0],
+            "marbles": ["red", "blue", "green", "yellow", "purple"],
+        }
+    )
+
+    # Use pytest.raises to expect an exception
+    with pytest.raises(Exception) as exc_info:
+        g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
+
+    # Optionally, you can check the exception message or type
+    assert "Failed to load graph" in str(exc_info.value)
+    assert "ArrowInvalid" in str(exc_info.value)
+    assert "Could not convert '3.0 KG' with type str: tried to convert to double" in str(exc_info.value)
 
 def test_load_from_pandas_into_existing_graph():
     edges_df = pd.DataFrame(
