@@ -179,9 +179,7 @@ impl TProp {
             TProp::Document(cell) => cell
                 .last_before(t)
                 .map(|(t, v)| (t, Prop::Document(v.clone()))),
-            TProp::List(cell) => cell
-                .last_before(t)
-                .map(|(t, v)| (t, Prop::List(v.clone()))),
+            TProp::List(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::List(v.clone()))),
             TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Map(v.clone()))),
         }
     }
@@ -211,7 +209,7 @@ impl TProp {
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter_t()
-                    .map(|(t, value)| (*t, Prop::Document(value.clone()))),
+                    .map(|(t, value)| (t, Prop::Document(value.clone()))),
             ),
             TProp::List(cell) => Box::new(
                 cell.iter_t()
@@ -348,7 +346,7 @@ impl TProp {
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter_window_t(r)
-                    .map(|(t, value)| (*t, Prop::Document(value.clone()))),
+                    .map(|(t, value)| (t, Prop::Document(value.clone()))),
             ),
             TProp::List(cell) => Box::new(
                 cell.iter_window_t(r)

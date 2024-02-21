@@ -1,7 +1,7 @@
 use crate::graph::{Graph, UnderGraph};
 use chrono::{Datelike, Timelike};
-use js_sys::Array;
-use raphtory::core::{utils::errors::GraphError, Prop};
+use js_sys::{Array, Object};
+use raphtory::core::{utils::errors::GraphError, DocumentInput, Prop};
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
@@ -15,6 +15,10 @@ pub(crate) struct JsObjectEntry(pub(crate) JsValue);
 #[derive(Serialize, Deserialize)]
 #[repr(transparent)]
 pub(crate) struct JsProp(pub(crate) Prop);
+
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct JSDocumentProp(DocumentInput);
 
 impl From<JsProp> for JsValue {
     fn from(value: JsProp) -> JsValue {
@@ -48,6 +52,7 @@ impl From<JsProp> for JsValue {
                 let v = v.deref().clone();
                 serde_wasm_bindgen::to_value(&v).unwrap()
             }
+            Prop::Document(doc) => JSDocumentProp(doc).into(),
         }
     }
 }
