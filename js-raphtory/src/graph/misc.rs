@@ -1,6 +1,6 @@
 use crate::graph::{Graph, UnderGraph};
 use chrono::{Datelike, Timelike};
-use js_sys::{Array, Object};
+use js_sys::Array;
 use raphtory::core::{utils::errors::GraphError, DocumentInput, Prop};
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};

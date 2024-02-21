@@ -3,19 +3,9 @@ use crate::{
         components::weakly_connected_components,
         layout::{fruchterman_reingold::fruchterman_reingold_unbounded, NodeVectors},
     },
-    db::{
-        api::{
-            properties::internal::ConstPropertiesOps,
-            view::{
-                internal::{CoreGraphOps, GraphOps},
-                MaterializedGraph,
-            },
-        },
-        graph::node::NodeView,
-    },
+    db::{api::view::MaterializedGraph, graph::node::NodeView},
     prelude::{AdditionOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
-use itertools::Itertools;
 use std::collections::HashMap;
 
 /// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
