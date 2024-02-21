@@ -108,8 +108,10 @@ pub enum GraphError {
         source: QueryParserError,
     },
 
-    #[error("Failed to load the graph as the version {0} is different to installed version {1}")]
-    VersionError(String, String),
+    #[error(
+        "Failed to load the graph as the bincode version {0} is different to installed version {1}"
+    )]
+    BincodeVersionError(u32, u32),
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

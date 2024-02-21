@@ -1,34 +1,40 @@
-use crate::{BINCODE_VERSION, core::{
-    entities::{
-        edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-        nodes::{node_ref::NodeRef, node_store::NodeStore},
-        properties::{
-            graph_props::GraphProps,
-            props::Meta,
-            tprop::{LockedLayeredTProp, TProp},
+use crate::{
+    core::{
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            properties::{
+                graph_props::GraphProps,
+                props::Meta,
+                tprop::{LockedLayeredTProp, TProp},
+            },
+            LayerIds, EID, VID,
         },
-        LayerIds, EID, VID,
-    },
-    storage::{
-        locked_view::LockedView,
-        timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-        ArcEntry,
-    },
-    utils::errors::GraphError,
-    ArcStr, Direction, PropType,
-}, db::{
-    api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        properties::internal::{
-            ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+        storage::{
+            locked_view::LockedView,
+            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+            ArcEntry,
         },
-        view::{internal::*, BoxedIter, BoxedLIter},
+        utils::errors::GraphError,
+        ArcStr, Direction, PropType,
+        PropType::U32,
     },
-    graph::{
-        graph::{Graph, InternalGraph},
-        views::deletion_graph::GraphWithDeletions,
+    db::{
+        api::{
+            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+            properties::internal::{
+                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+            },
+            view::{internal::*, BoxedIter, BoxedLIter},
+        },
+        graph::{
+            graph::{Graph, InternalGraph},
+            views::deletion_graph::GraphWithDeletions,
+        },
     },
-}, prelude::{Layer, Prop}};
+    prelude::{Layer, Prop},
+    BINCODE_VERSION,
+};
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
@@ -50,15 +56,15 @@ pub enum MaterializedGraph {
     PersistentGraph(GraphWithDeletions),
 }
 
-fn version_deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
+fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let version = String::deserialize(deserializer)?;
+    let version = u32::deserialize(deserializer)?;
     if version != BINCODE_VERSION {
-        return Err(D::Error::custom(GraphError::VersionError(
+        return Err(D::Error::custom(GraphError::BincodeVersionError(
             version,
-            BINCODE_VERSION.parse().unwrap(),
+            BINCODE_VERSION,
         )));
     };
     Ok(version)
@@ -67,7 +73,7 @@ where
 #[derive(Serialize, Deserialize)]
 struct VersionedGraph<T> {
     #[serde(deserialize_with = "version_deserialize")]
-    version: String,
+    version: u32,
     graph: T,
 }
 
@@ -212,12 +218,9 @@ impl MaterializedGraph {
             let data: Self = bincode::deserialize_from(&mut reader)?;
             Ok(data)
         } else {
-            let version: String = bincode::deserialize_from(&mut reader)?;
+            let version: u32 = bincode::deserialize_from(&mut reader)?;
             if version != BINCODE_VERSION {
-                return Err(GraphError::VersionError(
-                    version,
-                    BINCODE_VERSION.parse().unwrap(),
-                ));
+                return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
             }
             let data: Self = bincode::deserialize_from(&mut reader)?;
             Ok(data)
@@ -228,7 +231,7 @@ impl MaterializedGraph {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
         let versioned_data = VersionedGraph {
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: BINCODE_VERSION,
             graph: self.clone(),
         };
         Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
@@ -240,12 +243,9 @@ impl MaterializedGraph {
     }
 
     pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
-        let version: String = bincode::deserialize(b)?;
+        let version: u32 = bincode::deserialize(b)?;
         if version != BINCODE_VERSION {
-            return Err(GraphError::VersionError(
-                version,
-                BINCODE_VERSION.parse().unwrap(),
-            ));
+            return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
         }
         let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
         Ok(g.graph)
