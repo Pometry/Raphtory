@@ -42,6 +42,9 @@ jobs:
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - name: Install OpenSSL1 (macos)
+        if : matrix.os == 'macos-latest'
+        run: brew install openssl@1.1
       - name: Run
         run: rustc --version --verbose
       - name: Cargo update
@@ -107,6 +110,9 @@ jobs:
         with:
           python-version: "3.10"
           cache: 'pip'
+      - name: Install OpenSSL1 (macos)
+        if: matrix.os == 'macos-latest'
+        run: brew install openssl@1.1
       - name: Cargo update
         uses: actions-rs/cargo@v1
         with:

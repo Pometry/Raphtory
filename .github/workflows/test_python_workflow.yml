@@ -64,6 +64,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: update
+      - name: Install OpenSSL1 (macos)
+        if: matrix.os == 'macos-latest'
+        run: brew install openssl@1.1
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
