@@ -77,6 +77,10 @@ jobs:
           python -m pip install -q pytest networkx numpy seaborn pandas nbmake pytest-xdist matplotlib pyvis nbconvert ipywidgets
           python -m pip install target/wheels/raphtory-*.whl
           python -m pip install -e examples/netflow
+      - name: Install Python dependencies (macOS)
+        if: "contains(matrix.os, 'macOS')"
+        run: |
+          brew install openssl@3
       - name: Install Python dependencies (Windows)
         if: "contains(matrix.os, 'Windows')"
         run: |
