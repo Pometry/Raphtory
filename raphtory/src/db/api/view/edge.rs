@@ -171,7 +171,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn is_self_loop(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| e.src() == e.dst())
+        self.map(|_g, e| e.src() == e.dst())
     }
 
     /// Return a view of the properties of the edge

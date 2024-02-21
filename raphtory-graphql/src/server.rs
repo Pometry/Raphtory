@@ -44,8 +44,8 @@ impl RaphtoryServer {
     }
 
     /// Return a server object with graphs loaded from a directory `graph_directory`
-    pub fn from_directory(graph_directory: &str) -> Self {
-        let data = Data::from_directory(graph_directory);
+    pub fn from_directory(graph_directory: &str, force: bool) -> Self {
+        let data = Data::from_directory(graph_directory, force);
         Self { data }
     }
 
@@ -53,8 +53,9 @@ impl RaphtoryServer {
     pub fn from_map_and_directory(
         graphs: HashMap<String, MaterializedGraph>,
         graph_directory: &str,
+        force_graph_load: bool,
     ) -> Self {
-        let data = Data::from_map_and_directory(graphs, graph_directory);
+        let data = Data::from_map_and_directory(graphs, graph_directory, force_graph_load);
         Self { data }
     }
 

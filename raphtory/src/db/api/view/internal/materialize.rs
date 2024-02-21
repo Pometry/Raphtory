@@ -35,7 +35,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
@@ -54,9 +54,23 @@ pub enum MaterializedGraph {
     PersistentGraph(GraphWithDeletions),
 }
 
+fn version_deserialize<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = String::deserialize(deserializer)?;
+    if version != env!("CARGO_PKG_VERSION") {
+        return Err(D::Error::custom(GraphError::VersionError(
+            version,
+            env!("CARGO_PKG_VERSION").parse().unwrap(),
+        )));
+    };
+    Ok(version)
+}
 
 #[derive(Serialize, Deserialize)]
 struct VersionedGraph<T> {
+    #[serde(deserialize_with = "version_deserialize")]
     version: String,
     graph: T,
 }
@@ -194,18 +208,24 @@ impl MaterializedGraph {
         }
     }
 
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
         let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
-        // First, deserialize only the version number
-        let version: String = bincode::deserialize_from(&mut reader)?;
-        // Check the version number
-        if version != env!("CARGO_PKG_VERSION") {
-            return Err(GraphError::VersionError(version, env!("CARGO_PKG_VERSION").parse().unwrap()));
+        if force {
+            let _: String = bincode::deserialize_from(&mut reader)?;
+            let data: Self = bincode::deserialize_from(&mut reader)?;
+            Ok(data)
+        } else {
+            let version: String = bincode::deserialize_from(&mut reader)?;
+            if version != env!("CARGO_PKG_VERSION") {
+                return Err(GraphError::VersionError(
+                    version,
+                    env!("CARGO_PKG_VERSION").parse().unwrap(),
+                ));
+            }
+            let data: Self = bincode::deserialize_from(&mut reader)?;
+            Ok(data)
         }
-        // If the version number matches, deserialize the rest of the object
-        let data: Self = bincode::deserialize_from(&mut reader)?;
-        Ok(data)
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
@@ -224,8 +244,15 @@ impl MaterializedGraph {
     }
 
     pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
-        let g = bincode::deserialize(b)?;
-        Ok(g)
+        let version: String = bincode::deserialize(b)?;
+        if version != env!("CARGO_PKG_VERSION") {
+            return Err(GraphError::VersionError(
+                version,
+                env!("CARGO_PKG_VERSION").parse().unwrap(),
+            ));
+        }
+        let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
+        Ok(g.graph)
     }
 }
 

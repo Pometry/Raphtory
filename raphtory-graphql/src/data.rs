@@ -25,8 +25,8 @@ impl Data {
         }
     }
 
-    pub fn from_directory(directory_path: &str) -> Self {
-        let graphs = Arc::new(RwLock::new(Self::load_from_file(directory_path)));
+    pub fn from_directory(directory_path: &str, force: bool) -> Self {
+        let graphs = Arc::new(RwLock::new(Self::load_from_file(directory_path, force)));
         let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
             graphs,
@@ -37,9 +37,10 @@ impl Data {
     pub fn from_map_and_directory<G: Into<MaterializedGraph>>(
         graphs: HashMap<String, G>,
         directory_path: &str,
+        force_graph_load: bool,
     ) -> Self {
         let mut graphs = Self::convert_graphs(graphs);
-        graphs.extend(Self::load_from_file(directory_path));
+        graphs.extend(Self::load_from_file(directory_path, force_graph_load));
         let graphs = Arc::new(RwLock::new(graphs));
         let vector_stores = Arc::new(RwLock::new(HashMap::new()));
         Self {
@@ -84,7 +85,10 @@ impl Data {
             })
     }
 
-    pub fn load_from_file(path: &str) -> HashMap<String, IndexedGraph<MaterializedGraph>> {
+    pub fn load_from_file(
+        path: &str,
+        force: bool,
+    ) -> HashMap<String, IndexedGraph<MaterializedGraph>> {
         let valid_entries = WalkDir::new(path).into_iter().filter_map(|e| {
             let entry = e.ok()?;
             let path = entry.path();
@@ -98,7 +102,8 @@ impl Data {
             let path = entry.path();
             let path_string = path.display().to_string();
             println!("loading graph from {path_string}");
-            let graph = MaterializedGraph::load_from_file(path).expect("Unable to load from graph");
+            let graph =
+                MaterializedGraph::load_from_file(path, force).expect("Unable to load from graph");
             let graph_name = graph
                 .properties()
                 .get("name")

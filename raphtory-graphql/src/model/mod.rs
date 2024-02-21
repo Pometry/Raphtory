@@ -111,8 +111,12 @@ impl Mut {
     ///
     /// Returns::
     ///   list of names for newly added graphs
-    async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
-        let new_graphs = Data::load_from_file(&path);
+    async fn load_graphs_from_path<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        force: bool,
+    ) -> Vec<String> {
+        let new_graphs = Data::load_from_file(&path, force);
         let keys: Vec<_> = new_graphs.keys().cloned().collect();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.extend(new_graphs);
@@ -316,9 +320,13 @@ impl Mut {
     ///
     /// Returns::
     ///   list of names for newly added graphs
-    async fn load_new_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
+    async fn load_new_graphs_from_path<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        force: bool,
+    ) -> Vec<String> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        let new_graphs: HashMap<_, _> = Data::load_from_file(&path)
+        let new_graphs: HashMap<_, _> = Data::load_from_file(&path, force)
             .into_iter()
             .filter(|(key, _)| !data.contains_key(key))
             .collect();

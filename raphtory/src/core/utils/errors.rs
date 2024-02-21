@@ -108,10 +108,8 @@ pub enum GraphError {
         source: QueryParserError,
     },
 
-    #[error(
-        "Failed to load the graph as the version {0} is different to installed version {1}"
-    )]
-    VersionError(String, String)
+    #[error("Failed to load the graph as the version {0} is different to installed version {1}")]
+    VersionError(String, String),
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
