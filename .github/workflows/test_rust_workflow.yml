@@ -12,6 +12,12 @@ jobs:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
     runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+          - os: ubuntu-latest
+          - os: windows-latest 
     steps:
       - uses: actions/checkout@v3
         name: Checkout
