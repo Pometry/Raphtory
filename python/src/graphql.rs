@@ -219,20 +219,15 @@ impl PyRaphtoryServer {
 #[pymethods]
 impl PyRaphtoryServer {
     #[new]
-    #[pyo3(signature = (graphs=None, graph_dir=None, force_graph_load=false))]
+    #[pyo3(signature = (graphs=None, graph_dir=None))]
     fn py_new(
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_dir: Option<&str>,
-        force_graph_load: bool,
     ) -> PyResult<Self> {
         let server = match (graphs, graph_dir) {
-            (Some(graphs), Some(dir)) => Ok(RaphtoryServer::from_map_and_directory(
-                graphs,
-                dir,
-                force_graph_load,
-            )),
+            (Some(graphs), Some(dir)) => Ok(RaphtoryServer::from_map_and_directory(graphs, dir)),
             (Some(graphs), None) => Ok(RaphtoryServer::from_map(graphs)),
-            (None, Some(dir)) => Ok(RaphtoryServer::from_directory(dir, force_graph_load)),
+            (None, Some(dir)) => Ok(RaphtoryServer::from_directory(dir)),
             (None, None) => Err(PyValueError::new_err(
                 "You need to specify at least `graphs` or `graph_dir`",
             )),
@@ -615,9 +610,8 @@ impl PyRaphtoryClient {
         load_function: &str,
         path: String,
     ) -> PyResult<HashMap<String, PyObject>> {
-        let query = format!(
-            "mutation LoadGraphs($path: String!) {{ {load_function}(path: $path, force: false) }}"
-        );
+        let query =
+            format!("mutation LoadGraphs($path: String!) {{ {load_function}(path: $path) }}");
         let variables = [("path".to_owned(), json!(path))];
 
         let data = self.query_with_json_variables(query.clone(), variables.into())?;

@@ -163,7 +163,7 @@ impl GraphWithDeletions {
     ///
     /// ```no_run
     /// use raphtory::prelude::*;
-    /// let g = Graph::load_from_file("path/to/graph", None);
+    /// let g = Graph::load_from_file("path/to/graph", false);
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
         let g = MaterializedGraph::load_from_file(path, force)?;

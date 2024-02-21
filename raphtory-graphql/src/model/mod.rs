@@ -24,10 +24,9 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
-    io::BufReader,
+    io::Read,
     path::Path,
 };
-use std::io::Read;
 use uuid::Uuid;
 
 pub mod algorithms;
@@ -112,12 +111,8 @@ impl Mut {
     ///
     /// Returns::
     ///   list of names for newly added graphs
-    async fn load_graphs_from_path<'a>(
-        ctx: &Context<'a>,
-        path: String,
-        force: bool,
-    ) -> Vec<String> {
-        let new_graphs = Data::load_from_file(&path, force);
+    async fn load_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
+        let new_graphs = Data::load_from_file(&path);
         let keys: Vec<_> = new_graphs.keys().cloned().collect();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.extend(new_graphs);
@@ -321,13 +316,9 @@ impl Mut {
     ///
     /// Returns::
     ///   list of names for newly added graphs
-    async fn load_new_graphs_from_path<'a>(
-        ctx: &Context<'a>,
-        path: String,
-        force: bool,
-    ) -> Vec<String> {
+    async fn load_new_graphs_from_path<'a>(ctx: &Context<'a>, path: String) -> Vec<String> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
-        let new_graphs: HashMap<_, _> = Data::load_from_file(&path, force)
+        let new_graphs: HashMap<_, _> = Data::load_from_file(&path)
             .into_iter()
             .filter(|(key, _)| !data.contains_key(key))
             .collect();
@@ -344,8 +335,7 @@ impl Mut {
         let mut buffer = Vec::new();
         let mut buff_read = graph.value(ctx)?.content;
         buff_read.read_to_end(&mut buffer)?;
-        let g: MaterializedGraph =
-            MaterializedGraph::from_bincode(&buffer)?;
+        let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
         let gi: IndexedGraph<MaterializedGraph> = g.into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi);
