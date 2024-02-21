@@ -1,38 +1,34 @@
-use crate::{
-    core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            properties::{
-                graph_props::GraphProps,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
-            LayerIds, EID, VID,
+use crate::{BINCODE_VERSION, core::{
+    entities::{
+        edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+        nodes::{node_ref::NodeRef, node_store::NodeStore},
+        properties::{
+            graph_props::GraphProps,
+            props::Meta,
+            tprop::{LockedLayeredTProp, TProp},
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
-        },
-        utils::errors::GraphError,
-        ArcStr, Direction, PropType,
+        LayerIds, EID, VID,
     },
-    db::{
-        api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-            properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-            },
-            view::{internal::*, BoxedIter, BoxedLIter},
-        },
-        graph::{
-            graph::{Graph, InternalGraph},
-            views::deletion_graph::GraphWithDeletions,
-        },
+    storage::{
+        locked_view::LockedView,
+        timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
+        ArcEntry,
     },
-    prelude::{Layer, Prop},
-};
+    utils::errors::GraphError,
+    ArcStr, Direction, PropType,
+}, db::{
+    api::{
+        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
+        properties::internal::{
+            ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+        },
+        view::{internal::*, BoxedIter, BoxedLIter},
+    },
+    graph::{
+        graph::{Graph, InternalGraph},
+        views::deletion_graph::GraphWithDeletions,
+    },
+}, prelude::{Layer, Prop}};
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
@@ -59,10 +55,10 @@ where
     D: Deserializer<'de>,
 {
     let version = String::deserialize(deserializer)?;
-    if version != env!("CARGO_PKG_VERSION") {
+    if version != BINCODE_VERSION {
         return Err(D::Error::custom(GraphError::VersionError(
             version,
-            env!("CARGO_PKG_VERSION").parse().unwrap(),
+            BINCODE_VERSION.parse().unwrap(),
         )));
     };
     Ok(version)
@@ -217,10 +213,10 @@ impl MaterializedGraph {
             Ok(data)
         } else {
             let version: String = bincode::deserialize_from(&mut reader)?;
-            if version != env!("CARGO_PKG_VERSION") {
+            if version != BINCODE_VERSION {
                 return Err(GraphError::VersionError(
                     version,
-                    env!("CARGO_PKG_VERSION").parse().unwrap(),
+                    BINCODE_VERSION.parse().unwrap(),
                 ));
             }
             let data: Self = bincode::deserialize_from(&mut reader)?;
@@ -245,10 +241,10 @@ impl MaterializedGraph {
 
     pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
         let version: String = bincode::deserialize(b)?;
-        if version != env!("CARGO_PKG_VERSION") {
+        if version != BINCODE_VERSION {
             return Err(GraphError::VersionError(
                 version,
-                env!("CARGO_PKG_VERSION").parse().unwrap(),
+                BINCODE_VERSION.parse().unwrap(),
             ));
         }
         let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
