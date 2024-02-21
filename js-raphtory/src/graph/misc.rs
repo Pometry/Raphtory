@@ -49,6 +49,9 @@ impl From<JsProp> for JsValue {
             Prop::Map(v) => {
                 let v = v.deref().clone();
                 serde_wasm_bindgen::to_value(&v).unwrap()
+            },
+            raphtory::core::Prop::Document(v) => {
+                v.content.into()
             }
         }
     }
