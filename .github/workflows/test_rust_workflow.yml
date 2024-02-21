@@ -55,27 +55,27 @@ jobs:
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo test --all --no-default-features
+          cargo test -j 3 --all --no-default-features
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "io"
+          cargo check -j 3 -p raphtory --no-default-features --features "io"
       - name: Run Tests (features=python)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "python"
+          cargo check -j 3 -p raphtory --no-default-features --features "python"
       - name: Run Tests (features=search)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "search"
+          cargo check -j 3 -p raphtory --no-default-features --features "search"
       - name: Run Tests (features=vectors)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "vectors"
+          cargo check -j 3 -p raphtory --no-default-features --features "vectors"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
