@@ -165,10 +165,7 @@ impl LayerIds {
     pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
         match e.layer() {
             None => self,
-            Some(l) => self
-                .find(*l)
-                .map(LayerIds::One)
-                .unwrap_or(LayerIds::None),
+            Some(l) => self.find(*l).map(LayerIds::One).unwrap_or(LayerIds::None),
         }
     }
 

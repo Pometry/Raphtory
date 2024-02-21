@@ -10,10 +10,8 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    fn run<'graph, 'b>(
-        &'b self,
-        vv: &'b mut EvalNodeView<'graph, '_, G, S, &'graph G, CS>,
-    ) -> Step;
+    fn run<'graph, 'b>(&'b self, vv: &'b mut EvalNodeView<'graph, '_, G, S, &'graph G, CS>)
+        -> Step;
 }
 
 #[derive(Debug, PartialEq)]

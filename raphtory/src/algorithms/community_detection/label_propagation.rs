@@ -61,10 +61,7 @@ where
     // Group nodes by their labels to form communities
     let mut communities: HashMap<u64, HashSet<NodeView<G>>> = HashMap::new();
     for (node, label) in labels {
-        communities
-            .entry(label)
-            .or_default()
-            .insert(node.clone());
+        communities.entry(label).or_default().insert(node.clone());
     }
 
     Ok(communities.values().cloned().collect())

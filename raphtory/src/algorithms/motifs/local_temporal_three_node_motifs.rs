@@ -357,7 +357,6 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    
     runner.run(
         vec![Job::new(step1)],
         vec![],
@@ -367,7 +366,8 @@ where
             for (vref, mc) in enumerate(local) {
                 let v_gid = g.node_name(vref.into());
                 let triangles = out1
-                    .get(&v_gid).cloned()
+                    .get(&v_gid)
+                    .cloned()
                     .unwrap_or_else(|| vec![[0usize; 8]; delta_len]);
                 let run_counts = (0..delta_len)
                     .map(|i| {

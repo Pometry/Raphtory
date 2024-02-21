@@ -296,7 +296,8 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
             .as_ref()
             .iter()
             .enumerate()
-            .filter(|&(l, t)| self.layers.contains(&l)).map(|(l, t)| t.range(w.clone()))
+            .filter(|&(l, t)| self.layers.contains(&l))
+            .map(|(l, t)| t.range(w.clone()))
             .collect_vec();
         LayeredTimeIndexWindow::new(timeindex)
     }
