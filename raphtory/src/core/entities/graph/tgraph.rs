@@ -352,8 +352,9 @@ impl<const N: usize> TemporalGraph<N> {
         v_id: VID,
         node_type: Option<&str>,
     ) -> Result<usize, GraphError> {
+        let mut node = self.storage.get_node_mut(v_id);
         match node_type {
-            None => Ok(self.node_meta.get_default_node_type_id()),
+            None => Ok(node.node_type),
             Some(node_type) => {
                 if node_type == "_default" {
                     return Err(GraphError::NodeTypeError(
@@ -362,7 +363,6 @@ impl<const N: usize> TemporalGraph<N> {
                             .unwrap(),
                     ));
                 }
-                let mut node = self.storage.get_node_mut(v_id);
                 match node.node_type {
                     0 => {
                         let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
