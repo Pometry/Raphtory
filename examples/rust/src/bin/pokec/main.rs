@@ -21,7 +21,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let data_dir = Path::new(args.get(1).expect("No data directory provided"));
 
-    let g = if std::path::Path::new("/tmp/pokec").exists() {
+    let g = if Path::new("/tmp/pokec").exists() {
         Graph::load_from_file("/tmp/pokec").unwrap()
     } else {
         let g = Graph::new();

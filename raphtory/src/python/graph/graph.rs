@@ -88,9 +88,9 @@ impl<'source> FromPyObject<'source> for MaterializedGraph {
         } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
             Ok(graph.graph.clone().into())
         } else {
-            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions"
-            )))
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions".to_string(),
+            ))
         }
     }
 }
@@ -239,7 +239,7 @@ impl PyGraph {
     pub fn import_node(
         &self,
         node: PyNode,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
@@ -260,7 +260,7 @@ impl PyGraph {
     pub fn import_nodes(
         &self,
         nodes: Vec<PyNode>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<NodeView<Graph, Graph>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
@@ -282,7 +282,7 @@ impl PyGraph {
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
@@ -303,7 +303,7 @@ impl PyGraph {
     pub fn import_edges(
         &self,
         edges: Vec<PyEdge>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<EdgeView<Graph, Graph>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)

@@ -93,10 +93,7 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
-        self.edges
-            .read_lock()
-            .into_iter()
-            .map(|entry| EdgeRef::from(entry))
+        self.edges.read_lock().into_iter().map(EdgeRef::from)
     }
 }
 

@@ -107,9 +107,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| &entry.additions);
-                Some(LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
-                    layer_ids, t_index,
-                )))
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -122,9 +120,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         match self.edge_id {
             ERef::ERef(entry) => {
                 let t_index = entry.map(|entry| &entry.deletions);
-                Some(LockedLayeredIndex::LayeredIndex(LayeredIndex::new(
-                    layer_ids, t_index,
-                )))
+                Some(LockedLayeredIndex::new(layer_ids, t_index))
             }
             _ => None,
         }
@@ -246,8 +242,8 @@ impl<'a, const N: usize> EdgeView<'a, N> {
 
     pub(crate) fn from_entry(entry: Entry<'a, EdgeStore, N>, graph: &'a TGraph<N>) -> Self {
         Self {
-            src: entry.src().into(),
-            dst: entry.dst().into(),
+            src: entry.src(),
+            dst: entry.dst(),
             edge_id: ERef::ERef(entry),
             dir: Direction::OUT,
             graph,
