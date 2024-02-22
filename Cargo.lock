@@ -158,6 +158,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b3d0060af21e8d11a926981cc00c6c1541aa91dd64b9f881985c3da1094425f"
 
 [[package]]
+name = "archery"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8967cd1cc9e9e1954f644e14fbd6042fe9a37da96c52a67e44a2ac18261f8561"
+dependencies = [
+ "static_assertions",
+ "triomphe",
+]
+
+[[package]]
 name = "array-init-cursor"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3024,6 +3034,7 @@ dependencies = [
  "bytemuck",
  "bzip2",
  "chrono",
+ "crossbeam-channel",
  "csv",
  "dashmap",
  "display-error-chain",
@@ -3055,6 +3066,7 @@ dependencies = [
  "rayon",
  "regex",
  "reqwest",
+ "rpds",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -3378,6 +3390,15 @@ dependencies = [
  "bitflags 2.4.2",
  "serde",
  "serde_derive",
+]
+
+[[package]]
+name = "rpds"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0e15515d3ce3313324d842629ea4905c25a13f81953eadb88f85516f59290a4"
+dependencies = [
+ "archery",
 ]
 
 [[package]]
@@ -4448,6 +4469,12 @@ dependencies = [
  "tracing-core",
  "tracing-log",
 ]
+
+[[package]]
+name = "triomphe"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "859eb650cfee7434994602c3a68b25d77ad9e68c8a6cd491616ef86661382eb3"
 
 [[package]]
 name = "try-lock"
