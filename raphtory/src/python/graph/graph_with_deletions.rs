@@ -243,7 +243,7 @@ impl PyGraphWithDeletions {
     pub fn import_node(
         &self,
         node: PyNode,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<NodeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
@@ -264,7 +264,7 @@ impl PyGraphWithDeletions {
     pub fn import_nodes(
         &self,
         nodes: Vec<PyNode>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<NodeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
@@ -286,7 +286,7 @@ impl PyGraphWithDeletions {
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
@@ -307,7 +307,7 @@ impl PyGraphWithDeletions {
     pub fn import_edges(
         &self,
         edges: Vec<PyEdge>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<EdgeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)
@@ -325,9 +325,10 @@ impl PyGraphWithDeletions {
     /// Returns:
     ///  Graph: The loaded graph.
     #[staticmethod]
-    pub fn load_from_file(path: &str) -> Result<GraphWithDeletions, GraphError> {
+    #[pyo3(signature = (path, force=false))]
+    pub fn load_from_file(path: &str, force: bool) -> Result<GraphWithDeletions, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        GraphWithDeletions::load_from_file(file_path)
+        GraphWithDeletions::load_from_file(file_path, force)
     }
 
     /// Saves the graph to the given path.

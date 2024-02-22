@@ -555,8 +555,8 @@ impl PropUnwrap for Prop {
     }
 }
 
-impl fmt::Display for Prop {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Prop {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Prop::Str(value) => write!(f, "{}", value),
             Prop::U8(value) => write!(f, "{}", value),

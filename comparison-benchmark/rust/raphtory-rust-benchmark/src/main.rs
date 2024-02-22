@@ -196,7 +196,7 @@ fn main() {
 
     // page rank with time
     now = Instant::now();
-    let _page_rank = unweighted_page_rank(&g, 1000, None, None, true);
+    let _page_rank = unweighted_page_rank(&g, Some(1000), None, None, true, None);
     println!("Page rank: {} seconds", now.elapsed().as_secs_f64());
 
     // connected community_detection with time

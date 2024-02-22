@@ -55,16 +55,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn node_type(&self, v: VID) -> Option<ArcStr> {
-        self.inner().node_type(v)
-    }
-
-    #[inline]
-    fn get_all_node_types(&self) -> Vec<ArcStr> {
-        self.inner().get_all_node_types()
-    }
-
-    #[inline]
     fn get_layer_id(&self, name: &str) -> Option<usize> {
         self.inner().edge_meta.get_layer_id(name)
     }
@@ -75,6 +65,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.inner().get_all_node_types()
+    }
+
+    #[inline]
     fn node_id(&self, v: VID) -> u64 {
         self.inner().global_node_id(v)
     }
@@ -82,6 +77,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
     fn node_name(&self, v: VID) -> String {
         self.inner().node_name(v)
+    }
+
+    #[inline]
+    fn node_type(&self, v: VID) -> Option<ArcStr> {
+        self.inner().node_type(v)
     }
 
     #[inline]

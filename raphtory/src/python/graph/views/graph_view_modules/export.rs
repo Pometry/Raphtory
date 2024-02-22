@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, OptionAsStr, Prop},
+    core::{ArcStr, Prop},
     db::api::view::node::BaseNodeViewOps,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
     python::graph::views::graph_view::PyGraphView,
@@ -196,7 +196,7 @@ impl PyGraphView {
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
             let pyvis = py.import("pyvis.network")?;
-            let visGraph =
+            let vis_graph =
                 pyvis.call_method("Network", ("notebook", notebook.unwrap_or(true)), kwargs)?;
 
             let mut groups = HashMap::new();
@@ -226,9 +226,9 @@ impl PyGraphView {
                     let node_type = v.node_type().unwrap_or(ArcStr::from("_default"));
                     let group = groups.get(&node_type).unwrap();
                     kwargs_node.set_item("group", group)?;
-                    visGraph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
+                    vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
                 } else {
-                    visGraph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
+                    vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
                 }
             }
 
@@ -258,14 +258,14 @@ impl PyGraphView {
                 kwargs.set_item("color", edge_col)?;
                 kwargs.set_item("title", label)?;
                 kwargs.set_item("arrowStrikethrough", false)?;
-                visGraph.call_method(
+                vis_graph.call_method(
                     "add_edge",
                     (edge.src().id(), edge.dst().id()),
                     Some(kwargs),
                 )?;
             }
 
-            Ok(visGraph.to_object(py))
+            Ok(vis_graph.to_object(py))
         })
     }
 

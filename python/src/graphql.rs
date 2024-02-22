@@ -7,7 +7,6 @@ use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
-    exceptions,
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
@@ -221,6 +220,7 @@ impl PyRaphtoryServer {
 #[pymethods]
 impl PyRaphtoryServer {
     #[new]
+    #[pyo3(signature = (graphs=None, graph_dir=None))]
     fn py_new(
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_dir: Option<&str>,
@@ -847,9 +847,6 @@ fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
     match result {
         Ok(s) => Ok(s),
-        Err(e) => Err(exceptions::PyValueError::new_err(format!(
-            "Error encoding: {:?}",
-            e
-        ))),
+        Err(e) => Err(PyValueError::new_err(format!("Error encoding: {:?}", e))),
     }
 }
