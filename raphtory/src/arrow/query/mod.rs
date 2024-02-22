@@ -307,7 +307,7 @@ mod test {
     }
 
     fn forward_time_filter(_node: Node, edge: Edge, state: &ForwardState) -> bool {
-        let ts = edge.into_distinct_timestamps();
+        let ts = edge.timestamps();
 
         let range = state.time + 1..i64::MAX;
         let iter = ts.range(range);
@@ -342,7 +342,7 @@ mod test {
         }
 
         fn with_next(&self, node: Node, edge: Edge) -> Self {
-            let ts = edge.into_distinct_timestamps();
+            let ts = edge.timestamps();
             let w = self.time + 1..i64::MAX;
             let next_time = ts.range(w);
             ForwardState {
