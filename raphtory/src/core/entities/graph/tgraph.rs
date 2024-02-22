@@ -251,21 +251,6 @@ impl<const N: usize> TemporalGraph<N> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-        let f = std::fs::File::open(path)?;
-        let mut reader = std::io::BufReader::new(f);
-        bincode::deserialize_from(&mut reader)
-    }
-
-    pub(crate) fn save_to_file<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<(), Box<bincode::ErrorKind>> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
-        bincode::serialize_into(&mut writer, self)
-    }
-
     #[inline]
     pub(crate) fn global_node_id(&self, v: VID) -> u64 {
         let node = self.storage.get_node(v);

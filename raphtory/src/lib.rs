@@ -114,3 +114,5 @@ pub mod prelude {
         },
     };
 }
+
+pub const BINCODE_VERSION: u32 = 1u32;

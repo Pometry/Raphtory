@@ -173,10 +173,10 @@ impl Graph {
     ///
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_file("path/to/graph");
+    /// let g = Graph::load_from_file("path/to/graph", false);
     /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path)?;
+    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
+        let g = MaterializedGraph::load_from_file(path, force)?;
         g.into_events().ok_or(GraphError::GraphLoadError)
     }
 
@@ -461,7 +461,7 @@ mod db_tests {
         g.save_to_file(&graph_path).expect("Failed to save graph");
 
         // Load from files
-        let g2 = Graph::load_from_file(&graph_path).expect("Failed to load graph");
+        let g2 = Graph::load_from_file(&graph_path, false).expect("Failed to load graph");
 
         assert_eq!(g, g2);
 
@@ -1909,6 +1909,15 @@ mod db_tests {
             weakly_connected_components(&wl, 10, None).get_all_values(),
             [1, 1, 1, 1]
         );
+    }
+
+    #[test]
+    fn save_load_serial() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("abcd11");
+        g.save_to_file(&file_path).unwrap();
     }
 
     #[test]

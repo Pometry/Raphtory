@@ -32,10 +32,11 @@ use crate::{
         },
     },
     prelude::{Layer, Prop},
+    BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
@@ -52,6 +53,27 @@ use std::path::Path;
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(GraphWithDeletions),
+}
+
+fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if version != BINCODE_VERSION {
+        return Err(D::Error::custom(GraphError::BincodeVersionError(
+            version,
+            BINCODE_VERSION,
+        )));
+    };
+    Ok(version)
+}
+
+#[derive(Serialize, Deserialize)]
+struct VersionedGraph<T> {
+    #[serde(deserialize_with = "version_deserialize")]
+    version: u32,
+    graph: T,
 }
 
 impl Static for MaterializedGraph {}
@@ -187,26 +209,49 @@ impl MaterializedGraph {
         }
     }
 
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
         let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
-        Ok(bincode::deserialize_from(&mut reader)?)
+        if force {
+            let _: String = bincode::deserialize_from(&mut reader)?;
+            let data: Self = bincode::deserialize_from(&mut reader)?;
+            Ok(data)
+        } else {
+            let version: u32 = bincode::deserialize_from(&mut reader)?;
+            if version != BINCODE_VERSION {
+                return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
+            }
+            let data: Self = bincode::deserialize_from(&mut reader)?;
+            Ok(data)
+        }
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
-        Ok(bincode::serialize_into(&mut writer, self)?)
+        let versioned_data = VersionedGraph {
+            version: BINCODE_VERSION,
+            graph: self.clone(),
+        };
+        Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
     }
 
     pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
-        let encoded = bincode::serialize(self)?;
+        let versioned_data = VersionedGraph {
+            version: BINCODE_VERSION,
+            graph: self.clone(),
+        };
+        let encoded = bincode::serialize(&versioned_data)?;
         Ok(encoded)
     }
 
     pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
-        let g = bincode::deserialize(b)?;
-        Ok(g)
+        let version: u32 = bincode::deserialize(b)?;
+        if version != BINCODE_VERSION {
+            return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
+        }
+        let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
+        Ok(g.graph)
     }
 }
 

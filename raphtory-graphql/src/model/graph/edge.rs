@@ -142,4 +142,8 @@ impl Edge {
     async fn is_deleted(&self) -> bool {
         self.ee.is_deleted()
     }
+
+    async fn is_self_loop(&self) -> bool {
+        self.ee.is_self_loop()
+    }
 }
