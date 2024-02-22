@@ -197,7 +197,7 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
-            ArcStr, Prop,
+            ArcStr, OptionAsStr, Prop,
         },
         db::{
             api::view::{EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
@@ -1918,6 +1918,17 @@ mod db_tests {
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("abcd11");
         g.save_to_file(&file_path).unwrap();
+    }
+
+    #[test]
+    fn test_node_type_changes() {
+        let g = Graph::new();
+        g.add_node(0, "A", NO_PROPS, Some("typeA")).unwrap();
+        g.add_node(1, "A", NO_PROPS, None).unwrap();
+        let node_a = g.node("A").unwrap();
+        assert_eq!(node_a.node_type().as_str(), Some("typeA"));
+        let result = g.add_node(2, "A", NO_PROPS, Some("typeB"));
+        assert!(result.is_err());
     }
 
     #[test]
