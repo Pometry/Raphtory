@@ -78,7 +78,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: InputNode>(
 
     let infected_nodes = seed_nodes.into_iter().map(|n| n.id()).collect_vec();
     let stop_nodes = stop_nodes
-        .unwrap_or(vec![])
+        .unwrap_or_default()
         .into_iter()
         .map(|n| n.id())
         .collect_vec();

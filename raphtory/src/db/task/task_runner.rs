@@ -71,7 +71,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
             if g.has_node_ref(
                 NodeRef::Internal(v_ref.into()),
                 &g.layer_ids(),
-                g.edge_filter().as_deref(),
+                g.edge_filter(),
             ) {
                 let mut vv = EvalNodeView::new_local(
                     self.ctx.ss(),
@@ -221,9 +221,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         shard_initial_state: Option<Shard<CS>>,
         global_initial_state: Option<Global<CS>>,
     ) -> B {
-        let pool = num_threads
-            .map(|nt| custom_pool(nt))
-            .unwrap_or_else(|| POOL.clone());
+        let pool = num_threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
 
         let num_nodes = self.ctx.graph().unfiltered_num_nodes();
         let morcel_size = num_nodes.min(16_000);
@@ -256,7 +254,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         // To allow the init step to cache stuff we will copy everything from cur_local_state to prev_local_state
         prev_local_state.clone_from_slice(&cur_local_state);
 
-        while !_done && self.ctx.ss() < steps && tasks.len() > 0 {
+        while !_done && self.ctx.ss() < steps && !tasks.is_empty() {
             (_done, shard_state, global_state, cur_local_state) = self.run_task_list(
                 &tasks,
                 &pool,

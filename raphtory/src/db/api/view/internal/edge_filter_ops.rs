@@ -1,11 +1,8 @@
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::{
-            locked_view::LockedView,
-            timeindex::{
-                AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
-            },
+        storage::timeindex::{
+            TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
         },
     },
     db::api::view::{internal::Base, IntoDynBoxed},
@@ -36,9 +33,9 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         }
     }
 
-    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         match self {
-            TimeIndexLike::Ref(ref t) => TimeIndexLike::Range(t.range(w)),
+            TimeIndexLike::Ref(t) => TimeIndexLike::Range(t.range(w)),
             TimeIndexLike::Range(ref t) => TimeIndexLike::Range(t.range(w)),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => TimeIndexLike::External(t.range(w)),
@@ -47,7 +44,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::Ref(ref t) => t.first(),
+            TimeIndexLike::Ref(t) => t.first(),
             TimeIndexLike::Range(ref t) => t.first(),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.first(),
@@ -56,7 +53,7 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::Ref(ref t) => t.last(),
+            TimeIndexLike::Ref(t) => t.last(),
             TimeIndexLike::Range(ref t) => t.last(),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.last(),

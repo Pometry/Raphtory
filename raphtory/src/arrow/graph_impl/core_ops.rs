@@ -13,7 +13,7 @@ use crate::{
             },
             LayerIds, EID, VID,
         },
-        storage::{locked_view::LockedView, timeindex::LockedLayeredIndex, ArcEntry},
+        storage::{locked_view::LockedView, ArcEntry},
         utils::hashing::calculate_hash,
         ArcStr, Prop,
     },
@@ -21,7 +21,6 @@ use crate::{
         internal::{CoreEdgeView, CoreGraphOps, EdgeUpdates, NodeAdditions},
         BoxedIter,
     },
-    prelude::TimeIndexEntry,
 };
 
 use super::tprops::read_tprop_column;

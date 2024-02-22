@@ -10,11 +10,7 @@ use crate::{
             },
             LayerIds, EID, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndexEntry},
-            ArcEntry,
-        },
+        storage::{locked_view::LockedView, timeindex::TimeIndexEntry, ArcEntry},
         utils::errors::GraphError,
         ArcStr, Direction, PropType,
     },

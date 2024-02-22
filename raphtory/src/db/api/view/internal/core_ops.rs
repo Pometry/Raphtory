@@ -22,7 +22,7 @@ use crate::{
 use enum_dispatch::enum_dispatch;
 use std::ops::Range;
 
-use super::{CoreEdgeView, TimeIndexLike};
+use super::CoreEdgeView;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]

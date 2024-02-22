@@ -93,7 +93,7 @@ impl GraphProps {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), GraphError> {
-        let mut prop_entry = self.temporal.entry(prop_id).or_insert(TProp::default());
+        let mut prop_entry = self.temporal.entry(prop_id).or_default();
         (*prop_entry).set(t, prop)
     }
 

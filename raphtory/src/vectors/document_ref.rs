@@ -105,6 +105,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                life: self.life,
             },
             EntityId::Node { id } => Document::Node {
                 name: original_graph.node(*id).unwrap().name(),
@@ -113,6 +114,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                life: self.life,
             },
             EntityId::Edge { src, dst } => Document::Edge {
                 src: original_graph.node(*src).unwrap().name(),
@@ -122,6 +124,7 @@ impl DocumentRef {
                     .nth(self.index)
                     .unwrap()
                     .content,
+                life: self.life,
             },
         }
     }

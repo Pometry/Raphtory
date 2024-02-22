@@ -11,11 +11,7 @@ use crate::{
             },
             LayerIds, EID, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndexEntry},
-            ArcEntry,
-        },
+        storage::{locked_view::LockedView, ArcEntry},
         ArcStr,
     },
     db::api::view::{

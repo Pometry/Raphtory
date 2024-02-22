@@ -16,7 +16,7 @@ class NetworkXBench(BenchmarkBase):
         image_name = "python:3.10-bullseye"
         container_folder = "/app/data"
         exec_commands = [
-            "pip install requests tqdm docker networkx pandas numpy scipy",
+            "pip install requests tqdm docker networkx pandas numpy scipy matplotlib",
             '/bin/bash -c "cd /app/data;python benchmark_driver.py --no-docker --bench nx"',
         ]
         code, contents = super().start_docker(
@@ -42,14 +42,13 @@ class NetworkXBench(BenchmarkBase):
                 self.graph.add_edge(int(row[0]), int(row[1]))
 
     def degree(self):
-        return self.graph.degree()
+        return list(self.graph.degree())
 
     def out_neighbours(self):
-        sizes = []
+        out_neighbors = {}
         for node in self.graph.nodes:
-            out_neighbors = [edge[1] for edge in self.graph.edges if edge[0] == node]
-            sizes.append(len(out_neighbors))
-        return sizes
+            out_neighbors[node] = list(self.graph.successors(node))
+        return out_neighbors
 
     def page_rank(self):
         return nx.pagerank(self.graph)

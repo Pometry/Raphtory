@@ -242,8 +242,8 @@ impl<'a, const N: usize> EdgeView<'a, N> {
 
     pub(crate) fn from_entry(entry: Entry<'a, EdgeStore, N>, graph: &'a TGraph<N>) -> Self {
         Self {
-            src: entry.src().into(),
-            dst: entry.dst().into(),
+            src: entry.src(),
+            dst: entry.dst(),
             edge_id: ERef::ERef(entry),
             dir: Direction::OUT,
             graph,
