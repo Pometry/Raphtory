@@ -106,7 +106,7 @@ mod graphql_test {
             .expect("Could not add node!");
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = data::Data::from_map(graphs);
+        let data = Data::from_map(graphs);
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -237,7 +237,7 @@ mod graphql_test {
         }
 
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = data::Data::from_map(graphs);
+        let data = Data::from_map(graphs);
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -499,9 +499,8 @@ mod graphql_test {
         }
         "##;
 
-        let variables = serde_json::json!({ "file": null });
-        let mut req =
-            dynamic_graphql::Request::new(query).variables(Variables::from_json(variables));
+        let variables = json!({ "file": null });
+        let mut req = Request::new(query).variables(Variables::from_json(variables));
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
         println!("{:?}", res);

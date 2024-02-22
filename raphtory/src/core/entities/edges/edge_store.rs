@@ -49,7 +49,7 @@ impl EdgeLayer {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), GraphError> {
-        let props = self.props.get_or_insert_with(|| Props::new());
+        let props = self.props.get_or_insert_with(Props::new);
         props.add_prop(t, prop_id, prop)
     }
 
@@ -58,7 +58,7 @@ impl EdgeLayer {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), IllegalSet<Option<Prop>>> {
-        let props = self.props.get_or_insert_with(|| Props::new());
+        let props = self.props.get_or_insert_with(Props::new);
         props.add_constant_prop(prop_id, prop)
     }
 
@@ -91,12 +91,12 @@ impl EdgeLayer {
             self.props
                 .as_ref()
                 .map(|props| props.temporal_props_window(prop_id, window.start, window.end))
-                .unwrap_or_else(|| Box::new(std::iter::empty()))
+                .unwrap_or_else(|| Box::new(iter::empty()))
         } else {
             self.props
                 .as_ref()
                 .map(|props| props.temporal_props(prop_id))
-                .unwrap_or_else(|| Box::new(std::iter::empty()))
+                .unwrap_or_else(|| Box::new(iter::empty()))
         }
     }
 }
@@ -241,21 +241,21 @@ impl EdgeStore {
             .enumerate()
             .zip_longest(self.deletions.iter().enumerate())
             .flat_map(move |e| match e {
-                itertools::EitherOrBoth::Both((i, t1), (_, t2)) => {
+                EitherOrBoth::Both((i, t1), (_, t2)) => {
                     if t1.contains(w.clone()) || t2.contains(w.clone()) {
                         Some(i)
                     } else {
                         None
                     }
                 }
-                itertools::EitherOrBoth::Left((i, t)) => {
+                EitherOrBoth::Left((i, t)) => {
                     if t.contains(w.clone()) {
                         Some(i)
                     } else {
                         None
                     }
                 }
-                itertools::EitherOrBoth::Right((i, t)) => {
+                EitherOrBoth::Right((i, t)) => {
                     if t.contains(w.clone()) {
                         Some(i)
                     } else {

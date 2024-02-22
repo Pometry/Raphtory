@@ -95,7 +95,7 @@ pub fn assert_graph_equal<
         // all exploded edges exist in other
         let e2 = g2
             .edge(e.src().id(), e.dst().id())
-            .expect(&format!("missing edge {:?}", e.id()));
+            .unwrap_or_else(|| panic!("missing edge {:?}", e.id()));
         assert!(
             e2.active(e.time().unwrap()),
             "exploded edge {:?} not active as expected at time {}",

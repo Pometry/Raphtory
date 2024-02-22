@@ -233,7 +233,7 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                (0, (actual_sum_1 + actual_sum_2)),
+                (0, actual_sum_1 + actual_sum_2),
                 (1, actual_sum_1),
                 (2, actual_sum_2),
             ]
@@ -349,7 +349,7 @@ mod state_test {
         assert_eq!(
             actual,
             vec![
-                (0, (actual_sum_1 + actual_sum_2)),
+                (0, actual_sum_1 + actual_sum_2),
                 (1, actual_sum_1),
                 (2, actual_sum_2),
             ]

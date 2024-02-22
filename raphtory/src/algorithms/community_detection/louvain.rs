@@ -45,7 +45,7 @@ pub fn louvain<'graph, M: ModularityFunction, G: GraphViewOps<'graph>>(
                     .map(|c| (c, modularity_state.move_delta(v, c)))
                     .max_by(|(_, delta1), (_, delta2)| delta1.total_cmp(delta2))
                 {
-                    let old_c = modularity_state.partition().com(&v);
+                    let old_c = modularity_state.partition().com(v);
                     if best_c != old_c && delta > tol {
                         inner_moved = true;
                         outer_moved = true;

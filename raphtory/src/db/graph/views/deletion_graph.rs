@@ -54,8 +54,8 @@ impl Display for GraphWithDeletions {
 }
 
 fn alive_before<
-    A: TimeIndexOps<IndexType = TimeIndexEntry>,
-    D: TimeIndexOps<IndexType = TimeIndexEntry>,
+    A: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
+    D: TimeIndexOps<IndexType = TimeIndexEntry> + ?Sized,
 >(
     additions: &A,
     deletions: &D,
@@ -77,8 +77,8 @@ fn alive_before<
 }
 
 fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
-    e.additions_iter(&layer_ids)
-        .zip_longest(e.deletions_iter(&layer_ids))
+    e.additions_iter(layer_ids)
+        .zip_longest(e.deletions_iter(layer_ids))
         .any(|zipped| match zipped {
             EitherOrBoth::Both(additions, deletions) => alive_before(&additions, &deletions, t),
             EitherOrBoth::Left(additions) => additions.active(i64::MIN..t),
@@ -118,6 +118,12 @@ static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
         e.active(layer_ids, w.clone()) || edge_alive_at_start(e, w.start, layer_ids)
     })
 });
+
+impl Default for GraphWithDeletions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl GraphWithDeletions {
     pub fn new() -> Self {
@@ -378,12 +384,12 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        e.time().map(|ti| *ti.t()).or_else(|| {
+        e.time().map(|ti| ti.t()).or_else(|| {
             let entry = self.core_edge(e.pid());
             if edge_alive_at_start(entry.deref(), i64::MIN, &layer_ids) {
                 Some(i64::MIN)
             } else {
-                self.edge_additions(e, layer_ids).first().map(|ti| *ti.t())
+                self.edge_additions(e, layer_ids).first().map(|ti| ti.t())
             }
         })
     }
@@ -403,7 +409,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
-        match e.time().map(|ti| *ti.t()) {
+        match e.time().map(|ti| ti.t()) {
             Some(t) => Some(min(
                 self.edge_additions(e, layer_ids.clone())
                     .range(t.saturating_add(1)..i64::MAX)
@@ -431,7 +437,7 @@ impl TimeSemantics for GraphWithDeletions {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> Option<i64> {
-        match e.time().map(|ti| *ti.t()) {
+        match e.time().map(|ti| ti.t()) {
             Some(t) => Some(min(
                 self.edge_additions(e, layer_ids.clone())
                     .range(t.saturating_add(1)..w.end)
@@ -451,8 +457,8 @@ impl TimeSemantics for GraphWithDeletions {
                     .updates_iter(&layer_ids)
                     .flat_map(|(_, additions, deletions)| {
                         let last_deletion = deletions.range(w.clone()).last()?;
-                        if last_deletion.t() > &w.start || additions.active(w.clone()) {
-                            Some(*last_deletion.t())
+                        if last_deletion.t() > w.start || additions.active(w.clone()) {
+                            Some(last_deletion.t())
                         } else {
                             None
                         }
@@ -463,10 +469,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids)
-            .iter_t()
-            .copied()
-            .collect()
+        self.edge_deletions(e, layer_ids).iter_t().collect()
     }
 
     fn edge_deletion_history_window(
@@ -478,7 +481,6 @@ impl TimeSemantics for GraphWithDeletions {
         self.edge_deletions(e, layer_ids)
             .range(w)
             .iter_t()
-            .copied()
             .collect()
     }
 

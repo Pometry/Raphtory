@@ -129,6 +129,27 @@ pub enum Direction {
     BOTH,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Lifespan {
+    Interval { start: i64, end: i64 },
+    Event { time: i64 },
+    Inherited,
+}
+
+/// struct containing all the necessary information to allow Raphtory creating a document and
+/// storing it
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct DocumentInput {
+    pub content: String,
+    pub life: Lifespan,
+}
+
+impl Display for DocumentInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.content)
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 pub enum PropType {
     #[default]
@@ -147,6 +168,7 @@ pub enum PropType {
     Map,
     DTime,
     Graph,
+    Document,
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.
@@ -166,6 +188,7 @@ pub enum Prop {
     Map(Arc<HashMap<ArcStr, Prop>>),
     DTime(NaiveDateTime),
     Graph(Graph),
+    Document(DocumentInput),
 }
 
 impl PartialOrd for Prop {
@@ -213,6 +236,7 @@ impl Prop {
             }
             Prop::DTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+            Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
         }
     }
 
@@ -232,6 +256,7 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::DTime(_) => PropType::DTime,
             Prop::Graph(_) => PropType::Graph,
+            Prop::Document(_) => PropType::Document,
         }
     }
 
@@ -339,6 +364,11 @@ pub trait PropUnwrap: Sized {
     fn unwrap_graph(self) -> Graph {
         self.into_graph().unwrap()
     }
+
+    fn into_document(self) -> Option<DocumentInput>;
+    fn unwrap_document(self) -> DocumentInput {
+        self.into_document().unwrap()
+    }
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -396,6 +426,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.and_then(|p| p.into_graph())
+    }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        self.and_then(|p| p.into_document())
     }
 }
 
@@ -511,10 +545,18 @@ impl PropUnwrap for Prop {
             None
         }
     }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        if let Prop::Document(d) = self {
+            Some(d)
+        } else {
+            None
+        }
+    }
 }
 
-impl fmt::Display for Prop {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Prop {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             Prop::Str(value) => write!(f, "{}", value),
             Prop::U8(value) => write!(f, "{}", value),
@@ -539,6 +581,7 @@ impl fmt::Display for Prop {
             Prop::Map(value) => {
                 write!(f, "{:?}", value)
             }
+            Prop::Document(value) => write!(f, "{}", value),
         }
     }
 }

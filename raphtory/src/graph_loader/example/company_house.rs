@@ -94,7 +94,11 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     ("type", "company".into_prop()),
                     (
                         "flag",
-                        (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
+                        company_house
+                            .illegal_hmo
+                            .clone()
+                            .unwrap_or("None".into())
+                            .into_prop(),
                     ),
                 ])
                 .expect("Failed to add node static property");
@@ -110,7 +114,11 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     ("type", "address".into_prop()),
                     (
                         "flag",
-                        (company_house.illegal_hmo.clone().unwrap_or("None".into())).into_prop(),
+                        company_house
+                            .illegal_hmo
+                            .clone()
+                            .unwrap_or("None".into())
+                            .into_prop(),
                     ),
                 ])
                 .expect("Failed to add node static property");

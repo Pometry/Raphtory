@@ -67,7 +67,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
                     );
                     predecessors
                         .entry(neighbor.node.0)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(current_node_id);
                 }
             }
@@ -96,17 +96,14 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     if let Some(true) = normalized {
         let factor = 1.0 / ((n as f64 - 1.0) * (n as f64 - 2.0));
         for node in nodes.iter() {
-            if betweenness.contains_key(&node.node.0) {
-                betweenness.insert(node.node.0, betweenness[&node.node.0] * factor);
-            } else {
-                betweenness.insert(node.node.0, 0.0f64);
-            }
+            betweenness
+                .entry(node.node.0)
+                .and_modify(|v| *v *= factor)
+                .or_insert(0.0f64);
         }
     } else {
         for node in nodes.iter() {
-            if !betweenness.contains_key(&node.node.0) {
-                betweenness.insert(node.node.0, 0.0f64);
-            }
+            betweenness.entry(node.node.0).or_insert(0.0f64);
         }
     }
 

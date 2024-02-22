@@ -55,7 +55,7 @@ where
 
     let step2 = ATask::new(move |vv: &mut EvalNodeView<G, KCoreState>| {
         let prev: bool = vv.prev().alive;
-        if prev == true {
+        if prev {
             let current = vv
                 .neighbours()
                 .into_iter()
