@@ -193,7 +193,7 @@ mod js_test {
     use wasm_bindgen_test::*;
 
     #[wasm_bindgen_test]
-    fn add_one_edge_get_neighbours() -> Result<(), super::JSError> {
+    fn add_one_edge_get_neighbours() -> Result<(), JSError> {
         let graph = super::Graph::new();
 
         graph.add_node_js(2, "Bob".into(), Object::new(), JsValue::from("H"))?;

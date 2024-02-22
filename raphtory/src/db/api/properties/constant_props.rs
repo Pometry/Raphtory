@@ -13,7 +13,7 @@ impl<P: ConstPropertiesOps> ConstProperties<P> {
         Self { props }
     }
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.const_prop_keys().map(|v| v.clone()).collect()
+        self.props.const_prop_keys().collect()
     }
 
     pub fn values(&self) -> Vec<Prop> {

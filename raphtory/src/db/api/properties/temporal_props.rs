@@ -77,7 +77,7 @@ impl<P: PropertiesOps + Clone> IntoIterator for TemporalProperties<P> {
     type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<TemporalPropertyView<P>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
+        let keys: Vec<_> = self.keys().collect();
         let values: Vec<_> = self.values().collect();
         keys.into_iter().zip(values)
     }

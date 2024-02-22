@@ -67,8 +67,7 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for DefaultTemplate {
                 layer => format!("{src} {layer} {dst} at times: {times}"),
             }
         });
-        let content: String =
-            itertools::Itertools::intersperse(layer_lines, "\n".to_owned()).collect();
+        let content: String = Itertools::intersperse(layer_lines, "\n".to_owned()).collect();
         let text_chunks = split_text_by_line_breaks(content, DEFAULT_MAX_SIZE);
         Box::new(text_chunks.into_iter().map(|text| text.into()))
     }

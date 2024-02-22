@@ -47,7 +47,7 @@ impl NodeStore {
             global_id,
             name: None,
             vid: 0.into(),
-            timestamps: TimeIndex::one(*t.t()),
+            timestamps: TimeIndex::one(t.t()),
             layers,
             props: None,
             node_type: 0,
@@ -77,7 +77,7 @@ impl NodeStore {
     }
 
     pub fn update_time(&mut self, t: TimeIndexEntry) {
-        self.timestamps.insert(*t.t());
+        self.timestamps.insert(t.t());
     }
 
     pub fn update_node_type(&mut self, node_type: usize) -> usize {

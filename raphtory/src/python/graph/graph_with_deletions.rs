@@ -243,7 +243,7 @@ impl PyGraphWithDeletions {
     pub fn import_node(
         &self,
         node: PyNode,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<NodeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
@@ -264,7 +264,7 @@ impl PyGraphWithDeletions {
     pub fn import_nodes(
         &self,
         nodes: Vec<PyNode>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<NodeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
@@ -286,7 +286,7 @@ impl PyGraphWithDeletions {
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
@@ -307,7 +307,7 @@ impl PyGraphWithDeletions {
     pub fn import_edges(
         &self,
         edges: Vec<PyEdge>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<EdgeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)

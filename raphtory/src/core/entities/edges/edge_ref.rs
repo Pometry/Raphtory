@@ -87,7 +87,7 @@ impl EdgeRef {
 
     #[inline(always)]
     pub fn time_t(&self) -> Option<i64> {
-        self.time.map(|t| *t.t())
+        self.time.map(|t| t.t())
     }
 
     #[inline]

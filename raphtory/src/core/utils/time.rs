@@ -183,7 +183,7 @@ impl TryFrom<&str> for Interval {
             re.replace_all(&no_and, " ")
         };
 
-        let tokens = cleaned.split(" ").collect_vec();
+        let tokens = cleaned.split(' ').collect_vec();
 
         if tokens.len() < 2 || tokens.len() % 2 != 0 {
             return Err(ParseTimeError::InvalidPairs);
@@ -206,7 +206,7 @@ impl TryFrom<&str> for Interval {
                     .unwrap(),
             })
         } else {
-            Err(errors.get(0).unwrap().clone())
+            Err(errors.first().unwrap().clone())
         }
     }
 }
