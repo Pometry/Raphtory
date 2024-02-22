@@ -1,6 +1,5 @@
 use crate::core::{DocumentInput, Lifespan};
 use futures_util::future::BoxFuture;
-use serde::{Deserialize, Serialize};
 use std::future::Future;
 
 mod document_ref;

@@ -68,7 +68,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 
     /// Collect properties into vector
     pub fn as_vec(&self) -> Vec<(ArcStr, Prop)> {
-        self.iter().map(|(k, v)| (k, v)).collect()
+        self.iter().collect()
     }
 
     /// Collect properties into map
@@ -92,7 +92,7 @@ impl<P: PropertiesOps + Clone> IntoIterator for Properties<P> {
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
+        let keys: Vec<_> = self.keys().collect();
         let vals: Vec<_> = self.values().collect();
         Box::new(keys.into_iter().zip(vals))
     }

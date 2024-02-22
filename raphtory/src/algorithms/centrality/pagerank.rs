@@ -62,7 +62,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let tol: f64 = tol.unwrap_or_else(|| 0.000001f64);
+    let tol: f64 = tol.unwrap_or(0.000001f64);
     let damp = 0.85;
     let teleport_prob = (1f64 - damp) / n as f64;
     let factor = damp / n as f64;
@@ -128,7 +128,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         let prev = s.prev().score;
 
         let md = if use_l2_norm {
-            f64::powi(abs(prev - curr) as f64, 2)
+            f64::powi(abs(prev - curr), 2)
         } else {
             abs(prev - curr)
         };
@@ -140,10 +140,10 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     let step5 = Job::Check(Box::new(move |state| {
         let max_diff_val = state.read(&max_diff);
         let cont = if use_l2_norm {
-            let sum_d = f64::sqrt(max_diff_val as f64);
-            (sum_d as f64) > tol * n as f64
+            let sum_d = f64::sqrt(max_diff_val);
+            (sum_d) > tol * n as f64
         } else {
-            (max_diff_val as f64) > tol * n as f64
+            (max_diff_val) > tol * n as f64
         };
         if cont {
             Step::Continue

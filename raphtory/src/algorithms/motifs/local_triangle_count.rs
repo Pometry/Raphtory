@@ -50,7 +50,6 @@ pub fn local_triangle_count<G: StaticGraphViewOps, V: Into<NodeRef>>(
             let len = node
                 .neighbours()
                 .id()
-                .into_iter()
                 .combinations(2)
                 .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
                     true => Some(1),
@@ -91,7 +90,7 @@ mod triangle_count_tests {
         }
 
         let windowed_graph = g.window(0, 5);
-        let expected = vec![(1), (1), (1)];
+        let expected = vec![1, 1, 1];
 
         let actual = (1..=3)
             .map(|v| local_triangle_count(&windowed_graph, v).unwrap())

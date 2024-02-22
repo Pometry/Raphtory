@@ -794,7 +794,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         let mut document = Document::new();
         // add time to the document
         let time = self.node_index.schema().get_field(fields::TIME)?;
-        document.add_i64(time, *t.t());
+        document.add_i64(time, t.t());
         // add name to the document
 
         let name = self.node_index.schema().get_field(fields::NAME)?;

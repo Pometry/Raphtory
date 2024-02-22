@@ -56,10 +56,10 @@ impl<CS: ComputeState> Shard<CS> {
     }
 
     pub fn reset(&mut self, ss: usize, resetable_states: &[u32]) {
-        Arc::get_mut(&mut self.0).map(|s| {
+        if let Some(s) = Arc::get_mut(&mut self.0) {
             s.copy_over_next_ss(ss);
             s.reset_states(ss, resetable_states);
-        });
+        }
     }
 }
 
@@ -91,10 +91,10 @@ impl<CS: ComputeState> Global<CS> {
     }
 
     pub fn reset(&mut self, ss: usize, resetable_states: &[u32]) {
-        Arc::get_mut(&mut self.0).map(|s| {
+        if let Some(s) = Arc::get_mut(&mut self.0) {
             s.copy_over_next_ss(ss);
             s.reset_states(ss, resetable_states);
-        });
+        }
     }
 }
 

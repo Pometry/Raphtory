@@ -11,7 +11,7 @@ use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, HashMap},
+    collections::{hash_map::Entry, BinaryHeap, HashMap},
     fmt::Debug,
 };
 
@@ -83,7 +83,7 @@ impl<I: IntoIterator<Item = V>, V: Into<NodeRef> + Debug> IntoSeeds for I {
                 let description = format!("{:?}", v);
                 graph
                     .internal_node_ref(v.into(), &graph.layer_ids(), graph.edge_filter())
-                    .ok_or_else(|| SeedError::InvalidNode(description))
+                    .ok_or(SeedError::InvalidNode(description))
             })
             .collect()
     }
@@ -131,7 +131,7 @@ impl TryFrom<f64> for Probability {
     type Error = ProbabilityError;
 
     fn try_from(value: f64) -> Result<Self, Self::Error> {
-        if 0. <= value && value <= 1. {
+        if (0. ..=1.).contains(&value) {
             Ok(Probability(value))
         } else {
             Err(ProbabilityError(value))
@@ -183,8 +183,8 @@ where
 {
     let infection_prob = infection_prob.try_into()?;
     let seeds = seeds.into_initial_list(graph, rng)?;
-    let recovery_dist = recovery_rate.map(|r| Exp::new(r)).transpose()?;
-    let incubation_dist = incubation_rate.map(|r| Exp::new(r)).transpose()?;
+    let recovery_dist = recovery_rate.map(Exp::new).transpose()?;
+    let incubation_dist = incubation_rate.map(Exp::new).transpose()?;
     let infection_dist = Bernoulli::new(infection_prob.0).unwrap();
     let initial_infection = initial_infection.try_into_time()?;
     let mut states: HashMap<VID, Infected> = HashMap::default();
@@ -199,7 +199,7 @@ where
         .collect();
     while !event_queue.is_empty() {
         let Reverse(next_event) = event_queue.pop().unwrap();
-        if !states.contains_key(&next_event.node) {
+        if let Entry::Vacant(e) = states.entry(next_event.node) {
             // node not yet infected
             let node = graph.node(next_event.node).unwrap();
             let incubation_time = incubation_dist
@@ -210,14 +210,11 @@ where
                 .unwrap_or(i64::MAX);
             let start_t = next_event.time.saturating_add(incubation_time);
             let end_t = start_t.saturating_add(recovery_time);
-            states.insert(
-                next_event.node,
-                Infected {
-                    infected: next_event.time,
-                    active: start_t,
-                    recovered: end_t,
-                },
-            );
+            e.insert(Infected {
+                infected: next_event.time,
+                active: start_t,
+                recovered: end_t,
+            });
             for e in node.window(start_t, end_t).out_edges() {
                 let neighbour = e.dst().node;
                 if !states.contains_key(&neighbour) {
@@ -293,7 +290,6 @@ mod test {
                 *v += new_v;
                 Some(*v)
             })
-            .map(|v| v as i64)
             .collect();
         values
     }
