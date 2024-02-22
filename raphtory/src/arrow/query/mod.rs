@@ -77,9 +77,14 @@ fn run<S: HopState>(
     graph: &TempColGraphFragment,
 ) {
     let Query { sink, .. } = query;
-    if let Some(Hop { dir, filter, variable }) = query.get_hop(step) {
+    if let Some(Hop {
+        dir,
+        filter,
+        variable,
+    }) = query.get_hop(step)
+    {
         // if this is a variable hop and we're not at the last step then print the intermediate result
-        if *variable && !(query.hops.len() - 1 == step){
+        if *variable && !(query.hops.len() - 1 == step) {
             run_sink(sink, state.clone(), node);
         }
         run_hop_edges::<S>(*dir, step, query, node, edge, filter.as_ref(), state, graph);
@@ -165,10 +170,7 @@ mod test {
 
     use crate::core::storage::timeindex::TimeIndexOps;
 
-    use super::ast::*;
-    use super::executors::*;
-    use super::state::*;
-    use super::*;
+    use super::{ast::*, executors::*, state::*, *};
 
     #[test]
     fn one_hop_query() {
@@ -216,7 +218,6 @@ mod test {
         let (_, vid) = receiver.recv().unwrap();
         assert_eq!(vid, VID(2));
     }
-
 
     #[test]
     fn two_hop_query_var() {

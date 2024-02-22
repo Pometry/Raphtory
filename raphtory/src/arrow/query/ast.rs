@@ -42,7 +42,11 @@ impl<S: HopState> Query<S> {
         filter: Option<Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>>,
         variable: bool,
     ) -> Self {
-        self.hops.push(Hop { dir, filter, variable });
+        self.hops.push(Hop {
+            dir,
+            filter,
+            variable,
+        });
         self
     }
 
@@ -58,14 +62,11 @@ impl<S: HopState> Query<S> {
         self.hop(Direction::OUT, None, false)
     }
 
-    pub fn out_var(self) -> Self{
+    pub fn out_var(self) -> Self {
         self.hop(Direction::OUT, None, true)
     }
 
-    pub fn out_filter(
-        self,
-        filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>,
-    ) -> Self {
+    pub fn out_filter(self, filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>) -> Self {
         self.hop(Direction::OUT, Some(filter), false)
     }
 
@@ -73,10 +74,7 @@ impl<S: HopState> Query<S> {
         self.hop(Direction::IN, None, false)
     }
 
-    pub fn into_filter(
-        self,
-        filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>,
-    ) -> Self {
+    pub fn into_filter(self, filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>) -> Self {
         self.hop(Direction::IN, Some(filter), false)
     }
 

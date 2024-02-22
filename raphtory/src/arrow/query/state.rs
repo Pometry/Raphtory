@@ -1,4 +1,7 @@
-use crate::{arrow::edge::Edge, arrow::nodes::Node, core::entities::VID};
+use crate::{
+    arrow::{edge::Edge, nodes::Node},
+    core::entities::VID,
+};
 pub trait HopState: Send + Sync + Clone + std::fmt::Debug {
     fn new(node: Node) -> Self;
     fn with_next(&self, node: Node, edge: Edge) -> Self;
@@ -44,4 +47,3 @@ impl HopState for Count {
         Count(*count + 1)
     }
 }
-

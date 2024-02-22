@@ -7,8 +7,9 @@ use crate::{
         nodes::Node,
         query::{
             ast::{Hop, Query, Sink},
+            run_sink,
             state::HopState,
-            NodeSource, run_sink,
+            NodeSource,
         },
         Error,
     },
@@ -63,7 +64,12 @@ fn hop_node<'a, S: HopState + 'a>(
 ) {
     let vid = node.vid();
     let Query { sink, .. } = query;
-    if let Some(Hop { dir, filter, variable }) = query.get_hop(step) {
+    if let Some(Hop {
+        dir,
+        filter,
+        variable,
+    }) = query.get_hop(step)
+    {
         if *variable {
             run_sink(sink, state.clone(), node);
         }
@@ -80,7 +86,7 @@ fn hop_node<'a, S: HopState + 'a>(
                             .unwrap_or(true)
                     })
                     .for_each(|(edge, node)| {
-                        hop_node(node, query, step+1, state.with_next(node, edge), graph, s);
+                        hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
                     });
             }),
             Direction::IN => {
@@ -95,7 +101,7 @@ fn hop_node<'a, S: HopState + 'a>(
                             .unwrap_or(true)
                     })
                     .for_each(|(edge, node)| {
-                        hop_node(node, query, step+1, state.with_next(node, edge), graph, s);
+                        hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
                     });
             }
             Direction::BOTH => {
@@ -107,7 +113,12 @@ fn hop_node<'a, S: HopState + 'a>(
     }
 }
 
-fn fun_name<'a, 'b: 'a, 'c, S: HopState>(sink: &'b Sink<S>, s: &'c rayon::ScopeFifo<'a>, state: S, vid: VID) {
+fn fun_name<'a, 'b: 'a, 'c, S: HopState>(
+    sink: &'b Sink<S>,
+    s: &'c rayon::ScopeFifo<'a>,
+    state: S,
+    vid: VID,
+) {
     match sink {
         Sink::Channel(sender) => {
             s.spawn_fifo(move |_| {
