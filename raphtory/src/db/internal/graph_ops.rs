@@ -19,6 +19,103 @@ use rayon::prelude::*;
 use std::{iter, ops::Deref};
 
 impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
+    fn internal_node_ref(
+        &self,
+        v: NodeRef,
+        _layer_ids: &LayerIds,
+        _filter: Option<&EdgeFilter>,
+    ) -> Option<VID> {
+        match v {
+            NodeRef::Internal(l) => Some(l),
+            NodeRef::External(_) => {
+                let vid = self.inner().resolve_node_ref(v)?;
+                Some(vid)
+            }
+        }
+    }
+
+    fn find_edge_id(
+        &self,
+        e_id: EID,
+        layer_ids: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        let e_id_usize: usize = e_id.into();
+        if e_id_usize >= self.inner().storage.edges.len() {
+            return None;
+        }
+        let e = self.inner().storage.edges.get(e_id_usize);
+        filter
+            .map(|f| f(&*e, layer_ids))
+            .unwrap_or(true)
+            .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
+    }
+
+    fn nodes_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
+        self.inner().internal_num_nodes()
+    }
+
+    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        self.inner().num_edges(&layers, filter)
+    }
+    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
+        let edges = self.inner().storage.edges.read_lock();
+        edges
+            .par_iter()
+            .filter(|&e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
+            .map(|e| {
+                e.updates_iter(&layers)
+                    .map(|(_, additions, deletions)| {
+                        additions.len()
+                            + deletions
+                                .first()
+                                .map(|first_deletion| {
+                                    additions
+                                        .first()
+                                        .map(|first_addition| {
+                                            if first_deletion < first_addition {
+                                                1
+                                            } else {
+                                                0
+                                            }
+                                        })
+                                        .unwrap_or(1)
+                                })
+                                .unwrap_or(0)
+                    })
+                    .sum::<usize>()
+            })
+            .sum()
+    }
+
+    #[inline]
+    fn degree(
+        &self,
+        v: VID,
+        d: Direction,
+        layers: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> usize {
+        self.inner().degree(v, d, layers, filter)
+    }
+
+    fn edge_ref(
+        &self,
+        src: VID,
+        dst: VID,
+        layer: &LayerIds,
+        filter: Option<&EdgeFilter>,
+    ) -> Option<EdgeRef> {
+        self.inner()
+            .find_edge(src, dst, layer)
+            .filter(|eid| {
+                filter
+                    .map(|f| f(&*self.inner().storage.edges.get((*eid).into()), layer))
+                    .unwrap_or(true)
+            })
+            .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
+    }
+
     fn node_refs(
         &self,
         _layers: LayerIds,
@@ -192,102 +289,5 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         } else {
             Box::new(iter)
         }
-    }
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        _layer_ids: &LayerIds,
-        _filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
-        match v {
-            NodeRef::Internal(l) => Some(l),
-            NodeRef::External(_) => {
-                let vid = self.inner().resolve_node_ref(v)?;
-                Some(vid)
-            }
-        }
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        let e_id_usize: usize = e_id.into();
-        if e_id_usize >= self.inner().storage.edges.len() {
-            return None;
-        }
-        let e = self.inner().storage.edges.get(e_id_usize);
-        filter
-            .map(|f| f(&*e, layer_ids))
-            .unwrap_or(true)
-            .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
-    }
-
-    fn nodes_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
-        self.inner().internal_num_nodes()
-    }
-
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.inner().num_edges(&layers, filter)
-    }
-
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        let edges = self.inner().storage.edges.read_lock();
-        edges
-            .par_iter()
-            .filter(|&e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
-            .map(|e| {
-                e.updates_iter(&layers)
-                    .map(|(_, additions, deletions)| {
-                        additions.len()
-                            + deletions
-                                .first()
-                                .map(|first_deletion| {
-                                    additions
-                                        .first()
-                                        .map(|first_addition| {
-                                            if first_deletion < first_addition {
-                                                1
-                                            } else {
-                                                0
-                                            }
-                                        })
-                                        .unwrap_or(1)
-                                })
-                                .unwrap_or(0)
-                    })
-                    .sum::<usize>()
-            })
-            .sum()
-    }
-
-    #[inline]
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> usize {
-        self.inner().degree(v, d, layers, filter)
-    }
-
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.inner()
-            .find_edge(src, dst, layer)
-            .filter(|eid| {
-                filter
-                    .map(|f| f(&*self.inner().storage.edges.get((*eid).into()), layer))
-                    .unwrap_or(true)
-            })
-            .map(|e_id| EdgeRef::new_outgoing(e_id, src, dst))
     }
 }

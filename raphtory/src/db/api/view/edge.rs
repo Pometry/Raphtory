@@ -79,6 +79,9 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Check that the latest status of the edge is deleted (i.e., not valid)
     fn is_deleted(&self) -> Self::ValueType<bool>;
 
+    /// If the edge is a loop then returns true, else false
+    fn is_self_loop(&self) -> Self::ValueType<bool>;
+
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
     /// Returns the source node of the edge.
@@ -167,6 +170,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| !g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
     }
 
+    fn is_self_loop(&self) -> Self::ValueType<bool> {
+        self.map(|_g, e| e.src() == e.dst())
+    }
+
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()
@@ -190,10 +197,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn active(&self, t: i64) -> Self::ValueType<bool> {
         self.map(move |g, e| match e.time() {
             Some(tt) => {
-                *tt.t() <= t
+                tt.t() <= t
                     && t <= g
                         .edge_latest_time(e, g.layer_ids().constrain_from_edge(e))
-                        .unwrap_or(*tt.t())
+                        .unwrap_or(tt.t())
             }
             None => {
                 let window_filter = g.include_edge_window();

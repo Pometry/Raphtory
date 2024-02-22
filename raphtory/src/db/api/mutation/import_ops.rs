@@ -44,7 +44,7 @@ pub trait ImportOps:
     fn import_node<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         node: &NodeView<GHH, GH>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<NodeView<Self, Self>, GraphError>;
 
     /// Imports multiple nodes into the graph.
@@ -64,7 +64,7 @@ pub trait ImportOps:
     fn import_nodes<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         node: Vec<&NodeView<GHH, GH>>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<NodeView<Self, Self>>, GraphError>;
 
     /// Imports a single edge into the graph.
@@ -84,7 +84,7 @@ pub trait ImportOps:
     fn import_edge<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         edge: &EdgeView<GHH, GH>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError>;
 
     /// Imports multiple edges into the graph.
@@ -104,7 +104,7 @@ pub trait ImportOps:
     fn import_edges<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         edges: Vec<&EdgeView<GHH, GH>>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<EdgeView<Self, Self>>, GraphError>;
 }
 
@@ -119,9 +119,9 @@ impl<
     fn import_node<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         node: &NodeView<GHH, GH>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<NodeView<G, G>, GraphError> {
-        if force == Some(false) || force.is_none() {
+        if !force {
             if self.node(node.id()).is_some() {
                 return Err(NodeExistsError(node.id()));
             }
@@ -172,7 +172,7 @@ impl<
     fn import_nodes<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         nodes: Vec<&NodeView<GHH, GH>>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<NodeView<G, G>>, GraphError> {
         let mut added_nodes = vec![];
         for node in nodes {
@@ -185,14 +185,14 @@ impl<
     fn import_edge<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         edge: &EdgeView<GHH, GH>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
         // make sure we preserve all layers even if they are empty
         // skip default layer
         for layer in edge.graph.unique_layers().skip(1) {
             self.resolve_layer(Some(&layer));
         }
-        if force == Some(false) || force.is_none() {
+        if !force {
             if self.has_edge(edge.src().name(), edge.dst().name()) {
                 return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
             }
@@ -238,7 +238,7 @@ impl<
     fn import_edges<GHH: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>(
         &self,
         edges: Vec<&EdgeView<GHH, GH>>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<EdgeView<Self, Self>>, GraphError> {
         let mut added_edges = vec![];
         for edge in edges {

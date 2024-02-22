@@ -251,21 +251,6 @@ impl<const N: usize> TemporalGraph<N> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-        let f = std::fs::File::open(path)?;
-        let mut reader = std::io::BufReader::new(f);
-        bincode::deserialize_from(&mut reader)
-    }
-
-    pub(crate) fn save_to_file<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<(), Box<bincode::ErrorKind>> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
-        bincode::serialize_into(&mut writer, self)
-    }
-
     #[inline]
     pub(crate) fn global_node_id(&self, v: VID) -> u64 {
         let node = self.storage.get_node(v);
@@ -290,7 +275,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     #[inline]
     pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore, N> {
-        self.storage.get_node(v.into())
+        self.storage.get_node(v)
     }
 
     pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
@@ -299,7 +284,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     #[inline]
     pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
-        self.storage.get_edge(e.into())
+        self.storage.get_edge(e)
     }
 }
 
@@ -348,7 +333,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     #[inline]
     fn update_time(&self, time: TimeIndexEntry) {
-        let t = *time.t();
+        let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
     }
@@ -367,8 +352,9 @@ impl<const N: usize> TemporalGraph<N> {
         v_id: VID,
         node_type: Option<&str>,
     ) -> Result<usize, GraphError> {
+        let mut node = self.storage.get_node_mut(v_id);
         match node_type {
-            None => Ok(self.node_meta.get_default_node_type_id()),
+            None => Ok(node.node_type),
             Some(node_type) => {
                 if node_type == "_default" {
                     return Err(GraphError::NodeTypeError(
@@ -377,7 +363,6 @@ impl<const N: usize> TemporalGraph<N> {
                             .unwrap(),
                     ));
                 }
-                let mut node = self.storage.get_node_mut(v_id);
                 match node.node_type {
                     0 => {
                         let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
@@ -435,7 +420,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<(), IllegalMutate> {
-        let mut edge = self.storage.get_edge_mut(edge_id.into());
+        let mut edge = self.storage.get_edge_mut(edge_id);
 
         let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
@@ -521,7 +506,7 @@ impl<const N: usize> TemporalGraph<N> {
         layer: usize,
         edge_fn: F,
     ) -> Result<EID, GraphError> {
-        let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
+        let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
         self.update_time(t);
         let src = node_pair.get_mut_i();
 
@@ -575,7 +560,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: &LayerIds) -> Option<EID> {
-        let node = self.storage.get_node(src.into());
+        let node = self.storage.get_node(src);
         node.find_edge(dst, layer_id)
     }
 
@@ -584,29 +569,29 @@ impl<const N: usize> TemporalGraph<N> {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(gid) => {
                 let v_id = self.logical_to_physical.get(&gid)?;
-                Some((*v_id).into())
+                Some((*v_id))
             }
         }
     }
 
     pub(crate) fn node(&self, v: VID) -> Node<N> {
-        let node = self.storage.get_node(v.into());
+        let node = self.storage.get_node(v);
         Node::from_entry(node, self)
     }
 
     pub(crate) fn node_arc(&self, v: VID) -> ArcNode {
-        let node = self.storage.get_node_arc(v.into());
+        let node = self.storage.get_node_arc(v);
         ArcNode::from_entry(node, self.node_meta.clone())
     }
 
     pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge {
-        let edge = self.storage.get_edge_arc(e.into());
+        let edge = self.storage.get_edge_arc(e);
         ArcEdge::from_entry(edge, self.edge_meta.clone())
     }
 
     #[inline]
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
-        let edge = self.storage.get_edge(e.into());
+        let edge = self.storage.get_edge(e);
         EdgeView::from_entry(edge, self)
     }
 

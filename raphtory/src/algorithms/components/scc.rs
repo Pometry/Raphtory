@@ -150,7 +150,7 @@ where
                     let v_ref = VID(v_ref_id);
                     graph
                         .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.is_scc_node.clone()))
+                        .then_some((v_ref_id, state.is_scc_node))
                 })
                 .collect::<HashMap<_, _>>()
         },
@@ -171,7 +171,7 @@ where
 
     let sub_graph = graph.subgraph(cycle_nodes.clone());
 
-    return tarjan_scc(&sub_graph);
+    tarjan_scc(&sub_graph)
 }
 
 #[cfg(test)]

@@ -131,7 +131,7 @@ impl ArcEdge {
     pub(crate) fn timestamps_and_layers(
         &self,
         layer: LayerIds,
-    ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + Send + '_ {
+    ) -> impl Iterator<Item = (usize, TimeIndexEntry)> + Send + '_ {
         self.e
             .additions
             .iter()
@@ -156,7 +156,7 @@ impl ArcEdge {
         &self,
         layer: LayerIds,
         w: Range<i64>,
-    ) -> impl Iterator<Item = (usize, &TimeIndexEntry)> + '_ {
+    ) -> impl Iterator<Item = (usize, TimeIndexEntry)> + '_ {
         self.e
             .additions
             .iter()
