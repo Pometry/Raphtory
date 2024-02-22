@@ -1,8 +1,11 @@
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, VID},
-        storage::timeindex::{
-            TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
+        storage::{
+            locked_view::LockedView,
+            timeindex::{
+                AsTime, TimeIndex, TimeIndexEntry, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow,
+            },
         },
     },
     db::api::view::{internal::Base, IntoDynBoxed},
@@ -14,37 +17,38 @@ use std::{ops::Range, sync::Arc};
 use crate::arrow::timestamps::TimeStamps;
 
 pub enum TimeIndexLike<'a> {
-    TimeIndex(&'a TimeIndex<TimeIndexEntry>),
-    TimeIndexRange(TimeIndexWindow<'a, TimeIndexEntry>),
+    Ref(&'a TimeIndex<TimeIndexEntry>),
+    Range(TimeIndexWindow<'a, TimeIndexEntry>),
     #[cfg(feature = "arrow")]
     External(TimeStamps<'a, TimeIndexEntry>),
 }
 
 impl<'a> TimeIndexOps for TimeIndexLike<'a> {
     type IndexType = TimeIndexEntry;
+    type RangeType<'b> = TimeIndexLike<'b> where Self: 'b;
 
     fn active(&self, w: Range<i64>) -> bool {
         match self {
-            TimeIndexLike::TimeIndex(ref t) => t.active(w),
+            TimeIndexLike::Ref(ref t) => t.active(w),
+            TimeIndexLike::Range(ref t) => t.active(w),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.active(w),
-            TimeIndexLike::TimeIndexRange(ref t) => t.active(w),
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
         match self {
-            TimeIndexLike::TimeIndex(ref t) => t.range(w),
+            TimeIndexLike::Ref(ref t) => TimeIndexLike::Range(t.range(w)),
+            TimeIndexLike::Range(ref t) => TimeIndexLike::Range(t.range(w)),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => t.range(w),
-            TimeIndexLike::TimeIndexRange(ref t) => t.range(w),
+            TimeIndexLike::External(ref t) => TimeIndexLike::External(t.range(w)),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::TimeIndex(ref t) => t.first(),
-            TimeIndexLike::TimeIndexRange(ref t) => t.first(),
+            TimeIndexLike::Ref(ref t) => t.first(),
+            TimeIndexLike::Range(ref t) => t.first(),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.first(),
         }
@@ -52,8 +56,8 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::TimeIndex(ref t) => t.last(),
-            TimeIndexLike::TimeIndexRange(ref t) => t.last(),
+            TimeIndexLike::Ref(ref t) => t.last(),
+            TimeIndexLike::Range(ref t) => t.last(),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.last(),
         }
@@ -61,8 +65,8 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
 
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
-            TimeIndexLike::TimeIndex(ref t) => t.iter(),
-            TimeIndexLike::TimeIndexRange(ref t) => t.iter(),
+            TimeIndexLike::Ref(t) => t.iter(),
+            TimeIndexLike::Range(t) => t.iter(),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(ref t) => t.iter(),
         }
@@ -76,16 +80,16 @@ impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
 
     fn into_range(self, w: Range<i64>) -> TimeIndexLike<'a> {
         match self {
-            TimeIndexLike::TimeIndex(t) => TimeIndexLike::TimeIndexRange(t.range_inner(w)),
+            TimeIndexLike::Ref(t) => TimeIndexLike::Range(t.range_inner(w)),
+            TimeIndexLike::Range(t) => TimeIndexLike::Range(t.into_range(w)),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(t) => TimeIndexLike::External(t.into_range(w)),
-            TimeIndexLike::TimeIndexRange(t) => TimeIndexLike::TimeIndexRange(t.into_range(w)),
         }
     }
     fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + 'a {
         match self {
-            TimeIndexLike::TimeIndex(t) => t.iter(),
-            TimeIndexLike::TimeIndexRange(t) => t.into_iter().into_dyn_boxed(),
+            TimeIndexLike::Ref(t) => t.iter(),
+            TimeIndexLike::Range(t) => t.into_iter().into_dyn_boxed(),
             #[cfg(feature = "arrow")]
             TimeIndexLike::External(t) => t.into_iter().into_dyn_boxed(),
         }
@@ -132,26 +136,22 @@ impl EdgeLike for EdgeStore {
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        Box::new(self.additions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
+        Box::new(self.additions_iter(layer_ids).map(TimeIndexLike::Ref))
     }
 
     fn deletions_iter<'a>(
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        Box::new(self.deletions_iter(layer_ids).map(TimeIndexLike::TimeIndex))
+        Box::new(self.deletions_iter(layer_ids).map(TimeIndexLike::Ref))
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions
-            .get(layer_id)
-            .map(|x| TimeIndexLike::TimeIndex(x))
+        self.additions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions
-            .get(layer_id)
-            .map(|x| TimeIndexLike::TimeIndex(x))
+        self.deletions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
     }
 }
 

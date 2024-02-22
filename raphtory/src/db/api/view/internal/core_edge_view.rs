@@ -94,7 +94,7 @@ impl CoreEdgeView<'_> {
         match self {
             CoreEdgeView::Mem(e, _) => e
                 .updates_iter(layers)
-                .map(|(l, a, d)| (l, TimeIndexLike::TimeIndex(a), d))
+                .map(|(l, a, d)| (l, TimeIndexLike::Ref(a), d))
                 .into_dyn_boxed(),
             #[cfg(feature = "arrow")]
             CoreEdgeView::Arrow(e) => {

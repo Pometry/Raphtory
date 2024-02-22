@@ -19,7 +19,7 @@ use crate::{
         ArcStr,
     },
     db::api::view::{
-        internal::{CoreEdgeView, CoreGraphOps, NodeAdditions},
+        internal::{CoreEdgeView, CoreGraphOps, EdgeUpdates, NodeAdditions},
         BoxedIter,
     },
     prelude::Prop,
@@ -88,14 +88,10 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
         let layer_ids = layer_ids.constrain_from_edge(eref);
         let edge = self.inner().edge(eref.pid());
-        edge.additions(layer_ids).unwrap()
+        EdgeUpdates::Mem(edge.additions(layer_ids).unwrap())
     }
 
     #[inline]

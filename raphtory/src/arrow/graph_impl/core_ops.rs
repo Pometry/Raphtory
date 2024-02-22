@@ -18,7 +18,7 @@ use crate::{
         ArcStr, Prop,
     },
     db::api::view::{
-        internal::{CoreEdgeView, CoreGraphOps, NodeAdditions},
+        internal::{CoreEdgeView, CoreGraphOps, EdgeUpdates, NodeAdditions},
         BoxedIter,
     },
     prelude::TimeIndexEntry,
@@ -98,11 +98,7 @@ impl CoreGraphOps for Graph2 {
         None
     }
 
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
         let layer_ids = layer_ids.constrain_from_edge(eref);
 
         let layer_id = match layer_ids {
@@ -111,7 +107,7 @@ impl CoreGraphOps for Graph2 {
         };
 
         let edge = self.edge(eref.pid(), layer_id);
-        LockedLayeredIndex::External(Box::new(edge.timestamps()))
+        EdgeUpdates::Col(edge.timestamps())
     }
 
     fn node_additions(&self, v: VID) -> NodeAdditions {
