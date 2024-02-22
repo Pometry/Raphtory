@@ -21,8 +21,8 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let data_dir = Path::new(args.get(1).expect("No data directory provided"));
 
-    let g = if Path::new("/tmp/pokec").exists() {
-        Graph::load_from_file("/tmp/pokec").unwrap()
+    let g = if std::path::Path::new("/tmp/pokec").exists() {
+        Graph::load_from_file("/tmp/pokec", false).unwrap()
     } else {
         let g = Graph::new();
         CsvLoader::new(data_dir)
@@ -49,7 +49,7 @@ fn main() {
 
     let now = Instant::now();
 
-    unweighted_page_rank(&g, 100, None, Some(0.00000001), true);
+    unweighted_page_rank(&g, Some(100), None, Some(0.00000001), true, None);
 
     println!("PageRank took {} millis", now.elapsed().as_millis());
 

@@ -155,13 +155,22 @@ pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
 #[pyfunction]
-#[pyo3(signature = (g, iter_count=20, max_diff=None))]
+#[pyo3(signature = (g, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
 pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
+    use_l2_norm: bool,
+    damping_factor: Option<f64>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
+    unweighted_page_rank(
+        &g.graph,
+        Some(iter_count),
+        None,
+        max_diff,
+        use_l2_norm,
+        damping_factor,
+    )
 }
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.

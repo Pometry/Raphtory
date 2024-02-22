@@ -886,7 +886,7 @@ mod test {
     #[test]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
+        let graph = Graph::load_from_file("/tmp/graphs/jira", false).expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();
