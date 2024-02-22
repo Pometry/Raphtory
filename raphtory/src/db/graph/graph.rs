@@ -1915,7 +1915,9 @@ mod db_tests {
     fn save_load_serial() {
         let g = Graph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        g.save_to_file("/tmp/abcd11").unwrap()
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("abcd11");
+        g.save_to_file(&file_path).unwrap();
     }
 
     #[test]

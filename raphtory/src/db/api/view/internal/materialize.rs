@@ -17,7 +17,6 @@ use crate::{
         },
         utils::errors::GraphError,
         ArcStr, Direction, PropType,
-        PropType::U32,
     },
     db::{
         api::{
@@ -238,7 +237,11 @@ impl MaterializedGraph {
     }
 
     pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
-        let encoded = bincode::serialize(self)?;
+        let versioned_data = VersionedGraph {
+            version: BINCODE_VERSION,
+            graph: self.clone(),
+        };
+        let encoded = bincode::serialize(&versioned_data)?;
         Ok(encoded)
     }
 
