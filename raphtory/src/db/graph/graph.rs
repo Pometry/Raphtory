@@ -32,6 +32,7 @@ use std::{
 };
 
 const SEG: usize = 16;
+
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
@@ -136,6 +137,7 @@ impl Base for Graph {
 }
 
 impl InheritMutationOps for Graph {}
+
 impl InheritViewOps for Graph {}
 
 impl Graph {
@@ -196,12 +198,20 @@ mod db_tests {
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
+            entities::VID,
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, OptionAsStr, Prop,
         },
         db::{
-            api::view::{EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
-            graph::{edges::Edges, path::PathFromNode},
+            api::{
+                properties::internal::ConstPropertiesOps,
+                view::{
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    time::internal::InternalTimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                },
+            },
+            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -212,8 +222,63 @@ mod db_tests {
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
     use serde_json::Value;
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        fs,
+    };
     use tempdir::TempDir;
+
+    #[test]
+    fn test_empty_graph() {
+        let g = Graph::new();
+        assert!(!g.has_edge(1, 2));
+
+        let test_time = 42;
+        let result = g.at(test_time);
+        assert!(result.start.is_some());
+        assert!(result.end.is_some());
+
+        let result = g.after(test_time);
+        assert!(result.start.is_some());
+        assert!(result.end.is_none());
+
+        let result = g.before(test_time);
+        assert!(result.start.is_none());
+        assert!(result.end.is_some());
+
+        assert_eq!(
+            g.const_prop_keys().collect::<Vec<_>>(),
+            Vec::<ArcStr>::new()
+        );
+        assert_eq!(g.const_prop_ids().collect::<Vec<_>>(), Vec::<usize>::new());
+        assert_eq!(g.const_prop_values(), Vec::<Prop>::new());
+        assert!(g.constant_prop(1).is_none());
+        assert!(g.get_const_prop_id("1").is_none());
+        assert!(g.get_const_prop(1).is_none());
+        assert_eq!(g.count_nodes(), 0);
+        assert_eq!(g.count_edges(), 0);
+        assert_eq!(g.count_temporal_edges(), 0);
+
+        assert!(g.start().is_none());
+        assert!(g.end().is_none());
+        assert!(g.earliest_date_time().is_none());
+        assert!(g.earliest_time().is_none());
+        assert!(g.end_date_time().is_none());
+        assert!(g.timeline_end().is_none());
+
+        assert!(g.is_empty());
+
+        assert_eq!(g.nodes().collect(), Vec::<NodeView<Graph, Graph>>::new());
+        assert_eq!(g.edges().collect(), Vec::<EdgeView<Graph, Graph>>::new());
+        assert!(g.edge_filter().is_none());
+        assert!(g.edge(1, 2).is_none());
+        assert!(g.latest_time_global().is_none());
+        assert!(g.latest_time_window(1, 2).is_none());
+        assert!(g.latest_time().is_none());
+        assert!(g.latest_date_time().is_none());
+        assert!(g.latest_time_global().is_none());
+        assert!(g.earliest_time_global().is_none());
+    }
 
     #[quickcheck]
     fn test_multithreaded_add_edge(edges: Vec<(u64, u64)>) -> bool {
@@ -1517,7 +1582,7 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2),]);
+        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
     }
 
     #[test]
@@ -1542,7 +1607,7 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2),]);
+        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2)]);
     }
 
     #[test]
@@ -1570,7 +1635,7 @@ mod db_tests {
 
         assert_eq!(
             layer_exploded,
-            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
         );
     }
 
@@ -1600,7 +1665,7 @@ mod db_tests {
 
         assert_eq!(
             layer_exploded,
-            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
         );
     }
 
