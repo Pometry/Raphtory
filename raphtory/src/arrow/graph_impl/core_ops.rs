@@ -7,7 +7,7 @@ use crate::{
             edges::edge_ref::EdgeRef,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
@@ -38,7 +38,7 @@ impl CoreGraphOps for Graph2 {
         &self.edge_meta
     }
 
-    fn graph_meta(&self) -> &GraphProps {
+    fn graph_meta(&self) -> &GraphMeta {
         &self.graph_props
     }
 
