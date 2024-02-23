@@ -5,7 +5,7 @@ use crate::{
             graph::tgraph::InnerTemporalGraph,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
@@ -41,8 +41,8 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn graph_meta(&self) -> &GraphProps {
-        &self.inner().graph_props
+    fn graph_meta(&self) -> &GraphMeta {
+        &self.inner().graph_meta
     }
 
     #[inline]

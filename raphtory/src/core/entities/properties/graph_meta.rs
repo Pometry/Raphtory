@@ -18,14 +18,14 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GraphProps {
+pub struct GraphMeta {
     constant_mapper: DictMapper,
     temporal_mapper: DictMapper,
     constant: FxDashMap<usize, Option<Prop>>,
     temporal: FxDashMap<usize, TProp>,
 }
 
-impl GraphProps {
+impl GraphMeta {
     pub(crate) fn new() -> Self {
         Self {
             constant_mapper: DictMapper::default(),
