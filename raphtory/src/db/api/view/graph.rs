@@ -91,6 +91,16 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
+
+    /// Given a list of types, filter the grapg and return a subgraph containing these nodes
+    ///
+    /// Args:
+    ///    - node_types (Vec<&str): A vector of node types
+    ///
+    /// Returns:
+    ///
+    /// A subgraph containing nodes filtered by the node types
+    fn filter_by_node_type(&self, node_types: Vec<&str>) -> NodeSubgraph<Self>;
 }
 
 impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
@@ -179,6 +189,19 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
             .flat_map(|v| self.internal_node_ref(v.into(), &layer_ids, filter))
             .collect();
         NodeSubgraph::new(self.clone(), nodes)
+    }
+
+    fn filter_by_node_type(&self, node_types: Vec<&str>) -> NodeSubgraph<G> {
+        let new_nodes = self
+            .clone()
+            .nodes()
+            .iter()
+            .filter(|node| match node.node_type() {
+                Some(node_type) => node_types.contains(&node_type.to_string().as_str()),
+                None => false,
+            });
+
+        self.subgraph(new_nodes)
     }
 
     /// Return all the layer ids in the graph
@@ -290,6 +313,7 @@ mod test_exploded_edges {
 #[cfg(test)]
 mod test_materialize {
     use crate::{core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*};
+    use itertools::Itertools;
 
     #[test]
     fn test_materialize() {
@@ -346,6 +370,17 @@ mod test_materialize {
         // Check that the update is not added to the graph
         let all_node_types = g.get_all_node_types();
         assert_eq!(all_node_types.len(), 2);
+    }
+
+    #[test]
+    fn testing_node_types_filter() {
+        let g = Graph::new();
+        g.add_node(0, "A", NO_PROPS, Some("typeA")).unwrap();
+        g.add_node(0, "B", NO_PROPS, Some("typeA")).unwrap();
+        g.add_node(0, "C", NO_PROPS, Some("typeB")).unwrap();
+        let filtered_g = g.filter_by_node_type(vec!["typeA"]);
+        assert_eq!(filtered_g.count_nodes(), 2);
+        assert_eq!(filtered_g.nodes().name().collect_vec(), vec!["A", "B"]);
     }
 
     #[test]

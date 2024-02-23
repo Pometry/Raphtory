@@ -166,6 +166,17 @@ impl PyGraphView {
         self.graph.count_nodes()
     }
 
+    /// Filters the graph by node types, returns a subgraph with nodes only of that type
+    ///
+    /// Args:
+    ///     node_types (list(str)) : A list of node types
+    ///
+    /// Returns:
+    ///   a subgraph containing only nodes with the specified type(s)
+    pub fn filter_by_nodeo_type(&self, node_types: Vec<&str>) -> NodeSubgraph<DynamicGraph> {
+        self.graph.filter_by_node_type(node_types)
+    }
+
     /// Returns true if the graph contains the specified node
     ///
     /// Arguments:
