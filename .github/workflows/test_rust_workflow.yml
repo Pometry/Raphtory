@@ -56,7 +56,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-            cache_directories: ${{ matrix.extra-cache }}
+            cache-directories: ${{ matrix.extra-cache }}
+            cache-all-crates: true
       - name: Make cargo target dir (Windows)
         if : matrix.os == 'windows-latest'
         run: mkdir C:\target
