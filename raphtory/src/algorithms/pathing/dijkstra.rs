@@ -107,6 +107,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         PropType::Map => return Err("Weight type: Map, not supported"),
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
+        PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let max_val = match weight_type.unwrap() {
         PropType::Empty => return Err("Weight type: Empty, not supported"),
@@ -124,6 +125,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         PropType::Map => return Err("Weight type: Map, not supported"),
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
+        PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let mut heap = BinaryHeap::new();
     heap.push(State {

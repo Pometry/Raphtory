@@ -1,5 +1,4 @@
 from raphtory import Graph
-from raphtory import export
 import pandas as pd
 import json
 from pathlib import Path
@@ -38,7 +37,7 @@ def build_graph():
 
 def test_py_vis():
     g = build_graph()
-    pyvis_g = export.to_pyvis(g, directed=True)
+    pyvis_g = g.to_pyvis(directed=True)
 
     compare_list_of_dicts(
         pyvis_g.nodes,
@@ -154,7 +153,7 @@ def test_py_vis():
 def test_networkx_full_history():
     g = build_graph()
 
-    networkxGraph = export.to_networkx(g)
+    networkxGraph = g.to_networkx()
     assert networkxGraph.number_of_nodes() == 5
     assert networkxGraph.number_of_edges() == 7
 
@@ -163,19 +162,22 @@ def test_networkx_full_history():
         (
             "ServerA",
             {
-                "OS_version": [
-                    (1693555200000, "Ubuntu 20.04"),
-                    (1693555260000, "Ubuntu 20.04"),
-                    (1693555320000, "Ubuntu 20.04"),
+                "constant": {
+                    "datasource": "data/network_traffic_edges.csv",
+                    "hardware_type": "Blade Server",
+                    "server_name": "Alpha",
+                },
+                "temporal": [
+                    ("OS_version", (1693555200000, "Ubuntu 20.04")),
+                    ("OS_version", (1693555260000, "Ubuntu 20.04")),
+                    ("OS_version", (1693555320000, "Ubuntu 20.04")),
+                    ("primary_function", (1693555200000, "Database")),
+                    ("primary_function", (1693555260000, "Database")),
+                    ("primary_function", (1693555320000, "Database")),
+                    ("uptime_days", (1693555200000, 120)),
+                    ("uptime_days", (1693555260000, 121)),
+                    ("uptime_days", (1693555320000, 122)),
                 ],
-                "datasource": "data/network_traffic_edges.csv",
-                "hardware_type": "Blade Server",
-                "primary_function": [
-                    (1693555200000, "Database"),
-                    (1693555260000, "Database"),
-                    (1693555320000, "Database"),
-                ],
-                "server_name": "Alpha",
                 "update_history": [
                     1693555200000,
                     1693555260000,
@@ -183,38 +185,42 @@ def test_networkx_full_history():
                     1693555500000,
                     1693556400000,
                 ],
-                "uptime_days": [
-                    (1693555200000, 120),
-                    (1693555260000, 121),
-                    (1693555320000, 122),
-                ],
             },
         ),
         (
             "ServerB",
             {
-                "OS_version": [(1693555500000, "Red Hat 8.1")],
-                "datasource": "data/network_traffic_edges.csv",
-                "hardware_type": "Rack Server",
-                "primary_function": [(1693555500000, "Web Server")],
-                "server_name": "Beta",
+                "constant": {
+                    "hardware_type": "Rack Server",
+                    "datasource": "data/network_traffic_edges.csv",
+                    "server_name": "Beta",
+                },
+                "temporal": [
+                    ("OS_version", (1693555500000, "Red Hat 8.1")),
+                    ("primary_function", (1693555500000, "Web Server")),
+                    ("uptime_days", (1693555500000, 45)),
+                ],
                 "update_history": [
                     1693555200000,
                     1693555500000,
                     1693555800000,
                     1693556700000,
                 ],
-                "uptime_days": [(1693555500000, 45)],
             },
         ),
         (
             "ServerC",
             {
-                "OS_version": [(1693555800000, "Windows Server 2022")],
-                "datasource": "data/network_traffic_edges.csv",
-                "hardware_type": "Blade Server",
-                "primary_function": [(1693555800000, "File Storage")],
-                "server_name": "Charlie",
+                "constant": {
+                    "hardware_type": "Blade Server",
+                    "datasource": "data/network_traffic_edges.csv",
+                    "server_name": "Charlie",
+                },
+                "temporal": [
+                    ("OS_version", (1693555800000, "Windows Server 2022")),
+                    ("primary_function", (1693555800000, "File Storage")),
+                    ("uptime_days", (1693555800000, 90)),
+                ],
                 "update_history": [
                     1693555500000,
                     1693555800000,
@@ -223,17 +229,21 @@ def test_networkx_full_history():
                     1693557060000,
                     1693557120000,
                 ],
-                "uptime_days": [(1693555800000, 90)],
             },
         ),
         (
             "ServerD",
             {
-                "OS_version": [(1693556100000, "Ubuntu 20.04")],
-                "datasource": "data/network_traffic_edges.csv",
-                "hardware_type": "Tower Server",
-                "primary_function": [(1693556100000, "Application Server")],
-                "server_name": "Delta",
+                "constant": {
+                    "hardware_type": "Tower Server",
+                    "datasource": "data/network_traffic_edges.csv",
+                    "server_name": "Delta",
+                },
+                "temporal": [
+                    ("OS_version", (1693556100000, "Ubuntu 20.04")),
+                    ("primary_function", (1693556100000, "Application Server")),
+                    ("uptime_days", (1693556100000, 60)),
+                ],
                 "update_history": [
                     1693555800000,
                     1693556100000,
@@ -241,19 +251,22 @@ def test_networkx_full_history():
                     1693557060000,
                     1693557120000,
                 ],
-                "uptime_days": [(1693556100000, 60)],
             },
         ),
         (
             "ServerE",
             {
-                "OS_version": [(1693556400000, "Red Hat 8.1")],
-                "datasource": "data/network_traffic_edges.csv",
-                "hardware_type": "Rack Server",
-                "primary_function": [(1693556400000, "Backup")],
-                "server_name": "Echo",
+                "constant": {
+                    "server_name": "Echo",
+                    "hardware_type": "Rack Server",
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [
+                    ("OS_version", (1693556400000, "Red Hat 8.1")),
+                    ("primary_function", (1693556400000, "Backup")),
+                    ("uptime_days", (1693556400000, 30)),
+                ],
                 "update_history": [1693556100000, 1693556400000, 1693556700000],
-                "uptime_days": [(1693556400000, 30)],
             },
         ),
     ]
@@ -265,9 +278,11 @@ def test_networkx_full_history():
             "ServerA",
             "ServerB",
             {
-                "data_size_MB": [(1693555200000, 5.6)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693555200000, 5.6)])],
                 "layer": "Critical System Request",
                 "update_history": [1693555200000],
             },
@@ -276,9 +291,11 @@ def test_networkx_full_history():
             "ServerA",
             "ServerC",
             {
-                "data_size_MB": [(1693555500000, 7.1)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": False,
+                "constant": {
+                    "datasource": "data/network_traffic_edges.csv",
+                    "is_encrypted": False,
+                },
+                "temporal": [("data_size_MB", [(1693555500000, 7.1)])],
                 "layer": "File Transfer",
                 "update_history": [1693555500000],
             },
@@ -287,9 +304,11 @@ def test_networkx_full_history():
             "ServerB",
             "ServerD",
             {
-                "data_size_MB": [(1693555800000, 3.2)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693555800000, 3.2)])],
                 "layer": "Standard Service Request",
                 "update_history": [1693555800000],
             },
@@ -298,46 +317,59 @@ def test_networkx_full_history():
             "ServerC",
             "ServerA",
             {
-                "data_size_MB": [(1693556400000, 4.5)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693556400000, 4.5)])],
                 "layer": "Critical System Request",
                 "update_history": [1693556400000],
             },
         ),
         (
             "ServerD",
-            "ServerC",
+            "ServerE",
             {
-                "data_size_MB": [
-                    (1693557000000, 5.0),
-                    (1693557060000, 10.0),
-                    (1693557120000, 15.0),
-                ],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
-                "layer": "Standard Service Request",
-                "update_history": [1693557000000, 1693557060000, 1693557120000],
+                "constant": {
+                    "is_encrypted": False,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693556100000, 8.9)])],
+                "layer": "Administrative Command",
+                "update_history": [1693556100000],
             },
         ),
         (
             "ServerD",
-            "ServerE",
+            "ServerC",
             {
-                "data_size_MB": [(1693556100000, 8.9)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": False,
-                "layer": "Administrative Command",
-                "update_history": [1693556100000],
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [
+                    (
+                        "data_size_MB",
+                        [
+                            (1693557000000, 5.0),
+                            (1693557060000, 10.0),
+                            (1693557120000, 15.0),
+                        ],
+                    )
+                ],
+                "layer": "Standard Service Request",
+                "update_history": [1693557000000, 1693557060000, 1693557120000],
             },
         ),
         (
             "ServerE",
             "ServerB",
             {
-                "data_size_MB": [(1693556700000, 6.2)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": False,
+                "constant": {
+                    "is_encrypted": False,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693556700000, 6.2)])],
                 "layer": "File Transfer",
                 "update_history": [1693556700000],
             },
@@ -349,7 +381,7 @@ def test_networkx_full_history():
 def test_networkx_exploded():
     g = build_graph()
 
-    networkxGraph = export.to_networkx(g, explode_edges=True)
+    networkxGraph = g.to_networkx(explode_edges=True)
     assert networkxGraph.number_of_nodes() == 5
     assert networkxGraph.number_of_edges() == 9
 
@@ -359,9 +391,11 @@ def test_networkx_exploded():
             "ServerA",
             "ServerB",
             {
-                "data_size_MB": [(1693555200000, 5.6)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "datasource": "data/network_traffic_edges.csv",
+                    "is_encrypted": True,
+                },
+                "temporal": [("data_size_MB", [(1693555200000, 5.6)])],
                 "layer": "Critical System Request",
                 "update_history": 1693555200000,
             },
@@ -370,9 +404,11 @@ def test_networkx_exploded():
             "ServerA",
             "ServerC",
             {
-                "data_size_MB": [(1693555500000, 7.1)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": False,
+                "constant": {
+                    "is_encrypted": False,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693555500000, 7.1)])],
                 "layer": "File Transfer",
                 "update_history": 1693555500000,
             },
@@ -381,9 +417,11 @@ def test_networkx_exploded():
             "ServerB",
             "ServerD",
             {
-                "data_size_MB": [(1693555800000, 3.2)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693555800000, 3.2)])],
                 "layer": "Standard Service Request",
                 "update_history": 1693555800000,
             },
@@ -392,20 +430,37 @@ def test_networkx_exploded():
             "ServerC",
             "ServerA",
             {
-                "data_size_MB": [(1693556400000, 4.5)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693556400000, 4.5)])],
                 "layer": "Critical System Request",
                 "update_history": 1693556400000,
             },
         ),
         (
             "ServerD",
+            "ServerE",
+            {
+                "constant": {
+                    "datasource": "data/network_traffic_edges.csv",
+                    "is_encrypted": False,
+                },
+                "temporal": [("data_size_MB", [(1693556100000, 8.9)])],
+                "layer": "Administrative Command",
+                "update_history": 1693556100000,
+            },
+        ),
+        (
+            "ServerD",
             "ServerC",
             {
-                "data_size_MB": [(1693557000000, 5.0)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693557000000, 5.0)])],
                 "layer": "Standard Service Request",
                 "update_history": 1693557000000,
             },
@@ -414,9 +469,11 @@ def test_networkx_exploded():
             "ServerD",
             "ServerC",
             {
-                "data_size_MB": [(1693557060000, 10.0)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "datasource": "data/network_traffic_edges.csv",
+                    "is_encrypted": True,
+                },
+                "temporal": [("data_size_MB", [(1693557060000, 10.0)])],
                 "layer": "Standard Service Request",
                 "update_history": 1693557060000,
             },
@@ -425,31 +482,24 @@ def test_networkx_exploded():
             "ServerD",
             "ServerC",
             {
-                "data_size_MB": [(1693557120000, 15.0)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": True,
+                "constant": {
+                    "is_encrypted": True,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693557120000, 15.0)])],
                 "layer": "Standard Service Request",
                 "update_history": 1693557120000,
-            },
-        ),
-        (
-            "ServerD",
-            "ServerE",
-            {
-                "data_size_MB": [(1693556100000, 8.9)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": False,
-                "layer": "Administrative Command",
-                "update_history": 1693556100000,
             },
         ),
         (
             "ServerE",
             "ServerB",
             {
-                "data_size_MB": [(1693556700000, 6.2)],
-                "datasource": "data/network_traffic_edges.csv",
-                "is_encrypted": False,
+                "constant": {
+                    "is_encrypted": False,
+                    "datasource": "data/network_traffic_edges.csv",
+                },
+                "temporal": [("data_size_MB", [(1693556700000, 6.2)])],
                 "layer": "File Transfer",
                 "update_history": 1693556700000,
             },
@@ -461,8 +511,8 @@ def test_networkx_exploded():
 def test_networkx_no_props():
     g = build_graph()
 
-    networkxGraph = export.to_networkx(
-        g, include_node_properties=False, include_edge_properties=False
+    networkxGraph = g.to_networkx(
+        include_node_properties=False, include_edge_properties=False
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -562,8 +612,7 @@ def test_networkx_no_props():
     ]
     compare_list_of_dicts(edgeList, resultList)
 
-    networkxGraph = export.to_networkx(
-        g,
+    networkxGraph = g.to_networkx(
         include_node_properties=False,
         include_edge_properties=False,
         include_update_history=False,
@@ -591,9 +640,7 @@ def test_networkx_no_props():
     ]
     compare_list_of_dicts(edgeList, resultList)
 
-    networkxGraph = export.to_networkx(
-        g, include_edge_properties=False, explode_edges=True
-    )
+    networkxGraph = g.to_networkx(include_edge_properties=False, explode_edges=True)
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
         (
@@ -648,8 +695,8 @@ def test_networkx_no_props():
 def test_networkx_no_history():
     g = build_graph()
 
-    networkxGraph = export.to_networkx(
-        g, include_property_histories=False, include_update_history=False
+    networkxGraph = g.to_networkx(
+        include_property_histories=False, include_update_history=False
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -787,9 +834,7 @@ def test_networkx_no_history():
     ]
     compare_list_of_dicts(edgeList, resultList)
 
-    networkxGraph = export.to_networkx(
-        g, include_property_histories=False, explode_edges=True
-    )
+    networkxGraph = g.to_networkx(include_property_histories=False, explode_edges=True)
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
         (

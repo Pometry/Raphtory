@@ -256,11 +256,11 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
     type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
 
     fn current_filter(&self) -> &Self::FilteredGraph {
-        &self
+        self
     }
 
     fn base_graph(&self) -> &Self::BaseGraph {
-        &self
+        self
     }
 
     fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(

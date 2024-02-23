@@ -52,6 +52,9 @@ fn schema_from_prop_meta(prop_map: PropMapper) -> Schema {
             PropType::Graph => {
                 panic!("Graph not supported as property")
             }
+            PropType::Document => {
+                panic!("Document not supported as property")
+            }
         }
     }
 

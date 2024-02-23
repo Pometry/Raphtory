@@ -20,6 +20,7 @@ use crate::{
     db::api::view::{internal::Base, BoxedIter},
 };
 use enum_dispatch::enum_dispatch;
+use std::ops::Range;
 
 use super::CoreEdgeView;
 
@@ -56,11 +57,7 @@ pub trait CoreGraphOps {
 
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry>;
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates;
 
     /// Get all the addition timestamps for a node
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
@@ -285,11 +282,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn edge_additions(
-        &self,
-        eref: EdgeRef,
-        layer_ids: LayerIds,
-    ) -> LockedLayeredIndex<'_, TimeIndexEntry> {
+    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
         self.graph().edge_additions(eref, layer_ids)
     }
 
@@ -388,32 +381,34 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
 }
 #[cfg(feature = "arrow")]
 use crate::arrow::timestamps::TimeStamps;
+use crate::core::storage::timeindex::{LayeredTimeIndexWindow, TimeIndexWindow};
 
 pub enum NodeAdditions<'a> {
     Mem(LockedView<'a, TimeIndex<i64>>),
+    Range(TimeIndexWindow<'a, i64>),
     #[cfg(feature = "arrow")]
     Col(TimeStamps<'a, i64>),
 }
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
     type IndexType = i64;
+    type RangeType<'a> = NodeAdditions<'a> where Self: 'a;
 
     fn active(&self, w: std::ops::Range<i64>) -> bool {
         match self {
             NodeAdditions::Mem(index) => index.active(w),
             #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.active(w),
+            NodeAdditions::Range(index) => index.active(w),
         }
     }
 
-    fn range(
-        &self,
-        w: std::ops::Range<i64>,
-    ) -> Box<dyn TimeIndexOps<IndexType = Self::IndexType> + '_> {
+    fn range(&self, w: std::ops::Range<i64>) -> Self::RangeType<'_> {
         match self {
-            NodeAdditions::Mem(index) => index.range(w),
+            NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.range(w),
+            NodeAdditions::Col(index) => NodeAdditions::Col(index.range(w)),
+            NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
         }
     }
 
@@ -422,6 +417,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.first(),
             #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.first(),
+            NodeAdditions::Range(index) => index.first(),
         }
     }
 
@@ -430,6 +426,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.last(),
             #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.last(),
+            NodeAdditions::Range(index) => index.last(),
         }
     }
 
@@ -438,6 +435,64 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
             NodeAdditions::Mem(index) => index.iter(),
             #[cfg(feature = "arrow")]
             NodeAdditions::Col(index) => index.iter(),
+            NodeAdditions::Range(index) => index.iter(),
+        }
+    }
+}
+
+pub enum EdgeUpdates<'a> {
+    Mem(LockedLayeredIndex<'a, TimeIndexEntry>),
+    Range(LayeredTimeIndexWindow<'a, TimeIndexWindow<'a, TimeIndexEntry>>),
+    #[cfg(feature = "arrow")]
+    Col(TimeStamps<'a, TimeIndexEntry>),
+}
+
+impl<'a> TimeIndexOps for EdgeUpdates<'a> {
+    type IndexType = TimeIndexEntry;
+    type RangeType<'b> = EdgeUpdates<'b> where Self: 'b;
+
+    fn active(&self, w: Range<i64>) -> bool {
+        match self {
+            EdgeUpdates::Mem(index) => index.active(w),
+            EdgeUpdates::Range(index) => index.active(w),
+            #[cfg(feature = "arrow")]
+            EdgeUpdates::Col(index) => index.active(w),
+        }
+    }
+
+    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
+        match self {
+            EdgeUpdates::Mem(index) => EdgeUpdates::Range(index.range(w)),
+            EdgeUpdates::Range(index) => EdgeUpdates::Range(index.range(w)),
+            #[cfg(feature = "arrow")]
+            EdgeUpdates::Col(index) => EdgeUpdates::Col(index.range(w)),
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match self {
+            EdgeUpdates::Mem(index) => index.first(),
+            EdgeUpdates::Range(index) => index.first(),
+            #[cfg(feature = "arrow")]
+            EdgeUpdates::Col(index) => index.first(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match self {
+            EdgeUpdates::Mem(index) => index.last(),
+            EdgeUpdates::Range(index) => index.last(),
+            #[cfg(feature = "arrow")]
+            EdgeUpdates::Col(index) => index.last(),
+        }
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
+        match self {
+            EdgeUpdates::Mem(index) => index.iter(),
+            EdgeUpdates::Range(index) => index.iter(),
+            #[cfg(feature = "arrow")]
+            EdgeUpdates::Col(index) => index.iter(),
         }
     }
 }

@@ -77,8 +77,8 @@ fn alive_before<
 }
 
 fn edge_alive_at_end(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
-    e.additions_iter(&layer_ids)
-        .zip_longest(e.deletions_iter(&layer_ids))
+    e.additions_iter(layer_ids)
+        .zip_longest(e.deletions_iter(layer_ids))
         .any(|zipped| match zipped {
             EitherOrBoth::Both(additions, deletions) => alive_before(&additions, &deletions, t),
             EitherOrBoth::Left(additions) => additions.active(i64::MIN..t),
@@ -118,6 +118,12 @@ static WINDOW_FILTER: Lazy<EdgeWindowFilter> = Lazy::new(|| {
         e.active(layer_ids, w.clone()) || edge_alive_at_start(e, w.start, layer_ids)
     })
 });
+
+impl Default for GraphWithDeletions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl GraphWithDeletions {
     pub fn new() -> Self {

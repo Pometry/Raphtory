@@ -15,12 +15,12 @@ use std::{
 
 pub mod algorithms;
 pub(crate) mod chunked_array;
-pub mod col_graph2;
 pub mod edge;
 pub(crate) mod edges;
 pub mod global_order;
 pub mod graph;
 pub(crate) mod graph_builder;
+pub mod graph_fragment;
 pub mod graph_impl;
 pub mod load;
 pub(crate) mod nodes;

@@ -64,7 +64,7 @@ impl<'a, T, const N: usize> RefT<'a, T, N> {
 ///
 /// Requires that you ensure the reference does not become invalid.
 /// The object has to outlive the reference.
-pub unsafe fn change_lifetime_const<'a, 'b, T>(x: &'a T) -> &'b T {
+pub unsafe fn change_lifetime_const<'b, T>(x: &T) -> &'b T {
     &*(x as *const T)
 }
 

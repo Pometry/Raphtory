@@ -5,6 +5,7 @@ import time
 from benchmark_base import BenchmarkBase
 import pandas as pd
 import csv
+import pexpect
 
 # Dont fail if not imported locally
 try:
@@ -38,39 +39,43 @@ def query_degree(tx):
 def get_out_neighbors(tx):
     result = tx.run(
         """
-        MATCH p=(n)-[:FOLLOWS]->(neighbor)
-        RETURN n.id, COUNT(p)
+	MATCH (n)-[r]->(m)
+	RETURN n, collect(m) as outgoing_neighbors
     """
     )
     return list(result)
 
 
 def run_pagerank(tx):
-    result = tx.run("""CALL gds.pageRank.stream("social")""")
+    result = tx.run("""CALL gds.pageRank.stream("social") YIELD nodeId, score RETURN nodeId, score""")
     return list(result)
 
 
 def run_connected_components(tx):
     result = tx.run(
         """
-        CALL gds.wcc.stream("social")
+        CALL gds.wcc.stream("social") YIELD nodeId, componentId RETURN componentId, collect(nodeId) as nodes
     """
     )
     return list(result)
 
 
-def execute_bash_command(command, background=False):
+def execute_bash_command(command, background=False, timeout=60):
     print("Executing command: ", command)
     if background:
         subprocess.Popen(
             command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         return
-    process = subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
-    stdout, stderr = process.communicate()
-    return stdout.decode("utf-8"), stderr.decode("utf-8")
+    try:
+        child = pexpect.spawn("/bin/bash", ["-c", command + " 2>&1"], timeout=timeout)  # Redirect stderr to stdout
+        child.expect(pexpect.EOF)
+        output = child.before.decode("utf-8")
+    except pexpect.TIMEOUT:
+        print("Command timed out")
+        child.terminate(force=True)
+        output = None
+    return output
 
 
 def write_array_to_csv(arr, file_path):
@@ -93,7 +98,7 @@ def modify_data():
         write_array_to_csv(
             [["node:START_ID", "node:END_ID", ":TYPE"]],
             file_dir + "simple-relationships-headers-neo4j.csv",
-        )
+            )
 
         print("Generating node data")
         df = pd.read_csv(file_dir + "simple-profiles.csv", sep="\t", header=None)
@@ -110,11 +115,12 @@ def modify_data():
             sep="\t",
             index=None,
             header=None,
-        )
+            )
         print("Done")
 
 
 def import_data():
+    execute_bash_command("chmod -R 777 /var/lib/neo4j/import/data2/")
     return execute_bash_command(
         "neo4j-admin database import full --overwrite-destination --delimiter='TAB' "
         "--nodes=/var/lib/neo4j/import/data2/data/simple-profiles-header-neo4j.csv,"
@@ -135,7 +141,7 @@ def import_data():
 class Neo4jBench(BenchmarkBase):
     def start_docker(self, **kwargs):
         modify_data()
-        image_name = "neo4j:5.8.0"
+        image_name = "neo4j:5.16.0"
         container_folder = "/var/lib/neo4j/import/data2/"
         envs = {
             "NEO4J_AUTH": "neo4j/password",
@@ -144,10 +150,11 @@ class Neo4jBench(BenchmarkBase):
         ports = {"7474": "7474", "7687": "7687"}
         exec_commands = [
             '/bin/bash -c "apt update && apt install python3-pip -y"',
-            '/bin/bash -c "python3 -m pip install neo4j requests tqdm pandas numpy docker"',
+            '/bin/bash -c "python3 -m pip install pexpect neo4j requests tqdm pandas numpy docker matplotlib scipy raphtory"',
             # '/bin/bash -c "neo4j start"',
             # '/bin/bash -c "sleep 15"',
-            '/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
+            #'/bin/bash -c "cd /var/lib/neo4j/import/data2/; python3 benchmark_driver.py --no-docker --bench neo"',
+            'tail -f /dev/null',
         ]
         # image_path = 'DockerFiles/pyneo' image_path ports
         code, contents = super().start_docker(
@@ -177,9 +184,8 @@ class Neo4jBench(BenchmarkBase):
         print("Logging into neo4j")
         # self.driver = GraphDatabase.driver(uri, auth=(username, password))
         print("Importing data")
-        stout, sterr = import_data()
+        stout = import_data()
         print("status: ", stout)
-        print("error: ", sterr)
         print("Starting neo4j")
         execute_bash_command(
             'export NEO4J_AUTH="neo4j/password"; export NEO4J_PLUGINS=\'['
