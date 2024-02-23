@@ -455,6 +455,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
         match self {
             EdgeUpdates::Mem(index) => index.active(w),
             EdgeUpdates::Range(index) => index.active(w),
+            #[cfg(feature = "arrow")]
             EdgeUpdates::Col(index) => index.active(w),
         }
     }
@@ -463,6 +464,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
         match self {
             EdgeUpdates::Mem(index) => EdgeUpdates::Range(index.range(w)),
             EdgeUpdates::Range(index) => EdgeUpdates::Range(index.range(w)),
+            #[cfg(feature = "arrow")]
             EdgeUpdates::Col(index) => EdgeUpdates::Col(index.range(w)),
         }
     }
@@ -471,6 +473,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
         match self {
             EdgeUpdates::Mem(index) => index.first(),
             EdgeUpdates::Range(index) => index.first(),
+            #[cfg(feature = "arrow")]
             EdgeUpdates::Col(index) => index.first(),
         }
     }
@@ -479,6 +482,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
         match self {
             EdgeUpdates::Mem(index) => index.last(),
             EdgeUpdates::Range(index) => index.last(),
+            #[cfg(feature = "arrow")]
             EdgeUpdates::Col(index) => index.last(),
         }
     }
@@ -487,6 +491,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
         match self {
             EdgeUpdates::Mem(index) => index.iter(),
             EdgeUpdates::Range(index) => index.iter(),
+            #[cfg(feature = "arrow")]
             EdgeUpdates::Col(index) => index.iter(),
         }
     }
