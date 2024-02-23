@@ -4,7 +4,7 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
