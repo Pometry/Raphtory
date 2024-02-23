@@ -32,6 +32,7 @@ use std::{
 };
 
 const SEG: usize = 16;
+
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
@@ -136,6 +137,7 @@ impl Base for Graph {
 }
 
 impl InheritMutationOps for Graph {}
+
 impl InheritViewOps for Graph {}
 
 impl Graph {
@@ -193,21 +195,23 @@ impl Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
-    use crate::core::entities::VID;
-    use crate::db::api::properties::internal::ConstPropertiesOps;
-    use crate::db::api::view::internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics};
-    use crate::db::api::view::time::internal::InternalTimeOps;
-    use crate::db::graph::edge::EdgeView;
-    use crate::db::graph::node::NodeView;
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
+            entities::VID,
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, OptionAsStr, Prop,
         },
         db::{
-            api::view::{EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
-            graph::{edges::Edges, path::PathFromNode},
+            api::{
+                properties::internal::ConstPropertiesOps,
+                view::{
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    time::internal::InternalTimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                },
+            },
+            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -218,8 +222,10 @@ mod db_tests {
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
     use serde_json::Value;
-    use std::collections::{HashMap, HashSet};
-    use std::fs;
+    use std::{
+        collections::{HashMap, HashSet},
+        fs,
+    };
     use tempdir::TempDir;
 
     #[test]
@@ -1582,7 +1588,7 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2),]);
+        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
     }
 
     #[test]
@@ -1607,7 +1613,7 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2),]);
+        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2)]);
     }
 
     #[test]
@@ -1635,7 +1641,7 @@ mod db_tests {
 
         assert_eq!(
             layer_exploded,
-            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
         );
     }
 
@@ -1665,7 +1671,7 @@ mod db_tests {
 
         assert_eq!(
             layer_exploded,
-            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
         );
     }
 
