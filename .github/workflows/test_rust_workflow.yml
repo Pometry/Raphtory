@@ -16,8 +16,14 @@ jobs:
       matrix:
         include:
           - os: macos-latest
+            cargo-args: ""
+            extra-cache: ""
           - os: ubuntu-latest
+            cargo-args: ""
+            extra-cache: ""
           - os: windows-latest
+            cargo-args: --target-dir=C:\target
+            extra-cache: C:\target
     steps:
       - uses: actions/checkout@v3
         name: Checkout
@@ -49,31 +55,36 @@ jobs:
         run: rustc --version --verbose
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
+        with:
+            cache_directories: ${{ matrix.extra-cache }}
+      - name: Make cargo target dir (Windows)
+        if : matrix.os == 'windows-latest'
+        run: mkdir C:\target
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo test --all --no-default-features
+          cargo test ${{ matrix.cargo-args }} --all --no-default-features
       - name: Run Tests (features=io)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "io"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "io"
       - name: Run Tests (features=python)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "python"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "python"
       - name: Run Tests (features=search)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "search"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "search"
       - name: Run Tests (features=vectors)
         env:
           RUSTFLAGS: -Awarnings
         run: |
-          cargo check -p raphtory --no-default-features --features "vectors"
+          cargo check ${{ matrix.cargo-args }} -p raphtory --no-default-features --features "vectors"
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
