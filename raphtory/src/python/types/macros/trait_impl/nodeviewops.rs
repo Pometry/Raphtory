@@ -65,6 +65,10 @@ macro_rules! impl_nodeviewops {
             fn out_neighbours(&self) -> <$base_type as NodeViewOps<'static>>::PathType {
                 self.$field.out_neighbours()
             }
+
+            fn type_filter(&self, node_types: Vec<String>) -> <$base_type as NodeViewOps<'static>>::PathType {
+                self.$field.type_filter(node_types)
+            }
         }
     };
 }

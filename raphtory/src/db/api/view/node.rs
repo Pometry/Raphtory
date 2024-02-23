@@ -27,6 +27,8 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
+    type FilterType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph> + 'graph;
+    
     fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
@@ -161,6 +163,8 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ///
     /// An iterator over the neighbours of this node that point out of this node.
     fn out_neighbours(&self) -> Self::PathType;
+    
+    fn type_filter(&self, node_types: Vec<String>) -> Self::PathType;
 }
 
 impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
@@ -256,4 +260,21 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|g, v| g.neighbours(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
     }
+
+    fn type_filter(&self, node_types: Vec<String>) -> Self::PathType {
+        self.hop(move |g, v| {
+            let node_type = g.node_type(v);
+            match node_type { 
+                Some(node_type) => {
+                    if node_types.contains(&node_type.to_string()) {
+                        Some(v)
+                    } else {
+                        None
+                    }
+                },
+                None => None,
+            }.into_iter()
+        })
+    }
+
 }
