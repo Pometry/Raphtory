@@ -193,6 +193,12 @@ impl Graph {
 #[cfg(test)]
 mod db_tests {
     use super::*;
+    use crate::core::entities::VID;
+    use crate::db::api::properties::internal::ConstPropertiesOps;
+    use crate::db::api::view::internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics};
+    use crate::db::api::view::time::internal::InternalTimeOps;
+    use crate::db::graph::edge::EdgeView;
+    use crate::db::graph::node::NodeView;
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
@@ -215,12 +221,6 @@ mod db_tests {
     use std::collections::{HashMap, HashSet};
     use std::fs;
     use tempdir::TempDir;
-    use crate::core::entities::VID;
-    use crate::db::api::properties::internal::ConstPropertiesOps;
-    use crate::db::api::view::internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics};
-    use crate::db::api::view::time::internal::InternalTimeOps;
-    use crate::db::graph::edge::EdgeView;
-    use crate::db::graph::node::NodeView;
 
     #[test]
     fn test_empty_graph() {
@@ -246,7 +246,10 @@ mod db_tests {
         assert!(result.start.is_none());
         assert!(result.end.is_some());
 
-        assert_eq!(g.const_prop_keys().collect::<Vec<_>>(), Vec::<ArcStr>::new());
+        assert_eq!(
+            g.const_prop_keys().collect::<Vec<_>>(),
+            Vec::<ArcStr>::new()
+        );
         assert_eq!(g.const_prop_ids().collect::<Vec<_>>(), Vec::<usize>::new());
         assert_eq!(g.const_prop_values(), Vec::<Prop>::new());
         assert!(g.constant_prop(1).is_none());
