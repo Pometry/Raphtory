@@ -2,8 +2,8 @@ use crate::exfiltration::find_active_nodes;
 use itertools::kmerge_by;
 use raphtory::{
     arrow::{
-        col_graph2::TempColGraphFragment, edge::Edge, global_order::GlobalOrder,
-        graph::TemporalGraph, prelude::ArrayOps, Time,
+        edge::Edge, global_order::GlobalOrder, graph::TemporalGraph,
+        graph_fragment::TempColGraphFragment, prelude::ArrayOps, Time,
     },
     core::{
         entities::{EID, VID},
@@ -376,7 +376,7 @@ mod test {
         datatypes::{DataType, Field},
     };
     use raphtory::arrow::{
-        col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph,
+        global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     };
     use std::sync::Arc;
     use tempfile::TempDir;

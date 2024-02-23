@@ -1,4 +1,4 @@
-use raphtory::{arrow::col_graph2::TempColGraphFragment, core::entities::VID};
+use raphtory::{arrow::graph_fragment::TempColGraphFragment, core::entities::VID};
 use rayon::iter::ParallelIterator;
 
 pub mod count;

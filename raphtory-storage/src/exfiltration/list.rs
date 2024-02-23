@@ -2,8 +2,8 @@ use crate::exfiltration::find_active_nodes;
 use itertools::{kmerge_by, Itertools};
 use raphtory::{
     arrow::{
-        col_graph2::TempColGraphFragment, edge::ExplodedEdge, global_order::GlobalOrder,
-        graph::TemporalGraph, Time,
+        edge::ExplodedEdge, global_order::GlobalOrder, graph::TemporalGraph,
+        graph_fragment::TempColGraphFragment, Time,
     },
     core::{entities::VID, Direction},
 };
@@ -401,7 +401,7 @@ mod test {
         datatypes::{DataType, Field},
     };
     use raphtory::arrow::{
-        col_graph2::TempColGraphFragment, global_order::GlobalMap, graph::TemporalGraph,
+        global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     };
     use rayon::prelude::*;
     use std::sync::Arc;

@@ -1,7 +1,7 @@
 use arrow2::array::StructArray;
 
 use crate::{
-    arrow::col_graph2::TempColGraphFragment,
+    arrow::graph_fragment::TempColGraphFragment,
     core::entities::{properties::graph_props::GraphProps, LayerIds},
     db::api::view::{DynamicGraph, IntoDynamic},
 };
