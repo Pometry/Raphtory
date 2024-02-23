@@ -21,17 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Checkout
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         name: Setup Rust
         with:
@@ -49,6 +38,8 @@ jobs:
         run: rustc --version --verbose
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
+        with:
+          cache-all-crates: true
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
@@ -94,6 +85,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
+        with:
+          cache-all-crates: true
       - name: Set up Python
         uses: actions/setup-python@v4
         with:

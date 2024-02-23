@@ -45,15 +45,13 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
+        with:
+          cache-all-crates: true
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
-      - name: Cargo update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
       - name: Run Maturin develop
         uses: PyO3/maturin-action@v1
         with:
