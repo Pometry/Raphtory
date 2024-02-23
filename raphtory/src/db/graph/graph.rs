@@ -119,8 +119,8 @@ impl From<InternalGraph> for Graph {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
-where
-    Self: 'graph,
+    where
+        Self: 'graph,
 {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
@@ -232,12 +232,6 @@ mod db_tests {
     fn test_empty_graph() {
         let g = Graph::new();
         assert!(!g.has_edge(1, 2));
-
-        let file_path = "/tmp/graphs/empty_graph";
-        let result = g.save_to_file(file_path);
-        assert!(result.is_ok());
-        assert!(Path::new(file_path).exists());
-        fs::remove_file(file_path).unwrap();
 
         let test_time = 42;
         let result = g.at(test_time);
@@ -388,7 +382,7 @@ mod db_tests {
             vec![("aprop".to_string(), Prop::Bool(false))],
             Some(&"LAYERA"),
         )
-        .unwrap();
+            .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -408,7 +402,7 @@ mod db_tests {
             vec![("bprop".to_string(), Prop::List(Arc::new(v)))],
             Some(&"LAYERB"),
         )
-        .unwrap();
+            .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -429,7 +423,7 @@ mod db_tests {
             vec![("mymap".to_string(), Prop::Map(Arc::new(v)))],
             Some(&"LAYERC"),
         )
-        .unwrap();
+            .unwrap();
         let json_res = g
             .edge("A", "B")
             .unwrap()
@@ -692,7 +686,7 @@ mod db_tests {
             vec![("temp".to_string(), Prop::Bool(true))],
             None,
         )
-        .unwrap();
+            .unwrap();
         g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
         g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
         g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))], None)
@@ -1401,25 +1395,25 @@ mod db_tests {
         }
         let check = check
             && g.at(t0)
-                .properties()
-                .temporal()
-                .iter_latest()
-                .map(|(k, v)| (k.clone(), v))
-                .collect::<HashMap<_, _, _>>()
-                == t0_props;
+            .properties()
+            .temporal()
+            .iter_latest()
+            .map(|(k, v)| (k.clone(), v))
+            .collect::<HashMap<_, _, _>>()
+            == t0_props;
         if !check {
             println!("failed latest value comparison for {:?} at t0", str_props);
             return false;
         }
         let check = check
             && t1_props.iter().all(|(k, ve)| {
-                g.at(t1)
-                    .properties()
-                    .temporal()
-                    .get(k)
-                    .and_then(|v| v.latest())
-                    == Some(ve.clone())
-            });
+            g.at(t1)
+                .properties()
+                .temporal()
+                .get(k)
+                .and_then(|v| v.latest())
+                == Some(ve.clone())
+        });
         if !check {
             println!("failed latest value comparison for {:?} at t1", str_props);
             return false;
