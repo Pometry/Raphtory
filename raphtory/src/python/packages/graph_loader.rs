@@ -1,8 +1,8 @@
 //! `GraphLoader` provides some default implementations for loading a pre-built graph.
 //! This base class is used to load in-built graphs such as the LOTR, reddit and StackOverflow.
-use std::path::PathBuf;
 use crate::python::graph::graph::PyGraph;
 use pyo3::prelude::*;
+use std::path::PathBuf;
 use tokio::runtime::Runtime;
 
 /// Load the Lord of the Rings dataset into a graph.
