@@ -91,66 +91,67 @@ where
 ///
 /// * `Graph` - The graph containing the Reddit hyperlinks dataset
 pub fn reddit_graph(timeout: u64, test_file: bool) -> Graph {
-    let graph = {
-        let g = Graph::new();
+    let mut g = Graph::new();
+    if let Ok(path) = reddit_file(timeout, Some(test_file)) {
+        g = generate_reddit_graph(path);
+    }
+    g
+}
 
-        if let Ok(path) = reddit_file(timeout, Some(test_file)) {
-            if let Ok(lines) = read_lines(path.as_path()) {
-                // Consumes the iterator, returns an (Optional) String
-                for reddit in lines.dropping(1).flatten() {
-                    let reddit: Vec<&str> = reddit.split('\t').collect();
-                    let src_id = &reddit[0];
-                    let dst_id = &reddit[1];
-                    let post_id = reddit[2].to_string();
+pub fn generate_reddit_graph(path: PathBuf) -> Graph {
+    let g = Graph::new();
+    if let Ok(lines) = read_lines(path.as_path()) {
+        // Consumes the iterator, returns an (Optional) String
+        for reddit in lines.dropping(1).flatten() {
+            let reddit: Vec<&str> = reddit.split('\t').collect();
+            let src_id = &reddit[0];
+            let dst_id = &reddit[1];
+            let post_id = reddit[2].to_string();
 
-                    match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
-                        Ok(time) => {
-                            let time = time.timestamp() * 1000;
-                            let post_label: i32 = reddit[4].parse::<i32>().unwrap();
-                            let post_properties: Vec<f64> = reddit[5]
-                                .split(',')
-                                .map(|s| s.parse::<f64>().unwrap())
-                                .collect();
-                            let edge_properties = [
-                                ("post_label".to_string(), Prop::I32(post_label)),
-                                ("post_id".to_string(), Prop::str(post_id)),
-                                ("word_count".to_string(), Prop::F64(post_properties[7])),
-                                ("long_words".to_string(), Prop::F64(post_properties[9])),
-                                ("sentences".to_string(), Prop::F64(post_properties[13])),
-                                ("readability".to_string(), Prop::F64(post_properties[17])),
-                                (
-                                    "positive_sentiment".to_string(),
-                                    Prop::F64(post_properties[18]),
-                                ),
-                                (
-                                    "negative_sentiment".to_string(),
-                                    Prop::F64(post_properties[19]),
-                                ),
-                                (
-                                    "compound_sentiment".to_string(),
-                                    Prop::F64(post_properties[20]),
-                                ),
-                            ];
-                            g.add_node(time, *src_id, NO_PROPS, None)
-                                .map_err(|err| println!("{:?}", err))
-                                .ok();
-                            g.add_node(time, *dst_id, NO_PROPS, None)
-                                .map_err(|err| println!("{:?}", err))
-                                .ok();
-                            g.add_edge(time, *src_id, *dst_id, edge_properties, None)
-                                .expect("Error: Unable to add edge");
-                        }
-                        Err(e) => {
-                            println!("{}", e)
-                        }
-                    }
+            match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
+                Ok(time) => {
+                    let time = time.timestamp() * 1000;
+                    let post_label: i32 = reddit[4].parse::<i32>().unwrap();
+                    let post_properties: Vec<f64> = reddit[5]
+                        .split(',')
+                        .map(|s| s.parse::<f64>().unwrap())
+                        .collect();
+                    let edge_properties = [
+                        ("post_label".to_string(), Prop::I32(post_label)),
+                        ("post_id".to_string(), Prop::str(post_id)),
+                        ("word_count".to_string(), Prop::F64(post_properties[7])),
+                        ("long_words".to_string(), Prop::F64(post_properties[9])),
+                        ("sentences".to_string(), Prop::F64(post_properties[13])),
+                        ("readability".to_string(), Prop::F64(post_properties[17])),
+                        (
+                            "positive_sentiment".to_string(),
+                            Prop::F64(post_properties[18]),
+                        ),
+                        (
+                            "negative_sentiment".to_string(),
+                            Prop::F64(post_properties[19]),
+                        ),
+                        (
+                            "compound_sentiment".to_string(),
+                            Prop::F64(post_properties[20]),
+                        ),
+                    ];
+                    g.add_node(time, *src_id, NO_PROPS, None)
+                        .map_err(|err| println!("{:?}", err))
+                        .ok();
+                    g.add_node(time, *dst_id, NO_PROPS, None)
+                        .map_err(|err| println!("{:?}", err))
+                        .ok();
+                    g.add_edge(time, *src_id, *dst_id, edge_properties, None)
+                        .expect("Error: Unable to add edge");
+                }
+                Err(e) => {
+                    println!("{}", e)
                 }
             }
-        };
-
-        g
-    };
-    graph
+        }
+    }
+    g
 }
 
 #[cfg(test)]

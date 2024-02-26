@@ -1,5 +1,6 @@
 //! `GraphLoader` provides some default implementations for loading a pre-built graph.
 //! This base class is used to load in-built graphs such as the LOTR, reddit and StackOverflow.
+use std::path::PathBuf;
 use crate::python::graph::graph::PyGraph;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
@@ -68,6 +69,15 @@ pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
 pub fn reddit_hyperlink_graph(timeout_seconds: u64) -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(
         crate::graph_loader::example::reddit_hyperlinks::reddit_graph(timeout_seconds, false),
+    )
+}
+
+#[pyfunction]
+#[pyo3(signature = (file_path))]
+pub fn reddit_hyperlink_graph_local(file_path: &str) -> PyResult<Py<PyGraph>> {
+    let file_path_buf = PathBuf::from(file_path);
+    PyGraph::py_from_db_graph(
+        crate::graph_loader::example::reddit_hyperlinks::generate_reddit_graph(file_path_buf),
     )
 }
 
