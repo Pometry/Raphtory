@@ -3,9 +3,20 @@ use raphtory::{
         algorithms::connected_components,
         graph_impl::{ArrowGraph, ParquetLayerCols},
     },
+    query::{
+        ast::Query, executors::rayon2, forward_time_filter, state::HopState, ForwardState,
+    },
+    core::entities::VID,
     prelude::*,
 };
-use std::{env::args, time::Instant};
+use std::{
+    io::{BufWriter, Write},
+    sync::Arc,
+    thread,
+    time::Instant,
+};
+
+use rand::Rng;
 
 fn main() {
     // Retrieve command line arguments
@@ -49,172 +60,59 @@ fn main() {
 
     let g = &graph2.layer(0);
 
-    println!("Graph has {} nodes", graph2.count_nodes());
-    println!("Graph has {} edges", graph2.count_edges());
+    // connected_components(g);
+    hop_query(g);
+}
+
+fn connected_components(tg: &TempColGraphFragment) {
+    println!("Graph has {} nodes", tg.num_nodes());
+    println!("Graph has {} edges", tg.num_edges());
 
     let now = Instant::now();
     // let ccs = weakly_connected_components(&graph2, 100, None).group_by();
-    let out = connected_components::connected_components(g);
+    let out = connected_components::connected_components(tg);
     println!(
         "########## Arrow CC took {:?} ########## len: {}",
         now.elapsed(),
         out.len()
     );
+}
 
-    // let actual = ccs
-    //     .into_iter()
-    //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     .map(|(cc, count)| (cc, count.0))
-    //     .take(2)
-    //     .collect::<Vec<_>>();
+fn hop_query(tg: &TempColGraphFragment) {
+    let now = Instant::now();
+    // let query = Query::new().out_filter(filter)
+    // pick 100 nodes at random between 0 and num_nodes
+    let mut rng = rand::thread_rng();
 
-    // println!("Top 2 connected components by size: {}", actual.len());
-    // for (cc, count) in actual {
-    //     println!("{}: {}", cc, count);
-    // }
+    let mut nodes = Vec::with_capacity(100);
+    for _ in 0..100 {
+        let vid = VID(rng.gen_range(0..tg.num_nodes()));
+        nodes.push(vid);
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
 
-    //     // println!("{:?}", graph2.layer_names());
+    let query: Query<ForwardState> = Query::new()
+        .out_filter(Arc::new(forward_time_filter))
+        .out_filter(Arc::new(forward_time_filter))
+        .out_filter(Arc::new(forward_time_filter))
+        .channel(sender);
 
-    //     // let l_graph = graph2.layer("default").unwrap();
+    thread::spawn(move || {
+        let file = std::fs::File::create("hop.bin").expect("Cannot create file");
+        let mut writer = BufWriter::new(file);
+        while let Ok((state, _)) = receiver.recv() {
+            let path = state.path.iter().map(|VID(n)| *n).collect::<Vec<_>>();
 
-    //     // println!("Graph has {} nodes", l_graph.count_nodes());
-    //     // println!("Graph has {} edges", l_graph.count_edges());
-    //     // println!(
-    //     //     "Graph earliest {:?} latest {:?}",
-    //     //     l_graph.earliest_time(),
-    //     //     l_graph.latest_time()
-    //     // );
+            let buf = format!("{:?}\n", path);
+            writer.write(buf.as_bytes()).expect("Cannot write to file");
+        }
+    });
 
-    //     // let mid = l_graph.earliest_time().unwrap()
-    //     //     + ((l_graph.latest_time().unwrap() - l_graph.earliest_time().unwrap()) / 2);
-
-    //     // println!("mid: {:?}", mid);
-    //     // let window = l_graph.window(i64::MIN, mid);
-
-    //     // println!("Graph has {} nodes", window.count_nodes());
-    //     // println!("Graph has {} edges", window.count_edges());
-    //     // println!(
-    //     //     "Window Graph earliest {:?} latest {:?}",
-    //     //     window.earliest_time(),
-    //     //     window.latest_time()
-    //     // );
-
-    //     // let window2 = l_graph.window(mid, i64::MAX);
-
-    //     // println!("Graph has {} nodes", window2.count_nodes());
-    //     // println!("Graph has {} edges", window2.count_edges());
-
-    //     // println!(
-    //     //     "Window2 Graph earliest {:?} latest {:?}",
-    //     //     window2.earliest_time(),
-    //     //     window2.latest_time()
-    //     // );
-
-    //     // let rg = Graph::new();
-
-    //     // for v in graph2.all_nodes() {
-    //     //     let gid = graph2.node_gid(v).unwrap();
-    //     //     match gid {
-    //     //         GID::Str(gid) => {
-    //     //             rg.add_node(0, gid, NO_PROPS).expect("add node failed");
-    //     //         }
-    //     //         _ => {
-    //     //             panic!("unexpected gid type")
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     // let layer_id = 2; // netflow
-    //     // for edge in graph2.all_edges(layer_id) {
-    //     //     let src_id = edge.src();
-    //     //     let dst_id = edge.dst();
-
-    //     //     let src_gid = graph2.node_gid(src_id).unwrap();
-    //     //     let dst_gid = graph2.node_gid(dst_id).unwrap();
-
-    //     //     match (src_gid, dst_gid) {
-    //     //         (GID::Str(src), GID::Str(dst)) => {
-    //     //             rg.add_edge(0, src, dst, NO_PROPS, None)
-    //     //                 .expect("add edge failed");
-    //     //         }
-    //     //         _ => {
-    //     //             panic!("unexpected gid type")
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     // println!("Graph has {} nodes", rg.count_nodes());
-    //     // println!("Graph has {} edges", rg.count_edges());
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
-
-    //     // let now = Instant::now();
-    //     // let ccs = weakly_connected_components(&window, 100, None).group_by();
-    //     // println!(
-    //     //     "########## Window Arrow CC took {:?} ########## ",
-    //     //     now.elapsed()
-    //     // );
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
-
-    //     // let now = Instant::now();
-    //     // let ccs = weakly_connected_components(&window2, 100, None).group_by();
-    //     // println!(
-    //     //     "########## Window Arrow CC took {:?} ########## ",
-    //     //     now.elapsed()
-    //     // );
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
-
-    //     // let now = Instant::now();
-    //     // let ccs: std::collections::HashMap<u64, Vec<String>> =
-    //     //     weakly_connected_components(&rg, 100, None).group_by();
-    //     // println!("########## CC took {:?} ########## ", now.elapsed());
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
+    let _ = rayon2::execute::<ForwardState>(
+        query,
+        raphtory::arrow::query::NodeSource::NodeIds(nodes),
+        tg,
+        |node| ForwardState::new(node),
+    );
+    println!("########## Arrow Hop took {:?} ##########", now.elapsed());
 }

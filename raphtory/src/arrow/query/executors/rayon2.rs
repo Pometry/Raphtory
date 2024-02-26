@@ -3,7 +3,7 @@ use rayon::ThreadPoolBuilder;
 
 use crate::{
     arrow::{
-        col_graph2::TempColGraphFragment,
+        graph_fragment::TempColGraphFragment,
         nodes::Node,
         query::{
             ast::{Hop, Query, Sink},

@@ -6,8 +6,9 @@ use self::{
     ast::{Hop, Query},
     state::HopState,
 };
+use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::{col_graph2::TempColGraphFragment, edge::Edge, nodes::Node, Error};
+use super::{edge::Edge, graph_fragment::TempColGraphFragment, nodes::Node, Error};
 use rayon::prelude::*;
 
 pub mod ast;
@@ -164,11 +165,55 @@ fn run_print(node: Node) {
     println!("{:?}", node.vid());
 }
 
+pub fn forward_time_filter(_node: Node, edge: Edge, state: &ForwardState) -> bool {
+    let ts = edge.timestamps();
+
+    let range = state.time + 1..i64::MAX;
+    let iter = ts.range(range);
+    iter.first_t().is_some()
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
+pub struct ForwardState {
+    pub time: i64,
+    pub path: rpds::ListSync<VID>,
+}
+
+impl ForwardState {
+    pub fn at_time(node: Node, t: i64) -> Self {
+        ForwardState {
+            time: t,
+            path: rpds::List::new_sync().push_front(node.vid()),
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = VID> + '_ {
+        self.path.iter().copied()
+    }
+}
+
+impl HopState for ForwardState {
+    fn new(node: Node) -> Self {
+        ForwardState {
+            time: i64::MIN,
+            path: rpds::List::new_sync().push_front(node.vid()),
+        }
+    }
+
+    fn with_next(&self, node: Node, edge: Edge) -> Self {
+        let ts = edge.timestamps();
+        let w = self.time + 1..i64::MAX;
+        let next_time = ts.range(w);
+        ForwardState {
+            time: next_time.first_t().unwrap(),
+            path: self.path.push_front(node.vid()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
-
-    use crate::core::storage::timeindex::TimeIndexOps;
 
     use super::{ast::*, executors::*, state::*, *};
 
@@ -304,52 +349,6 @@ mod test {
                 (VecState(vec![VID(0), VID(1), VID(3)]), VID(3)),
             ]
         );
-    }
-
-    fn forward_time_filter(_node: Node, edge: Edge, state: &ForwardState) -> bool {
-        let ts = edge.timestamps();
-
-        let range = state.time + 1..i64::MAX;
-        let iter = ts.range(range);
-        iter.first_t().is_some()
-    }
-
-    #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
-    struct ForwardState {
-        pub time: i64,
-        pub path: rpds::ListSync<VID>,
-    }
-
-    impl ForwardState {
-        fn at_time(node: Node, t: i64) -> Self {
-            ForwardState {
-                time: t,
-                path: rpds::List::new_sync().push_front(node.vid()),
-            }
-        }
-
-        fn iter(&self) -> impl Iterator<Item = VID> + '_ {
-            self.path.iter().copied()
-        }
-    }
-
-    impl HopState for ForwardState {
-        fn new(node: Node) -> Self {
-            ForwardState {
-                time: i64::MIN,
-                path: rpds::List::new_sync().push_front(node.vid()),
-            }
-        }
-
-        fn with_next(&self, node: Node, edge: Edge) -> Self {
-            let ts = edge.timestamps();
-            let w = self.time + 1..i64::MAX;
-            let next_time = ts.range(w);
-            ForwardState {
-                time: next_time.first_t().unwrap(),
-                path: self.path.push_front(node.vid()),
-            }
-        }
     }
 
     #[test]
