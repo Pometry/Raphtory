@@ -62,9 +62,10 @@ pub fn execute<S: HopState>(
     query: Query<S>,
     source: NodeSource,
     graph: &TempColGraphFragment,
+    make_state: impl Fn(Node) -> S + Send + Sync,
 ) -> Result<(), Error> {
     source.for_each(graph, |node| {
-        run::<S>(&query, 0, node, None, S::new(node), graph)
+        run::<S>(&query, 0, node, None, (make_state)(node), graph)
     });
     Ok(())
 }
@@ -82,13 +83,14 @@ fn run<S: HopState>(
         dir,
         filter,
         variable,
+        limit
     }) = query.get_hop(step)
     {
         // if this is a variable hop and we're not at the last step then print the intermediate result
         if *variable && !(query.hops.len() - 1 == step) {
             run_sink(sink, state.clone(), node);
         }
-        run_hop_edges::<S>(*dir, step, query, node, edge, filter.as_ref(), state, graph);
+        run_hop_edges::<S>(*dir, step, query, node, edge, filter.as_ref(), state, limit.unwrap_or(usize::MAX),graph);
     } else {
         run_sink(sink, state, node);
     }
@@ -99,6 +101,11 @@ fn run_sink<S: HopState>(sink: &ast::Sink<S>, state: S, node: Node<'_>) {
         ast::Sink::Channel(sender) => run_channel(sender, state, node),
         ast::Sink::Void => run_void(),
         ast::Sink::Print => run_print(node),
+        ast::Sink::Kanal(sender) => {
+            sender
+                .send((state, node.vid()))
+                .expect("Failed to send node id");
+        },
     }
 }
 
@@ -120,6 +127,7 @@ fn run_hop_edges<S: HopState>(
     edge: Option<Edge>,
     filter: Option<&Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>>,
     state: S,
+    limit: usize,
     graph: &TempColGraphFragment,
 ) {
     match direction {
@@ -177,13 +185,15 @@ pub fn forward_time_filter(_node: Node, edge: Edge, state: &ForwardState) -> boo
 pub struct ForwardState {
     pub time: i64,
     pub path: rpds::ListSync<VID>,
+    hop_n_limit: usize,
 }
 
 impl ForwardState {
-    pub fn at_time(node: Node, t: i64) -> Self {
+    pub fn at_time(node: Node, t: i64, hop_n_limit: usize) -> Self {
         ForwardState {
             time: t,
             path: rpds::List::new_sync().push_front(node.vid()),
+            hop_n_limit,
         }
     }
 
@@ -193,12 +203,6 @@ impl ForwardState {
 }
 
 impl HopState for ForwardState {
-    fn new(node: Node) -> Self {
-        ForwardState {
-            time: i64::MIN,
-            path: rpds::List::new_sync().push_front(node.vid()),
-        }
-    }
 
     fn with_next(&self, node: Node, edge: Edge) -> Self {
         let ts = edge.timestamps();
@@ -207,7 +211,21 @@ impl HopState for ForwardState {
         ForwardState {
             time: next_time.first_t().unwrap(),
             path: self.path.push_front(node.vid()),
+            hop_n_limit: self.hop_n_limit,
         }
+    }
+
+    fn with_next_2(&self, node: Node, edge: Edge) -> Option<Self> {
+        let ts = edge.timestamps();
+        let w = self.time + 1..i64::MAX;
+        let next_time = ts.range(w);
+
+        next_time.first_t().map(|t| ForwardState {
+            time: t,
+            path: self.path.push_front(node.vid()),
+            hop_n_limit: self.hop_n_limit,
+        })
+    
     }
 }
 
@@ -234,7 +252,7 @@ mod test {
         .unwrap();
 
         let result =
-            rayon2::execute::<NoState>(query, NodeSource::All, &graph, |n| NoState::new(n));
+            rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
 
         let mut actual = receiver.into_iter().collect::<Vec<_>>();
@@ -258,7 +276,7 @@ mod test {
         .unwrap();
 
         let result =
-            rayon2::execute::<NoState>(query, NodeSource::All, &graph, |n| NoState::new(n));
+            rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
         let (_, vid) = receiver.recv().unwrap();
         assert_eq!(vid, VID(2));
@@ -386,7 +404,7 @@ mod test {
             query,
             NodeSource::NodeIds(vec![VID(0), VID(1)]),
             &graph,
-            |n| ForwardState::at_time(n, t),
+            |n| ForwardState::at_time(n, t, 100),
         );
         assert!(result.is_ok());
 

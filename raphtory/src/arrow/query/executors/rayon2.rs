@@ -26,12 +26,12 @@ pub fn execute<S: HopState + 'static>(
         .build()
         .expect("failed to make a thread pool what's the point!");
 
-    let chunk_size = 100_000;
+    let chunk_size = 10;
 
-    tp.scope_fifo(|s| {
+    tp.scope(|s| {
         for node_chunk in source.into_iter(graph).chunks(chunk_size).into_iter() {
             let node_chunk = node_chunk.collect::<Vec<_>>();
-            s.spawn_fifo(|s| {
+            s.spawn(|s| {
                 for node in node_chunk {
                     let node = graph.node(node);
                     let state = (make_state)(node);
@@ -60,7 +60,7 @@ fn hop_node<'a, S: HopState + 'a>(
     step: usize,
     state: S,
     graph: &'a TempColGraphFragment,
-    s: &rayon::ScopeFifo<'a>,
+    s: &rayon::Scope<'a>,
 ) {
     let vid = node.vid();
     let Query { sink, .. } = query;
@@ -68,28 +68,34 @@ fn hop_node<'a, S: HopState + 'a>(
         dir,
         filter,
         variable,
+        limit,
     }) = query.get_hop(step)
     {
         if *variable {
             run_sink(sink, state.clone(), node);
         }
+        let limit = limit.unwrap_or(usize::MAX);
         match dir {
-            Direction::OUT => s.spawn_fifo(move |s| {
-                graph
-                    .nodes
-                    .out_adj_list(vid)
-                    .map(|(eid, vid)| (graph.edge(eid), graph.node(vid)))
-                    .filter(|(edge, node)| {
-                        filter
-                            .as_ref()
-                            .map(|f| (f)(*node, *edge, &state))
-                            .unwrap_or(true)
-                    })
-                    .for_each(|(edge, node)| {
-                        hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
-                    });
+            Direction::OUT => s.spawn_broadcast(move |s, ctx| {
+                let t_id = ctx.index();
+                if vid.0 % ctx.num_threads() == t_id {
+                    graph
+                        .nodes
+                        .out_adj_list(vid)
+                        .map(|(eid, vid)| (graph.edge(eid), graph.node(vid)))
+                        .filter(|(edge, node)| {
+                            filter
+                                .as_ref()
+                                .map(|f| (f)(*node, *edge, &state))
+                                .unwrap_or(true)
+                        })
+                        .take(limit)
+                        .for_each(|(edge, node)| {
+                            hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
+                        });
+                }
             }),
-            Direction::IN => {
+            Direction::IN => s.spawn(move |s| {
                 graph
                     .nodes
                     .in_adj_list(vid)
@@ -100,10 +106,11 @@ fn hop_node<'a, S: HopState + 'a>(
                             .map(|f| (f)(*node, *edge, &state))
                             .unwrap_or(true)
                     })
+                    .take(limit)
                     .for_each(|(edge, node)| {
                         hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
                     });
-            }
+            }),
             Direction::BOTH => {
                 todo!()
             }
@@ -115,13 +122,13 @@ fn hop_node<'a, S: HopState + 'a>(
 
 fn fun_name<'a, 'b: 'a, 'c, S: HopState>(
     sink: &'b Sink<S>,
-    s: &'c rayon::ScopeFifo<'a>,
+    s: &'c rayon::Scope<'a>,
     state: S,
     vid: VID,
 ) {
     match sink {
         Sink::Channel(sender) => {
-            s.spawn_fifo(move |_| {
+            s.spawn(move |_| {
                 sender
                     .send((state.clone(), vid))
                     .expect("Failed to send node id");
@@ -130,6 +137,13 @@ fn fun_name<'a, 'b: 'a, 'c, S: HopState>(
         Sink::Void => {}
         Sink::Print => {
             println!("Node: {:?}, State: {:?}", vid, state);
+        }
+        Sink::Kanal(sender) => {
+            s.spawn(move |_| {
+                sender
+                    .send((state.clone(), vid))
+                    .expect("Failed to send node id");
+            });
         }
     }
 }

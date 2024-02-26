@@ -3,18 +3,23 @@ use crate::{
     core::entities::VID,
 };
 pub trait HopState: Send + Sync + Clone + std::fmt::Debug {
-    fn new(node: Node) -> Self;
     fn with_next(&self, node: Node, edge: Edge) -> Self;
+
+    fn with_next_2(&self, node: Node, edge: Edge) -> Option<Self> {
+        Some(self.clone())
+    }
 }
 
 #[derive(Clone, PartialEq, Debug, PartialOrd)]
 pub struct NoState;
 
-impl HopState for NoState {
-    fn new(_node: Node) -> Self {
+impl NoState {
+    pub fn new() -> Self {
         NoState
     }
+}
 
+impl HopState for NoState {
     fn with_next(&self, _node: Node, _edge: Edge) -> Self {
         NoState
     }
@@ -22,10 +27,13 @@ impl HopState for NoState {
 #[derive(Clone, PartialEq, Debug, PartialOrd)]
 pub struct VecState(pub Vec<VID>);
 
-impl HopState for VecState {
-    fn new(node: Node) -> Self {
+impl VecState {
+    pub fn new(node: Node) -> Self {
         VecState(vec![node.vid()])
     }
+}
+
+impl HopState for VecState {
 
     fn with_next(&self, node: Node, edge: Edge) -> Self {
         let VecState(mut vec) = self.clone();
@@ -38,9 +46,6 @@ impl HopState for VecState {
 pub struct Count(usize);
 
 impl HopState for Count {
-    fn new(_node: Node) -> Self {
-        Count(1)
-    }
 
     fn with_next(&self, _node: Node, _edge: Edge) -> Self {
         let Count(count) = self;

@@ -2,6 +2,7 @@ use raphtory::{
     arrow::{
         algorithms::connected_components,
         graph_impl::{ArrowGraph, ParquetLayerCols},
+        graph_fragment::TempColGraphFragment,
     },
     query::{
         ast::Query, executors::rayon2, forward_time_filter, state::HopState, ForwardState,
@@ -84,18 +85,126 @@ fn hop_query(tg: &TempColGraphFragment) {
     // pick 100 nodes at random between 0 and num_nodes
     let mut rng = rand::thread_rng();
 
-    let mut nodes = Vec::with_capacity(100);
-    for _ in 0..100 {
-        let vid = VID(rng.gen_range(0..tg.num_nodes()));
-        nodes.push(vid);
-    }
-    let (sender, receiver) = std::sync::mpsc::channel();
+    // let mut nodes = Vec::with_capacity(100);
+    // for _ in 0..100 {
+    //     let vid = VID(rng.gen_range(0..tg.num_nodes()));
+    //     nodes.push(vid);
+    // }
+
+    let nodes = vec![
+        VID(382535267),
+        VID(184891835),
+        VID(408229959),
+        VID(367744340),
+        VID(333413254),
+        VID(234198684),
+        VID(413563984),
+        VID(409024288),
+        VID(425947670),
+        VID(394189445),
+        VID(239780419),
+        VID(274348067),
+        VID(144929507),
+        VID(63202068),
+        VID(68341059),
+        VID(37734306),
+        VID(51674016),
+        VID(136788061),
+        VID(225357124),
+        VID(271353738),
+        VID(360625048),
+        VID(240855894),
+        VID(423558064),
+        VID(416526356),
+        VID(12513270),
+        VID(404042536),
+        VID(393426691),
+        VID(357077321),
+        VID(79601803),
+        VID(127720040),
+        VID(53857348),
+        VID(175779419),
+        VID(90829218),
+        VID(228031919),
+        VID(241662108),
+        VID(187127917),
+        VID(361500014),
+        VID(261116828),
+        VID(51105311),
+        VID(212452592),
+        VID(393221534),
+        VID(140503104),
+        VID(339275837),
+        VID(155445705),
+        VID(33551762),
+        VID(271868807),
+        VID(103589362),
+        VID(371164628),
+        VID(291515294),
+        VID(191132985),
+        VID(333857301),
+        VID(49276625),
+        VID(418030710),
+        VID(258162159),
+        VID(241396378),
+        VID(419981347),
+        VID(41689083),
+        VID(37716799),
+        VID(260785044),
+        VID(70906909),
+        VID(385949844),
+        VID(397485291),
+        VID(205860692),
+        VID(353952678),
+        VID(91204869),
+        VID(68013329),
+        VID(267438974),
+        VID(296877714),
+        VID(309308620),
+        VID(202905000),
+        VID(57402493),
+        VID(224032650),
+        VID(341206031),
+        VID(269091645),
+        VID(296400641),
+        VID(26051978),
+        VID(273435679),
+        VID(126931241),
+        VID(237458885),
+        VID(77853020),
+        VID(363060289),
+        VID(295783863),
+        VID(312442913),
+        VID(299583716),
+        VID(5800482),
+        VID(225740520),
+        VID(91430406),
+        VID(17638528),
+        VID(208388369),
+        VID(409056166),
+        VID(390692383),
+        VID(260642635),
+        VID(142406291),
+        VID(37823426),
+        VID(437161686),
+        VID(404903204),
+        VID(159765663),
+        VID(65571225),
+        VID(432470534),
+        VID(44285565),
+    ];
+
+    println!("Nodes: {:?}", nodes);
+    // let (sender, receiver) = std::sync::mpsc::channel();
+    let (sender, receiver) = kanal::unbounded();
 
     let query: Query<ForwardState> = Query::new()
-        .out_filter(Arc::new(forward_time_filter))
-        .out_filter(Arc::new(forward_time_filter))
-        .out_filter(Arc::new(forward_time_filter))
-        .channel(sender);
+        .out_filter_limit(100, Arc::new(forward_time_filter))
+        .out_filter_limit(100, Arc::new(forward_time_filter))
+        .out_filter_limit(100, Arc::new(forward_time_filter))
+        .out_filter_limit(100, Arc::new(forward_time_filter))
+        // .out_filter_limit(100, Arc::new(forward_time_filter))
+        .kanal(sender);
 
     thread::spawn(move || {
         let file = std::fs::File::create("hop.bin").expect("Cannot create file");
@@ -112,7 +221,10 @@ fn hop_query(tg: &TempColGraphFragment) {
         query,
         raphtory::arrow::query::NodeSource::NodeIds(nodes),
         tg,
-        |node| ForwardState::new(node),
+        |node| {
+            let earliest = node.earliest();
+            ForwardState::at_time(node, earliest, 100)
+        },
     );
     println!("########## Arrow Hop took {:?} ##########", now.elapsed());
 }
