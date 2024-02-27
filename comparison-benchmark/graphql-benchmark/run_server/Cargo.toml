@@ -1,0 +1,19 @@
+[package]
+name = "run_server"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+raphtory-graphql = { path = "../../../raphtory-graphql", version = "0.7.0"}
+tokio = { workspace = true }
+
