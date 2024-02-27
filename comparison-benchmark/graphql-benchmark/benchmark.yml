@@ -1,0 +1,188 @@
+config:
+  processor: "./hooks.js"
+  target: 'http://localhost:1736' # replace with your server URL
+  phases:
+    - duration: 10
+      arrivalRate: 5
+      name: Warm up
+    - duration: 100
+      arrivalRate: 30
+      rampTo: 5000
+      name: Ramp up load
+    - duration: 180
+      arrivalRate: 100
+      name: Sustained load
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+  payload:
+    path: "names.csv"
+    fields:
+      - "randomnodename"
+    skipHeader: true
+
+scenarios:
+  - name: "Get Graphs"
+    flow:
+      - post:
+          url: '/' # replace with your GraphQL endpoint
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query GetSubgraphs {
+                subgraphs: graphs {
+                  name
+                  staticProperties: properties {
+                      constant {
+                          values {
+                              key
+                              value: asString
+                          }
+                      }
+                  },
+                }
+              }
+      - post: # Try and get graph properties
+          url: '/'
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query GetSubgraph() {
+                graph(name: "reddit_graph.bincode") {
+                    name
+                    staticProperties: properties {
+                      constant {
+                        values {
+                          key
+                          value: asString
+                        }
+                      }
+                    }
+                }
+              }
+      - post: # Get a graph with expanded edges for the UX
+          url: '/'
+          afterResponse: [ "checkForGraphQLError" ]
+          json:
+            query: |
+              query GetSubgraph($limit: Int!, $offset: Int!) {
+                subgraph: graph(name: "reddit_graph.bincode") {
+                  name
+                  staticProperties: properties {
+                    constant {
+                      values {
+                        key
+                        value: asString
+                      }
+                    }
+                  }
+                  nodes {
+                    page(limit: $limit, offset: $offset) {
+                      name
+                    }
+                  }
+                  edges {
+                    page(limit: $limit, offset: $offset) {
+                      src {
+                        name
+                    }
+                      dst {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            variables:
+              offset: 0
+              limit: 20
+      - post: # Search the graph for a node
+          url: '/'
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query SearchGraph($query: String!, $offset: Int!, $limit: Int!) {
+                graph(name: "reddit_graph.bincode") {
+                  name
+                  searchNodeCount(query: $query)
+                  searchNodes(query: $query, offset: $offset, limit: $limit) {
+                    name
+                    properties {
+                      values {
+                        key
+                        value: asString
+                      }
+                    }
+                  }
+                }
+              }
+            variables:
+              query: "name:'{{ randomnodename }}'"
+              offset: 0
+              limit: 20
+  - name: "Node Scenarios"
+    flow:
+      - post:
+          url: '/'
+          afterResponse: ["checkForGraphQLError"]
+          json:
+            query: |
+              query GetAllNodes($limit: Int!, $offset: Int!) {
+                subgraph: graph(name: "reddit_graph.bincode") {
+                  nodes {
+                    page(limit: $limit, offset: $offset) {
+                      name
+                    }
+                  }
+                }
+              }
+            variables:
+              offset: 0
+              limit: 20
+      - post: # click and load nodes / Get a graph with expanded node
+          url: '/'
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query NodeNeighbours($name: String!) {
+                graph(name: "reddit_graph.bincode") {
+                  name,
+                  node(name: $name)  {
+                    name
+                    inNeighbours {
+                      name
+                      degree
+                      id
+                    },
+                    outNeighbours {
+                      name
+                      degree
+                      id
+                    },
+                  }
+                }
+              }
+            variables:
+              name: '{{ randomnodename }}'
+  - name: "Algorithms"
+    flow:
+      - post: # Run shortest path? / Algo ?
+          url: '/'
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query GetShortestPath($source: String!, $targets: [String!]!) {
+                graph(name: "reddit_graph.bincode") {
+                  name,
+                  algorithms {
+                    shortest_path(source: $source, targets: $targets) {
+                      target
+                      nodes
+                    }
+                  }
+                }
+              }
+            variables:
+              source: '{{ randomnodename }}'
+              targets: ["istolethejontroncss", "notjontron", "nojontext", "botofbadtimes"]
+      # Save / Archive / Rename ?
