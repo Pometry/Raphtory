@@ -63,7 +63,7 @@ impl<'source> FromPyObject<'source> for Graph2 {
 impl PyArrowGraph {
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
-    pub fn from_pandas(
+    pub fn load_from_pandas(
         graph_dir: &str,
         edge_df: &PyAny,
         src_col: &str,
@@ -96,14 +96,14 @@ impl PyArrowGraph {
     }
 
     #[staticmethod]
-    fn load(graph_dir: &str) -> Result<Graph2, GraphError> {
+    fn load_from_dir(graph_dir: &str) -> Result<Graph2, GraphError> {
         Graph2::open_path(graph_dir)
             .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}")))
     }
 
     #[staticmethod]
     #[pyo3(signature = (graph_dir, parquet_dir, src_col, src_hash_col, dst_col, dst_hash_col, time_col))]
-    fn from_parquets(
+    fn load_from_parquets(
         graph_dir: &str,
         parquet_dir: &str,
         src_col: &str,

@@ -16,9 +16,9 @@ def test_arrow_graph():
     # print(table.schema)
 
     try:
-        g = ArrowGraph.open_path(graph_dir)
+        g = ArrowGraph.load_from_dir(graph_dir)
     except Exception as e:
-        g = ArrowGraph.from_parquets(
+        g = ArrowGraph.load_from_parquets(
             graph_dir,
             parquet_dir,
             src_col,
