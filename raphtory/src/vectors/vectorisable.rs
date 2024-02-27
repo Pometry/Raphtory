@@ -11,7 +11,10 @@ use crate::{
 };
 use async_trait::async_trait;
 use itertools::Itertools;
+use parking_lot::RwLock;
 use std::{collections::HashMap, path::PathBuf};
+
+use super::faiss_store::{self, FaissStore};
 
 const CHUNK_SIZE: usize = 1000;
 
@@ -32,7 +35,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   * cache - the file to be used as a cache to avoid calling the embedding function
     ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
     ///   * verbose - whether or not to print logs reporting the progress
-    ///   
+    ///
     /// # Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise(
@@ -40,6 +43,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         embedding: Box<dyn EmbeddingFunction>,
         cache_file: Option<PathBuf>,
         override_cache: bool,
+        faiss: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate>;
 
@@ -51,7 +55,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
     ///   * overwrite_cache - whether or not to overwrite the cache if there are new embeddings
     ///   * template - the template to use to translate entities into documents
     ///   * verbose - whether or not to print logs reporting the progress
-    ///   
+    ///
     /// # Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
@@ -60,6 +64,7 @@ pub trait Vectorisable<G: StaticGraphViewOps> {
         cache: Option<PathBuf>,
         override_cache: bool,
         template: T,
+        faiss: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, T>;
 }
@@ -71,10 +76,18 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         embedding: Box<dyn EmbeddingFunction>,
         cache: Option<PathBuf>,
         overwrite_cache: bool,
+        faiss: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, DefaultTemplate> {
-        self.vectorise_with_template(embedding, cache, overwrite_cache, DefaultTemplate, verbose)
-            .await
+        self.vectorise_with_template(
+            embedding,
+            cache,
+            overwrite_cache,
+            DefaultTemplate,
+            faiss,
+            verbose,
+        )
+        .await
     }
 
     async fn vectorise_with_template<T: DocumentTemplate<G>>(
@@ -83,6 +96,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
         cache: Option<PathBuf>,
         overwrite_cache: bool,
         template: T,
+        faiss: bool,
         verbose: bool,
     ) -> VectorisedGraph<G, T> {
         let graph_docs =
@@ -145,6 +159,13 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
             cache_storage.iter().for_each(|cache| cache.dump_to_disk());
         }
 
+        let faiss_store = if faiss {
+            let store = FaissStore::from_refs(&node_refs, &edge_refs);
+            Some(RwLock::new(store).into())
+        } else {
+            None
+        };
+
         VectorisedGraph::new(
             self.clone(),
             template.into(),
@@ -152,6 +173,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> Vectorisable<G> for G {
             graph_refs.into(),
             node_refs.into(),
             edge_refs.into(),
+            faiss_store,
             vec![],
         )
     }

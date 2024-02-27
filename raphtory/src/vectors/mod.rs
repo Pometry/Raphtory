@@ -7,6 +7,7 @@ pub mod document_template;
 mod embedding_cache;
 pub mod embeddings;
 mod entity_id;
+mod faiss_store;
 pub mod graph_entity;
 mod similarity_search_utils;
 pub mod splitting;
@@ -166,7 +167,7 @@ mod vector_tests {
         g.add_node(0, "test", NO_PROPS, None).unwrap();
 
         // the following succeeds with no cache set up
-        g.vectorise(Box::new(fake_embedding), None, true, false)
+        g.vectorise(Box::new(fake_embedding), None, true, false, false)
             .await;
 
         let path = "/tmp/raphtory/very/deep/path/embedding-cache-test";
@@ -178,6 +179,7 @@ mod vector_tests {
             Some(PathBuf::from(path)),
             true,
             false,
+            false,
         )
         .await;
 
@@ -187,6 +189,7 @@ mod vector_tests {
             Box::new(panicking_embedding),
             Some(PathBuf::from(path)),
             true,
+            false,
             false,
         )
         .await;
@@ -199,7 +202,7 @@ mod vector_tests {
         let g = Graph::new();
         let cache = PathBuf::from("/tmp/raphtory/vector-cache-lotr-test");
         let vectors = g
-            .vectorise(Box::new(fake_embedding), Some(cache), true, false)
+            .vectorise(Box::new(fake_embedding), Some(cache), true, false, false)
             .await;
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()]).await.remove(0);
         let docs = vectors
@@ -288,6 +291,7 @@ age: 30"###;
                 true,
                 FakeMultiDocumentTemplate,
                 false,
+                false,
             )
             .await;
 
@@ -346,6 +350,7 @@ age: 30"###;
                 Some(PathBuf::from("/tmp/raphtory/vector-cache-window-test")),
                 true,
                 FakeTemplateWithIntervals,
+                false,
                 false,
             )
             .await;
@@ -429,6 +434,7 @@ age: 30"###;
                 true,
                 CustomTemplate,
                 false,
+                false,
             )
             .await;
 
@@ -465,5 +471,80 @@ age: 30"###;
             .append_edges_by_similarity(&embedding, 1, None)
             .get_documents();
         assert!(docs[0].content().contains("Frodo appeared with Gandalf"));
+    }
+
+    use faiss::{index_factory, Index, MetricType};
+
+    async fn predictable_embedding(texts: Vec<String>) -> Vec<Embedding> {
+        texts
+            .into_iter()
+            .map(|text| vec![text.parse::<f32>().unwrap(), 0.0, 0.0, 0.0, 0.0])
+            .collect_vec()
+    }
+
+    struct PredictableTemplate;
+
+    impl<G: StaticGraphViewOps> DocumentTemplate<G> for PredictableTemplate {
+        fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
+            DefaultTemplate.graph(graph)
+        }
+
+        fn node(&self, node: &NodeView<G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+            Box::new(std::iter::once(node.name().to_string().into()))
+        }
+        fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
+            Box::new(std::iter::once(edge.src().name().to_string().into()))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_faiss_2() {
+        let g = Graph::new();
+        for n in 1..=100 {
+            g.add_node(0, n, NO_PROPS, None);
+            g.add_edge(0, 1, n, NO_PROPS, None);
+        }
+
+        let v = g
+            .vectorise_with_template(
+                Box::new(predictable_embedding),
+                None,
+                false,
+                PredictableTemplate,
+                true,
+                true,
+            )
+            .await;
+
+        let selection = v.append_nodes_by_similarity(&vec![5.0, 0.0, 0.0, 0.0, 0.0], 1, None);
+
+        let (doc, score) = selection.get_documents_with_scores().remove(0);
+        assert_eq!(doc.into_content(), "5");
+        assert_eq!(score, 1.0);
+    }
+
+    #[test]
+    fn test_faiss() {
+        let v1 = [0.0, 1.0, 1.0];
+        let v2 = [0.0, 1.0, 1.0];
+        let my_query = [0.0, 1.0, 1.0];
+
+        let mut index = index_factory(3, "IDMap,Flat", MetricType::L2).unwrap();
+        index.add_with_ids(&v1, &[0.into()]).unwrap();
+        index.add_with_ids(&v2, &[1.into()]).unwrap();
+
+        let result = index.search(&my_query, 5).unwrap();
+        println!("---------------------");
+        println!("got result");
+        println!("{result:?}");
+        for (i, (l, d)) in result
+            .labels
+            .iter()
+            .zip(result.distances.iter())
+            .enumerate()
+        {
+            println!("#{}: {} (D={})", i + 1, *l, *d);
+        }
+        println!("---------------------");
     }
 }

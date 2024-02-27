@@ -151,6 +151,7 @@ impl VectorisedGraphStorage {
             Arc::new(graph_documents),
             Arc::new(node_documents),
             Arc::new(edge_documents),
+            None, // FIXME: recompute the faiss store optionally
             vec![],
         ))
     }

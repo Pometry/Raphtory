@@ -15,11 +15,33 @@ use crate::{
     },
 };
 use itertools::{chain, Itertools};
+use parking_lot::RwLock;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
     sync::Arc,
 };
+
+use super::faiss_store::{DocumentPointer, FaissIndex, FaissStore};
+
+// enum IndexInput<'a> {
+//     Native(Box<dyn Iterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)>>),
+//     Faiss(Vec<&'a mut FaissIndex>),
+// }
+
+// impl<'a, I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a> From<I>
+//     for IndexInput<'a>
+// {
+//     fn from(value: I) -> Self {
+//         IndexInput::Native(Box::new(value.into_iter()))
+//     }
+// }
+
+enum AppendMode {
+    Nodes,
+    Edges,
+    Both,
+}
 
 #[derive(Clone, Copy)]
 enum ExpansionPath {
@@ -36,6 +58,7 @@ pub struct VectorisedGraph<G: StaticGraphViewOps, T: DocumentTemplate<G>> {
     pub(crate) graph_documents: Arc<Vec<DocumentRef>>,
     pub(crate) node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>, // TODO: replace with FxHashMap
     pub(crate) edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+    faiss_store: Option<Arc<RwLock<FaissStore>>>,
     selected_docs: Vec<(DocumentRef, f32)>,
     empty_vec: Vec<DocumentRef>,
 }
@@ -53,6 +76,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> Clone for VectorisedGraph<G,
             self.graph_documents.clone(),
             self.node_documents.clone(),
             self.edge_documents.clone(),
+            self.faiss_store.clone(),
             self.selected_docs.clone(),
         )
     }
@@ -66,6 +90,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         graph_documents: Arc<Vec<DocumentRef>>,
         node_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
         edge_documents: Arc<HashMap<EntityId, Vec<DocumentRef>>>,
+        faiss_store: Option<Arc<RwLock<FaissStore>>>,
         selected_docs: Vec<(DocumentRef, f32)>,
     ) -> Self {
         Self {
@@ -75,6 +100,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             graph_documents,
             node_documents,
             edge_documents,
+            faiss_store,
             selected_docs,
             empty_vec: vec![],
         }
@@ -181,6 +207,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
+    // FIXME: this is not included graph documents as of now
     /// Add the top `limit` documents to the current selection using `query`
     ///
     /// # Arguments
@@ -196,8 +223,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Self {
-        let joined = chain!(self.node_documents.iter(), self.edge_documents.iter());
-        self.add_top_documents(joined, query, limit, window)
+        self.add_top_documents(AppendMode::Both, query, limit, window)
     }
 
     /// Add the top `limit` node documents to the current selection using `query`
@@ -215,7 +241,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Self {
-        self.add_top_documents(self.node_documents.as_ref(), query, limit, window)
+        self.add_top_documents(AppendMode::Nodes, query, limit, window)
     }
 
     /// Add the top `limit` edge documents to the current selection using `query`
@@ -233,7 +259,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Self {
-        self.add_top_documents(self.edge_documents.as_ref(), query, limit, window)
+        self.add_top_documents(AppendMode::Edges, query, limit, window)
     }
 
     /// Add all the documents `hops` hops away to the selection
@@ -312,7 +338,7 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
     ///
     /// # Arguments
     ///   * query - the text or the embedding to score against
-    ///   * limit - the maximum number of new documents to add  
+    ///   * limit - the maximum number of new documents to add
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
@@ -421,34 +447,64 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         }
     }
 
-    fn add_top_documents<'a, I>(
+    fn add_top_documents<'a>(
         &self,
-        document_groups: I,
+        mode: AppendMode,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> Self
-    where
-        I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
-    {
-        let documents = document_groups
-            .into_iter()
-            .flat_map(|(_, embeddings)| embeddings);
-
-        let window_docs: Box<dyn Iterator<Item = &DocumentRef>> = match window {
-            None => Box::new(documents),
-            Some((start, end)) => {
-                let windowed_graph = self.source_graph.window(start, end);
-                let filtered = documents.filter(move |document| {
-                    document.exists_on_window(Some(&windowed_graph), window)
+    ) -> Self {
+        // we don't want to use faiss if there is a window set
+        let valid_faiss_store = window.and_then(|_| self.faiss_store.clone());
+        let filtered: Box<dyn Iterator<Item = &DocumentRef>> = match valid_faiss_store {
+            None => {
+                let document_groups: Box<dyn Iterator<Item = (&EntityId, &Vec<DocumentRef>)>> =
+                    match mode {
+                        AppendMode::Nodes => Box::new(self.node_documents.iter()),
+                        AppendMode::Edges => Box::new(self.edge_documents.iter()),
+                        AppendMode::Both => Box::new(chain!(
+                            self.node_documents.iter(),
+                            self.edge_documents.iter()
+                        )),
+                    };
+                let documents = document_groups.flat_map(|(_, embeddings)| embeddings);
+                match window {
+                    None => Box::new(documents),
+                    Some((start, end)) => {
+                        let windowed_graph = self.source_graph.window(start, end);
+                        let filtered = documents.filter(move |document| {
+                            document.exists_on_window(Some(&windowed_graph), window)
+                        });
+                        Box::new(filtered)
+                    }
+                }
+            }
+            Some(store) => {
+                let mut store = store.write();
+                let pointers = match mode {
+                    AppendMode::Nodes => store.nodes.search(query, limit).into_iter(),
+                    AppendMode::Edges => store.edges.search(query, limit).into_iter(),
+                    AppendMode::Both => {
+                        let mut pointers = store.nodes.search(query, limit);
+                        pointers.extend(store.edges.search(query, limit));
+                        pointers.into_iter()
+                    }
+                };
+                let doc_refs = pointers.map(|DocumentPointer { entity, subindex }| {
+                    let doc_group = match entity {
+                        EntityId::Node { .. } => self.node_documents.get(&entity),
+                        EntityId::Edge { .. } => self.edge_documents.get(&entity),
+                        EntityId::Graph { .. } => panic!("this is illegal"),
+                    };
+                    doc_group.unwrap().get(subindex).unwrap()
                 });
-                Box::new(filtered)
+                Box::new(doc_refs.collect_vec().into_iter())
             }
         };
 
         let new_len = self.selected_docs.len() + limit;
-        let scored_nodes = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
-        let candidates = find_top_k(scored_nodes, usize::MAX);
+        let scored_docs = score_documents(query, filtered.cloned()); // TODO: try to remove this clone
+        let candidates = find_top_k(scored_docs, limit); // TODO: review, this used to be usize::MAX instead of limit
         let new_selected = extend_selection(self.selected_docs.clone(), candidates, new_len);
 
         Self {
@@ -456,6 +512,35 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
             ..self.clone()
         }
     }
+
+    // fn native_search<'a, I>(
+    //     &self,
+    //     document_groups: I,
+    //     query: &Embedding,
+    //     limit: usize,
+    //     window: Option<(i64, i64)>,
+    // ) -> impl Iterator<Item = (DocumentRef, f32)>
+    // where
+    //     I: IntoIterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)> + 'a,
+    // {
+    //     let documents = document_groups
+    //         .into_iter()
+    //         .flat_map(|(_, embeddings)| embeddings);
+
+    //     let window_docs: Box<dyn Iterator<Item = &DocumentRef>> = match window {
+    //         None => Box::new(documents),
+    //         Some((start, end)) => {
+    //             let windowed_graph = self.source_graph.window(start, end);
+    //             let filtered = documents.filter(move |document| {
+    //                 document.exists_on_window(Some(&windowed_graph), window)
+    //             });
+    //             Box::new(filtered)
+    //         }
+    //     };
+
+    //     let scored_docs = score_documents(query, window_docs.cloned()); // TODO: try to remove this clone
+    //     find_top_k(scored_docs, limit) // TODO: review, this used to be usize::MAX instead of limit
+    // }
 
     // this might return the document used as input, uniqueness need to be check outside of this
     fn get_context<'a, W: StaticGraphViewOps>(

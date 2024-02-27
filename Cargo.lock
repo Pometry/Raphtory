@@ -1129,6 +1129,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "faiss"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3ffe048432786028b0a30aa1d13e10e08ced380439ba4a83fe5c227d2dd9733"
+dependencies = [
+ "faiss-sys",
+]
+
+[[package]]
+name = "faiss-sys"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b9c008fc56422bf34357f17226d9c5a5c2ef6245b4774759c5f67112e46915e"
+
+[[package]]
 name = "fast_chemail"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2845,6 +2860,7 @@ dependencies = [
  "display-error-chain",
  "dotenv",
  "enum_dispatch",
+ "faiss",
  "flate2",
  "futures-util",
  "genawaiter",

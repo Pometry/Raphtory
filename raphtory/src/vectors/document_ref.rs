@@ -8,6 +8,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
+// TODO: this is not a refence, find another name, like CompressedDocument
 /// this struct contains the minimum amount of information need to regenerate a document using a
 /// template and to quickly apply windows over them
 #[derive(Clone, Debug, Serialize, Deserialize)]
