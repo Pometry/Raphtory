@@ -478,7 +478,14 @@ age: 30"###;
     async fn predictable_embedding(texts: Vec<String>) -> Vec<Embedding> {
         texts
             .into_iter()
-            .map(|text| vec![text.parse::<f32>().unwrap(), 0.0, 0.0, 0.0, 0.0])
+            .map(|text| {
+                let index = text.parse::<usize>().unwrap();
+                let mut vector = vec![0.0; 10];
+                if let Some(element) = vector.get_mut(index) {
+                    *element = 1.0;
+                };
+                vector
+            })
             .collect_vec()
     }
 
@@ -498,11 +505,32 @@ age: 30"###;
     }
 
     #[tokio::test]
-    async fn test_faiss_2() {
+    async fn test_faiss_empty() {
         let g = Graph::new();
-        for n in 1..=100 {
+
+        let v = g
+            .vectorise_with_template(
+                Box::new(predictable_embedding),
+                None,
+                false,
+                PredictableTemplate,
+                true,
+                true,
+            )
+            .await;
+
+        let selection = v.append_nodes_by_similarity(&vec![5.0, 0.0, 0.0, 0.0, 0.0], 10, None);
+
+        let len = selection.get_documents().len();
+        assert_eq!(len, 0);
+    }
+
+    #[tokio::test]
+    async fn test_faiss_full() {
+        let g = Graph::new();
+        for n in 0..10 {
             g.add_node(0, n, NO_PROPS, None);
-            g.add_edge(0, 1, n, NO_PROPS, None);
+            g.add_edge(0, n, 1, NO_PROPS, None);
         }
 
         let v = g
@@ -516,35 +544,50 @@ age: 30"###;
             )
             .await;
 
-        let selection = v.append_nodes_by_similarity(&vec![5.0, 0.0, 0.0, 0.0, 0.0], 1, None);
+        let query = vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let selection = v.append_nodes_by_similarity(&query, 20, None);
 
-        let (doc, score) = selection.get_documents_with_scores().remove(0);
-        assert_eq!(doc.into_content(), "5");
-        assert_eq!(score, 1.0);
+        let len = selection.get_documents_with_scores().len();
+        assert_eq!(len, 10);
     }
 
-    #[test]
-    fn test_faiss() {
-        let v1 = [0.0, 1.0, 1.0];
-        let v2 = [0.0, 1.0, 1.0];
-        let my_query = [0.0, 1.0, 1.0];
-
-        let mut index = index_factory(3, "IDMap,Flat", MetricType::L2).unwrap();
-        index.add_with_ids(&v1, &[0.into()]).unwrap();
-        index.add_with_ids(&v2, &[1.into()]).unwrap();
-
-        let result = index.search(&my_query, 5).unwrap();
-        println!("---------------------");
-        println!("got result");
-        println!("{result:?}");
-        for (i, (l, d)) in result
-            .labels
-            .iter()
-            .zip(result.distances.iter())
-            .enumerate()
-        {
-            println!("#{}: {} (D={})", i + 1, *l, *d);
+    #[tokio::test]
+    async fn test_faiss_normal() {
+        let g = Graph::new();
+        for n in 0..10 {
+            g.add_node(0, n, NO_PROPS, None);
+            g.add_edge(0, n, 0, NO_PROPS, None);
         }
-        println!("---------------------");
+
+        let v = g
+            .vectorise_with_template(
+                Box::new(predictable_embedding),
+                None,
+                false,
+                PredictableTemplate,
+                true,
+                true,
+            )
+            .await;
+
+        let query = vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+
+        let selection = v.append_nodes_by_similarity(&query, 5, None);
+        let (doc, score) = selection.get_documents_with_scores().remove(0);
+        assert_eq!(doc.into_content(), "0");
+        assert_eq!(score, 1.0);
+
+        let selection = v.append_edges_by_similarity(&query, 5, None);
+        let (doc, score) = selection.get_documents_with_scores().remove(0);
+        assert_eq!(doc.into_content(), "0");
+        assert_eq!(score, 1.0);
+
+        let selection = v.append_by_similarity(&query, 5, None);
+        let (doc, score) = selection.get_documents_with_scores().remove(0);
+        assert_eq!(doc.into_content(), "0");
+        assert_eq!(score, 1.0);
+        let (doc, score) = selection.get_documents_with_scores().remove(0);
+        assert_eq!(doc.into_content(), "0");
+        assert_eq!(score, 1.0);
     }
 }

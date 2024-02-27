@@ -37,6 +37,7 @@ use super::faiss_store::{DocumentPointer, FaissIndex, FaissStore};
 //     }
 // }
 
+#[derive(Debug)]
 enum AppendMode {
     Nodes,
     Edges,
@@ -454,8 +455,16 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> Self {
+        println!("---------------here-------------------");
+        dbg!(&self.faiss_store.is_some());
         // we don't want to use faiss if there is a window set
-        let valid_faiss_store = window.and_then(|_| self.faiss_store.clone());
+        let valid_faiss_store = match window {
+            Some(_) => None,
+            None => self.faiss_store.clone(),
+        };
+
+        dbg!(&valid_faiss_store.is_some());
+        dbg!(&mode);
         let filtered: Box<dyn Iterator<Item = &DocumentRef>> = match valid_faiss_store {
             None => {
                 let document_groups: Box<dyn Iterator<Item = (&EntityId, &Vec<DocumentRef>)>> =
@@ -490,6 +499,8 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                         pointers.into_iter()
                     }
                 };
+                println!("--------------------------------");
+                dbg!(&pointers);
                 let doc_refs = pointers.map(|DocumentPointer { entity, subindex }| {
                     let doc_group = match entity {
                         EntityId::Node { .. } => self.node_documents.get(&entity),
