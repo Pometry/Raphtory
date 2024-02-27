@@ -1,4 +1,9 @@
-use std::sync::{mpsc::Sender, Arc};
+use std::{
+    fs::File,
+    io::BufWriter,
+    path::{Path, PathBuf},
+    sync::{mpsc::Sender, Arc},
+};
 
 use crate::{
     arrow::{edge::Edge, nodes::Node},
@@ -7,11 +12,9 @@ use crate::{
 
 use super::state::HopState;
 
-
-
 pub enum Sink<S> {
-    Channel(Sender<(S, VID)>),
-    Kanal(kanal::Sender<(S, VID)>),
+    Channel(Vec<Sender<(S, VID)>>),
+    Path(PathBuf, Arc<dyn Fn(&mut BufWriter<File>, S) + Send + Sync>),
     Void,
     Print,
 }
@@ -81,7 +84,11 @@ impl<S: HopState> Query<S> {
         self.hop(Direction::OUT, Some(filter), false, None)
     }
 
-    pub fn out_filter_limit(self, limit:usize, filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>) -> Self {
+    pub fn out_filter_limit(
+        self,
+        limit: usize,
+        filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>,
+    ) -> Self {
         self.hop(Direction::OUT, Some(filter), false, Some(limit))
     }
 
@@ -93,7 +100,11 @@ impl<S: HopState> Query<S> {
         self.hop(Direction::IN, Some(filter), false, None)
     }
 
-    pub fn into_filter_limit(self, limit:usize, filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>) -> Self {
+    pub fn into_filter_limit(
+        self,
+        limit: usize,
+        filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>,
+    ) -> Self {
         self.hop(Direction::IN, Some(filter), false, Some(limit))
     }
 
@@ -102,13 +113,22 @@ impl<S: HopState> Query<S> {
         self
     }
 
-    pub fn channel(mut self, sender: Sender<(S, VID)>) -> Self {
-        self.sink = Sink::Channel(sender);
+    pub fn channel(mut self, senders: impl IntoIterator<Item = Sender<(S, VID)>>) -> Self {
+        self.sink = Sink::Channel(senders.into_iter().collect());
         self
     }
 
-    pub fn kanal(mut self, sender: kanal::Sender<(S, VID)>) -> Self {
-        self.sink = Sink::Kanal(sender);
+    pub fn void(mut self) -> Self {
+        self.sink = Sink::Void;
+        self
+    }
+
+    pub fn path(
+        mut self,
+        path: impl AsRef<Path>,
+        writer: impl Fn(&mut BufWriter<File>, S) + Send + Sync + 'static,
+    ) -> Self {
+        self.sink = Sink::Path(path.as_ref().to_path_buf(), Arc::new(writer));
         self
     }
 }

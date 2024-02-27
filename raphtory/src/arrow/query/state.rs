@@ -34,7 +34,6 @@ impl VecState {
 }
 
 impl HopState for VecState {
-
     fn with_next(&self, node: Node, edge: Edge) -> Self {
         let VecState(mut vec) = self.clone();
         vec.push(node.vid());
@@ -46,7 +45,6 @@ impl HopState for VecState {
 pub struct Count(usize);
 
 impl HopState for Count {
-
     fn with_next(&self, _node: Node, _edge: Edge) -> Self {
         let Count(count) = self;
         Count(*count + 1)

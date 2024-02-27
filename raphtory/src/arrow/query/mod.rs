@@ -1,15 +1,11 @@
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::Arc;
 
-use crate::core::{entities::VID, Direction};
+use crate::core::entities::VID;
 
-use self::{
-    ast::{Hop, Query},
-    state::HopState,
-};
+use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::{edge::Edge, graph_fragment::TempColGraphFragment, nodes::Node, Error};
-use rayon::prelude::*;
+use super::{edge::Edge, graph_fragment::TempColGraphFragment, nodes::Node};
 
 pub mod ast;
 pub mod executors;
@@ -22,28 +18,6 @@ pub enum NodeSource {
 }
 
 impl NodeSource {
-    fn for_each<OP>(self, graph: &TempColGraphFragment, op: OP)
-    where
-        OP: Fn(Node) + Sync + Send,
-    {
-        match self {
-            NodeSource::All => {
-                graph.all_nodes_par().for_each(op);
-            }
-            NodeSource::NodeIds(ids) => {
-                ids.par_iter()
-                    .map(|node_id| graph.node(*node_id))
-                    .for_each(op);
-            }
-            NodeSource::Filter(filter) => {
-                graph
-                    .all_nodes_par()
-                    .filter(|node_id| filter(*node_id))
-                    .for_each(op);
-            }
-        }
-    }
-
     fn into_iter(self, graph: &TempColGraphFragment) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
             NodeSource::All => Box::new((0..graph.num_nodes()).into_iter().map(VID)),
@@ -56,121 +30,6 @@ impl NodeSource {
             ),
         }
     }
-}
-
-pub fn execute<S: HopState>(
-    query: Query<S>,
-    source: NodeSource,
-    graph: &TempColGraphFragment,
-    make_state: impl Fn(Node) -> S + Send + Sync,
-) -> Result<(), Error> {
-    source.for_each(graph, |node| {
-        run::<S>(&query, 0, node, None, (make_state)(node), graph)
-    });
-    Ok(())
-}
-
-fn run<S: HopState>(
-    query: &Query<S>,
-    step: usize,
-    node: Node,
-    edge: Option<Edge>,
-    state: S,
-    graph: &TempColGraphFragment,
-) {
-    let Query { sink, .. } = query;
-    if let Some(Hop {
-        dir,
-        filter,
-        variable,
-        limit
-    }) = query.get_hop(step)
-    {
-        // if this is a variable hop and we're not at the last step then print the intermediate result
-        if *variable && !(query.hops.len() - 1 == step) {
-            run_sink(sink, state.clone(), node);
-        }
-        run_hop_edges::<S>(*dir, step, query, node, edge, filter.as_ref(), state, limit.unwrap_or(usize::MAX),graph);
-    } else {
-        run_sink(sink, state, node);
-    }
-}
-
-fn run_sink<S: HopState>(sink: &ast::Sink<S>, state: S, node: Node<'_>) {
-    match sink {
-        ast::Sink::Channel(sender) => run_channel(sender, state, node),
-        ast::Sink::Void => run_void(),
-        ast::Sink::Print => run_print(node),
-        ast::Sink::Kanal(sender) => {
-            sender
-                .send((state, node.vid()))
-                .expect("Failed to send node id");
-        },
-    }
-}
-
-fn run_channel<S>(sender: &Sender<(S, VID)>, state: S, node: Node<'_>) {
-    sender
-        .send((state, node.vid()))
-        .expect("Failed to send node id");
-}
-
-fn run_void() {
-    // do nothing
-}
-
-fn run_hop_edges<S: HopState>(
-    direction: Direction,
-    step: usize,
-    query: &Query<S>,
-    node: Node,
-    edge: Option<Edge>,
-    filter: Option<&Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>>,
-    state: S,
-    limit: usize,
-    graph: &TempColGraphFragment,
-) {
-    match direction {
-        Direction::OUT => {
-            graph
-                .nodes
-                .par_out_adj_list(node.vid())
-                .map(|(eid, vid)| (graph.edge(eid), graph.node(vid), state.clone()))
-                .for_each(|(edge, node, state)| {
-                    run::<S>(
-                        query,
-                        step + 1,
-                        node,
-                        Some(edge),
-                        state.with_next(node, edge),
-                        graph,
-                    )
-                });
-        }
-        Direction::IN => {
-            graph
-                .nodes
-                .par_in_adj_list(node.vid())
-                .map(|(eid, vid)| (graph.edge(eid), graph.node(vid), state.clone()))
-                .for_each(|(edge, node, state)| {
-                    run::<S>(
-                        query,
-                        step + 1,
-                        node,
-                        Some(edge),
-                        state.with_next(node, edge),
-                        graph,
-                    )
-                });
-        }
-        Direction::BOTH => {
-            todo!()
-        }
-    }
-}
-
-fn run_print(node: Node) {
-    println!("{:?}", node.vid());
 }
 
 pub fn forward_time_filter(_node: Node, edge: Edge, state: &ForwardState) -> bool {
@@ -203,7 +62,6 @@ impl ForwardState {
 }
 
 impl HopState for ForwardState {
-
     fn with_next(&self, node: Node, edge: Edge) -> Self {
         let ts = edge.timestamps();
         let w = self.time + 1..i64::MAX;
@@ -225,7 +83,6 @@ impl HopState for ForwardState {
             path: self.path.push_front(node.vid()),
             hop_n_limit: self.hop_n_limit,
         })
-    
     }
 }
 
@@ -239,7 +96,7 @@ mod test {
     fn one_hop_query() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().channel(sender);
+        let query = Query::new().out().channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
 
@@ -251,8 +108,7 @@ mod test {
         )
         .unwrap();
 
-        let result =
-            rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
+        let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
 
         let mut actual = receiver.into_iter().collect::<Vec<_>>();
@@ -264,7 +120,7 @@ mod test {
     fn two_hop_query() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().out().channel(sender);
+        let query = Query::new().out().out().channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
         let graph = TempColGraphFragment::from_edges(
@@ -275,8 +131,7 @@ mod test {
         )
         .unwrap();
 
-        let result =
-            rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
+        let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
         let (_, vid) = receiver.recv().unwrap();
         assert_eq!(vid, VID(2));
@@ -286,7 +141,7 @@ mod test {
     fn two_hop_query_var() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().out_var().channel(sender);
+        let query = Query::new().out().out_var().channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
         let graph = TempColGraphFragment::from_edges(
@@ -318,7 +173,7 @@ mod test {
     fn two_hop_query_state() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().out().channel(sender);
+        let query = Query::new().out().out().channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
         let graph = TempColGraphFragment::from_edges(
@@ -340,7 +195,7 @@ mod test {
     #[test]
     fn test_fork_2_hop() {
         let (sender, receiver) = std::sync::mpsc::channel();
-        let query = Query::new().out().out().channel(sender);
+        let query = Query::new().out().out().channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
         let graph = TempColGraphFragment::from_edges(
@@ -376,7 +231,7 @@ mod test {
         let query = Query::new()
             .out_filter(Arc::new(forward_time_filter))
             .out_filter(Arc::new(forward_time_filter))
-            .channel(sender);
+            .channel([sender]);
 
         let mut edges = vec![
             (11, 0u64, 1u64, 0.0f64),

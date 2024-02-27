@@ -1,5 +1,7 @@
+use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
+
 use itertools::Itertools;
-use rayon::ThreadPoolBuilder;
+use rayon::{current_thread_index, ThreadPoolBuilder};
 
 use crate::{
     arrow::{
@@ -7,7 +9,6 @@ use crate::{
         nodes::Node,
         query::{
             ast::{Hop, Query, Sink},
-            run_sink,
             state::HopState,
             NodeSource,
         },
@@ -28,20 +29,42 @@ pub fn execute<S: HopState + 'static>(
 
     let chunk_size = 10;
 
+    if let Sink::Path(dir, _) = &query.sink {
+        std::fs::create_dir_all(dir)?;
+    }
+
+    let tl = Arc::new(thread_local::ThreadLocal::new());
     tp.scope(|s| {
+        let tl = &tl;
         for node_chunk in source.into_iter(graph).chunks(chunk_size).into_iter() {
             let node_chunk = node_chunk.collect::<Vec<_>>();
+
             s.spawn(|s| {
                 for node in node_chunk {
                     let node = graph.node(node);
                     let state = (make_state)(node);
-                    hop_node(node, &query, 0, state, graph, s);
+                    hop_node(node, &query, 0, state, graph, s, tl);
                 }
             })
         }
     });
 
     Ok(())
+}
+
+fn get_writer<'a, S>(
+    dir: impl AsRef<Path>,
+    tl: &'a thread_local::ThreadLocal<RefCell<BufWriter<File>>>,
+) -> &'a RefCell<BufWriter<File>> {
+    let out = tl.get_or(|| {
+        let thread_index = current_thread_index().expect("No thread index");
+        let path = dir.as_ref().join(format!("part_{}.bin", thread_index));
+        RefCell::new(BufWriter::with_capacity(
+            256 * 1024,
+            File::create(path).expect("Cannot create file"),
+        ))
+    });
+    out
 }
 
 fn node_range(shard_id: usize, segment_size: usize, num_nodes: usize) -> std::ops::Range<usize> {
@@ -61,6 +84,7 @@ fn hop_node<'a, S: HopState + 'a>(
     state: S,
     graph: &'a TempColGraphFragment,
     s: &rayon::Scope<'a>,
+    tl: &'a Arc<thread_local::ThreadLocal<RefCell<BufWriter<File>>>>,
 ) {
     let vid = node.vid();
     let Query { sink, .. } = query;
@@ -72,28 +96,33 @@ fn hop_node<'a, S: HopState + 'a>(
     }) = query.get_hop(step)
     {
         if *variable {
-            run_sink(sink, state.clone(), node);
+            do_sink(sink, s, state.clone(), vid, tl);
         }
         let limit = limit.unwrap_or(usize::MAX);
         match dir {
-            Direction::OUT => s.spawn_broadcast(move |s, ctx| {
-                let t_id = ctx.index();
-                if vid.0 % ctx.num_threads() == t_id {
-                    graph
-                        .nodes
-                        .out_adj_list(vid)
-                        .map(|(eid, vid)| (graph.edge(eid), graph.node(vid)))
-                        .filter(|(edge, node)| {
-                            filter
-                                .as_ref()
-                                .map(|f| (f)(*node, *edge, &state))
-                                .unwrap_or(true)
-                        })
-                        .take(limit)
-                        .for_each(|(edge, node)| {
-                            hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
-                        });
-                }
+            Direction::OUT => s.spawn(move |s| {
+                graph
+                    .nodes
+                    .out_adj_list(vid)
+                    .map(|(eid, vid)| (graph.edge(eid), graph.node(vid)))
+                    .filter(|(edge, node)| {
+                        filter
+                            .as_ref()
+                            .map(|f| (f)(*node, *edge, &state))
+                            .unwrap_or(true)
+                    })
+                    .take(limit)
+                    .for_each(|(edge, node)| {
+                        hop_node(
+                            node,
+                            query,
+                            step + 1,
+                            state.with_next(node, edge),
+                            graph,
+                            s,
+                            tl,
+                        );
+                    });
             }),
             Direction::IN => s.spawn(move |s| {
                 graph
@@ -108,7 +137,15 @@ fn hop_node<'a, S: HopState + 'a>(
                     })
                     .take(limit)
                     .for_each(|(edge, node)| {
-                        hop_node(node, query, step + 1, state.with_next(node, edge), graph, s);
+                        hop_node(
+                            node,
+                            query,
+                            step + 1,
+                            state.with_next(node, edge),
+                            graph,
+                            s,
+                            tl,
+                        );
                     });
             }),
             Direction::BOTH => {
@@ -116,19 +153,22 @@ fn hop_node<'a, S: HopState + 'a>(
             }
         }
     } else {
-        fun_name(sink, s, state, vid);
+        do_sink(sink, s, state, vid, tl);
     }
 }
 
-fn fun_name<'a, 'b: 'a, 'c, S: HopState>(
+fn do_sink<'a, 'b: 'a, 'c, S: HopState>(
     sink: &'b Sink<S>,
     s: &'c rayon::Scope<'a>,
     state: S,
     vid: VID,
+    tl: &thread_local::ThreadLocal<RefCell<BufWriter<File>>>,
 ) {
     match sink {
-        Sink::Channel(sender) => {
+        Sink::Channel(senders) => {
             s.spawn(move |_| {
+                let sender = &senders[vid.0 % senders.len()];
+
                 sender
                     .send((state.clone(), vid))
                     .expect("Failed to send node id");
@@ -138,12 +178,10 @@ fn fun_name<'a, 'b: 'a, 'c, S: HopState>(
         Sink::Print => {
             println!("Node: {:?}, State: {:?}", vid, state);
         }
-        Sink::Kanal(sender) => {
-            s.spawn(move |_| {
-                sender
-                    .send((state.clone(), vid))
-                    .expect("Failed to send node id");
-            });
+        Sink::Path(dir, writer_fn) => {
+            let local_writer = get_writer::<S>(dir, tl);
+            let mut writer = local_writer.borrow_mut();
+            (writer_fn)(&mut writer, state);
         }
     }
 }
