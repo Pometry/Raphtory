@@ -2,15 +2,15 @@ config:
   processor: "./hooks.js"
   target: 'http://localhost:1736' # replace with your server URL
   phases:
-    - duration: 20
+    - duration: 10
       arrivalRate: 5
       name: Warm up
     - duration: 100
-      arrivalRate: 5
-      rampTo: 10
+      arrivalRate: 30
+      rampTo: 5000
       name: Ramp up load
-    - duration: 120
-      arrivalRate: 20
+    - duration: 180
+      arrivalRate: 100
       name: Sustained load
   defaults:
     headers:
@@ -95,7 +95,7 @@ scenarios:
               }
             variables:
               offset: 0
-              limit: 10
+              limit: 20
       - post: # Search the graph for a node
           url: '/'
           afterResponse: "checkForGraphQLError"
@@ -119,7 +119,7 @@ scenarios:
             variables:
               query: "name:'{{ randomnodename }}'"
               offset: 0
-              limit: 5
+              limit: 20
   - name: "Node Scenarios"
     flow:
       - post:
