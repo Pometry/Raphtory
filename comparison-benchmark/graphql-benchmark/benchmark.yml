@@ -2,15 +2,15 @@ config:
   processor: "./hooks.js"
   target: 'http://localhost:1736' # replace with your server URL
   phases:
-    - duration: 60
+    - duration: 20
       arrivalRate: 5
       name: Warm up
-    - duration: 120
+    - duration: 100
       arrivalRate: 5
-      rampTo: 50
+      rampTo: 10
       name: Ramp up load
-    - duration: 600
-      arrivalRate: 50
+    - duration: 120
+      arrivalRate: 20
       name: Sustained load
   defaults:
     headers:
@@ -19,11 +19,14 @@ config:
     path: "names.csv"
     fields:
       - "randomnodename"
+    skipHeader: true
 
 scenarios:
-  - flow:
+  - name: "Get Graphs"
+    flow:
       - post:
           url: '/' # replace with your GraphQL endpoint
+          afterResponse: "checkForGraphQLError"
           json:
             query: |
               query GetSubgraphs {
@@ -39,50 +42,13 @@ scenarios:
                   },
                 }
               }
-      - post:
-          url: '/'
-          json:
-            query: |
-              query GetAllNodes($graphName: String!) {
-                graph(name: $graphName) {
-                  nodeNames
-                }
-              }
-            variables:
-              graphName: 'reddit_graphz.bincode'
-          afterResponse: "checkForGraphQLError"
-      - post: # click and load nodes / Get a graph with expanded node
-          url: '/'
-          json:
-            query: |
-              query NodeNeighbours($graphName: String!, $name: String!) {
-                graph(name: $graphName) {
-                  name,
-                  node(name: $name)  {
-                    name
-                    inNeighbours {
-                      name
-                      degree
-                      id
-                    },
-                    outNeighbours {
-                      name
-                      degree
-                      id
-                    },
-                  }
-                }
-              }
-            variables:
-              input:
-                graphName: 'reddit_graph.bincode'
-                name: "{{ randomnodename }}"
       - post: # Try and get graph properties
           url: '/'
+          afterResponse: "checkForGraphQLError"
           json:
             query: |
-              query GetSubgraph($graphName: String!) {
-                graph(name: $graphName) {
+              query GetSubgraph() {
+                graph(name: "reddit_graph.bincode") {
                     name
                     staticProperties: properties {
                       constant {
@@ -94,15 +60,13 @@ scenarios:
                     }
                 }
               }
-            variables:
-              input:
-                graphName: 'reddit_graph.bincode'
       - post: # Get a graph with expanded edges for the UX
           url: '/'
+          afterResponse: "checkForGraphQLError"
           json:
             query: |
-              query GetSubgraph($name: String!) {
-                subgraph: graph(name: $name) {
+              query GetSubgraph() {
+                subgraph: graph(name: "reddit_graph.bincode") {
                   name
                   staticProperties: properties {
                     constant {
@@ -130,15 +94,13 @@ scenarios:
                   }
                 }
               }
-            variables:
-              input:
-                name: 'reddit_graph.bincode'
       - post: # Search the graph for a node
           url: '/'
+          afterResponse: "checkForGraphQLError"
           json:
             query: |
-              query SearchGraph($parentGraph: String!, $query: String!, $offset: Int!, $limit: Int!) {
-                graph(name: $parentGraph) {
+              query SearchGraph($query: String!, $offset: Int!, $limit: Int!) {
+                graph(name: "reddit_graph.bincode") {
                   name
                   searchNodeCount(query: $query)
                   searchNodes(query: $query, offset: $offset, limit: $limit) {
@@ -153,17 +115,55 @@ scenarios:
                 }
               }
             variables:
-              input:
-                parentGraph: 'reddit_graph.bincode'
-                query: "name:'{{ randomnodename }}'"
-                offset: 0
-                limit: 5
-      - post: # Run shortest path? / Algo ?
+              query: "name:'{{ randomnodename }}'"
+              offset: 0
+              limit: 5
+  - name: "Node Scenarios"
+    flow:
+      - post:
           url: '/'
+          afterResponse: "checkForGraphQLError"
           json:
             query: |
-              query GetShortestPath($graphName: String!, $source: String!, $targets: [String!]!) {
-                graph(name: $graphName) {
+              query GetAllNodes() {
+                graph(name: "reddit_graph.bincode") {
+                  nodeNames
+                }
+              }
+      - post: # click and load nodes / Get a graph with expanded node
+          url: '/'
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query NodeNeighbours($name: String!) {
+                graph(name: "reddit_graph.bincode") {
+                  name,
+                  node(name: $name)  {
+                    name
+                    inNeighbours {
+                      name
+                      degree
+                      id
+                    },
+                    outNeighbours {
+                      name
+                      degree
+                      id
+                    },
+                  }
+                }
+              }
+            variables:
+              name: '{{ randomnodename }}'
+  - name: "Algorithms"
+    flow:
+      - post: # Run shortest path? / Algo ?
+          url: '/'
+          afterResponse: "checkForGraphQLError"
+          json:
+            query: |
+              query GetShortestPath($source: String!, $targets: [String!]!) {
+                graph(name: "reddit_graph.bincode") {
                   name,
                   algorithms {
                     shortest_path(source: $source, targets: $targets) {
@@ -174,11 +174,6 @@ scenarios:
                 }
               }
             variables:
-              input:
-                graphName: "reddit_graph.bincode"
-                source: "{{ randomnodename }}"
-                targets: ["istolethejontroncss", "notjontron", "nojontext", "botofbadtimes"]
-
+              source: '{{ randomnodename }}'
+              targets: ["istolethejontroncss", "notjontron", "nojontext", "botofbadtimes"]
       # Save / Archive / Rename ?
-      #
-

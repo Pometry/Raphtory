@@ -10,12 +10,6 @@ This is a short script used to quickly benchmark the raphtory graph-ql server
 
 2. Run `run_graphql.py` to start the server
 
-3. Run `start_bench.py` to start the benchmark
+3. Run `artillery run benchmark.yml` to run the benchmark, uses https://www.npmjs.com/package/artillery 
 
-
-## Graph details
-
-
-
-## Benchmark details
 
