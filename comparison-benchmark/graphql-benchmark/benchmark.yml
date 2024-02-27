@@ -62,10 +62,10 @@ scenarios:
               }
       - post: # Get a graph with expanded edges for the UX
           url: '/'
-          afterResponse: "checkForGraphQLError"
+          afterResponse: [ "checkForGraphQLError" ]
           json:
             query: |
-              query GetSubgraph() {
+              query GetSubgraph($limit: Int!, $offset: Int!) {
                 subgraph: graph(name: "reddit_graph.bincode") {
                   name
                   staticProperties: properties {
@@ -76,14 +76,13 @@ scenarios:
                       }
                     }
                   }
-                  nodeNames
                   nodes {
-                    list {
+                    page(limit: $limit, offset: $offset) {
                       name
                     }
                   }
                   edges {
-                    list {
+                    page(limit: $limit, offset: $offset) {
                       src {
                         name
                     }
@@ -94,6 +93,9 @@ scenarios:
                   }
                 }
               }
+            variables:
+              offset: 0
+              limit: 10
       - post: # Search the graph for a node
           url: '/'
           afterResponse: "checkForGraphQLError"
@@ -122,14 +124,21 @@ scenarios:
     flow:
       - post:
           url: '/'
-          afterResponse: "checkForGraphQLError"
+          afterResponse: ["checkForGraphQLError"]
           json:
             query: |
-              query GetAllNodes() {
-                graph(name: "reddit_graph.bincode") {
-                  nodeNames
+              query GetAllNodes($limit: Int!, $offset: Int!) {
+                subgraph: graph(name: "reddit_graph.bincode") {
+                  nodes {
+                    page(limit: $limit, offset: $offset) {
+                      name
+                    }
+                  }
                 }
               }
+            variables:
+              offset: 0
+              limit: 20
       - post: # click and load nodes / Get a graph with expanded node
           url: '/'
           afterResponse: "checkForGraphQLError"
