@@ -18,7 +18,7 @@ use crate::{
 use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
 
 #[derive(Clone)]
-#[pyclass(name="ArrowGraph", extends=PyGraphView)]
+#[pyclass(name = "ArrowGraph", extends = PyGraphView)]
 pub struct PyArrowGraph {
     pub graph: Graph2,
 }
@@ -47,8 +47,8 @@ impl IntoPy<PyObject> for Graph2 {
             py,
             (PyArrowGraph::from(self.clone()), PyGraphView::from(self)),
         )
-        .unwrap()
-        .into_py(py)
+            .unwrap()
+            .into_py(py)
     }
 }
 
@@ -87,23 +87,41 @@ impl PyArrowGraph {
             let df = process_pandas_py_df(edge_df, py, size, df_columns)?;
 
             df.check_cols_exist(&cols_to_check)?;
-            let graph = Self::from_arrow(graph_dir, df, src_col, dst_col, time_col)?;
+            let graph = Self::from_df(graph_dir, df, src_col, dst_col, time_col)?;
 
             Ok::<_, PyErr>(graph)
         });
 
-        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))
+        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from pandas data frames")))
     }
 
     #[staticmethod]
-    fn open_path(graph_dir: &str) -> Result<Graph2, GraphError> {
+    fn load(graph_dir: &str) -> Result<Graph2, GraphError> {
         Graph2::open_path(graph_dir)
-            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}")))
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (graph_dir, parquet_dir, src_col, src_hash_col, dst_col, dst_hash_col, time_col))]
+    fn from_parquets(
+        graph_dir: &str,
+        parquet_dir: &str,
+        src_col: &str,
+        src_hash_col: &str,
+        dst_col: &str,
+        dst_hash_col: &str,
+        time_col: &str,
+    ) -> Result<Graph2, GraphError> {
+        let graph: Result<Graph2, PyErr> = Python::with_gil(|py| {
+            let graph = Self::from_pf(graph_dir, parquet_dir, src_col, src_hash_col, dst_col, dst_hash_col, time_col)?;
+            Ok::<_, PyErr>(graph)
+        });
+        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files at {parquet_dir}")))
     }
 }
 
 impl PyArrowGraph {
-    fn from_arrow(
+    fn from_df(
         graph_dir: &str,
         df: PretendDF,
         src: &str,
@@ -121,7 +139,7 @@ impl PyArrowGraph {
             .arrays
             .first()
             .map(|arr| arr.len())
-            .ok_or_else(|| GraphError::LoadFailure("empty pandas dataframe".to_owned()))?;
+            .ok_or_else(|| GraphError::LoadFailure("Empty pandas dataframe".to_owned()))?;
 
         let edge_chunk_size = node_chunk_size;
         let t_props_chunk_size = node_chunk_size * 100;
@@ -155,6 +173,39 @@ impl PyArrowGraph {
             dst_col_idx,
             time_col_idx,
         )
-        .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+    }
+
+    fn from_pf(
+        graph_dir: &str,
+        parquet_dir: &str,
+        src_col: &str,
+        src_hash_col: &str,
+        dst_col: &str,
+        dst_hash_col: &str,
+        time_col: &str,
+    ) -> Result<Graph2, GraphError> {
+        let chunk_size = 268_435_456;
+        let num_threads = 4;
+        let t_props_chunk_size = chunk_size / 8;
+
+        let read_chunk_size = Some(4_000_000);
+        let concurrent_files = Some(1);
+
+        Graph2::load_from_dir(
+            graph_dir,
+            parquet_dir,
+            src_col,
+            src_hash_col,
+            dst_col,
+            dst_hash_col,
+            time_col,
+            chunk_size,
+            t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
+            num_threads,
+        )
+            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }
 }
