@@ -95,6 +95,8 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
+        with:
+          cache-all-crates: true
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
