@@ -40,6 +40,7 @@ impl PartialOrd for State {
 /// * `source`: The source node.
 /// * `targets`: A vector of target nodes.
 /// * `weight`: Option, The name of the weight property for the edges. If not set then defaults all edges to weight=1.
+/// * `direction`: The direction of the edges of the shortest path. Defaults to both directions (undirected graph).
 ///
 /// # Returns
 ///
