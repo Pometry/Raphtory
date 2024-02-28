@@ -1,5 +1,7 @@
 from raphtory import ArrowGraph
-import pyarrow.parquet as pq
+from raphtory.lanl import lanl_query1, lanl_query2, lanl_query3, lanl_query3b, lanl_query3c, lanl_query4
+
+from utils import measure
 
 
 def test_arrow_graph():
@@ -15,9 +17,13 @@ def test_arrow_graph():
     # table = pq.read_table(parquet_dir + '/part-00000-8b31eaa4-2bd9-4f07-b61c-a353aed2af22-c000.snappy.parquet')
     # print(table.schema)
 
+    print()
+    print("Loading the graph")
     try:
+        print("Attempting to load the graph from the directory")
         g = ArrowGraph.load_from_dir(graph_dir)
     except Exception as e:
+        print("Failed to load the graph from the directory. Attempting to load from parquet files ", e)
         g = ArrowGraph.load_from_parquets(
             graph_dir,
             parquet_dir,
@@ -32,3 +38,10 @@ def test_arrow_graph():
     print("Edge count", g.count_edges())
     print("Earliest time", g.earliest_time)
     print("Latest time", g.latest_time)
+
+    measure("Query 1", lanl_query1, g)
+    measure("Query 2", lanl_query2, g)
+    measure("Query 3", lanl_query3, g)
+    measure("Query 3b", lanl_query3b, g)
+    # measure("Query 3c", lanl_query3c, g)
+    measure("Query 4", lanl_query4, g)

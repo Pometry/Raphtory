@@ -5,7 +5,7 @@ use raphtory::arrow::{
 };
 use rayon::prelude::*;
 
-use crate::{thread_pool, NUM_THREADS};
+use crate::lanl::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
 //          <-[nf1:Netflow]-(b)

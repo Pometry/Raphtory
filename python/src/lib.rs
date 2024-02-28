@@ -1,6 +1,7 @@
 mod graphql;
 
 extern crate core;
+
 use graphql::*;
 use pyo3::prelude::*;
 use raphtory_core::python::{
@@ -21,6 +22,11 @@ use raphtory_core::python::{
         vectors::{generate_property_list, PyVectorisedGraph},
     },
     types::wrappers::document::PyDocument,
+};
+use raphtory_storage::python::{
+    packages::{
+        algorithms::*,
+    }
 };
 
 #[cfg(feature = "arrow")]
@@ -148,6 +154,19 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     vectors_module.add_class::<PyDocument>()?;
     add_functions!(vectors_module, generate_property_list);
     m.add_submodule(vectors_module)?;
+
+    // LANL ALGORITHMS
+    let lanl_module = PyModule::new(py, "lanl")?;
+    add_functions!(
+        lanl_module,
+        lanl_query1,
+        lanl_query2,
+        lanl_query3,
+        lanl_query3b,
+        lanl_query3c,
+        lanl_query4
+    );
+    m.add_submodule(lanl_module)?;
 
     Ok(())
 }

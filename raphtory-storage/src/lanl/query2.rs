@@ -1,7 +1,7 @@
 use raphtory::arrow::{graph::TemporalGraph, prelude::*};
 use rayon::prelude::*;
 
-use crate::{thread_pool, NUM_THREADS};
+use crate::lanl::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
 // WHERE boot.eventID = 4608
