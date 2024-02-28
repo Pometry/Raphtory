@@ -2,7 +2,7 @@ use crate::db::api::view::StaticGraphViewOps;
 /// Dijkstra's algorithm
 use crate::{
     core::entities::nodes::input_node::InputNode,
-    core::PropType,
+    core::{Direction, PropType},
     prelude::Prop,
     prelude::{EdgeViewOps, NodeViewOps},
 };
@@ -51,6 +51,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
     source: T,
     targets: Vec<T>,
     weight: Option<String>,
+    direction: Direction,
 ) -> Result<HashMap<String, (Prop, Vec<String>)>, &'static str> {
     let source_node = match graph.node(source) {
         Some(src) => src,
@@ -158,9 +159,27 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         if !visited.insert(node_name.clone()) {
             continue;
         }
+
+        let edges = match direction {
+            Direction::OUT => graph.node(node_name.clone()).unwrap().out_edges(),
+            Direction::IN => graph.node(node_name.clone()).unwrap().in_edges(),
+            Direction::BOTH => graph.node(node_name.clone()).unwrap().edges(),
+        };
+
         // Replace this loop with your actual logic to iterate over the outgoing edges
-        for edge in graph.node(node_name.clone()).unwrap().out_edges() {
-            let next_node_name = edge.dst().name();
+        for edge in edges {
+            let next_node_name = match direction {
+                Direction::OUT => edge.dst().name(),
+                Direction::IN => edge.src().name(),
+                Direction::BOTH => {
+                    if edge.src().name() == node_name {
+                        edge.dst().name()
+                    } else {
+                        edge.src().name()
+                    }
+                }
+            };
+
             let edge_val = if weight.is_none() {
                 Prop::U8(1)
             } else {
@@ -222,8 +241,13 @@ mod dijkstra_tests {
         let graph = basic_graph();
 
         let targets: Vec<&str> = vec!["D", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, Some("weight".to_string()));
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "A",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
 
         let results = results.unwrap();
 
@@ -234,8 +258,13 @@ mod dijkstra_tests {
         assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "B", targets, Some("weight".to_string()));
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "B",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::F32(5.0f32));
         assert_eq!(results.get("E").unwrap().0, Prop::F32(3.0f32));
@@ -249,7 +278,9 @@ mod dijkstra_tests {
     fn test_dijkstra_no_weight() {
         let graph = basic_graph();
         let targets: Vec<&str> = vec!["C", "E", "F"];
-        let results = dijkstra_single_source_shortest_paths(&graph, "A", targets, None).unwrap();
+        let results =
+            dijkstra_single_source_shortest_paths(&graph, "A", targets, None, Direction::OUT)
+                .unwrap();
         assert_eq!(results.get("C").unwrap().1, vec!["A", "C"]);
         assert_eq!(results.get("E").unwrap().1, vec!["A", "C", "E"]);
         assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
@@ -275,8 +306,13 @@ mod dijkstra_tests {
         }
 
         let targets: Vec<&str> = vec!["D", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "A", targets, Some("weight".to_string()));
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "A",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
         assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
@@ -285,8 +321,13 @@ mod dijkstra_tests {
         assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "E", "F"]);
 
         let targets: Vec<&str> = vec!["D", "E", "F"];
-        let results =
-            dijkstra_single_source_shortest_paths(&graph, "B", targets, Some("weight".to_string()));
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "B",
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
         let results = results.unwrap();
         assert_eq!(results.get("D").unwrap().0, Prop::U64(5u64));
         assert_eq!(results.get("E").unwrap().0, Prop::U64(3u64));
