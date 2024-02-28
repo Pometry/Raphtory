@@ -18,7 +18,7 @@ name = "raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 =  {version= "0.20.0", features=["multiple-pymethods", "chrono"]}
+pyo3 =  {version= "0.20.0", features=["multiple-pymethods", "chrono", "auto-initialize"]}
 raphtory_core = {path = "../raphtory", version = "0.7.0", features=["python", "search", "vectors"], package="raphtory" }
 raphtory-graphql = {path = "../raphtory-graphql", version = "0.7.0" }
 serde_json = "1.0.108"
