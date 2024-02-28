@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::num::NonZeroUsize;
 
 use arrow2::{
@@ -102,10 +103,10 @@ impl PyArrowGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (graph_dir, parquet_dir, src_col, src_hash_col, dst_col, dst_hash_col, time_col))]
+    #[pyo3(signature = (graph_dir, layernames_parquet_dirs, src_col, src_hash_col, dst_col, dst_hash_col, time_col))]
     fn load_from_parquets(
         graph_dir: &str,
-        parquet_dir: &str,
+        layernames_parquet_dirs: HashMap<&str, &str>,
         src_col: &str,
         src_hash_col: &str,
         dst_col: &str,
@@ -113,10 +114,10 @@ impl PyArrowGraph {
         time_col: &str,
     ) -> Result<ArrowGraph, GraphError> {
         let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py| {
-            let graph = Self::from_parquets(graph_dir, parquet_dir, src_col, src_hash_col, dst_col, dst_hash_col, time_col)?;
+            let graph = Self::from_parquets(graph_dir, layernames_parquet_dirs.clone(), src_col, src_hash_col, dst_col, dst_hash_col, time_col)?;
             Ok::<_, PyErr>(graph)
         });
-        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files at {parquet_dir}")))
+        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files at {layernames_parquet_dirs:?}")))
     }
 }
 
@@ -178,7 +179,7 @@ impl PyArrowGraph {
 
     fn from_parquets(
         graph_dir: &str,
-        parquet_dir: &str,
+        layernames_parquet_dirs: HashMap<&str, &str>,
         src_col: &str,
         src_hash_col: &str,
         dst_col: &str,
@@ -194,7 +195,7 @@ impl PyArrowGraph {
 
         ArrowGraph::load_from_parquets(
             graph_dir,
-            parquet_dir,
+            layernames_parquet_dirs,
             src_col,
             src_hash_col,
             dst_col,

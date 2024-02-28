@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use raphtory::{
     arrow::{algorithms::connected_components, graph_impl::ArrowGraph},
     prelude::*,
@@ -5,28 +6,35 @@ use raphtory::{
 use std::time::Instant;
 
 fn main() {
-    let graph_dir = std::env::args()
-        .nth(1)
-        .expect("Must supply the graph directory");
+    // Retrieve command line arguments
+    let args: Vec<String> = std::env::args().collect();
 
-    // let graph_dir = "/mnt/work/pometry/graph500/30/raphtory_graph";
+    if args.len() % 2 != 0 || args.len() < 3 {
+        eprintln!("Usage: {} <graph_dir> <layer1_name> <layer1_parquet_dir> <layer2_name> <layer2_parquet_dir> ...", args[0]);
+        std::process::exit(1);
+    }
 
-    let parquet_dir = std::env::args().nth(2);
+    let graph_dir = &args[1];
 
-    // check if graph dir exists if it does then call open_path
-    // else call create_path
+    // Create a HashMap to store layer names and corresponding parquet directories
+    let mut layernames_parquet_dirs: HashMap<&str, String> = HashMap::new();
+
+    for idx in (2..args.len()).step_by(2) {
+        let layer_name = args[idx].as_str();
+        let parquet_dir = args[idx + 1].clone();
+        layernames_parquet_dirs.insert(layer_name, parquet_dir);
+    }
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
         ArrowGraph::load_from_dir(graph_dir).expect("Cannot open graph")
     } else {
-        let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
         let chunk_size = 268_435_456;
         let num_threads = 4;
         let t_props_chunk_size = chunk_size / 8;
         let now = Instant::now();
         let graph = ArrowGraph::load_from_parquets(
             graph_dir,
-            parquet_dir,
+            layernames_parquet_dirs.clone(),
             "src",
             "src_hash",
             "dst",

@@ -9,14 +9,14 @@ pub fn load_from_dir(graph_dir: &str) -> Result<TemporalGraph, Error> {
     graph_loaded_from_dir
 }
 
-pub fn load_from_parquet(graph_dir: &str, layernames_parquet_filepaths: HashMap<&str, &str>) -> Result<TemporalGraph, Error> {
+pub fn load_from_parquet(graph_dir: &str, layernames_parquet_dirs: HashMap<&str, &str>) -> Result<TemporalGraph, Error> {
     let num_threads = 8;
     let chunk_size = 8_388_608;
     let t_props_chunk_size = 20_970_100;
 
     let now = Instant::now();
 
-    let layered_edge_list: Vec<ExternalEdgeList<&str>> = layernames_parquet_filepaths
+    let layered_edge_list: Vec<ExternalEdgeList<&str>> = layernames_parquet_dirs
         .iter()
         .map(|(event_name, file)| {
             ExternalEdgeList::new(
@@ -42,6 +42,6 @@ pub fn load_from_parquet(graph_dir: &str, layernames_parquet_filepaths: HashMap<
         layered_edge_list,
     );
 
-    println!("Graph loaded in {:?} from parquet files {:?}", now.elapsed(), layernames_parquet_filepaths.values());
+    println!("Graph loaded in {:?} from parquet files {:?}", now.elapsed(), layernames_parquet_dirs.values());
     graph_loaded_from_parquet
 }

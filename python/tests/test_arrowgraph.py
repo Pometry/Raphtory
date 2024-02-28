@@ -6,7 +6,11 @@ from utils import measure
 
 def test_arrow_graph():
     graph_dir = "target"
-    parquet_dir = "data/netflowsorted/nft_sorted"
+    layernames_parquet_dirs = {
+        "netflow": "data/netflowsorted/nft_sorted",
+        "events_1v": "data/netflowsorted/v1_sorted",
+        "events_2v": "data/netflowsorted/v2_sorted",
+    }
     src_col = "src"
     src_hash_col = "src_hash"
     dst_col = "dst"
@@ -26,7 +30,7 @@ def test_arrow_graph():
         print("Failed to load the graph from the directory. Attempting to load from parquet files ", e)
         g = ArrowGraph.load_from_parquets(
             graph_dir,
-            parquet_dir,
+            layernames_parquet_dirs,
             src_col,
             src_hash_col,
             dst_col,

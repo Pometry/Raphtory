@@ -7,6 +7,7 @@ use crate::{
 };
 use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
+use std::collections::HashMap;
 
 use crate::core::entities::properties::props::Meta;
 
@@ -121,7 +122,7 @@ impl ArrowGraph {
 
     pub fn load_from_parquets(
         graph_dir: impl AsRef<Path>,
-        parquet_dir: impl AsRef<Path>,
+        layernames_parquet_dirs: HashMap<&str, impl AsRef<Path>>,
         src_col: &str,
         src_hash_col: &str,
         dst_col: &str,
@@ -133,15 +134,21 @@ impl ArrowGraph {
         concurrent_files: Option<usize>,
         num_threads: usize,
     ) -> Result<ArrowGraph, Error> {
-        let edge_list = ExternalEdgeList::new(
-            "default",
-            parquet_dir.as_ref(),
-            src_col,
-            src_hash_col,
-            dst_col,
-            dst_hash_col,
-            time_col,
-        )?;
+        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layernames_parquet_dirs
+            .iter()
+            .map(|(event_name, file)| {
+                ExternalEdgeList::new(
+                    *event_name,
+                    file.as_ref(),
+                    src_col,
+                    src_hash_col,
+                    dst_col,
+                    dst_hash_col,
+                    time_col,
+                )
+                    .expect("Failed to load events")
+            })
+            .collect::<Vec<_>>();
 
         let t_graph = TemporalGraph::from_edge_lists(
             num_threads,
@@ -150,7 +157,7 @@ impl ArrowGraph {
             read_chunk_size,
             concurrent_files,
             graph_dir.as_ref(),
-            [edge_list],
+            layered_edge_list,
         )?;
 
         let mut graph = Self {
