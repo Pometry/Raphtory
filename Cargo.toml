@@ -1,14 +1,14 @@
 [workspace]
 members = [
-	"raphtory",
-	"raphtory-storage",
-	"raphtory-benchmark",
-	"examples/rust",
-	"examples/netflow",
-	"python",
-	"js-raphtory",
-	"raphtory-graphql",
-	"comparison-benchmark/rust/raphtory-rust-benchmark"
+    "raphtory",
+    "raphtory-storage",
+    "raphtory-benchmark",
+    "examples/rust",
+    "examples/netflow",
+    "python",
+    "js-raphtory",
+    "raphtory-graphql",
+    "comparison-benchmark/rust/raphtory-rust-benchmark"
 , "examples/lanl"]
 default-members = ["raphtory"]
 resolver = "2"
@@ -106,7 +106,10 @@ console_error_panic_hook = "0.1.7"
 wee_alloc = "0.4.5"
 wasm-bindgen-test = "0.3.41"
 memmap2 = { version = "0.9.4" }
-ahash = { version = "0.8.3", features = ["serde"]}
+ahash = { version = "0.8.3", features = ["serde"] }
 xxhash-rust = "0.8.7"
-strum = { version = "0.26.1", features = ["derive"]}
-bytemuck = { version = "1.14.1"}
+strum = { version = "0.26.1", features = ["derive"] }
+bytemuck = { version = "1.14.1" }
+rpds = "1.1.0"
+thread_local = "1.1.8"
+

@@ -71,6 +71,8 @@ tempfile = { workspace = true, optional = true }
 xxhash-rust = { workspace = true }
 strum = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
+rpds = { workspace = true, optional = true }
+thread_local = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -95,7 +97,7 @@ search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
-arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck",
+arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck", "dep:rpds", "dep:thread_local",
     "arrow2?/io_ipc",
     "arrow2?/io_parquet",
     "arrow2?/io_parquet_compression",
