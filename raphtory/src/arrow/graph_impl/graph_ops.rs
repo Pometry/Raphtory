@@ -14,9 +14,9 @@ use crate::{
     },
 };
 
-use super::Graph2;
+use super::ArrowGraph;
 
-impl<'graph> GraphOps<'graph> for Graph2 {
+impl<'graph> GraphOps<'graph> for ArrowGraph {
     fn internal_node_ref(
         &self,
         v: NodeRef,

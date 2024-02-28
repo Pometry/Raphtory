@@ -24,20 +24,20 @@ pub mod time_semantics;
 pub mod tprops;
 
 #[derive(Clone)]
-pub struct Graph2 {
+pub struct ArrowGraph {
     inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphProps>,
 }
 
-impl IntoDynamic for Graph2 {
+impl IntoDynamic for ArrowGraph {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
 }
 
-impl Deref for Graph2 {
+impl Deref for ArrowGraph {
     type Target = TemporalGraph;
 
     fn deref(&self) -> &Self::Target {
@@ -45,7 +45,7 @@ impl Deref for Graph2 {
     }
 }
 
-impl Graph2 {
+impl ArrowGraph {
     // take the datatype from the struct array of the edge properties and fill in the edge_meta
     fn init_meta(&mut self) {
         let edge_props_fields = self.edges_data_type(0); // layer 0 for now
@@ -99,7 +99,7 @@ impl Graph2 {
         Ok(grapho)
     }
 
-    pub fn open_path(path: impl AsRef<Path>) -> Result<Graph2, Error> {
+    pub fn open_path(path: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
         let inner = TemporalGraph::new(path)?;
         let node_meta = Arc::new(Meta::new());
         let edge_meta = Arc::new(Meta::new());
@@ -126,7 +126,7 @@ impl Graph2 {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
-    ) -> Result<Graph2, Error> {
+    ) -> Result<ArrowGraph, Error> {
         let edge_list = ExternalEdgeList::new(
             "default",
             parquet_dir.as_ref(),
@@ -146,7 +146,7 @@ impl Graph2 {
             [edge_list],
         )?;
 
-        let mut grapho = Graph2 {
+        let mut grapho = ArrowGraph {
             inner: Arc::new(t_graph),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
@@ -197,9 +197,9 @@ mod test {
 
     use proptest::{prelude::*, sample::size_range};
 
-    use super::Graph2;
+    use super::ArrowGraph;
 
-    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, Time, f64)]) -> Graph2 {
+    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, Time, f64)]) -> ArrowGraph {
         // unzip into 4 vectors
         let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
             .into_iter()
@@ -221,7 +221,7 @@ mod test {
             ],
             None,
         )];
-        Graph2::from_edge_lists(
+        ArrowGraph::from_edge_lists(
             &edge_lists,
             std::num::NonZeroUsize::new(1).unwrap(),
             1000,

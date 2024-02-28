@@ -1,4 +1,5 @@
 use std::{time::Instant};
+use std::collections::HashMap;
 use raphtory::arrow::{Error, graph::TemporalGraph, load::ExternalEdgeList};
 
 pub fn load_from_dir(graph_dir: &str) -> Result<TemporalGraph, Error> {
@@ -8,26 +9,18 @@ pub fn load_from_dir(graph_dir: &str) -> Result<TemporalGraph, Error> {
     graph_loaded_from_dir
 }
 
-pub fn load_from_parquet(graph_dir: &str, parquet_files: Vec<&str>) -> Result<TemporalGraph, Error> {
+pub fn load_from_parquet(graph_dir: &str, layernames_parquet_filepaths: HashMap<&str, &str>) -> Result<TemporalGraph, Error> {
     let num_threads = 8;
     let chunk_size = 8_388_608;
     let t_props_chunk_size = 20_970_100;
 
     let now = Instant::now();
 
-    let event_names: Vec<String> = parquet_files
+    let layered_edge_list: Vec<ExternalEdgeList<&str>> = layernames_parquet_filepaths
         .iter()
-        .enumerate()
-        .map(|(idx, _file)| format!("events_{}v", idx + 1))
-        .collect();
-
-    let layered_edge_list: Vec<ExternalEdgeList<&str>> = parquet_files
-        .iter()
-        .enumerate()
-        .zip(event_names.iter())
-        .map(|((_, file), event_name)| {
+        .map(|(event_name, file)| {
             ExternalEdgeList::new(
-                event_name,
+                *event_name,
                 *file,
                 "src",
                 "src_hash",
@@ -49,6 +42,6 @@ pub fn load_from_parquet(graph_dir: &str, parquet_files: Vec<&str>) -> Result<Te
         layered_edge_list,
     );
 
-    println!("Graph loaded in {:?} from parquet files {:?}", now.elapsed(), parquet_files);
+    println!("Graph loaded in {:?} from parquet files {:?}", now.elapsed(), layernames_parquet_filepaths.values());
     graph_loaded_from_parquet
 }

@@ -22,12 +22,12 @@ use crate::{
 };
 use rayon::prelude::*;
 
-use super::Graph2;
+use super::ArrowGraph;
 
 static WINDOW_FILTER: Lazy<EdgeWindowFilter> =
     Lazy::new(|| Arc::new(move |e, layer_ids, w| e.active(layer_ids, w)));
 
-impl TimeSemantics for Graph2 {
+impl TimeSemantics for ArrowGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.layers
             .par_iter()
