@@ -197,6 +197,12 @@ impl PyEdges {
         (move || edges.is_valid()).into()
     }
 
+    /// Check if the edges are on the same node
+    fn is_self_loop(&self) -> BoolIterable {
+        let edges = self.edges.clone();
+        (move || edges.is_self_loop()).into()
+    }
+
     /// Check if the edges are deleted
     fn is_deleted(&self) -> BoolIterable {
         let edges = self.edges.clone();
@@ -378,6 +384,12 @@ impl PyNestedEdges {
     fn is_valid(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_valid()).into()
+    }
+
+    /// Check if the edges are on the same node
+    fn is_self_loop(&self) -> NestedBoolIterable {
+        let edges = self.edges.clone();
+        (move || edges.is_self_loop()).into()
     }
 
     /// Check if edges are deleted

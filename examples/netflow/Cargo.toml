@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = {path = "../../raphtory", features = ["python"]}
-pyo3 = "0.20.0"
+raphtory = { path = "../../raphtory", features = ["python"] }
+pyo3 = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
 
 
 [build-dependencies]
-pyo3-build-config = "0.20.0"
+pyo3-build-config = { workspace = true }

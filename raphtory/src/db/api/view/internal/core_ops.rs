@@ -4,7 +4,7 @@ use crate::{
             edges::edge_ref::EdgeRef,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
@@ -34,7 +34,7 @@ pub trait CoreGraphOps {
 
     fn edge_meta(&self) -> &Meta;
 
-    fn graph_meta(&self) -> &GraphProps;
+    fn graph_meta(&self) -> &GraphMeta;
 
     fn get_layer_name(&self, layer_id: usize) -> ArcStr;
 
@@ -242,7 +242,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn graph_meta(&self) -> &GraphProps {
+    fn graph_meta(&self) -> &GraphMeta {
         self.graph().graph_meta()
     }
 

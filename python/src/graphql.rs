@@ -220,6 +220,7 @@ impl PyRaphtoryServer {
 #[pymethods]
 impl PyRaphtoryServer {
     #[new]
+    #[pyo3(signature = (graphs=None, graph_dir=None))]
     fn py_new(
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_dir: Option<&str>,

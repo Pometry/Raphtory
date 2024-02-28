@@ -18,21 +18,21 @@ name = "raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 =  {version= "0.20.0", features=["multiple-pymethods", "chrono"]}
-raphtory_core = {path = "../raphtory", version = "0.7.0", features=["python", "search", "vectors"], package="raphtory" }
-raphtory-graphql = {path = "../raphtory-graphql", version = "0.7.0" }
-serde_json = "1.0.108"
-reqwest = { version = "0.11.22", default-features = false, features = ["rustls-tls"] }
-tokio = {version = "1.18.2", features = ["full"]}
-crossbeam-channel = "0.5.8"
-serde = "1.0.193"
-async-graphql = {version = "6.0.11", features = ["dynamic-schema"]}
-dynamic-graphql = "0.8.1"
-itertools= "0.12.0"
+pyo3 = { workspace = true }
+raphtory_core = { path = "../raphtory", version = "0.7.0", features = ["python", "search", "vectors"], package = "raphtory" }
+raphtory-graphql = { path = "../raphtory-graphql", version = "0.7.0" }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+crossbeam-channel = { workspace = true }
+serde = { workspace = true }
+async-graphql = { workspace = true }
+dynamic-graphql = { workspace = true }
+itertools = { workspace = true }
 
 [features]
 extension-module = ["pyo3/extension-module"]
 default = ["extension-module"]
 
 [build-dependencies]
-pyo3-build-config = "0.20.2"
+pyo3-build-config = { workspace = true }

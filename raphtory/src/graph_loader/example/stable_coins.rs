@@ -37,7 +37,7 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
     fn restore_from_bincode(encoded_data_dir: &PathBuf) -> Option<Graph> {
         if encoded_data_dir.exists() {
             let now = Instant::now();
-            let g = Graph::load_from_file(encoded_data_dir.as_path())
+            let g = Graph::load_from_file(encoded_data_dir.as_path(), false)
                 .map_err(|err| {
                     println!(
                         "Restoring from bincode failed with error: {}! Reloading file!",
