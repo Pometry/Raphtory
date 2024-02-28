@@ -1,0 +1,31 @@
+config:
+  processor: "./hooks.js"
+  target: 'http://localhost:8000' # replace with your server URL
+  phases:
+    - duration: 10
+      arrivalRate: 5
+      name: Warm up
+    - duration: 100
+      arrivalRate: 30
+      rampTo: 5000
+      name: Ramp up load
+    - duration: 180
+      arrivalRate: 100
+      name: Sustained load
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "Get Graphs"
+    flow:
+      - post:
+          url: '/' # replace with your GraphQL endpoint
+          afterResponse: [ "checkForGraphQLError" ]
+          json:
+            query: |
+              query gethuman() {
+                human(id: "1000") {
+                  name
+                }
+              }
