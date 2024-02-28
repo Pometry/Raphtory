@@ -33,9 +33,9 @@
 
 > pip install locust 
 > locust -f locust_starwars_benchmark.py --host=http://localhost:8000
-> # Go into the locust browser http://0.0.0.0:8089/
-> # Select 1000 users, 100 ramp up, press start
-> # Wait for it to start failing 
+>  Go into the locust browser http://0.0.0.0:8089/
+>  Select 1000 users, 100 ramp up, press start
+>  Wait for it to start failing 
 
 
 ### result
