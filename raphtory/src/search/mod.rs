@@ -359,11 +359,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 }
             }
 
-            let mut writer_guard = writer_lock.write();
-            writer_guard.commit()?;
             Ok::<(), TantivyError>(())
         })?;
 
+        let mut writer_guard = writer.write();
+        writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }
@@ -502,12 +502,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                     }
                 }
             }
-
-            let mut writer_guard = writer_lock.write();
-            writer_guard.commit()?;
             Ok::<(), TantivyError>(())
         })?;
 
+        let mut writer_guard = writer.write();
+        writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }
