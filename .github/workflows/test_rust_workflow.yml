@@ -49,7 +49,8 @@ jobs:
             cache-all-crates: true
       - name: Make cargo target dir (Windows)
         if : matrix.os == 'windows-latest'
-        run: if not exist C:\target\ mkdir C:\target
+        run: |
+          if not exist C:\target\ mkdir C:\target
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
