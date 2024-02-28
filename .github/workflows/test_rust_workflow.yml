@@ -42,15 +42,14 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - name: Run
         run: rustc --version --verbose
+      - name: Make cargo target dir (Windows)
+        if: matrix.os == 'windows-latest'
+        run: mkdir C:\target
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
             cache-directories: ${{ matrix.extra-cache }}
             cache-all-crates: true
-      - name: Make cargo target dir (Windows)
-        if : matrix.os == 'windows-latest'
-        run: |
-          if not exist C:\target\ mkdir C:\target
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings
