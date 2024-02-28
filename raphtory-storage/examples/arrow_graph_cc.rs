@@ -1,4 +1,3 @@
-use rand::Rng;
 use raphtory::{
     arrow::{
         algorithms::connected_components,

@@ -26,6 +26,7 @@ pub mod load;
 pub(crate) mod nodes;
 pub mod query;
 pub(crate) mod timestamps;
+pub(crate) mod arrow_hmap;
 
 pub type Time = i64;
 
@@ -154,6 +155,28 @@ impl GID {
             _ => None,
         }
     }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            GID::Str(v) => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            GID::I64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    pub fn as_u64(&self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(*v),
+            _ => None,
+        }
+    }
+    
 }
 
 impl From<u64> for GID {
