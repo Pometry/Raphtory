@@ -237,19 +237,31 @@ impl Repr for PyNode {
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeView<G, GH> {
     fn repr(&self) -> String {
-        if self.properties().is_empty() {
-            StructReprBuilder::new("Node")
-                .add_field("name", self.name())
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
-                .finish()
-        } else {
-            StructReprBuilder::new("Node")
-                .add_field("name", self.name())
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
-                .add_field("properties", self.properties())
-                .finish()
+        let repr_struc = StructReprBuilder::new("Node")
+            .add_field("name", self.name())
+            .add_field("earliest_time", self.earliest_time())
+            .add_field("latest_time", self.latest_time());
+
+        match self.node_type() {
+            None => {
+                if self.properties().is_empty() {
+                    repr_struc.finish()
+                } else {
+                    repr_struc
+                        .add_field("properties", self.properties())
+                        .finish()
+                }
+            }
+            Some(node_type) => {
+                if self.properties().is_empty() {
+                    repr_struc.add_field("node_type", node_type).finish()
+                } else {
+                    repr_struc
+                        .add_field("properties", self.properties())
+                        .add_field("node_type", node_type)
+                        .finish()
+                }
+            }
         }
     }
 }
