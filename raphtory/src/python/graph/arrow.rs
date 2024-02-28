@@ -97,7 +97,7 @@ impl PyArrowGraph {
 
     #[staticmethod]
     fn load_from_dir(graph_dir: &str) -> Result<ArrowGraph, GraphError> {
-        ArrowGraph::open_path(graph_dir)
+        ArrowGraph::load_from_dir(graph_dir)
             .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}")))
     }
 
@@ -162,7 +162,7 @@ impl PyArrowGraph {
             })
             .collect::<Vec<_>>();
 
-        ArrowGraph::from_edge_lists(
+        ArrowGraph::load_from_edge_lists(
             &edge_lists,
             num_threads,
             node_chunk_size,
@@ -192,7 +192,7 @@ impl PyArrowGraph {
         let read_chunk_size = Some(4_000_000);
         let concurrent_files = Some(1);
 
-        ArrowGraph::load_from_dir(
+        ArrowGraph::load_from_parquets(
             graph_dir,
             parquet_dir,
             src_col,

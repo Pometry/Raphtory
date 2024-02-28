@@ -17,14 +17,14 @@ fn main() {
     // else call create_path
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
-        ArrowGraph::open_path(graph_dir).expect("Cannot open graph")
+        ArrowGraph::load_from_dir(graph_dir).expect("Cannot open graph")
     } else {
         let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
         let chunk_size = 268_435_456;
         let num_threads = 4;
         let t_props_chunk_size = chunk_size / 8;
         let now = Instant::now();
-        let graph = ArrowGraph::load_from_dir(
+        let graph = ArrowGraph::load_from_parquets(
             graph_dir,
             parquet_dir,
             "src",

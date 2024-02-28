@@ -62,7 +62,7 @@ impl ArrowGraph {
         }
     }
 
-    pub fn from_edge_lists(
+    pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
         num_threads: NonZeroUsize,
 
@@ -89,31 +89,37 @@ impl ArrowGraph {
         )?;
         let node_meta = Arc::new(Meta::new());
         let edge_meta = Arc::new(Meta::new());
-        let mut grapho = Self {
+
+        let mut graph = Self {
             inner: Arc::new(inner),
             node_meta,
             edge_meta,
             graph_props: Arc::new(GraphProps::new()),
         };
-        grapho.init_meta();
-        Ok(grapho)
+
+        graph.init_meta();
+
+        Ok(graph)
     }
 
-    pub fn open_path(path: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
-        let inner = TemporalGraph::new(path)?;
+    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
+        let inner = TemporalGraph::new(graph_dir)?;
         let node_meta = Arc::new(Meta::new());
         let edge_meta = Arc::new(Meta::new());
-        let mut grapho = Self {
+
+        let mut graph = Self {
             inner: Arc::new(inner),
             node_meta,
             edge_meta,
             graph_props: Arc::new(GraphProps::new()),
         };
-        grapho.init_meta();
-        Ok(grapho)
+
+        graph.init_meta();
+
+        Ok(graph)
     }
 
-    pub fn load_from_dir(
+    pub fn load_from_parquets(
         graph_dir: impl AsRef<Path>,
         parquet_dir: impl AsRef<Path>,
         src_col: &str,
@@ -136,6 +142,7 @@ impl ArrowGraph {
             dst_hash_col,
             time_col,
         )?;
+
         let t_graph = TemporalGraph::from_edge_lists(
             num_threads,
             chunk_size,
@@ -146,15 +153,16 @@ impl ArrowGraph {
             [edge_list],
         )?;
 
-        let mut grapho = ArrowGraph {
+        let mut graph = Self {
             inner: Arc::new(t_graph),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
             graph_props: Arc::new(GraphProps::new()),
         };
-        grapho.init_meta();
 
-        Ok(grapho)
+        graph.init_meta();
+
+        Ok(graph)
     }
 
     pub fn filtered_layers_par<'a>(
@@ -221,7 +229,7 @@ mod test {
             ],
             None,
         )];
-        ArrowGraph::from_edge_lists(
+        ArrowGraph::load_from_edge_lists(
             &edge_lists,
             std::num::NonZeroUsize::new(1).unwrap(),
             1000,
