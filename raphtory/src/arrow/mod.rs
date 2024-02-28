@@ -14,6 +14,7 @@ use std::{
 };
 
 pub mod algorithms;
+pub(crate) mod arrow_hmap;
 pub(crate) mod chunked_array;
 pub mod edge;
 pub(crate) mod edges;
@@ -26,7 +27,6 @@ pub mod load;
 pub(crate) mod nodes;
 pub mod query;
 pub(crate) mod timestamps;
-pub(crate) mod arrow_hmap;
 
 pub type Time = i64;
 
@@ -103,6 +103,7 @@ pub(crate) mod file_prefix {
         AdjInEdges,
         AdjInOffsets,
         Metadata,
+        HashMap,
     }
 
     impl GraphPaths {
@@ -176,7 +177,6 @@ impl GID {
             _ => None,
         }
     }
-    
 }
 
 impl From<u64> for GID {
