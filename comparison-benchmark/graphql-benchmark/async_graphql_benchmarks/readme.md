@@ -40,5 +40,5 @@
 
 ### result
 
-> Requests 1520, fails 12, average ms 144.7, current failurs 0.75, current rps 138
+    Requests 1520, fails 12, average ms 144.7, current failurs 0.75, current rps 138
 
