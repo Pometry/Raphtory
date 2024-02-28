@@ -86,7 +86,6 @@ impl RaphtoryServer {
         embedding: F,
         cache: &Path,
         template: Option<T>,
-        faiss: boolean,
     ) -> Self
     where
         F: EmbeddingFunction + Clone + 'static,
@@ -116,7 +115,7 @@ impl RaphtoryServer {
                     Some(graph_cache),
                     true,
                     template.clone(),
-                    faiss,
+                    true,
                     true,
                 )
                 .await;

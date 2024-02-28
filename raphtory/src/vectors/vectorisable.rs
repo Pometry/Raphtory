@@ -14,7 +14,7 @@ use itertools::Itertools;
 use parking_lot::RwLock;
 use std::{collections::HashMap, path::PathBuf};
 
-use super::faiss_store::{self, FaissStore};
+use super::faiss_store::FaissStore;
 
 const CHUNK_SIZE: usize = 1000;
 

@@ -22,7 +22,7 @@ use std::{
     sync::Arc,
 };
 
-use super::faiss_store::{DocumentPointer, FaissIndex, FaissStore};
+use super::faiss_store::{DocumentPointer, FaissStore};
 
 // enum IndexInput<'a> {
 //     Native(Box<dyn Iterator<Item = (&'a EntityId, &'a Vec<DocumentRef>)>>),

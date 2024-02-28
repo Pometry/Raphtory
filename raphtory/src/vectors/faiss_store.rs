@@ -1,5 +1,5 @@
 use super::{document_ref::DocumentRef, entity_id::EntityId, Embedding};
-use faiss::{index::IndexImpl, index_factory, Idx, Index, MetricType};
+use faiss::{index::IndexImpl, index_factory, Index, MetricType};
 use itertools::Itertools;
 use std::collections::HashMap;
 

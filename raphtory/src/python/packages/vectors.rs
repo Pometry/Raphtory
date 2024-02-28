@@ -31,7 +31,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -300,7 +300,7 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_document = None, node_document = None, edge_document = None, verbose = false))]
+    #[pyo3(signature = (embedding, cache = None, overwrite_cache = false, graph_document = None, node_document = None, edge_document = None, index = "native", verbose = false))]
     fn vectorise(
         &self,
         embedding: &PyFunction,
@@ -309,23 +309,34 @@ impl PyGraphView {
         graph_document: Option<String>,
         node_document: Option<String>,
         edge_document: Option<String>,
+        index: &str,
         verbose: bool,
-    ) -> DynamicVectorisedGraph {
+    ) -> PyResult<DynamicVectorisedGraph> {
         let embedding: Py<PyFunction> = embedding.into();
         let graph = self.graph.clone();
         let cache = cache.map(PathBuf::from);
         let template = PyDocumentTemplate::new(graph_document, node_document, edge_document);
-        execute_async_task(move || async move {
+
+        let index_enum = HashMap::from([("flat", true), ("native", false)]);
+        let use_faiss = index_enum.get(index).cloned().ok_or_else(|| {
+            let valid_values = index_enum.keys().join(", ");
+            let message = format!("invalid value for `index`. Valid values are: {valid_values}");
+            PyAttributeError::new_err(message)
+        })?;
+
+        let vectorised_graph = execute_async_task(move || async move {
             graph
                 .vectorise_with_template(
                     Box::new(embedding.clone()),
                     cache,
                     overwrite_cache,
                     Arc::new(template) as Arc<dyn DocumentTemplate<DynamicGraph>>,
+                    use_faiss,
                     verbose,
                 )
                 .await
-        })
+        });
+        Ok(vectorised_graph)
     }
 }
 
