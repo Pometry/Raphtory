@@ -21,7 +21,7 @@ use raphtory::{
     },
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs, path::Path, sync::Arc};
+use std::{cmp, collections::HashMap, fs, path::Path, sync::Arc};
 use tokio::{
     io::Result as IoResult,
     signal,
@@ -31,6 +31,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
+use tokio::runtime::Builder;
 use tracing::{metadata::ParseLevelError, Level};
 use tracing_subscriber::{
     fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, FmtSubscriber,
@@ -215,17 +216,37 @@ impl RaphtoryServer {
             .at("/health", get(health))
             .with(Cors::new());
 
-        let (signal_sender, signal_receiver) = mpsc::channel(1);
-
         println!("Playground: http://localhost:{port}");
-        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-            .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
-        let server_result = tokio::spawn(server_task);
+        let worker_threads = cmp::max(1, num_cpus::get() - 1);
 
-        RunningRaphtoryServer {
-            signal_sender,
-            server_result,
-        }
+        let runtime = Builder::new_multi_thread()
+            .worker_threads(worker_threads)
+            .enable_all()
+            .build()
+            .unwrap();
+
+        runtime.block_on(async {
+            let (signal_sender, signal_receiver) = mpsc::channel(1);
+
+            println!("Playground: http://localhost:{port}");
+            let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
+                .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
+            let server_result = tokio::spawn(server_task);
+
+            RunningRaphtoryServer {
+                signal_sender,
+                server_result,
+            }
+        })
+
+        // let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
+        //     .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
+        // let server_result = tokio::spawn(server_task);
+        //
+        // RunningRaphtoryServer {
+        //     signal_sender,
+        //     server_result,
+        // }
     }
 
     /// Run the server on the default port until completion.

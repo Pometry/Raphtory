@@ -43,3 +43,19 @@
 
     Requests 1520, fails 12, average ms 144.7, current failurs 0.75, current rps 138
 
+
+
+/etc/systemd/system.conf
+/etc/systemd/user.conf
+    > DefaultLimitNOFILE=500000
+
+/etc/pam.d/common-session
+    > session required pam_limits.so
+
+/etc/security/limits.conf
+    *         hard    nofile      500000
+    *         soft    nofile      500000
+    root      hard    nofile      500000
+    root      soft    nofile      500000
+
+
