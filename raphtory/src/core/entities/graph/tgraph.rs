@@ -17,7 +17,7 @@ use crate::{
                 node_store::NodeStore,
             },
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::{ArcReadLockedVec, Meta},
                 tprop::TProp,
             },
@@ -93,7 +93,7 @@ pub struct TemporalGraph<const N: usize> {
     pub(crate) edge_meta: Arc<Meta>,
 
     // graph properties
-    pub(crate) graph_props: GraphProps,
+    pub(crate) graph_meta: GraphMeta,
 }
 
 impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
@@ -118,7 +118,7 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
             latest_time: MaxCounter::new(),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
-            graph_props: GraphProps::new(),
+            graph_meta: GraphMeta::new(),
         };
 
         Self(Arc::new(tg))
@@ -436,7 +436,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         for (id, prop) in props {
-            self.graph_props.add_constant_prop(id, prop)?;
+            self.graph_meta.add_constant_prop(id, prop)?;
         }
         Ok(())
     }
@@ -446,7 +446,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         for (id, prop) in props {
-            self.graph_props.update_constant_prop(id, prop)?;
+            self.graph_meta.update_constant_prop(id, prop)?;
         }
         Ok(())
     }
@@ -457,25 +457,25 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         for (prop_id, prop) in props {
-            self.graph_props.add_prop(t, prop_id, prop)?;
+            self.graph_meta.add_prop(t, prop_id, prop)?;
         }
         Ok(())
     }
 
     pub(crate) fn get_constant_prop(&self, id: usize) -> Option<Prop> {
-        self.graph_props.get_constant(id)
+        self.graph_meta.get_constant(id)
     }
 
     pub(crate) fn get_temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
-        self.graph_props.get_temporal_prop(id)
+        self.graph_meta.get_temporal_prop(id)
     }
 
     pub(crate) fn const_prop_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph_props.constant_names()
+        self.graph_meta.constant_names()
     }
 
     pub(crate) fn temporal_property_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph_props.temporal_names()
+        self.graph_meta.temporal_names()
     }
 
     pub(crate) fn delete_edge(

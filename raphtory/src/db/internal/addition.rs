@@ -35,7 +35,7 @@ impl<const N: usize> InternalAdditionOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn resolve_graph_property(&self, prop: &str, is_static: bool) -> usize {
-        self.inner().graph_props.resolve_property(prop, is_static)
+        self.inner().graph_meta.resolve_property(prop, is_static)
     }
 
     #[inline]
