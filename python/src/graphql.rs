@@ -35,7 +35,6 @@ use raphtory_graphql::{
 };
 use reqwest::Client;
 use serde_json::{json, Map, Number, Value as JsonValue};
-use std::{cmp, collections::HashMap, path::PathBuf, thread, thread::{sleep, JoinHandle}, time::Duration};
 use tokio::{self, io::Result as IoResult};
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
@@ -347,11 +346,9 @@ impl PyRaphtoryServer {
         let server = take_server_ownership(slf)?;
 
         let cloned_sender = sender.clone();
-        let worker_threads = cmp::max(1, num_cpus::get() - 1);
 
         let join_handle = thread::spawn(move || {
             tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(worker_threads)
                 .enable_all()
                 .build()
                 .unwrap()

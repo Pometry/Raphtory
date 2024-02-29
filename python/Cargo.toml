@@ -29,7 +29,6 @@ serde = { workspace = true }
 async-graphql = { workspace = true }
 dynamic-graphql = { workspace = true }
 itertools = { workspace = true }
-num_cpus = "1.16.0"
 
 [features]
 extension-module = ["pyo3/extension-module"]
