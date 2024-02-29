@@ -217,36 +217,15 @@ impl RaphtoryServer {
             .with(Cors::new());
 
         println!("Playground: http://localhost:{port}");
-        let worker_threads = cmp::max(1, num_cpus::get() - 1);
+        let (signal_sender, signal_receiver) = mpsc::channel(1);
+        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
+            .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
+        let server_result = tokio::spawn(server_task);
 
-        let runtime = Builder::new_multi_thread()
-            .worker_threads(worker_threads)
-            .enable_all()
-            .build()
-            .unwrap();
-
-        runtime.block_on(async {
-            let (signal_sender, signal_receiver) = mpsc::channel(1);
-
-            println!("Playground: http://localhost:{port}");
-            let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-                .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
-            let server_result = tokio::spawn(server_task);
-
-            RunningRaphtoryServer {
-                signal_sender,
-                server_result,
-            }
-        })
-
-        // let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-        //     .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
-        // let server_result = tokio::spawn(server_task);
-        //
-        // RunningRaphtoryServer {
-        //     signal_sender,
-        //     server_result,
-        // }
+        RunningRaphtoryServer {
+            signal_sender,
+            server_result,
+        }
     }
 
     /// Run the server on the default port until completion.
