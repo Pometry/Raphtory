@@ -5,13 +5,13 @@ config:
     - duration: 10
       arrivalRate: 5
       name: Warm up
-    - duration: 100
+    - duration: 200
       arrivalRate: 30
-      rampTo: 5000
+      rampTo: 60
       name: Ramp up load
-    - duration: 180
-      arrivalRate: 100
-      name: Sustained load
+#    - duration: 180
+#      arrivalRate: 100
+#      name: Sustained load
   defaults:
     headers:
       Content-Type: 'application/json'
@@ -19,13 +19,14 @@ config:
 scenarios:
   - name: "Get Graphs"
     flow:
-      - post:
-          url: '/' # replace with your GraphQL endpoint
-          afterResponse: [ "checkForGraphQLError" ]
-          json:
-            query: |
-              query gethuman() {
-                human(id: "1000") {
-                  name
+      - loop:
+        - post:
+            url: '/' # replace with your GraphQL endpoint
+            afterResponse: [ "checkForGraphQLError" ]
+            json:
+              query: |
+                query gethuman() {
+                  human(id: "1000") {
+                    name
+                  }
                 }
-              }
