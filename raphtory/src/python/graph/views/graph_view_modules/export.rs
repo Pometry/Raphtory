@@ -214,6 +214,7 @@ impl PyGraphView {
                 }
             }
             println!("F");
+            println!("F");
 
             let mut colours = HashMap::new();
             let mut colour_index = 1;
