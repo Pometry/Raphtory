@@ -3,7 +3,8 @@
 ## first build the starwars server
 
 > git clone https://github.com/async-graphql/async-graphql
-> git clone https://github.com/async-graphql/examples/tree/711d360c6fa5bc4e100a8420a7fc8ccf3a2c3193
+> cd async-graphql
+> git clone https://github.com/async-graphql/examples/
 > cd examples/poem/starwars
 > cargo run -r 
 

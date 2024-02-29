@@ -1,6 +1,6 @@
 config:
   processor: "./hooks.js"
-  target: 'http://localhost:8000' # replace with your server URL
+  target: 'http://127.0.0.1:8000' # replace with your server URL
   phases:
     - duration: 10
       arrivalRate: 5
