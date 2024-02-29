@@ -216,7 +216,7 @@ impl RaphtoryServer {
             .with(Cors::new());
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
-        
+
         println!("Playground: http://localhost:{port}");
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver), None);
