@@ -1,5 +1,5 @@
 use super::{document_ref::DocumentRef, entity_id::EntityId, Embedding};
-use faiss::{index::IndexImpl, index_factory, Index, MetricType};
+use faiss::{index::IndexImpl, index_factory, Idx, Index, MetricType};
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -25,7 +25,6 @@ impl FaissIndex {
         let result = self.index.search(query.as_slice(), limit);
         match result {
             Ok(result) => {
-                dbg!(&result);
                 let valid_labels = result.labels.iter().filter_map(|idx| idx.get());
                 valid_labels.map(|idx| self.get(idx)).collect_vec()
             }
@@ -50,7 +49,6 @@ impl FaissStore {
         let maybe_group = maybe_node_group.or(maybe_edge_group);
         let maybe_vector = maybe_group.and_then(|(_, docs)| docs.get(0));
         let dim = maybe_vector.map(|vec| vec.embedding.len()).unwrap_or(1) as u32;
-        dbg!(&dim);
         Self {
             nodes: build_entity_index(nodes, dim),
             edges: build_entity_index(edges, dim),
@@ -75,20 +73,29 @@ impl FaissStore {
 }
 
 fn build_entity_index(entities: &HashMap<EntityId, Vec<DocumentRef>>, dim: u32) -> FaissIndex {
-    dbg!(&dim);
-    let mut index = index_factory(dim, "IDMap,Flat", MetricType::InnerProduct).unwrap();
-    let mut mapping = vec![];
-    for (entity, doc_refs) in entities {
-        for (subindex, doc_ref) in doc_refs.iter().enumerate() {
-            let entity = entity.clone();
-            let index_for_faiss = mapping.len() as i64;
-            mapping.push(DocumentPointer { entity, subindex });
-            let embedding = doc_ref.embedding.as_slice();
-            // this can be improved by putting embeddings in a contiguous memory slice
-            index
-                .add_with_ids(embedding, &[index_for_faiss.into()])
-                .unwrap();
-        }
-    }
+    let mut index = index_factory(dim, "IVF4096_HNSW32,Flat", MetricType::InnerProduct).unwrap();
+
+    let flattened = entities.iter().flat_map(|(entity, docs)| {
+        docs.iter()
+            .enumerate()
+            .map(|(subindex, doc)| (entity.clone(), subindex, doc))
+    });
+    let mapping = flattened
+        .clone()
+        .map(|(entity, subindex, _)| DocumentPointer { entity, subindex })
+        .collect_vec();
+    let data_vec = flattened
+        .clone()
+        .flat_map(|(_, _, doc)| doc.embedding.clone())
+        .collect_vec();
+    let data = data_vec.as_slice();
+    let ids: Vec<Idx> = flattened
+        .enumerate()
+        .map(|(id, _)| (id as i64).into())
+        .collect_vec();
+
+    index.train(data).unwrap();
+    index.add_with_ids(data, ids.as_slice()).unwrap();
+
     FaissIndex { index, mapping }
 }
