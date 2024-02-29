@@ -5,7 +5,9 @@ use crate::core::entities::VID;
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::{edge::Edge, graph_fragment::TempColGraphFragment, nodes::Node};
+use super::{
+    edge::Edge, graph_fragment::TempColGraphFragment, graph_impl::Graph2, nodes::Node, GID,
+};
 
 pub mod ast;
 pub mod executors;
@@ -14,30 +16,25 @@ pub mod state;
 pub enum NodeSource {
     All,
     NodeIds(Vec<VID>),
-    Filter(Arc<dyn Fn(Node) -> bool + Send + Sync>),
+    ExternalIds(Vec<GID>),
+    Filter(Arc<dyn Fn(VID, &Graph2) -> bool + Send + Sync>),
 }
 
 impl NodeSource {
-    fn into_iter(self, graph: &TempColGraphFragment) -> Box<dyn Iterator<Item = VID> + '_> {
+    fn into_iter(self, graph: &Graph2) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
             NodeSource::All => Box::new((0..graph.num_nodes()).into_iter().map(VID)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
-            NodeSource::Filter(filter) => Box::new(
-                graph
-                    .all_nodes()
-                    .filter(move |node| filter(*node))
-                    .map(|node| node.vid()),
+            NodeSource::Filter(filter) => {
+                Box::new(graph.all_nodes().filter(move |node| filter(*node, graph)))
+            }
+            NodeSource::ExternalIds(ext_ids) => Box::new(
+                ext_ids
+                    .into_iter()
+                    .filter_map(move |gid| graph.find_node(&gid)),
             ),
         }
     }
-}
-
-pub fn forward_time_filter(_node: Node, edge: Edge, state: &ForwardState) -> bool {
-    let ts = edge.timestamps();
-
-    let range = state.time + 1..i64::MAX;
-    let iter = ts.range(range);
-    iter.first_t().is_some()
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
@@ -62,18 +59,7 @@ impl ForwardState {
 }
 
 impl HopState for ForwardState {
-    fn with_next(&self, node: Node, edge: Edge) -> Self {
-        let ts = edge.timestamps();
-        let w = self.time + 1..i64::MAX;
-        let next_time = ts.range(w);
-        ForwardState {
-            time: next_time.first_t().unwrap(),
-            path: self.path.push_front(node.vid()),
-            hop_n_limit: self.hop_n_limit,
-        }
-    }
-
-    fn with_next_2(&self, node: Node, edge: Edge) -> Option<Self> {
+    fn hop_with_state(&self, node: Node, edge: Edge) -> Option<Self> {
         let ts = edge.timestamps();
         let w = self.time + 1..i64::MAX;
         let next_time = ts.range(w);
@@ -96,17 +82,19 @@ mod test {
     fn one_hop_query() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().channel([sender]);
+        let query = Query::new().out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
 
-        let graph = TempColGraphFragment::from_edges(
+        let layer = TempColGraphFragment::from_edges(
             graph_dir.path(),
             vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
             0,
             100,
         )
         .unwrap();
+
+        let graph = Graph2::from_layer(layer);
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -120,16 +108,18 @@ mod test {
     fn two_hop_query() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().out().channel([sender]);
+        let query = Query::new().out("default").out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let graph = TempColGraphFragment::from_edges(
+        let layer = TempColGraphFragment::from_edges(
             graph_dir.path(),
             vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
             0,
             100,
         )
         .unwrap();
+
+        let graph = Graph2::from_layer(layer);
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -141,16 +131,21 @@ mod test {
     fn two_hop_query_var() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().out_var().channel([sender]);
+        let query = Query::new()
+            .out("default")
+            .out_var("default")
+            .channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let graph = TempColGraphFragment::from_edges(
+        let layer = TempColGraphFragment::from_edges(
             graph_dir.path(),
             vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
             0,
             100,
         )
         .unwrap();
+
+        let graph = Graph2::from_layer(layer);
 
         let result =
             rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
@@ -173,16 +168,18 @@ mod test {
     fn two_hop_query_state() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out().out().channel([sender]);
+        let query = Query::new().out("default").out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let graph = TempColGraphFragment::from_edges(
+        let layer = TempColGraphFragment::from_edges(
             graph_dir.path(),
             vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
             0,
             100,
         )
         .unwrap();
+
+        let graph = Graph2::from_layer(layer);
 
         let result =
             rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
@@ -195,16 +192,18 @@ mod test {
     #[test]
     fn test_fork_2_hop() {
         let (sender, receiver) = std::sync::mpsc::channel();
-        let query = Query::new().out().out().channel([sender]);
+        let query = Query::new().out("default").out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let graph = TempColGraphFragment::from_edges(
+        let layer = TempColGraphFragment::from_edges(
             graph_dir.path(),
             vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64), (2, 1, 3, 3f64)],
             0,
             100,
         )
         .unwrap();
+
+        let graph = Graph2::from_layer(layer);
 
         let result =
             rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
@@ -228,10 +227,7 @@ mod test {
     fn hop_twice_forward_time() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new()
-            .out_filter(Arc::new(forward_time_filter))
-            .out_filter(Arc::new(forward_time_filter))
-            .channel([sender]);
+        let query = Query::new().out("default").out("default").channel([sender]);
 
         let mut edges = vec![
             (11, 0u64, 1u64, 0.0f64),
@@ -249,10 +245,12 @@ mod test {
         edges.sort_by_key(|(t, src, dst, _)| (*src, *dst, *t));
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let mut graph = TempColGraphFragment::from_edges(graph_dir.path(), edges, 0, 100).unwrap();
-        graph
+        let mut layer = TempColGraphFragment::from_edges(graph_dir.path(), edges, 0, 100).unwrap();
+        layer
             .node_additions(100)
             .expect("Failed to load node additions");
+
+        let graph = Graph2::from_layer(layer);
 
         let t = 10;
         let result = rayon2::execute::<ForwardState>(

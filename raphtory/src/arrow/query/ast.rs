@@ -19,16 +19,16 @@ pub enum Sink<S> {
     Print,
 }
 
-pub struct Hop<S> {
+pub struct Hop {
     pub dir: Direction,
-    pub filter: Option<Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>>,
     pub limit: Option<usize>,
+    pub layer: Box<str>,
     pub variable: bool,
 }
 
 pub struct Query<S> {
     pub sink: Sink<S>,
-    pub hops: Vec<Hop<S>>,
+    pub hops: Vec<Hop>,
 }
 
 impl<S: HopState> Query<S> {
@@ -39,73 +39,52 @@ impl<S: HopState> Query<S> {
         }
     }
 
-    pub fn get_hop(&self, step: usize) -> Option<&Hop<S>> {
+    pub fn get_hop(&self, step: usize) -> Option<&Hop> {
         self.hops.get(step)
     }
 
     pub fn hop(
         mut self,
         dir: Direction,
-        filter: Option<Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>>,
+        layer: &str,
         variable: bool,
         limit: Option<usize>,
     ) -> Self {
         self.hops.push(Hop {
             dir,
-            filter,
             variable,
+            layer: layer.into(),
             limit,
         });
         self
     }
 
-    pub fn vhop(
-        self,
-        dir: Direction,
-        filter: Option<Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>>,
-        limit: Option<usize>,
-    ) -> Self {
-        self.hop(dir, filter, true, limit)
+    pub fn vhop(self, dir: Direction, layer: &str, limit: Option<usize>) -> Self {
+        self.hop(dir, layer, true, limit)
     }
 
-    pub fn out(self) -> Self {
-        self.hop(Direction::OUT, None, false, None)
+    pub fn out(self, layer: &str) -> Self {
+        self.hop(Direction::OUT, layer, false, None)
     }
 
-    pub fn out_limit(self, limit: usize) -> Self {
-        self.hop(Direction::OUT, None, false, Some(limit))
+    pub fn out_limit(self, layer: &str, limit: usize) -> Self {
+        self.hop(Direction::OUT, layer, false, Some(limit))
     }
 
-    pub fn out_var(self) -> Self {
-        self.hop(Direction::OUT, None, true, None)
+    pub fn out_var(self, layer: &str) -> Self {
+        self.hop(Direction::OUT, layer, true, None)
     }
 
-    pub fn out_filter(self, filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>) -> Self {
-        self.hop(Direction::OUT, Some(filter), false, None)
+    pub fn into(self, layer: &str) -> Self {
+        self.hop(Direction::IN, layer, false, None)
     }
 
-    pub fn out_filter_limit(
-        self,
-        limit: usize,
-        filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>,
-    ) -> Self {
-        self.hop(Direction::OUT, Some(filter), false, Some(limit))
+    pub fn into_limit(self, layer: &str, limit: usize) -> Self {
+        self.hop(Direction::IN, layer, false, Some(limit))
     }
 
-    pub fn into(self) -> Self {
-        self.hop(Direction::IN, None, false, None)
-    }
-
-    pub fn into_filter(self, filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>) -> Self {
-        self.hop(Direction::IN, Some(filter), false, None)
-    }
-
-    pub fn into_filter_limit(
-        self,
-        limit: usize,
-        filter: Arc<dyn (Fn(Node, Edge, &S) -> bool) + Send + Sync>,
-    ) -> Self {
-        self.hop(Direction::IN, Some(filter), false, Some(limit))
+    pub fn into_var(self, layer: &str) -> Self {
+        self.hop(Direction::IN, layer, true, None)
     }
 
     pub fn with_sink(mut self, sink: Sink<S>) -> Self {

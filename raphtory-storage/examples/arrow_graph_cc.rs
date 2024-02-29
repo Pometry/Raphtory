@@ -3,14 +3,12 @@ use raphtory::{
         algorithms::connected_components,
         graph_impl::{ArrowGraph, ParquetLayerCols},
         graph_fragment::TempColGraphFragment,
-    },
-    query::{
-        ast::Query, executors::rayon2, forward_time_filter, state::HopState, ForwardState,
+        query::{ast::Query, executors::rayon2, ForwardState},
     },
     core::entities::VID,
     prelude::*,
 };
-use std::{io::Write, sync::Arc, time::Instant};
+use std::{io::Write, time::Instant};
 
 fn main() {
     // Retrieve command line arguments
@@ -52,10 +50,8 @@ fn main() {
     //     panic!("Graph directory does not exist")
     // };
 
-    let g = &graph2.layer(0);
-
     // connected_components(g);
-    hop_query(g);
+    hop_query(&graph2);
 }
 
 fn connected_components(tg: &TempColGraphFragment) {
@@ -72,17 +68,8 @@ fn connected_components(tg: &TempColGraphFragment) {
     );
 }
 
-fn hop_query(tg: &TempColGraphFragment) {
+fn hop_query(tg: &Graph2) {
     let now = Instant::now();
-
-    // let mut rng = rand::thread_rng();
-
-    // let mut nodes = Vec::with_capacity(100);
-    // for _ in 0..100 {
-    //     let vid = VID(rng.gen_range(0..tg.num_nodes()));
-    //     nodes.push(vid);
-    // }
-    // println!("Nodes: {:?}", nodes);
 
     let nodes = vec![
         VID(309582099),
@@ -188,13 +175,11 @@ fn hop_query(tg: &TempColGraphFragment) {
     ];
 
     let query: Query<ForwardState> = Query::new()
-        .out_filter_limit(100, Arc::new(forward_time_filter))
-        .out_filter_limit(100, Arc::new(forward_time_filter))
-        .out_filter_limit(100, Arc::new(forward_time_filter))
-        .out_filter_limit(100, Arc::new(forward_time_filter))
-        // .void();
-        // .out_filter_limit(100, Arc::new(forward_time_filter))
-        .path("hop", |writer, state| {
+        .out_limit("default", 100)
+        .out_limit("default", 100)
+        .out_limit("default", 100)
+        .out_limit("default", 100)
+        .path("hop", |writer, state: ForwardState| {
             write!(writer, "[").unwrap();
             state.path.iter().for_each(|n| {
                 write!(writer, "{},", n.0).unwrap();

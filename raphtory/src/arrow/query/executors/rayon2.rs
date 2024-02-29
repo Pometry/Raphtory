@@ -6,6 +6,7 @@ use rayon::{current_thread_index, ThreadPoolBuilder};
 use crate::{
     arrow::{
         graph_fragment::TempColGraphFragment,
+        graph_impl::Graph2,
         nodes::Node,
         query::{
             ast::{Hop, Query, Sink},
@@ -15,12 +16,13 @@ use crate::{
         Error,
     },
     core::{entities::VID, Direction},
+    db::api::view::internal::CoreGraphOps,
 };
 
 pub fn execute<S: HopState + 'static>(
     query: Query<S>,
     source: NodeSource,
-    graph: &TempColGraphFragment,
+    graph: &Graph2,
     make_state: impl Fn(Node) -> S + Send + Sync,
 ) -> Result<(), Error> {
     let tp = ThreadPoolBuilder::new()
@@ -40,8 +42,10 @@ pub fn execute<S: HopState + 'static>(
             let node_chunk = node_chunk.collect::<Vec<_>>();
 
             s.spawn(|s| {
+                let hop = query.get_hop(0).expect("No hops");
+                let layer = lookup_layer(&hop.layer, graph);
                 for node in node_chunk {
-                    let node = graph.node(node);
+                    let node = graph.layer(layer).node(node);
                     let state = (make_state)(node);
                     hop_node(node, &query, 0, state, graph, s, tl);
                 }
@@ -50,6 +54,10 @@ pub fn execute<S: HopState + 'static>(
     });
 
     Ok(())
+}
+
+fn lookup_layer(layer: &str, graph: &Graph2) -> usize {
+    graph.find_layer_id(layer).expect("No layer")
 }
 
 fn get_writer<'a, S>(
@@ -82,7 +90,7 @@ fn hop_node<'a, S: HopState + 'a>(
     query: &'a Query<S>,
     step: usize,
     state: S,
-    graph: &'a TempColGraphFragment,
+    graph: &'a Graph2,
     s: &rayon::Scope<'a>,
     tl: &'a Arc<thread_local::ThreadLocal<RefCell<BufWriter<File>>>>,
 ) {
@@ -90,62 +98,47 @@ fn hop_node<'a, S: HopState + 'a>(
     let Query { sink, .. } = query;
     if let Some(Hop {
         dir,
-        filter,
         variable,
+        layer,
         limit,
     }) = query.get_hop(step)
     {
+        let layer = lookup_layer(layer, graph);
         if *variable {
             do_sink(sink, s, state.clone(), vid, tl);
         }
         let limit = limit.unwrap_or(usize::MAX);
         match dir {
             Direction::OUT => s.spawn(move |s| {
-                graph
+                let layer = graph.layer(layer);
+                layer
                     .nodes
                     .out_adj_list(vid)
-                    .map(|(eid, vid)| (graph.edge(eid), graph.node(vid)))
-                    .filter(|(edge, node)| {
-                        filter
-                            .as_ref()
-                            .map(|f| (f)(*node, *edge, &state))
-                            .unwrap_or(true)
+                    .map(|(eid, vid)| (layer.edge(eid), layer.node(vid)))
+                    .filter_map(|(edge, node)| {
+                        state
+                            .hop_with_state(node, edge)
+                            .map(|new_state| (edge, node, new_state))
                     })
                     .take(limit)
-                    .for_each(|(edge, node)| {
-                        hop_node(
-                            node,
-                            query,
-                            step + 1,
-                            state.with_next(node, edge),
-                            graph,
-                            s,
-                            tl,
-                        );
+                    .for_each(|(_, node, state)| {
+                        hop_node(node, query, step + 1, state, graph, s, tl);
                     });
             }),
             Direction::IN => s.spawn(move |s| {
-                graph
+                let layer = graph.layer(layer);
+                layer
                     .nodes
                     .in_adj_list(vid)
-                    .map(|(eid, vid)| (graph.edge(eid), graph.node(vid)))
-                    .filter(|(edge, node)| {
-                        filter
-                            .as_ref()
-                            .map(|f| (f)(*node, *edge, &state))
-                            .unwrap_or(true)
+                    .map(|(eid, vid)| (layer.edge(eid), layer.node(vid)))
+                    .filter_map(|(edge, node)| {
+                        state
+                            .hop_with_state(node, edge)
+                            .map(|new_state| (edge, node, new_state))
                     })
                     .take(limit)
-                    .for_each(|(edge, node)| {
-                        hop_node(
-                            node,
-                            query,
-                            step + 1,
-                            state.with_next(node, edge),
-                            graph,
-                            s,
-                            tl,
-                        );
+                    .for_each(|(_, node, state)| {
+                        hop_node(node, query, step + 1, state, graph, s, tl);
                     });
             }),
             Direction::BOTH => {

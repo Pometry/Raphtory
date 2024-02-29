@@ -1,13 +1,11 @@
+use std::option::Option;
+
 use crate::{
     arrow::{edge::Edge, nodes::Node},
     core::entities::VID,
 };
 pub trait HopState: Send + Sync + Clone + std::fmt::Debug {
-    fn with_next(&self, node: Node, edge: Edge) -> Self;
-
-    fn with_next_2(&self, node: Node, edge: Edge) -> Option<Self> {
-        Some(self.clone())
-    }
+    fn hop_with_state(&self, node: Node, edge: Edge) -> Option<Self>;
 }
 
 #[derive(Clone, PartialEq, Debug, PartialOrd)]
@@ -20,8 +18,8 @@ impl NoState {
 }
 
 impl HopState for NoState {
-    fn with_next(&self, _node: Node, _edge: Edge) -> Self {
-        NoState
+    fn hop_with_state(&self, _node: Node, _edge: Edge) -> Option<Self> {
+        Some(NoState)
     }
 }
 #[derive(Clone, PartialEq, Debug, PartialOrd)]
@@ -34,10 +32,10 @@ impl VecState {
 }
 
 impl HopState for VecState {
-    fn with_next(&self, node: Node, edge: Edge) -> Self {
+    fn hop_with_state(&self, node: Node, edge: Edge) -> Option<VecState> {
         let VecState(mut vec) = self.clone();
         vec.push(node.vid());
-        VecState(vec)
+        Some(VecState(vec))
     }
 }
 
@@ -45,8 +43,8 @@ impl HopState for VecState {
 pub struct Count(usize);
 
 impl HopState for Count {
-    fn with_next(&self, _node: Node, _edge: Edge) -> Self {
+    fn hop_with_state(&self, _node: Node, _edge: Edge) -> Option<Self> {
         let Count(count) = self;
-        Count(*count + 1)
+        Some(Count(*count + 1))
     }
 }

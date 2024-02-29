@@ -10,7 +10,7 @@ use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
 
 use crate::{core::entities::properties::props::Meta, prelude::Graph};
 
-use super::{graph::TemporalGraph, load::ExternalEdgeList, Error};
+use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
 
 pub mod const_properties_ops;
 pub mod core_ops;
@@ -224,6 +224,28 @@ impl ArrowGraph {
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
             .map(|(_, layer)| layer)
+    }
+
+    pub fn from_layer(layer: TempColGraphFragment) -> Self {
+        let global_ordering = layer.nodes.gids.clone();
+
+        let global_order = ArrowHashMap::from_sorted_dedup(global_ordering.clone())
+            .expect("Failed to create global order");
+
+        let mut grapho = Self {
+            inner: Arc::new(TemporalGraph::new_from_layers(
+                global_ordering,
+                Arc::new(global_order),
+                vec![layer],
+                vec!["default".to_string()],
+            )),
+            node_meta: Arc::new(Meta::new()),
+            edge_meta: Arc::new(Meta::new()),
+            graph_props: Arc::new(GraphMeta::new()),
+        };
+
+        grapho.init_meta();
+        grapho
     }
 }
 
