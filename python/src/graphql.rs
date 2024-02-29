@@ -35,6 +35,13 @@ use raphtory_graphql::{
 };
 use reqwest::Client;
 use serde_json::{json, Map, Number, Value as JsonValue};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    thread,
+    thread::{sleep, JoinHandle},
+    time::Duration,
+};
 use tokio::{self, io::Result as IoResult};
 
 /// A class for accessing graphs hosted in a Raphtory GraphQL server and running global search for
