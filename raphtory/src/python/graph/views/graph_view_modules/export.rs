@@ -249,10 +249,10 @@ impl PyGraphView {
             for edge in edges {
                 let weight = match edge_weight {
                     Some(weight) => {
-                        let w = edge.properties().get(weight).unwrap_or(Prop::from(1));
-                        w.unwrap_i64()
+                        let w = edge.properties().get(weight).unwrap_or(Prop::from(0.0f64));
+                        w.unwrap_f64()
                     }
-                    None => 1,
+                    None => 0.0f64,
                 };
                 let label = match edge_label {
                     Some(label) => {
