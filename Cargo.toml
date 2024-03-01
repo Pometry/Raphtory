@@ -9,7 +9,7 @@ members = [
 	"js-raphtory",
 	"raphtory-graphql",
 	"comparison-benchmark/rust/raphtory-rust-benchmark"
-]
+, "examples/lanl"]
 default-members = ["raphtory"]
 
 [workspace.package]

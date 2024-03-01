@@ -18,7 +18,7 @@ const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
 const WINDOW: i64 = 4;
 
-pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
+pub fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
     let events_1v = g.find_layer_id("events_1v")?;
 

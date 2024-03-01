@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
-pub(crate) mod query1;
-pub(crate) mod query2;
-pub(crate) mod query3;
-pub(crate) mod query3b;
-pub(crate) mod query3c;
-pub(crate) mod query4;
-mod loader;
+pub mod query1;
+pub mod query2;
+pub mod query3;
+pub mod query3b;
+pub mod query3c;
+pub mod query4;
+pub mod loader;
 mod tests;
 
 const NUM_THREADS: usize = 16;
@@ -18,7 +18,7 @@ fn thread_pool(n_threads: usize) -> rayon::ThreadPool {
         .unwrap()
 }
 
-fn measure<B: Debug>(name: &str, f: impl Fn() -> B) -> B {
+pub fn measure<B: Debug>(name: &str, f: impl Fn() -> B) -> B {
     let now = std::time::Instant::now();
     let result = f();
     let elapsed = now.elapsed();

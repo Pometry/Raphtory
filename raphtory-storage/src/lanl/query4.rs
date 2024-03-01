@@ -146,7 +146,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     Some(count)
 }
 
-pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
+pub fn run2(g: &TemporalGraph) -> Option<usize> {
     // layer
     let nft = g.find_layer_id("netflow")?;
     let events_1v = g.find_layer_id("events_1v")?;

@@ -31,5 +31,5 @@ pub fn lanl_query3c(graph: PyArrowGraph) -> Option<usize> {
 
 #[pyfunction]
 pub fn lanl_query4(graph: PyArrowGraph) -> Option<usize> {
-    lanl::query4::run(&ArrowGraph::from(graph))
+    lanl::query4::run2(&ArrowGraph::from(graph))
 }

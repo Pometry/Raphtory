@@ -3,6 +3,7 @@ use std::fmt::Debug;
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use raphtory::prelude::GraphViewOps;
     use crate::lanl::loader::*;
     use crate::lanl::*;
 
@@ -23,8 +24,8 @@ mod tests {
             }
         };
 
-        println!("Node count {}", graph.num_nodes());
-        println!("Edge count {}", graph.num_edges(0));
+        println!("Node count {}", graph.count_nodes());
+        println!("Edge count {}", graph.count_edges());
         println!("Earliest time {}", graph.earliest());
         println!("Latest time {}", graph.latest());
 
