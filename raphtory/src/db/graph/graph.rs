@@ -198,7 +198,6 @@ mod db_tests {
     use crate::{
         algorithms::components::weakly_connected_components,
         core::{
-            entities::VID,
             utils::time::{error::ParseTimeError, TryIntoTime},
             ArcStr, OptionAsStr, Prop,
         },
@@ -222,10 +221,7 @@ mod db_tests {
     use quickcheck_macros::quickcheck;
     use rayon::prelude::*;
     use serde_json::Value;
-    use std::{
-        collections::{HashMap, HashSet},
-        fs,
-    };
+    use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
 
     #[test]

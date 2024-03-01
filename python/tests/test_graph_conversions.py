@@ -90,7 +90,7 @@ def test_py_vis():
                 "from": 7678824742430955432,
                 "title": "",
                 "to": 7718004695861170879,
-                "value": 1,
+                "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
@@ -99,7 +99,7 @@ def test_py_vis():
                 "from": 7678824742430955432,
                 "title": "",
                 "to": 17918514325589227856,
-                "value": 1,
+                "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
@@ -108,7 +108,7 @@ def test_py_vis():
                 "from": 7718004695861170879,
                 "title": "",
                 "to": 14902018402467198225,
-                "value": 1,
+                "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
@@ -117,7 +117,7 @@ def test_py_vis():
                 "from": 17918514325589227856,
                 "title": "",
                 "to": 7678824742430955432,
-                "value": 1,
+                "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
@@ -126,7 +126,7 @@ def test_py_vis():
                 "from": 14902018402467198225,
                 "title": "",
                 "to": 17918514325589227856,
-                "value": 1,
+                "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
@@ -135,7 +135,7 @@ def test_py_vis():
                 "from": 14902018402467198225,
                 "title": "",
                 "to": 11577954539736240602,
-                "value": 1,
+                "value": 0.0,
             },
             {
                 "arrowStrikethrough": False,
@@ -144,7 +144,7 @@ def test_py_vis():
                 "from": 11577954539736240602,
                 "title": "",
                 "to": 7718004695861170879,
-                "value": 1,
+                "value": 0.0,
             },
         ],
     )
