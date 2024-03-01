@@ -11,7 +11,6 @@ use pyo3::{
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 use std::collections::HashMap;
-use crate::prelude::Graph;
 
 #[pymethods]
 impl PyGraphView {
@@ -196,16 +195,11 @@ impl PyGraphView {
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            println!("A");
-            let pyvis = py.import("pyvis.network")?;
-            println!("B");
-            let vis_graph =
-                pyvis.call_method("Network", ("notebook", notebook.unwrap_or(true)), kwargs)?;
-            println!("C");
+            let pyvis = PyModule::import(py, "pyvis.network")?;
+            let network = pyvis.getattr("Network")?;
+            let vis_graph = network.call(("notebook", notebook.unwrap_or(true)), kwargs)?;
             let mut groups = HashMap::new();
-            println!("D");
             if colour_nodes_by_type.unwrap_or(false) {
-                println!("E");
                 let mut index = 1;
                 for node in self.graph.nodes() {
                     let value = node.node_type().unwrap_or(ArcStr::from("_default"));
@@ -213,8 +207,6 @@ impl PyGraphView {
                     index += 1;
                 }
             }
-            println!("F");
-            println!("F");
 
             let mut colours = HashMap::new();
             let mut colour_index = 1;
@@ -236,12 +228,12 @@ impl PyGraphView {
                     let node_type = v.node_type().unwrap_or(ArcStr::from("_default"));
                     let group = match colours.get(&node_type) {
                         None => {
-                            colours.insert(node_type,colour_index);
+                            colours.insert(node_type, colour_index);
                             let to_return = colour_index;
-                            colour_index+=1;
+                            colour_index += 1;
                             to_return
-                            }
-                        Some(colour) => {*colour}
+                        }
+                        Some(colour) => *colour,
                     };
                     kwargs_node.set_item("group", group)?;
                     vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
@@ -249,26 +241,19 @@ impl PyGraphView {
                     vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
                 }
             }
-            println!("G");
             let edges = if explode_edges.unwrap_or(false) {
-                println!("H");
                 self.graph.edges().explode()
             } else {
-                println!("I");
                 self.graph.edges().explode_layers()
             };
-            println!("J");
             for edge in edges {
-                println!("JA");
                 let weight = match edge_weight {
                     Some(weight) => {
-                        println!("JB");
                         let w = edge.properties().get(weight).unwrap_or(Prop::from(1));
                         w.unwrap_i64()
                     }
                     None => 1,
                 };
-                println!("JC");
                 let label = match edge_label {
                     Some(label) => {
                         let l = edge.properties().get(label).unwrap_or(Prop::from(""));
@@ -276,17 +261,11 @@ impl PyGraphView {
                     }
                     None => ArcStr::from(""),
                 };
-                println!("JD");
                 let kwargs = PyDict::new(py);
-                println!("JE");
                 kwargs.set_item("value", weight)?;
-                println!("JF");
                 let edge_col = edge_color.unwrap_or("#000000");
-                println!("JG");
                 kwargs.set_item("color", edge_col)?;
-                println!("JH");
                 kwargs.set_item("title", label)?;
-                println!("JI");
                 kwargs.set_item("arrowStrikethrough", false)?;
                 vis_graph.call_method(
                     "add_edge",
@@ -294,7 +273,6 @@ impl PyGraphView {
                     Some(kwargs),
                 )?;
             }
-            println!("FIN");
             Ok(vis_graph.to_object(py))
         })
     }
@@ -352,7 +330,11 @@ impl PyGraphView {
                 }
                 match v.node_type() {
                     None => {}
-                    Some(n_type) => {properties.set_item("node_type",n_type).expect("Failed to add property"); }
+                    Some(n_type) => {
+                        properties
+                            .set_item("node_type", n_type)
+                            .expect("Failed to add property");
+                    }
                 }
                 let node_tuple =
                     PyTuple::new(py, &[v.name().to_object(py), properties.to_object(py)]);
@@ -421,33 +403,5 @@ impl PyGraphView {
 
             Ok(networkx.to_object(py))
         })
-    }
-}
-
-
-#[cfg(test)]
-mod export_tests {
-    use crate::prelude::{AdditionOps, Graph, NO_PROPS};
-    use super::*;
-
-    fn test_export() {
-        let g = Graph::new();
-        g.add_edge(0, "A", "B", NO_PROPS, None);
-        // let gg = PyGraph::from(g);
-        let ggg= PyGraphView::from(g);
-        pyo3::Python::with_gil(|py| {
-            let pyd = PyDict::new(py);
-            let pyvis = ggg.to_pyvis(
-                Some(false),
-                Some("#000000"),
-                None,
-                None,
-                None,
-                None,
-                Some(false),
-                Some(true),
-                Some(pyd)
-            );
-        });
     }
 }
