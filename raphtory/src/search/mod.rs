@@ -414,6 +414,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             Self::index_prop_value(&mut document, prop_field, prop_value);
         }
 
+        match node.node_type() {
+            None => {}
+            Some(str) => document.add_text(schema.get_field("node_type")?, (*str).to_string()),
+        }
+
         writer.add_document(document)?;
         Ok(())
     }
