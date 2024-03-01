@@ -6,7 +6,6 @@ pub mod query3;
 pub mod query3b;
 pub mod query3c;
 pub mod query4;
-pub mod loader;
 mod tests;
 
 const NUM_THREADS: usize = 16;

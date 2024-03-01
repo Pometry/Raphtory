@@ -134,13 +134,26 @@ impl PyArrowGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (graph_dir, layer_parquet_cols))]
+    #[pyo3(signature = (graph_dir, layer_parquet_cols, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads))]
     fn load_from_parquets(
         graph_dir: &str,
         layer_parquet_cols: ParquetLayerColsList,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        read_chunk_size: Option<usize>,
+        concurrent_files: Option<usize>,
+        num_threads: usize,
     ) -> Result<ArrowGraph, GraphError> {
         let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py: Python<'_>| {
-            let graph = Self::from_parquets(graph_dir, layer_parquet_cols.0)?;
+            let graph = Self::from_parquets(
+                graph_dir, 
+                layer_parquet_cols.0,
+                chunk_size, 
+                t_props_chunk_size,
+                read_chunk_size,
+                concurrent_files,
+                num_threads,
+            )?;
             Ok::<_, PyErr>(graph)
         });
         graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files")))
@@ -206,14 +219,12 @@ impl PyArrowGraph {
     fn from_parquets(
         graph_dir: &str,
         layer_parquet_cols: Vec<ParquetLayerCols>,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        read_chunk_size: Option<usize>,
+        concurrent_files: Option<usize>,
+        num_threads: usize,
     ) -> Result<ArrowGraph, GraphError> {
-        let chunk_size = 268_435_456;
-        let num_threads = 4;
-        let t_props_chunk_size = chunk_size / 8;
-
-        let read_chunk_size = Some(4_000_000);
-        let concurrent_files = Some(1);
-
         ArrowGraph::load_from_parquets(
             graph_dir,
             layer_parquet_cols,

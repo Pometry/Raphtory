@@ -47,9 +47,21 @@ def test_arrow_graph():
         g = ArrowGraph.load_from_dir(graph_dir)
     except Exception as e:
         print("Failed to load the graph from the directory. Attempting to load from parquet files ", e)
+        
+        chunk_size = 268_435_456
+        num_threads = 4
+        t_props_chunk_size = int(chunk_size / 8)
+        read_chunk_size = 4_000_000
+        concurrent_files = 1
+        
         g = ArrowGraph.load_from_parquets(
             graph_dir,
-            layer_parquet_cols
+            layer_parquet_cols,
+            chunk_size, 
+            t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
+            num_threads,
         )
 
     print("Node count", g.count_nodes())
