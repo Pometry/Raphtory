@@ -1,6 +1,6 @@
 from raphtory import ArrowGraph
 from raphtory.lanl import lanl_query1, lanl_query2, lanl_query3, lanl_query3b, lanl_query3c, lanl_query4
-
+from raphtory import algorithms
 from utils import measure
 
 
@@ -75,3 +75,8 @@ def test_arrow_graph():
     measure("Query 3b", lanl_query3b, g)
     # measure("Query 3c", lanl_query3c, g)
     measure("Query 4", lanl_query4, g)
+
+    measure("CC", algorithms.connected_components, g, print_result = False)
+    measure("Weakly CC  Layer", algorithms.weakly_connected_components, g.layer("netflow"), 20, print_result = False)
+    measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result = False)
+    measure("Page Rank", algorithms.pagerank, g, 100, print_result = False)

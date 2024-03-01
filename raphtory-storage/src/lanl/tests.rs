@@ -2,6 +2,9 @@
 mod tests {
     use std::num::NonZeroUsize;
     use crate::lanl::*;
+    use raphtory::algorithms::centrality::pagerank::unweighted_page_rank;
+    use raphtory::algorithms::components::weakly_connected_components;
+    use raphtory::arrow::algorithms::connected_components::connected_components;
     use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
     use raphtory::prelude::GraphViewOps;
 
@@ -68,11 +71,16 @@ mod tests {
         println!("Earliest time {}", graph.earliest());
         println!("Latest time {}", graph.latest());
 
-        measure("Query 1", || query1::run(&graph).unwrap());
-        measure("Query 2", || query2::run(&graph).unwrap());
-        measure("Query 3", || query3::run(&graph).unwrap());
-        measure("Query 3b", || query3b::run(&graph).unwrap());
-        // # measure("Query 3c", || query3c::run(&graph).unwrap());
-        measure("Query 4", || query4::run2(&graph).unwrap());
+        measure("Query 1", || query1::run(&graph).unwrap(), true);
+        measure("Query 2", || query2::run(&graph).unwrap(), true);
+        measure("Query 3", || query3::run(&graph).unwrap(), true);
+        measure("Query 3b", || query3b::run(&graph).unwrap(), true);
+        // # measure("Query 3c", || query3c::run(&graph).unwrap(), true);
+        measure("Query 4", || query4::run2(&graph).unwrap(), true);
+
+        measure("CC", || connected_components(&graph.layer(0)), false);
+        measure("Weakly CC", || weakly_connected_components(&graph, 20, None), false);
+        measure("Page Rank", || unweighted_page_rank(&graph, 100, None, None, true), false);
+
     }
 }

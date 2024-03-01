@@ -1,4 +1,6 @@
 use std::fmt::Debug;
+use std::time::Instant;
+use std::fmt::Display;
 
 pub mod query1;
 pub mod query2;
@@ -17,11 +19,32 @@ fn thread_pool(n_threads: usize) -> rayon::ThreadPool {
         .unwrap()
 }
 
-pub fn measure<B: Debug>(name: &str, f: impl Fn() -> B) -> B {
-    let now = std::time::Instant::now();
+fn measure<T, F>(name: &str, f: F, print_result: bool) -> T
+where
+    F: FnOnce() -> T,
+    T: Debug,
+{
+    let start_time = Instant::now();
     let result = f();
-    let elapsed = now.elapsed();
+    let elapsed_time = start_time.elapsed();
 
-    println!("Running query {}: time: {:?}, result: {:?}", name, elapsed, result);
+    if print_result {
+        let elapsed_ms = elapsed_time.as_millis();
+        if elapsed_ms < 1000 {
+            println!("Running {}: time: {}ms, result: {:?}", name, elapsed_ms, result);
+        } else {
+            let elapsed_sec = elapsed_time.as_secs_f64();
+            println!("Running {}: time: {:.3}s, result: {:?}", name, elapsed_sec, result);
+        }
+    } else {
+        let elapsed_ms = elapsed_time.as_millis();
+        if elapsed_ms < 1000 {
+            println!("Running {}: time: {}ms", name, elapsed_ms);
+        } else {
+            let elapsed_sec = elapsed_time.as_secs_f64();
+            println!("Running {}: time: {:.3}s", name, elapsed_sec);
+        }
+    }
+
     result
 }
