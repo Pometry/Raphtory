@@ -287,9 +287,16 @@ fn main() {
             .nth(4)
             .expect("please supply a v2 directory");
 
+        let num_threads = std::env::args().nth(5).and_then(|x| x.parse::<usize>().ok()).unwrap_or(8);
+        let chunk_size = std::env::args().nth(6).and_then(|x| x.parse::<usize>().ok()).unwrap_or(8_388_608);
+        let t_props_chunk_size = std::env::args().nth(7).and_then(|x| x.parse::<usize>().ok()).unwrap_or(20_970_100);
+
         println!("netflow_dir: {:?}", netflow_dir);
         println!("v1_dir: {:?}", v1_dir);
         println!("v2_dir: {:?}", v2_dir);
+        println!("chunk_size: {:?}", chunk_size);
+        println!("t_props_chunk_size: {:?}", t_props_chunk_size);
+        println!("num_threads: {:?}", num_threads);
 
         let layered_edge_list = [
             ExternalEdgeList::new(
@@ -323,10 +330,8 @@ fn main() {
             )
             .expect("failed to load events_v2"),
         ];
-        let chunk_size = 8_388_608;
-        let t_props_chunk_size = 20_970_100;
         let graph = TemporalGraph::from_edge_lists(
-            8,
+            num_threads,
             chunk_size,
             t_props_chunk_size,
             None,

@@ -1,45 +1,38 @@
-use std::collections::HashMap;
 use raphtory::{
-    arrow::{algorithms::connected_components, graph_impl::ArrowGraph},
+    arrow::{
+        algorithms::connected_components,
+        graph_impl::{ArrowGraph, ParquetLayerCols},
+    },
     prelude::*,
 };
-use std::time::Instant;
+use std::{env::args, time::Instant};
 
 fn main() {
     // Retrieve command line arguments
-    let args: Vec<String> = std::env::args().collect();
+    let args = || std::env::args();
 
-    if args.len() % 2 != 0 || args.len() < 3 {
-        eprintln!("Usage: {} <graph_dir> <layer1_name> <layer1_parquet_dir> <layer2_name> <layer2_parquet_dir> ...", args[0]);
-        std::process::exit(1);
-    }
-
-    let graph_dir = &args[1];
-
-    // Create a HashMap to store layer names and corresponding parquet directories
-    let mut layernames_parquet_dirs: HashMap<&str, String> = HashMap::new();
-
-    for idx in (2..args.len()).step_by(2) {
-        let layer_name = args[idx].as_str();
-        let parquet_dir = args[idx + 1].clone();
-        layernames_parquet_dirs.insert(layer_name, parquet_dir);
-    }
+    let graph_dir = args().nth(1).expect("Graph directory not provided");
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
         ArrowGraph::load_from_dir(graph_dir).expect("Cannot open graph")
     } else {
+        let parquet_dir = &args().nth(2).expect("Parquet directory not provided");
+
         let chunk_size = 268_435_456;
         let num_threads = 4;
         let t_props_chunk_size = chunk_size / 8;
         let now = Instant::now();
         let graph = ArrowGraph::load_from_parquets(
             graph_dir,
-            layernames_parquet_dirs.clone(),
-            "src",
-            "src_hash",
-            "dst",
-            "dst_hash",
-            "time",
+            vec![ParquetLayerCols {
+                parquet_dir,
+                layer: "default",
+                src_col: "src",
+                src_hash_col: "src_hash",
+                dst_col: "dst",
+                dst_hash_col: "dst_hash",
+                time_col: "time",
+            }],
             chunk_size,
             t_props_chunk_size,
             Some(4_000_000),
