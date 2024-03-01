@@ -827,6 +827,9 @@ def test_edge_properties():
     [e] = g.at(1).find_edges({"prop 1": 1, "prop 3": "hi"})
     assert e == g.edge(1, 2)
 
+    empty_list = g.at(1).find_edges({"prop 1": 1, "prop 3": "hx"})
+    assert len(empty_list) == 0
+
     # testing has_property
     assert "prop 4" in g.edge(1, 2).properties
     assert "prop 2" in g.edge(1, 2).properties
