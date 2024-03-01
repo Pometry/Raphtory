@@ -195,12 +195,10 @@ impl PyGraphView {
         kwargs: Option<&PyDict>,
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            let pyvis = py.import("pyvis.network")?;
-            let vis_graph =
-                pyvis.call_method("Network", ("notebook", notebook.unwrap_or(true)), kwargs)?;
-
+            let pyvis = PyModule::import(py, "pyvis.network")?;
+            let network = pyvis.getattr("Network")?;
+            let vis_graph = network.call(("notebook", notebook.unwrap_or(true)), kwargs)?;
             let mut groups = HashMap::new();
-
             if colour_nodes_by_type.unwrap_or(false) {
                 let mut index = 1;
                 for node in self.graph.nodes() {
@@ -209,6 +207,10 @@ impl PyGraphView {
                     index += 1;
                 }
             }
+
+            let mut colours = HashMap::new();
+            let mut colour_index = 1;
+            colours.insert(ArcStr::from("_default"), 0);
 
             for v in self.graph.nodes() {
                 let image = match node_image {
@@ -224,14 +226,21 @@ impl PyGraphView {
                 kwargs_node.set_item("image", image)?;
                 if colour_nodes_by_type.unwrap_or(false) {
                     let node_type = v.node_type().unwrap_or(ArcStr::from("_default"));
-                    let group = groups.get(&node_type).unwrap();
+                    let group = match colours.get(&node_type) {
+                        None => {
+                            colours.insert(node_type, colour_index);
+                            let to_return = colour_index;
+                            colour_index += 1;
+                            to_return
+                        }
+                        Some(colour) => *colour,
+                    };
                     kwargs_node.set_item("group", group)?;
                     vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
                 } else {
                     vis_graph.call_method("add_node", (v.id(),), Some(kwargs_node))?;
                 }
             }
-
             let edges = if explode_edges.unwrap_or(false) {
                 self.graph.edges().explode()
             } else {
@@ -240,10 +249,10 @@ impl PyGraphView {
             for edge in edges {
                 let weight = match edge_weight {
                     Some(weight) => {
-                        let w = edge.properties().get(weight).unwrap_or(Prop::from(1));
-                        w.unwrap_i64()
+                        let w = edge.properties().get(weight).unwrap_or(Prop::from(0.0f64));
+                        w.unwrap_f64()
                     }
-                    None => 1,
+                    None => 0.0f64,
                 };
                 let label = match edge_label {
                     Some(label) => {
@@ -264,7 +273,6 @@ impl PyGraphView {
                     Some(kwargs),
                 )?;
             }
-
             Ok(vis_graph.to_object(py))
         })
     }
@@ -320,8 +328,13 @@ impl PyGraphView {
                 if include_update_history.unwrap_or(true) {
                     properties.set_item("update_history", v.history().to_object(py))?;
                 }
-                if v.node_type().is_some() {
-                    properties.set_item("node_type", v.node_type().unwrap())?;
+                match v.node_type() {
+                    None => {}
+                    Some(n_type) => {
+                        properties
+                            .set_item("node_type", n_type)
+                            .expect("Failed to add property");
+                    }
                 }
                 let node_tuple =
                     PyTuple::new(py, &[v.name().to_object(py), properties.to_object(py)]);
