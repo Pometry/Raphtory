@@ -7,7 +7,6 @@ use crate::{
 };
 use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
-use std::collections::HashMap;
 
 use crate::core::entities::properties::props::Meta;
 
@@ -23,6 +22,17 @@ mod prop_conversion;
 pub mod temporal_properties_ops;
 pub mod time_semantics;
 pub mod tprops;
+
+#[derive(Debug)]
+pub struct ParquetLayerCols<'a> {
+    pub parquet_dir: &'a str,
+    pub layer: &'a str,
+    pub src_col: &'a str,
+    pub src_hash_col: &'a str,
+    pub dst_col: &'a str,
+    pub dst_hash_col: &'a str,
+    pub time_col: &'a str,
+}
 
 #[derive(Clone)]
 pub struct ArrowGraph {
@@ -122,31 +132,34 @@ impl ArrowGraph {
 
     pub fn load_from_parquets(
         graph_dir: impl AsRef<Path>,
-        layernames_parquet_dirs: HashMap<&str, impl AsRef<Path>>,
-        src_col: &str,
-        src_hash_col: &str,
-        dst_col: &str,
-        dst_hash_col: &str,
-        time_col: &str,
+        layer_parquet_cols: Vec<ParquetLayerCols>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
     ) -> Result<ArrowGraph, Error> {
-        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layernames_parquet_dirs
+        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
-            .map(|(event_name, file)| {
+            .map(|ParquetLayerCols {
+                parquet_dir,
+                layer,
+                src_col,
+                src_hash_col,
+                dst_col,
+                dst_hash_col,
+                time_col,
+            }| {
                 ExternalEdgeList::new(
-                    *event_name,
-                    file.as_ref(),
-                    src_col,
-                    src_hash_col,
-                    dst_col,
-                    dst_hash_col,
-                    time_col,
+                    *layer,
+                    parquet_dir.as_ref(),
+                    *src_col,
+                    *src_hash_col,
+                    *dst_col,
+                    *dst_hash_col,
+                    *time_col,
                 )
-                    .expect("Failed to load events")
+                .expect("Failed to load events")
             })
             .collect::<Vec<_>>();
 
@@ -214,7 +227,10 @@ mod test {
 
     use super::ArrowGraph;
 
-    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, Time, f64)]) -> ArrowGraph {
+    fn make_simple_graph(
+        graph_dir: impl AsRef<Path>,
+        edges: &[(u64, u64, Time, f64)],
+    ) -> ArrowGraph {
         // unzip into 4 vectors
         let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
             .into_iter()

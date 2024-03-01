@@ -6,16 +6,35 @@ from utils import measure
 
 def test_arrow_graph():
     graph_dir = "target"
-    layernames_parquet_dirs = {
-        "netflow": "data/netflowsorted/nft_sorted",
-        "events_1v": "data/netflowsorted/v1_sorted",
-        "events_2v": "data/netflowsorted/v2_sorted",
-    }
-    src_col = "src"
-    src_hash_col = "src_hash"
-    dst_col = "dst"
-    dst_hash_col = "dst_hash"
-    time_col = "epoch_time"
+    layer_parquet_cols = [
+        {
+            "parquet_dir": "data/netflowsorted/nft_sorted",
+            "layer": "netflow",
+            "src_col": "src",
+            "src_hash_col": "src_hash",
+            "dst_col": "dst",
+            "dst_hash_col": "dst_hash",
+            "time_col": "epoch_time",
+        },
+        {
+            "parquet_dir": "data/netflowsorted/v1_sorted",
+            "layer": "events_1v",
+            "src_col": "src",
+            "src_hash_col": "src_hash",
+            "dst_col": "dst",
+            "dst_hash_col": "dst_hash",
+            "time_col": "epoch_time",
+        },
+        {
+            "parquet_dir": "data/netflowsorted/v2_sorted",
+            "layer": "events_2v",
+            "src_col": "src",
+            "src_hash_col": "src_hash",
+            "dst_col": "dst",
+            "dst_hash_col": "dst_hash",
+            "time_col": "epoch_time",
+        }
+    ]
 
     # # Read the Parquet file
     # table = pq.read_table(parquet_dir + '/part-00000-8b31eaa4-2bd9-4f07-b61c-a353aed2af22-c000.snappy.parquet')
@@ -30,12 +49,7 @@ def test_arrow_graph():
         print("Failed to load the graph from the directory. Attempting to load from parquet files ", e)
         g = ArrowGraph.load_from_parquets(
             graph_dir,
-            layernames_parquet_dirs,
-            src_col,
-            src_hash_col,
-            dst_col,
-            dst_hash_col,
-            time_col
+            layer_parquet_cols
         )
 
     print("Node count", g.count_nodes())

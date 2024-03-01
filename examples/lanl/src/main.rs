@@ -1,25 +1,66 @@
-use std::collections::HashMap;
+use std::num::NonZeroUsize;
+use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
 use raphtory_storage::lanl::*;
-use raphtory_storage::lanl::loader::{load_from_dir, load_from_parquet};
+use raphtory::prelude::GraphViewOps;
 
 fn main() {
-    let graph_dir = "/Users/shivamkapoor/Official/target";
-    let layernames_parquet_dirs: HashMap<&str, &str> = HashMap::from([
-        ("netflow", "/Users/shivamkapoor/Official/data/netflowsorted/nft_sorted"),
-        ("events_1v", "/Users/shivamkapoor/Official/data/netflowsorted/v1_sorted"),
-        ("events_2v", "/Users/shivamkapoor/Official/data/netflowsorted/v2_sorted")
-    ]);
+    let graph_dir: &str = "target";
+    let layer_parquet_cols: Vec<ParquetLayerCols> = vec![
+            ParquetLayerCols {
+                parquet_dir: "data/netflowsorted/nft_sorted",
+                layer: "netflow",
+                src_col: "src",
+                src_hash_col: "src_hash",
+                dst_col: "dst",
+                dst_hash_col: "dst_hash",
+                time_col: "epoch_time",
+            },
+            ParquetLayerCols {
+                parquet_dir: "data/netflowsorted/v1_sorted",
+                layer: "events_1v",
+                src_col: "src",
+                src_hash_col: "src_hash",
+                dst_col: "dst",
+                dst_hash_col: "dst_hash",
+                time_col: "epoch_time",
+            },
+            ParquetLayerCols {
+                parquet_dir: "data/netflowsorted/v2_sorted",
+                layer: "events_2v",
+                src_col: "src",
+                src_hash_col: "src_hash",
+                dst_col: "dst",
+                dst_hash_col: "dst_hash",
+                time_col: "epoch_time",
+            },
+        ];
 
-    let graph = match load_from_dir(graph_dir) {
+    let graph = match ArrowGraph::load_from_dir(graph_dir) {
         Ok(g) => g,
         Err(e) => {
             println!("Failed to load the graph from the directory. Attempting to load from parquet files: {}", e);
-            load_from_parquet(graph_dir, layernames_parquet_dirs).expect("Failed to load the graph from parquet files")
+
+            let num_threads =
+                    std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap()).into();
+                let chunk_size = 268_435_456;
+                let t_props_chunk_size = chunk_size / 8;
+                let read_chunk_size = Some(4_000_000);
+                let concurrent_files = Some(1);
+
+            ArrowGraph::load_from_parquets(
+                graph_dir, 
+                layer_parquet_cols,
+                chunk_size,
+                t_props_chunk_size,
+                read_chunk_size,
+                concurrent_files,
+                num_threads
+            ).expect("Failed to load the graph from parquet files")
         }
     };
 
-    println!("Node count {}", graph.num_nodes());
-    println!("Edge count {}", graph.num_edges(0));
+    println!("Node count {}", graph.count_nodes());
+    println!("Edge count {}", graph.count_edges());
     println!("Earliest time {}", graph.earliest());
     println!("Latest time {}", graph.latest());
 
