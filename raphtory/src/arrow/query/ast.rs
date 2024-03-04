@@ -5,12 +5,7 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
-use crate::{
-    arrow::{edge::Edge, nodes::Node},
-    core::{entities::VID, Direction},
-};
-
-use super::state::HopState;
+use crate:: core::{entities::VID, Direction};
 
 pub enum Sink<S> {
     Channel(Vec<Sender<(S, VID)>>),
@@ -19,6 +14,7 @@ pub enum Sink<S> {
     Print,
 }
 
+#[derive(Clone)]
 pub struct Hop {
     pub dir: Direction,
     pub limit: Option<usize>,
@@ -26,15 +22,16 @@ pub struct Hop {
     pub variable: bool,
 }
 
+#[derive(Clone)]
 pub struct Query<S> {
-    pub sink: Sink<S>,
+    pub sink: Arc<Sink<S>>,
     pub hops: Vec<Hop>,
 }
 
-impl<S: HopState> Query<S> {
+impl<S> Query<S> {
     pub fn new() -> Self {
         Self {
-            sink: Sink::Void,
+            sink: Arc::new(Sink::Void),
             hops: vec![],
         }
     }
@@ -71,6 +68,10 @@ impl<S: HopState> Query<S> {
         self.hop(Direction::OUT, layer, false, Some(limit))
     }
 
+    pub fn into_limit(self, layer: &str, limit: usize) -> Self {
+        self.hop(Direction::IN, layer, false, Some(limit))
+    }
+
     pub fn out_var(self, layer: &str) -> Self {
         self.hop(Direction::OUT, layer, true, None)
     }
@@ -79,26 +80,23 @@ impl<S: HopState> Query<S> {
         self.hop(Direction::IN, layer, false, None)
     }
 
-    pub fn into_limit(self, layer: &str, limit: usize) -> Self {
-        self.hop(Direction::IN, layer, false, Some(limit))
-    }
-
-    pub fn into_var(self, layer: &str) -> Self {
-        self.hop(Direction::IN, layer, true, None)
-    }
-
     pub fn with_sink(mut self, sink: Sink<S>) -> Self {
-        self.sink = sink;
+        self.sink = Arc::new(sink);
         self
     }
 
     pub fn channel(mut self, senders: impl IntoIterator<Item = Sender<(S, VID)>>) -> Self {
-        self.sink = Sink::Channel(senders.into_iter().collect());
+        self.sink = Arc::new(Sink::Channel(senders.into_iter().collect()));
         self
     }
 
     pub fn void(mut self) -> Self {
-        self.sink = Sink::Void;
+        self.sink = Arc::new(Sink::Void);
+        self
+    }
+
+    pub fn print(mut self) -> Self {
+        self.sink = Arc::new(Sink::Print);
         self
     }
 
@@ -107,7 +105,7 @@ impl<S: HopState> Query<S> {
         path: impl AsRef<Path>,
         writer: impl Fn(&mut BufWriter<File>, S) + Send + Sync + 'static,
     ) -> Self {
-        self.sink = Sink::Path(path.as_ref().to_path_buf(), Arc::new(writer));
+        self.sink = Arc::new(Sink::Path(path.as_ref().to_path_buf(), Arc::new(writer)));
         self
     }
 }

@@ -3,7 +3,7 @@ use arrow2::array::StructArray;
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
     core::entities::{properties::graph_meta::GraphMeta, LayerIds},
-    db::api::view::{DynamicGraph, IntoDynamic},
+    db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
@@ -46,6 +46,9 @@ impl Graph {
     pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
         ArrowGraph::from_graph(self, graph_dir)
     }
+}
+
+impl Immutable for ArrowGraph {
 }
 
 impl IntoDynamic for ArrowGraph {

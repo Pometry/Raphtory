@@ -188,7 +188,7 @@ fn hop_query(tg: &Graph2) {
         });
 
     let _ = rayon2::execute::<ForwardState>(
-        query,
+        &query,
         raphtory::arrow::query::NodeSource::NodeIds(nodes),
         tg,
         |node| {

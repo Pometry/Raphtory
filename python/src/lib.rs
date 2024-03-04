@@ -19,14 +19,13 @@ use raphtory_core::python::{
         algorithms::*,
         graph_gen::*,
         graph_loader::*,
-        vectors::{generate_property_list, PyVectorisedGraph},
+        vectors::{generate_property_list,PyVectorisedGraph},
     },
     types::wrappers::document::PyDocument,
 };
 use raphtory_storage::python::packages::algorithms::*;
 
-#[cfg(feature = "arrow")]
-use raphtory_core::python::graph::arrow::PyArrowGraph;
+use raphtory_core::python::graph::arrow::{PyArrowGraph, PyGraphQuery, PyState};
 
 macro_rules! add_functions {
     ($module:expr, $($func:ident),* $(,)?) => {
@@ -67,8 +66,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
-    #[cfg(feature = "arrow")]
-    add_classes!(m, PyArrowGraph,);
+    add_classes!(m, PyArrowGraph, PyGraphQuery, PyState);
 
     //GRAPHQL
     let graphql_module = PyModule::new(py, "graphql")?;

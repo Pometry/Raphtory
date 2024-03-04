@@ -25,7 +25,9 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
     ) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(vid) => self.find_node(&GID::U64(vid)),
+            NodeRef::External(vid) => self
+                .find_node(&GID::U64(vid))
+                .or_else(|| self.find_node(&GID::I64(vid as i64))),
             //FIXME: when the original GID was string this will fail
             NodeRef::ExternalStr(str) => self.find_node(&GID::Str(str.into())),
         }

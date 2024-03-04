@@ -1,22 +1,28 @@
 use std::sync::Arc;
 
-use crate::core::entities::VID;
+use itertools::Itertools;
+
+use crate::{
+    core::entities::{nodes::node_ref::NodeRef, LayerIds, VID},
+    db::api::view::StaticGraphViewOps,
+    prelude::NodeViewOps,
+};
 
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::{
-    edge::Edge, graph_fragment::TempColGraphFragment, graph_impl::Graph2, nodes::Node, GID,
-};
+use super::{edge::Edge, graph_impl::Graph2, nodes::Node, GID};
 
 pub mod ast;
 pub mod executors;
 pub mod state;
 
+#[derive(Clone)]
 pub enum NodeSource {
     All,
     NodeIds(Vec<VID>),
     ExternalIds(Vec<GID>),
+    NodeRefs(Vec<NodeRef>),
     Filter(Arc<dyn Fn(VID, &Graph2) -> bool + Send + Sync>),
 }
 
@@ -33,6 +39,47 @@ impl NodeSource {
                     .into_iter()
                     .filter_map(move |gid| graph.find_node(&gid)),
             ),
+            NodeSource::NodeRefs(_) => todo!(),
+        }
+    }
+
+    fn into_iter_static_g<G: StaticGraphViewOps>(self, graph: G) -> Box<dyn Iterator<Item = VID>> {
+        match self {
+            NodeSource::All => Box::new(graph.node_refs(LayerIds::All, None)),
+            NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
+            NodeSource::NodeRefs(ext_ids) => Box::new(
+                ext_ids
+                    .into_iter()
+                    .filter_map(move |gid| graph.node(gid))
+                    .inspect(|node| println!("node: {:?}", node))
+                    .map(|node| node.node),
+            ),
+            NodeSource::ExternalIds(ids) => {
+                let all_ids = graph
+                    .nodes()
+                    .into_iter()
+                    .map(|node| node.node)
+                    .map(|id| (id, graph.node_id(id)))
+                    .collect_vec();
+                println!("all_ids: {:?}", all_ids);
+
+                let ids = ids
+                    .into_iter()
+                    .filter_map(move |gid| {
+                        let wtf = gid
+                            .as_i64()
+                            .and_then(|gid| graph.node(NodeRef::External(gid as u64)))
+                            .or_else(|| gid.as_u64().and_then(|gid| graph.node(NodeRef::External(gid))));
+                        println!("wtf: {:?}", wtf);
+                        wtf
+                    })
+                    .map(|node| node.node)
+                    .collect::<Vec<_>>();
+
+                println!("ids: {:?}", ids);
+                Box::new(ids.into_iter())
+            }
+            NodeSource::Filter(_) => todo!(),
         }
     }
 }
@@ -75,6 +122,8 @@ impl HopState for ForwardState {
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
+
+    use crate::arrow::graph_fragment::TempColGraphFragment;
 
     use super::{ast::*, executors::*, state::*, *};
 

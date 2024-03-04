@@ -1,22 +1,27 @@
 use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
 
 use itertools::Itertools;
-use rayon::{current_thread_index, ThreadPoolBuilder};
+use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
 
 use crate::{
     arrow::{
-        graph_fragment::TempColGraphFragment,
         graph_impl::Graph2,
         nodes::Node,
         query::{
             ast::{Hop, Query, Sink},
-            state::HopState,
+            state::{HopState, StaticGraphHopState},
             NodeSource,
         },
         Error,
     },
-    core::{entities::VID, Direction},
-    db::api::view::internal::CoreGraphOps,
+    core::{
+        entities::{LayerIds, VID},
+        Direction,
+    },
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{edge::EdgeView, node::NodeView},
+    }, prelude::{EdgeViewOps, GraphViewOps},
 };
 
 pub fn execute<S: HopState + 'static>(
@@ -31,7 +36,7 @@ pub fn execute<S: HopState + 'static>(
 
     let chunk_size = 10;
 
-    if let Sink::Path(dir, _) = &query.sink {
+    if let Sink::Path(dir, _) = query.sink.as_ref() {
         std::fs::create_dir_all(dir)?;
     }
 
@@ -47,13 +52,49 @@ pub fn execute<S: HopState + 'static>(
                 for node in node_chunk {
                     let node = graph.layer(layer).node(node);
                     let state = (make_state)(node);
-                    hop_node(node, &query, 0, state, graph, s, tl);
+                    hop_arrow_graph(node, &query, 0, state, graph, s, tl);
                 }
             })
         }
     });
 
     Ok(())
+}
+
+pub fn execute_static_graph<G: StaticGraphViewOps, S: StaticGraphHopState + 'static>(
+    query: Query<S>,
+    source: NodeSource,
+    graph: G,
+    start_state: S,
+) -> Result<(), Error> {
+    let tp = ThreadPoolBuilder::new()
+        .build()
+        .expect("failed to make a thread pool what's the point!");
+
+    if let Sink::Path(dir, _) = query.sink.as_ref() {
+        std::fs::create_dir_all(dir)?;
+    }
+
+    let tl = Arc::new(thread_local::ThreadLocal::new());
+    tp.scope(|s| {
+        let tl = &tl;
+        let start_state = &start_state;
+        let graph = &graph;
+        let query = &query;
+        for node in source.into_iter_static_g(graph.clone()) {
+            s.spawn(move |s| {
+                let node = node_view(s, graph, node);
+                let state = start_state.start(&node);
+                hop_static_graph_view(node, query, 0, state, graph, s, tl);
+            })
+        }
+    });
+
+    Ok(())
+}
+
+fn node_view<'a, 'b, G: StaticGraphViewOps>(_s: &'b Scope<'a>, graph: &'a G, node: VID) -> NodeView<&'a G> {
+    NodeView::new_internal(graph, node)
 }
 
 fn lookup_layer(layer: &str, graph: &Graph2) -> usize {
@@ -75,17 +116,7 @@ fn get_writer<'a, S>(
     out
 }
 
-fn node_range(shard_id: usize, segment_size: usize, num_nodes: usize) -> std::ops::Range<usize> {
-    let start = shard_id * segment_size;
-    let end = ((shard_id + 1) * segment_size).min(num_nodes);
-    start..end
-}
-
-fn shard_id(vid: VID, segment_size: usize) -> usize {
-    vid.0 / segment_size
-}
-
-fn hop_node<'a, S: HopState + 'a>(
+fn hop_arrow_graph<'a, S: HopState + 'a>(
     node: Node,
     query: &'a Query<S>,
     step: usize,
@@ -122,7 +153,7 @@ fn hop_node<'a, S: HopState + 'a>(
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
-                        hop_node(node, query, step + 1, state, graph, s, tl);
+                        hop_arrow_graph(node, query, step + 1, state, graph, s, tl);
                     });
             }),
             Direction::IN => s.spawn(move |s| {
@@ -138,7 +169,7 @@ fn hop_node<'a, S: HopState + 'a>(
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
-                        hop_node(node, query, step + 1, state, graph, s, tl);
+                        hop_arrow_graph(node, query, step + 1, state, graph, s, tl);
                     });
             }),
             Direction::BOTH => {
@@ -150,7 +181,76 @@ fn hop_node<'a, S: HopState + 'a>(
     }
 }
 
-fn do_sink<'a, 'b: 'a, 'c, S: HopState>(
+fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
+    node: NodeView<&'a G>,
+    query: &'a Query<S>,
+    step: usize,
+    state: S,
+    graph: &'a G,
+    s: &rayon::Scope<'a>,
+    tl: &'a Arc<thread_local::ThreadLocal<RefCell<BufWriter<File>>>>,
+) {
+    let vid = node.node;
+    let Query { sink, .. } = query;
+    if let Some(Hop {
+        dir,
+        variable,
+        layer,
+        limit,
+    }) = query.get_hop(step)
+    {
+        if *variable {
+            do_sink(sink, s, state.clone(), vid, tl);
+        }
+        let limit = limit.unwrap_or(usize::MAX);
+        let layer_id = graph.get_layer_id(&layer).expect("No layer");
+        match dir {
+            Direction::OUT => s.spawn(move |s| {
+                graph
+                    .node_edges(vid, Direction::OUT, LayerIds::One(layer_id), None)
+                    .map(|edge_ref| {
+                        let edge_view = EdgeView::new(graph, edge_ref);
+                        let node = edge_view.dst();
+                        (edge_view, node)
+                    })
+                    .filter_map(|(edge, node)| {
+                        state
+                            .hop_with_state(&node, &edge)
+                            .map(|new_state| (edge, node, new_state))
+                    })
+                    .take(limit)
+                    .for_each(|(_, node, state)| {
+                        hop_static_graph_view::<G, S>(node, query, step + 1, state, graph, s, tl);
+                    });
+            }),
+            Direction::IN => s.spawn(move |s| {
+                graph
+                    .node_edges(vid, Direction::IN, LayerIds::One(layer_id), None)
+                    .map(|edge_ref| {
+                        let edge_view = EdgeView::new(graph, edge_ref);
+                        let node = edge_view.src();
+                        (edge_view, node)
+                    })
+                    .filter_map(|(edge, node)| {
+                        state
+                            .hop_with_state(&node, &edge)
+                            .map(|new_state| (edge, node, new_state))
+                    })
+                    .take(limit)
+                    .for_each(|(_, node, state)| {
+                        hop_static_graph_view::<G, S>(node, query, step + 1, state, graph, s, tl);
+                    });
+            }),
+            Direction::BOTH => {
+                todo!()
+            }
+        }
+    } else {
+        do_sink(sink, s, state, vid, tl);
+    }
+}
+
+fn do_sink<'a, 'b: 'a, 'c, S: Clone + std::fmt::Debug + Send + Sync>(
     sink: &'b Sink<S>,
     s: &'c rayon::Scope<'a>,
     state: S,

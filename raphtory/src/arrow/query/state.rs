@@ -2,10 +2,15 @@ use std::option::Option;
 
 use crate::{
     arrow::{edge::Edge, nodes::Node},
-    core::entities::VID,
+    core::entities::VID, db::graph::{edge::EdgeView, node::NodeView}, prelude::GraphViewOps,
 };
 pub trait HopState: Send + Sync + Clone + std::fmt::Debug {
     fn hop_with_state(&self, node: Node, edge: Edge) -> Option<Self>;
+}
+
+pub trait StaticGraphHopState: Send + Sync + Clone + std::fmt::Debug {
+    fn start<'a, G:GraphViewOps<'a>>(&self, node: &NodeView<&'a G>) -> Self;
+    fn hop_with_state<'a, G:GraphViewOps<'a>>(&self, node: &NodeView<&'a G>, edge: &EdgeView<&'a G>) -> Option<Self>;
 }
 
 #[derive(Clone, PartialEq, Debug, PartialOrd)]

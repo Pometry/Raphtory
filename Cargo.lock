@@ -3401,6 +3401,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0e15515d3ce3313324d842629ea4905c25a13f81953eadb88f85516f59290a4"
 dependencies = [
  "archery",
+ "serde",
 ]
 
 [[package]]
