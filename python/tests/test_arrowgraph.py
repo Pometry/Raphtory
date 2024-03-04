@@ -69,10 +69,10 @@ def test_arrow_graph():
             num_threads,
         )
 
-    print("Node count", g.count_nodes())
-    print("Edge count", g.count_edges())
-    print("Earliest time", g.earliest_time)
-    print("Latest time", g.latest_time)
+    assert(g.count_nodes() == 2)
+    assert(g.count_edges() == 1)
+    assert(g.earliest_time == 7257605)
+    assert(g.latest_time == 7281409)
 
     assert(measure("Query 1", lanl_query1, g) == 0)
     assert(measure("Query 2", lanl_query2, g) == 0)
