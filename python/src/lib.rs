@@ -165,7 +165,8 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         lanl_query3,
         lanl_query3b,
         lanl_query3c,
-        lanl_query4
+        lanl_query4,
+        exfilteration_query1
     );
     m.add_submodule(lanl_module)?;
 

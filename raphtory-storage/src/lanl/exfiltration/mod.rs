@@ -3,6 +3,7 @@ use rayon::iter::ParallelIterator;
 
 pub mod count;
 pub mod list;
+pub mod query1;
 
 #[inline]
 fn find_active_nodes(layer: &TempColGraphFragment) -> Vec<VID> {

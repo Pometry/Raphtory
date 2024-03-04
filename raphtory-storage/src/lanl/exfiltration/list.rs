@@ -1,4 +1,4 @@
-use crate::exfiltration::find_active_nodes;
+use crate::lanl::exfiltration::find_active_nodes;
 use itertools::{kmerge_by, Itertools};
 use raphtory::{
     arrow::{
@@ -395,7 +395,7 @@ pub fn query<GO: GlobalOrder>(
 
 #[cfg(test)]
 mod test {
-    use crate::exfiltration::list::query;
+    use crate::lanl::exfiltration::list::query;
     use arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{DataType, Field},

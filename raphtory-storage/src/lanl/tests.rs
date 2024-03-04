@@ -82,5 +82,6 @@ mod tests {
         measure("Weakly CC", || weakly_connected_components(&graph, 20, None), false);
         measure("Page Rank", || unweighted_page_rank(&graph, 100, None, None, true), false);
 
+        measure("Exfilteration Query 1", || exfiltration::query1::run(&graph), true);
     }
 }

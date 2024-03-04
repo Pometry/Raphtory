@@ -33,3 +33,8 @@ pub fn lanl_query3c(graph: PyArrowGraph) -> Option<usize> {
 pub fn lanl_query4(graph: PyArrowGraph) -> Option<usize> {
     lanl::query4::run2(&ArrowGraph::from(graph))
 }
+
+#[pyfunction]
+pub fn exfilteration_query1(graph: PyArrowGraph) -> Option<usize> {
+    lanl::exfiltration::query1::run(&ArrowGraph::from(graph))
+}

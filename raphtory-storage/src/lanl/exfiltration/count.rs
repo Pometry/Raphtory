@@ -1,4 +1,4 @@
-use crate::exfiltration::find_active_nodes;
+use crate::lanl::exfiltration::find_active_nodes;
 use itertools::kmerge_by;
 use raphtory::{
     arrow::{
