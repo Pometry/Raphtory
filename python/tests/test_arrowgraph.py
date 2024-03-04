@@ -2,13 +2,18 @@ from raphtory import ArrowGraph
 from raphtory.lanl import lanl_query1, lanl_query2, lanl_query3, lanl_query3b, lanl_query3c, lanl_query4, exfilteration_query1, exfilteration_count_query_total, exfiltration_list_query_count
 from raphtory import algorithms
 from utils import measure
+import os
 
 
 def test_arrow_graph():
-    graph_dir = "target"
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    rsc_dir = os.path.join(curr_dir, '..', '..', 'resource')
+    rsc_dir = os.path.normpath(rsc_dir)
+    
+    graph_dir = rsc_dir + "/target"
     layer_parquet_cols = [
         {
-            "parquet_dir": "data/netflowsorted/nft_sorted",
+            "parquet_dir": rsc_dir + "/netflowsorted/nft_sorted",
             "layer": "netflow",
             "src_col": "src",
             "src_hash_col": "src_hash",
@@ -17,7 +22,7 @@ def test_arrow_graph():
             "time_col": "epoch_time",
         },
         {
-            "parquet_dir": "data/netflowsorted/v1_sorted",
+            "parquet_dir": rsc_dir + "/netflowsorted/v1_sorted",
             "layer": "events_1v",
             "src_col": "src",
             "src_hash_col": "src_hash",
@@ -26,7 +31,7 @@ def test_arrow_graph():
             "time_col": "epoch_time",
         },
         {
-            "parquet_dir": "data/netflowsorted/v2_sorted",
+            "parquet_dir": rsc_dir + "/netflowsorted/v2_sorted",
             "layer": "events_2v",
             "src_col": "src",
             "src_hash_col": "src_hash",
@@ -69,18 +74,27 @@ def test_arrow_graph():
     print("Earliest time", g.earliest_time)
     print("Latest time", g.latest_time)
 
-    measure("Query 1", lanl_query1, g)
-    measure("Query 2", lanl_query2, g)
-    measure("Query 3", lanl_query3, g)
-    measure("Query 3b", lanl_query3b, g)
-    # measure("Query 3c", lanl_query3c, g)
-    measure("Query 4", lanl_query4, g)
+    assert(measure("Query 1", lanl_query1, g) == 0)
+    assert(measure("Query 2", lanl_query2, g) == 0)
+    assert(measure("Query 3", lanl_query3, g) == 0)
+    assert(measure("Query 3b", lanl_query3b, g) == 0)
+    # assert(measure("Query 3c", lanl_query3c, g) == 0)
+    assert(measure("Query 4", lanl_query4, g) == 0)
 
-    measure("CC", algorithms.connected_components, g, print_result = False)
-    measure("Weakly CC  Layer", algorithms.weakly_connected_components, g.layer("netflow"), 20, print_result = False)
-    measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result = False)
-    measure("Page Rank", algorithms.pagerank, g, 100, print_result = False)
+    assert(measure("CC", algorithms.connected_components, g) == [0, 1])
     
-    measure("Exfilteration Query 1", exfilteration_query1, g, print_result = False)
-    measure("Exfilteration Count Query Total", exfilteration_count_query_total, g, 30, print_result = False)
-    measure("Exfilteration List Query Count", exfiltration_list_query_count, g, 30, print_result = False)
+    actual = measure("Weakly CC  Layer", algorithms.weakly_connected_components, g.layer("netflow"), 20)
+    expected = {'Comp156925': 11548323944331110206, 'Comp523733': 11548323944331110206}
+    assert actual.get_all_with_names() == expected
+    
+    actual = measure("Weakly CC", algorithms.weakly_connected_components, g, 20)
+    expected = {'Comp156925': 14843814336300980724, 'Comp523733': 11548323944331110206}
+    assert actual.get_all_with_names() == expected
+    
+    actual = measure("Page Rank", algorithms.pagerank, g, 100)
+    expected = {'Comp156925': 0.8695642321898587, 'Comp523733': 0.13043576781014135}
+    assert actual.get_all_with_names() == expected
+    
+    assert(measure("Exfilteration Query 1", exfilteration_query1, g) == 0)
+    assert(measure("Exfilteration Count Query Total", exfilteration_count_query_total, g, 30) == 0)
+    assert(measure("Exfilteration List Query Count", exfiltration_list_query_count, g, 30) == 0)
