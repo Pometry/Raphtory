@@ -1,0 +1,16 @@
+[package]
+name = "disk-test"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+keywords.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+
+[dependencies]
+disk-faiss = { path = "../disk-faiss" }
+faiss = { path = "../faiss-rs" }

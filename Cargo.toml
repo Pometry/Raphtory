@@ -1,13 +1,18 @@
 [workspace]
 members = [
-	"raphtory",
-	"raphtory-benchmark",
-	"examples/rust",
-	"examples/netflow",
-	"python",
-	"js-raphtory",
-	"raphtory-graphql",
-	"comparison-benchmark/rust/raphtory-rust-benchmark"
+    "raphtory",
+    "raphtory-benchmark",
+    "examples/rust",
+    "examples/netflow",
+    "python",
+    "js-raphtory",
+    "raphtory-graphql",
+    "comparison-benchmark/rust/raphtory-rust-benchmark",
+    "faiss-rs",
+    "faiss-rs/faiss-sys",
+    "pometry-faiss",
+    "disk-faiss",
+    "disk-test",
 ]
 default-members = ["raphtory"]
 

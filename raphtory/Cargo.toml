@@ -62,7 +62,9 @@ tantivy = { version = "0.21.1", optional = true }
 futures-util = { version = "0.3.0", optional = true }
 async-trait = { version = "0.1.73", optional = true }
 async-openai = { version = "0.17.1", optional = true }
-faiss = { version = "0.12.1", optional = true }
+# faiss = { version = "0.12.1", optional = true, features = ["static"] }
+# faiss = { path = "../faiss-rs", optional = true, features = ["static"] }
+faiss = { path = "../faiss-rs", optional = true }
 
 # python binding optional dependencies
 pyo3 = { version = "0.20.0", features = [

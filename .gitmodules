@@ -1,0 +1,3 @@
+[submodule "faiss-rs"]
+	path = faiss-rs
+	url = git@github.com:Enet4/faiss-rs.git
