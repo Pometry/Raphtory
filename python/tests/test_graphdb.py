@@ -565,6 +565,17 @@ def test_node_properties():
         "prop 4": True,
         "static prop": 123,
     }
+    
+    # find all nodes that match properties
+    [n] = g.find_nodes({
+        "prop 3": "hello",
+        "prop 1": 2,
+    })
+    assert n == g.node(1)
+
+    empty_list = g.find_nodes({"prop 1": 2, "prop 3": "hi"})
+    assert len(empty_list) == 0
+    
     assert g.nodes.properties == {
         "prop 2": [0.9],
         "prop 3": ["hello"],

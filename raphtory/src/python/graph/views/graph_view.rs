@@ -25,7 +25,7 @@ use crate::{
     },
     prelude::*,
     python::{
-        graph::edge::PyEdge,
+        graph::{edge::PyEdge, node::PyNode},
         types::repr::{Repr, StructReprBuilder},
         utils::PyTime,
     },
@@ -205,6 +205,31 @@ impl PyGraphView {
     ///   the node with the specified id, or None if the node does not exist
     pub fn node(&self, id: NodeRef) -> Option<NodeView<DynamicGraph>> {
         self.graph.node(id)
+    }
+
+    /// Get the edges that match the properties name and value
+    /// Arguments:
+    ///     property_dict (dict): the properties name and value
+    /// Returns:
+    ///    the edges that match the properties name and value
+    #[pyo3(signature = (properties_dict))]
+    pub fn find_nodes(&self, properties_dict: HashMap<String, Prop>) -> Vec<PyNode> {
+        let iter = self.nodes().into_iter().par_bridge();
+        let out = iter
+            .filter(|n| {
+                let props = n.properties();
+                properties_dict.iter().all(|(k, v)| {
+                    if let Some(prop) = props.get(k) {
+                        &prop == v
+                    } else {
+                        false
+                    }
+                })
+            })
+            .map(|n| PyNode::from(n))
+            .collect::<Vec<_>>();
+
+        out
     }
 
     /// Gets the nodes in the graph
