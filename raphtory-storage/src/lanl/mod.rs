@@ -18,7 +18,7 @@ fn thread_pool(n_threads: usize) -> rayon::ThreadPool {
         .unwrap()
 }
 
-fn measure<T, F>(name: &str, f: F, print_result: bool) -> T
+pub fn measure<T, F>(name: &str, f: F, print_result: bool) -> T
 where
     F: FnOnce() -> T,
     T: Debug,

@@ -68,10 +68,10 @@ fn main() {
     println!("Earliest time {}", graph.earliest());
     println!("Latest time {}", graph.latest());
 
-    measure("Query 1", || query1::run(&graph).unwrap());
-    measure("Query 2", || query2::run(&graph).unwrap());
-    measure("Query 3", || query3::run(&graph).unwrap());
-    measure("Query 3b", || query3b::run(&graph).unwrap());
-    // # measure("Query 3c", || query3c::run(&graph).unwrap());
-    measure("Query 4", || query4::run2(&graph).unwrap());
+    measure("Query 1", || query1::run(&graph).unwrap(), false);
+    measure("Query 2", || query2::run(&graph).unwrap(), false);
+    measure("Query 3", || query3::run(&graph).unwrap(), false);
+    measure("Query 3b", || query3b::run(&graph).unwrap(), false);
+    // # measure("Query 3c", || query3c::run(&graph).unwrap(), false);
+    measure("Query 4", || query4::run2(&graph).unwrap(), false);
 }
