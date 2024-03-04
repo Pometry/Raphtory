@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-use crate::arrow::algorithms::connected_components::connected_components as connected_components_rs;
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
@@ -46,10 +45,14 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-    }, arrow, core::{entities::nodes::node_ref::NodeRef, Prop}, db::{api::view::internal::DynamicGraph, graph::node::NodeView}, python::{
+    },
+    arrow::algorithms::connected_components::connected_components as connected_components_rs,
+    core::{entities::nodes::node_ref::NodeRef, Prop},
+    db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    python::{
         graph::{arrow::PyArrowGraph, edge::PyDirection, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
-    }
+    },
 };
 use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
@@ -114,9 +117,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
 
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn connected_components(
-    g: &PyArrowGraph,
-) -> Vec<usize> {
+pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
     connected_components_rs(&g.graph.layer(0))
 }
 

@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::time::Instant;
+use std::{fmt::Debug, time::Instant};
 
 pub mod exfiltration;
 pub mod query1;
@@ -31,10 +30,16 @@ where
     if print_result {
         let elapsed_ms = elapsed_time.as_millis();
         if elapsed_ms < 1000 {
-            println!("Running {}: time: {}ms, result: {:?}", name, elapsed_ms, result);
+            println!(
+                "Running {}: time: {}ms, result: {:?}",
+                name, elapsed_ms, result
+            );
         } else {
             let elapsed_sec = elapsed_time.as_secs_f64();
-            println!("Running {}: time: {:.3}s, result: {:?}", name, elapsed_sec, result);
+            println!(
+                "Running {}: time: {:.3}s, result: {:?}",
+                name, elapsed_sec, result
+            );
         }
     } else {
         let elapsed_ms = elapsed_time.as_millis();

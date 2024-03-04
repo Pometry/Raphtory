@@ -393,6 +393,10 @@ pub fn query<GO: GlobalOrder>(
         .flat_map_iter(|(_, iter)| iter)
 }
 
+pub fn query_count<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> usize {
+    query(g, window).count()
+}
+
 #[cfg(test)]
 mod test {
     use crate::lanl::exfiltration::list::query;

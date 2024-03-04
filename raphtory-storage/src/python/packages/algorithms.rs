@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
-use raphtory::arrow::graph_impl::ArrowGraph;
-use raphtory::python::graph::arrow::PyArrowGraph;
+use raphtory::{arrow::graph_impl::ArrowGraph, python::graph::arrow::PyArrowGraph};
 
 use crate::lanl;
 
@@ -37,4 +36,14 @@ pub fn lanl_query4(graph: PyArrowGraph) -> Option<usize> {
 #[pyfunction]
 pub fn exfilteration_query1(graph: PyArrowGraph) -> Option<usize> {
     lanl::exfiltration::query1::run(&ArrowGraph::from(graph))
+}
+
+#[pyfunction]
+pub fn exfilteration_count_query_total(graph: PyArrowGraph, window: i64) -> usize {
+    lanl::exfiltration::count::query_total(&ArrowGraph::from(graph), window)
+}
+
+#[pyfunction]
+pub fn exfiltration_list_query_count(graph: PyArrowGraph, window: i64) -> usize {
+    lanl::exfiltration::list::query_count(&ArrowGraph::from(graph), window)
 }

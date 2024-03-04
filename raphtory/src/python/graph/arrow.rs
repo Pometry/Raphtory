@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::num::NonZeroUsize;
 
 use arrow2::{
@@ -7,7 +6,10 @@ use arrow2::{
 };
 use itertools::Itertools;
 /// A columnar temporal graph.
-use pyo3::{exceptions::{PyTypeError, PyValueError}, prelude::*, types::{IntoPyDict, PyDict, PyList, PyString}};
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyDict, PyList, PyString},
+};
 
 use crate::{
     arrow::graph_impl::{ArrowGraph, ParquetLayerCols},
@@ -48,8 +50,8 @@ impl IntoPy<PyObject> for ArrowGraph {
             py,
             (PyArrowGraph::from(self.clone()), PyGraphView::from(self)),
         )
-            .unwrap()
-            .into_py(py)
+        .unwrap()
+        .into_py(py)
     }
 }
 
@@ -64,13 +66,43 @@ impl<'a> FromPyObject<'a> for ParquetLayerCols<'a> {
     fn extract(obj: &'a PyAny) -> PyResult<Self> {
         let dict = obj.downcast::<PyDict>()?;
         Ok(ParquetLayerCols {
-            parquet_dir: dict.get_item("parquet_dir").and_then(|item| item.expect("parquet_dir is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
-            layer: dict.get_item("layer").and_then(|item| item.expect("layer is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
-            src_col: dict.get_item("src_col").and_then(|item| item.expect("src_col is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
-            src_hash_col: dict.get_item("src_hash_col").and_then(|item| item.expect("src_hash_col is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
-            dst_col: dict.get_item("dst_col").and_then(|item| item.expect("dst_col is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
-            dst_hash_col: dict.get_item("dst_hash_col").and_then(|item| item.expect("dst_hash_col is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
-            time_col: dict.get_item("time_col").and_then(|item| item.expect("time_col is required").extract::<&PyString>()).and_then(|s| s.to_str())?,
+            parquet_dir: dict
+                .get_item("parquet_dir")
+                .and_then(|item| {
+                    item.expect("parquet_dir is required")
+                        .extract::<&PyString>()
+                })
+                .and_then(|s| s.to_str())?,
+            layer: dict
+                .get_item("layer")
+                .and_then(|item| item.expect("layer is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+            src_col: dict
+                .get_item("src_col")
+                .and_then(|item| item.expect("src_col is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+            src_hash_col: dict
+                .get_item("src_hash_col")
+                .and_then(|item| {
+                    item.expect("src_hash_col is required")
+                        .extract::<&PyString>()
+                })
+                .and_then(|s| s.to_str())?,
+            dst_col: dict
+                .get_item("dst_col")
+                .and_then(|item| item.expect("dst_col is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+            dst_hash_col: dict
+                .get_item("dst_hash_col")
+                .and_then(|item| {
+                    item.expect("dst_hash_col is required")
+                        .extract::<&PyString>()
+                })
+                .and_then(|s| s.to_str())?,
+            time_col: dict
+                .get_item("time_col")
+                .and_then(|item| item.expect("time_col is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
         })
     }
 }
@@ -124,13 +156,18 @@ impl PyArrowGraph {
             Ok::<_, PyErr>(graph)
         });
 
-        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from pandas data frames")))
+        graph.map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Failed to load graph {e:?} from pandas data frames"
+            ))
+        })
     }
 
     #[staticmethod]
     fn load_from_dir(graph_dir: &str) -> Result<ArrowGraph, GraphError> {
-        ArrowGraph::load_from_dir(graph_dir)
-            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}")))
+        ArrowGraph::load_from_dir(graph_dir).map_err(|err| {
+            GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}"))
+        })
     }
 
     #[staticmethod]
@@ -146,9 +183,9 @@ impl PyArrowGraph {
     ) -> Result<ArrowGraph, GraphError> {
         let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py: Python<'_>| {
             let graph = Self::from_parquets(
-                graph_dir, 
+                graph_dir,
                 layer_parquet_cols.0,
-                chunk_size, 
+                chunk_size,
                 t_props_chunk_size,
                 read_chunk_size,
                 concurrent_files,
@@ -156,7 +193,9 @@ impl PyArrowGraph {
             )?;
             Ok::<_, PyErr>(graph)
         });
-        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files")))
+        graph.map_err(|e| {
+            GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
+        })
     }
 }
 
@@ -213,7 +252,7 @@ impl PyArrowGraph {
             dst_col_idx,
             time_col_idx,
         )
-            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+        .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }
 
     fn from_parquets(
@@ -234,6 +273,6 @@ impl PyArrowGraph {
             concurrent_files,
             num_threads,
         )
-            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+        .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }
 }

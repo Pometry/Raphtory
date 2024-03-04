@@ -141,26 +141,28 @@ impl ArrowGraph {
     ) -> Result<ArrowGraph, Error> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
-            .map(|ParquetLayerCols {
-                parquet_dir,
-                layer,
-                src_col,
-                src_hash_col,
-                dst_col,
-                dst_hash_col,
-                time_col,
-            }| {
-                ExternalEdgeList::new(
-                    *layer,
-                    parquet_dir.as_ref(),
-                    *src_col,
-                    *src_hash_col,
-                    *dst_col,
-                    *dst_hash_col,
-                    *time_col,
-                )
-                .expect("Failed to load events")
-            })
+            .map(
+                |ParquetLayerCols {
+                     parquet_dir,
+                     layer,
+                     src_col,
+                     src_hash_col,
+                     dst_col,
+                     dst_hash_col,
+                     time_col,
+                 }| {
+                    ExternalEdgeList::new(
+                        *layer,
+                        parquet_dir.as_ref(),
+                        *src_col,
+                        *src_hash_col,
+                        *dst_col,
+                        *dst_hash_col,
+                        *time_col,
+                    )
+                    .expect("Failed to load events")
+                },
+            )
             .collect::<Vec<_>>();
 
         let t_graph = TemporalGraph::from_edge_lists(

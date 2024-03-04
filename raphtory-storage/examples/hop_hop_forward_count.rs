@@ -1,6 +1,6 @@
 use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
 
-use raphtory_storage::exfiltration::count::query_total;
+use raphtory_storage::lanl::exfiltration::count::query_total;
 use std::time::Instant;
 
 fn main() {

@@ -1,5 +1,5 @@
 from raphtory import ArrowGraph
-from raphtory.lanl import lanl_query1, lanl_query2, lanl_query3, lanl_query3b, lanl_query3c, lanl_query4, exfilteration_query1
+from raphtory.lanl import lanl_query1, lanl_query2, lanl_query3, lanl_query3b, lanl_query3c, lanl_query4, exfilteration_query1, exfilteration_count_query_total, exfiltration_list_query_count
 from raphtory import algorithms
 from utils import measure
 
@@ -82,3 +82,5 @@ def test_arrow_graph():
     measure("Page Rank", algorithms.pagerank, g, 100, print_result = False)
     
     measure("Exfilteration Query 1", exfilteration_query1, g, print_result = False)
+    measure("Exfilteration Count Query Total", exfilteration_count_query_total, g, 30, print_result = False)
+    measure("Exfilteration List Query Count", exfiltration_list_query_count, g, 30, print_result = False)

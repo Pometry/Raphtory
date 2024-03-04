@@ -23,11 +23,7 @@ use raphtory_core::python::{
     },
     types::wrappers::document::PyDocument,
 };
-use raphtory_storage::python::{
-    packages::{
-        algorithms::*,
-    }
-};
+use raphtory_storage::python::packages::algorithms::*;
 
 #[cfg(feature = "arrow")]
 use raphtory_core::python::graph::arrow::PyArrowGraph;
@@ -166,7 +162,9 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         lanl_query3b,
         lanl_query3c,
         lanl_query4,
-        exfilteration_query1
+        exfilteration_query1,
+        exfilteration_count_query_total,
+        exfiltration_list_query_count
     );
     m.add_submodule(lanl_module)?;
 
