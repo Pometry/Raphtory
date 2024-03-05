@@ -66,6 +66,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         GraphIndex
     );
 
+    #[cfg(feature = "arrow")]
     add_classes!(m, PyArrowGraph, PyGraphQuery, PyState);
 
     //GRAPHQL

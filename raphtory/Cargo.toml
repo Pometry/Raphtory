@@ -91,7 +91,7 @@ default = ["arrow"]
 # Enables the graph loader io module
 io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
-python = ["io", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam"]
+python = ["io", "arrow", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam", "dep:rpds"]
 # search
 search = ["dep:tantivy"]
 # vectors
