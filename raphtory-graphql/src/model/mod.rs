@@ -14,9 +14,9 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, ArcStr, Prop},
+    core::{utils::errors::GraphError, ArcStr, Prop, OptionAsStr},
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
+    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps, EdgeViewOps},
     search::IndexedGraph,
 };
 use serde_json::Value;
@@ -303,6 +303,16 @@ impl Mut {
             node.update_constant_properties(values)?;
         }
 
+        let edges = subgraph.edges();
+        for sub_g_edge in edges {
+            let binding = sub_g_edge.layer_name();
+            let layer_name = binding.as_str();
+            let edge_props_const = sub_g_edge.properties().constant();
+            let edge_props_temp = sub_g_edge.properties().temporal();
+            let e = new_subgraph.edge(sub_g_edge.src().name(), sub_g_edge.dst().name()).unwrap();
+            e.update_constant_properties(edge_props_const, layer_name);
+        }
+        
         new_subgraph.save_to_file(path)?;
 
         let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
