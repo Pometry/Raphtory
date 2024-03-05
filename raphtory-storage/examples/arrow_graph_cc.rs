@@ -179,16 +179,13 @@ fn hop_query(tg: &Graph2) {
         .out_limit("default", 100)
         .out_limit("default", 100)
         .out_limit("default", 100)
-        .path("hop", |writer, state: ForwardState| {
-            write!(writer, "[").unwrap();
-            state.path.iter().for_each(|n| {
-                write!(writer, "{},", n.0).unwrap();
-            });
-            writeln!(writer, "]").unwrap();
+        .path("hop", |mut writer, state: ForwardState| {
+            serde_json::to_writer(&mut writer, &state.path).unwrap();
+            write!(writer, "\n").unwrap();
         });
 
     let _ = rayon2::execute::<ForwardState>(
-        &query,
+        query,
         raphtory::arrow::query::NodeSource::NodeIds(nodes),
         tg,
         |node| {

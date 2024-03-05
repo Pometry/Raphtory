@@ -72,7 +72,7 @@ impl NodeSource {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ForwardState {
     pub time: i64,
     pub path: rpds::ListSync<VID>,

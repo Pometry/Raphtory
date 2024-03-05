@@ -3181,6 +3181,7 @@ dependencies = [
  "raphtory",
  "rayon",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
 ]
