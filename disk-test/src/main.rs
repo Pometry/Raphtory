@@ -27,9 +27,11 @@ fn read_fvecs(file_name: &str) -> Result<FVecsContent, std::io::Error> {
     })
 }
 
-fn main() {
-    let tmpfile = |filename: &str| "/tmp/faiss-disk-test/".to_owned() + filename;
+fn tmpfile<S: AsRef<str>>(filename: S) -> String {
+    return "/tmp/faiss-disk-test/".to_owned() + filename.as_ref();
+}
 
+fn main() {
     println!("Training index");
     let FVecsContent {
         dimensions,
@@ -40,6 +42,10 @@ fn main() {
     // println!("sample -> {sample:?}");
     let mut index = index_factory(dimensions, "IVF4096,Flat", MetricType::InnerProduct).unwrap();
     index.train(vectors.as_slice()).unwrap();
+
+    let index = index.into_ivf_flat().unwrap();
+    dbg!(&index.nlist());
+    dbg!(&index.ntotal());
     write_index(&index, tmpfile("trained.index")).unwrap();
 
     println!("Splitting vectors into files");
@@ -51,7 +57,7 @@ fn main() {
     let num_vectors = vectors.len() / dimensions as usize;
     let vectors_per_chunk = num_vectors / num_chunks + 1;
     let chunk_files: Vec<_> = (0..num_chunks)
-        .map(|chunk_number| format!("block_{chunk_number}.index"))
+        .map(|chunk_number| tmpfile(format!("block_{chunk_number}.index")))
         .collect();
     let chunk_files: Vec<_> = chunk_files.iter().map(|f| f.as_str()).collect();
 
@@ -65,12 +71,12 @@ fn main() {
         let ids: Vec<_> = ids_range.map(|id| Idx::from(id as i64)).collect();
         let mut index = read_index(tmpfile("trained.index")).unwrap();
         index.add_with_ids(chunk, ids.as_slice()).unwrap();
-        write_index(&index, tmpfile(filename)).unwrap();
+        write_index(&index, filename).unwrap();
     }
 
     println!("merging indexes on disk");
     merge_ondisk(
-        "trained.index",
+        &tmpfile("trained.index"),
         chunk_files,
         &tmpfile("merged_index.ivfdata"),
         &tmpfile("populated.index"),
