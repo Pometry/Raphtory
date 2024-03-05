@@ -46,20 +46,18 @@ def test_arrow_graph():
     # print(table.schema)
 
     print()
-    print("Loading the graph")
     try:
-        print("Attempting to load the graph from the directory")
-        g = ArrowGraph.load_from_dir(graph_dir)
+        g = measure("Graph load from dir", ArrowGraph.load_from_dir, graph_dir, print_result=False)
     except Exception as e:
-        print("Failed to load the graph from the directory. Attempting to load from parquet files ", e)
-        
         chunk_size = 268_435_456
         num_threads = 4
         t_props_chunk_size = int(chunk_size / 8)
         read_chunk_size = 4_000_000
         concurrent_files = 1
         
-        g = ArrowGraph.load_from_parquets(
+        g = measure(
+            "Graph load from parquets", 
+            ArrowGraph.load_from_parquets,
             graph_dir,
             layer_parquet_cols,
             chunk_size, 
@@ -67,6 +65,7 @@ def test_arrow_graph():
             read_chunk_size,
             concurrent_files,
             num_threads,
+            print_result=False
         )
 
     assert(g.count_nodes() == 2)
