@@ -19,7 +19,7 @@ use raphtory_core::python::{
         algorithms::*,
         graph_gen::*,
         graph_loader::*,
-        vectors::{generate_property_list,PyVectorisedGraph},
+        vectors::{generate_property_list, PyVectorisedGraph},
     },
     types::wrappers::document::PyDocument,
 };

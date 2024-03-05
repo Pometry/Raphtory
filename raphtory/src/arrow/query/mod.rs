@@ -54,31 +54,19 @@ impl NodeSource {
                     .inspect(|node| println!("node: {:?}", node))
                     .map(|node| node.node),
             ),
-            NodeSource::ExternalIds(ids) => {
-                let all_ids = graph
-                    .nodes()
-                    .into_iter()
-                    .map(|node| node.node)
-                    .map(|id| (id, graph.node_id(id)))
-                    .collect_vec();
-                println!("all_ids: {:?}", all_ids);
-
-                let ids = ids
-                    .into_iter()
+            NodeSource::ExternalIds(ids) => Box::new(
+                ids.into_iter()
                     .filter_map(move |gid| {
-                        let wtf = gid
-                            .as_i64()
+                        gid.as_i64()
                             .and_then(|gid| graph.node(NodeRef::External(gid as u64)))
-                            .or_else(|| gid.as_u64().and_then(|gid| graph.node(NodeRef::External(gid))));
-                        println!("wtf: {:?}", wtf);
-                        wtf
+                            .or_else(|| {
+                                gid.as_u64()
+                                    .and_then(|gid| graph.node(NodeRef::External(gid)))
+                            })
                     })
                     .map(|node| node.node)
-                    .collect::<Vec<_>>();
-
-                println!("ids: {:?}", ids);
-                Box::new(ids.into_iter())
-            }
+                    .into_iter(),
+            ),
             NodeSource::Filter(_) => todo!(),
         }
     }

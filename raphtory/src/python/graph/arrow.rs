@@ -18,7 +18,7 @@ use crate::{
         Error,
         GID,
     },
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Direction},
+    core::{entities::{nodes::node_ref::NodeRef, VID}, utils::errors::GraphError},
     db::{
         api::view::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
@@ -340,11 +340,11 @@ impl PyState {
 enum State {
     NoState,
     Count(usize),
-    Path(rpds::ListSync<String>),
+    Path(rpds::ListSync<VID>),
     PathWindow {
         start_t: Option<i64>,
         duration: Option<i64>,
-        path: Option<rpds::ListSync<String>>,
+        path: Option<rpds::ListSync<VID>>,
     },
 }
 
@@ -353,7 +353,7 @@ impl StaticGraphHopState for PyState {
         match self {
             PyState(State::NoState) => PyState(State::NoState),
             PyState(State::Count(_)) => PyState(State::Count(0)),
-            PyState(State::Path(path)) => PyState(State::Path(path.push_front(node.name()))),
+            PyState(State::Path(path)) => PyState(State::Path(path.push_front(node.node))),
             PyState(State::PathWindow {
                 start_t,
                 duration,
@@ -363,7 +363,7 @@ impl StaticGraphHopState for PyState {
                     .or_else(|| node.earliest_time())
                     .map(|t| t.saturating_sub(1)),
                 duration: *duration,
-                path: path.as_ref().map(|path| path.push_front(node.name())),
+                path: path.as_ref().map(|path| path.push_front(node.node)),
             }),
         }
     }
@@ -376,7 +376,7 @@ impl StaticGraphHopState for PyState {
         match self {
             PyState(State::NoState) => Some(PyState(State::NoState)),
             PyState(State::Count(count)) => Some(PyState(State::Count(count + 1))),
-            PyState(State::Path(path)) => Some(PyState(State::Path(path.push_front(node.name())))),
+            PyState(State::Path(path)) => Some(PyState(State::Path(path.push_front(node.node)))),
             PyState(State::PathWindow {
                 start_t,
                 duration,
@@ -388,7 +388,7 @@ impl StaticGraphHopState for PyState {
                 let ts = edge.window(w.start, w.end);
                 let earliest = ts.earliest_time()?;
 
-                let new_path = path.as_ref().map(|path| path.push_front(node.name()));
+                let new_path = path.as_ref().map(|path| path.push_front(node.node));
                 Some(PyState(State::PathWindow {
                     start_t: Some(earliest),
                     duration: Some(*duration),
@@ -424,47 +424,38 @@ impl PyGraphQuery {
             })
             .collect::<Vec<_>>();
 
-        println!("external: {:?}", external);
         Self {
             query: Query::new(),
             source: Arc::new(NodeSource::ExternalIds(external)),
         }
     }
 
-    pub fn out(&self, layer: &str) -> Self {
+    pub fn out(&self, layer: Option<&str>) -> Self {
         Self {
-            query: self.query.clone().out(layer),
+            query: self.query.clone().out(layer.unwrap_or("default")),
             source: self.source.clone(),
         }
     }
 
-    pub fn into(&self, layer: &str) -> Self {
+    pub fn into(&self, layer: Option<&str>) -> Self {
         Self {
-            query: self.query.clone().into(layer),
+            query: self.query.clone().into(layer.unwrap_or("default")),
             source: self.source.clone(),
         }
     }
 
-    pub fn var_hop(&self, dir: PyDirection, layer: &str, limit: Option<usize>) -> Self {
+    pub fn var_hop(&self, dir: PyDirection, layer: Option<&str>, limit: Option<usize>) -> Self {
         Self {
-            query: self.query.clone().vhop(dir.into(), layer, limit),
+            query: self.query.clone().vhop(dir.into(), layer.unwrap_or("default"), limit),
             source: self.source.clone(),
         }
     }
 
-    pub fn hop(&self, dir: PyDirection, layer: &str, limit: Option<usize>) -> Self {
+    pub fn hop(&self, dir: PyDirection, layer: Option<&str>, limit: Option<usize>) -> Self {
         Self {
-            query: self.query.clone().hop(dir.into(), layer, false, limit),
+            query: self.query.clone().hop(dir.into(), layer.unwrap_or("default"), false, limit),
             source: self.source.clone(),
         }
-    }
-
-    pub fn out_limit(&self, layer: &str, limit: usize) -> Self {
-        self.hop(Direction::OUT.into(), layer, Some(limit))
-    }
-
-    pub fn into_limit(&self, layer: &str, limit: usize) -> Self {
-        self.var_hop(Direction::IN.into(), layer, Some(limit))
     }
 
     pub fn print(&self) -> Self {
@@ -508,7 +499,7 @@ impl PyGraphQuery {
         &self,
         graph: Graph2,
         state: PyState,
-    ) -> PyResult<Vec<(Vec<String>, String)>> {
+    ) -> PyResult<Vec<(Vec<NodeView<Graph2>>, NodeView<Graph2>)>> {
         let (sender, receiver) = std::sync::mpsc::channel();
 
         let query = self.query.clone().channel([sender]);
@@ -527,8 +518,8 @@ impl PyGraphQuery {
                     _ => Vec::with_capacity(0),
                 };
 
-                let node_name = NodeView::new_internal(&graph, node_id).name();
-                (path.into_iter().collect(), node_name)
+                let node_name = NodeView::new_internal(graph.clone(), node_id);
+                (path.into_iter().map(|node| NodeView::new_internal(graph.clone(), node)).collect(), node_name)
             })
             .collect())
     }
