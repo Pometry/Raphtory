@@ -21,7 +21,8 @@ use crate::{
     db::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
-    }, prelude::{EdgeViewOps, GraphViewOps},
+    },
+    prelude::{EdgeViewOps, GraphViewOps},
 };
 
 pub fn execute<S: HopState + 'static>(
@@ -93,7 +94,11 @@ pub fn execute_static_graph<G: StaticGraphViewOps, S: StaticGraphHopState + 'sta
     Ok(())
 }
 
-fn node_view<'a, 'b, G: StaticGraphViewOps>(_s: &'b Scope<'a>, graph: &'a G, node: VID) -> NodeView<&'a G> {
+fn node_view<'a, 'b, G: StaticGraphViewOps>(
+    _s: &'b Scope<'a>,
+    graph: &'a G,
+    node: VID,
+) -> NodeView<&'a G> {
     NodeView::new_internal(graph, node)
 }
 

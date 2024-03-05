@@ -18,7 +18,10 @@ use crate::{
         Error,
         GID,
     },
-    core::{entities::{nodes::node_ref::NodeRef, VID}, utils::errors::GraphError},
+    core::{
+        entities::{nodes::node_ref::NodeRef, VID},
+        utils::errors::GraphError,
+    },
     db::{
         api::view::{DynamicGraph, IntoDynamic},
         graph::{edge::EdgeView, node::NodeView},
@@ -446,14 +449,20 @@ impl PyGraphQuery {
 
     pub fn var_hop(&self, dir: PyDirection, layer: Option<&str>, limit: Option<usize>) -> Self {
         Self {
-            query: self.query.clone().vhop(dir.into(), layer.unwrap_or("default"), limit),
+            query: self
+                .query
+                .clone()
+                .vhop(dir.into(), layer.unwrap_or("default"), limit),
             source: self.source.clone(),
         }
     }
 
     pub fn hop(&self, dir: PyDirection, layer: Option<&str>, limit: Option<usize>) -> Self {
         Self {
-            query: self.query.clone().hop(dir.into(), layer.unwrap_or("default"), false, limit),
+            query: self
+                .query
+                .clone()
+                .hop(dir.into(), layer.unwrap_or("default"), false, limit),
             source: self.source.clone(),
         }
     }
@@ -519,7 +528,12 @@ impl PyGraphQuery {
                 };
 
                 let node_name = NodeView::new_internal(graph.clone(), node_id);
-                (path.into_iter().map(|node| NodeView::new_internal(graph.clone(), node)).collect(), node_name)
+                (
+                    path.into_iter()
+                        .map(|node| NodeView::new_internal(graph.clone(), node))
+                        .collect(),
+                    node_name,
+                )
             })
             .collect())
     }

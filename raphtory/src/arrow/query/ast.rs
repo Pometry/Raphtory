@@ -5,7 +5,7 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
-use crate:: core::{entities::VID, Direction};
+use crate::core::{entities::VID, Direction};
 
 pub enum Sink<S> {
     Channel(Vec<Sender<(S, VID)>>),
