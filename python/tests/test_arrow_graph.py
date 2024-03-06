@@ -41,95 +41,91 @@ def create_graph(edges, dir):
 
 
 def test_counts():
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
-        graph = create_graph(edges, dir)
-        assert graph.count_nodes() == 5
-        assert graph.count_edges() == 20
+    dir = tempfile.TemporaryDirectory()
+    graph = create_graph(edges, dir.name)
+    assert graph.count_nodes() == 5
+    assert graph.count_edges() == 20
 
 
 def test_simple_hop():
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
-        graph = create_graph(edges, dir)
-        q = Query.from_node_ids([1]).out()
-        state = State.path()
-        actual = q.run_to_vec(graph, state)
+    dir = tempfile.TemporaryDirectory()
+    graph = create_graph(edges, dir.name)
+    q = Query.from_node_ids([1]).out()
+    state = State.path()
+    actual = q.run_to_vec(graph, state)
 
-        actual = [([n2.name, n1.name], n2.name) for ([n2, n1], n2) in actual]
+    actual = [([n2.name, n1.name], n2.name) for ([n2, n1], n2) in actual]
 
-        expected = [
-            (["2", "1"], "2"),
-            (["3", "1"], "3"),
-            (["4", "1"], "4"),
-            (["5", "1"], "5"),
-        ]
+    expected = [
+        (["2", "1"], "2"),
+        (["3", "1"], "3"),
+        (["4", "1"], "4"),
+        (["5", "1"], "5"),
+    ]
 
-        actual.sort()
-        expected.sort()
+    actual.sort()
+    expected.sort()
 
-        assert actual == expected
+    assert actual == expected
 
 
 def test_double_hop():
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
-        graph = create_graph(edges, dir)
-        q = Query.from_node_ids([1]).out().out()
-        state = State.path()
-        actual = q.run_to_vec(graph, state)
+    dir = tempfile.TemporaryDirectory()
+    graph = create_graph(edges, dir.name)
+    q = Query.from_node_ids([1]).out().out()
+    state = State.path()
+    actual = q.run_to_vec(graph, state)
 
-        actual = [
-            ([n3.name, n2.name, n1.name], n3.name) for ([n3, n2, n1], n3) in actual
-        ]
+    actual = [([n3.name, n2.name, n1.name], n3.name) for ([n3, n2, n1], n3) in actual]
 
-        expected = [
-            (["1", "5", "1"], "1"),
-            (["2", "4", "1"], "2"),
-            (["5", "3", "1"], "5"),
-            (["2", "5", "1"], "2"),
-            (["4", "2", "1"], "4"),
-            (["4", "3", "1"], "4"),
-            (["1", "4", "1"], "1"),
-            (["3", "2", "1"], "3"),
-            (["3", "4", "1"], "3"),
-            (["5", "2", "1"], "5"),
-            (["1", "2", "1"], "1"),
-            (["5", "4", "1"], "5"),
-            (["2", "3", "1"], "2"),
-            (["1", "3", "1"], "1"),
-            (["3", "5", "1"], "3"),
-            (["4", "5", "1"], "4"),
-        ]
+    expected = [
+        (["1", "5", "1"], "1"),
+        (["2", "4", "1"], "2"),
+        (["5", "3", "1"], "5"),
+        (["2", "5", "1"], "2"),
+        (["4", "2", "1"], "4"),
+        (["4", "3", "1"], "4"),
+        (["1", "4", "1"], "1"),
+        (["3", "2", "1"], "3"),
+        (["3", "4", "1"], "3"),
+        (["5", "2", "1"], "5"),
+        (["1", "2", "1"], "1"),
+        (["5", "4", "1"], "5"),
+        (["2", "3", "1"], "2"),
+        (["1", "3", "1"], "1"),
+        (["3", "5", "1"], "3"),
+        (["4", "5", "1"], "4"),
+    ]
 
-        actual.sort()
-        expected.sort()
+    actual.sort()
+    expected.sort()
 
-        assert actual == expected
+    assert actual == expected
 
 
 def test_hop_twice_forward():
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
-        edges = pd.DataFrame(
-            {
-                "src": [0, 0, 1, 1, 3, 3, 3, 4, 4, 4],
-                "dst": [1, 2, 3, 4, 5, 6, 6, 3, 4, 7],
-                "time": [11, 10, 12, 13, 5, 10, 15, 14, 14, 10],
-            }
-        ).sort_values(["src", "dst", "time"])
-        graph = create_graph(edges, dir)
-        q = Query.from_node_ids([0, 1]).out().out()
-        state = State.path_window(keep_path=True, start_t=10, duration=100)
-        actual = q.run_to_vec(graph, state)
+    dir = tempfile.TemporaryDirectory()
+    edges = pd.DataFrame(
+        {
+            "src": [0, 0, 1, 1, 3, 3, 3, 4, 4, 4],
+            "dst": [1, 2, 3, 4, 5, 6, 6, 3, 4, 7],
+            "time": [11, 10, 12, 13, 5, 10, 15, 14, 14, 10],
+        }
+    ).sort_values(["src", "dst", "time"])
+    graph = create_graph(edges, dir.name)
+    q = Query.from_node_ids([0, 1]).out().out()
+    state = State.path_window(keep_path=True, start_t=10, duration=100)
+    actual = q.run_to_vec(graph, state)
 
-        actual = [
-            ([n3.name, n2.name, n1.name], n3.name) for ([n3, n2, n1], n3) in actual
-        ]
+    actual = [([n3.name, n2.name, n1.name], n3.name) for ([n3, n2, n1], n3) in actual]
 
-        expected = [
-            (["6", "3", "1"], "6"),
-            (["3", "1", "0"], "3"),
-            (["3", "4", "1"], "3"),
-            (["4", "4", "1"], "4"),
-            (["4", "1", "0"], "4"),
-        ]
-        actual.sort()
-        expected.sort()
-        assert actual == expected
+    expected = [
+        (["6", "3", "1"], "6"),
+        (["3", "1", "0"], "3"),
+        (["3", "4", "1"], "3"),
+        (["4", "4", "1"], "4"),
+        (["4", "1", "0"], "4"),
+    ]
+    actual.sort()
+    expected.sort()
+    assert actual == expected
