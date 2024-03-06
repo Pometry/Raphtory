@@ -3086,6 +3086,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "raphtory-cypher"
+version = "0.7.0"
+dependencies = [
+ "arrow2",
+ "pest",
+ "pest_derive",
+ "raphtory",
+ "rayon",
+ "thiserror",
+]
+
+[[package]]
 name = "raphtory-graphql"
 version = "0.7.0"
 dependencies = [

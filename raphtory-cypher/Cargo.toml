@@ -1,0 +1,22 @@
+[package]
+name = "raphtory-cypher"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arrow2.workspace = true
+pest = "2.7.8"
+pest_derive = "2.7.8"
+raphtory = { path = "../raphtory" }
+rayon.workspace = true
+thiserror.workspace = true
