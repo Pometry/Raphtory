@@ -261,7 +261,7 @@ impl PyPropsList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().map(|k| k.clone()).collect_vec())
+            .map(|p| p.keys().map(|k| k.clone()).sorted().collect_vec())
             .kmerge()
             .dedup()
             .collect()
