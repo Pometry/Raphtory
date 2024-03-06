@@ -14,9 +14,9 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, ArcStr, Prop, OptionAsStr},
+    core::{utils::errors::GraphError, ArcStr, OptionAsStr, Prop},
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps, EdgeViewOps},
+    prelude::{EdgeViewOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use serde_json::Value;
@@ -28,7 +28,6 @@ use std::{
     path::Path,
 };
 use uuid::Uuid;
-use raphtory::prelude::ImportOps;
 
 pub mod algorithms;
 pub(crate) mod filters;
@@ -242,7 +241,7 @@ impl Mut {
             .as_object()
             .ok_or("graph_nodes not object")?;
         let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
-        
+
         let _new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
         _new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
@@ -250,12 +249,21 @@ impl Mut {
         let new_subgraph_data = subgraph.subgraph(node_ids).materialize()?;
 
         // Copy nodes over
-        let new_subgraph_nodes: Vec<_> = new_subgraph_data.clone().into_persistent().unwrap().nodes().collect();
+        let new_subgraph_nodes: Vec<_> = new_subgraph_data
+            .clone()
+            .into_persistent()
+            .unwrap()
+            .nodes()
+            .collect();
         let nodeviews = new_subgraph_nodes.iter().map(|node| node).collect();
         new_subgraph.import_nodes(nodeviews, true)?;
-        
+
         // Copy edges over
-        let new_subgraph_edges: Vec<_> = new_subgraph_data.into_persistent().unwrap().edges().collect();
+        let new_subgraph_edges: Vec<_> = new_subgraph_data
+            .into_persistent()
+            .unwrap()
+            .edges()
+            .collect();
         let edgeviews = new_subgraph_edges.iter().map(|edge| edge).collect();
         new_subgraph.import_edges(edgeviews, true)?;
 
@@ -294,7 +302,7 @@ impl Mut {
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
         new_subgraph.save_to_file(path)?;
-        
+
         let m_g = new_subgraph.materialize()?;
         let gi: IndexedGraph<MaterializedGraph> = m_g.into();
 

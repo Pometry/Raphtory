@@ -46,25 +46,7 @@ mod graphql_test {
     use serde_json::json;
     use std::collections::HashMap;
     use tempfile::tempdir;
-    use raphtory::core::OptionAsStr;
 
-
-    #[test]
-    fn test_prop_copies() {
-        let g = GraphWithDeletions::new();
-        let sub_g = GraphWithDeletions::new();
-        let ee = g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
-        ee.add_constant_properties([("test_prop", "test_val")], None).unwrap();
-        sub_g.edges().explode_layers().iter().map(|internal_e| {
-            let binding = internal_e.layer_name();
-            let layer_name = binding.as_str();
-            let edge_props_const = internal_e.properties().constant();
-            let edge_props_temp = internal_e.properties().temporal();
-            let e = g.edge(internal_e.src().name(), internal_e.dst().name()).unwrap();
-            e.update_constant_properties(edge_props_const, layer_name);
-        });
-    }
-    
     #[tokio::test]
     async fn search_for_gandalf_query() {
         let graph = GraphWithDeletions::new();
