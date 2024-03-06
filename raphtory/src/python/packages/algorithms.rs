@@ -568,20 +568,28 @@ pub fn single_source_shortest_path(
 ///     g (Raphtory Graph): The graph to search in.
 ///     source (InputNode): The source node.
 ///     targets (List(InputNodes)): A list of target nodes.
+///     direction (PyDirection, Optional): The direction of the edges to be considered for the shortest path. Defaults to "BOTH". Options are "OUT", "IN", and "BOTH".
 ///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
 ///
 /// Returns:
 ///     Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
+#[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: PyInputNode,
     targets: Vec<PyInputNode>,
+    direction: PyDirection,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
-    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
+    match dijkstra_single_source_shortest_paths_rs(
+        &g.graph,
+        source,
+        targets,
+        weight,
+        direction.into(),
+    ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
