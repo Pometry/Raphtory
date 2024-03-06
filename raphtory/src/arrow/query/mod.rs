@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
-use itertools::Itertools;
-
 use crate::{
     core::entities::{nodes::node_ref::NodeRef, LayerIds, VID},
     db::api::view::StaticGraphViewOps,
-    prelude::NodeViewOps,
 };
 
 use self::state::HopState;
