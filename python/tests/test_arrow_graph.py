@@ -41,14 +41,14 @@ def create_graph(edges, dir):
 
 
 def test_counts():
-    with tempfile.TemporaryDirectory() as dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
         graph = create_graph(edges, dir)
         assert graph.count_nodes() == 5
         assert graph.count_edges() == 20
 
 
 def test_simple_hop():
-    with tempfile.TemporaryDirectory() as dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
         graph = create_graph(edges, dir)
         q = Query.from_node_ids([1]).out()
         state = State.path()
@@ -70,7 +70,7 @@ def test_simple_hop():
 
 
 def test_double_hop():
-    with tempfile.TemporaryDirectory() as dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
         graph = create_graph(edges, dir)
         q = Query.from_node_ids([1]).out().out()
         state = State.path()
@@ -106,7 +106,7 @@ def test_double_hop():
 
 
 def test_hop_twice_forward():
-    with tempfile.TemporaryDirectory() as dir:
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as dir:
         edges = pd.DataFrame(
             {
                 "src": [0, 0, 1, 1, 3, 3, 3, 4, 4, 4],
