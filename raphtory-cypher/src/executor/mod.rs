@@ -2,11 +2,11 @@ use std::{num::NonZeroUsize, sync::Arc};
 
 use arrow2::array::Array;
 use raphtory::arrow::graph_impl::Graph2;
-use rayon::{Scope, ThreadPool};
+use rayon::Scope;
 
 pub mod expr;
 mod operators;
-use operators::PhysicalOperator;
+use operators::{Operator, PhysicalOperator};
 
 struct DataBlock {
     cols: Vec<Box<dyn Array>>,
@@ -18,14 +18,15 @@ pub enum ExecError {
     TPBuildErr(#[from] rayon::ThreadPoolBuildError),
 }
 
-struct Context<'graph, 's, 'b> {
+#[derive(Clone, Copy)]
+struct Context<'graph, 'scope, 'b> {
+    scope: &'b Scope<'scope>,
     graph: &'graph Graph2,
-    scope: &'b Scope<'s>,
 }
 
-impl<'graph, 's, 'b> Context<'graph, 's, 'b> {
-    fn new(graph: &'graph Graph2, scope: &'b Scope<'s>) -> Self {
-        Self { graph, scope }
+impl<'graph, 'scope, 'b> Context<'graph, 'scope, 'b> {
+    fn new(scope: &'b Scope<'scope>, graph: &'graph Graph2) -> Self {
+        Self { scope, graph }
     }
 }
 
@@ -41,11 +42,11 @@ struct Pipeline {
 }
 
 trait Source: Send + Sync {
-    fn produce(&mut self, producer: Arc<dyn Fn(DataBlock)>) -> Result<(), ExecError>;
+    fn produce<'a>(&'a self, producer: Arc<dyn Fn(DataBlock) + 'a>) -> Result<(), ExecError>;
 }
 
-trait Sink {
-    fn consume(&mut self, block: DataBlock) -> Result<(), ExecError>;
+trait Sink: Send + Sync {
+    fn consume(&self, block: DataBlock) -> Result<(), ExecError>;
 }
 
 impl Executor {
@@ -53,17 +54,68 @@ impl Executor {
         Self { graph, pipeline }
     }
 
-    fn execute_pipeline(&mut self, num_threads: NonZeroUsize) -> Result<(), ExecError> {
+    fn execute_pipeline(self, num_threads: NonZeroUsize) -> Result<(), ExecError> {
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads.get())
             .build()?;
+        let graph = &self.graph;
 
-        let source = &mut self.pipeline.source;
+        thread_pool.scope(move |scope| {
+            let operators: Arc<[PhysicalOperator]> = self.pipeline.operators.into();
+            let source = &self.pipeline.source;
 
-        thread_pool.scope(|scope| {
-            let context = Context::new(&self.graph, scope);
-            source.produce(Arc::new(|block| {}))?;
+            source.produce(Arc::new(|input| {
+                let stage = PipelineStage::new(operators.clone());
+
+                run_pipeline(stage, scope, graph, input);
+            }))?;
             Ok(())
         })
+    }
+}
+
+fn run_pipeline<'graph: 'scope, 'scope>(
+    stage: PipelineStage,
+    scope: &Scope<'scope>,
+    graph: &'graph Graph2,
+    input: DataBlock,
+) {
+    if let Some((operator, next_exec)) = stage.next_operator() {
+        match operator {
+            PhysicalOperator::Expand(expand) => {
+                for next_input in expand.execute(input, Context::new(scope, graph)) {
+                    let next_exec = next_exec.clone();
+                    scope.spawn(move |scope2| {
+                        run_pipeline(next_exec.clone(), scope2, graph, next_input);
+                    });
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PipelineStage {
+    operators: Arc<[PhysicalOperator]>,
+    stage: usize,
+}
+
+impl PipelineStage {
+    fn new(operators: Arc<[PhysicalOperator]>) -> Self {
+        Self {
+            operators,
+            stage: 0,
+        }
+    }
+
+    fn next_operator(self) -> Option<(PhysicalOperator, Self)> {
+        let next = self.operators.get(self.stage)?;
+        Some((
+            next.clone(),
+            Self {
+                stage: self.stage + 1,
+                ..self
+            },
+        ))
     }
 }

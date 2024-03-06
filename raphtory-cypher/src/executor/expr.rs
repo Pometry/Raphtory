@@ -1,5 +1,6 @@
 type Ex = Box<Expr>;
 
+#[derive(Debug, Clone)]
 pub enum Expr {
     Str(String),
     Int(i64),
