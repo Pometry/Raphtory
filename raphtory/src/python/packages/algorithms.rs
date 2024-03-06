@@ -574,14 +574,21 @@ pub fn single_source_shortest_path(
 ///     Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
+#[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: PyInputNode,
     targets: Vec<PyInputNode>,
+    direction: PyDirection,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
-    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
+    match dijkstra_single_source_shortest_paths_rs(
+        &g.graph,
+        source,
+        targets,
+        weight,
+        direction.into(),
+    ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }

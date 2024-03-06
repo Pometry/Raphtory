@@ -12,9 +12,12 @@ use dynamic_graphql::{
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use ordered_float::OrderedFloat;
-use raphtory::algorithms::{
-    centrality::pagerank::unweighted_page_rank,
-    pathing::dijkstra::dijkstra_single_source_shortest_paths,
+use raphtory::{
+    algorithms::{
+        centrality::pagerank::unweighted_page_rank,
+        pathing::dijkstra::dijkstra_single_source_shortest_paths,
+    },
+    core::Direction,
 };
 
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
@@ -156,6 +159,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for ShortestPath {
         vec![
             ("source", TypeRef::named_nn(TypeRef::STRING)), // _nn stands for not null
             ("targets", TypeRef::named_nn_list_nn(TypeRef::STRING)),
+            ("direction", TypeRef::named(TypeRef::STRING)),
         ]
     }
     fn apply_algo<'b>(
@@ -173,11 +177,18 @@ fn apply_shortest_path<'b>(
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let source = ctx.args.try_get("source")?.string()?;
     let targets = ctx.args.try_get("targets")?.list()?;
+    let direction = match ctx.args.try_get("direction")?.string()? {
+        "out" => Direction::OUT,
+        "in" => Direction::IN,
+        "both" => Direction::BOTH,
+        _ => return Err("Invalid direction".into()),
+    };
     let targets = targets
         .iter()
         .map(|v| v.string())
         .collect::<Result<Vec<&str>, _>>()?;
-    let binding = dijkstra_single_source_shortest_paths(&entry_point.graph, source, targets, None);
+    let binding =
+        dijkstra_single_source_shortest_paths(&entry_point.graph, source, targets, None, direction);
     let result: Vec<FieldValue> = binding
         .into_iter()
         .flat_map(|pair| {
