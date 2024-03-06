@@ -568,6 +568,7 @@ pub fn single_source_shortest_path(
 ///     g (Raphtory Graph): The graph to search in.
 ///     source (InputNode): The source node.
 ///     targets (List(InputNodes)): A list of target nodes.
+///     direction (PyDirection, Optional): The direction of the edges to be considered for the shortest path. Defaults to "BOTH". Options are "OUT", "IN", and "BOTH".
 ///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
 ///
 /// Returns:
