@@ -11,20 +11,42 @@ use raphtory_storage::lanl::*;
 use std::{env, num::NonZeroUsize, vec};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    // Retrieve named parameters from environment variables
+    let resources_dir =
+        env::var("resources_dir").expect("Environment variable 'resources_dir' not set");
+    let target_dir = env::var("target_dir").expect("Environment variable 'target_dir' not set");
 
-    if args.len() != 3 {
-        eprintln!(
-            "Usage: {} <path_to_resources_directory> <path_to_target_directory>",
-            args[0]
-        );
-        std::process::exit(1);
-    }
+    // Set default values and then try to override them with environment variables if they exist
+    let chunk_size: usize = env::var("chunk_size")
+        .unwrap_or_else(|_| "268435456".to_string())
+        .parse()
+        .expect("Invalid value for 'chunk_size'");
+    let t_props_chunk_size: usize = env::var("t_props_chunk_size")
+        .unwrap_or_else(|_| "20000000".to_string())
+        .parse()
+        .expect("Invalid value for 't_props_chunk_size'");
+    let read_chunk_size: usize = env::var("read_chunk_size")
+        .unwrap_or_else(|_| "4000000".to_string())
+        .parse()
+        .expect("Invalid value for 'read_chunk_size'");
+    let concurrent_files: usize = env::var("concurrent_files")
+        .unwrap_or_else(|_| "1".to_string())
+        .parse()
+        .expect("Invalid value for 'concurrent_files'");
+    let num_threads: usize = env::var("num_threads")
+        .unwrap_or_else(|_| NonZeroUsize::new(1).unwrap().to_string())
+        .parse()
+        .expect("Invalid value for 'num_threads'");
 
-    let resources_dir = &args[1];
-    let target_dir = &args[2];
+    println!("Resources directory: {}", resources_dir);
+    println!("Target directory: {}", target_dir);
+    println!("Chunk Size: {}", chunk_size);
+    println!("T Props Chunk Size: {}", t_props_chunk_size);
+    println!("Read Chunk Size: {}", read_chunk_size);
+    println!("Concurrent Files: {}", concurrent_files);
+    println!("Num Threads: {}", num_threads);
 
-    let graph_dir: &str = target_dir;
+    let graph_dir: &str = &target_dir.to_string();
 
     let parquet_dirs = vec![
         format!("{}/netflowsorted/nft_sorted", resources_dir),
@@ -68,22 +90,14 @@ fn main() {
         Ok(g) => g,
         Err(e) => {
             println!("Failed to load saved graph. Attempting to load from parquet files...");
-            let num_threads = std::thread::available_parallelism()
-                .unwrap_or(NonZeroUsize::new(1).unwrap())
-                .into();
-            let chunk_size = 268_435_456;
-            let t_props_chunk_size = chunk_size / 8;
-            let read_chunk_size = Some(4_000_000);
-            let concurrent_files = Some(1);
-
             measure_without_print_results("Graph load from parquets", || {
                 ArrowGraph::load_from_parquets(
                     graph_dir,
                     layer_parquet_cols,
                     chunk_size,
                     t_props_chunk_size,
-                    read_chunk_size,
-                    concurrent_files,
+                    Some(read_chunk_size),
+                    Some(concurrent_files),
                     num_threads,
                 )
             })

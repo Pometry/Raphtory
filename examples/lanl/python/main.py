@@ -29,15 +29,28 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python3 main.py <path_to_resources_directory> <path_to_target_directory>")
-        sys.exit(1)
+    # Retrieve mandatory parameters from environment variables
+    resources_dir = os.getenv('resources_dir')
+    graph_dir = os.getenv('target_dir')
 
-    resources_dir = sys.argv[1]
-    target_dir = sys.argv[2]
+    if resources_dir is None or graph_dir is None:
+        raise ValueError("Both 'resources_dir' and 'target_dir' environment variables must be set.")
 
-    graph_dir = target_dir
+    # Retrieve optional parameters from environment variables or set default values
+    chunk_size = int(os.getenv('chunk_size', '268435456'))
+    t_props_chunk_size = int(os.getenv('t_props_chunk_size', '20000000'))
+    read_chunk_size = int(os.getenv('read_chunk_size', '4000000'))
+    concurrent_files = int(os.getenv('concurrent_files', '1'))
+    num_threads = int(os.getenv('num_threads', '4'))
     
+    print(f"Resources directory: {resources_dir}")
+    print(f"Target directory: {graph_dir}")
+    print(f"Chunk size: {chunk_size}")
+    print(f"t_props chunk size: {t_props_chunk_size}")
+    print(f"Read chunk size: {read_chunk_size}")
+    print(f"Concurrent files: {concurrent_files}")
+    print(f"Number of threads: {num_threads}")
+
     layer_parquet_cols = [
         {
             "parquet_dir": os.path.join(resources_dir, "netflowsorted/nft_sorted"),
@@ -76,12 +89,6 @@ def main():
     try:
         g = measure("Graph load from dir", ArrowGraph.load_from_dir, graph_dir, print_result=False)
     except Exception as e:
-        chunk_size = 268_435_456
-        num_threads = 4
-        t_props_chunk_size = int(chunk_size / 8)
-        read_chunk_size = 4_000_000
-        concurrent_files = 1
-        
         g = measure(
             "Graph load from parquets", 
             ArrowGraph.load_from_parquets,
