@@ -28,6 +28,7 @@ use std::{
     path::Path,
 };
 use uuid::Uuid;
+use raphtory::prelude::ImportOps;
 
 pub mod algorithms;
 pub(crate) mod filters;
@@ -210,6 +211,7 @@ impl Mut {
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
+        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         let path = match data.get(&new_graph_name) {
@@ -234,15 +236,28 @@ impl Mut {
             }
         };
         println!("Saving graph to path {path}");
-        
+
         let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
         let node_map = deserialized_node_map
             .as_object()
             .ok_or("graph_nodes not object")?;
-        let node_ids = node_map.keys().map(|key| key.as_str());
-        let new_subgraph = subgraph.subgraph(node_ids).materialize()?;
+        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
+        
+        let _new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
+        _new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
-        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
+        let mut new_subgraph = &_new_subgraph.clone().into_persistent().unwrap();
+        let new_subgraph_data = subgraph.subgraph(node_ids).materialize()?;
+
+        // Copy nodes over
+        let new_subgraph_nodes: Vec<_> = new_subgraph_data.clone().into_persistent().unwrap().nodes().collect();
+        let nodeviews = new_subgraph_nodes.iter().map(|node| node).collect();
+        new_subgraph.import_nodes(nodeviews, true)?;
+        
+        // Copy edges over
+        let new_subgraph_edges: Vec<_> = new_subgraph_data.into_persistent().unwrap().edges().collect();
+        let edgeviews = new_subgraph_edges.iter().map(|edge| edge).collect();
+        new_subgraph.import_edges(edgeviews, true)?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
@@ -277,10 +292,11 @@ impl Mut {
         new_subgraph.update_constant_properties([("uiProps", Prop::Str(props.into()))])?;
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
-        
-        new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
+        new_subgraph.save_to_file(path)?;
+        
+        let m_g = new_subgraph.materialize()?;
+        let gi: IndexedGraph<MaterializedGraph> = m_g.into();
 
         data.insert(new_graph_name, gi);
 
