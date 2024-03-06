@@ -337,4 +337,53 @@ mod dijkstra_tests {
         assert_eq!(results.get("E").unwrap().1, vec!["B", "C", "E"]);
         assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
     }
+
+    #[test]
+    fn test_dijkstra_undirected() {
+        let edges = vec![
+            (0, "C", "A", vec![("weight", 4u64)]),
+            (1, "A", "B", vec![("weight", 4u64)]),
+            (3, "C", "D", vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        let targets: Vec<&str> = vec!["D"];
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            "A",
+            targets,
+            Some("weight".to_string()),
+            Direction::BOTH,
+        );
+
+        let results = results.unwrap();
+        assert_eq!(results.get("D").unwrap().0, Prop::U64(7u64));
+        assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+    }
+
+    #[test]
+    fn test_dijkstra_no_weight_undirected() {
+        let edges = vec![
+            (0, "C", "A", vec![("weight", 4u64)]),
+            (1, "A", "B", vec![("weight", 4u64)]),
+            (3, "C", "D", vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        let targets: Vec<&str> = vec!["D"];
+        let results =
+            dijkstra_single_source_shortest_paths(&graph, "A", targets, None, Direction::BOTH)
+                .unwrap();
+        assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
+    }
 }
