@@ -5,13 +5,15 @@
 #    pip-compile requirements.in
 #
 aiohttp==3.9.3
-    # via langchain
+    # via
+    #   langchain
+    #   langchain-community
 aiosignal==1.3.1
     # via aiohttp
 altair==5.2.0
     # via -r requirements.in
 anyio==3.7.1
-    # via langchain
+    # via langchain-core
 asttokens==2.2.1
     # via stack-data
 async-timeout==4.0.3
@@ -54,7 +56,9 @@ cssselect==1.2.0
 cycler==0.11.0
     # via matplotlib
 dataclasses-json==0.6.4
-    # via langchain
+    # via
+    #   langchain
+    #   langchain-community
 decorator==5.1.1
     # via ipython
 exceptiongroup==1.2.0
@@ -133,13 +137,21 @@ jsonschema-specifications==2023.12.1
     # via jsonschema
 kiwisolver==1.4.4
     # via matplotlib
-langchain==0.0.347
+langchain==0.1.11
     # via -r requirements.in
-langchain-core==0.0.11
+langchain-community==0.0.25
     # via langchain
-langsmith==0.0.92
+langchain-core==0.1.29
     # via
     #   langchain
+    #   langchain-community
+    #   langchain-text-splitters
+langchain-text-splitters==0.0.1
+    # via langchain
+langsmith==0.1.22
+    # via
+    #   langchain
+    #   langchain-community
     #   langchain-core
 lxml==4.9.2
     # via
@@ -176,6 +188,7 @@ numpy==1.24.3
     #   altair
     #   contourpy
     #   langchain
+    #   langchain-community
     #   matplotlib
     #   pandas
     #   scikit-learn
@@ -214,10 +227,13 @@ nvidia-nvjitlink-cu12==12.3.101
     #   nvidia-cusparse-cu12
 nvidia-nvtx-cu12==12.1.105
     # via torch
-packaging==23.1
+orjson==3.9.15
+    # via langsmith
+packaging==23.2
     # via
     #   altair
     #   huggingface-hub
+    #   langchain-core
     #   marshmallow
     #   matplotlib
     #   parsel
@@ -284,6 +300,8 @@ pyyaml==6.0.1
     # via
     #   huggingface-hub
     #   langchain
+    #   langchain-community
+    #   langchain-core
     #   transformers
 queuelib==1.6.2
     # via scrapy
@@ -302,6 +320,8 @@ requests==2.31.0
     #   -r requirements.in
     #   huggingface-hub
     #   langchain
+    #   langchain-community
+    #   langchain-core
     #   langsmith
     #   requests-file
     #   tldextract
@@ -342,7 +362,9 @@ six==1.16.0
 sniffio==1.3.0
     # via anyio
 sqlalchemy==2.0.24
-    # via langchain
+    # via
+    #   langchain
+    #   langchain-community
 stack-data==0.6.2
     # via ipython
 sympy==1.12
@@ -350,6 +372,7 @@ sympy==1.12
 tenacity==8.2.3
     # via
     #   langchain
+    #   langchain-community
     #   langchain-core
 threadpoolctl==3.3.0
     # via scikit-learn
