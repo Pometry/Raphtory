@@ -74,7 +74,7 @@ fn main() {
             time_col: "epoch_time",
         },
         ParquetLayerCols {
-            parquet_dir: &parquet_dirs[1],
+            parquet_dir: &parquet_dirs[2],
             layer: "events_2v",
             src_col: "src",
             src_hash_col: "src_hash",
