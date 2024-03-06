@@ -11,6 +11,7 @@ pub trait Operator {
 #[derive(Debug, Clone)]
 pub enum PhysicalOperator {
     Expand(Expand),
+    Filter(Filter),
 }
 
 #[derive(Debug, Clone)]
@@ -18,6 +19,11 @@ pub struct Expand{
     dir: Direction,
     from_col: usize,
     filter: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct Filter {
+    expr: Expr,
 }
 
 struct EdgeScan {
@@ -30,6 +36,12 @@ struct NodeScan{
 }
 
 impl Operator for Expand {
+    fn execute(&self, input: DataBlock, ctx: Context) -> impl Iterator<Item = DataBlock> {
+        iter::empty()
+    }
+}
+
+impl Operator for Filter {
     fn execute(&self, input: DataBlock, ctx: Context) -> impl Iterator<Item = DataBlock> {
         iter::empty()
     }

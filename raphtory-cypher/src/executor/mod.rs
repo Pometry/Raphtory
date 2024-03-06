@@ -59,13 +59,13 @@ impl Executor {
             .num_threads(num_threads.get())
             .build()?;
         let graph = &self.graph;
+        let operators = &self.pipeline.operators;
 
         thread_pool.scope(move |scope| {
-            let operators: Arc<[PhysicalOperator]> = self.pipeline.operators.into();
             let source = &self.pipeline.source;
 
             source.produce(Arc::new(|input| {
-                let stage = PipelineStage::new(operators.clone());
+                let stage = PipelineStage::new(operators);
 
                 run_pipeline(stage, scope, graph, input);
             }))?;
@@ -75,18 +75,24 @@ impl Executor {
 }
 
 fn run_pipeline<'graph: 'scope, 'scope>(
-    stage: PipelineStage,
+    stage: PipelineStage<'graph>,
     scope: &Scope<'scope>,
     graph: &'graph Graph2,
     input: DataBlock,
 ) {
-    if let Some((operator, next_exec)) = stage.next_operator() {
+    if let Some((operator, next_stage)) = stage.next_operator() {
         match operator {
             PhysicalOperator::Expand(expand) => {
                 for next_input in expand.execute(input, Context::new(scope, graph)) {
-                    let next_exec = next_exec.clone();
                     scope.spawn(move |scope2| {
-                        run_pipeline(next_exec.clone(), scope2, graph, next_input);
+                        run_pipeline(next_stage, scope2, graph, next_input);
+                    });
+                }
+            }
+            PhysicalOperator::Filter(filter) => {
+                for next_input in filter.execute(input, Context::new(scope, graph)) {
+                    scope.spawn(move |scope2| {
+                        run_pipeline(next_stage, scope2, graph, next_input);
                     });
                 }
             }
@@ -94,14 +100,14 @@ fn run_pipeline<'graph: 'scope, 'scope>(
     }
 }
 
-#[derive(Debug, Clone)]
-struct PipelineStage {
-    operators: Arc<[PhysicalOperator]>,
+#[derive(Debug, Copy, Clone)]
+struct PipelineStage<'a> {
+    operators: &'a [PhysicalOperator],
     stage: usize,
 }
 
-impl PipelineStage {
-    fn new(operators: Arc<[PhysicalOperator]>) -> Self {
+impl<'a> PipelineStage<'a> {
+    fn new(operators: &'a [PhysicalOperator]) -> Self {
         Self {
             operators,
             stage: 0,
