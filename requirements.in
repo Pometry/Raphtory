@@ -5,7 +5,7 @@ tqdm
 raphtory
 requests==2.31.0
 pyvis
-seaborn
+seaborn==0.13.2
 scipy
 Scrapy
 networkx
