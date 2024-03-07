@@ -28,14 +28,14 @@ pub mod errors;
 ///
 /// Returns
 ///    A `NodeRef` extracted from the Python object.
-impl<'source> FromPyObject<'source> for NodeRef {
+impl<'source> FromPyObject<'source> for NodeRef<'source> {
     fn extract(vref: &'source PyAny) -> PyResult<Self> {
-        if let Ok(s) = vref.extract::<String>() {
-            Ok(s.into())
+        if let Ok(s) = vref.extract::<&'source str>() {
+            Ok(NodeRef::ExternalStr(s))
         } else if let Ok(gid) = vref.extract::<u64>() {
-            Ok(gid.into())
+            Ok(NodeRef::External(gid))
         } else if let Ok(v) = vref.extract::<PyNode>() {
-            Ok(v.into())
+            Ok(NodeRef::Internal(v.node.node))
         } else {
             Err(PyTypeError::new_err("Not a valid node"))
         }

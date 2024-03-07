@@ -44,9 +44,9 @@ where
     result
 }
 
-pub fn measure_without_print_results<T, F>(name: &str, f: F) -> T
+pub fn measure_without_print_results<T, E, F>(name: &str, f: F) -> Result<T, E>
 where
-    F: FnOnce() -> T,
+    F: FnOnce() -> Result<T, E>,
 {
     let start_time = Instant::now();
     let result = f();

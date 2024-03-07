@@ -8,7 +8,7 @@ use crate::{
 use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
 
-use crate::core::entities::properties::props::Meta;
+use crate::{core::entities::properties::props::Meta, prelude::Graph};
 
 use super::{graph::TemporalGraph, load::ExternalEdgeList, Error};
 
@@ -18,7 +18,7 @@ pub mod edge_filter_ops;
 pub mod graph_ops;
 pub mod layer_ops;
 pub mod materialize;
-mod prop_conversion;
+pub mod prop_conversion;
 pub mod temporal_properties_ops;
 pub mod time_semantics;
 pub mod tprops;
@@ -40,6 +40,12 @@ pub struct ArrowGraph {
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
+}
+
+impl Graph {
+    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
+        ArrowGraph::from_graph(self, graph_dir)
+    }
 }
 
 impl IntoDynamic for ArrowGraph {
@@ -73,12 +79,24 @@ impl ArrowGraph {
         }
     }
 
+    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
+        let edge_meta = graph.0.inner().edge_meta.clone();
+        let node_meta = graph.0.inner().node_meta.clone();
+        let graph_props = Arc::new(GraphMeta::new());
+        let inner_graph = TemporalGraph::from_graph(graph, graph_dir)?;
+        Ok(Self {
+            inner: Arc::new(inner_graph),
+            node_meta,
+            edge_meta,
+            graph_props,
+        })
+    }
+    
     pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
         num_threads: NonZeroUsize,
 
-        node_chunk_size: usize,
-        edge_chunk_size: usize,
+        chunk_size: usize,
         t_props_chunk_size: usize,
 
         graph_dir: impl AsRef<Path> + Sync,
@@ -93,8 +111,7 @@ impl ArrowGraph {
             src_col_idx,
             dst_col_idx,
             time_col_idx,
-            node_chunk_size,
-            edge_chunk_size,
+            chunk_size,
             t_props_chunk_size,
             || edge_lists.iter(),
         )?;
@@ -257,7 +274,6 @@ mod test {
         ArrowGraph::load_from_edge_lists(
             &edge_lists,
             std::num::NonZeroUsize::new(1).unwrap(),
-            1000,
             1000,
             1000,
             graph_dir.as_ref(),

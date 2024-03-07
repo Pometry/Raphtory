@@ -20,6 +20,17 @@ pub enum TimeIndexLike<'a> {
     External(TimeStamps<'a, TimeIndexEntry>),
 }
 
+impl<'a> TimeIndexLike<'a> {
+    pub fn len(&self) -> usize {
+        match self {
+            TimeIndexLike::Ref(ts) => ts.len(),
+            TimeIndexLike::Range(ts) => ts.len(),
+            #[cfg(feature = "arrow")]
+            TimeIndexLike::External(ts) => ts.len(),
+        }
+    }
+}
+
 impl<'a> TimeIndexOps for TimeIndexLike<'a> {
     type IndexType = TimeIndexEntry;
     type RangeType<'b> = TimeIndexLike<'b> where Self: 'b;

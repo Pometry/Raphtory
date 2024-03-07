@@ -65,13 +65,13 @@ impl ToPyObject for Infected {
     }
 }
 
-pub enum PySeed {
-    List(Vec<NodeRef>),
+pub enum PySeed<'a> {
+    List(Vec<NodeRef<'a>>),
     Number(usize),
     Probability(f64),
 }
 
-impl<'source> FromPyObject<'source> for PySeed {
+impl<'source> FromPyObject<'source> for PySeed<'source> {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let res = if ob.is_instance_of::<PyLong>() {
             Self::Number(ob.extract()?)
@@ -84,7 +84,7 @@ impl<'source> FromPyObject<'source> for PySeed {
     }
 }
 
-impl IntoSeeds for PySeed {
+impl<'a> IntoSeeds for PySeed<'a> {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,

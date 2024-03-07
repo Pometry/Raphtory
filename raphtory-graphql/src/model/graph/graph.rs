@@ -10,7 +10,6 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -64,19 +63,10 @@ impl GqlGraph {
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
         GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes
-            .iter()
-            .map(|v| {
-                let v = *v;
-                let v: NodeRef = v.into();
-                v
-            })
-            .collect();
         GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
@@ -207,16 +197,12 @@ impl GqlGraph {
     ////////////////////////
 
     async fn has_node(&self, name: String) -> bool {
-        let v_ref: NodeRef = name.into();
-        self.graph.has_node(v_ref)
+        self.graph.has_node(name)
     }
     async fn has_node_id(&self, id: u64) -> bool {
-        let v_ref: NodeRef = id.into();
-        self.graph.has_node(v_ref)
+        self.graph.has_node(id)
     }
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
-        let src: NodeRef = src.into();
-        let dst: NodeRef = dst.into();
         match layer {
             Some(name) => self
                 .graph
@@ -228,8 +214,6 @@ impl GqlGraph {
     }
 
     async fn has_edge_id(&self, src: u64, dst: u64, layer: Option<String>) -> bool {
-        let src: NodeRef = src.into();
-        let dst: NodeRef = dst.into();
         match layer {
             Some(name) => self
                 .graph
@@ -244,12 +228,10 @@ impl GqlGraph {
     //////// GETTERS ///////
     ////////////////////////
     async fn node(&self, name: String) -> Option<Node> {
-        let v_ref: NodeRef = name.into();
-        self.graph.node(v_ref).map(|v| v.into())
+        self.graph.node(name).map(|v| v.into())
     }
     async fn node_id(&self, id: u64) -> Option<Node> {
-        let v_ref: NodeRef = id.into();
-        self.graph.node(v_ref).map(|v| v.into())
+        self.graph.node(id).map(|v| v.into())
     }
 
     async fn nodes(&self, filter: Option<NodeFilter>) -> GqlNodes {
@@ -281,14 +263,10 @@ impl GqlGraph {
     }
 
     pub fn edge(&self, src: String, dst: String) -> Option<Edge> {
-        let src: NodeRef = src.into();
-        let dst: NodeRef = dst.into();
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
     pub fn edge_id(&self, src: u64, dst: u64) -> Option<Edge> {
-        let src: NodeRef = src.into();
-        let dst: NodeRef = dst.into();
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
@@ -406,7 +384,7 @@ impl GqlGraph {
 
         let neighbours: Vec<HashSet<NodeView<IndexedGraph<DynamicGraph>>>> = selected_nodes
             .iter()
-            .filter_map(|n| self.graph.node(Into::<NodeRef>::into(n.clone())))
+            .filter_map(|n| self.graph.node(n))
             .map(|n| {
                 n.neighbours()
                     .collect()

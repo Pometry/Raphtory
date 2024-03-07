@@ -563,7 +563,7 @@ pub fn min_degree(g: &PyGraphView) -> usize {
 #[pyo3[signature = (g, source, cutoff=None)]]
 pub fn single_source_shortest_path(
     g: &PyGraphView,
-    source: PyInputNode,
+    source: NodeRef,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<DynamicGraph, Vec<String>, Vec<String>> {
     single_source_shortest_path_rs(&g.graph, source, cutoff)
@@ -584,8 +584,8 @@ pub fn single_source_shortest_path(
 #[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
-    source: PyInputNode,
-    targets: Vec<PyInputNode>,
+    source: NodeRef,
+    targets: Vec<NodeRef>,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
     match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {

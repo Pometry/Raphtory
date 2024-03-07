@@ -4,7 +4,7 @@
 //! It finds the shortest paths from a given source node to all other nodes in a graph.
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::entities::{nodes::input_node::InputNode, VID},
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::graph::node::NodeView,
     prelude::*,
 };
@@ -22,15 +22,14 @@ use std::collections::HashMap;
 ///
 /// Returns an `AlgorithmResult<String, Vec<String>>` containing the shortest paths from the source to all reachable nodes.
 ///
-pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: InputNode>(
+pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef>(
     g: &G,
     source: T,
     cutoff: Option<usize>,
 ) -> AlgorithmResult<G, Vec<String>, Vec<String>> {
     let results_type = std::any::type_name::<Vec<String>>();
     let mut paths: HashMap<usize, Vec<String>> = HashMap::new();
-    if g.has_node(source.clone()) {
-        let source_node = g.node(source).unwrap();
+    if let Some(source_node) = g.node(source) {
         let node_internal_id = source_node.node.0;
         let mut level = 0;
         let mut nextlevel: HashMap<usize, String> = HashMap::new();

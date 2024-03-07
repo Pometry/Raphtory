@@ -65,10 +65,7 @@ pub enum Error {
     SliceCastError(bytemuck::PodCastError),
 }
 
-unsafe impl Send for Error {} // heed::Error can't be made Send
-
-const SRC_COLUMN: &str = "src";
-const DST_COLUMN: &str = "dst";
+// unsafe impl Send for Error {} // heed::Error can't be made Send
 
 const TIME_COLUMN: &str = "rap_time";
 const TIME_COLUMN_IDX: usize = 0;
@@ -91,11 +88,12 @@ pub(crate) mod file_prefix {
     };
     use strum::{AsRefStr, EnumString};
 
-    #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq)]
+    #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq, Copy, Clone)]
     pub enum GraphPaths {
-        EdgeIds,
         NodeAdditions,
         NodeAdditionsOffsets,
+        AdjOutSrcs,
+        AdjOutDsts,
         AdjOutOffsets,
         EdgeTPropsOffsets,
         EdgeTProps,
@@ -344,7 +342,6 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // create graph dir if it does not exist
     // if it exists make sure it's empty
     std::fs::create_dir_all(&graph_dir)?;
-
     // let mut dir_iter = std::fs::read_dir(&graph_dir)?;
     // if dir_iter.next().is_some() {
     //     return Err(Error::GraphDirNotEmpty);

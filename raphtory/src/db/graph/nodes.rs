@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             properties::Properties,
@@ -78,8 +78,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
         self.graph.is_empty()
     }
 
-    pub fn get<V: Into<NodeRef>>(&self, node: V) -> Option<NodeView<G, GH>> {
-        let vid = self.graph.internalise_node(node.into())?;
+    pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<G, GH>> {
+        let vid = self.graph.internalise_node(node.as_node_ref())?;
         Some(NodeView::new_one_hop_filtered(
             self.base_graph.clone(),
             self.graph.clone(),

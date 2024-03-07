@@ -36,7 +36,7 @@ pub fn run(g: &TemporalGraph) -> Option<usize> {
                 let mut count_boot: usize = 0;
                 let mut count_program: usize = 0;
 
-                for event in event_ids.iter().flatten().copied() {
+                for event in event_ids.iter().flatten() {
                     if event == PROGRAM {
                         count_program += 1;
                     } else if event == BOOT {

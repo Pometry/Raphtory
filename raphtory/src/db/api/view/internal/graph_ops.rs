@@ -69,16 +69,6 @@ pub trait GraphOps<'graph>: Send + Sync {
     fn degree(&self, v: VID, d: Direction, layers: &LayerIds, filter: Option<&EdgeFilter>)
         -> usize;
 
-    /// Returns the VID that corresponds to the specified node ID (v).
-    /// Returns None if the node ID is not present in the graph.
-    /// # Arguments
-    ///
-    /// * `v` - The node ID to lookup.
-    #[inline]
-    fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers, filter)
-    }
-
     /// Returns the edge reference that corresponds to the specified src and dst node
     /// # Arguments
     ///
@@ -219,11 +209,6 @@ where
         filter: Option<&EdgeFilter>,
     ) -> usize {
         self.base().degree(v, d, layers, filter)
-    }
-
-    #[inline]
-    fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.base().node_ref(v, layers, filter)
     }
 
     #[inline]

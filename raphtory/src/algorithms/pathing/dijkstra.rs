@@ -1,7 +1,6 @@
-use crate::db::api::view::StaticGraphViewOps;
+use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 /// Dijkstra's algorithm
 use crate::{
-    core::entities::nodes::input_node::InputNode,
     core::PropType,
     prelude::Prop,
     prelude::{EdgeViewOps, NodeViewOps},
@@ -46,7 +45,7 @@ impl PartialOrd for State {
 /// Returns a `HashMap` where the key is the target node and the value is a tuple containing
 /// the total cost and a vector of nodes representing the shortest path.
 ///
-pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode>(
+pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     graph: &G,
     source: T,
     targets: Vec<T>,
@@ -83,8 +82,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
 
     let target_nodes: Vec<String> = targets
         .iter()
-        .filter_map(|p| match graph.has_node(p.clone()) {
-            true => Some(graph.node(p.clone())?.name()),
+        .filter_map(|p| match graph.has_node(p) {
+            true => Some(graph.node(p)?.name()),
             false => None,
         })
         .collect();

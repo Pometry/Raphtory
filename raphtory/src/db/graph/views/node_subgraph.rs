@@ -152,10 +152,6 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
         self.graph.degree(v, d, layer, filter)
     }
 
-    fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers, filter)
-    }
-
     fn edge_ref(
         &self,
         src: VID,

@@ -106,6 +106,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         match v {
             NodeRef::Internal(l) => l,
             NodeRef::External(_) => self.inner().resolve_node_ref(v).unwrap(),
+            NodeRef::ExternalStr(_) => self.inner().resolve_node_ref(v).unwrap(),
         }
     }
 

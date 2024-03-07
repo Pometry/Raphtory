@@ -37,7 +37,7 @@ impl<T: NativeType + Into<Prop>> LayeredTProp for TPropColumn<'_, ChunkedPrimiti
             self.timestamps
                 .iter_t()
                 .zip(self.props.iter())
-                .filter_map(|(t, v)| v.copied().map(|v| (t, v.into()))),
+                .filter_map(|(t, v)| v.map(|v| (t, v.into()))),
         )
     }
 

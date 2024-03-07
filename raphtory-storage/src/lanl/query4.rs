@@ -105,8 +105,8 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                     .into_iter()
                                                     .zip(edge_ts.slice(i + 1..len))
                                                 {
-                                                    if program_t < &t
-                                                        || nft1_t < program_t
+                                                    if program_t < t
+                                                        || nft1_t < &program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
                                                         break;
@@ -119,7 +119,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
                                                 for i in (0..i).rev() {
                                                     let (v, program_t) =
                                                         (event_ids.get(i), edge_ts.get(i));
-                                                    if program_t != &t
+                                                    if program_t != t
                                                         || nft1_t < &program_t
                                                         || nft1_t - t >= WINDOW
                                                     {
@@ -195,7 +195,7 @@ pub fn run2(g: &TemporalGraph) -> Option<usize> {
                                     .into_iter()
                                     .zip(edge_ts.slice(i + 1..len))
                                 {
-                                    if program_t < &t || nft_t < program_t || nft_t - t >= WINDOW {
+                                    if program_t < t || nft_t < &program_t || nft_t - t >= WINDOW {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {
@@ -209,8 +209,7 @@ pub fn run2(g: &TemporalGraph) -> Option<usize> {
 
                                 for i in (0..i).rev() {
                                     let (v, program_t) = (event_ids.get(i), edge_ts.get(i));
-                                    if program_t != &t || nft_t < &program_t || nft_t - t >= WINDOW
-                                    {
+                                    if program_t != t || nft_t < &program_t || nft_t - t >= WINDOW {
                                         break;
                                     }
                                     if v == Some(PROGRAM) {

@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{nodes::node_ref::NodeRef, VID},
+        entities::{nodes::node_ref::AsNodeRef, VID},
         utils::time::{error::ParseTimeError, TryIntoTime},
     },
     db::api::view::StaticGraphViewOps,
@@ -72,7 +72,7 @@ pub trait IntoSeeds {
     ) -> Result<Vec<VID>, SeedError>;
 }
 
-impl<I: IntoIterator<Item = V>, V: Into<NodeRef> + Debug> IntoSeeds for I {
+impl<I: IntoIterator<Item = V>, V: AsNodeRef + Debug> IntoSeeds for I {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,
@@ -82,7 +82,7 @@ impl<I: IntoIterator<Item = V>, V: Into<NodeRef> + Debug> IntoSeeds for I {
             .map(|v| {
                 let description = format!("{:?}", v);
                 graph
-                    .internal_node_ref(v.into(), &graph.layer_ids(), graph.edge_filter())
+                    .internal_node_ref(v.as_node_ref(), &graph.layer_ids(), graph.edge_filter())
                     .ok_or(SeedError::InvalidNode(description))
             })
             .collect()

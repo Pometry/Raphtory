@@ -1,4 +1,4 @@
-use crate::{core::entities::nodes::node_ref::NodeRef, prelude::NodeViewOps};
+use crate::prelude::NodeViewOps;
 use ordered_float::OrderedFloat;
 use std::{
     collections::{hash_map::Iter, HashMap},
@@ -96,8 +96,8 @@ where
     ///
     /// Arguments:
     ///     `key`: The key of the node, can be the node object, or name.
-    pub fn get<T: Into<NodeRef>>(&self, name: T) -> Option<&V> {
-        let v = name.into();
+    pub fn get<T: AsNodeRef>(&self, name: T) -> Option<&V> {
+        let v = name.as_node_ref();
         if self.graph.has_node(v) {
             let internal_id = self.graph.node(v).unwrap().node.0;
             self.result.get(&internal_id)
@@ -364,7 +364,11 @@ where
     }
 }
 
-use crate::{core::entities::VID, db::graph::node::NodeView, prelude::GraphViewOps};
+use crate::{
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    db::graph::node::NodeView,
+    prelude::GraphViewOps,
+};
 use num_traits::float::FloatCore;
 use std::fmt;
 

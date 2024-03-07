@@ -12,13 +12,25 @@ use pyo3::{
 };
 
 use crate::{
-    arrow::graph_impl::{ArrowGraph, ParquetLayerCols},
+    arrow::{
+        graph_impl::{ArrowGraph, ParquetLayerCols},
+        Error,
+    },
     core::utils::errors::GraphError,
     db::api::view::{DynamicGraph, IntoDynamic},
-    python::graph::views::graph_view::PyGraphView,
+    python::{
+        graph::{graph::PyGraph, views::graph_view::PyGraphView},
+        utils::errors::adapt_err_value,
+    },
 };
 
 use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
+
+impl From<Error> for PyErr {
+    fn from(value: Error) -> Self {
+        adapt_err_value(&value)
+    }
+}
 
 #[derive(Clone)]
 #[pyclass(name = "ArrowGraph", extends = PyGraphView)]
@@ -124,6 +136,14 @@ impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
 }
 
 #[pymethods]
+impl PyGraph {
+    /// save graph in arrow format and memory map the result
+    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<ArrowGraph, Error> {
+        self.graph.persist_as_arrow(graph_dir)
+    }
+}
+
+#[pymethods]
 impl PyArrowGraph {
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
@@ -214,14 +234,13 @@ impl PyArrowGraph {
         let num_threads =
             std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap());
 
-        let node_chunk_size = df
+        let chunk_size = df
             .arrays
             .first()
             .map(|arr| arr.len())
             .ok_or_else(|| GraphError::LoadFailure("Empty pandas dataframe".to_owned()))?;
 
-        let edge_chunk_size = node_chunk_size;
-        let t_props_chunk_size = node_chunk_size * 100;
+        let t_props_chunk_size = chunk_size;
 
         let names = df.names.clone();
 
@@ -244,8 +263,7 @@ impl PyArrowGraph {
         ArrowGraph::load_from_edge_lists(
             &edge_lists,
             num_threads,
-            node_chunk_size,
-            edge_chunk_size,
+            chunk_size,
             t_props_chunk_size,
             graph_dir,
             src_col_idx,

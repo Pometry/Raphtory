@@ -9,6 +9,7 @@ def test_arrow_graph():
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     rsc_dir = os.path.join(curr_dir, '..', '..', 'resource')
     rsc_dir = os.path.normpath(rsc_dir)
+    print('rsc_dir:', rsc_dir + "/netflowsorted/nft_sorted")
     
     graph_dir = rsc_dir + "/target"
     layer_parquet_cols = [

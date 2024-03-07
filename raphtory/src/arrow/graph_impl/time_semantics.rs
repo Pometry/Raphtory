@@ -151,7 +151,6 @@ impl TimeSemantics for ArrowGraph {
                         .edge(e.pid())
                         .timestamp_slice()
                         .into_iter()
-                        .copied()
                         .collect()
                 } else {
                     vec![]
@@ -240,9 +239,9 @@ impl TimeSemantics for ArrowGraph {
                         .time_col
                         .clone()
                         .into_value(e.pid().0);
-                    let start = windowed_times.partition_point(|v| v < &w.start);
+                    let start = windowed_times.partition_point(|v| v < w.start);
                     let windowed_times = windowed_times.sliced(start..);
-                    let end = windowed_times.partition_point(|v| v < &w.end);
+                    let end = windowed_times.partition_point(|v| v < w.end);
                     let windowed_times = windowed_times.sliced(..end);
                     Box::new(
                         windowed_times
