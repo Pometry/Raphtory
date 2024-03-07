@@ -54,7 +54,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
 
                     for i in (0..i).rev() {
                         let (v, program_t) = (event_ids.get(i), edge_ts.get(i));
-                        if program_t != &t {
+                        if program_t != t {
                             break;
                         }
                         if v == Some(PROGRAM) {

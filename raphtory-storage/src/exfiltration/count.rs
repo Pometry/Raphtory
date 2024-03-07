@@ -76,7 +76,7 @@ fn valid_netflow_events(
             let mut valid_events: Vec<_> = nf1
                 .par_prop_items_unchecked::<i64>(bytes_prop_id)
                 .unwrap()
-                .filter_map(move |(&t, v)| (v > 100_000_000).then(|| window_bounds(t, window)))
+                .filter_map(move |(t, v)| (v > 100_000_000).then(|| window_bounds(t, window)))
                 .flatten()
                 .collect();
             if valid_events.is_empty() {
@@ -213,7 +213,7 @@ fn local_login_count(
     prop_id: usize,
     prog1_map: &[(Time, usize)],
 ) -> Option<usize> {
-    if login_edge.timestamp_slice().iter().copied().next()? >= prog1_map.first()?.0 {
+    if login_edge.timestamp_slice().iter().next()? >= prog1_map.first()?.0 {
         return None;
     }
     login_edge
@@ -221,7 +221,7 @@ fn local_login_count(
         .map(|iter| {
             iter.filter(|(_, id)| *id == 4624)
                 .map(|(t, _)| {
-                    let index = prog1_map.partition_point(|(ti, _)| ti > t);
+                    let index = prog1_map.partition_point(|(ti, _)| ti > &t);
                     if index > 0 {
                         prog1_map[index - 1].1
                     } else {

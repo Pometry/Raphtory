@@ -5,7 +5,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::{input_node::InputNode, node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
@@ -14,7 +14,6 @@ use crate::{
             LayerIds, EID, VID,
         },
         storage::{locked_view::LockedView, ArcEntry},
-        utils::hashing::calculate_hash,
         ArcStr, Prop,
     },
     db::api::view::{
@@ -81,7 +80,7 @@ impl CoreGraphOps for Graph2 {
         match self.node_gid(v).unwrap() {
             GID::U64(n) => n,
             GID::I64(n) => n as u64,
-            GID::Str(s) => calculate_hash(&s),
+            GID::Str(s) => s.id(),
         }
     }
 
@@ -118,6 +117,7 @@ impl CoreGraphOps for Graph2 {
         match v {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(vid) => self.find_node(&GID::U64(vid)),
+            NodeRef::ExternalStr(string) => self.find_node(&GID::Str(string.into())),
         }
     }
 

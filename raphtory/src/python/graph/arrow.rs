@@ -9,13 +9,22 @@ use itertools::Itertools;
 use pyo3::{prelude::*, types::IntoPyDict};
 
 use crate::{
-    arrow::graph_impl::Graph2,
+    arrow::{graph_impl::Graph2, Error},
     core::utils::errors::GraphError,
     db::api::view::{DynamicGraph, IntoDynamic},
-    python::graph::views::graph_view::PyGraphView,
+    python::{
+        graph::{graph::PyGraph, views::graph_view::PyGraphView},
+        utils::errors::adapt_err_value,
+    },
 };
 
 use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
+
+impl From<Error> for PyErr {
+    fn from(value: Error) -> Self {
+        adapt_err_value(&value)
+    }
+}
 
 #[derive(Clone)]
 #[pyclass(name="ArrowGraph", extends=PyGraphView)]
@@ -56,6 +65,14 @@ impl<'source> FromPyObject<'source> for Graph2 {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let py_graph: PyRef<PyArrowGraph> = ob.extract()?;
         Ok(py_graph.graph.clone())
+    }
+}
+
+#[pymethods]
+impl PyGraph {
+    /// save graph in arrow format and memory map the result
+    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<Graph2, Error> {
+        self.graph.persist_as_arrow(graph_dir)
     }
 }
 
@@ -117,14 +134,13 @@ impl PyArrowGraph {
         let num_threads =
             std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap());
 
-        let node_chunk_size = df
+        let chunk_size = df
             .arrays
             .first()
             .map(|arr| arr.len())
             .ok_or_else(|| GraphError::LoadFailure("empty pandas dataframe".to_owned()))?;
 
-        let edge_chunk_size = node_chunk_size;
-        let t_props_chunk_size = node_chunk_size * 100;
+        let t_props_chunk_size = chunk_size;
 
         let names = df.names.clone();
 
@@ -147,8 +163,7 @@ impl PyArrowGraph {
         Graph2::from_edge_lists(
             &edge_lists,
             num_threads,
-            node_chunk_size,
-            edge_chunk_size,
+            chunk_size,
             t_props_chunk_size,
             graph_dir,
             src_col_idx,

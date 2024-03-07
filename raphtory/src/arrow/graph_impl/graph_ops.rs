@@ -27,6 +27,7 @@ impl<'graph> GraphOps<'graph> for Graph2 {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(vid) => self.find_node(&GID::U64(vid)),
             //FIXME: when the original GID was string this will fail
+            NodeRef::ExternalStr(str) => self.find_node(&GID::Str(str.into())),
         }
     }
 

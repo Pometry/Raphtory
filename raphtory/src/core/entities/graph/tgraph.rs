@@ -158,6 +158,7 @@ impl<const N: usize> TemporalGraph<N> {
                 .ok_or(GraphError::FailedToMutateGraph {
                     source: MutateGraphError::NodeNotFoundError { node_id: gid },
                 }),
+            NodeRef::ExternalStr(string) => self.as_local_node(NodeRef::External(string.id())),
         }
     }
 
@@ -571,6 +572,7 @@ impl<const N: usize> TemporalGraph<N> {
                 let v_id = self.logical_to_physical.get(&gid)?;
                 Some((*v_id))
             }
+            NodeRef::ExternalStr(string) => self.resolve_node_ref(NodeRef::External(string.id())),
         }
     }
 

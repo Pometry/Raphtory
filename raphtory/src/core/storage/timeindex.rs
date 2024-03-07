@@ -210,6 +210,18 @@ pub enum TimeIndexWindow<'a, T: AsTime> {
     All(&'a TimeIndex<T>),
 }
 
+impl<'a, T: AsTime> TimeIndexWindow<'a, T> {
+    pub fn len(&self) -> usize {
+        match self {
+            TimeIndexWindow::Empty => 0,
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => {
+                timeindex.range_iter(range.clone()).count()
+            }
+            TimeIndexWindow::All(ts) => ts.len(),
+        }
+    }
+}
+
 impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
     type IndexType = T;
     type RangeType = Self;

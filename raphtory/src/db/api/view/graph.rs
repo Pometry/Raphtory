@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
+        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
         ArcStr, OptionAsStr,
@@ -41,8 +41,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     /// Returns:
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I)
-        -> NodeSubgraph<Self>;
+    fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
@@ -74,16 +73,16 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn count_temporal_edges(&self) -> usize;
 
     /// Check if the graph contains a node `v`.
-    fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool;
+    fn has_node<T: AsNodeRef>(&self, v: T) -> bool;
 
     /// Check if the graph contains an edge given a pair of nodes `(src, dst)`.
-    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool;
+    fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
 
     /// Get all property values of this graph.
     ///
@@ -171,12 +170,12 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
 
         Ok(self.new_base_graph(g))
     }
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
+    fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
         let filter = self.edge_filter();
         let layer_ids = self.layer_ids();
         let nodes: FxHashSet<VID> = nodes
             .into_iter()
-            .flat_map(|v| self.internal_node_ref(v.into(), &layer_ids, filter))
+            .flat_map(|v| self.internal_node_ref(v.as_node_ref(), &layer_ids, filter))
             .collect();
         NodeSubgraph::new(self.clone(), nodes)
     }
@@ -207,13 +206,13 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.temporal_edges_len(self.layer_ids(), self.edge_filter())
     }
 
-    fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool {
-        self.has_node_ref(v.into(), &self.layer_ids(), self.edge_filter())
+    fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
+        self.has_node_ref(v.as_node_ref(), &self.layer_ids(), self.edge_filter())
     }
 
-    fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool {
-        let src_ref = src.into();
-        let dst_ref = dst.into();
+    fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool {
+        let src_ref = src.as_node_ref();
+        let dst_ref = dst.as_node_ref();
         if let Some(src) = self.internalise_node(src_ref) {
             if let Some(dst) = self.internalise_node(dst_ref) {
                 return self.has_edge_ref(src, dst, &self.layer_ids(), self.edge_filter());
@@ -222,17 +221,17 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         false
     }
 
-    fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>> {
-        let v = v.into();
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>> {
+        let v = v.as_node_ref();
         self.internal_node_ref(v, &self.layer_ids(), self.edge_filter())
             .map(|v| NodeView::new_internal(self.clone(), v))
     }
 
-    fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
         let layer_ids = self.layer_ids();
         let edge_filter = self.edge_filter();
-        if let Some(src) = self.internal_node_ref(src.into(), &layer_ids, edge_filter) {
-            if let Some(dst) = self.internal_node_ref(dst.into(), &layer_ids, edge_filter) {
+        if let Some(src) = self.internal_node_ref(src.as_node_ref(), &layer_ids, edge_filter) {
+            if let Some(dst) = self.internal_node_ref(dst.as_node_ref(), &layer_ids, edge_filter) {
                 return self
                     .edge_ref(src, dst, &layer_ids, edge_filter)
                     .map(|e| EdgeView::new(self.clone(), e));

@@ -130,14 +130,14 @@ fn query1_v7(
                                                     probe_map
                                                         .entry(b)
                                                         .and_modify(|(nft_min, v)| {
-                                                            v.push((*prog1_t, *nf1_t - 30, e));
-                                                            *nft_min = (*nf1_t - 30).min(*nft_min);
+                                                            v.push((prog1_t, nf1_t - 30, e));
+                                                            *nft_min = (nf1_t - 30).min(*nft_min);
                                                         })
                                                         .or_insert_with(|| {
-                                                            let nf1_t_less30 = *nf1_t - 30;
+                                                            let nf1_t_less30 = nf1_t - 30;
                                                             (
                                                                 nf1_t_less30,
-                                                                vec![(*prog1_t, nf1_t_less30, e)],
+                                                                vec![(prog1_t, nf1_t_less30, e)],
                                                             )
                                                         });
                                                 }
@@ -193,7 +193,7 @@ fn query1_v7(
                             let login1_ts = login1.timestamp_slice();
 
                             let min_login1 = login1_ts.iter().next().unwrap();
-                            if min_login1 > &max_prog1 {
+                            if min_login1 > max_prog1 {
                                 skip = true;
                             }
                         }
@@ -202,7 +202,7 @@ fn query1_v7(
                             let iter = login1
                                 .par_prop_items_unchecked::<i64>(event_id_prop_id_2v)
                                 .unwrap()
-                                .filter(|(&login1_t, _)| login1_t >= *min_nft_less30);
+                                .filter(|(login1_t, _)| login1_t >= min_nft_less30);
 
                             binary_search_join_par_4(iter, prog1, nft_less30, e, &a, &count);
                         }
@@ -221,7 +221,7 @@ fn query1_v7(
 
 #[inline]
 fn binary_search_join_par_4<'a>(
-    login_events: impl ParallelIterator<Item = (&'a Time, i64)>,
+    login_events: impl ParallelIterator<Item = (Time, i64)>,
     prog1: &[Time],
     nft: &[Time],
     e: &[VID],
@@ -231,7 +231,7 @@ fn binary_search_join_par_4<'a>(
     let c = login_events
         .filter(|(_, login1_event_id)| *login1_event_id == 4624)
         .filter_map(|(login1_t, _)| {
-            let pos = prog1.partition_point(|prog1_t| prog1_t < login1_t);
+            let pos = prog1.partition_point(|prog1_t| prog1_t < &login1_t);
             if pos == prog1.len() {
                 None
             } else {
@@ -239,7 +239,7 @@ fn binary_search_join_par_4<'a>(
             }
         })
         .map(|(from, login1_t)| {
-            optimise_to_bits_small(&prog1[from..], &nft[from..], &e[from..], login1_t, a)
+            optimise_to_bits_small(&prog1[from..], &nft[from..], &e[from..], &login1_t, a)
         })
         .sum::<usize>();
 

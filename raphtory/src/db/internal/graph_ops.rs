@@ -25,13 +25,7 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         _layer_ids: &LayerIds,
         _filter: Option<&EdgeFilter>,
     ) -> Option<VID> {
-        match v {
-            NodeRef::Internal(l) => Some(l),
-            NodeRef::External(_) => {
-                let vid = self.inner().resolve_node_ref(v)?;
-                Some(vid)
-            }
-        }
+        self.inner().resolve_node_ref(v)
     }
 
     fn find_edge_id(

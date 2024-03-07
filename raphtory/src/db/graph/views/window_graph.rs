@@ -545,24 +545,6 @@ impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
         self.graph.degree(v, d, layer, filter)
     }
 
-    /// Get the reference of the node with ID v if it exists
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The ID of the node to get
-    ///
-    /// Returns:
-    ///
-    /// A result of an option containing the node reference if it exists, `None` otherwise.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `v` is not a valid node.
-    #[inline]
-    fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers, filter)
-    }
-
     /// Get an iterator over the references of an edges as a reference
     ///
     /// # Arguments

@@ -27,7 +27,10 @@ use crate::{
     prelude::*,
 };
 
-use crate::{core::storage::timeindex::AsTime, db::graph::edges::Edges};
+use crate::{
+    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
+    db::graph::edges::Edges,
+};
 use chrono::{DateTime, Utc};
 use std::{
     fmt,
@@ -51,15 +54,9 @@ impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
     }
 }
 
-impl<G, GH> From<NodeView<G, GH>> for NodeRef {
-    fn from(value: NodeView<G, GH>) -> Self {
-        NodeRef::Internal(value.node)
-    }
-}
-
-impl<G, GH> From<&NodeView<G, GH>> for NodeRef {
-    fn from(value: &NodeView<G, GH>) -> Self {
-        NodeRef::Internal(value.node)
+impl<G, GH> AsNodeRef for NodeView<G, GH> {
+    fn as_node_ref(&self) -> NodeRef {
+        NodeRef::Internal(self.node)
     }
 }
 
