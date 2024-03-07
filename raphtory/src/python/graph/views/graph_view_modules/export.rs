@@ -5,12 +5,13 @@ use crate::{
     python::graph::views::graph_view::PyGraphView,
 };
 use pyo3::{
-    prelude::PyModule,
+    prelude::*,
     pymethods,
     types::{PyDict, PyList, PyTuple},
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use itertools::Itertools;
 
 #[pymethods]
 impl PyGraphView {
@@ -38,7 +39,7 @@ impl PyGraphView {
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
             let pandas = PyModule::import(py, "pandas")?;
-            let column_names = vec!["name", "properties", "property_history", "update_history"];
+            let mut column_names = vec!["name", "properties", "property_history", "update_history"];
             let node_tuples: Vec<_> = self
                 .graph
                 .nodes()
@@ -72,6 +73,104 @@ impl PyGraphView {
             Ok(df.to_object(py))
         })
     }
+
+
+    #[pyo3(signature = (include_node_properties=true, include_property_histories=true))]
+    pub fn to_node_df_new(
+        &self,
+        include_node_properties: Option<bool>,
+        include_property_histories: Option<bool>,
+    ) -> PyResult<PyObject> {
+        Python::with_gil(|py| {
+            let pandas = PyModule::import(py, "pandas")?;
+
+            let mut column_names = vec![String::from("name")];
+            let mut all_properties = HashSet::new();
+
+            // Adjusted to check both temporal and constant properties
+            if include_node_properties == Some(true) {
+                self.graph.nodes().iter().for_each(|v| {
+                    let constant_properties = v.properties().constant().as_map();
+                    let temporal_properties = v.properties().temporal().histories().into_iter().map(|(name, _)| name).collect::<HashSet<_>>();
+
+                    constant_properties.iter().for_each(|(name, _)| {
+                        let column_name = if temporal_properties.contains(name) { format!("{}_constant", name) } else { name.to_string() };
+                        all_properties.insert(column_name);
+                    });
+
+                    temporal_properties.iter().for_each(|name| {
+                        if constant_properties.contains_key(name) {
+                            let column_name = format!("{}_temporal", name);
+                            all_properties.insert(column_name);
+                        } else {
+                            all_properties.insert(name.to_string());
+                        }
+                    });
+                });
+
+                column_names.extend(all_properties.iter().cloned());
+            }
+            
+            let mut node_tuples: Vec<&PyList> = vec![];
+            
+            self
+                .graph
+                .nodes()
+                .iter()
+                .for_each(|v| {
+                    println!("node {:?}", v.name());
+                    let pyrow = PyList::new(py, vec![v.name().to_string()]);
+                    let mut properties_map = HashMap::new();
+                    
+                    if include_node_properties == Some(true) {
+                        v.properties().constant().as_map().iter().for_each(|(name, prop)| {
+                            let column_name = if v.properties().temporal().contains(name) {
+                                format!("{}_constant", name)
+                            } else {
+                                name.to_string()
+                            };
+                            properties_map.insert(column_name, prop.to_string()); // Convert property value to string
+                        });
+                    
+                        v.properties().temporal().histories().iter().for_each(|(name, (_, prop))| {
+                            let column_name = if v.properties().constant().contains(name) {
+                                format!("{}_temporal", name)
+                            } else {
+                                name.to_string()
+                            };
+                            properties_map.insert(column_name, prop.to_string()); // Convert property value to string
+                        });
+                    }
+                    
+                    // Flatten properties into the row
+                    for prop_name in &column_names[1..column_names.len() - 1] { // Skip the first column (name)
+                        let prop_value = properties_map.get(prop_name).cloned().unwrap_or_else(|| "".to_string());
+                        pyrow.append(prop_value); // Append property value as string
+                    }
+
+                    let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
+                    pyrow.append(update_list_py);
+
+                    // row.join(", ") // Join all elements of the row with comma for DataFrame row
+                    node_tuples.push(pyrow);
+                });
+
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("columns", column_names.clone())?;
+            // let split_data = node_tuples.iter().map(|s| s.split(",").collect_vec()).collect_vec();
+            let df_data = pandas.call_method("DataFrame", (node_tuples, ), Some(kwargs))?;
+            // let df_data = pandas.call_method("DataFrame", (node_tuples,), None)?;
+            // let df = df_data.call_method("from_records", (df_data,), None)?;
+
+            // let kwargs_drop = PyDict::new(py);
+            // kwargs_drop.set_item("how", "all")?;
+            // kwargs_drop.set_item("axis", 1)?;
+            // kwargs_drop.set_item("inplace", true)?;
+            // df.call_method("dropna", (), Some(kwargs_drop))?;
+            Ok(df_data.to_object(py))
+        })
+    }
+
 
     /// Converts the graph's edges into a Pandas DataFrame.
     ///
