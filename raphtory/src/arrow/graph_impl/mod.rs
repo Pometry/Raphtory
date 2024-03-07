@@ -91,7 +91,7 @@ impl ArrowGraph {
             graph_props,
         })
     }
-    
+
     pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
         num_threads: NonZeroUsize,

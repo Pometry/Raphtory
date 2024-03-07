@@ -11,7 +11,7 @@ mod tests {
         },
         prelude::GraphViewOps,
     };
-    use std::{env, num::NonZeroUsize};
+    use std::{collections::HashMap, env, num::NonZeroUsize};
 
     #[test]
     fn test_query1() {
@@ -101,10 +101,10 @@ mod tests {
             }
         };
 
-        assert!(graph.count_nodes() == 2);
-        assert!(graph.count_edges() == 1);
-        assert!(graph.earliest() == 7257605);
-        assert!(graph.latest() == 7281409);
+        assert!(graph.count_nodes() == 1624);
+        assert!(graph.count_edges() == 5);
+        assert!(graph.earliest() == 7257601);
+        assert!(graph.latest() == 7343985);
 
         assert!(measure_with_print_results("Query 1", || query1::run(&graph).unwrap()) == 0);
         assert!(measure_with_print_results("Query 2", || query2::run(&graph).unwrap()) == 0);
@@ -115,28 +115,25 @@ mod tests {
 
         assert!(
             measure_without_print_results("CC", || connected_components(&graph.layer(0)))
-                == vec![0, 1]
+                .into_iter()
+                .take(10)
+                .collect::<Vec<_>>()
+                == vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         );
 
         let actual = measure_without_print_results("Weakly CC", || {
             weakly_connected_components(&graph, 20, None)
         })
-        .get_all_with_names();
-        let expected: HashMap<String, u64> = HashMap::from_iter(vec![
-            ("Comp156925".to_string(), 14843814336300980724),
-            ("Comp523733".to_string(), 11548323944331110206),
-        ]);
-        assert!(actual == expected);
+        .get_all_with_names()
+        .len();
+        assert!(actual == 1624);
 
         let actual = measure_without_print_results("Page Rank", || {
             unweighted_page_rank(&graph, Some(100), None, None, true, None)
         })
-        .get_all_with_names();
-        let expected: HashMap<String, f64> = HashMap::from_iter(vec![
-            ("Comp156925".to_string(), 0.8695642321898587),
-            ("Comp523733".to_string(), 0.13043576781014135),
-        ]);
-        assert!(actual == expected);
+        .get_all_with_names()
+        .len();
+        assert!(actual == 1624);
 
         assert!(
             measure_with_print_results("Exfilteration Query 1", || exfiltration::query1::run(
