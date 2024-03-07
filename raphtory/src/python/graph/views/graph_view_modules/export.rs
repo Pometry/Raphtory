@@ -20,7 +20,7 @@ impl PyGraphView {
     /// This method will create a DataFrame with the following columns:
     /// - "name": The name of the node.
     /// - "properties": The properties of the node. This column will be included if `include_node_properties` is set to `true`.
-    /// - "update_history": The update history of the node. 
+    /// - "update_history": The update history of the node.
     ///
     /// Args:
     ///     include_node_properties (bool): A boolean wrapped in an Option. If set to `true`, the "properties" and "property_history" columns will be included in the DataFrame. Defaults to `true`.
@@ -75,7 +75,7 @@ impl PyGraphView {
 
             self.graph.nodes().iter().for_each(|v| {
                 let pyrow = PyList::new(py, vec![v.name().to_string()]);
-                let mut properties_map = HashMap::new();
+                let mut properties_map = PyDict::new(py);
 
                 if include_node_properties == Some(true) {
                     v.properties()
@@ -88,31 +88,33 @@ impl PyGraphView {
                             } else {
                                 name.to_string()
                             };
-                            properties_map.insert(column_name, prop.clone()); // Convert property value to string
+                            let _ = properties_map.set_item(column_name, prop.clone());
+                            // Convert property value to string
                         });
 
                     v.properties()
                         .temporal()
                         .histories()
                         .iter()
-                        .for_each(|(name, (_, prop))| {
+                        .for_each(|(name, t_prop)| {
                             let column_name = if v.properties().constant().contains(name) {
                                 format!("{}_temporal", name)
                             } else {
                                 name.to_string()
                             };
-                            properties_map.insert(column_name, prop.clone()); // Convert property value to string
+                            let _ = properties_map.set_item(column_name, t_prop.clone());
+                            // Convert property value to string
                         });
                 }
 
                 // Flatten properties into the row
                 for prop_name in &column_names[1..column_names.len() - 1] {
                     // Skip the first column (name)
-                    let blank_prop = Prop::Str("".into());
+                    let blank_prop = Prop::Str("".into()).into_py(py);
                     let prop_value = properties_map
-                        .get(prop_name)
-                        .cloned()
-                        .unwrap_or_else(|| blank_prop);
+                        .get_item(prop_name)
+                        .unwrap()
+                        .unwrap_or_else(|| blank_prop.as_ref(py));
                     let _ = pyrow.append(prop_value); // Append property value as string
                 }
 
