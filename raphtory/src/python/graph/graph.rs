@@ -434,17 +434,17 @@ impl PyGraph {
                 node_const_props,
                 node_shared_const_props,
             )?;
-        graph.load_edges_from_pandas(
-            edge_df,
-            edge_src,
-            edge_dst,
-            edge_time,
-            edge_props,
-            edge_const_props,
-            edge_shared_const_props,
-            edge_layer,
-            layer_in_df,
-        )?;
+            graph.load_edges_from_pandas(
+                edge_df,
+                edge_src,
+                edge_dst,
+                edge_time,
+                edge_props,
+                edge_const_props,
+                edge_shared_const_props,
+                edge_layer,
+                layer_in_df,
+            )?;
         }
         Ok(graph.graph)
     }
