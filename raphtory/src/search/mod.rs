@@ -33,7 +33,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
-    pub(crate) graph: G,
+    pub graph: G,
     pub(crate) node_index: Arc<Index>,
     pub(crate) edge_index: Arc<Index>,
     pub(crate) reader: IndexReader,
