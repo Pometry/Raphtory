@@ -23,92 +23,114 @@ impl PyGraphView {
     /// - "update_history": The update history of the node.
     ///
     /// Args:
-    ///     include_node_properties (bool): A boolean wrapped in an Option. If set to `true`, the "properties" and "property_history" columns will be included in the DataFrame. Defaults to `true`.
-    ///
+    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.  Defaults to `true`.
+    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///     explode (bool): A boolean, if set to `true`, will explode each node update into its own row. Defaults to `false`
+    /// 
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_node_properties=true))]
-    pub fn to_node_df(&self, include_node_properties: Option<bool>) -> PyResult<PyObject> {
+    #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
+    pub fn to_node_df(&self, include_property_histories: bool, convert_datetime: bool, explode: bool) -> PyResult<PyObject> {
         Python::with_gil(|py| {
             let pandas = PyModule::import(py, "pandas")?;
-
-            let mut column_names = vec![String::from("name")];
+            let datetime_module = PyModule::import(py, "datetime")?;
+            let datetime_class = datetime_module.getattr("datetime")?;
+            
+            let mut column_names = vec![String::from("name"), String::from("type")];
             let mut all_properties = HashSet::new();
 
             // Adjusted to check both temporal and constant properties
-            if include_node_properties == Some(true) {
-                self.graph.nodes().iter().for_each(|v| {
-                    let constant_properties = v.properties().constant().as_map();
-                    let temporal_properties = v
-                        .properties()
-                        .temporal()
-                        .histories()
-                        .into_iter()
-                        .map(|(name, _)| name)
-                        .collect::<HashSet<_>>();
+            self.graph.nodes().iter().for_each(|v| {
+                let constant_properties = v.properties().constant().as_map();
+                let temporal_properties = v
+                    .properties()
+                    .temporal()
+                    .histories()
+                    .into_iter()
+                    .map(|(name, _)| name)
+                    .collect::<HashSet<_>>();
 
-                    constant_properties.iter().for_each(|(name, _)| {
-                        let column_name = if temporal_properties.contains(name) {
-                            format!("{}_constant", name)
-                        } else {
-                            name.to_string()
-                        };
-                        all_properties.insert(column_name);
-                    });
-
-                    temporal_properties.iter().for_each(|name| {
-                        if constant_properties.contains_key(name) {
-                            let column_name = format!("{}_temporal", name);
-                            all_properties.insert(column_name);
-                        } else {
-                            all_properties.insert(name.to_string());
-                        }
-                    });
+                constant_properties.iter().for_each(|(name, _)| {
+                    let column_name = if temporal_properties.contains(name) {
+                        format!("{}_constant", name)
+                    } else {
+                        name.to_string()
+                    };
+                    all_properties.insert(column_name);
                 });
 
-                column_names.extend(all_properties.iter().cloned());
-            }
+                temporal_properties.iter().for_each(|name| {
+                    if constant_properties.contains_key(name) {
+                        let column_name = format!("{}_temporal", name);
+                        all_properties.insert(column_name);
+                    } else {
+                        all_properties.insert(name.to_string());
+                    }
+                });
+            });
+
+            column_names.extend(all_properties.iter().cloned());
 
             column_names.push("update_histories".parse().unwrap());
 
             let mut node_tuples: Vec<&PyList> = vec![];
 
             self.graph.nodes().iter().for_each(|v| {
-                let pyrow = PyList::new(py, vec![v.name().to_string()]);
+                let pyrow = PyList::new(py, vec![v.name().to_string(), v.node_type().unwrap_or(ArcStr::from("_default")).to_string()]);
                 let mut properties_map = PyDict::new(py);
 
-                if include_node_properties == Some(true) {
-                    v.properties()
-                        .constant()
-                        .as_map()
-                        .iter()
-                        .for_each(|(name, prop)| {
-                            let column_name = if v.properties().temporal().contains(name) {
-                                format!("{}_constant", name)
-                            } else {
-                                name.to_string()
-                            };
-                            let _ = properties_map.set_item(column_name, prop.clone());
-                            // Convert property value to string
-                        });
-
+                v.properties()
+                    .constant()
+                    .as_map()
+                    .iter()
+                    .for_each(|(name, prop)| {
+                        let column_name = if v.properties().temporal().contains(name) {
+                            format!("{}_constant", name)
+                        } else {
+                            name.to_string()
+                        };
+                        let _ = properties_map.set_item(column_name, prop.clone());
+                        // Convert property value to string
+                    });
+            
+                if include_property_histories {
                     v.properties()
                         .temporal()
                         .histories()
                         .iter()
-                        .for_each(|(name, t_prop)| {
+                        .for_each(|(name, (time, prop_val))| {
                             let column_name = if v.properties().constant().contains(name) {
                                 format!("{}_temporal", name)
                             } else {
                                 name.to_string()
                             };
-                            let _ = properties_map.set_item(column_name, t_prop.clone());
+                            if convert_datetime {
+                                let datetime = datetime_class.call_method1("fromtimestamp", (time.clone(),)).unwrap();
+                                let _ = properties_map.set_item(column_name, (datetime, prop_val));
+                            } else {
+                                let _ = properties_map.set_item(column_name, (time, prop_val));
+                            }
                             // Convert property value to string
                         });
-                }
+                } else {
+                    v.properties()
+                        .temporal()
+                        .iter()
+                        .for_each(|(name, t_prop)| {
+                            let column_name = if v.properties().constant().contains(&name) {
+                                format!("{}_temporal", name)
+                            } else {
+                                name.to_string()
+                            };
+                            let _ = properties_map.set_item(column_name, t_prop.latest());
+                            // Convert property value to string
+                        });
 
+                }
+                
+                
                 // Flatten properties into the row
-                for prop_name in &column_names[1..column_names.len() - 1] {
+                for prop_name in &column_names[2..column_names.len() - 1] {
                     // Skip the first column (name)
                     let blank_prop = Prop::Str("".into()).into_py(py);
                     let prop_value = properties_map
@@ -117,9 +139,18 @@ impl PyGraphView {
                         .unwrap_or_else(|| blank_prop.as_ref(py));
                     let _ = pyrow.append(prop_value); // Append property value as string
                 }
-
-                let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
-                let _ = pyrow.append(update_list_py);
+                
+                // let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
+                // let _ = pyrow.append(update_list_py);
+                if convert_datetime {
+                    let update_list_py = PyList::new(py, v.history().iter().map(|val|
+                        datetime_class.call_method1("fromtimestamp", (val.clone(),)).unwrap()
+                    ));
+                    let _ = pyrow.append(update_list_py);
+                } else {
+                    let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
+                    let _ = pyrow.append(update_list_py);
+                }
 
                 node_tuples.push(pyrow);
             });
