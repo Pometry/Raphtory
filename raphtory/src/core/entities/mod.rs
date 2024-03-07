@@ -65,8 +65,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, NodeStore, N>),        // returned from graph.node
-    LockedEntry(GraphEntry<NodeStore, N>), // returned from locked_nodes
+    Entry(Entry<'a, NodeStore, N>),     // returned from graph.node
+    LockedEntry(GraphEntry<NodeStore>), // returned from locked_nodes
 }
 
 // return index -> usize for VRef

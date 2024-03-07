@@ -13,7 +13,7 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
+            ArcEntry, ReadLockedStorage,
         },
         utils::errors::GraphError,
         ArcStr, Direction, PropType,

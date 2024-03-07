@@ -71,14 +71,21 @@ impl<T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, N> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedStorage<T, const N: usize> {
-    locks: [ArcRwLockReadGuard<Vec<T>>; N],
+pub struct ReadLockedStorage<T> {
+    locks: Vec<ArcRwLockReadGuard<Vec<T>>>,
     len: usize,
 }
 
-impl<T, const N: usize> ReadLockedStorage<T, N> {
+impl<T> ReadLockedStorage<T> {
+    fn resolve(&self, index: usize) -> (usize, usize) {
+        let n = self.locks.len();
+        let bucket = index % n;
+        let offset = index / n;
+        (bucket, offset)
+    }
+
     pub(crate) fn get(&self, index: usize) -> &T {
-        let (bucket, offset) = resolve::<N>(index);
+        let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
     }
@@ -137,9 +144,8 @@ impl<T: Default + Send + Sync, const N: usize> RawStorage<T, N> {
 
 impl<T: Default, const N: usize> RawStorage<T, N> {
     #[inline]
-    pub fn read_lock(&self) -> ReadLockedStorage<T, N> {
-        let guards: [ArcRwLockReadGuard<Vec<T>>; N] =
-            array::from_fn(|i| self.data[i].read_arc_lock());
+    pub fn read_lock(&self) -> ReadLockedStorage<T> {
+        let guards = self.data.iter().map(|v| v.read_arc_lock()).collect();
         ReadLockedStorage {
             locks: guards,
             len: self.len(),

@@ -13,7 +13,7 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
+            ArcEntry, ReadLockedStorage,
         },
         ArcStr, Prop,
     },
@@ -199,10 +199,10 @@ pub trait CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore>;
 
     fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>>;
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore>;
 
     fn core_node(&self, vid: VID) -> ArcEntry<NodeStore>;
 }
@@ -371,7 +371,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore> {
         self.graph().core_edges()
     }
 
@@ -381,7 +381,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore> {
         self.graph().core_nodes()
     }
 
