@@ -85,65 +85,26 @@ fn prepare_index(index_type: &str, learn: &str, base: &[&str], dataset_id: &str)
         vectors,
     } = FVecs::from_file(learn).unwrap();
     let mut index = index_factory(dimensions as u32, index_type, MetricType::InnerProduct).unwrap();
-    println!("actually training index");
     index.train(vectors.as_slice()).unwrap();
 
     let index = index.into_ivf_flat().unwrap();
-    println!("writting index");
     write_index(&index, tmpfile("trained.index")).unwrap();
 
     let shards = base
         .iter()
-        .map(|filename| FVecsReader::from_file(filename, 10_000_000).unwrap())
+        .enumerate()
+        .map(|(index, filename)| {
+            println!("opening new file {filename}");
+            let dimensions = if index != 0 {
+                Some(dimensions)
+            } else {
+                None
+            };
+            FVecsReader::from_file(filename, 10_000_000, dimensions).unwrap()})
         .flat_map(|reader| reader.into_iter());
-
-    // let (shard_iter, shard_files): (Box<dyn Iterator<Item = Vec<f32>>>, Vec<String>) = match base {
-    //     [single_file] => {
-    //         println!("Reading {single_file}");
-    //         let full_dataset = FVecs::from_file(single_file).unwrap();
-    //         let vectors = full_dataset.vectors;
-    //         let num_vectors = vectors.len() / dimensions as usize;
-    //         println!("Splitting {num_vectors} vectors into 4 files");
-    //         let num_chunks = 4;
-    //         let vectors_per_chunk = num_vectors / num_chunks + 1;
-    //         let shard_iter = vectors
-    //             .chunks(vectors_per_chunk * dimensions as usize)
-    //             .map(|chunk| chunk.iter().copied().collect())
-    //             .collect::<Vec<_>>()
-    //             .into_iter();
-    //         let shard_files: Vec<_> = (0..num_chunks)
-    //             .map(|chunk_number| tmpfile(format!("shard_{chunk_number}.index").as_str()))
-    //             .collect();
-    //         (Box::new(shard_iter), shard_files)
-    //     }
-    //     files => {
-    //         let shard_iter = files
-    //             .iter()
-    //             .map(|file| FVecs::from_file(file).unwrap().vectors);
-    //         let shard_files: Vec<_> = (0..files.len())
-    //             .map(|chunk_number| tmpfile(format!("shard_{chunk_number}.index").as_str()))
-    //             .collect();
-    //         (Box::new(shard_iter), shard_files)
-    //     }
-    // };
-    // let shard_files: Vec<_> = shard_files.iter().map(|f| f.as_str()).collect();
-
-    // let mut id_gen = SerialGenerator::new();
-    // for (chunk, filename) in shard_iter.zip(shard_files.iter()) {
-    //     let ids: Vec<_> = id_gen
-    //         .by_ref()
-    //         .take(chunk.len())
-    //         .map(|id| Idx::from(id as i64))
-    //         .collect();
-    //     let mut index = read_index(tmpfile("trained.index")).unwrap();
-    //     index.add_with_ids(&chunk, &ids).unwrap();
-    //     write_index(&index, filename).unwrap();
-    // }
-
     let shard_files_iter =
         || (0..usize::MAX).map(|file_num| tmpfile(format!("shard_{file_num}.index").as_str()));
 
-    // let mut id_gen = SerialGenerator::new();
     let mut id_gen = 0..usize::MAX;
     for (chunk, filename) in shards.zip(shard_files_iter()) {
         let num_vecs = chunk.len() / dimensions;
@@ -200,39 +161,53 @@ fn bench(c: &mut Criterion) {
     //     );
     // });
 
-    let index_path = prepare_index(
-        "IVF4096,Flat",
-        "resources/deep/deep10M.fvecs",
-        &["resources/deep/deep10M.fvecs"],
-        "deep10",
-    );
-    let mut index = read_index(index_path).unwrap();
-    let query_batch = FVecs::from_file("resources/deep/deep1B_queries.fvecs").unwrap();
-    let queries: Vec<_> = query_batch.split().collect();
-    c.bench_function("deep 10M", |b| {
-        b.iter_batched(
-            || queries[rng.next_u64() as usize % queries.len()],
-            |query| index.search(query, 1).unwrap(),
-            BatchSize::SmallInput,
-        );
-    });
-
     // let index_path = prepare_index(
     //     "IVF4096,Flat",
     //     "resources/deep/deep10M.fvecs",
-    //     &["resources/deep/base_00"],
-    //     "deep30",
+    //     &["resources/deep/deep10M.fvecs"],
+    //     "deep10",
     // );
     // let mut index = read_index(index_path).unwrap();
     // let query_batch = FVecs::from_file("resources/deep/deep1B_queries.fvecs").unwrap();
     // let queries: Vec<_> = query_batch.split().collect();
-    // c.bench_function("deep 30M", |b| {
+    // c.bench_function("deep 10M", |b| {
     //     b.iter_batched(
     //         || queries[rng.next_u64() as usize % queries.len()],
     //         |query| index.search(query, 1).unwrap(),
     //         BatchSize::SmallInput,
     //     );
     // });
+
+    let index_path = prepare_index(
+        "IVF262144_HNSW32,Flat",
+        "resources/deep/deep10M.fvecs",
+        &[
+            "resources/deep/base_00",
+            "resources/deep/base_01",
+            "resources/deep/base_02",
+            "resources/deep/base_03",
+            "resources/deep/base_00",
+            "resources/deep/base_01",
+            "resources/deep/base_02",
+            "resources/deep/base_03",
+            "resources/deep/base_00",
+            "resources/deep/base_01",
+            "resources/deep/base_02",
+            "resources/deep/base_03",
+        ],
+        // &["resources/deep/deep10M.fvecs"],
+        "deep",
+    );
+    let mut index = read_index(index_path).unwrap();
+    let query_batch = FVecs::from_file("resources/deep/deep1B_queries.fvecs").unwrap();
+    let queries: Vec<_> = query_batch.split().collect();
+    c.bench_function("deep 325M", |b| {
+        b.iter_batched(
+            || queries[rng.next_u64() as usize % queries.len()],
+            |query| index.search(query, 1).unwrap(),
+            BatchSize::SmallInput,
+        );
+    });
 }
 
 criterion_group!(benches, bench);

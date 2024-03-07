@@ -44,22 +44,36 @@ pub struct FVecsReader {
 }
 
 impl FVecsReader {
-    pub fn from_file(filename: &str, chunk_size: usize) -> Result<Self, IoError> {
+    pub fn from_file(
+        filename: &str,
+        chunk_size: usize,
+        dimensions: Option<usize>,
+    ) -> Result<Self, IoError> {
         let file = File::open(filename)?;
         let mut reader = BufReader::new(file);
-
         let mut buffer = vec![0; 4];
-        let dimensions = match reader.read(&mut buffer) {
-            Ok(4) => Ok(u32::from_le_bytes(buffer.try_into().unwrap()) as usize),
-            Ok(_) => Err(IoError::from(InvalidData)),
-            Err(e) => Err(e),
-        }?;
+        let dimensions =
+            dimensions
+                .map(|d| Ok(d))
+                .unwrap_or_else(|| match reader.read(&mut buffer) {
+                    Ok(4) => Ok(u32::from_le_bytes(buffer.try_into().unwrap()) as usize),
+                    Ok(_) => Err(IoError::from(InvalidData)),
+                    Err(e) => Err(e),
+                })?;
+
+        println!("dimensions for vectors in file {filename}: {dimensions}");
 
         Ok(Self {
             dimensions,
             reader,
             chunk_size,
         })
+    }
+}
+
+impl Drop for FVecsReader {
+    fn drop(&mut self) {
+        println!("dropping file reader");
     }
 }
 
