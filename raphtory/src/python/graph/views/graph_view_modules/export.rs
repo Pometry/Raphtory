@@ -20,62 +20,15 @@ impl PyGraphView {
     /// This method will create a DataFrame with the following columns:
     /// - "name": The name of the node.
     /// - "properties": The properties of the node. This column will be included if `include_node_properties` is set to `true`.
-    /// - "property_history": The history of the node's properties. This column will be included if both `include_node_properties` and `include_property_histories` are set to `true`.
-    /// - "update_history": The update history of the node. This column will be included if `include_update_history` is set to `true`.
+    /// - "update_history": The update history of the node. 
     ///
     /// Args:
     ///     include_node_properties (bool): A boolean wrapped in an Option. If set to `true`, the "properties" and "property_history" columns will be included in the DataFrame. Defaults to `true`.
-    ///     include_update_history (bool): A boolean wrapped in an Option. If set to `true`, the "update_history" column will be included in the DataFrame. Defaults to `true`.
-    ///     include_property_histories (bool): A boolean wrapped in an Option. If set to `true`, the "property_history" column will be included in the DataFrame. Defaults to `true`.
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_node_properties=true, include_update_history=true, include_property_histories=true))]
-    pub fn to_node_df(
-        &self,
-        include_node_properties: Option<bool>,
-        include_update_history: Option<bool>,
-        include_property_histories: Option<bool>,
-    ) -> PyResult<PyObject> {
-        Python::with_gil(|py| {
-            let pandas = PyModule::import(py, "pandas")?;
-            let mut column_names = vec!["name", "properties", "property_history", "update_history"];
-            let node_tuples: Vec<_> = self
-                .graph
-                .nodes()
-                .map(|g, b| {
-                    let v = g.node(b).unwrap();
-                    let mut properties: Option<HashMap<ArcStr, Prop>> = None;
-                    let mut temporal_properties: Option<Vec<(ArcStr, (i64, Prop))>> = None;
-                    let mut update_history: Option<Vec<_>> = None;
-                    if include_node_properties == Some(true) {
-                        if include_property_histories == Some(true) {
-                            properties = Some(v.properties().constant().as_map());
-                            temporal_properties = Some(v.properties().temporal().histories());
-                        } else {
-                            properties = Some(v.properties().as_map());
-                        }
-                    }
-                    if include_update_history == Some(true) {
-                        update_history = Some(v.history());
-                    }
-                    (v.name(), properties, temporal_properties, update_history)
-                })
-                .collect();
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("columns", column_names)?;
-            let df = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
-            let kwargs_drop = PyDict::new(py);
-            kwargs_drop.set_item("how", "all")?;
-            kwargs_drop.set_item("axis", 1)?;
-            kwargs_drop.set_item("inplace", true)?;
-            df.call_method("dropna", (), Some(kwargs_drop))?;
-            Ok(df.to_object(py))
-        })
-    }
-
     #[pyo3(signature = (include_node_properties=true))]
-    pub fn to_node_df_new(&self, include_node_properties: Option<bool>) -> PyResult<PyObject> {
+    pub fn to_node_df(&self, include_node_properties: Option<bool>) -> PyResult<PyObject> {
         Python::with_gil(|py| {
             let pandas = PyModule::import(py, "pandas")?;
 
