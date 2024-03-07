@@ -54,7 +54,7 @@ impl Executor {
         Self { graph, pipeline }
     }
 
-    fn execute_pipeline(self, num_threads: NonZeroUsize) -> Result<(), ExecError> {
+    pub fn execute_pipeline(self, num_threads: NonZeroUsize) -> Result<(), ExecError> {
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads.get())
             .build()?;

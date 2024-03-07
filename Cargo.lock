@@ -3090,6 +3090,7 @@ name = "raphtory-cypher"
 version = "0.7.0"
 dependencies = [
  "arrow2",
+ "lazy_static",
  "pest",
  "pest_derive",
  "raphtory",

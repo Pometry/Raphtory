@@ -1,5 +1,5 @@
-Cypher = { 
-    SP? ~ Statement ~ (SP? ~ ";")? ~ SP? ~ EOI 
+Cypher = {
+    SOI ~ Statement ~ (SP? ~ ";")? ~ SP? ~ EOI
 }
 
 Statement = {
@@ -7,7 +7,8 @@ Statement = {
 }
 
 Query = {
-    RegularQuery | StandaloneCall
+    RegularQuery
+  | StandaloneCall
 }
 
 RegularQuery = {
@@ -19,12 +20,13 @@ Union = {
 }
 
 SingleQuery = {
-    SinglePartQuery | MultiPartQuery
+    SinglePartQuery
+  | MultiPartQuery
 }
 
 SinglePartQuery = {
-    ((ReadingClause ~ SP?)* ~ Return) 
-    | ((ReadingClause ~ SP?)* ~ UpdatingClause ~ (SP? ~ UpdatingClause)* ~ (SP? ~ Return)?)
+    ((ReadingClause ~ SP?)* ~ Return)
+  | ((ReadingClause ~ SP?)* ~ UpdatingClause ~ (SP? ~ UpdatingClause)* ~ (SP? ~ Return)?)
 }
 
 MultiPartQuery = {
@@ -32,11 +34,17 @@ MultiPartQuery = {
 }
 
 UpdatingClause = {
-    Create | Merge | Delete | Set | Remove
+    Create
+  | Merge
+  | Delete
+  | Set
+  | Remove
 }
 
 ReadingClause = {
-    Match | Unwind | InQueryCall
+    Match
+  | Unwind
+  | InQueryCall
 }
 
 Match = {
@@ -65,9 +73,9 @@ Set = {
 
 SetItem = {
     (PropertyExpression ~ SP? ~ "=" ~ SP? ~ Expression)
-    | (Variable ~ SP? ~ "=" ~ SP? ~ Expression)
-    | (Variable ~ SP? ~ "+=" ~ SP? ~ Expression)
-    | (Variable ~ SP? ~ NodeLabels)
+  | (Variable ~ SP? ~ "=" ~ SP? ~ Expression)
+  | (Variable ~ SP? ~ "+=" ~ SP? ~ Expression)
+  | (Variable ~ SP? ~ NodeLabels)
 }
 
 Delete = {
@@ -80,7 +88,7 @@ Remove = {
 
 RemoveItem = {
     (Variable ~ NodeLabels)
-    | PropertyExpression
+  | PropertyExpression
 }
 
 InQueryCall = {
@@ -88,8 +96,7 @@ InQueryCall = {
 }
 
 StandaloneCall = {
-    CALL ~ SP ~ (ExplicitProcedureInvocation | ImplicitProcedureInvocation) ~
-    (SP? ~ YIELD ~ SP ~ (STAR | YieldItems))?
+    CALL ~ SP ~ (ExplicitProcedureInvocation | ImplicitProcedureInvocation) ~ (SP? ~ YIELD ~ SP ~ (STAR | YieldItems))?
 }
 
 YieldItems = {
@@ -109,21 +116,17 @@ Return = {
 }
 
 ProjectionBody = {
-    (SP? ~ DISTINCT)? 
-    ~ SP ~ ProjectionItems 
-    ~ (SP ~ Order)? 
-    ~ (SP ~ Skip)? 
-    ~ (SP ~ Limit)?
+    DISTINCT? ~ ProjectionItems ~ (SP ~ Order)? ~ (SP ~ Skip)? ~ (SP ~ Limit)?
 }
 
 ProjectionItems = {
     (STAR ~ (SP? ~ "," ~ SP? ~ ProjectionItem)*)
-    | (ProjectionItem ~ (SP? ~ "," ~ SP? ~ ProjectionItem)*)
+  | (ProjectionItem ~ (SP? ~ "," ~ SP? ~ ProjectionItem)*)
 }
 
 ProjectionItem = {
     (Expression ~ SP ~ AS ~ SP ~ Variable)
-    | Expression
+  | Expression
 }
 
 Order = {
@@ -143,7 +146,7 @@ SortItem = {
 }
 
 Where = {
-    WHERE ~ SP ~ Expression
+    WHERE ~ Expression
 }
 
 Pattern = {
@@ -158,7 +161,7 @@ AnonymousPatternPart = { PatternElement }
 
 PatternElement = {
     (NodePattern ~ (SP? ~ PatternElementChain)*)
-    | ( "(" ~ PatternElement ~ ")" )
+  | ("(" ~ PatternElement ~ ")")
 }
 
 NodePattern = {
@@ -171,18 +174,18 @@ PatternElementChain = {
 
 RelationshipPattern = {
     (LeftArrowHead ~ SP? ~ Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash ~ SP? ~ RightArrowHead)
-    | (LeftArrowHead ~ SP? ~ Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash)
-    | (Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash ~ SP? ~ RightArrowHead)
-    | (Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash) 
+  | (LeftArrowHead ~ SP? ~ Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash)
+  | (Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash ~ SP? ~ RightArrowHead)
+  | (Dash ~ SP? ~ RelationshipDetail? ~ SP? ~ Dash)
 }
 
 RelationshipDetail = {
-    "[" ~ SP? ~ (Variable ~ SP?)? ~ (RelationshipTypes ~ SP?)? ~ RangeLiteral? ~ 
-    (Properties ~ SP?)? ~ "]"
+    "[" ~ SP? ~ (Variable ~ SP?)? ~ (RelationshipTypes ~ SP?)? ~ RangeLiteral? ~ (Properties ~ SP?)? ~ "]"
 }
 
 Properties = {
-    MapLiteral | Parameter
+    MapLiteral
+  | Parameter
 }
 
 RelationshipTypes = {
@@ -205,64 +208,51 @@ LabelName = { SchemaName }
 
 RelTypeName = { SchemaName }
 
-Expression = { OrExpression }
+bin_op = _{ or | xor | and }
+or     =  { "OR" }
+xor    =  { "XOR" }
+and    =  { "AND" }
 
-OrExpression = {
-    XorExpression ~ (SP ~ ^"OR" ~ SP ~ XorExpression)*
-}
+math_op  = _{ add | subtract | multiply | divide | modulo | pow }
+add      =  { "+" }
+subtract =  { "-" }
+multiply =  { "*" }
+divide   =  { "/" }
+modulo   =  { "%" }
+pow      =  { "^" }
 
-XorExpression = {
-    AndExpression ~ (SP ~ ^"XOR" ~ SP ~ AndExpression)*
-}
+comp_op = _{ eq | ne | lt | gt | lte | gte }
+eq      =  { "=" }
+ne      =  { "<>" }
+lt      =  { "<" }
+gt      =  { ">" }
+lte      =  { "<=" }
+gte      =  { ">=" }
 
-AndExpression = {
-    NotExpression ~ (SP ~ ^"AND" ~ SP ~ NotExpression)*
-}
+op = { bin_op | math_op | comp_op }
 
-NotExpression = {
-    (^"NOT" ~ SP?)* ~ ComparisonExpression
-}
+unary_op = _{ not | minus }
+not      =  { "NOT" }
+minus    =  { "-" }
 
-ComparisonExpression = {
-    AddOrSubtractExpression ~ (SP? ~ PartialComparisonExpression)*
-}
+atom = _{ unary_op? ~ Atom | "(" ~ Expression ~ ")" }
 
-AddOrSubtractExpression = {
-    MultiplyDivideModuloExpression ~ (SP? ~ (ADD | SUBTRACT) ~ SP? ~ MultiplyDivideModuloExpression)*
-}
+bin_expr = { atom ~ (op ~ atom)* }
 
-MultiplyDivideModuloExpression = {
-    PowerOfExpression ~ (SP? ~ (MULTIPLY | DIVIDE | MODULO) ~ SP? ~ PowerOfExpression)*
-}
-
-PowerOfExpression = {
-    UnaryAddOrSubtractExpression ~ (SP? ~ POW ~ SP? ~ UnaryAddOrSubtractExpression)*
-}
-
-UnaryAddOrSubtractExpression = {
-    ((ADD | SUBTRACT) ~ SP?)* ~ StringListNullOperatorExpression
-}
+Expression = { bin_expr | ListOperatorExpression | StringListNullOperatorExpression}
 
 StringListNullOperatorExpression = {
-    PropertyOrLabelsExpression ~ (
-        StringOperatorExpression 
-        | ListOperatorExpression 
-        | NullOperatorExpression
-    )*
+    PropertyOrLabelsExpression ~ (StringOperatorExpression | ListOperatorExpression | NullOperatorExpression)*
 }
 
 ListOperatorExpression = {
     (SP ~ IN ~ SP? ~ PropertyOrLabelsExpression)
-    | (SP? ~ "[" ~ Expression ~ "]")
-    | (SP? ~ "[" ~ Expression? ~ DOT_DOT ~ Expression? ~ "]")
+  | (SP? ~ "[" ~ Expression ~ "]")
+  | (SP? ~ "[" ~ Expression? ~ DOT_DOT ~ Expression? ~ "]")
 }
 
 StringOperatorExpression = {
-    (
-        (SP ~ STARTS ~ SP ~ WITH)
-        | (SP ~ ENDS ~ SP ~ WITH)
-        | (SP ~ CONTAINS)
-    ) ~ SP? ~ PropertyOrLabelsExpression
+    ((SP ~ STARTS ~ SP ~ WITH) | (SP ~ ENDS ~ SP ~ WITH) | (SP ~ CONTAINS)) ~ SP? ~ PropertyOrLabelsExpression
 }
 
 NullOperatorExpression = {
@@ -275,43 +265,39 @@ PropertyOrLabelsExpression = {
 
 Atom = {
     Literal
-    | Parameter
-    | CaseExpression
-    | (COUNT ~ SP? ~ "(" ~ SP? ~ STAR ~ SP? ~ ")")
-    | ListComprehension
-    | PatternComprehension
-    | (ALL ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
-    | (ANY_ ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
-    | (NONE ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
-    | (SINGLE ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
-    | RelationshipsPattern
-    | ParenthesizedExpression
-    | FunctionInvocation
-    | ExistentialSubquery
-    | Variable
+  | Parameter
+  | CaseExpression
+  | (COUNT ~ SP? ~ "(" ~ SP? ~ STAR ~ SP? ~ ")")
+  | ListComprehension
+  | PatternComprehension
+  | (ALL ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
+  | (ANY_ ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
+  | (NONE ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
+  | (SINGLE ~ SP? ~ "(" ~ SP? ~ FilterExpression ~ SP? ~ ")")
+  | RelationshipsPattern
+  | ParenthesizedExpression
+  | FunctionInvocation
+  | ExistentialSubquery
+  | Variable
 }
 
 Literal = {
     NumberLiteral
-    | StringLiteral
-    | BooleanLiteral
-    | NULL
-    | MapLiteral
-    | ListLiteral
+  | StringLiteral
+  | BooleanLiteral
+  | NULL
+  | MapLiteral
+  | ListLiteral
 }
 
 BooleanLiteral = {
-    TRUE | FALSE
+    TRUE
+  | FALSE
 }
 
 ListLiteral = {
     "[" ~ SP? ~ (Expression ~ SP? ~ ("," ~ SP? ~ Expression ~ SP?)*)? ~ "]"
 }
-
-PartialComparisonExpression = {
-    (EQ | NE | LT | GT | LE | GE) ~ SP? ~ AddOrSubtractExpression
-}
-
 
 ParenthesizedExpression = {
     "(" ~ SP? ~ Expression ~ SP? ~ ")"
@@ -330,8 +316,7 @@ IdInColl = {
 }
 
 FunctionInvocation = {
-    FunctionName ~ SP? ~ "(" ~ SP? ~ (DISTINCT ~ SP?)? ~ 
-    (Expression ~ SP? ~ ("," ~ SP? ~ Expression ~ SP?)*)? ~ ")"
+    FunctionName ~ SP? ~ "(" ~ SP? ~ (DISTINCT ~ SP?)? ~ (Expression ~ SP? ~ ("," ~ SP? ~ Expression ~ SP?)*)? ~ ")"
 }
 
 FunctionName = {
@@ -375,16 +360,12 @@ PropertyLookup = {
 }
 
 CaseExpression = {
-    (
-        (CASE ~ (SP? ~ CaseAlternative)+) 
-        | (CASE ~ SP? ~ Expression ~ (SP? ~ CaseAlternative )+)
-    ) ~ (SP? ~ ELSE ~ SP? ~ Expression)? ~ SP? ~ END
+    ((CASE ~ (SP? ~ CaseAlternative)+) | (CASE ~ SP? ~ Expression ~ (SP? ~ CaseAlternative)+)) ~ (SP? ~ ELSE ~ SP? ~ Expression)? ~ SP? ~ END
 }
 
 CaseAlternative = {
     WHEN ~ SP? ~ Expression ~ SP? ~ THEN ~ SP? ~ Expression
 }
-
 
 Variable = {
     SymbolicName
@@ -392,7 +373,7 @@ Variable = {
 
 StringLiteral = {
     ("\"" ~ StringDoubleText ~ "\"")
-    | ("'" ~ StringSingleText ~ "'")
+  | ("'" ~ StringSingleText ~ "'")
 }
 
 StringDoubleText = @{
@@ -400,7 +381,8 @@ StringDoubleText = @{
 }
 
 StringDoubleTextChar = {
-    (!("\"" | "\\") ~ ANY) | EscapedChar
+    (!("\"" | "\\") ~ ANY)
+  | EscapedChar
 }
 
 StringSingleText = @{
@@ -408,27 +390,17 @@ StringSingleText = @{
 }
 
 StringSingleTextChar = {
-    (!("'" | "\\") ~ ANY) | EscapedChar
+    (!("'" | "\\") ~ ANY)
+  | EscapedChar
 }
 
 EscapedChar = {
-	"\\" ~ (
-    	"\\"
-        | "'" 
-        | "\"" 
-        | ^"B" 
-        | ^"F" 
-        | ^"N"
-        | ^"R" 
-        | ^"T"
-        | (^"U" ~ HexDigit{4}) 
-        | (^"U" ~ HexDigit{8})
-    )
+    "\\" ~ ("\\" | "'" | "\"" | ^"B" | ^"F" | ^"N" | ^"R" | ^"T" | (^"U" ~ HexDigit{4}) | (^"U" ~ HexDigit{8}))
 }
 
 NumberLiteral = {
     DoubleLiteral
-    | IntegerLiteral
+  | IntegerLiteral
 }
 
 MapLiteral = {
@@ -449,8 +421,8 @@ PropertyKeyName = {
 
 IntegerLiteral = {
     HexInteger
-    | OctalInteger
-    | DecimalInteger
+  | OctalInteger
+  | DecimalInteger
 }
 
 HexInteger = {
@@ -459,7 +431,7 @@ HexInteger = {
 
 DecimalInteger = {
     ZeroDigit
-    | (NonZeroDigit ~ Digit*)
+  | (NonZeroDigit ~ Digit*)
 }
 
 OctalInteger = {
@@ -468,27 +440,27 @@ OctalInteger = {
 
 HexLetter = {
     ^"A"
-    | ^"B"
-    | ^"C"
-    | ^"D"
-    | ^"E"
-    | ^"F"
+  | ^"B"
+  | ^"C"
+  | ^"D"
+  | ^"E"
+  | ^"F"
 }
 
 HexDigit = {
     Digit
-    | HexLetter
+  | HexLetter
 }
 
 Digit = {
     ZeroDigit
-    | NonZeroDigit
+  | NonZeroDigit
 }
 
 NonZeroDigit = {
     NonZeroOctDigit
-    | "8"
-    | "9"
+  | "8"
+  | "9"
 }
 
 NonZeroOctDigit = {
@@ -497,22 +469,18 @@ NonZeroOctDigit = {
 
 OctDigit = {
     ZeroDigit
-    | NonZeroOctDigit
+  | NonZeroOctDigit
 }
 
 ZeroDigit = { "0" }
 
 DoubleLiteral = {
     ExponentDecimalReal
-    | RegularDecimalReal
+  | RegularDecimalReal
 }
 
 ExponentDecimalReal = {
-    (
-        Digit+ 
-        | (Digit+ ~ "." ~ Digit+) 
-        | ("." ~ Digit+)
-    ) ~ ^"E" ~ "-"? ~ Digit+
+    (Digit+ | (Digit+ ~ "." ~ Digit+) | ("." ~ Digit+)) ~ ^"E" ~ "-"? ~ Digit+
 }
 
 RegularDecimalReal = {
@@ -521,75 +489,75 @@ RegularDecimalReal = {
 
 SchemaName = {
     SymbolicName
-    | ReservedWord
+  | ReservedWord
 }
 
 ReservedWord = {
     ALL
-    | ASC
-    | ASCENDING
-    | BY
-    | CREATE
-    | DELETE
-    | DESC
-    | DESCENDING
-    | DETACH
-    | EXISTS
-    | LIMIT
-    | MATCH
-    | MERGE
-    | ON
-    | OPTIONAL
-    | ORDER
-    | REMOVE
-    | RETURN
-    | SET
-    | SKIP
-    | WHERE
-    | WITH
-    | UNION
-    | UNWIND
-    | AND
-    | AS
-    | CONTAINS
-    | DISTINCT
-    | ENDS
-    | IN
-    | IS
-    | NOT
-    | OR
-    | STARTS
-    | XOR
-    | FALSE
-    | TRUE
-    | NULL
-    | CONSTRAINT
-    | DO
-    | FOR
-    | REQUIRE
-    | UNIQUE
-    | CASE
-    | WHEN
-    | THEN
-    | ELSE
-    | END
-    | MANDATORY
-    | SCALAR
-    | OF
-    | ADD
-    | DROP_
+  | ASC
+  | ASCENDING
+  | BY
+  | CREATE
+  | DELETE
+  | DESC
+  | DESCENDING
+  | DETACH
+  | EXISTS
+  | LIMIT
+  | MATCH
+  | MERGE
+  | ON
+  | OPTIONAL
+  | ORDER
+  | REMOVE
+  | RETURN
+  | SET
+  | SKIP
+  | WHERE
+  | WITH
+  | UNION
+  | UNWIND
+  | AND
+  | AS
+  | CONTAINS
+  | DISTINCT
+  | ENDS
+  | IN
+  | IS
+  | NOT
+  | OR
+  | STARTS
+  | XOR
+  | FALSE
+  | TRUE
+  | NULL
+  | CONSTRAINT
+  | DO
+  | FOR
+  | REQUIRE
+  | UNIQUE
+  | CASE
+  | WHEN
+  | THEN
+  | ELSE
+  | END
+  | MANDATORY
+  | SCALAR
+  | OF
+  | ADD
+  | DROP_
 }
 
 SymbolicName = {
     UnescapedSymbolicName
-    | EscapedSymbolicName
-    | HexLetter
-    | COUNT
-    | FILTER
-    | EXTRACT
-    | ANY_
-    | NONE
-    | SINGLE
+  | EscapedSymbolicName
+  | HexLetter
+  | COUNT
+  | FILTER
+  | EXTRACT
+  | ANY_
+  | NONE
+  | SINGLE
 }
 
 UnescapedSymbolicName = @{
@@ -597,11 +565,13 @@ UnescapedSymbolicName = @{
 }
 
 IdentifierStart = {
-    ID_Start | Pc
+    ID_Start
+  | Pc
 }
 
 IdentifierPart = {
-    ID_Continue | Sc
+    ID_Continue
+  | Sc
 }
 
 ID_Start = { ID_START }
@@ -622,93 +592,93 @@ whitespace = { WHITE_SPACE | Comment }
 
 Comment = {
     ("/*" ~ ((!"*" ~ ANY) | ("*" ~ !"/" ~ ANY))* ~ "*/")
-    | ("//" ~ (!NEWLINE ~ ANY)* ~ (NEWLINE | EOI))
+  | ("//" ~ (!NEWLINE ~ ANY)* ~ (NEWLINE | EOI))
 }
 
 LeftArrowHead = {
     "<"
-    | "⟨"
-    | "〈"
-    | "﹤"
-    | "＜"
+  | "⟨"
+  | "〈"
+  | "﹤"
+  | "＜"
 }
 
 RightArrowHead = {
     ">"
-    | "⟩"
-    | "〉"
-    | "﹥"
-    | "＞"
+  | "⟩"
+  | "〉"
+  | "﹥"
+  | "＞"
 }
 
 Dash = {
     "-"
-    | "­"
-    | "‐"
-    | "‑"
-    | "‒"
-    | "–"
-    | "—"
-    | "―"
-    | "−"
-    | "﹘"
-    | "﹣"
-    | "－"
+  | "­"
+  | "‐"
+  | "‑"
+  | "‒"
+  | "–"
+  | "—"
+  | "―"
+  | "−"
+  | "﹘"
+  | "﹣"
+  | "－"
 }
 
-ALL = @{ ^"ALL" }
-ASC = @{ ^"ASC" }
-ASCENDING = @{ ^"ASCENDING" }
-BY = @{ ^"BY" }
-CREATE = @{ ^"CREATE" }
-DELETE = @{ ^"DELETE" }
-DESC = @{ ^"DESC" }
+ALL        = @{ ^"ALL" }
+ASC        = @{ ^"ASC" }
+ASCENDING  = @{ ^"ASCENDING" }
+BY         = @{ ^"BY" }
+CREATE     = @{ ^"CREATE" }
+DELETE     = @{ ^"DELETE" }
+DESC       = @{ ^"DESC" }
 DESCENDING = @{ ^"DESCENDING" }
-DETACH = @{ ^"DETACH" }
-EXISTS = @{ ^"EXISTS" }
-LIMIT = @{ ^"LIMIT" }
-MATCH = @{ ^"MATCH" }
-MERGE = @{ ^"MERGE" }
-ON = @{ ^"ON" }
-OPTIONAL = @{ ^"OPTIONAL" }
-ORDER = @{ ^"ORDER" }
-REMOVE = @{ ^"REMOVE" }
-RETURN = @{ ^"RETURN" }
-SET = @{ ^"SET" }
-SKIP = @{ ^"SKIP" }
-WHERE = @{ ^"WHERE" }
-WITH = @{ ^"WITH" }
-UNION = @{ ^"UNION" }
-UNWIND = @{ ^"UNWIND" }
-AND = @{ ^"AND" }
-AS = @{ ^"AS" }
-CONTAINS = @{ ^"CONTAINS" }
-DISTINCT = @{ ^"DISTINCT" }
-ENDS = @{ ^"ENDS" }
-IN = @{ ^"IN" }
-IS = @{ ^"IS" }
-NOT = @{ ^"NOT" }
-OR = @{ ^"OR" }
-STARTS = @{ ^"STARTS" }
-XOR = @{ ^"XOR" }
-FALSE = @{ ^"FALSE" }
-TRUE = @{ ^"TRUE" }
-NULL = @{ ^"NULL" }
+DETACH     = @{ ^"DETACH" }
+EXISTS     = @{ ^"EXISTS" }
+LIMIT      = @{ ^"LIMIT" }
+MATCH      = @{ ^"MATCH" }
+MERGE      = @{ ^"MERGE" }
+ON         = @{ ^"ON" }
+OPTIONAL   = @{ ^"OPTIONAL" }
+ORDER      = @{ ^"ORDER" }
+REMOVE     = @{ ^"REMOVE" }
+RETURN     = @{ ^"RETURN" }
+SET        = @{ ^"SET" }
+SKIP       = @{ ^"SKIP" }
+WHERE      = @{ ^"WHERE" }
+WITH       = @{ ^"WITH" }
+UNION      = @{ ^"UNION" }
+UNWIND     = @{ ^"UNWIND" }
+AND        = @{ ^"AND" }
+AS         = @{ ^"AS" }
+CONTAINS   = @{ ^"CONTAINS" }
+DISTINCT   = @{ ^"DISTINCT" }
+ENDS       = @{ ^"ENDS" }
+IN         = @{ ^"IN" }
+IS         = @{ ^"IS" }
+NOT        = @{ ^"NOT" }
+OR         = @{ ^"OR" }
+STARTS     = @{ ^"STARTS" }
+XOR        = @{ ^"XOR" }
+FALSE      = @{ ^"FALSE" }
+TRUE       = @{ ^"TRUE" }
+NULL       = @{ ^"NULL" }
 CONSTRAINT = @{ ^"CONSTRAINT" }
-DO = @{ ^"DO" }
-FOR = @{ ^"FOR" }
-REQUIRE = @{ ^"REQUIRE" }
-UNIQUE = @{ ^"UNIQUE" }
-CASE = @{ ^"CASE" }
-WHEN = @{ ^"WHEN" }
-THEN = @{ ^"THEN" }
-ELSE = @{ ^"ELSE" }
-END = @{ ^"END" }
-MANDATORY = @{ ^"MANDATORY" }
-SCALAR = @{ ^"SCALAR" }
-OF = @{ ^"OF" }
-ADD = @{ ^"ADD" }
-DROP_ = @{ ^"DROP" }
+DO         = @{ ^"DO" }
+FOR        = @{ ^"FOR" }
+REQUIRE    = @{ ^"REQUIRE" }
+UNIQUE     = @{ ^"UNIQUE" }
+CASE       = @{ ^"CASE" }
+WHEN       = @{ ^"WHEN" }
+THEN       = @{ ^"THEN" }
+ELSE       = @{ ^"ELSE" }
+END        = @{ ^"END" }
+MANDATORY  = @{ ^"MANDATORY" }
+SCALAR     = @{ ^"SCALAR" }
+OF         = @{ ^"OF" }
+ADD        = @{ ^"ADD" }
+DROP_      = @{ ^"DROP" }
 
 // CASE = @{ ^"CASE" }
 // ELSE = @{ ^"ELSE" }
@@ -716,17 +686,11 @@ DROP_ = @{ ^"DROP" }
 // WHEN = @{ ^"WHEN" }
 // THEN = @{ ^"THEN" }
 // EXISTS = @{ ^"EXISTS" }
-EQ = @{ "=" }
-NE = @{ "<>" }
-LT = @{ "<" }
-GT = @{ ">" }
-LE = @{ "<=" }
-GE = @{ ">=" }
 // TRUE = @{ ^"TRUE" }
 // FALSE = @{ ^"FALSE" }
-COUNT = @{ ^"COUNT" }
-ANY_ = @{ ^"ANY" }
-NONE = @{ ^"NONE" }
+COUNT  = @{ ^"COUNT" }
+ANY_   = @{ ^"ANY" }
+NONE   = @{ ^"NONE" }
 SINGLE = @{ ^"SINGLE" }
 // IS = @{ ^"IS" }
 // NOT = @{ ^"NOT" }
@@ -735,27 +699,22 @@ SINGLE = @{ ^"SINGLE" }
 // ENDS = @{ ^"ENDS" }
 // CONTAINS = @{ ^"CONTAINS" }
 // IN = @{ ^"IN" }
-POW = @{ "^" }
-MULTIPLY = @{ "*" }
-DIVIDE = @{ "/" }
-MODULO = @{ "%" }
 // ADD = @{ "+" }
-SUBTRACT = @{ "-" }
-DOT_DOT = @{ ".." }
+DOT_DOT  = @{ ".." }
 // WHERE = @{ ^"WHERE" }
 // ASCENDING = @{ ^"ASCENDING" }
 // ASC = @{ ^"ASC" }
 // DESCENDING = @{ ^"DESCENDING" }
 // DESC = @{ ^"DESC" }
-// LIMIT = @{ ^"LIMIT" } 
+// LIMIT = @{ ^"LIMIT" }
 // SKIP = @{ ^"SKIP" }
 // ORDER = @{ ^"ORDER" }
 // BY = @{ ^"BY" }
 // DISTINCT = @{ ^"DISTINCT" }
 // RETURN = @{ ^"RETURN" }
 // WITH = @{ ^"WITH" }
-STAR = @{ "*" }
-CALL = @{ ^"CALL" }
+STAR  = @{ "*" }
+CALL  = @{ ^"CALL" }
 YIELD = @{ ^"YIELD" }
 // REMOVE = @{ ^"REMOVE" }
 // DETACH = @{ ^"DETACH" }
@@ -770,5 +729,7 @@ YIELD = @{ ^"YIELD" }
 // MATCH = @{ ^"MATCH" }
 // UNION = @{ ^"UNION" }
 // ALL = @{ ^"ALL" }
-FILTER = @{ ^"FILTER" }
+FILTER  = @{ ^"FILTER" }
 EXTRACT = @{ ^"EXTRACT" }
+
+WHITESPACE = _{ " " | "\t" | "\n"}
