@@ -30,16 +30,16 @@ fn main() {
 
     println!("Pagerank");
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g, 20, None, None, true);
+    let _ = unweighted_page_rank(&g, Some(20), None, None, true, None);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
 
-    let _ = unweighted_page_rank(&g, 20, None, None, true);
+    let _ = unweighted_page_rank(&g, Some(20), None, None, true, None);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
-    let _ = unweighted_page_rank(&g.layers("USDT").unwrap(), 20, None, None, true);
+    let _ = unweighted_page_rank(&g.layers("USDT").unwrap(), Some(20), None, None, true, None);
     println!("Time taken: {} secs", now.elapsed().as_secs());
 
     println!("Generic taint");

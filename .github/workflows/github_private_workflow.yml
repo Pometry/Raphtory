@@ -5,12 +5,12 @@ on:
           base:
             type: 'string'
             default: 'master'
-    pull_request:
-        branches:
-            - master
-    push:
-        branches:
-            - master
+#    pull_request:
+#        branches:
+#            - master
+#    push:
+#        branches:
+#            - master
             
 
 jobs:

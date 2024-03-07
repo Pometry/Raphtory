@@ -2,7 +2,7 @@ use arrow2::array::StructArray;
 
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
-    core::entities::{properties::graph_props::GraphProps, LayerIds},
+    core::entities::{properties::graph_meta::GraphMeta, LayerIds},
     db::api::view::{DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
@@ -39,7 +39,7 @@ pub struct ArrowGraph {
     inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
-    graph_props: Arc<GraphProps>,
+    graph_props: Arc<GraphMeta>,
 }
 
 impl IntoDynamic for ArrowGraph {
@@ -105,7 +105,7 @@ impl ArrowGraph {
             inner: Arc::new(inner),
             node_meta,
             edge_meta,
-            graph_props: Arc::new(GraphProps::new()),
+            graph_props: Arc::new(GraphMeta::new()),
         };
 
         graph.init_meta();
@@ -122,7 +122,7 @@ impl ArrowGraph {
             inner: Arc::new(inner),
             node_meta,
             edge_meta,
-            graph_props: Arc::new(GraphProps::new()),
+            graph_props: Arc::new(GraphMeta::new()),
         };
 
         graph.init_meta();
@@ -179,7 +179,7 @@ impl ArrowGraph {
             inner: Arc::new(t_graph),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
-            graph_props: Arc::new(GraphProps::new()),
+            graph_props: Arc::new(GraphMeta::new()),
         };
 
         graph.init_meta();

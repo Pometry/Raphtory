@@ -24,7 +24,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
-    io::BufReader,
+    io::Read,
     path::Path,
 };
 use uuid::Uuid;
@@ -332,8 +332,10 @@ impl Mut {
     /// Returns::
     ///    name of the new graph
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
-        let g: MaterializedGraph =
-            bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
+        let mut buffer = Vec::new();
+        let mut buff_read = graph.value(ctx)?.content;
+        buff_read.read_to_end(&mut buffer)?;
+        let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
         let gi: IndexedGraph<MaterializedGraph> = g.into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi);

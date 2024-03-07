@@ -125,7 +125,7 @@ mod tests {
         assert!(actual == expected);
 
         let actual = measure_without_print_results("Page Rank", || {
-            unweighted_page_rank(&graph, 100, None, None, true)
+            unweighted_page_rank(&graph, Some(100), None, None, true, None)
         })
         .get_all_with_names();
         let expected: HashMap<String, f64> = HashMap::from_iter(vec![

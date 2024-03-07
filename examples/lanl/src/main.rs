@@ -124,7 +124,7 @@ fn main() {
         weakly_connected_components(&graph, 20, None)
     });
     measure_without_print_results("Page Rank", || {
-        unweighted_page_rank(&graph, 100, Some(1), None, true)
+        unweighted_page_rank(&graph, Some(100), Some(1), None, true, None)
     });
     measure_with_print_results("Exfilteration Query 1", || {
         exfiltration::query1::run(&graph)

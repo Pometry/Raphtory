@@ -467,7 +467,10 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
         match document.entity_id {
             EntityId::Graph { .. } => Box::new(std::iter::empty()),
             EntityId::Node { id } => {
-                let self_docs = self.node_documents.get(&document.entity_id).unwrap();
+                let self_docs = self
+                    .node_documents
+                    .get(&document.entity_id)
+                    .unwrap_or(&self.empty_vec);
                 match windowed_graph.node(id) {
                     None => Box::new(std::iter::empty()),
                     Some(node) => {
@@ -485,14 +488,17 @@ impl<G: StaticGraphViewOps, T: DocumentTemplate<G>> VectorisedGraph<G, T> {
                 }
             }
             EntityId::Edge { src, dst } => {
-                let self_docs = self.edge_documents.get(&document.entity_id).unwrap();
+                let self_docs = self
+                    .edge_documents
+                    .get(&document.entity_id)
+                    .unwrap_or(&self.empty_vec);
                 match windowed_graph.edge(src, dst) {
                     None => Box::new(std::iter::empty()),
                     Some(edge) => {
                         let src_id = EntityId::from_node(&edge.src());
                         let dst_id = EntityId::from_node(&edge.dst());
-                        let src_docs = self.node_documents.get(&src_id).unwrap();
-                        let dst_docs = self.node_documents.get(&dst_id).unwrap();
+                        let src_docs = self.node_documents.get(&src_id).unwrap_or(&self.empty_vec);
+                        let dst_docs = self.node_documents.get(&dst_id).unwrap_or(&self.empty_vec);
                         Box::new(
                             chain!(self_docs, src_docs, dst_docs).filter(move |doc| {
                                 doc.exists_on_window(Some(windowed_graph), window)
