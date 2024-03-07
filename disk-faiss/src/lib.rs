@@ -36,57 +36,60 @@ pub fn merge_ondisk(index: &str, shards: Vec<&str>, ivfdata: &str, output: &str)
 
     unsafe {
         cpp!([index_path as "const char *", shards as "std::vector<const char *> *", num_shards as "uint32_t", ivfdata as "const char *", output as "const char *"] {
-
             try {
-            std::cout << "----here----" << std::endl;
-            std::vector<faiss::IndexIVFFlat*> ivfs;
-            std::cout << "reading shards -> " << shards->size() << std::endl;
-            for (unsigned int i = 0; i < num_shards; ++i) {
-                // std::cout << "reading " << shard << std::endl;
-                const char * shard = shards->at(i);
-                faiss::IndexIVFFlat* ivf = (faiss::IndexIVFFlat*) faiss::read_index(shard, faiss::IO_FLAG_MMAP);
-                std::cout << "success reading" << std::endl;
-                ivfs.push_back(ivf);
-                std::cout << "success adding it" << std::endl;
+                std::vector<const faiss::InvertedLists*> ivfs;
+                std::cout << "reading shards -> " << shards->size() << std::endl;
+                size_t ntotal = 0;
+                for (unsigned int i = 0; i < num_shards; ++i) {
+                    const char * shard = shards->at(i);
+                    auto index = faiss::read_index(shard, faiss::IO_FLAG_MMAP);
+                    auto ivf = dynamic_cast<faiss::IndexIVF*>(index);
+                    assert(ivf);
 
-                ivf->own_invlists = false;
-                delete ivf;
-            }
+                    ivfs.push_back(ivf->invlists);
+                    ntotal += ivf->ntotal;
 
-            std::cout << "---- after reading shards ----" << std::endl;
-            faiss::IndexIVFFlat* index = (faiss::IndexIVFFlat*) faiss::read_index(index_path); // TODO: review: 0 as second parameter????????????????????
+                    // ivf->own_invlists = false;
+                    // delete ivf;
+                }
 
-            if (index->ntotal != 0) {
-                std::exit(1);
-            }
-            std::cout << "nlist: " << index->nlist << std::endl;
-            std::cout << "code_size: " << index->code_size << std::endl;
-            std::cout << "---- about to call on disk inverted lists ----" << std::endl;
-            auto invlists = new faiss::OnDiskInvertedLists(
-                index->nlist, index->code_size, ivfdata
-            );
-            std::cout << "----here----" << std::endl;
+                auto index_raw = faiss::read_index(index_path);
+                auto index = dynamic_cast<faiss::IndexIVF*>(index_raw);
+                assert(index);
 
-            // auto ivf_vector = faiss::InvertedListsPtrVector();
-            // for (const auto& ivf : ivfs) {
-            //     ivf_vector.push_back(ivf);
-            // }
+                if (index->ntotal != 0) {
+                    std::exit(1);
+                }
 
-            const faiss::InvertedLists **ivfs_data = (const faiss::InvertedLists**) ivfs.data();
-            auto ntotal = invlists->merge_from(ivfs_data, ivfs.size()); // TODO: this has a verbose parameter I can use
-            std::cout << "--here--";
+                auto il = new faiss::OnDiskInvertedLists(index->nlist, index->code_size, ivfdata);
+                il->merge_from(ivfs.data(), ivfs.size());
 
-            index->ntotal = ntotal;
-            index->replace_invlists(invlists, true);
-            std::cout << "--here--";
-            // invlists.this.disown(); ????????????????????????
+                index->replace_invlists(il, true);
+                index->ntotal = ntotal;
 
-            faiss::write_index(index, output);
+                // auto invlists = new faiss::OnDiskInvertedLists(
+                //     index->nlist, index->code_size, ivfdata
+                // );
+                // std::cout << "----here----" << std::endl;
+
+                // const faiss::InvertedLists **ivfs_data = (const faiss::InvertedLists**) ivfs.data();
+                //     std::cout << "---- about to merge lists with size ---- " << ivfs.size() << std::endl;
+                // auto ntotal = invlists->merge_from(ivfs_data, ivfs.size()); // TODO: this has a verbose parameter I can use
+                // std::cout << "----here----" << std::endl;
+
+                // index->ntotal = ntotal;
+                // index->replace_invlists(invlists, true);
+                // invlists.this.disown(); ????????????????????????
+
+                faiss::write_index(index, output);
 
             } catch (const std::exception &e) {
-                std::cerr << "cpp exception" << std::endl;
+                std::cerr << "standard exception!" << std::endl;
                 std::cerr << e.what() << std::endl;
                 throw e;
+            } catch (...) {
+                std::cerr << "unknown exception!" << std::endl;
+                throw;
             }
         })
     };

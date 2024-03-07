@@ -14,3 +14,11 @@ homepage.workspace = true
 [dependencies]
 disk-faiss = { path = "../disk-faiss" }
 faiss = { path = "../faiss-rs" }
+
+[dev-dependencies]
+criterion = "0.5.1"
+rand = "0.8.5"
+
+[[bench]]
+name = "bench"
+harness = false

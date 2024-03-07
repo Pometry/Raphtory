@@ -10,7 +10,6 @@ members = [
     "comparison-benchmark/rust/raphtory-rust-benchmark",
     "faiss-rs",
     "faiss-rs/faiss-sys",
-    "pometry-faiss",
     "disk-faiss",
     "disk-test",
 ]

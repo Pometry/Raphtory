@@ -1,55 +1,26 @@
 use disk_faiss::merge_ondisk;
+use disk_test::FVecs;
 use faiss::{index_factory, read_index, write_index, Idx, Index, MetricType};
-use std::fs;
-use std::io::Error as IoError;
-use std::io::ErrorKind::InvalidData;
-
-struct FVecsContent {
-    dimensions: u32,
-    vectors: Vec<f32>,
-}
-
-fn read_fvecs(file_name: &str) -> Result<FVecsContent, std::io::Error> {
-    let data = fs::read(file_name)?;
-    let (dim_data, vector_data) = data.split_at(4);
-    let dim = dim_data
-        .try_into()
-        .map_err(|e| IoError::new(InvalidData, e))?;
-    let dimensions = u32::from_le_bytes(dim);
-    let vectors: Vec<_> = vector_data
-        .chunks_exact(4)
-        .map(|chunk| f32::from_le_bytes(chunk.try_into().unwrap()))
-        .collect();
-
-    Ok(FVecsContent {
-        dimensions,
-        vectors,
-    })
-}
 
 fn tmpfile<S: AsRef<str>>(filename: S) -> String {
-    return "/tmp/faiss-disk-test/".to_owned() + filename.as_ref();
+    "/tmp/faiss-disk-test/".to_owned() + filename.as_ref()
 }
 
 fn main() {
     println!("Training index");
-    let FVecsContent {
+    let FVecs {
         dimensions,
         vectors,
-    } = read_fvecs("resources/sift/sift_learn.fvecs").unwrap();
-    // println!("dimensions -> {dimensions}");
-    // let sample: Vec<_> = flattened_vectors.iter().take(8).collect();
-    // println!("sample -> {sample:?}");
-    let mut index = index_factory(dimensions, "IVF4096,Flat", MetricType::InnerProduct).unwrap();
+    } = FVecs::from_file("resources/sift/sift_learn.fvecs").unwrap();
+    let mut index =
+        index_factory(dimensions as u32, "IVF4096,Flat", MetricType::InnerProduct).unwrap();
     index.train(vectors.as_slice()).unwrap();
 
     let index = index.into_ivf_flat().unwrap();
-    dbg!(&index.nlist());
-    dbg!(&index.ntotal());
     write_index(&index, tmpfile("trained.index")).unwrap();
 
     println!("Splitting vectors into files");
-    let vectors = read_fvecs("resources/sift/sift_base.fvecs")
+    let vectors = FVecs::from_file("resources/sift/sift_base.fvecs")
         .unwrap()
         .vectors;
 
@@ -84,8 +55,10 @@ fn main() {
 
     println!("using the ondisk index");
     let mut index = read_index(&tmpfile("populated.index")).unwrap();
-    let queries = read_fvecs("resources/sift/sift_query.fvecs").unwrap();
+    let queries = FVecs::from_file("resources/sift/sift_query.fvecs").unwrap();
+    let first_query = queries.get(0).unwrap();
 
-    let result = index.search(&queries.vectors, 5).unwrap();
+    let result = index.search(first_query, 5).unwrap();
     println!("result: {result:?}");
+    // println!("success!!!!!!!");
 }
