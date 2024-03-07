@@ -44,16 +44,16 @@ where
     result
 }
 
-pub fn measure_without_print_results<T, E, F>(name: &str, f: F) -> Result<T, E>
+pub fn measure_without_print_results<T, F>(name: &str, f: F) -> T
 where
-    F: FnOnce() -> Result<T, E>,
+    F: FnOnce() -> T,
 {
     let start_time = Instant::now();
     let result = f();
     let elapsed_time = start_time.elapsed();
 
     let elapsed_ms = elapsed_time.as_millis();
-
+    
     if elapsed_ms < 1000 {
         println!("Running {}: time: {}ms", name, elapsed_ms);
     } else {
