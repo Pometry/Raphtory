@@ -3087,6 +3087,7 @@ dependencies = [
 name = "raphtory-benchmark"
 version = "0.7.0"
 dependencies = [
+ "arrow2",
  "criterion",
  "rand 0.8.5",
  "raphtory",

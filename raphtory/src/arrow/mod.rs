@@ -14,7 +14,7 @@ use std::{
 };
 
 pub mod algorithms;
-pub(crate) mod arrow_hmap;
+pub mod arrow_hmap;
 pub(crate) mod chunked_array;
 pub mod edge;
 pub(crate) mod edges;
