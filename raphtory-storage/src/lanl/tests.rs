@@ -71,7 +71,9 @@ mod tests {
             },
         ];
 
-        let graph = match measure_without_print_results("Graph load from dir", || ArrowGraph::load_from_dir(graph_dir.clone())) {
+        let graph = match measure_without_print_results("Graph load from dir", || {
+            ArrowGraph::load_from_dir(graph_dir.clone())
+        }) {
             Ok(g) => g,
             Err(e) => {
                 println!("Failed to load the graph from the directory. Attempting to load from parquet files: {}", e);
@@ -84,15 +86,17 @@ mod tests {
                 let read_chunk_size = Some(4_000_000);
                 let concurrent_files = Some(1);
 
-                measure_without_print_results("Graph load from parquets", || ArrowGraph::load_from_parquets(
-                    graph_dir,
-                    layer_parquet_cols,
-                    chunk_size,
-                    t_props_chunk_size,
-                    read_chunk_size,
-                    concurrent_files,
-                    num_threads,
-                ))
+                measure_without_print_results("Graph load from parquets", || {
+                    ArrowGraph::load_from_parquets(
+                        graph_dir,
+                        layer_parquet_cols,
+                        chunk_size,
+                        t_props_chunk_size,
+                        read_chunk_size,
+                        concurrent_files,
+                        num_threads,
+                    )
+                })
                 .expect("Failed to load the graph from parquet files")
             }
         };

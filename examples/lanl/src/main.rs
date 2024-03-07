@@ -2,12 +2,13 @@ use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
-    arrow::algorithms::connected_components,
-    arrow::graph_impl::{ArrowGraph, ParquetLayerCols},
+    arrow::{
+        algorithms::connected_components,
+        graph_impl::{ArrowGraph, ParquetLayerCols},
+    },
     prelude::GraphViewOps,
 };
-use raphtory_storage::lanl::exfiltration;
-use raphtory_storage::lanl::*;
+use raphtory_storage::lanl::{exfiltration, *};
 use std::{env, num::NonZeroUsize, vec};
 
 fn main() {

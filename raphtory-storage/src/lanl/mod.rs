@@ -53,7 +53,7 @@ where
     let elapsed_time = start_time.elapsed();
 
     let elapsed_ms = elapsed_time.as_millis();
-    
+
     if elapsed_ms < 1000 {
         println!("Running {}: time: {}ms", name, elapsed_ms);
     } else {
