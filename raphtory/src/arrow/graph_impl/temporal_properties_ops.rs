@@ -4,9 +4,9 @@ use crate::{
     prelude::Prop,
 };
 
-use super::Graph2;
+use super::ArrowGraph;
 
-impl TemporalPropertiesOps for Graph2 {
+impl TemporalPropertiesOps for ArrowGraph {
     fn get_temporal_prop_id(&self, _name: &str) -> Option<usize> {
         todo!()
     }
@@ -20,7 +20,7 @@ impl TemporalPropertiesOps for Graph2 {
     }
 }
 
-impl TemporalPropertyViewOps for Graph2 {
+impl TemporalPropertyViewOps for ArrowGraph {
     fn temporal_history(&self, _id: usize) -> Vec<i64> {
         todo!()
     }

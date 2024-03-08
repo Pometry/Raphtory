@@ -6,10 +6,16 @@ use arrow2::{
 };
 use itertools::Itertools;
 /// A columnar temporal graph.
-use pyo3::{prelude::*, types::IntoPyDict};
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyDict, PyList, PyString},
+};
 
 use crate::{
-    arrow::{graph_impl::Graph2, Error},
+    arrow::{
+        graph_impl::{ArrowGraph, ParquetLayerCols},
+        Error,
+    },
     core::utils::errors::GraphError,
     db::api::view::{DynamicGraph, IntoDynamic},
     python::{
@@ -27,18 +33,18 @@ impl From<Error> for PyErr {
 }
 
 #[derive(Clone)]
-#[pyclass(name="ArrowGraph", extends=PyGraphView)]
+#[pyclass(name = "ArrowGraph", extends = PyGraphView)]
 pub struct PyArrowGraph {
-    pub graph: Graph2,
+    pub graph: ArrowGraph,
 }
 
-impl From<Graph2> for PyArrowGraph {
-    fn from(value: Graph2) -> Self {
+impl From<ArrowGraph> for PyArrowGraph {
+    fn from(value: ArrowGraph) -> Self {
         Self { graph: value }
     }
 }
 
-impl From<PyArrowGraph> for Graph2 {
+impl From<PyArrowGraph> for ArrowGraph {
     fn from(value: PyArrowGraph) -> Self {
         value.graph
     }
@@ -50,7 +56,7 @@ impl From<PyArrowGraph> for DynamicGraph {
     }
 }
 
-impl IntoPy<PyObject> for Graph2 {
+impl IntoPy<PyObject> for ArrowGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(
             py,
@@ -61,17 +67,78 @@ impl IntoPy<PyObject> for Graph2 {
     }
 }
 
-impl<'source> FromPyObject<'source> for Graph2 {
+impl<'source> FromPyObject<'source> for ArrowGraph {
     fn extract(ob: &'source PyAny) -> PyResult<Self> {
         let py_graph: PyRef<PyArrowGraph> = ob.extract()?;
         Ok(py_graph.graph.clone())
     }
 }
 
+impl<'a> FromPyObject<'a> for ParquetLayerCols<'a> {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        let dict = obj.downcast::<PyDict>()?;
+        Ok(ParquetLayerCols {
+            parquet_dir: dict
+                .get_item("parquet_dir")
+                .and_then(|item| {
+                    item.expect("parquet_dir is required")
+                        .extract::<&PyString>()
+                })
+                .and_then(|s| s.to_str())?,
+            layer: dict
+                .get_item("layer")
+                .and_then(|item| item.expect("layer is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+            src_col: dict
+                .get_item("src_col")
+                .and_then(|item| item.expect("src_col is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+            src_hash_col: dict
+                .get_item("src_hash_col")
+                .and_then(|item| {
+                    item.expect("src_hash_col is required")
+                        .extract::<&PyString>()
+                })
+                .and_then(|s| s.to_str())?,
+            dst_col: dict
+                .get_item("dst_col")
+                .and_then(|item| item.expect("dst_col is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+            dst_hash_col: dict
+                .get_item("dst_hash_col")
+                .and_then(|item| {
+                    item.expect("dst_hash_col is required")
+                        .extract::<&PyString>()
+                })
+                .and_then(|s| s.to_str())?,
+            time_col: dict
+                .get_item("time_col")
+                .and_then(|item| item.expect("time_col is required").extract::<&PyString>())
+                .and_then(|s| s.to_str())?,
+        })
+    }
+}
+
+pub struct ParquetLayerColsList<'a>(pub Vec<ParquetLayerCols<'a>>);
+
+impl<'a> FromPyObject<'a> for ParquetLayerColsList<'a> {
+    fn extract(obj: &'a PyAny) -> PyResult<Self> {
+        let list = obj.downcast::<PyList>()?;
+        let mut cols_list = Vec::new();
+
+        for item in list.iter() {
+            let cols = ParquetLayerCols::extract(item)?;
+            cols_list.push(cols);
+        }
+
+        Ok(ParquetLayerColsList(cols_list))
+    }
+}
+
 #[pymethods]
 impl PyGraph {
     /// save graph in arrow format and memory map the result
-    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<Graph2, Error> {
+    pub fn persist_as_arrow(&self, graph_dir: &str) -> Result<ArrowGraph, Error> {
         self.graph.persist_as_arrow(graph_dir)
     }
 }
@@ -80,14 +147,14 @@ impl PyGraph {
 impl PyArrowGraph {
     #[staticmethod]
     #[pyo3(signature = (graph_dir, edge_df, src_col, dst_col, time_col))]
-    pub fn from_pandas(
+    pub fn load_from_pandas(
         graph_dir: &str,
         edge_df: &PyAny,
         src_col: &str,
         dst_col: &str,
         time_col: &str,
-    ) -> Result<Graph2, GraphError> {
-        let graph: Result<Graph2, PyErr> = Python::with_gil(|py| {
+    ) -> Result<ArrowGraph, GraphError> {
+        let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py| {
             let size: usize = py
                 .eval(
                     "index.__len__()",
@@ -104,29 +171,62 @@ impl PyArrowGraph {
             let df = process_pandas_py_df(edge_df, py, size, df_columns)?;
 
             df.check_cols_exist(&cols_to_check)?;
-            let graph = Self::from_arrow(graph_dir, df, src_col, dst_col, time_col)?;
+            let graph = Self::from_pandas(graph_dir, df, src_col, dst_col, time_col)?;
 
             Ok::<_, PyErr>(graph)
         });
 
-        graph.map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))
+        graph.map_err(|e| {
+            GraphError::LoadFailure(format!(
+                "Failed to load graph {e:?} from pandas data frames"
+            ))
+        })
     }
 
     #[staticmethod]
-    fn open_path(graph_dir: &str) -> Result<Graph2, GraphError> {
-        Graph2::open_path(graph_dir)
-            .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+    fn load_from_dir(graph_dir: &str) -> Result<ArrowGraph, GraphError> {
+        ArrowGraph::load_from_dir(graph_dir).map_err(|err| {
+            GraphError::LoadFailure(format!("Failed to load graph {err:?} from dir {graph_dir}"))
+        })
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (graph_dir, layer_parquet_cols, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads))]
+    fn load_from_parquets(
+        graph_dir: &str,
+        layer_parquet_cols: ParquetLayerColsList,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        read_chunk_size: Option<usize>,
+        concurrent_files: Option<usize>,
+        num_threads: usize,
+    ) -> Result<ArrowGraph, GraphError> {
+        let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py: Python<'_>| {
+            let graph = Self::from_parquets(
+                graph_dir,
+                layer_parquet_cols.0,
+                chunk_size,
+                t_props_chunk_size,
+                read_chunk_size,
+                concurrent_files,
+                num_threads,
+            )?;
+            Ok::<_, PyErr>(graph)
+        });
+        graph.map_err(|e| {
+            GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
+        })
     }
 }
 
 impl PyArrowGraph {
-    fn from_arrow(
+    fn from_pandas(
         graph_dir: &str,
         df: PretendDF,
         src: &str,
         dst: &str,
         time: &str,
-    ) -> Result<Graph2, GraphError> {
+    ) -> Result<ArrowGraph, GraphError> {
         let src_col_idx = df.names.iter().position(|x| x == src).unwrap();
         let dst_col_idx = df.names.iter().position(|x| x == dst).unwrap();
         let time_col_idx = df.names.iter().position(|x| x == time).unwrap();
@@ -138,7 +238,7 @@ impl PyArrowGraph {
             .arrays
             .first()
             .map(|arr| arr.len())
-            .ok_or_else(|| GraphError::LoadFailure("empty pandas dataframe".to_owned()))?;
+            .ok_or_else(|| GraphError::LoadFailure("Empty pandas dataframe".to_owned()))?;
 
         let t_props_chunk_size = chunk_size;
 
@@ -160,7 +260,7 @@ impl PyArrowGraph {
             })
             .collect::<Vec<_>>();
 
-        Graph2::from_edge_lists(
+        ArrowGraph::load_from_edge_lists(
             &edge_lists,
             num_threads,
             chunk_size,
@@ -169,6 +269,27 @@ impl PyArrowGraph {
             src_col_idx,
             dst_col_idx,
             time_col_idx,
+        )
+        .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+    }
+
+    fn from_parquets(
+        graph_dir: &str,
+        layer_parquet_cols: Vec<ParquetLayerCols>,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        read_chunk_size: Option<usize>,
+        concurrent_files: Option<usize>,
+        num_threads: usize,
+    ) -> Result<ArrowGraph, GraphError> {
+        ArrowGraph::load_from_parquets(
+            graph_dir,
+            layer_parquet_cols,
+            chunk_size,
+            t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
+            num_threads,
         )
         .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }

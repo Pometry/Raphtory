@@ -9,7 +9,7 @@ use ahash::HashMap;
 use parking_lot::Mutex;
 use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps};
 
-use crate::{thread_pool, NUM_THREADS};
+use crate::lanl::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
 //          <-[nf1:Netflow]-(b)-[nf2:Netflow]->(c)
@@ -146,7 +146,7 @@ pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
     Some(count)
 }
 
-pub(crate) fn run2(g: &TemporalGraph) -> Option<usize> {
+pub fn run2(g: &TemporalGraph) -> Option<usize> {
     // layer
     let nft = g.find_layer_id("netflow")?;
     let events_1v = g.find_layer_id("events_1v")?;

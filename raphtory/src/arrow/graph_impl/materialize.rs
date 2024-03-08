@@ -3,9 +3,9 @@ use crate::db::{
     graph::graph::InternalGraph,
 };
 
-use super::Graph2;
+use super::ArrowGraph;
 
-impl InternalMaterialize for Graph2 {
+impl InternalMaterialize for ArrowGraph {
     fn new_base_graph(&self, _graph: InternalGraph) -> MaterializedGraph {
         todo!()
     }

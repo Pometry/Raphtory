@@ -1,37 +1,38 @@
 use raphtory::{
-    arrow::{algorithms::connected_components, graph_impl::Graph2},
+    arrow::{
+        algorithms::connected_components,
+        graph_impl::{ArrowGraph, ParquetLayerCols},
+    },
     prelude::*,
 };
-use std::time::Instant;
+use std::{env::args, time::Instant};
 
 fn main() {
-    let graph_dir = std::env::args()
-        .nth(1)
-        .expect("Must supply the graph directory");
+    // Retrieve command line arguments
+    let args = || std::env::args();
 
-    // let graph_dir = "/mnt/work/pometry/graph500/30/raphtory_graph";
-
-    let parquet_dir = std::env::args().nth(2);
-
-    // check if graph dir exists if it does then call open_path
-    // else call create_path
+    let graph_dir = args().nth(1).expect("Graph directory not provided");
 
     let graph2 = if let Ok(_) = std::fs::metadata(&graph_dir) {
-        Graph2::open_path(graph_dir).expect("Cannot open graph")
+        ArrowGraph::load_from_dir(graph_dir).expect("Cannot open graph")
     } else {
-        let parquet_dir = parquet_dir.expect("Must supply the parquet directory");
+        let parquet_dir = &args().nth(2).expect("Parquet directory not provided");
+
         let chunk_size = 268_435_456;
         let num_threads = 4;
         let t_props_chunk_size = chunk_size / 8;
         let now = Instant::now();
-        let graph = Graph2::load_from_dir(
+        let graph = ArrowGraph::load_from_parquets(
             graph_dir,
-            parquet_dir,
-            "src",
-            "src_hash",
-            "dst",
-            "dst_hash",
-            "time",
+            vec![ParquetLayerCols {
+                parquet_dir,
+                layer: "default",
+                src_col: "src",
+                src_hash_col: "src_hash",
+                dst_col: "dst",
+                dst_hash_col: "dst_hash",
+                time_col: "time",
+            }],
             chunk_size,
             t_props_chunk_size,
             Some(4_000_000),

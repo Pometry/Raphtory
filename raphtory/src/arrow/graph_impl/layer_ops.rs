@@ -4,9 +4,9 @@ use crate::{
     prelude::Layer,
 };
 
-use super::Graph2;
+use super::ArrowGraph;
 
-impl InternalLayerOps for Graph2 {
+impl InternalLayerOps for ArrowGraph {
     fn layer_ids(&self) -> LayerIds {
         LayerIds::One(0)
     }

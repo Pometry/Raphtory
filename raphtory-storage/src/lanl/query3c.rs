@@ -2,7 +2,7 @@ use itertools::Itertools;
 use raphtory::arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 
-use crate::{thread_pool, NUM_THREADS};
+use crate::lanl::{thread_pool, NUM_THREADS};
 
 // MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
 //          <-[nf1:Netflow]-(b)
@@ -20,7 +20,7 @@ const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
 const WINDOW: i64 = 4;
 
-pub(crate) fn run(g: &TemporalGraph) -> Option<usize> {
+pub fn run(g: &TemporalGraph) -> Option<usize> {
     // layer
     let nft = g.find_layer_id("netflow")?;
     let events_1v = g.find_layer_id("events_1v")?;

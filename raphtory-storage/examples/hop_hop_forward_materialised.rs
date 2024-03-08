@@ -1,5 +1,5 @@
 use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
-use raphtory_storage::exfiltration::list::query;
+use raphtory_storage::lanl::exfiltration::list::query;
 use rayon::prelude::*;
 use std::time::Instant;
 

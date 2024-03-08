@@ -23,8 +23,19 @@ pub mod temporal_properties_ops;
 pub mod time_semantics;
 pub mod tprops;
 
+#[derive(Debug)]
+pub struct ParquetLayerCols<'a> {
+    pub parquet_dir: &'a str,
+    pub layer: &'a str,
+    pub src_col: &'a str,
+    pub src_hash_col: &'a str,
+    pub dst_col: &'a str,
+    pub dst_hash_col: &'a str,
+    pub time_col: &'a str,
+}
+
 #[derive(Clone)]
-pub struct Graph2 {
+pub struct ArrowGraph {
     inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
@@ -32,18 +43,18 @@ pub struct Graph2 {
 }
 
 impl Graph {
-    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<Graph2, Error> {
-        Graph2::from_graph(self, graph_dir)
+    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
+        ArrowGraph::from_graph(self, graph_dir)
     }
 }
 
-impl IntoDynamic for Graph2 {
+impl IntoDynamic for ArrowGraph {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
     }
 }
 
-impl Deref for Graph2 {
+impl Deref for ArrowGraph {
     type Target = TemporalGraph;
 
     fn deref(&self) -> &Self::Target {
@@ -51,7 +62,7 @@ impl Deref for Graph2 {
     }
 }
 
-impl Graph2 {
+impl ArrowGraph {
     // take the datatype from the struct array of the edge properties and fill in the edge_meta
     fn init_meta(&mut self) {
         let edge_props_fields = self.edges_data_type(0); // layer 0 for now
@@ -81,7 +92,7 @@ impl Graph2 {
         })
     }
 
-    pub fn from_edge_lists(
+    pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
         num_threads: NonZeroUsize,
 
@@ -106,53 +117,71 @@ impl Graph2 {
         )?;
         let node_meta = Arc::new(Meta::new());
         let edge_meta = Arc::new(Meta::new());
-        let mut grapho = Self {
+
+        let mut graph = Self {
             inner: Arc::new(inner),
             node_meta,
             edge_meta,
             graph_props: Arc::new(GraphMeta::new()),
         };
-        grapho.init_meta();
-        Ok(grapho)
+
+        graph.init_meta();
+
+        Ok(graph)
     }
 
-    pub fn open_path(path: impl AsRef<Path>) -> Result<Graph2, Error> {
-        let inner = TemporalGraph::new(path)?;
+    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
+        let inner = TemporalGraph::new(graph_dir)?;
         let node_meta = Arc::new(Meta::new());
         let edge_meta = Arc::new(Meta::new());
-        let mut grapho = Self {
+
+        let mut graph = Self {
             inner: Arc::new(inner),
             node_meta,
             edge_meta,
             graph_props: Arc::new(GraphMeta::new()),
         };
-        grapho.init_meta();
-        Ok(grapho)
+
+        graph.init_meta();
+
+        Ok(graph)
     }
 
-    pub fn load_from_dir(
+    pub fn load_from_parquets(
         graph_dir: impl AsRef<Path>,
-        parquet_dir: impl AsRef<Path>,
-        src_col: &str,
-        src_hash_col: &str,
-        dst_col: &str,
-        dst_hash_col: &str,
-        time_col: &str,
+        layer_parquet_cols: Vec<ParquetLayerCols>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
-    ) -> Result<Graph2, Error> {
-        let edge_list = ExternalEdgeList::new(
-            "default",
-            parquet_dir.as_ref(),
-            src_col,
-            src_hash_col,
-            dst_col,
-            dst_hash_col,
-            time_col,
-        )?;
+    ) -> Result<ArrowGraph, Error> {
+        let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
+            .iter()
+            .map(
+                |ParquetLayerCols {
+                     parquet_dir,
+                     layer,
+                     src_col,
+                     src_hash_col,
+                     dst_col,
+                     dst_hash_col,
+                     time_col,
+                 }| {
+                    ExternalEdgeList::new(
+                        *layer,
+                        parquet_dir.as_ref(),
+                        *src_col,
+                        *src_hash_col,
+                        *dst_col,
+                        *dst_hash_col,
+                        *time_col,
+                    )
+                    .expect("Failed to load events")
+                },
+            )
+            .collect::<Vec<_>>();
+
         let t_graph = TemporalGraph::from_edge_lists(
             num_threads,
             chunk_size,
@@ -160,18 +189,19 @@ impl Graph2 {
             read_chunk_size,
             concurrent_files,
             graph_dir.as_ref(),
-            [edge_list],
+            layered_edge_list,
         )?;
 
-        let mut grapho = Graph2 {
+        let mut graph = Self {
             inner: Arc::new(t_graph),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
             graph_props: Arc::new(GraphMeta::new()),
         };
-        grapho.init_meta();
 
-        Ok(grapho)
+        graph.init_meta();
+
+        Ok(graph)
     }
 
     pub fn filtered_layers_par<'a>(
@@ -214,9 +244,12 @@ mod test {
 
     use proptest::{prelude::*, sample::size_range};
 
-    use super::Graph2;
+    use super::ArrowGraph;
 
-    fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, Time, f64)]) -> Graph2 {
+    fn make_simple_graph(
+        graph_dir: impl AsRef<Path>,
+        edges: &[(u64, u64, Time, f64)],
+    ) -> ArrowGraph {
         // unzip into 4 vectors
         let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
             .into_iter()
@@ -238,7 +271,7 @@ mod test {
             ],
             None,
         )];
-        Graph2::from_edge_lists(
+        ArrowGraph::load_from_edge_lists(
             &edge_lists,
             std::num::NonZeroUsize::new(1).unwrap(),
             1000,

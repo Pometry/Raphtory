@@ -565,9 +565,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.0.89"
+version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0ba8f7aaa012f30d5b2861462f6708eccd49c3c39863fe083a308035f63d723"
+checksum = "8cd6604a82acf3039f1144f54b8eb34e91ffba622051189e71b781822d5ee1f5"
 dependencies = [
  "jobserver",
  "libc",
@@ -645,9 +645,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.1"
+version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c918d541ef2913577a0f9566e9ce27cb35b6df072075769e0b26cb5a554520da"
+checksum = "b230ab84b0ffdf890d5a10abdbc8b83ae1c4918275daea1ab8801f71536b2651"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -655,9 +655,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.1"
+version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f3e7391dad68afb0c2ede1bf619f579a3dc9c2ec67f089baa397123a2f3d1eb"
+checksum = "ae129e2e766ae0ec03484e609954119f123cc1fe650337e155d03b022f24f7b4"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1871,6 +1871,15 @@ dependencies = [
  "pyo3",
  "terminal_size",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "lanl"
+version = "0.7.0"
+dependencies = [
+ "pyo3",
+ "raphtory",
+ "raphtory-storage",
 ]
 
 [[package]]
@@ -3121,6 +3130,7 @@ dependencies = [
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
+ "raphtory-storage",
  "reqwest",
  "serde",
  "serde_json",
@@ -3153,6 +3163,7 @@ dependencies = [
  "memmap2 0.8.0",
  "parking_lot",
  "proptest",
+ "pyo3",
  "raphtory",
  "rayon",
  "serde",

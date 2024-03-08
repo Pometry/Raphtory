@@ -1,4 +1,4 @@
-use crate::exfiltration::find_active_nodes;
+use crate::lanl::exfiltration::find_active_nodes;
 use itertools::{kmerge_by, Itertools};
 use raphtory::{
     arrow::{
@@ -393,9 +393,13 @@ pub fn query<GO: GlobalOrder>(
         .flat_map_iter(|(_, iter)| iter)
 }
 
+pub fn query_count<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> usize {
+    query(g, window).count()
+}
+
 #[cfg(test)]
 mod test {
-    use crate::exfiltration::list::query;
+    use crate::lanl::exfiltration::list::query;
     use arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{DataType, Field},

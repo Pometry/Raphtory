@@ -1,7 +1,7 @@
 use itertools::Itertools;
 
 use crate::{
-    arrow::{graph_impl::Graph2, GID},
+    arrow::{graph_impl::ArrowGraph, GID},
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
@@ -24,7 +24,7 @@ use crate::{
 
 use super::tprops::read_tprop_column;
 
-impl CoreGraphOps for Graph2 {
+impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
         self.num_nodes()
     }
