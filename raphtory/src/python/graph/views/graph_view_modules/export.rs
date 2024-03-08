@@ -13,6 +13,7 @@ use pyo3::{
 };
 use std::collections::{HashMap, HashSet};
 use crate::db::api::view::DynamicGraph;
+use crate::db::api::view::internal::CoreGraphOps;
 use crate::db::graph::node::NodeView;
 use crate::prelude::TimeOps;
 
@@ -43,33 +44,25 @@ impl PyGraphView {
             let mut all_properties = HashSet::new();
 
             // Adjusted to check both temporal and constant properties
-            self.graph.nodes().iter().for_each(|v| {
-                let constant_properties = v.properties().constant().as_map();
-                let temporal_properties = v
-                    .properties()
-                    .temporal()
-                    .histories()
-                    .into_iter()
-                    .map(|(name, _)| name)
-                    .collect::<HashSet<_>>();
+            let temporal_properties = self.graph.node_meta().temporal_prop_meta().get_keys().to_vec();
+            let constant_properties = self.graph.node_meta().const_prop_meta().get_keys().to_vec();
+            constant_properties.iter().for_each(|name| {
+                let column_name = if temporal_properties.contains(name) {
+                    format!("{}_constant", name)
+                } else {
+                    name.to_string()
+                };
+                all_properties.insert(column_name);
+            });
 
-                constant_properties.iter().for_each(|(name, _)| {
-                    let column_name = if temporal_properties.contains(name) {
-                        format!("{}_constant", name)
-                    } else {
-                        name.to_string()
-                    };
-                    all_properties.insert(column_name);
-                });
+            temporal_properties.iter().for_each(|name| {
+                let column_name = if constant_properties.contains(name) { 
+                    format!("{}_temporal", name)
+                } else {
+                    name.to_string()
+                };
+                all_properties.insert(column_name);
 
-                temporal_properties.iter().for_each(|name| {
-                    if constant_properties.contains_key(name) {
-                        let column_name = format!("{}_temporal", name);
-                        all_properties.insert(column_name);
-                    } else {
-                        all_properties.insert(name.to_string());
-                    }
-                });
             });
 
             column_names.extend(all_properties.iter().cloned());
@@ -101,7 +94,7 @@ impl PyGraphView {
                     if v.properties().temporal().iter().count() == 0 {
                         let first_time = v.start().unwrap_or(0);
                         if v.properties().constant().iter().count() == 0 {
-                            // node is empty so add as empty time 
+                            // node is empty so add as empty time
                             let empty_dict = PyDict::new(py);
                             column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
                             let _ = prop_time_dict.set_item(first_time, empty_dict);
