@@ -28,7 +28,7 @@ impl PyGraphView {
     ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.  Defaults to `true`.
     ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
     ///     explode (bool): A boolean, if set to `true`, will explode each node update into its own row. Defaults to `false`
-    /// 
+    ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
     #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
@@ -37,7 +37,7 @@ impl PyGraphView {
             let pandas = PyModule::import(py, "pandas")?;
             let datetime_module = PyModule::import(py, "datetime")?;
             let datetime_class = datetime_module.getattr("datetime")?;
-            
+
             let mut column_names = vec![String::from("name"), String::from("type")];
             let mut all_properties = HashSet::new();
 
@@ -78,7 +78,7 @@ impl PyGraphView {
 
             self.graph.nodes().iter().for_each(|v| {
                 let mut properties_map = PyDict::new(py);
-                
+
                 v.properties()
                     .constant()
                     .as_map()
@@ -90,12 +90,9 @@ impl PyGraphView {
                             name.to_string()
                         };
                         let _ = properties_map.set_item(column_name, prop.clone());
-                        // Convert property value to string
                     });
-                
-                // List of current bugs 
-                // 1. const props missing in explode=True
-                // 2. _temporal and _constant missing in explode=True
+
+                // List of current bugs
                 // 3. some props missing in explode=False
 
                 let prop_time_dict = PyDict::new(py);
@@ -105,13 +102,19 @@ impl PyGraphView {
                         .histories()
                         .iter()
                         .for_each(|(prop_name, (time, prop_val))| {
+                            let column_name = if v.properties().constant().contains(prop_name) {
+                                format!("{}_temporal", prop_name)
+                            } else {
+                                prop_name.to_string()
+                            };
+
                             if !prop_time_dict.contains(time).unwrap() {
                                 let empty_dict = PyDict::new(py);
                                 column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
                                 prop_time_dict.set_item(time, empty_dict);
                             }
                             let data_dict = prop_time_dict.get_item(time).unwrap().unwrap();
-                            let _ = data_dict.set_item(prop_name, prop_val);
+                            let _ = data_dict.set_item(column_name, prop_val);
                         });
                 }
                 else if include_property_histories {
@@ -153,8 +156,13 @@ impl PyGraphView {
                     prop_time_dict.iter().for_each(|(time, item_dict)| {
                         let pyrow = PyList::new(py, vec![v.name().to_string(), v.node_type().unwrap_or(ArcStr::from("_default")).to_string()]);
                         for prop_name in &column_names[2..column_names.len() - 1] {
-                            let prop_value = item_dict.get_item(prop_name).unwrap();
-                            let _ = pyrow.append(prop_value);
+                            if let Some(prop_val) = properties_map.get_item(prop_name).unwrap() {
+                                let _ = pyrow.append(prop_val);
+                            } else if let Ok(prop_val) = item_dict.get_item(prop_name) {
+                                let _ = pyrow.append(prop_val);
+                            } else {
+                                let _ = pyrow.append("");
+                            }
                         }
                         if convert_datetime {
                             let new_time = datetime_class.call_method1("fromtimestamp", (time.clone(), )).unwrap();
