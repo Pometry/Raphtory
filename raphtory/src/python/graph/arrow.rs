@@ -454,14 +454,14 @@ impl PyGraphQuery {
 
     pub fn out(&self, layer: Option<&str>) -> Self {
         Self {
-            query: self.query.clone().out(layer.unwrap_or("default")),
+            query: self.query.clone().out(layer.unwrap_or("_default")),
             source: self.source.clone(),
         }
     }
 
     pub fn into(&self, layer: Option<&str>) -> Self {
         Self {
-            query: self.query.clone().into(layer.unwrap_or("default")),
+            query: self.query.clone().into(layer.unwrap_or("_default")),
             source: self.source.clone(),
         }
     }
@@ -471,7 +471,7 @@ impl PyGraphQuery {
             query: self
                 .query
                 .clone()
-                .vhop(dir.into(), layer.unwrap_or("default"), limit),
+                .vhop(dir.into(), layer.unwrap_or("_default"), limit),
             source: self.source.clone(),
         }
     }
@@ -481,7 +481,7 @@ impl PyGraphQuery {
             query: self
                 .query
                 .clone()
-                .hop(dir.into(), layer.unwrap_or("default"), false, limit),
+                .hop(dir.into(), layer.unwrap_or("_default"), false, limit),
             source: self.source.clone(),
         }
     }

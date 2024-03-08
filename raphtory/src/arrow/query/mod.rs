@@ -107,7 +107,7 @@ mod test {
     fn one_hop_query() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out("default").channel([sender]);
+        let query = Query::new().out("_default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
 
@@ -130,7 +130,10 @@ mod test {
     fn two_hop_query() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out("default").out("default").channel([sender]);
+        let query = Query::new()
+            .out("_default")
+            .out("_default")
+            .channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
 
@@ -152,8 +155,8 @@ mod test {
         let (sender, receiver) = std::sync::mpsc::channel();
 
         let query = Query::new()
-            .out("default")
-            .out_var("default")
+            .out("_default")
+            .out_var("_default")
             .channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
@@ -185,7 +188,10 @@ mod test {
     #[test]
     fn two_hop_query_state() {
         let (sender, receiver) = std::sync::mpsc::channel();
-        let query = Query::new().out("default").out("default").channel([sender]);
+        let query = Query::new()
+            .out("_default")
+            .out("_default")
+            .channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
 
@@ -207,7 +213,10 @@ mod test {
     #[test]
     fn test_fork_2_hop() {
         let (sender, receiver) = std::sync::mpsc::channel();
-        let query = Query::new().out("default").out("default").channel([sender]);
+        let query = Query::new()
+            .out("_default")
+            .out("_default")
+            .channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
 
@@ -241,7 +250,10 @@ mod test {
     fn hop_twice_forward_time() {
         let (sender, receiver) = std::sync::mpsc::channel();
 
-        let query = Query::new().out("default").out("default").channel([sender]);
+        let query = Query::new()
+            .out("_default")
+            .out("_default")
+            .channel([sender]);
 
         let mut edges = vec![
             (11, 0u64, 1u64, 0.0f64),
