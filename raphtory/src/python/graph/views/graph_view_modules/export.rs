@@ -12,6 +12,8 @@ use pyo3::{
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
 use std::collections::{HashMap, HashSet};
+use crate::db::api::view::DynamicGraph;
+use crate::db::graph::node::NodeView;
 
 #[pymethods]
 impl PyGraphView {
@@ -70,15 +72,13 @@ impl PyGraphView {
             });
 
             column_names.extend(all_properties.iter().cloned());
-
             column_names.push("update_histories".parse().unwrap());
 
             let mut node_tuples: Vec<&PyList> = vec![];
 
             self.graph.nodes().iter().for_each(|v| {
-                let pyrow = PyList::new(py, vec![v.name().to_string(), v.node_type().unwrap_or(ArcStr::from("_default")).to_string()]);
                 let mut properties_map = PyDict::new(py);
-
+                
                 v.properties()
                     .constant()
                     .as_map()
@@ -92,8 +92,29 @@ impl PyGraphView {
                         let _ = properties_map.set_item(column_name, prop.clone());
                         // Convert property value to string
                     });
-            
-                if include_property_histories {
+                
+                // List of current bugs 
+                // 1. const props missing in explode=True
+                // 2. _temporal and _constant missing in explode=True
+                // 3. some props missing in explode=False
+
+                let prop_time_dict = PyDict::new(py);
+                if explode {
+                    v.properties()
+                        .temporal()
+                        .histories()
+                        .iter()
+                        .for_each(|(prop_name, (time, prop_val))| {
+                            if !prop_time_dict.contains(time).unwrap() {
+                                let empty_dict = PyDict::new(py);
+                                column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
+                                prop_time_dict.set_item(time, empty_dict);
+                            }
+                            let data_dict = prop_time_dict.get_item(time).unwrap().unwrap();
+                            let _ = data_dict.set_item(prop_name, prop_val);
+                        });
+                }
+                else if include_property_histories {
                     v.properties()
                         .temporal()
                         .histories()
@@ -128,31 +149,45 @@ impl PyGraphView {
 
                 }
                 
-                
-                // Flatten properties into the row
-                for prop_name in &column_names[2..column_names.len() - 1] {
-                    // Skip the first column (name)
-                    let blank_prop = Prop::Str("".into()).into_py(py);
-                    let prop_value = properties_map
-                        .get_item(prop_name)
-                        .unwrap()
-                        .unwrap_or_else(|| blank_prop.as_ref(py));
-                    let _ = pyrow.append(prop_value); // Append property value as string
-                }
-                
-                // let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
-                // let _ = pyrow.append(update_list_py);
-                if convert_datetime {
-                    let update_list_py = PyList::new(py, v.history().iter().map(|val|
-                        datetime_class.call_method1("fromtimestamp", (val.clone(),)).unwrap()
-                    ));
-                    let _ = pyrow.append(update_list_py);
+                if explode {
+                    prop_time_dict.iter().for_each(|(time, item_dict)| {
+                        let pyrow = PyList::new(py, vec![v.name().to_string(), v.node_type().unwrap_or(ArcStr::from("_default")).to_string()]);
+                        for prop_name in &column_names[2..column_names.len() - 1] {
+                            let prop_value = item_dict.get_item(prop_name).unwrap();
+                            let _ = pyrow.append(prop_value);
+                        }
+                        if convert_datetime {
+                            let new_time = datetime_class.call_method1("fromtimestamp", (time.clone(), )).unwrap();
+                            let _ = pyrow.append(new_time);
+                        } else {
+                            let _ = pyrow.append(time);
+                        }
+                        node_tuples.push(pyrow);
+                    })
                 } else {
-                    let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
-                    let _ = pyrow.append(update_list_py);
-                }
+                    let pyrow = PyList::new(py, vec![v.name().to_string(), v.node_type().unwrap_or(ArcStr::from("_default")).to_string()]);
+                    // Flatten properties into the row
+                    for prop_name in &column_names[2..column_names.len() - 1] {
+                        // Skip the first column (name)
+                        let blank_prop = Prop::Str("".into()).into_py(py);
+                        let prop_value = properties_map
+                            .get_item(prop_name)
+                            .unwrap()
+                            .unwrap_or_else(|| blank_prop.as_ref(py));
+                        let _ = pyrow.append(prop_value); // Append property value as string
+                    }
 
-                node_tuples.push(pyrow);
+                    if convert_datetime {
+                        let update_list_py = PyList::new(py, v.history().iter().map(|val|
+                            datetime_class.call_method1("fromtimestamp", (val.clone(), )).unwrap()
+                        ));
+                        let _ = pyrow.append(update_list_py);
+                    } else {
+                        let update_list_py = PyList::new(py, v.history().iter().map(|&val| val));
+                        let _ = pyrow.append(update_list_py);
+                    }
+                    node_tuples.push(pyrow);
+                }
             });
 
             let kwargs = PyDict::new(py);
