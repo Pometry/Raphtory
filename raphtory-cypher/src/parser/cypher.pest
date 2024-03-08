@@ -235,11 +235,11 @@ unary_op = _{ not | minus }
 not      =  { "NOT" }
 minus    =  { "-" }
 
-atom = _{ unary_op? ~ Atom | "(" ~ Expression ~ ")" }
+atom = _{ PropertyExpression | unary_op? ~ Atom | "(" ~ Expression ~ ")" }
 
 bin_expr = { atom ~ (op ~ atom)* }
 
-Expression = { PropertyExpression | bin_expr  }
+Expression = { bin_expr  }
 
 StringListNullOperatorExpression = {
     PropertyOrLabelsExpression ~ (StringOperatorExpression | ListOperatorExpression | NullOperatorExpression)*
