@@ -14,6 +14,7 @@ use pyo3::{
 use std::collections::{HashMap, HashSet};
 use crate::db::api::view::DynamicGraph;
 use crate::db::graph::node::NodeView;
+use crate::prelude::TimeOps;
 
 #[pymethods]
 impl PyGraphView {
@@ -77,7 +78,7 @@ impl PyGraphView {
             let mut node_tuples: Vec<&PyList> = vec![];
 
             self.graph.nodes().iter().for_each(|v| {
-                let mut properties_map = PyDict::new(py);
+                let properties_map = PyDict::new(py);
 
                 v.properties()
                     .constant()
@@ -97,6 +98,25 @@ impl PyGraphView {
 
                 let prop_time_dict = PyDict::new(py);
                 if explode {
+                    if v.properties().temporal().iter().count() == 0 {
+                        let first_time = v.start().unwrap_or(0);
+                        if v.properties().constant().iter().count() == 0 {
+                            // node is empty so add as empty time 
+                            let empty_dict = PyDict::new(py);
+                            column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
+                            let _ = prop_time_dict.set_item(first_time, empty_dict);
+                        } else {
+                            v.properties().constant().iter().for_each(|(name, prop_val)| {
+                                if !prop_time_dict.contains(first_time).unwrap() {
+                                    let empty_dict = PyDict::new(py);
+                                    column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
+                                    let _ = prop_time_dict.set_item(first_time, empty_dict);
+                                }
+                                let data_dict = prop_time_dict.get_item(0).unwrap().unwrap();
+                                let _ = data_dict.set_item(name, prop_val);
+                            })
+                        }
+                    }
                     v.properties()
                         .temporal()
                         .histories()
@@ -107,7 +127,6 @@ impl PyGraphView {
                             } else {
                                 prop_name.to_string()
                             };
-
                             if !prop_time_dict.contains(time).unwrap() {
                                 let empty_dict = PyDict::new(py);
                                 column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
