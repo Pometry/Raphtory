@@ -56,7 +56,7 @@ impl PyGraphView {
             });
 
             temporal_properties.iter().for_each(|name| {
-                let column_name = if constant_properties.contains(name) { 
+                let column_name = if constant_properties.contains(name) {
                     format!("{}_temporal", name)
                 } else {
                     name.to_string()
