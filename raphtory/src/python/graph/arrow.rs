@@ -418,17 +418,37 @@ impl PyGraphQuery {
 
     #[staticmethod]
     pub fn from_node_ids(ids: Vec<NodeRef>) -> Self {
-        let external = ids
-            .into_iter()
-            .filter_map(|id| match id {
-                NodeRef::External(id) => Some(GID::I64(id as i64)),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let internal_nodes = ids.iter().any(|node| match node {
+            NodeRef::Internal(_) => true,
+            _ => false,
+        });
 
-        Self {
-            query: Query::new(),
-            source: Arc::new(NodeSource::ExternalIds(external)),
+        if internal_nodes {
+            let internal = ids
+                .into_iter()
+                .filter_map(|id| match id {
+                    NodeRef::Internal(id) => Some(id),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+
+            Self {
+                query: Query::new(),
+                source: Arc::new(NodeSource::NodeIds(internal)),
+            }
+        } else {
+            let external = ids
+                .into_iter()
+                .filter_map(|id| match id {
+                    NodeRef::External(id) => Some(GID::I64(id as i64)),
+                    NodeRef::ExternalStr(id) => Some(GID::Str(id.to_string())),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            Self {
+                query: Query::new(),
+                source: Arc::new(NodeSource::ExternalIds(external)),
+            }
         }
     }
 

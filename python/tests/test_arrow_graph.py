@@ -33,7 +33,7 @@ edges = pd.DataFrame(
 
 
 def create_graph(edges, dir):
-    return ArrowGraph.from_pandas(dir, edges, "src", "dst", "time")
+    return ArrowGraph.load_from_pandas(dir, edges, "src", "dst", "time")
 
 
 # in every test use with to create a temporary directory that will be deleted automatically
@@ -51,6 +51,28 @@ def test_simple_hop():
     dir = tempfile.TemporaryDirectory()
     graph = create_graph(edges, dir.name)
     q = Query.from_node_ids([1]).out()
+    state = State.path()
+    actual = q.run_to_vec(graph, state)
+
+    actual = [([n2.name, n1.name], n2.name) for ([n2, n1], n2) in actual]
+
+    expected = [
+        (["2", "1"], "2"),
+        (["3", "1"], "3"),
+        (["4", "1"], "4"),
+        (["5", "1"], "5"),
+    ]
+
+    actual.sort()
+    expected.sort()
+
+    assert actual == expected
+
+def test_simple_hop_from_node():
+    dir = tempfile.TemporaryDirectory()
+    graph = create_graph(edges, dir.name)
+    node = graph.node(1)
+    q = Query.from_node_ids([node]).out()
     state = State.path()
     actual = q.run_to_vec(graph, state)
 
