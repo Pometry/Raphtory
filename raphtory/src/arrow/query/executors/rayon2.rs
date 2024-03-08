@@ -5,7 +5,7 @@ use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
 
 use crate::{
     arrow::{
-        graph_impl::Graph2,
+        graph_impl::ArrowGraph,
         nodes::Node,
         query::{
             ast::{Hop, Query, Sink},
@@ -28,7 +28,7 @@ use crate::{
 pub fn execute<S: HopState + 'static>(
     query: Query<S>,
     source: NodeSource,
-    graph: &Graph2,
+    graph: &ArrowGraph,
     make_state: impl Fn(Node) -> S + Send + Sync,
 ) -> Result<(), Error> {
     let tp = ThreadPoolBuilder::new()
@@ -102,7 +102,7 @@ fn node_view<'a, 'b, G: StaticGraphViewOps>(
     NodeView::new_internal(graph, node)
 }
 
-fn lookup_layer(layer: &str, graph: &Graph2) -> usize {
+fn lookup_layer(layer: &str, graph: &ArrowGraph) -> usize {
     graph.find_layer_id(layer).expect("No layer")
 }
 
@@ -126,7 +126,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
     query: &'a Query<S>,
     step: usize,
     state: S,
-    graph: &'a Graph2,
+    graph: &'a ArrowGraph,
     s: &rayon::Scope<'a>,
     tl: &'a Arc<thread_local::ThreadLocal<RefCell<BufWriter<File>>>>,
 ) {

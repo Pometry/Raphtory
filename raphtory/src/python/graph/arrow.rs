@@ -15,8 +15,7 @@ use crate::{
     arrow::{
         graph_impl::{ArrowGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
-        Error,
-        GID,
+        Error, GID,
     },
     core::{
         entities::{nodes::node_ref::NodeRef, VID},
@@ -28,7 +27,7 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
     python::{
-        graph::{graph::PyGraph, views::graph_view::PyGraphView, edge::PyDirection},
+        graph::{edge::PyDirection, graph::PyGraph, views::graph_view::PyGraphView},
         utils::errors::adapt_err_value,
     },
 };
@@ -492,7 +491,7 @@ impl PyGraphQuery {
         }
     }
 
-    pub fn run(&self, graph: Graph2, state: PyState) -> PyResult<()> {
+    pub fn run(&self, graph: ArrowGraph, state: PyState) -> PyResult<()> {
         rayon2::execute_static_graph(
             self.query.clone(),
             self.source.as_ref().clone(),
@@ -506,9 +505,9 @@ impl PyGraphQuery {
 
     pub fn run_to_vec(
         &self,
-        graph: Graph2,
+        graph: ArrowGraph,
         state: PyState,
-    ) -> PyResult<Vec<(Vec<NodeView<Graph2>>, NodeView<Graph2>)>> {
+    ) -> PyResult<Vec<(Vec<NodeView<ArrowGraph>>, NodeView<ArrowGraph>)>> {
         let (sender, receiver) = std::sync::mpsc::channel();
 
         let query = self.query.clone().channel([sender]);

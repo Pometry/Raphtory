@@ -8,7 +8,7 @@ use crate::{
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::{edge::Edge, graph_impl::Graph2, nodes::Node, GID};
+use super::{edge::Edge, graph_impl::ArrowGraph, nodes::Node, GID};
 
 pub mod ast;
 pub mod executors;
@@ -19,12 +19,11 @@ pub enum NodeSource {
     All,
     NodeIds(Vec<VID>),
     ExternalIds(Vec<GID>),
-    NodeRefs(Vec<NodeRef>),
-    Filter(Arc<dyn Fn(VID, &Graph2) -> bool + Send + Sync>),
+    Filter(Arc<dyn Fn(VID, &ArrowGraph) -> bool + Send + Sync>),
 }
 
 impl NodeSource {
-    fn into_iter(self, graph: &Graph2) -> Box<dyn Iterator<Item = VID> + '_> {
+    fn into_iter(self, graph: &ArrowGraph) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
             NodeSource::All => Box::new((0..graph.num_nodes()).into_iter().map(VID)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
@@ -36,7 +35,6 @@ impl NodeSource {
                     .into_iter()
                     .filter_map(move |gid| graph.find_node(&gid)),
             ),
-            NodeSource::NodeRefs(_) => todo!(),
         }
     }
 
@@ -44,13 +42,6 @@ impl NodeSource {
         match self {
             NodeSource::All => Box::new(graph.node_refs(LayerIds::All, None)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
-            NodeSource::NodeRefs(ext_ids) => Box::new(
-                ext_ids
-                    .into_iter()
-                    .filter_map(move |gid| graph.node(gid))
-                    .inspect(|node| println!("node: {:?}", node))
-                    .map(|node| node.node),
-            ),
             NodeSource::ExternalIds(ids) => Box::new(
                 ids.into_iter()
                     .filter_map(move |gid| {
@@ -108,7 +99,7 @@ impl HopState for ForwardState {
 mod test {
     use itertools::Itertools;
 
-    use crate::arrow::graph_fragment::TempColGraphFragment;
+    use crate::prelude::{AdditionOps, Graph, NO_PROPS};
 
     use super::{ast::*, executors::*, state::*, *};
 
@@ -120,15 +111,12 @@ mod test {
 
         let graph_dir = tempfile::tempdir().unwrap();
 
-        let layer = TempColGraphFragment::from_edges(
-            graph_dir.path(),
-            vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
-            0,
-            100,
-        )
-        .unwrap();
+        let g = Graph::new();
 
-        let graph = Graph2::from_layer(layer);
+        g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -145,15 +133,13 @@ mod test {
         let query = Query::new().out("default").out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let layer = TempColGraphFragment::from_edges(
-            graph_dir.path(),
-            vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
-            0,
-            100,
-        )
-        .unwrap();
 
-        let graph = Graph2::from_layer(layer);
+        let g = Graph::new();
+
+        g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result = rayon2::execute::<NoState>(query, NodeSource::All, &graph, |_| NoState::new());
         assert!(result.is_ok());
@@ -171,15 +157,13 @@ mod test {
             .channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let layer = TempColGraphFragment::from_edges(
-            graph_dir.path(),
-            vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
-            0,
-            100,
-        )
-        .unwrap();
 
-        let graph = Graph2::from_layer(layer);
+        let g = Graph::new();
+
+        g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result =
             rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
@@ -201,19 +185,16 @@ mod test {
     #[test]
     fn two_hop_query_state() {
         let (sender, receiver) = std::sync::mpsc::channel();
-
         let query = Query::new().out("default").out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let layer = TempColGraphFragment::from_edges(
-            graph_dir.path(),
-            vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64)],
-            0,
-            100,
-        )
-        .unwrap();
 
-        let graph = Graph2::from_layer(layer);
+        let g = Graph::new();
+
+        g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result =
             rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
@@ -229,15 +210,14 @@ mod test {
         let query = Query::new().out("default").out("default").channel([sender]);
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let layer = TempColGraphFragment::from_edges(
-            graph_dir.path(),
-            vec![(0, 0u64, 1, 3f64), (1, 1, 2, 3f64), (2, 1, 3, 3f64)],
-            0,
-            100,
-        )
-        .unwrap();
 
-        let graph = Graph2::from_layer(layer);
+        let g = Graph::new();
+
+        g.add_edge(0, 0u64, 1, NO_PROPS, None).unwrap();
+        g.add_edge(1, 1u64, 2, NO_PROPS, None).unwrap();
+        g.add_edge(2, 1u64, 3, NO_PROPS, None).unwrap();
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let result =
             rayon2::execute::<VecState>(query, NodeSource::All, &graph, |n| VecState::new(n));
@@ -279,12 +259,14 @@ mod test {
         edges.sort_by_key(|(t, src, dst, _)| (*src, *dst, *t));
 
         let graph_dir = tempfile::tempdir().unwrap();
-        let mut layer = TempColGraphFragment::from_edges(graph_dir.path(), edges, 0, 100).unwrap();
-        layer
-            .node_additions(100)
-            .expect("Failed to load node additions");
 
-        let graph = Graph2::from_layer(layer);
+        let g = Graph::new();
+
+        for (t, src, dst, _) in edges.iter() {
+            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+        }
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir.path()).unwrap();
 
         let t = 10;
         let result = rayon2::execute::<ForwardState>(

@@ -48,8 +48,7 @@ impl Graph {
     }
 }
 
-impl Immutable for ArrowGraph {
-}
+impl Immutable for ArrowGraph {}
 
 impl IntoDynamic for ArrowGraph {
     fn into_dynamic(self) -> DynamicGraph {

@@ -1,8 +1,8 @@
 use raphtory::{
     arrow::{
         algorithms::connected_components,
-        graph_impl::{ArrowGraph, ParquetLayerCols},
         graph_fragment::TempColGraphFragment,
+        graph_impl::{ArrowGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, ForwardState},
     },
     core::entities::VID,
@@ -68,7 +68,7 @@ fn connected_components(tg: &TempColGraphFragment) {
     );
 }
 
-fn hop_query(tg: &Graph2) {
+fn hop_query(tg: &ArrowGraph) {
     let now = Instant::now();
 
     let nodes = vec![
