@@ -89,24 +89,24 @@ impl PyGraphView {
                 // List of current bugs
                 // 3. some props missing in explode=False
 
-                let prop_time_dict = PyDict::new(py);
+                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
                 if explode {
+                    let mut empty_dict = HashMap::new();
+                    column_names.clone().iter().for_each(|name| {
+                        let _  = empty_dict.insert(name.clone(), Prop::from(""));
+                    });
                     if v.properties().temporal().iter().count() == 0 {
                         let first_time = v.start().unwrap_or(0);
                         if v.properties().constant().iter().count() == 0 {
                             // node is empty so add as empty time
-                            let empty_dict = PyDict::new(py);
-                            column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
-                            let _ = prop_time_dict.set_item(first_time, empty_dict);
+                            let _ = prop_time_dict.insert(first_time, empty_dict.clone());
                         } else {
                             v.properties().constant().iter().for_each(|(name, prop_val)| {
-                                if !prop_time_dict.contains(first_time).unwrap() {
-                                    let empty_dict = PyDict::new(py);
-                                    column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
-                                    let _ = prop_time_dict.set_item(first_time, empty_dict);
+                                if !prop_time_dict.contains_key(&first_time) {
+                                    let _ = prop_time_dict.insert(first_time, empty_dict.clone());
                                 }
-                                let data_dict = prop_time_dict.get_item(0).unwrap().unwrap();
-                                let _ = data_dict.set_item(name, prop_val);
+                                let data_dict = prop_time_dict.get_mut(&0i64).unwrap();
+                                let _ = data_dict.insert(name.to_string(), prop_val);
                             })
                         }
                     }
@@ -120,13 +120,11 @@ impl PyGraphView {
                             } else {
                                 prop_name.to_string()
                             };
-                            if !prop_time_dict.contains(time).unwrap() {
-                                let empty_dict = PyDict::new(py);
-                                column_names.clone().iter().for_each(|name| empty_dict.set_item(name, "").unwrap());
-                                prop_time_dict.set_item(time, empty_dict);
+                            if !prop_time_dict.contains_key(time) {
+                                prop_time_dict.insert(*time, empty_dict.clone());
                             }
-                            let data_dict = prop_time_dict.get_item(time).unwrap().unwrap();
-                            let _ = data_dict.set_item(column_name, prop_val);
+                            let data_dict = prop_time_dict.get_mut(&time).unwrap();
+                            let _ = data_dict.insert(column_name.clone(), prop_val.clone());
                         });
                 }
                 else if include_property_histories {
@@ -171,7 +169,7 @@ impl PyGraphView {
                         for prop_name in &column_names[2..column_names.len() - 1] {
                             if let Some(prop_val) = properties_map.get_item(prop_name).unwrap() {
                                 let _ = pyrow.append(prop_val);
-                            } else if let Ok(prop_val) = item_dict.get_item(prop_name) {
+                            } else if let Some(prop_val) = item_dict.get(prop_name) {
                                 let _ = pyrow.append(prop_val);
                             } else {
                                 let _ = pyrow.append("");
