@@ -46,11 +46,10 @@ use crate::{
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
     },
-    arrow::algorithms::connected_components::connected_components as connected_components_rs,
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
     python::{
-        graph::{arrow::PyArrowGraph, edge::PyDirection, views::graph_view::PyGraphView},
+        graph::{edge::PyDirection, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
     },
 };
@@ -58,6 +57,12 @@ use ordered_float::OrderedFloat;
 use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
+
+#[cfg(feature = "arrow")]
+use crate::arrow::algorithms::connected_components::connected_components as connected_components_rs;
+
+#[cfg(feature = "arrow")]
+use crate::python::graph::arrow::PyArrowGraph;
 
 /// Implementations of various graph algorithms that can be run on a graph.
 ///
@@ -115,6 +120,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
     components::strongly_connected_components(&g.graph, None)
 }
 
+#[cfg(feature = "arrow")]
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
