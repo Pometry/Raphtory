@@ -120,21 +120,23 @@ impl PyGraphView {
                 else if include_property_histories {
                     v.properties()
                         .temporal()
-                        .histories()
                         .iter()
-                        .for_each(|(name, (time, prop_val))| {
-                            let column_name = if v.properties().constant().contains(name) {
+                        .for_each(|(name, prop_view)| {
+                            let column_name = if v.properties().constant().contains(name.as_ref()) {
                                 format!("{}_temporal", name)
                             } else {
                                 name.to_string()
                             };
                             if convert_datetime {
-                                let datetime = datetime_class.call_method1("fromtimestamp", (time.clone(),)).unwrap();
-                                let _ = properties_map.set_item(column_name, (datetime, prop_val));
+                                let mut prop_vec = vec![];
+                                prop_view.iter().for_each(|(time, prop)| {
+                                    let datetime = datetime_class.call_method1("fromtimestamp", (time.clone(),)).unwrap();
+                                    prop_vec.push((datetime, prop))
+                                });
+                                let _ = properties_map.set_item(column_name, prop_vec);
                             } else {
-                                let _ = properties_map.set_item(column_name, (time, prop_val));
+                                let _ = properties_map.set_item(column_name, prop_view.iter().collect_vec());
                             }
-                            // Convert property value to string
                         });
                 } else {
                     v.properties()
@@ -147,11 +149,10 @@ impl PyGraphView {
                                 name.to_string()
                             };
                             let _ = properties_map.set_item(column_name, t_prop.latest());
-                            // Convert property value to string
                         });
 
                 }
-                
+
                 if explode {
                     prop_time_dict.iter().for_each(|(time, item_dict)| {
                         let pyrow = PyList::new(py, vec![v.name().to_string(), v.node_type().unwrap_or(ArcStr::from("_default")).to_string()]);
