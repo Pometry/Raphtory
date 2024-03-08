@@ -67,9 +67,7 @@ impl Deref for ArrowGraph {
 impl ArrowGraph {
     // take the datatype from the struct array of the edge properties and fill in the edge_meta
     fn init_meta(&mut self) {
-        let edge_props_fields = self.edges_data_type(0); // layer 0 for now
-                                                         // let layer_id = self.edge_meta.get_or_create_layer_id("default");
-                                                         // assert_eq!(layer_id, 0);
+        let edge_props_fields = self.edges_data_type(0);
 
         for field in edge_props_fields {
             let prop_name = &field.name;
@@ -239,7 +237,7 @@ impl ArrowGraph {
                 global_ordering,
                 Arc::new(global_order),
                 vec![layer],
-                vec!["default".to_string()],
+                vec!["_default".to_string()],
             )),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
