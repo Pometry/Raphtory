@@ -1,4 +1,6 @@
-use std::{collections::HashMap, default};
+use std::collections::HashMap;
+
+use raphtory::core::Direction;
 
 #[derive(Debug)]
 pub enum Query {
@@ -23,27 +25,28 @@ pub struct Match {
 }
 
 #[derive(Debug, Default)]
-pub struct Pattern(Vec<PatternPart>);
+pub struct Pattern(pub Vec<PatternPart>);
 
 #[derive(Debug, Default)]
 pub struct PatternPart {
-    var: Option<String>,
-    node: NodePattern,
-    rel_chain: Vec<RelPattern>,
+    pub var: Option<String>,
+    pub node: NodePattern,
+    pub rel_chain: Vec<(RelPattern, NodePattern)>,
 }
 
 #[derive(Debug, Default)]
 pub struct NodePattern {
-    name: Option<String>,
-    label: Option<String>,
-    props: Option<HashMap<String, Literal>>,
+    pub name: Option<String>,
+    pub label: Vec<String>,
+    pub props: Option<HashMap<String, Expr>>,
 }
 
 #[derive(Debug, Default)]
 pub struct RelPattern {
-    name: Option<String>,
-    rel_types: Vec<String>,
-    props: Option<HashMap<String, Literal>>,
+    pub name: Option<String>,
+    pub direction: Direction,
+    pub rel_types: Vec<String>,
+    pub props: Option<HashMap<String, Expr>>,
 }
 
 #[derive(Debug, Default)]

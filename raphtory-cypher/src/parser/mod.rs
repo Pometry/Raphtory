@@ -1,10 +1,13 @@
 pub mod ast;
+use std::str::ParseBoolError;
+
 use pest::error::Error;
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::pratt_parser::*;
 use pest::Parser;
 use pest_derive::Parser;
+use raphtory::core::Direction;
 
 use self::ast::*;
 
@@ -20,6 +23,14 @@ pub enum ParseError {
     Unsupported(String),
     #[error("Unable to parse query: {0}")]
     SyntaxError(String),
+    #[error("Unable to parse bool: {0}")]
+    ParseBool(#[from] ParseBoolError),
+    // parse int error
+    #[error("Unable to parse int: {0}")]
+    ParseInt(#[from] std::num::ParseIntError),
+    // parse float error
+    #[error("Unable to parse float: {0}")]
+    ParseFloat(#[from] std::num::ParseFloatError),
 }
 
 pub fn parse_cypher(input: &str) -> Result<ast::Query, ParseError> {
@@ -159,27 +170,16 @@ pub fn parse_return_item(pair: Pair<Rule>) -> Result<ReturnItem, ParseError> {
         match pair.as_rule() {
             Rule::Expression => {
                 expr = Some(parse_expression(pair)?);
-                for pair in pair.into_inner() {
-                    match pair.as_rule() {
-                        Rule::AS => {
-                            for pair in pair.into_inner() {
-                                match pair.as_rule() {
-                                    Rule::Variable => {
-                                        as_name = Some(parse_variable(pair)?);
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
+            }
+            Rule::Variable => {
+                as_name = Some(parse_variable(pair)?);
             }
             _ => {}
         }
     }
     Ok(ReturnItem {
-        expr: expr.unwrap(),
+        expr: expr
+            .ok_or_else(|| ParseError::SyntaxError("Return item missing expression".to_string()))?,
         as_name,
     })
 }
@@ -258,7 +258,7 @@ pub fn parse_primary(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     let mut pairs = pair.into_inner();
     if let Some(pair) = pairs.next() {
         match pair.as_rule() {
-            Rule::Atom => parse_Atom(pair),
+            Rule::Atom => parse_atom(pair),
             Rule::Expression => parse_expression(pair),
             rule => todo!("parse_primary Unsuported rule {rule:?}"),
         }
@@ -267,29 +267,29 @@ pub fn parse_primary(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     }
 }
 
-pub fn parse_Atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
-    let mut pairs = pair.into_inner();
-    if let Some(pair) = pairs.next() {
-        match pair.as_rule() {
+pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
+    pair.into_inner()
+        .next()
+        .ok_or_else(|| {
+            ParseError::SyntaxError("Expecting at least one token in parse_Atom".to_string())
+        })
+        .and_then(|pair| match pair.as_rule() {
             Rule::Variable => Ok(Expr::Var {
                 var_name: pair.as_str().to_string(),
                 attr: None,
             }),
             Rule::Literal => Ok(Expr::Literal(parse_literal(pair)?)),
-            _ => todo!(),
-        }
-    } else {
-        unreachable!()
-    }
+            rule => Err(ParseError::Unsupported(format!(
+                "parse_Atom Unsuported rule {rule:?}"
+            ))),
+        })
 }
 
 pub fn parse_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
     pair.into_inner()
         .next()
         .ok_or_else(|| {
-            ParseError::SyntaxError(
-                "Expecting at least one token in parse_literal".to_string(),
-            )
+            ParseError::SyntaxError("Expecting at least one token in parse_literal".to_string())
         })
         .and_then(|pair| match pair.as_rule() {
             Rule::NumberLiteral => parse_number_literal(pair),
@@ -311,11 +311,11 @@ pub fn parse_number_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
         })
         .and_then(|pair| match pair.as_rule() {
             Rule::DoubleLiteral => {
-                let f = pair.as_str().parse().unwrap();
+                let f = pair.as_str().parse()?;
                 Ok(Literal::Float(f))
             }
             Rule::IntegerLiteral => {
-                let i = pair.as_str().parse().unwrap();
+                let i = pair.as_str().parse()?;
                 Ok(Literal::Int(i))
             }
             rule => Err(ParseError::Unsupported(format!(
@@ -330,7 +330,7 @@ pub fn parse_string_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
 }
 
 pub fn parse_boolean_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
-    let b = pair.as_str().parse().unwrap();
+    let b = pair.as_str().parse()?;
     Ok(Literal::Bool(b))
 }
 
@@ -345,6 +345,156 @@ pub fn parse_pattern(pair: Pair<Rule>) -> Result<Pattern, ParseError> {
         }
     }
     Ok(Pattern(parts))
+}
+
+pub fn parse_pattern_part(pair: Pair<Rule>) -> Result<PatternPart, ParseError> {
+    let mut var = None;
+    let mut first_node = None;
+    let mut rel_chain = Vec::new();
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::Variable => {
+                var = Some(parse_variable(pair)?);
+            }
+            Rule::PatternElement => {
+                parse_pattern_element(&mut rel_chain, &mut first_node, pair)?;
+            }
+            _ => {}
+        }
+    }
+    Ok(PatternPart {
+        var,
+        node: first_node.unwrap(),
+        rel_chain,
+    })
+}
+
+fn parse_pattern_element(
+    rel_chain: &mut Vec<(RelPattern, NodePattern)>,
+    first_node: &mut Option<NodePattern>,
+    pair: Pair<'_, Rule>,
+) -> Result<(), ParseError> {
+    let mut cur_elem_chain: Option<RelPattern> = None;
+    let mut last_node_pattern = None;
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::NodePattern => {
+                if first_node.is_none() {
+                    let np = parse_node_pattern(pair)?;
+                    *first_node = Some(np);
+                } else {
+                    if let Some(rel) = cur_elem_chain.take() {
+                        if let Some(node) = last_node_pattern.take() {
+                            rel_chain.push((rel, node));
+                        }
+                    }
+                    last_node_pattern.replace(parse_node_pattern(pair)?);
+                }
+            }
+            Rule::RelationshipPattern => {
+                cur_elem_chain.replace(parse_rel_pattern(pair)?);
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
+    let mut rel_pattern = RelPattern::default();
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::LeftArrowHead => {
+                rel_pattern.direction = Direction::IN;
+            }
+            Rule::RightArrowHead => {
+                rel_pattern.direction = Direction::OUT;
+            }
+            Rule::Variable => {
+                let var = parse_variable(pair)?;
+                rel_pattern.name = Some(var);
+            }
+            Rule::RelationshipTypes => {
+                let rel_types = pair
+                    .into_inner()
+                    .map(|pair| pair.as_str().to_string())
+                    .collect();
+                rel_pattern.rel_types = rel_types;
+            }
+            Rule::Properties => match pair.into_inner().next() {
+                Some(pair) => match pair.as_rule() {
+                    Rule::MapLiteral => {
+                        let props = parse_map_literal(pair)?;
+                        rel_pattern.props = Some(props);
+                    }
+                    _ => {}
+                },
+                None => {}
+            },
+            _ => {}
+        }
+    }
+
+    Ok(rel_pattern)
+    
+}
+
+fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
+    let mut node = NodePattern::default();
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::Variable => {
+                let var = parse_variable(pair)?;
+                node.name = Some(var);
+            }
+            Rule::NodeLabels => {
+                let labels = pair
+                    .into_inner()
+                    .map(|pair| pair.as_str().to_string())
+                    .collect();
+                node.label = labels;
+            }
+            Rule::Properties => match pair.into_inner().next() {
+                Some(pair) => match pair.as_rule() {
+                    Rule::MapLiteral => {
+                        let props = parse_map_literal(pair)?;
+                        node.props = Some(props);
+                    }
+                    _ => {}
+                },
+                None => {}
+            },
+            _ => {}
+        }
+    }
+
+    Ok(node)
+}
+
+fn parse_map_literal(
+    pair: Pair<'_, Rule>,
+) -> Result<std::collections::HashMap<String, Expr>, ParseError> {
+    let mut map = std::collections::HashMap::new();
+    let mut last_key: Option<String> = None;
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::PropertyKeyName => {
+                let key = pair.as_str().to_string();
+                last_key = Some(key);
+            }
+            Rule::Expression => {
+                let value = parse_expression(pair)?;
+                if let Some(key) = last_key.take() {
+                    map.insert(key, value);
+                }
+            }
+
+            _ => {}
+        }
+    }
+    Ok(map)
 }
 
 #[cfg(test)]

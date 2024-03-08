@@ -125,7 +125,7 @@ ProjectionItems = {
 }
 
 ProjectionItem = {
-    (Expression ~ SP ~ AS ~ SP ~ Variable)
+    (Expression ~ AS ~ Variable)
   | Expression
 }
 
@@ -157,7 +157,7 @@ PatternPart = {
     (Variable ~ SP? ~ "=" ~ SP?)? ~ AnonymousPatternPart
 }
 
-AnonymousPatternPart = { PatternElement }
+AnonymousPatternPart = _{ PatternElement }
 
 PatternElement = {
     (NodePattern ~ (SP? ~ PatternElementChain)*)
@@ -168,7 +168,7 @@ NodePattern = {
     "(" ~ SP? ~ (Variable ~ SP?)? ~ (NodeLabels ~ SP?)? ~ (Properties ~ SP?)? ~ ")"
 }
 
-PatternElementChain = {
+PatternElementChain = _{
     RelationshipPattern ~ SP? ~ NodePattern
 }
 
@@ -239,7 +239,7 @@ atom = _{ unary_op? ~ Atom | "(" ~ Expression ~ ")" }
 
 bin_expr = { atom ~ (op ~ atom)* }
 
-Expression = { bin_expr | ListOperatorExpression | StringListNullOperatorExpression}
+Expression = { PropertyExpression | bin_expr  }
 
 StringListNullOperatorExpression = {
     PropertyOrLabelsExpression ~ (StringOperatorExpression | ListOperatorExpression | NullOperatorExpression)*
