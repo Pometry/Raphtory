@@ -221,7 +221,7 @@ divide   =  { "/" }
 modulo   =  { "%" }
 pow      =  { "^" }
 
-comp_op = _{ eq | ne | lt | gt | lte | gte }
+comp_op = _{ eq | ne | lte | gte | gt | lt }
 eq      =  { "=" }
 ne      =  { "<>" }
 lt      =  { "<" }
@@ -229,7 +229,7 @@ gt      =  { ">" }
 lte      =  { "<=" }
 gte      =  { ">=" }
 
-op = { bin_op | math_op | comp_op }
+op = _{ bin_op | math_op | comp_op }
 
 unary_op = _{ not | minus }
 not      =  { "NOT" }
@@ -237,9 +237,7 @@ minus    =  { "-" }
 
 atom = _{ PropertyExpression | unary_op? ~ Atom | "(" ~ Expression ~ ")" }
 
-bin_expr = { atom ~ (op ~ atom)* }
-
-Expression = { bin_expr  }
+Expression = { atom ~ (op ~ atom)* }
 
 StringListNullOperatorExpression = {
     PropertyOrLabelsExpression ~ (StringOperatorExpression | ListOperatorExpression | NullOperatorExpression)*

@@ -116,7 +116,7 @@ pub fn parse_match(pair: Pair<Rule>) -> Result<Match, ParseError> {
                 for pair in pair.into_inner() {
                     match pair.as_rule() {
                         Rule::Expression => {
-                            where_clause = Some(parse_expression(pair)?);
+                            where_clause = Some(parse_expr(pair.into_inner())?);
                         }
                         _ => {}
                     }
@@ -169,7 +169,7 @@ pub fn parse_return_item(pair: Pair<Rule>) -> Result<ReturnItem, ParseError> {
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::Expression => {
-                expr = Some(parse_expression(pair)?);
+                expr = Some(parse_expr(pair.into_inner())?);
             }
             Rule::Variable => {
                 as_name = Some(parse_variable(pair)?);
@@ -201,14 +201,17 @@ lazy_static::lazy_static! {
             .op(Op::infix(and, Left))
             .op(Op::infix(xor, Left))
             .op(Op::infix(or, Left))
+            .op(Op::infix(eq, Left) | Op::infix(ne, Left))
+            .op(Op::infix(lt, Left) | Op::infix(lte, Left) | Op::infix(gt, Left) | Op::infix(gte, Left))
 
     };
 }
 
-pub fn parse_bin_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
+pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
     PRATT_PARSER
         .map_primary(|primary| parse_primary(primary))
         .map_infix(|lhs, op, rhs| {
+            println!("lhs: {:?}, op: {:?}, rhs: {:?}", lhs, op, rhs);
             let bin_op_type = match op.as_rule() {
                 Rule::add => BinOpType::Add,
                 Rule::subtract => BinOpType::Sub,
@@ -216,10 +219,15 @@ pub fn parse_bin_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
                 Rule::divide => BinOpType::Div,
                 Rule::pow => BinOpType::Pow,
                 Rule::eq => BinOpType::Eq,
+                Rule::modulo => BinOpType::Mod,
                 Rule::lt => BinOpType::Lt,
                 Rule::lte => BinOpType::Lte,
                 Rule::gt => BinOpType::Gt,
                 Rule::gte => BinOpType::Gte,
+                Rule::ne => BinOpType::Neq,
+                Rule::and => BinOpType::And,
+                Rule::or => BinOpType::Or,
+                Rule::xor => BinOpType::Xor,
                 rule => unreachable!("Unknown bin op type {rule:?}"),
             };
 
@@ -243,27 +251,12 @@ pub fn parse_bin_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
         .parse(pairs)
 }
 
-pub fn parse_expression(pair: Pair<Rule>) -> Result<Expr, ParseError> {
-    if let Some(pair) = pair.into_inner().next() {
-        match pair.as_rule() {
-            Rule::bin_expr => parse_bin_expr(pair.into_inner()),
-            rule => todo!("parse_expression Unsuported rule {rule:?}"),
-        }
-    } else {
-        unreachable!("Expression should have a child")
-    }
-}
-
 pub fn parse_primary(pair: Pair<Rule>) -> Result<Expr, ParseError> {
-    let mut pairs = pair.into_inner();
-    if let Some(pair) = pairs.next() {
-        match pair.as_rule() {
-            Rule::Atom => parse_atom(pair),
-            Rule::Expression => parse_expression(pair),
-            rule => todo!("parse_primary Unsuported rule {rule:?}"),
-        }
-    } else {
-        unreachable!()
+    match pair.as_rule() {
+        Rule::Expression => parse_expr(pair.into_inner()),
+        Rule::Atom => parse_atom(pair),
+        Rule::Literal => parse_literal(pair).map(Expr::Literal),
+        rule => todo!("parse_primary Unsuported rule {rule:?}"),
     }
 }
 
@@ -484,7 +477,7 @@ fn parse_map_literal(
                 last_key = Some(key);
             }
             Rule::Expression => {
-                let value = parse_expression(pair)?;
+                let value = parse_expr(pair.into_inner())?;
                 if let Some(key) = last_key.take() {
                     map.insert(key, value);
                 }
@@ -498,6 +491,8 @@ fn parse_map_literal(
 
 #[cfg(test)]
 mod test {
+
+    use crate::parser::parse_expr;
 
     use super::*;
     use pest::Parser;
@@ -547,7 +542,65 @@ mod test {
             assert_eq!(literal, Ok(Literal::Str(input)));
         }
 
+    }
 
+    #[test]
+    fn map_literal() {
+        let input = "{a: 1, b: 2}";
+        let pairs = CypherParser::parse(Rule::MapLiteral, input);
+        assert!(pairs.is_ok());
+
+        let map = parse_map_literal(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            map,
+            Ok(vec![
+                ("a".to_string(), Expr::Literal(Literal::Int(1))),
+                ("b".to_string(), Expr::Literal(Literal::Int(2)))
+            ]
+            .into_iter()
+            .collect())
+        );
+    }
+
+    #[test]
+    fn test_parse_bin_expr() {
+        for op in [
+            "+", "-", "*", "/", "AND", "OR", "XOR", ">", "<", ">=", "<=", "=", "<>",
+        ] {
+            let input = format!("1 {} 2", op);
+            let pairs = CypherParser::parse(Rule::Expression, &input);
+            assert!(pairs.is_ok());
+            let pairs = pairs.unwrap();
+
+            let expr = parse_expr(pairs);
+            match expr {
+                Ok(Expr::BinOp {
+                    op:
+                        BinOpType::Add
+                        | BinOpType::Sub
+                        | BinOpType::Mul
+                        | BinOpType::Div
+                        | BinOpType::Mod
+                        | BinOpType::Pow
+                        | BinOpType::Eq
+                        | BinOpType::Neq
+                        | BinOpType::Lt
+                        | BinOpType::Lte
+                        | BinOpType::Gt
+                        | BinOpType::Gte
+                        | BinOpType::And
+                        | BinOpType::Or
+                        | BinOpType::Xor,
+                    left,
+                    right,
+                }) => {
+                    assert_eq!(*left, Expr::Literal(Literal::Int(1)));
+                    assert_eq!(*right, Expr::Literal(Literal::Int(2)));
+                }
+                Ok(actual) => panic!("Expected BinOp got {:?} testing for {:?}", actual, op),
+                Err(e) => panic!("Error: {:?} testing for {:?}", e, op),
+            }
+        }
     }
 
     #[test]

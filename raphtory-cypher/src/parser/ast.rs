@@ -64,7 +64,7 @@ pub struct ReturnItem {
 
 type Ex = Box<Expr>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Var {
         var_name: String,
@@ -83,13 +83,13 @@ pub enum Expr {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UnaryOpType {
     Not,
     Neg,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BinOpType {
     Add,
     Sub,
