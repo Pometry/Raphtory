@@ -1,6 +1,5 @@
 use crate::{
     core::{ArcStr, Prop},
-    db::api::view::node::BaseNodeViewOps,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
     python::graph::views::graph_view::PyGraphView,
 };
@@ -13,11 +12,11 @@ use pyo3::{
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use chrono::{NaiveDate, NaiveDateTime};
-use crate::db::api::view::DynamicGraph;
+use chrono::NaiveDateTime;
 use crate::db::api::view::internal::CoreGraphOps;
-use crate::db::graph::node::NodeView;
 use crate::prelude::TimeOps;
+use rayon::prelude::*;
+use std::sync::Mutex;
 
 #[pymethods]
 impl PyGraphView {
@@ -38,60 +37,45 @@ impl PyGraphView {
     #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
     pub fn to_node_df(&self, include_property_histories: bool, convert_datetime: bool, explode: bool) -> PyResult<PyObject> {
         let mut column_names = vec![String::from("name"), String::from("type")];
-        let mut all_properties = HashSet::new();
+        let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
 
         // Adjusted to check both temporal and constant properties
-        let temporal_properties = self.graph.node_meta().temporal_prop_meta().get_keys().to_vec();
-        let constant_properties = self.graph.node_meta().const_prop_meta().get_keys().to_vec();
-        constant_properties.iter().for_each(|name| {
-            let column_name = if temporal_properties.contains(name) {
-                format!("{}_constant", name)
-            } else {
-                name.to_string()
-            };
-            all_properties.insert(column_name);
+        let temporal_properties : HashSet<ArcStr> = self.graph.node_meta().temporal_prop_meta().get_keys().iter().cloned().collect();
+        let constant_properties : HashSet<ArcStr> = self.graph.node_meta().const_prop_meta().get_keys().iter().cloned().collect();
+
+        constant_properties.intersection(&temporal_properties).into_iter().for_each(|name| {
+            column_names.push(format!("{}_constant", name));
+            column_names.push(format!("{}_temporal", name));
+            is_prop_both_temp_and_const.insert(name.to_string());
         });
-
-        temporal_properties.iter().for_each(|name| {
-            let column_name = if constant_properties.contains(name) {
-                format!("{}_temporal", name)
-            } else {
-                name.to_string()
-            };
-            all_properties.insert(column_name);
-
+        constant_properties.symmetric_difference(&temporal_properties).into_iter().for_each(|name| {
+            column_names.push(name.to_string());
         });
-
-        column_names.extend(all_properties.iter().cloned());
         column_names.push("update_histories".parse().unwrap());
 
         let mut node_tuples: Vec<Vec<Prop>> = vec![];
-
+        
         self.graph.nodes().iter().for_each(|v| {
-            let mut properties_map: HashMap<String, Prop> = HashMap::new();
-
-            v.properties()
-                .constant()
-                .as_map()
-                .iter()
-                .for_each(|(name, prop)| {
-                    let column_name = if v.properties().temporal().contains(name) {
+            let properties = v.properties().constant().as_map();
+            let properties_collected: Vec<(String, Prop)> = properties.par_iter()
+                .map(|(name, prop)| {
+                    let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
                         format!("{}_constant", name)
                     } else {
                         name.to_string()
                     };
-                    let _ = properties_map.insert(column_name, prop.clone());
-                });
-
-            // List of current bugs
-            // 3. some props missing in explode=False
-
+                    (column_name, prop.clone())
+                })
+                .collect();
+            let mut properties_map: HashMap<String, Prop> = properties_collected.into_iter().collect();
+            
             let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
             if explode {
                 let mut empty_dict = HashMap::new();
                 column_names.clone().iter().for_each(|name| {
                     let _  = empty_dict.insert(name.clone(), Prop::from(""));
                 });
+                
                 if v.properties().temporal().iter().count() == 0 {
                     let first_time = v.start().unwrap_or(0);
                     if v.properties().constant().iter().count() == 0 {
@@ -112,7 +96,7 @@ impl PyGraphView {
                     .histories()
                     .iter()
                     .for_each(|(prop_name, (time, prop_val))| {
-                        let column_name = if v.properties().constant().contains(prop_name) {
+                        let column_name = if is_prop_both_temp_and_const.contains(prop_name.as_ref()) {
                             format!("{}_temporal", prop_name)
                         } else {
                             prop_name.to_string()
@@ -129,7 +113,7 @@ impl PyGraphView {
                     .temporal()
                     .iter()
                     .for_each(|(name, prop_view)| {
-                        let column_name = if v.properties().constant().contains(name.as_ref()) {
+                        let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
                             format!("{}_temporal", name)
                         } else {
                             name.to_string()
@@ -154,7 +138,7 @@ impl PyGraphView {
                     .temporal()
                     .iter()
                     .for_each(|(name, t_prop)| {
-                        let column_name = if v.properties().constant().contains(&name) {
+                        let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
                             format!("{}_temporal", name)
                         } else {
                             name.to_string()
@@ -165,26 +149,32 @@ impl PyGraphView {
             }
 
             if explode {
-                prop_time_dict.iter().for_each(|(time, item_dict)| {
-                    let mut row: Vec<Prop> = vec![Prop::from(v.name()), Prop::from(v.node_type().unwrap_or(ArcStr::from("")))];
+                let new_rows: Vec<Vec<Prop>> = prop_time_dict.par_iter().map(|(time, item_dict)| {
+                    let mut row: Vec<Prop> = vec![
+                        Prop::from(v.name()),
+                        Prop::from(v.node_type().unwrap_or_else(|| ArcStr::from("")))
+                    ];
+
                     for prop_name in &column_names[2..column_names.len() - 1] {
                         if let Some(prop_val) = properties_map.get(prop_name) {
-                            let _ = row.push(prop_val.clone());
+                            row.push(prop_val.clone());
                         } else if let Some(prop_val) = item_dict.get(prop_name) {
-                            let _ = row.push(prop_val.clone());
+                            row.push(prop_val.clone());
                         } else {
-                            let _ = row.push(Prop::from(""));
+                            row.push(Prop::from(""));
                         }
                     }
+
                     if convert_datetime {
                         let new_time = NaiveDateTime::from_timestamp_opt(*time, 0).unwrap();
-                        let prop_time = Prop::DTime(new_time);
-                        let _ = row.push(prop_time);
+                        row.push(Prop::DTime(new_time));
                     } else {
-                        let _ = row.push(Prop::from(time.clone()));
+                        row.push(Prop::from(*time));
                     }
-                    node_tuples.push(row);
-                })
+
+                    row
+                }).collect();
+                node_tuples.extend(new_rows);
             } else {
                 let mut row: Vec<Prop> = vec![Prop::from(v.name()), Prop::from(v.node_type().unwrap_or(ArcStr::from("")))];
                 // Flatten properties into the row
