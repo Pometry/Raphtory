@@ -3093,6 +3093,7 @@ dependencies = [
  "lazy_static",
  "pest",
  "pest_derive",
+ "proptest",
  "raphtory",
  "rayon",
  "thiserror",

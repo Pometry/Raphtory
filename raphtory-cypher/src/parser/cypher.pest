@@ -371,32 +371,12 @@ Variable = {
     SymbolicName
 }
 
-StringLiteral = {
-    ("\"" ~ StringDoubleText ~ "\"")
-  | ("'" ~ StringSingleText ~ "'")
-}
+StringLiteral = @{string}
 
-StringDoubleText = @{
-    StringDoubleTextChar*
-}
-
-StringDoubleTextChar = {
-    (!("\"" | "\\") ~ ANY)
-  | EscapedChar
-}
-
-StringSingleText = @{
-    StringSingleTextChar*
-}
-
-StringSingleTextChar = {
-    (!("'" | "\\") ~ ANY)
-  | EscapedChar
-}
-
-EscapedChar = {
-    "\\" ~ ("\\" | "'" | "\"" | ^"B" | ^"F" | ^"N" | ^"R" | ^"T" | (^"U" ~ HexDigit{4}) | (^"U" ~ HexDigit{8}))
-}
+string  = @{ "'" ~ inner ~ "'" }
+inner   = @{ (!("'" | "\\") ~ ANY)* ~ (escape ~ inner)? }
+escape  = @{ "\\" ~ ("\"" | "\\" | "/" | ^"B" | ^"F" | ^"N" | ^"R" | ^"T" | unicode) }
+unicode = @{ ^"u" ~ ASCII_HEX_DIGIT{4} | ^"U" ~ ASCII_HEX_DIGIT{8} }
 
 NumberLiteral = {
     DoubleLiteral
@@ -429,9 +409,9 @@ HexInteger = {
     "0x" ~ HexDigit+
 }
 
-DecimalInteger = {
+DecimalInteger = @{
     ZeroDigit
-  | (NonZeroDigit ~ Digit*)
+  | ("-"? ~ NonZeroDigit ~ Digit*)
 }
 
 OctalInteger = {
@@ -474,18 +454,8 @@ OctDigit = {
 
 ZeroDigit = { "0" }
 
-DoubleLiteral = {
-    ExponentDecimalReal
-  | RegularDecimalReal
-}
-
-ExponentDecimalReal = {
-    (Digit+ | (Digit+ ~ "." ~ Digit+) | ("." ~ Digit+)) ~ ^"E" ~ "-"? ~ Digit+
-}
-
-RegularDecimalReal = {
-    Digit* ~ "." ~ Digit+
-}
+DoubleLiteral = @{ DecimalInteger ~ "." ~ (ASCII_DIGIT+ ~ exp? | exp)? }
+exp    = @{ ("E" | "e") ~ ("+" | "-")? ~ ASCII_DIGIT+ }
 
 SchemaName = {
     SymbolicName

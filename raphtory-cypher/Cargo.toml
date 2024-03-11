@@ -21,3 +21,6 @@ pest_derive = "2.7.8"
 raphtory = { path = "../raphtory" }
 rayon.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+proptest = { workspace = true }

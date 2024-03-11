@@ -108,7 +108,7 @@ pub enum BinOpType {
     Xor,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     Bool(bool),
     Str(String),

@@ -15,7 +15,7 @@ use self::ast::*;
 #[grammar = "parser/cypher.pest"]
 pub struct CypherParser;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ParseError {
     #[error("Failed to parse {0}")]
     PestErr(#[from] Error<Rule>),
@@ -437,7 +437,6 @@ fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
     }
 
     Ok(rel_pattern)
-    
 }
 
 fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
@@ -502,6 +501,54 @@ mod test {
 
     use super::*;
     use pest::Parser;
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn literal_int(input in any::<i64>().prop_filter("only positive", |x| *x > 0)) {
+            let n = input;
+            let input = format!("{}", n);
+            let pairs = CypherParser::parse(Rule::Literal, &input);
+            assert!(pairs.is_ok());
+
+            let literal = parse_literal(pairs.unwrap().next().unwrap());
+            assert_eq!(literal, Ok(Literal::Int(n)));
+        }
+
+        #[test]
+        fn literal_float(input in any::<f64>().prop_filter("only positive", |x| *x > 0.0)) {
+            let n = input;
+
+            let str_num = format!("{:+e}", n);
+            let input = str_num.strip_prefix("+").unwrap();
+            let pairs = CypherParser::parse(Rule::Literal, &input);
+            assert!(pairs.is_ok());
+
+            let literal = parse_literal(pairs.unwrap().next().unwrap());
+            assert_eq!(literal, Ok(Literal::Float(n)));
+
+
+            let str_num = format!("{:.1000}", n);
+            let input = str_num.trim();
+            let pairs = CypherParser::parse(Rule::Literal, &input);
+            assert!(pairs.is_ok());
+
+            let literal = parse_literal(pairs.unwrap().next().unwrap());
+            assert_eq!(literal, Ok(Literal::Float(n)));
+        }
+
+        #[test]
+        fn literal_string(input in any::<String>().prop_filter("no single qotes", |s| !s.contains("'") && !s.contains("\\")).prop_map(|input| format!("'{}'", input))) {
+            let pairs = CypherParser::parse(Rule::Literal, &input);
+            assert!(pairs.is_ok());
+
+            let literal = parse_literal(pairs.unwrap().next().unwrap());
+            assert_eq!(literal, Ok(Literal::Str(input)));
+        }
+
+
+    }
 
     #[test]
     fn match_1() {
