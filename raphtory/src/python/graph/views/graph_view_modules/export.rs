@@ -52,10 +52,8 @@ impl PyGraphView {
             column_names.push(name.to_string());
         });
         column_names.push("update_histories".parse().unwrap());
-
-        let mut node_tuples: Vec<Vec<Prop>> = vec![];
         
-        self.graph.nodes().iter().for_each(|v| {
+        let node_tuples: Vec<_> = self.graph.nodes().collect().into_par_iter().flat_map(|v| {
             let properties = v.properties().constant().as_map();
             let properties_collected: Vec<(String, Prop)> = properties.par_iter()
                 .map(|(name, prop)| {
@@ -68,14 +66,14 @@ impl PyGraphView {
                 })
                 .collect();
             let mut properties_map: HashMap<String, Prop> = properties_collected.into_iter().collect();
-            
+
             let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
             if explode {
                 let mut empty_dict = HashMap::new();
                 column_names.clone().iter().for_each(|name| {
                     let _  = empty_dict.insert(name.clone(), Prop::from(""));
                 });
-                
+
                 if v.properties().temporal().iter().count() == 0 {
                     let first_time = v.start().unwrap_or(0);
                     if v.properties().constant().iter().count() == 0 {
@@ -174,7 +172,7 @@ impl PyGraphView {
 
                     row
                 }).collect();
-                node_tuples.extend(new_rows);
+                new_rows
             } else {
                 let mut row: Vec<Prop> = vec![Prop::from(v.name()), Prop::from(v.node_type().unwrap_or(ArcStr::from("")))];
                 // Flatten properties into the row
@@ -197,9 +195,9 @@ impl PyGraphView {
                     let update_list = Prop::from(v.history().iter().map(|&val| Prop::from(val)).collect_vec());
                     let _ = row.push(update_list);
                 }
-                node_tuples.push(row);
+                vec![row]
             }
-        });
+        }).collect();
 
         Python::with_gil(|py| {
             let kwargs = PyDict::new(py);
