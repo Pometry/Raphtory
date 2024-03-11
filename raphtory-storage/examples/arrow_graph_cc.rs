@@ -6,7 +6,6 @@ use raphtory::{
         query::{ast::Query, executors::rayon2, ForwardState},
     },
     core::entities::VID,
-    prelude::*,
 };
 use std::{io::Write, time::Instant};
 
@@ -21,9 +20,34 @@ fn main() {
     } else {
         let parquet_dir = &args().nth(2).expect("Parquet directory not provided");
 
-        let chunk_size = 268_435_456;
-        let num_threads = 8;
-        let t_props_chunk_size = chunk_size / 16;
+        let chunk_size = args()
+            .nth(3)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(268_435_456);
+        let num_threads = args()
+            .nth(4)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(8);
+        let t_props_chunk_size = args()
+            .nth(5)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(chunk_size / 16);
+
+        let concurrent_files = args()
+            .nth(6)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(1);
+
+        let read_chunk_size = args()
+            .nth(7)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(4_000_000);
+
+        println!(
+            "Loading graph from parquet: {} with chunk size: {chunk_size} t_prop chunk size {t_props_chunk_size}, concurrent_files: {concurrent_files} and threads: {num_threads}",
+            parquet_dir
+        );
+
         let now = Instant::now();
         let graph = ArrowGraph::load_from_parquets(
             graph_dir,
@@ -38,8 +62,8 @@ fn main() {
             }],
             chunk_size,
             t_props_chunk_size,
-            Some(4_000_000),
-            Some(16),
+            Some(read_chunk_size),
+            Some(concurrent_files),
             num_threads,
         )
         .expect("Cannot load graph");
