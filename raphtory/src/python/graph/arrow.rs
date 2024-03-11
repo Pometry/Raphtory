@@ -1,4 +1,4 @@
-use std::num::NonZeroUsize;
+use std::{io::Write, num::NonZeroUsize, sync::Arc};
 
 use arrow2::{
     array::StructArray,
@@ -14,12 +14,20 @@ use pyo3::{
 use crate::{
     arrow::{
         graph_impl::{ArrowGraph, ParquetLayerCols},
-        Error,
+        query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
+        Error, GID,
     },
-    core::utils::errors::GraphError,
-    db::api::view::{DynamicGraph, IntoDynamic},
+    core::{
+        entities::{nodes::node_ref::NodeRef, VID},
+        utils::errors::GraphError,
+    },
+    db::{
+        api::view::{DynamicGraph, IntoDynamic},
+        graph::{edge::EdgeView, node::NodeView},
+    },
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
     python::{
-        graph::{graph::PyGraph, views::graph_view::PyGraphView},
+        graph::{edge::PyDirection, graph::PyGraph, views::graph_view::PyGraphView},
         utils::errors::adapt_err_value,
     },
 };
@@ -292,5 +300,271 @@ impl PyArrowGraph {
             num_threads,
         )
         .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[pyclass(name = "State")]
+pub struct PyState(State);
+
+#[pymethods]
+impl PyState {
+    #[staticmethod]
+    fn count() -> Self {
+        PyState(State::Count(0))
+    }
+
+    #[staticmethod]
+    fn no_state() -> Self {
+        PyState(State::NoState)
+    }
+
+    #[staticmethod]
+    fn path() -> Self {
+        PyState(State::Path(rpds::List::new_sync()))
+    }
+
+    #[staticmethod]
+    fn path_window(keep_path: bool, start_t: Option<i64>, duration: Option<i64>) -> Self {
+        PyState(State::PathWindow {
+            start_t,
+            duration,
+            path: if keep_path {
+                Some(rpds::List::new_sync())
+            } else {
+                None
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+enum State {
+    NoState,
+    Count(usize),
+    Path(rpds::ListSync<VID>),
+    PathWindow {
+        start_t: Option<i64>,
+        duration: Option<i64>,
+        path: Option<rpds::ListSync<VID>>,
+    },
+}
+
+impl StaticGraphHopState for PyState {
+    fn start<'a, G: GraphViewOps<'a>>(&self, node: &NodeView<&'a G>) -> Self {
+        match self {
+            PyState(State::NoState) => PyState(State::NoState),
+            PyState(State::Count(_)) => PyState(State::Count(0)),
+            PyState(State::Path(path)) => PyState(State::Path(path.push_front(node.node))),
+            PyState(State::PathWindow {
+                start_t,
+                duration,
+                path,
+            }) => PyState(State::PathWindow {
+                start_t: start_t
+                    .or_else(|| node.earliest_time())
+                    .map(|t| t.saturating_sub(1)),
+                duration: *duration,
+                path: path.as_ref().map(|path| path.push_front(node.node)),
+            }),
+        }
+    }
+
+    fn hop_with_state<'a, G: GraphViewOps<'a>>(
+        &self,
+        node: &NodeView<&'a G>,
+        edge: &EdgeView<&'a G>,
+    ) -> Option<Self> {
+        match self {
+            PyState(State::NoState) => Some(PyState(State::NoState)),
+            PyState(State::Count(count)) => Some(PyState(State::Count(count + 1))),
+            PyState(State::Path(path)) => Some(PyState(State::Path(path.push_front(node.node)))),
+            PyState(State::PathWindow {
+                start_t,
+                duration,
+                path,
+            }) => {
+                let s = start_t.as_ref()?.saturating_add(1);
+                let duration = duration.as_ref()?;
+                let w = s..(duration.saturating_add(s));
+                let ts = edge.window(w.start, w.end);
+                let earliest = ts.earliest_time()?;
+
+                let new_path = path.as_ref().map(|path| path.push_front(node.node));
+                Some(PyState(State::PathWindow {
+                    start_t: Some(earliest),
+                    duration: Some(*duration),
+                    path: new_path,
+                }))
+            }
+        }
+    }
+}
+#[pyclass(name = "Query")]
+pub struct PyGraphQuery {
+    query: Query<PyState>,
+    source: Arc<NodeSource>,
+}
+
+#[pymethods]
+impl PyGraphQuery {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            query: Query::new(),
+            source: Arc::new(NodeSource::All),
+        }
+    }
+
+    #[staticmethod]
+    pub fn from_node_ids(ids: Vec<NodeRef>) -> PyResult<Self> {
+        let internal_nodes = ids.iter().all(|node| match node {
+            NodeRef::Internal(_) => true,
+            _ => false,
+        });
+
+        let external_nodes = ids.iter().all(|node| match node {
+            NodeRef::External(_) | NodeRef::ExternalStr(_) => true,
+            _ => false,
+        });
+
+        if !internal_nodes && !external_nodes {
+            return Err(PyErr::new::<PyAny, _>(
+                "All node ids must be either internal or external",
+            ));
+        }
+
+        if internal_nodes {
+            let internal = ids
+                .into_iter()
+                .filter_map(|id| match id {
+                    NodeRef::Internal(id) => Some(id),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+
+            Ok(Self {
+                query: Query::new(),
+                source: Arc::new(NodeSource::NodeIds(internal)),
+            })
+        } else {
+            let external = ids
+                .into_iter()
+                .filter_map(|id| match id {
+                    NodeRef::External(id) => Some(GID::I64(id as i64)),
+                    NodeRef::ExternalStr(id) => Some(GID::Str(id.to_string())),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            Ok(Self {
+                query: Query::new(),
+                source: Arc::new(NodeSource::ExternalIds(external)),
+            })
+        }
+    }
+
+    pub fn out(&self, layer: Option<&str>) -> Self {
+        Self {
+            query: self.query.clone().out(layer.unwrap_or("_default")),
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn into(&self, layer: Option<&str>) -> Self {
+        Self {
+            query: self.query.clone().into(layer.unwrap_or("_default")),
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn var_hop(&self, dir: PyDirection, layer: Option<&str>, limit: Option<usize>) -> Self {
+        Self {
+            query: self
+                .query
+                .clone()
+                .vhop(dir.into(), layer.unwrap_or("_default"), limit),
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn hop(&self, dir: PyDirection, layer: Option<&str>, limit: Option<usize>) -> Self {
+        Self {
+            query: self
+                .query
+                .clone()
+                .hop(dir.into(), layer.unwrap_or("_default"), false, limit),
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn print(&self) -> Self {
+        Self {
+            query: self.query.clone().print(),
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn void(&self) -> Self {
+        Self {
+            query: self.query.clone().void(),
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn write_to(&self, dir: &str) -> Self {
+        Self {
+            query: self.query.clone().path(dir, |mut writer, state| {
+                serde_json::to_writer(&mut writer, &state).unwrap();
+                writer.write(b"\n").unwrap();
+            }),
+
+            source: self.source.clone(),
+        }
+    }
+
+    pub fn run(&self, graph: ArrowGraph, state: PyState) -> PyResult<()> {
+        rayon2::execute_static_graph(
+            self.query.clone(),
+            self.source.as_ref().clone(),
+            graph,
+            state,
+        )
+        .map_err(|err| PyErr::new::<PyAny, _>(format!("Failed to run query: {err:?}")))?;
+
+        Ok(())
+    }
+
+    pub fn run_to_vec(
+        &self,
+        graph: ArrowGraph,
+        state: PyState,
+    ) -> PyResult<Vec<(Vec<NodeView<ArrowGraph>>, NodeView<ArrowGraph>)>> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+
+        let query = self.query.clone().channel([sender]);
+
+        rayon2::execute_static_graph(query, self.source.as_ref().clone(), graph.clone(), state)
+            .map_err(|err| PyErr::new::<PyAny, _>(format!("Failed to run query: {err:?}")))?;
+
+        Ok(receiver
+            .into_iter()
+            .map(|(state, node_id)| {
+                let path = match state {
+                    PyState(State::Path(path)) => path.into_iter().cloned().collect::<Vec<_>>(),
+                    PyState(State::PathWindow { path, .. }) => path
+                        .map(|path| path.into_iter().cloned().collect::<Vec<_>>())
+                        .unwrap_or(Vec::with_capacity(0)),
+                    _ => Vec::with_capacity(0),
+                };
+
+                let node_name = NodeView::new_internal(graph.clone(), node_id);
+                (
+                    path.into_iter()
+                        .map(|node| NodeView::new_internal(graph.clone(), node))
+                        .collect(),
+                    node_name,
+                )
+            })
+            .collect())
     }
 }

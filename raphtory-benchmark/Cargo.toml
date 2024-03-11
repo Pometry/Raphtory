@@ -7,10 +7,11 @@ edition = "2021"
 
 [dependencies]
 criterion = { workspace = true }
-raphtory = { path = "../raphtory", features = ["io"] }
+raphtory = { path = "../raphtory", features = ["io", "arrow"] }
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
+arrow2 = { workspace = true }
 
 [[bench]]
 name = "tgraph_benchmarks"
@@ -35,3 +36,8 @@ harness = false
 [[bench]]
 name = "edge_add"
 harness = false
+
+[[bench]]
+name = "arrow_hash"
+harness = false
+

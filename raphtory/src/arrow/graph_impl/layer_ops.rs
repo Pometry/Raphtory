@@ -23,7 +23,7 @@ impl InternalLayerOps for ArrowGraph {
                     .map(|(i, _)| LayerIds::One(i))
                     .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))
             }
-            _ => todo!("Layer ids for multiple names not implemented for Graph2"),
+            _ => todo!("Layer ids for multiple names not implemented for ArrowGraph"),
         }
     }
 
@@ -39,7 +39,7 @@ impl InternalLayerOps for ArrowGraph {
                     .map(|(i, _)| LayerIds::One(i))
                     .unwrap_or(LayerIds::None)
             }
-            _ => todo!("Layer ids for multiple names not implemented for Graph2"),
+            _ => todo!("Layer ids for multiple names not implemented for ArrowGraph"),
         }
     }
 }

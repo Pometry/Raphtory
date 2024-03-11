@@ -3,14 +3,14 @@ use arrow2::array::StructArray;
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
     core::entities::{properties::graph_meta::GraphMeta, LayerIds},
-    db::api::view::{DynamicGraph, IntoDynamic},
+    db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
 use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
 
 use crate::{core::entities::properties::props::Meta, prelude::Graph};
 
-use super::{graph::TemporalGraph, load::ExternalEdgeList, Error};
+use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
 
 pub mod const_properties_ops;
 pub mod core_ops;
@@ -48,6 +48,8 @@ impl Graph {
     }
 }
 
+impl Immutable for ArrowGraph {}
+
 impl IntoDynamic for ArrowGraph {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
@@ -65,9 +67,7 @@ impl Deref for ArrowGraph {
 impl ArrowGraph {
     // take the datatype from the struct array of the edge properties and fill in the edge_meta
     fn init_meta(&mut self) {
-        let edge_props_fields = self.edges_data_type(0); // layer 0 for now
-                                                         // let layer_id = self.edge_meta.get_or_create_layer_id("default");
-                                                         // assert_eq!(layer_id, 0);
+        let edge_props_fields = self.edges_data_type(0);
 
         for field in edge_props_fields {
             let prop_name = &field.name;
@@ -224,6 +224,28 @@ impl ArrowGraph {
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
             .map(|(_, layer)| layer)
+    }
+
+    pub fn from_layer(layer: TempColGraphFragment) -> Self {
+        let global_ordering = layer.nodes.gids.clone();
+
+        let global_order = ArrowHashMap::from_sorted_dedup(global_ordering.clone())
+            .expect("Failed to create global order");
+
+        let mut grapho = Self {
+            inner: Arc::new(TemporalGraph::new_from_layers(
+                global_ordering,
+                Arc::new(global_order),
+                vec![layer],
+                vec!["_default".to_string()],
+            )),
+            node_meta: Arc::new(Meta::new()),
+            edge_meta: Arc::new(Meta::new()),
+            graph_props: Arc::new(GraphMeta::new()),
+        };
+
+        grapho.init_meta();
+        grapho
     }
 }
 

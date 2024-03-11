@@ -71,6 +71,8 @@ tempfile = { workspace = true, optional = true }
 xxhash-rust = { workspace = true }
 strum = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
+rpds = { workspace = true, optional = true }
+thread_local = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -89,13 +91,13 @@ default = ["arrow"]
 # Enables the graph loader io module
 io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:reqwest", "dep:tokio"]
 # Enables generating the pyo3 python bindings
-python = ["io", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam"]
+python = ["io", "arrow", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam", "dep:rpds"]
 # search
 search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
-arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck",
+arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck", "dep:rpds", "dep:thread_local",
     "arrow2?/io_ipc",
     "arrow2?/io_parquet",
     "arrow2?/io_parquet_compression",

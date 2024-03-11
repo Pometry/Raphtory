@@ -158,6 +158,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b3d0060af21e8d11a926981cc00c6c1541aa91dd64b9f881985c3da1094425f"
 
 [[package]]
+name = "archery"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8967cd1cc9e9e1954f644e14fbd6042fe9a37da96c52a67e44a2ac18261f8561"
+dependencies = [
+ "static_assertions",
+ "triomphe",
+]
+
+[[package]]
 name = "array-init-cursor"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -976,7 +986,6 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core",
- "rayon",
  "serde",
 ]
 
@@ -2020,15 +2029,6 @@ dependencies = [
 
 [[package]]
 name = "memmap2"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43a5a03cefb0d953ec0be133036f14e109412fa594edc2f77227249db66cc3ed"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "memmap2"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe751422e4a8caa417e13c3ea66452215d7d63e19e604f4980461212f3ae1322"
@@ -3055,6 +3055,7 @@ dependencies = [
  "rayon",
  "regex",
  "reqwest",
+ "rpds",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -3065,6 +3066,7 @@ dependencies = [
  "tempdir",
  "tempfile",
  "thiserror",
+ "thread_local",
  "tokio",
  "twox-hash",
  "xxhash-rust",
@@ -3075,6 +3077,7 @@ dependencies = [
 name = "raphtory-benchmark"
 version = "0.7.0"
 dependencies = [
+ "arrow2",
  "criterion",
  "rand 0.8.5",
  "raphtory",
@@ -3158,15 +3161,18 @@ dependencies = [
  "ahash",
  "arrow2",
  "clap",
+ "csv",
  "dashmap",
- "itertools 0.11.0",
- "memmap2 0.8.0",
+ "itertools 0.12.1",
+ "memmap2 0.9.4",
  "parking_lot",
  "proptest",
  "pyo3",
+ "rand 0.8.5",
  "raphtory",
  "rayon",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
 ]
@@ -3378,6 +3384,16 @@ dependencies = [
  "bitflags 2.4.2",
  "serde",
  "serde_derive",
+]
+
+[[package]]
+name = "rpds"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0e15515d3ce3313324d842629ea4905c25a13f81953eadb88f85516f59290a4"
+dependencies = [
+ "archery",
+ "serde",
 ]
 
 [[package]]
@@ -4448,6 +4464,12 @@ dependencies = [
  "tracing-core",
  "tracing-log",
 ]
+
+[[package]]
+name = "triomphe"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "859eb650cfee7434994602c3a68b25d77ad9e68c8a6cd491616ef86661382eb3"
 
 [[package]]
 name = "try-lock"

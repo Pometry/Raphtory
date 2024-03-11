@@ -1,11 +1,13 @@
 use raphtory::{
     arrow::{
         algorithms::connected_components,
+        graph_fragment::TempColGraphFragment,
         graph_impl::{ArrowGraph, ParquetLayerCols},
+        query::{ast::Query, executors::rayon2, ForwardState},
     },
-    prelude::*,
+    core::entities::VID,
 };
-use std::{env::args, time::Instant};
+use std::{io::Write, time::Instant};
 
 fn main() {
     // Retrieve command line arguments
@@ -18,9 +20,34 @@ fn main() {
     } else {
         let parquet_dir = &args().nth(2).expect("Parquet directory not provided");
 
-        let chunk_size = 268_435_456;
-        let num_threads = 4;
-        let t_props_chunk_size = chunk_size / 8;
+        let chunk_size = args()
+            .nth(3)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(268_435_456);
+        let num_threads = args()
+            .nth(4)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(8);
+        let t_props_chunk_size = args()
+            .nth(5)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(chunk_size / 16);
+
+        let concurrent_files = args()
+            .nth(6)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(1);
+
+        let read_chunk_size = args()
+            .nth(7)
+            .and_then(|x| x.parse::<usize>().ok())
+            .unwrap_or(4_000_000);
+
+        println!(
+            "Loading graph from parquet: {} with chunk size: {chunk_size} t_prop chunk size {t_props_chunk_size}, concurrent_files: {concurrent_files} and threads: {num_threads}",
+            parquet_dir
+        );
+
         let now = Instant::now();
         let graph = ArrowGraph::load_from_parquets(
             graph_dir,
@@ -35,186 +62,158 @@ fn main() {
             }],
             chunk_size,
             t_props_chunk_size,
-            Some(4_000_000),
-            Some(1),
+            Some(read_chunk_size),
+            Some(concurrent_files),
             num_threads,
         )
         .expect("Cannot load graph");
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
     };
-    // } else {
-    //     panic!("Graph directory does not exist")
-    // };
 
-    let g = &graph2.layer(0);
+    connected_components(&graph2.layer(0));
+    hop_query(&graph2);
+}
 
-    println!("Graph has {} nodes", graph2.count_nodes());
-    println!("Graph has {} edges", graph2.count_edges());
+fn connected_components(tg: &TempColGraphFragment) {
+    println!("Graph has {} nodes", tg.num_nodes());
+    println!("Graph has {} edges", tg.num_edges());
 
     let now = Instant::now();
     // let ccs = weakly_connected_components(&graph2, 100, None).group_by();
-    let out = connected_components::connected_components(g);
+    let out = connected_components::connected_components(tg);
     println!(
         "########## Arrow CC took {:?} ########## len: {}",
         now.elapsed(),
         out.len()
     );
+}
 
-    // let actual = ccs
-    //     .into_iter()
-    //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     .map(|(cc, count)| (cc, count.0))
-    //     .take(2)
-    //     .collect::<Vec<_>>();
+fn hop_query(tg: &ArrowGraph) {
+    let now = Instant::now();
 
-    // println!("Top 2 connected components by size: {}", actual.len());
-    // for (cc, count) in actual {
-    //     println!("{}: {}", cc, count);
-    // }
+    let nodes = vec![
+        VID(309582099),
+        VID(54328484),
+        VID(246173700),
+        VID(16700593),
+        VID(177352288),
+        VID(180812214),
+        VID(52391093),
+        VID(399368698),
+        VID(263103204),
+        VID(379960042),
+        VID(416420825),
+        VID(199488353),
+        VID(224963182),
+        VID(51977241),
+        VID(856781),
+        VID(444466102),
+        VID(418741608),
+        VID(192869236),
+        VID(299536904),
+        VID(85715682),
+        VID(132369141),
+        VID(202535826),
+        VID(333437339),
+        VID(263640094),
+        VID(33964780),
+        VID(379081115),
+        VID(290623079),
+        VID(395279946),
+        VID(133035021),
+        VID(249927504),
+        VID(261634684),
+        VID(430970739),
+        VID(253060757),
+        VID(272814697),
+        VID(158376132),
+        VID(86272904),
+        VID(326943324),
+        VID(82327004),
+        VID(261701485),
+        VID(109463839),
+        VID(117863968),
+        VID(163145864),
+        VID(330916934),
+        VID(211355612),
+        VID(281370847),
+        VID(371456910),
+        VID(299845460),
+        VID(344814299),
+        VID(90076774),
+        VID(277046483),
+        VID(202223853),
+        VID(315635830),
+        VID(404087723),
+        VID(217660841),
+        VID(262444201),
+        VID(38909930),
+        VID(299362410),
+        VID(436843462),
+        VID(228264831),
+        VID(146444304),
+        VID(89715034),
+        VID(109094148),
+        VID(71703352),
+        VID(253889004),
+        VID(264785705),
+        VID(36547407),
+        VID(158966904),
+        VID(319912238),
+        VID(20208726),
+        VID(156259436),
+        VID(1721625),
+        VID(205725206),
+        VID(442549275),
+        VID(410095341),
+        VID(339347119),
+        VID(318108647),
+        VID(235328888),
+        VID(398864679),
+        VID(18989798),
+        VID(257431550),
+        VID(299924240),
+        VID(296379526),
+        VID(9157244),
+        VID(89996738),
+        VID(170704515),
+        VID(134164014),
+        VID(219867467),
+        VID(244239784),
+        VID(258341225),
+        VID(274228163),
+        VID(342058645),
+        VID(66680949),
+        VID(150576676),
+        VID(248701795),
+        VID(221102041),
+        VID(325407184),
+        VID(45609419),
+        VID(69308556),
+        VID(130864213),
+        VID(205326867),
+    ];
 
-    //     // println!("{:?}", graph2.layer_names());
+    let query: Query<ForwardState> = Query::new()
+        .out_limit("default", 100)
+        // .out_limit("default", 100)
+        // .out_limit("default", 100)
+        // .out_limit("default", 100)
+        // .out_limit("default", 100)
+        .path("hop", |mut writer, state: ForwardState| {
+            serde_json::to_writer(&mut writer, &state.path).unwrap();
+            write!(writer, "\n").unwrap();
+        });
 
-    //     // let l_graph = graph2.layer("default").unwrap();
-
-    //     // println!("Graph has {} nodes", l_graph.count_nodes());
-    //     // println!("Graph has {} edges", l_graph.count_edges());
-    //     // println!(
-    //     //     "Graph earliest {:?} latest {:?}",
-    //     //     l_graph.earliest_time(),
-    //     //     l_graph.latest_time()
-    //     // );
-
-    //     // let mid = l_graph.earliest_time().unwrap()
-    //     //     + ((l_graph.latest_time().unwrap() - l_graph.earliest_time().unwrap()) / 2);
-
-    //     // println!("mid: {:?}", mid);
-    //     // let window = l_graph.window(i64::MIN, mid);
-
-    //     // println!("Graph has {} nodes", window.count_nodes());
-    //     // println!("Graph has {} edges", window.count_edges());
-    //     // println!(
-    //     //     "Window Graph earliest {:?} latest {:?}",
-    //     //     window.earliest_time(),
-    //     //     window.latest_time()
-    //     // );
-
-    //     // let window2 = l_graph.window(mid, i64::MAX);
-
-    //     // println!("Graph has {} nodes", window2.count_nodes());
-    //     // println!("Graph has {} edges", window2.count_edges());
-
-    //     // println!(
-    //     //     "Window2 Graph earliest {:?} latest {:?}",
-    //     //     window2.earliest_time(),
-    //     //     window2.latest_time()
-    //     // );
-
-    //     // let rg = Graph::new();
-
-    //     // for v in graph2.all_nodes() {
-    //     //     let gid = graph2.node_gid(v).unwrap();
-    //     //     match gid {
-    //     //         GID::Str(gid) => {
-    //     //             rg.add_node(0, gid, NO_PROPS).expect("add node failed");
-    //     //         }
-    //     //         _ => {
-    //     //             panic!("unexpected gid type")
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     // let layer_id = 2; // netflow
-    //     // for edge in graph2.all_edges(layer_id) {
-    //     //     let src_id = edge.src();
-    //     //     let dst_id = edge.dst();
-
-    //     //     let src_gid = graph2.node_gid(src_id).unwrap();
-    //     //     let dst_gid = graph2.node_gid(dst_id).unwrap();
-
-    //     //     match (src_gid, dst_gid) {
-    //     //         (GID::Str(src), GID::Str(dst)) => {
-    //     //             rg.add_edge(0, src, dst, NO_PROPS, None)
-    //     //                 .expect("add edge failed");
-    //     //         }
-    //     //         _ => {
-    //     //             panic!("unexpected gid type")
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     // println!("Graph has {} nodes", rg.count_nodes());
-    //     // println!("Graph has {} edges", rg.count_edges());
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
-
-    //     // let now = Instant::now();
-    //     // let ccs = weakly_connected_components(&window, 100, None).group_by();
-    //     // println!(
-    //     //     "########## Window Arrow CC took {:?} ########## ",
-    //     //     now.elapsed()
-    //     // );
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
-
-    //     // let now = Instant::now();
-    //     // let ccs = weakly_connected_components(&window2, 100, None).group_by();
-    //     // println!(
-    //     //     "########## Window Arrow CC took {:?} ########## ",
-    //     //     now.elapsed()
-    //     // );
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
-
-    //     // let now = Instant::now();
-    //     // let ccs: std::collections::HashMap<u64, Vec<String>> =
-    //     //     weakly_connected_components(&rg, 100, None).group_by();
-    //     // println!("########## CC took {:?} ########## ", now.elapsed());
-
-    //     // let actual = ccs
-    //     //     .into_iter()
-    //     //     .map(|(cc, group)| (cc, Reverse(group.len())))
-    //     //     .sorted_by_key(|(key, count)| (*count, *key))
-    //     //     .map(|(cc, count)| (cc, count.0))
-    //     //     .take(2)
-    //     //     .collect::<Vec<_>>();
-
-    //     // println!("Top 10 connected components by size: {}", actual.len());
-    //     // for (cc, count) in actual {
-    //     //     println!("{}: {}", cc, count);
-    //     // }
+    let _ = rayon2::execute::<ForwardState>(
+        query,
+        raphtory::arrow::query::NodeSource::NodeIds(nodes),
+        tg,
+        |node| {
+            let earliest = node.earliest();
+            ForwardState::at_time(node, earliest, 100)
+        },
+    );
+    println!("########## Arrow Hop took {:?} ##########", now.elapsed());
 }

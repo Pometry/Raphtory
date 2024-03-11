@@ -14,6 +14,7 @@ use std::{
 };
 
 pub mod algorithms;
+pub mod arrow_hmap;
 pub(crate) mod chunked_array;
 pub mod edge;
 pub(crate) mod edges;
@@ -24,6 +25,7 @@ pub mod graph_fragment;
 pub mod graph_impl;
 pub mod load;
 pub(crate) mod nodes;
+pub mod query;
 pub(crate) mod timestamps;
 
 pub type Time = i64;
@@ -101,6 +103,7 @@ pub(crate) mod file_prefix {
         AdjInEdges,
         AdjInOffsets,
         Metadata,
+        HashMap,
     }
 
     impl GraphPaths {
@@ -150,6 +153,27 @@ impl GID {
     pub fn into_u64(self) -> Option<u64> {
         match self {
             GID::U64(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            GID::Str(v) => Some(v.as_str()),
+            _ => None,
+        }
+    }
+
+    pub fn as_i64(&self) -> Option<i64> {
+        match self {
+            GID::I64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    pub fn as_u64(&self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(*v),
             _ => None,
         }
     }
@@ -342,10 +366,11 @@ fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {
     // create graph dir if it does not exist
     // if it exists make sure it's empty
     std::fs::create_dir_all(&graph_dir)?;
-    // let mut dir_iter = std::fs::read_dir(&graph_dir)?;
-    // if dir_iter.next().is_some() {
-    //     return Err(Error::GraphDirNotEmpty);
-    // }
+
+    let mut dir_iter = std::fs::read_dir(&graph_dir)?;
+    if dir_iter.next().is_some() {
+        return Err(Error::GraphDirNotEmpty);
+    }
 
     return Ok(());
 }
