@@ -49,14 +49,13 @@ pub struct RelPattern {
     pub props: Option<HashMap<String, Expr>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Return {
     pub all: bool,
     pub items: Vec<ReturnItem>,
 }
 
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ReturnItem {
     pub expr: Expr,
     pub as_name: Option<String>,
@@ -68,7 +67,7 @@ type Ex = Box<Expr>;
 pub enum Expr {
     Var {
         var_name: String,
-        attr: Option<String>,
+        attrs: Vec<String>,
     },
     Literal(Literal),
     BinOp {
@@ -114,4 +113,5 @@ pub enum Literal {
     Str(String),
     Int(i64),
     Float(f64),
+    List(Vec<Literal>),
 }

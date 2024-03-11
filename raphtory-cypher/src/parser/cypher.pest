@@ -221,6 +221,8 @@ divide   =  { "/" }
 modulo   =  { "%" }
 pow      =  { "^" }
 
+in_op = _{ IN }
+
 comp_op = _{ eq | ne | lte | gte | gt | lt }
 eq      =  { "=" }
 ne      =  { "<>" }
@@ -229,7 +231,7 @@ gt      =  { ">" }
 lte      =  { "<=" }
 gte      =  { ">=" }
 
-op = _{ bin_op | math_op | comp_op }
+op = _{ bin_op | math_op | comp_op | in_op }
 
 unary_op = _{ not | minus }
 not      =  { "NOT" }

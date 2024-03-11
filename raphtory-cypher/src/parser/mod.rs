@@ -134,7 +134,10 @@ pub fn parse_match(pair: Pair<Rule>) -> Result<Match, ParseError> {
 pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
     let mut items = Vec::new();
     let mut all = false;
-    for pair in pair.into_inner() {
+    let mut inner = pair.into_inner();
+    // skip return
+    inner.next();
+    for pair in inner {
         match pair.as_rule() {
             Rule::ProjectionBody => {
                 for pair in pair.into_inner() {
@@ -203,6 +206,8 @@ lazy_static::lazy_static! {
             .op(Op::infix(or, Left))
             .op(Op::infix(eq, Left) | Op::infix(ne, Left))
             .op(Op::infix(lt, Left) | Op::infix(lte, Left) | Op::infix(gt, Left) | Op::infix(gte, Left))
+            .op(Op::infix(modulo, Left))
+            .op(Op::infix(IN, Left))
 
     };
 }
@@ -211,7 +216,6 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
     PRATT_PARSER
         .map_primary(|primary| parse_primary(primary))
         .map_infix(|lhs, op, rhs| {
-            println!("lhs: {:?}, op: {:?}, rhs: {:?}", lhs, op, rhs);
             let bin_op_type = match op.as_rule() {
                 Rule::add => BinOpType::Add,
                 Rule::subtract => BinOpType::Sub,
@@ -256,8 +260,43 @@ pub fn parse_primary(pair: Pair<Rule>) -> Result<Expr, ParseError> {
         Rule::Expression => parse_expr(pair.into_inner()),
         Rule::Atom => parse_atom(pair),
         Rule::Literal => parse_literal(pair).map(Expr::Literal),
+        Rule::PropertyExpression => parse_prop_expr(pair),
         rule => todo!("parse_primary Unsuported rule {rule:?}"),
     }
+}
+
+pub fn parse_prop_expr(pair: Pair<Rule>) -> Result<Expr, ParseError> {
+    let mut v_name = None;
+    let mut attrs = vec![];
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::Atom => {
+                if let Expr::Var { var_name, .. } = parse_atom(pair)? {
+                    v_name = Some(var_name);
+                }
+            }
+            Rule::PropertyLookup => {
+                let attr_name = parse_prop_lookup(pair).ok_or_else(|| {
+                    ParseError::SyntaxError("Property expression missing property".to_string())
+                })?;
+                attrs.push(attr_name);
+            }
+            _ => {}
+        }
+    }
+    let var_name = v_name.ok_or_else(|| {
+        ParseError::SyntaxError("Property expression missing property".to_string())
+    })?;
+    Ok(Expr::Var { var_name, attrs })
+}
+
+fn parse_prop_lookup(pair: Pair<'_, Rule>) -> Option<String> {
+    pair.into_inner()
+        .filter_map(|pair| match pair.as_rule() {
+            Rule::PropertyKeyName => Some(pair.as_str().to_string()), // TODO: deal with escaping ```a```
+            _ => None,
+        })
+        .next()
 }
 
 pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
@@ -269,7 +308,7 @@ pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
         .and_then(|pair| match pair.as_rule() {
             Rule::Variable => Ok(Expr::Var {
                 var_name: pair.as_str().to_string(),
-                attr: None,
+                attrs: Vec::with_capacity(0),
             }),
             Rule::Literal => Ok(Expr::Literal(parse_literal(pair)?)),
             rule => Err(ParseError::Unsupported(format!(
@@ -489,6 +528,27 @@ fn parse_map_literal(
     Ok(map)
 }
 
+fn parse_list_literal(pair: Pair<'_, Rule>) -> Result<Literal, ParseError> {
+    let mut list = Vec::new();
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::Expression => {
+                let expr = parse_expr(pair.into_inner())?;
+                list.push(expr);
+            }
+            _ => {}
+        }
+    }
+    Ok(Literal::List(
+        list.into_iter()
+            .filter_map(|expr| match expr {
+                Expr::Literal(lit) => Some(lit),
+                _ => None,
+            })
+            .collect(),
+    ))
+}
+
 #[cfg(test)]
 mod test {
 
@@ -498,6 +558,103 @@ mod test {
     use pest::Parser;
 
     use proptest::prelude::*;
+
+    #[test]
+    fn check_parse_return_1() {
+        let input = "RETURN n";
+
+        let pairs = CypherParser::parse(Rule::Return, input);
+        assert!(pairs.is_ok());
+
+        let return_clause = parse_return(pairs.unwrap().next().unwrap());
+
+        assert_eq!(
+            return_clause,
+            Ok(Return {
+                all: false,
+                items: vec![ReturnItem {
+                    expr: Expr::Var {
+                        var_name: "n".to_string(),
+                        attrs: Vec::with_capacity(0),
+                    },
+                    as_name: None
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn check_parse_return_2() {
+        let input = "RETURN n AS m";
+
+        let pairs = CypherParser::parse(Rule::Return, input);
+        assert!(pairs.is_ok());
+
+        let return_clause = parse_return(pairs.unwrap().next().unwrap());
+
+        assert_eq!(
+            return_clause,
+            Ok(Return {
+                all: false,
+                items: vec![ReturnItem {
+                    expr: Expr::Var {
+                        var_name: "n".to_string(),
+                        attrs: vec![]
+                    },
+                    as_name: Some("m".to_string())
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn check_parse_return_3() {
+        let input = "ReTuRn n, m as b";
+
+        let pairs = CypherParser::parse(Rule::Return, input);
+        assert!(pairs.is_ok());
+
+        let return_clause = parse_return(pairs.unwrap().next().unwrap());
+
+        assert_eq!(
+            return_clause,
+            Ok(Return {
+                all: false,
+                items: vec![
+                    ReturnItem {
+                        expr: Expr::Var {
+                            var_name: "n".to_string(),
+                            attrs: vec![],
+                        },
+                        as_name: None
+                    },
+                    ReturnItem {
+                        expr: Expr::Var {
+                            var_name: "m".to_string(),
+                            attrs: vec![],
+                        },
+                        as_name: Some("b".to_string())
+                    }
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn check_property_expr() {
+        let input = "a.b.c";
+        let pairs = CypherParser::parse(Rule::Expression, input);
+        assert!(pairs.is_ok());
+
+        let expr = parse_expr(pairs.unwrap());
+        assert_eq!(
+            expr,
+            Ok(Expr::Var {
+                var_name: "a".to_string(),
+                attrs: vec!["b".to_string(), "c".to_string()],
+            })
+        );
+    }
 
     proptest! {
         #[test]
@@ -559,6 +716,23 @@ mod test {
             ]
             .into_iter()
             .collect())
+        );
+    }
+
+    #[test]
+    fn list_literal() {
+        let input = "[1, 2, 3]";
+        let pairs = CypherParser::parse(Rule::ListLiteral, input);
+        assert!(pairs.is_ok());
+
+        let list = parse_list_literal(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            list,
+            Ok(Literal::List(vec![
+                Literal::Int(1),
+                Literal::Int(2),
+                Literal::Int(3)
+            ]))
         );
     }
 
