@@ -1,2 +1,2 @@
-pub mod parser;
 mod executor;
+pub mod parser;

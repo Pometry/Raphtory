@@ -5,7 +5,7 @@ pub enum Expr {
     Str(String),
     Int(i64),
     Float(f64),
-    Var{rel: usize, col: usize},
+    Var { rel: usize, col: usize },
     Eq(Ex, Ex),
     And(Ex, Ex),
     Or(Ex, Ex),

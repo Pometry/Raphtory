@@ -34,10 +34,10 @@ pub struct PatternPart {
     pub rel_chain: Vec<(RelPattern, NodePattern)>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct NodePattern {
     pub name: Option<String>,
-    pub label: Vec<String>,
+    pub labels: Vec<String>,
     pub props: Option<HashMap<String, Expr>>,
 }
 
@@ -111,7 +111,7 @@ impl Expr {
         Expr::Literal(Literal::Int(i))
     }
 
-    pub fn prop<S:AsRef<str>>(var: &str, args: impl IntoIterator<Item = S>) -> Self {
+    pub fn prop<S: AsRef<str>>(var: &str, args: impl IntoIterator<Item = S>) -> Self {
         Expr::Var {
             var_name: var.to_string(),
             attrs: args.into_iter().map(|s| s.as_ref().to_string()).collect(),

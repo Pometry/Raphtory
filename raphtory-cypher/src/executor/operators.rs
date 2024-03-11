@@ -15,7 +15,7 @@ pub enum PhysicalOperator {
 }
 
 #[derive(Debug, Clone)]
-pub struct Expand{
+pub struct Expand {
     dir: Direction,
     from_col: usize,
     filter: Expr,
@@ -28,11 +28,11 @@ pub struct Filter {
 
 struct EdgeScan {
     layer: String,
-    columns: Arc<[usize]>
+    columns: Arc<[usize]>,
 }
 
-struct NodeScan{
-    columns: Arc<[usize]> // name could be one column
+struct NodeScan {
+    columns: Arc<[usize]>, // name could be one column
 }
 
 impl Operator for Expand {

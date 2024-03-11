@@ -1,11 +1,12 @@
 pub mod ast;
 use std::str::ParseBoolError;
 
-use pest::error::Error;
-use pest::iterators::Pair;
-use pest::iterators::Pairs;
-use pest::pratt_parser::*;
-use pest::Parser;
+use pest::{
+    error::Error,
+    iterators::{Pair, Pairs},
+    pratt_parser::*,
+    Parser,
+};
 use pest_derive::Parser;
 use raphtory::core::Direction;
 
@@ -489,9 +490,9 @@ fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
             Rule::NodeLabels => {
                 let labels = pair
                     .into_inner()
-                    .map(|pair| pair.as_str().to_string())
+                    .filter_map(|pair| parse_node_label(pair))
                     .collect();
-                node.label = labels;
+                node.labels = labels;
             }
             Rule::Properties => match pair.into_inner().next() {
                 Some(pair) => match pair.as_rule() {
@@ -508,6 +509,16 @@ fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
     }
 
     Ok(node)
+}
+
+fn parse_node_label(pair: Pair<'_, Rule>) -> Option<String> {
+    match pair.as_rule() {
+        Rule::NodeLabel => {
+            let mut pairs = pair.into_inner();
+            pairs.next().map(|pair| pair.as_str().to_string())
+        }
+        _ => None,
+    }
 }
 
 fn parse_map_literal(
@@ -707,6 +718,31 @@ mod test {
             assert_eq!(literal, Ok(Literal::Str(actual_input.to_string())));
         }
 
+    }
+
+    #[test]
+    fn check_node_pattern() {
+        let input = "(n:Person {name: 'John'})";
+
+        let pairs = CypherParser::parse(Rule::NodePattern, input);
+        assert!(pairs.is_ok());
+
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            node,
+            Ok(NodePattern {
+                name: Some("n".to_string()),
+                labels: vec!["Person".to_string()],
+                props: Some(
+                    vec![(
+                        "name".to_string(),
+                        Expr::Literal(Literal::Str("John".to_string()))
+                    )]
+                    .into_iter()
+                    .collect()
+                )
+            })
+        );
     }
 
     #[test]
