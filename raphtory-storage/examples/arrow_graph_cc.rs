@@ -70,11 +70,8 @@ fn main() {
         println!("########## Load took {:?} ########## ", now.elapsed());
         graph
     };
-    // } else {
-    //     panic!("Graph directory does not exist")
-    // };
 
-    // connected_components(g);
+    connected_components(&graph2.layer(0));
     hop_query(&graph2);
 }
 
