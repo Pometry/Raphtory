@@ -440,17 +440,10 @@ fn parse_pattern_element(
     Ok(())
 }
 
-fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
+fn parse_rel_detail(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
     let mut rel_pattern = RelPattern::default();
-
     for pair in pair.into_inner() {
         match pair.as_rule() {
-            Rule::LeftArrowHead => {
-                rel_pattern.direction = Direction::IN;
-            }
-            Rule::RightArrowHead => {
-                rel_pattern.direction = Direction::OUT;
-            }
             Rule::Variable => {
                 let var = parse_variable(pair)?;
                 rel_pattern.name = Some(var);
@@ -475,6 +468,30 @@ fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
             _ => {}
         }
     }
+    Ok(rel_pattern)
+}
+
+fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
+    let mut rel_pattern = RelPattern::default();
+
+    let mut direction = Direction::BOTH;
+
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::LeftArrowHead => {
+                direction = Direction::IN;
+            }
+            Rule::RightArrowHead => {
+                direction = Direction::OUT;
+            }
+            Rule::RelationshipDetail => {
+                rel_pattern = parse_rel_detail(pair)?;
+            }
+            _ => {}
+        }
+    }
+
+    rel_pattern.direction = direction;
 
     Ok(rel_pattern)
 }
@@ -721,7 +738,61 @@ mod test {
     }
 
     #[test]
-    fn check_node_pattern() {
+    fn check_node_pattern_empty() {
+        let input = "()";
+
+        let pairs = CypherParser::parse(Rule::NodePattern, input);
+        assert!(pairs.is_ok());
+
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            node,
+            Ok(NodePattern {
+                name: None,
+                labels: vec![],
+                props: None
+            })
+        );
+    }
+
+    #[test]
+    fn check_node_pattern_name() {
+        let input = "(n)";
+
+        let pairs = CypherParser::parse(Rule::NodePattern, input);
+        assert!(pairs.is_ok());
+
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            node,
+            Ok(NodePattern {
+                name: Some("n".to_string()),
+                labels: vec![],
+                props: None
+            })
+        );
+    }
+
+    #[test]
+    fn check_node_pattern_label() {
+        let input = "(n:Person)";
+
+        let pairs = CypherParser::parse(Rule::NodePattern, input);
+        assert!(pairs.is_ok());
+
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            node,
+            Ok(NodePattern {
+                name: Some("n".to_string()),
+                labels: vec!["Person".to_string()],
+                props: None
+            })
+        );
+    }
+
+    #[test]
+    fn check_node_pattern_label_props() {
         let input = "(n:Person {name: 'John'})";
 
         let pairs = CypherParser::parse(Rule::NodePattern, input);
@@ -733,6 +804,32 @@ mod test {
             Ok(NodePattern {
                 name: Some("n".to_string()),
                 labels: vec!["Person".to_string()],
+                props: Some(
+                    vec![(
+                        "name".to_string(),
+                        Expr::Literal(Literal::Str("John".to_string()))
+                    )]
+                    .into_iter()
+                    .collect()
+                )
+            })
+        );
+    }
+
+    #[test]
+    fn check_edge_pattern_label_props() {
+        let input = "-[r:KNOWS {name: 'John'}]->";
+
+        let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
+        assert!(pairs.is_ok());
+
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            rel,
+            Ok(RelPattern {
+                name: Some("r".to_string()),
+                direction: Direction::OUT,
+                rel_types: vec!["KNOWS".to_string()],
                 props: Some(
                     vec![(
                         "name".to_string(),

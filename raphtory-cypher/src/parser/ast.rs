@@ -41,7 +41,7 @@ pub struct NodePattern {
     pub props: Option<HashMap<String, Expr>>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct RelPattern {
     pub name: Option<String>,
     pub direction: Direction,
