@@ -22,8 +22,8 @@ fn main() {
         let parquet_dir = &args().nth(2).expect("Parquet directory not provided");
 
         let chunk_size = 268_435_456;
-        let num_threads = 4;
-        let t_props_chunk_size = chunk_size / 8;
+        let num_threads = 8;
+        let t_props_chunk_size = chunk_size / 16;
         let now = Instant::now();
         let graph = ArrowGraph::load_from_parquets(
             graph_dir,
@@ -39,7 +39,7 @@ fn main() {
             chunk_size,
             t_props_chunk_size,
             Some(4_000_000),
-            Some(1),
+            Some(16),
             num_threads,
         )
         .expect("Cannot load graph");
@@ -176,9 +176,10 @@ fn hop_query(tg: &ArrowGraph) {
 
     let query: Query<ForwardState> = Query::new()
         .out_limit("default", 100)
-        .out_limit("default", 100)
-        .out_limit("default", 100)
-        .out_limit("default", 100)
+        // .out_limit("default", 100)
+        // .out_limit("default", 100)
+        // .out_limit("default", 100)
+        // .out_limit("default", 100)
         .path("hop", |mut writer, state: ForwardState| {
             serde_json::to_writer(&mut writer, &state.path).unwrap();
             write!(writer, "\n").unwrap();
