@@ -986,7 +986,6 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core",
- "rayon",
  "serde",
 ]
 
@@ -2024,15 +2023,6 @@ name = "memmap2"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f49388d20533534cd19360ad3d6a7dadc885944aa802ba3995040c5ec11288c6"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "memmap2"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43a5a03cefb0d953ec0be133036f14e109412fa594edc2f77227249db66cc3ed"
 dependencies = [
  "libc",
 ]
@@ -3173,8 +3163,8 @@ dependencies = [
  "clap",
  "csv",
  "dashmap",
- "itertools 0.11.0",
- "memmap2 0.8.0",
+ "itertools 0.12.1",
+ "memmap2 0.9.4",
  "parking_lot",
  "proptest",
  "pyo3",

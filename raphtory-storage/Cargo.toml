@@ -14,22 +14,22 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-itertools = "0.11.0"
-parking_lot = "0.12.1"
+itertools.workspace = true
+parking_lot.workspace = true
 raphtory = { path = "../raphtory", features = ["io", "arrow", "python"]}
-rayon = "1.6"
-thiserror = "1.0.48"
-memmap2 = "0.8.0"
-arrow2 = {version="0.18", features=["io_ipc", "io_parquet", "io_parquet_compression","compute_concatenate", "compute_sort", "compute_merge_sort"]}
-ahash = "0.8.3"
-tempfile = "3.8.0"
-clap = {version="4.4.6", features = ["derive"]}
-dashmap = {version = "5.5.3", features = ["rayon"]}
-rand = "0.8.5"
-csv = "1.3.0"
+rayon.workspace = true
+thiserror.workspace = true
+memmap2.workspace = true
+arrow2.workspace = true
+ahash.workspace = true
+tempfile.workspace = true
+clap.workspace = true
+dashmap.workspace = true
+rand.workspace = true
+csv.workspace = true
 serde_json.workspace = true
-pyo3 = "0.20.3"
+pyo3.workspace = true
 
 [dev-dependencies]
-serde = { version = "1", features = ["derive","rc"] }
-proptest = "1.3.1"
+serde.workspace = true
+proptest.workspace = true

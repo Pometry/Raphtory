@@ -417,11 +417,22 @@ impl PyGraphQuery {
     }
 
     #[staticmethod]
-    pub fn from_node_ids(ids: Vec<NodeRef>) -> Self {
-        let internal_nodes = ids.iter().any(|node| match node {
+    pub fn from_node_ids(ids: Vec<NodeRef>) -> PyResult<Self> {
+        let internal_nodes = ids.iter().all(|node| match node {
             NodeRef::Internal(_) => true,
             _ => false,
         });
+
+        let external_nodes = ids.iter().all(|node| match node {
+            NodeRef::External(_) | NodeRef::ExternalStr(_) => true,
+            _ => false,
+        });
+
+        if !internal_nodes && !external_nodes {
+            return Err(PyErr::new::<PyAny, _>(
+                "All node ids must be either internal or external",
+            ));
+        }
 
         if internal_nodes {
             let internal = ids
@@ -432,10 +443,10 @@ impl PyGraphQuery {
                 })
                 .collect::<Vec<_>>();
 
-            Self {
+            Ok(Self {
                 query: Query::new(),
                 source: Arc::new(NodeSource::NodeIds(internal)),
-            }
+            })
         } else {
             let external = ids
                 .into_iter()
@@ -445,10 +456,10 @@ impl PyGraphQuery {
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            Self {
+            Ok(Self {
                 query: Query::new(),
                 source: Arc::new(NodeSource::ExternalIds(external)),
-            }
+            })
         }
     }
 
