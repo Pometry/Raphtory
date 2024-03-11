@@ -357,8 +357,15 @@ pub fn parse_number_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
 }
 
 pub fn parse_string_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
-    let s = pair.as_str().to_string();
-    Ok(Literal::Str(s))
+    let s = pair
+        .as_str()
+        .strip_prefix("'")
+        .ok_or_else(|| ParseError::SyntaxError("String literal missing opening quote".to_string()))?
+        .strip_suffix("'")
+        .ok_or_else(|| {
+            ParseError::SyntaxError("String literal missing closing quote".to_string())
+        })?;
+    Ok(Literal::Str(s.to_string()))
 }
 
 pub fn parse_boolean_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
@@ -695,8 +702,9 @@ mod test {
             let pairs = CypherParser::parse(Rule::Literal, &input);
             assert!(pairs.is_ok());
 
+            let actual_input = input.strip_prefix("'").unwrap().strip_suffix("'").unwrap();
             let literal = parse_literal(pairs.unwrap().next().unwrap());
-            assert_eq!(literal, Ok(Literal::Str(input)));
+            assert_eq!(literal, Ok(Literal::Str(actual_input.to_string())));
         }
 
     }
@@ -733,6 +741,24 @@ mod test {
                 Literal::Int(2),
                 Literal::Int(3)
             ]))
+        );
+    }
+
+    #[test]
+    fn and_expression() {
+        let input = "a.name = 'John' and 1 < a.age";
+        let pairs = CypherParser::parse(Rule::Expression, input);
+        assert!(pairs.is_ok());
+        println!("{:?}", pairs);
+
+        let expr = parse_expr(pairs.unwrap());
+
+        assert_eq!(
+            expr,
+            Ok(Expr::and(
+                Expr::eq(Expr::prop("a", ["name"]), Expr::str("John")),
+                Expr::lt(Expr::int(1), Expr::prop("a", ["age"]))
+            ))
         );
     }
 

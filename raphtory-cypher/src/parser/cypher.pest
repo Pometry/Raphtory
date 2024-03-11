@@ -209,9 +209,9 @@ LabelName = { SchemaName }
 RelTypeName = { SchemaName }
 
 bin_op = _{ or | xor | and }
-or     =  { "OR" }
-xor    =  { "XOR" }
-and    =  { "AND" }
+or     =  { ^"OR" }
+xor    =  { ^"XOR" }
+and    =  { ^"AND" }
 
 math_op  = _{ add | subtract | multiply | divide | modulo | pow }
 add      =  { "+" }

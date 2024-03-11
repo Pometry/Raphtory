@@ -82,6 +82,43 @@ pub enum Expr {
     },
 }
 
+impl Expr {
+    pub fn new(tpe: BinOpType, left: Expr, right: Expr) -> Self {
+        Expr::BinOp {
+            op: tpe,
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    pub fn eq(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::Eq, left, right)
+    }
+
+    pub fn lt(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::Lt, left, right)
+    }
+
+    pub fn and(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::And, left, right)
+    }
+
+    pub fn str(s: &str) -> Self {
+        Expr::Literal(Literal::Str(s.to_string()))
+    }
+
+    pub fn int(i: i64) -> Self {
+        Expr::Literal(Literal::Int(i))
+    }
+
+    pub fn prop<S:AsRef<str>>(var: &str, args: impl IntoIterator<Item = S>) -> Self {
+        Expr::Var {
+            var_name: var.to_string(),
+            attrs: args.into_iter().map(|s| s.as_ref().to_string()).collect(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum UnaryOpType {
     Not,
