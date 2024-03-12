@@ -246,7 +246,8 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
                 Rule::and => BinOpType::And,
                 Rule::or => BinOpType::Or,
                 Rule::xor => BinOpType::Xor,
-                rule => unreachable!("Unknown bin op type {rule:?}"),
+                Rule::IN => BinOpType::In,
+                rule => return unsupported("parse_expr", &rule),
             };
 
             Ok(Expr::BinOp {
@@ -340,6 +341,7 @@ pub fn parse_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
             Rule::NumberLiteral => parse_number_literal(pair),
             Rule::StringLiteral => parse_string_literal(pair),
             Rule::BooleanLiteral => parse_boolean_literal(pair),
+            Rule::ListLiteral => parse_list_literal(pair),
             rule => unsupported("parse_literal", &rule),
         })
 }
@@ -995,6 +997,26 @@ mod test {
     }
 
     #[test]
+    fn in_expression() {
+        let input = "a.name in ['John', 'Doe']";
+        let pairs = CypherParser::parse(Rule::Expression, input);
+        assert!(pairs.is_ok());
+
+        let expr = parse_expr(pairs.unwrap());
+
+        assert_eq!(
+            expr,
+            Ok(Expr::in_(
+                Expr::prop("a", ["name"]),
+                [
+                    Literal::Str("John".to_string()),
+                    Literal::Str("Doe".to_string())
+                ]
+            ))
+        );
+    }
+
+    #[test]
     fn test_parse_bin_expr() {
         for op in [
             "+", "-", "*", "/", "AND", "OR", "XOR", ">", "<", ">=", "<=", "=", "<>",
@@ -1036,6 +1058,39 @@ mod test {
     }
 
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn parse_lanl_large() {
+        let input = "MATCH
+        (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B),
+        (E)<-[nf2:Netflow]-(C)<-[login2:Events2v]-(A), (C)<-[prog2:Events1v]-(C),
+        (E)<-[nf3:Netflow]-(D)<-[login3:Events2v]-(A), (D)<-[prog3:Events1v]-(D)
+      WHERE A <> B AND A <> C AND A <> D AND A <> E AND B <> C AND B <> D AND B <> E
+        AND C <> D AND C <> E AND D <> E
+        AND login1.eventID = 4624 AND login2.eventID = 4624 AND login3.eventID = 4624 
+        AND prog1.eventID = 4688 AND prog2.eventID = 4688 AND prog3.eventID = 4688
+        AND nf1.dstBytes > 100000000 AND nf2.dstBytes > 100000000 AND nf3.dstBytes > 100000000
+        AND login1.epochtime < login2.epochtime
+        AND login2.epochtime < login3.epochtime
+        AND login3.epochtime - login1.epochtime < 3600
+        AND nf1.dstPort = nf2.dstPort AND nf2.dstPort = nf3.dstPort
+        AND prog1.processName = prog2.processName AND prog2.processName = prog3.processName
+        AND login1.epochtime < prog1.epochtime
+        AND prog1.epochtime < nf1.epochtime
+        AND nf1.epochtime - login1.epochtime <= 30
+        AND login2.epochtime < prog2.epochtime
+        AND prog2.epochtime < nf2.epochtime
+        AND nf2.epochtime - login2.epochtime <= 30
+        AND login3.epochtime < prog3.epochtime
+        AND prog3.epochtime < nf3.epochtime
+        AND nf3.epochtime - login3.epochtime <= 30 
+      RETURN login1.epochtime as time1, login2.epochtime as time2,
+        login3.epochtime as time3, login3.epochtime - login1.epochtime as interval,
+        nf1.dstPort as dport1, nf2.dstPort as dport2, nf3.dstPort as dport3";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+    }
 
     #[test]
     fn parse_lanl_no_where() {

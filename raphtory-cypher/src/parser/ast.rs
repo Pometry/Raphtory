@@ -263,6 +263,14 @@ impl Expr {
         Expr::Literal(Literal::Int(i))
     }
 
+    pub fn in_(prop: Expr, list: impl IntoIterator<Item = Literal>) -> Self {
+        Self::new(
+            BinOpType::In,
+            prop,
+            Expr::Literal(Literal::List(list.into_iter().collect())),
+        )
+    }
+
     pub fn prop<S: AsRef<str>>(var: &str, args: impl IntoIterator<Item = S>) -> Self {
         Expr::Var {
             var_name: var.to_string(),
@@ -305,6 +313,7 @@ pub enum BinOpType {
     And,
     Or,
     Xor,
+    In,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
