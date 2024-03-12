@@ -3093,9 +3093,12 @@ dependencies = [
  "lazy_static",
  "pest",
  "pest_derive",
+ "pretty_assertions",
  "proptest",
  "raphtory",
  "rayon",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

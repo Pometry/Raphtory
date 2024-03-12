@@ -211,15 +211,15 @@ lazy_static::lazy_static! {
         use Assoc::*;
 
         PrattParser::new()
-            .op(Op::infix(add, Left) | Op::infix(subtract, Left))
-            .op(Op::infix(multiply, Left) | Op::infix(divide, Left))
-            .op(Op::infix(pow, Right))
             .op(Op::prefix(not))
             .op(Op::infix(and, Left))
             .op(Op::infix(xor, Left))
             .op(Op::infix(or, Left))
             .op(Op::infix(eq, Left) | Op::infix(ne, Left))
             .op(Op::infix(lt, Left) | Op::infix(lte, Left) | Op::infix(gt, Left) | Op::infix(gte, Left))
+            .op(Op::infix(add, Left) | Op::infix(subtract, Left))
+            .op(Op::infix(multiply, Left) | Op::infix(divide, Left))
+            .op(Op::infix(pow, Right))
             .op(Op::infix(modulo, Left))
             .op(Op::infix(IN, Left))
 
@@ -325,6 +325,7 @@ pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
                 attrs: Vec::with_capacity(0),
             }),
             Rule::Literal => Ok(Expr::Literal(parse_literal(pair)?)),
+            Rule::COUNT => Ok(Expr::CountAll),
             rule => unsupported("parse_atom", &rule),
         })
 }
@@ -421,8 +422,9 @@ fn parse_pattern_element(
     first_node: &mut Option<NodePattern>,
     pair: Pair<'_, Rule>,
 ) -> Result<(), ParseError> {
-    let mut cur_elem_chain: Option<RelPattern> = None;
-    let mut last_node_pattern = None;
+    let mut rels = vec![];
+    let mut nodes = vec![];
+
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::NodePattern => {
@@ -430,20 +432,21 @@ fn parse_pattern_element(
                     let np = parse_node_pattern(pair)?;
                     *first_node = Some(np);
                 } else {
-                    if let Some(rel) = cur_elem_chain.take() {
-                        if let Some(node) = last_node_pattern.take() {
-                            rel_chain.push((rel, node));
-                        }
-                    }
-                    last_node_pattern.replace(parse_node_pattern(pair)?);
+                    nodes.push(parse_node_pattern(pair)?);
                 }
             }
             Rule::RelationshipPattern => {
-                cur_elem_chain.replace(parse_rel_pattern(pair)?);
+                rels.push(parse_rel_pattern(pair)?);
             }
             rule => return unsupported("parse_pattern_element", &rule),
         }
     }
+    // interleave nodes and rels
+
+    for hop in rels.into_iter().zip(nodes) {
+        rel_chain.push(hop);
+    }
+
     Ok(())
 }
 
@@ -613,25 +616,34 @@ mod test {
 
         assert_eq!(
             query,
-            Ok(Query::SingleQuery(SingleQuery {
-                clauses: vec![
-                    Clause::Match(Match {
-                        pattern: Pattern(vec![PatternPart {
-                            var: None,
-                            node: NodePattern::named("n"),
-                            rel_chain: vec![]
-                        }]),
-                        where_clause: None
-                    }),
-                    Clause::Return(Return {
-                        all: false,
-                        items: vec![ReturnItem {
-                            expr: Expr::prop_named("n"),
-                            as_name: None
-                        }]
-                    })
-                ]
-            }))
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("n"), [])]),
+                    None
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("n"), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn check_parse_query_1_count() {
+        let input = "MATCH (n) RETURN count(*)";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("n"), [])]),
+                    None
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+            ]))
         );
     }
 
@@ -1023,20 +1035,196 @@ mod test {
         }
     }
 
+    use pretty_assertions::assert_eq;
+
     #[test]
-    fn match_lanl() {
-        let input = "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
-        WHERE A <> B AND B <> E AND A <> E
-        AND login1.eventID = 4624
-        AND prog1.eventID = 4688
-        AND nf1.dstBytes > 100000000
-        AND login1.epochtime < prog1.epochtime
-        AND prog1.epochtime < nf1.epochtime
-        AND nf1.epochtime - login1.epochtime <= 30
-        RETURN count(*)";
+    fn parse_lanl_no_where() {
+        let input = "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN count(*)";
 
         let pairs = CypherParser::parse(Rule::Cypher, input);
-        assert!(pairs.is_ok())
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert!(query.is_ok());
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![
+                        PatternPart::path(
+                            NodePattern::named("E"),
+                            vec![
+                                (
+                                    RelPattern::into_labels("nf1", ["Netflow"]),
+                                    NodePattern::named("B")
+                                ),
+                                (
+                                    RelPattern::into_labels("login1", ["Events2v"]),
+                                    NodePattern::named("A")
+                                ),
+                            ]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("B"),
+                            vec![(
+                                RelPattern::into_labels("prog1", ["Events1v"]),
+                                NodePattern::named("B")
+                            ),]
+                        ),
+                    ]),
+                    None
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn parse_lanl_where_on_nodes() {
+        let input = "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) WHERE A <> B AND B <> E AND A <> E RETURN count(*)";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert!(query.is_ok());
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![
+                        PatternPart::path(
+                            NodePattern::named("E"),
+                            vec![
+                                (
+                                    RelPattern::into_labels("nf1", ["Netflow"]),
+                                    NodePattern::named("B")
+                                ),
+                                (
+                                    RelPattern::into_labels("login1", ["Events2v"]),
+                                    NodePattern::named("A")
+                                ),
+                            ]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("B"),
+                            vec![(
+                                RelPattern::into_labels("prog1", ["Events1v"]),
+                                NodePattern::named("B")
+                            ),]
+                        ),
+                    ]),
+                    Some(Expr::and(
+                        Expr::and(
+                            Expr::neq(Expr::prop_named("A"), Expr::prop_named("B")),
+                            Expr::neq(Expr::prop_named("B"), Expr::prop_named("E"))
+                        ),
+                        Expr::neq(Expr::prop_named("A"), Expr::prop_named("E"))
+                    ))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn parse_lanl_full() {
+        let input = "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
+                            WHERE A <> B AND B <> E AND A <> E
+                                AND login1.eventID = 4624
+                                AND prog1.eventID = 4688
+                                AND nf1.dstBytes > 100000000
+                                AND login1.epochtime < prog1.epochtime
+                                AND prog1.epochtime < nf1.epochtime
+                                AND nf1.epochtime - login1.epochtime <= 30
+                            RETURN count(*)";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![
+                        PatternPart::path(
+                            NodePattern::named("E"),
+                            vec![
+                                (
+                                    RelPattern::into_labels("nf1", ["Netflow"]),
+                                    NodePattern::named("B")
+                                ),
+                                (
+                                    RelPattern::into_labels("login1", ["Events2v"]),
+                                    NodePattern::named("A")
+                                ),
+                            ]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("B"),
+                            vec![(
+                                RelPattern::into_labels("prog1", ["Events1v"]),
+                                NodePattern::named("B")
+                            ),]
+                        ),
+                    ]),
+                    Some(Expr::and(
+                        Expr::and(
+                            Expr::and(
+                                Expr::and(
+                                    Expr::and(
+                                        Expr::and(
+                                            Expr::and(
+                                                Expr::and(
+                                                    Expr::neq(
+                                                        Expr::prop_named("A"),
+                                                        Expr::prop_named("B")
+                                                    ),
+                                                    Expr::neq(
+                                                        Expr::prop_named("B"),
+                                                        Expr::prop_named("E")
+                                                    )
+                                                ),
+                                                Expr::neq(
+                                                    Expr::prop_named("A"),
+                                                    Expr::prop_named("E")
+                                                )
+                                            ),
+                                            Expr::eq(
+                                                Expr::prop("login1", ["eventID"]),
+                                                Expr::int(4624)
+                                            )
+                                        ),
+                                        Expr::eq(Expr::prop("prog1", ["eventID"]), Expr::int(4688))
+                                    ),
+                                    Expr::gt(Expr::prop("nf1", ["dstBytes"]), Expr::int(100000000))
+                                ),
+                                Expr::lt(
+                                    Expr::prop("login1", ["epochtime"]),
+                                    Expr::prop("prog1", ["epochtime"])
+                                )
+                            ),
+                            Expr::lt(
+                                Expr::prop("prog1", ["epochtime"]),
+                                Expr::prop("nf1", ["epochtime"])
+                            )
+                        ),
+                        Expr::lte(
+                            Expr::sub(
+                                Expr::prop("nf1", ["epochtime"]),
+                                Expr::prop("login1", ["epochtime"])
+                            ),
+                            Expr::int(30)
+                        )
+                    ))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+            ]))
+        );
     }
 
     #[test]
