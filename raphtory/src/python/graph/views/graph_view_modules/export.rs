@@ -1,8 +1,16 @@
 use crate::{
-    core::{ArcStr, Prop},
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
+    core::{entities::properties::props::Meta, ArcStr, Prop},
+    db::{
+        api::{
+            properties::{internal::PropertiesOps, Properties},
+            view::{internal::CoreGraphOps, DynamicGraph},
+        },
+        graph::node::NodeView,
+    },
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap, TimeOps},
     python::graph::views::graph_view::PyGraphView,
 };
+use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::{
     prelude::*,
@@ -10,13 +18,212 @@ use pyo3::{
     types::{PyDict, PyList, PyTuple},
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use chrono::NaiveDateTime;
-use crate::db::api::view::internal::CoreGraphOps;
-use crate::prelude::TimeOps;
 use rayon::prelude::*;
-use std::sync::Mutex;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, Mutex},
+};
+
+impl PyGraphView {
+    fn extract_properties<P>(
+        include_property_histories: bool,
+        convert_datetime: bool,
+        explode: bool,
+        column_names: &Vec<String>,
+        is_prop_both_temp_and_const: &HashSet<String>,
+        item: &Properties<P>,
+        mut properties_map: &mut HashMap<String, Prop>,
+        mut prop_time_dict: &mut HashMap<i64, HashMap<String, Prop>>,
+        start_time: i64,
+    ) where
+        P: PropertiesOps + Clone,
+    {
+        let properties = item.constant().as_map();
+        let properties_collected: HashMap<String, Prop> = properties
+            .par_iter()
+            .map(|(name, prop)| {
+                let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
+                    format!("{}_constant", name)
+                } else {
+                    name.to_string()
+                };
+                (column_name, prop.clone())
+            })
+            .collect();
+        properties_collected.clone_into(properties_map);
+
+        if explode {
+            let mut empty_dict = HashMap::new();
+            column_names.clone().iter().for_each(|name| {
+                let _ = empty_dict.insert(name.clone(), Prop::from(""));
+            });
+
+            if item.temporal().iter().count() == 0 {
+                if item.constant().iter().count() == 0 {
+                    // node is empty so add as empty time
+                    let _ = prop_time_dict.insert(start_time, empty_dict.clone());
+                } else {
+                    item.constant().iter().for_each(|(name, prop_val)| {
+                        if !prop_time_dict.contains_key(&start_time) {
+                            let _ = prop_time_dict.insert(start_time, empty_dict.clone());
+                        }
+                        let data_dict = prop_time_dict.get_mut(&0i64).unwrap();
+                        let _ = data_dict.insert(name.to_string(), prop_val);
+                    })
+                }
+            }
+            item.temporal()
+                .histories()
+                .iter()
+                .for_each(|(prop_name, (time, prop_val))| {
+                    let column_name = if is_prop_both_temp_and_const.contains(prop_name.as_ref()) {
+                        format!("{}_temporal", prop_name)
+                    } else {
+                        prop_name.to_string()
+                    };
+                    if !prop_time_dict.contains_key(time) {
+                        prop_time_dict.insert(*time, empty_dict.clone());
+                    }
+                    let data_dict = prop_time_dict.get_mut(&time).unwrap();
+                    let _ = data_dict.insert(column_name.clone(), prop_val.clone());
+                });
+        } else if include_property_histories {
+            item.temporal().iter().for_each(|(name, prop_view)| {
+                let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
+                    format!("{}_temporal", name)
+                } else {
+                    name.to_string()
+                };
+                if convert_datetime {
+                    let mut prop_vec = vec![];
+                    prop_view.iter().for_each(|(time, prop)| {
+                        let new_time = NaiveDateTime::from_timestamp_opt(time, 0).unwrap();
+                        let prop_time = Prop::DTime(new_time);
+                        prop_vec.push(Prop::List(Arc::from(vec![prop_time, prop])))
+                    });
+                    let wrapped = Prop::from(prop_vec);
+                    let _ = properties_map.insert(column_name, wrapped);
+                } else {
+                    let vec_props = prop_view
+                        .iter()
+                        .map(|(k, v)| Prop::from(vec![Prop::from(k), v]))
+                        .collect_vec();
+                    let wrapped = Prop::List(Arc::from(vec_props));
+                    let _ = properties_map.insert(column_name, wrapped);
+                }
+            });
+        } else {
+            item.temporal().iter().for_each(|(name, t_prop)| {
+                let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
+                    format!("{}_temporal", name)
+                } else {
+                    name.to_string()
+                };
+                let _ =
+                    properties_map.insert(column_name, t_prop.latest().unwrap_or(Prop::from("")));
+            });
+        }
+    }
+
+    fn get_column_names_from_props(
+        mut column_names: &mut Vec<String>,
+        edge_meta: &Meta,
+    ) -> HashSet<String> {
+        let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
+        let temporal_properties: HashSet<ArcStr> = edge_meta
+            .temporal_prop_meta()
+            .get_keys()
+            .iter()
+            .cloned()
+            .collect();
+        let constant_properties: HashSet<ArcStr> = edge_meta
+            .const_prop_meta()
+            .get_keys()
+            .iter()
+            .cloned()
+            .collect();
+        constant_properties
+            .intersection(&temporal_properties)
+            .into_iter()
+            .for_each(|name| {
+                column_names.push(format!("{}_constant", name));
+                column_names.push(format!("{}_temporal", name));
+                is_prop_both_temp_and_const.insert(name.to_string());
+            });
+        constant_properties
+            .symmetric_difference(&temporal_properties)
+            .into_iter()
+            .for_each(|name| {
+                column_names.push(name.to_string());
+            });
+        column_names.push("update_histories".parse().unwrap());
+        is_prop_both_temp_and_const
+    }
+
+    fn create_row(
+        convert_datetime: bool,
+        explode: bool,
+        column_names: &Vec<String>,
+        mut properties_map: HashMap<String, Prop>,
+        prop_time_dict: HashMap<i64, HashMap<String, Prop>>,
+        row_header: Vec<Prop>,
+        start_point: usize,
+        history: Vec<i64>,
+    ) -> Vec<Vec<Prop>> {
+        if explode {
+            let new_rows: Vec<Vec<Prop>> = prop_time_dict
+                .par_iter()
+                .map(|(time, item_dict)| {
+                    let mut row: Vec<Prop> = row_header.clone();
+                    for prop_name in &column_names[start_point..(column_names.len() - 1)] {
+                        if let Some(prop_val) = properties_map.get(prop_name) {
+                            row.push(prop_val.clone());
+                        } else if let Some(prop_val) = item_dict.get(prop_name) {
+                            row.push(prop_val.clone());
+                        } else {
+                            row.push(Prop::from(""));
+                        }
+                    }
+
+                    if convert_datetime {
+                        let new_time = NaiveDateTime::from_timestamp_opt(*time, 0).unwrap();
+                        row.push(Prop::DTime(new_time));
+                    } else {
+                        row.push(Prop::from(*time));
+                    }
+
+                    row
+                })
+                .collect();
+            new_rows
+        } else {
+            let mut row: Vec<Prop> = row_header.clone();
+            // Flatten properties into the row
+            for prop_name in &column_names[start_point..(column_names.len() - 1)] {
+                // Skip the first column (name)
+                let blank_prop = Prop::from("");
+                let prop_value = properties_map.get(prop_name).unwrap_or(&blank_prop);
+                let _ = row.push(prop_value.clone()); // Append property value as string
+            }
+
+            if convert_datetime {
+                let update_list = history
+                    .iter()
+                    .map(|val| {
+                        let new_time = NaiveDateTime::from_timestamp_opt(*val, 0).unwrap();
+                        Prop::DTime(new_time)
+                    })
+                    .collect_vec();
+                let _ = row.push(Prop::from(update_list));
+            } else {
+                let update_list =
+                    Prop::from(history.iter().map(|&val| Prop::from(val)).collect_vec());
+                let _ = row.push(update_list);
+            }
+            vec![row]
+        }
+    }
+}
 
 #[pymethods]
 impl PyGraphView {
@@ -35,169 +242,57 @@ impl PyGraphView {
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
     #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
-    pub fn to_node_df(&self, include_property_histories: bool, convert_datetime: bool, explode: bool) -> PyResult<PyObject> {
+    pub fn to_node_df(
+        &self,
+        include_property_histories: bool,
+        convert_datetime: bool,
+        explode: bool,
+    ) -> PyResult<PyObject> {
         let mut column_names = vec![String::from("name"), String::from("type")];
-        let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
+        let meta = self.graph.node_meta();
+        let is_prop_both_temp_and_const =
+            Self::get_column_names_from_props(&mut column_names, meta);
 
-        // Adjusted to check both temporal and constant properties
-        let temporal_properties : HashSet<ArcStr> = self.graph.node_meta().temporal_prop_meta().get_keys().iter().cloned().collect();
-        let constant_properties : HashSet<ArcStr> = self.graph.node_meta().const_prop_meta().get_keys().iter().cloned().collect();
+        let node_tuples: Vec<_> = self
+            .graph
+            .nodes()
+            .collect()
+            .into_par_iter()
+            .flat_map(|item| {
+                let mut properties_map: HashMap<String, Prop> = HashMap::new();
+                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
+                Self::extract_properties(
+                    include_property_histories,
+                    convert_datetime,
+                    explode,
+                    &column_names,
+                    &is_prop_both_temp_and_const,
+                    &item.properties(),
+                    &mut properties_map,
+                    &mut prop_time_dict,
+                    item.start().unwrap_or(0),
+                );
 
-        constant_properties.intersection(&temporal_properties).into_iter().for_each(|name| {
-            column_names.push(format!("{}_constant", name));
-            column_names.push(format!("{}_temporal", name));
-            is_prop_both_temp_and_const.insert(name.to_string());
-        });
-        constant_properties.symmetric_difference(&temporal_properties).into_iter().for_each(|name| {
-            column_names.push(name.to_string());
-        });
-        column_names.push("update_histories".parse().unwrap());
-        
-        let node_tuples: Vec<_> = self.graph.nodes().collect().into_par_iter().flat_map(|v| {
-            let properties = v.properties().constant().as_map();
-            let properties_collected: Vec<(String, Prop)> = properties.par_iter()
-                .map(|(name, prop)| {
-                    let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
-                        format!("{}_constant", name)
-                    } else {
-                        name.to_string()
-                    };
-                    (column_name, prop.clone())
-                })
-                .collect();
-            let mut properties_map: HashMap<String, Prop> = properties_collected.into_iter().collect();
+                let row_header: Vec<Prop> = vec![
+                    Prop::from(item.name()),
+                    Prop::from(item.node_type().unwrap_or_else(|| ArcStr::from(""))),
+                ];
 
-            let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
-            if explode {
-                let mut empty_dict = HashMap::new();
-                column_names.clone().iter().for_each(|name| {
-                    let _  = empty_dict.insert(name.clone(), Prop::from(""));
-                });
+                let start_point = 2;
+                let history = item.history();
 
-                if v.properties().temporal().iter().count() == 0 {
-                    let first_time = v.start().unwrap_or(0);
-                    if v.properties().constant().iter().count() == 0 {
-                        // node is empty so add as empty time
-                        let _ = prop_time_dict.insert(first_time, empty_dict.clone());
-                    } else {
-                        v.properties().constant().iter().for_each(|(name, prop_val)| {
-                            if !prop_time_dict.contains_key(&first_time) {
-                                let _ = prop_time_dict.insert(first_time, empty_dict.clone());
-                            }
-                            let data_dict = prop_time_dict.get_mut(&0i64).unwrap();
-                            let _ = data_dict.insert(name.to_string(), prop_val);
-                        })
-                    }
-                }
-                v.properties()
-                    .temporal()
-                    .histories()
-                    .iter()
-                    .for_each(|(prop_name, (time, prop_val))| {
-                        let column_name = if is_prop_both_temp_and_const.contains(prop_name.as_ref()) {
-                            format!("{}_temporal", prop_name)
-                        } else {
-                            prop_name.to_string()
-                        };
-                        if !prop_time_dict.contains_key(time) {
-                            prop_time_dict.insert(*time, empty_dict.clone());
-                        }
-                        let data_dict = prop_time_dict.get_mut(&time).unwrap();
-                        let _ = data_dict.insert(column_name.clone(), prop_val.clone());
-                    });
-            }
-            else if include_property_histories {
-                v.properties()
-                    .temporal()
-                    .iter()
-                    .for_each(|(name, prop_view)| {
-                        let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
-                            format!("{}_temporal", name)
-                        } else {
-                            name.to_string()
-                        };
-                        if convert_datetime {
-                            let mut prop_vec = vec![];
-                            prop_view.iter().for_each(|(time, prop)| {
-                                let new_time = NaiveDateTime::from_timestamp_opt(time, 0).unwrap();
-                                let prop_time = Prop::DTime(new_time);
-                                prop_vec.push(Prop::List(Arc::from(vec![prop_time, prop])))
-                            });
-                            let wrapped = Prop::from(prop_vec);
-                            let _ = properties_map.insert(column_name, wrapped);
-                        } else {
-                            let vec_props = prop_view.iter().map(|(k, v)| Prop::from(vec![Prop::from(k), v])).collect_vec();
-                            let wrapped = Prop::List(Arc::from(vec_props));
-                            let _ = properties_map.insert(column_name, wrapped);
-                        }
-                    });
-            } else {
-                v.properties()
-                    .temporal()
-                    .iter()
-                    .for_each(|(name, t_prop)| {
-                        let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
-                            format!("{}_temporal", name)
-                        } else {
-                            name.to_string()
-                        };
-                        let _ = properties_map.insert(column_name, t_prop.latest().unwrap_or(Prop::from("")));
-                    });
-
-            }
-
-            if explode {
-                let new_rows: Vec<Vec<Prop>> = prop_time_dict.par_iter().map(|(time, item_dict)| {
-                    let mut row: Vec<Prop> = vec![
-                        Prop::from(v.name()),
-                        Prop::from(v.node_type().unwrap_or_else(|| ArcStr::from("")))
-                    ];
-
-                    for prop_name in &column_names[2..column_names.len() - 1] {
-                        if let Some(prop_val) = properties_map.get(prop_name) {
-                            row.push(prop_val.clone());
-                        } else if let Some(prop_val) = item_dict.get(prop_name) {
-                            row.push(prop_val.clone());
-                        } else {
-                            row.push(Prop::from(""));
-                        }
-                    }
-
-                    if convert_datetime {
-                        let new_time = NaiveDateTime::from_timestamp_opt(*time, 0).unwrap();
-                        row.push(Prop::DTime(new_time));
-                    } else {
-                        row.push(Prop::from(*time));
-                    }
-
-                    row
-                }).collect();
-                new_rows
-            } else {
-                let mut row: Vec<Prop> = vec![Prop::from(v.name()), Prop::from(v.node_type().unwrap_or(ArcStr::from("")))];
-                // Flatten properties into the row
-                for prop_name in &column_names[2..column_names.len() - 1] {
-                    // Skip the first column (name)
-                    let blank_prop = Prop::from("");
-                    let prop_value = properties_map
-                        .get(prop_name)
-                        .unwrap_or(&blank_prop);
-                    let _ = row.push(prop_value.clone()); // Append property value as string
-                }
-
-                if convert_datetime {
-                    let update_list = v.history().iter().map(|val| {
-                        let new_time = NaiveDateTime::from_timestamp_opt(*val, 0).unwrap();
-                        Prop::DTime(new_time)
-                    }).collect_vec();
-                    let _ = row.push(Prop::from(update_list));
-                } else {
-                    let update_list = Prop::from(v.history().iter().map(|&val| Prop::from(val)).collect_vec());
-                    let _ = row.push(update_list);
-                }
-                vec![row]
-            }
-        }).collect();
+                Self::create_row(
+                    convert_datetime,
+                    explode,
+                    &column_names,
+                    properties_map,
+                    prop_time_dict,
+                    row_header,
+                    start_point,
+                    history,
+                )
+            })
+            .collect();
 
         Python::with_gil(|py| {
             let kwargs = PyDict::new(py);
@@ -220,77 +315,79 @@ impl PyGraphView {
     /// - "update_history_exploded": The exploded update history of the edge. This column will be included if `explode_edges` is set to `true`.
     ///
     /// Args:
-    ///     explode_edges (bool): A boolean wrapped in an Option. If set to `true`, the "update_history_exploded" column will be included in the DataFrame. Defaults to `false`.
-    ///     include_edge_properties (bool): A boolean wrapped in an Option. If set to `true`, the "properties" and "property_histories" columns will be included in the DataFrame. Defaults to `true`.
-    ///     include_update_history (bool): A boolean wrapped in an Option. If set to `true`, the "update_history" column will be included in the DataFrame. Defaults to `true`.
-    ///     include_property_histories (bool): A boolean wrapped in an Option. If set to `true`, the "property_histories" column will be included in the DataFrame. Defaults to `true`.
+    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.  Defaults to `true`.
+    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///     explode (bool): A boolean, if set to `true`, will explode each edge update into its own row. Defaults to `false`
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (explode_edges=false, include_edge_properties=true, include_update_history=true, include_property_histories=true))]
+    #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
     pub fn to_edge_df(
         &self,
-        explode_edges: Option<bool>,
-        include_edge_properties: Option<bool>,
-        include_update_history: Option<bool>,
-        include_property_histories: Option<bool>,
+        include_property_histories: bool,
+        convert_datetime: bool,
+        explode: bool,
     ) -> PyResult<PyObject> {
+        let mut column_names = vec![
+            String::from("src"),
+            String::from("dst"),
+            String::from("layer"),
+        ];
+        let edge_meta = self.graph.edge_meta();
+        let is_prop_both_temp_and_const =
+            Self::get_column_names_from_props(&mut column_names, edge_meta);
+
+        let mut edges = self.graph.edges().explode_layers();
+        if explode == true {
+            edges = self.graph.edges().explode_layers().explode();
+        }
+
+        let edge_tuples: Vec<_> = edges
+            .collect()
+            .into_par_iter()
+            .flat_map(|item| {
+                let mut properties_map: HashMap<String, Prop> = HashMap::new();
+                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
+
+                Self::extract_properties(
+                    include_property_histories,
+                    convert_datetime,
+                    explode,
+                    &column_names,
+                    &is_prop_both_temp_and_const,
+                    &item.properties(),
+                    &mut properties_map,
+                    &mut prop_time_dict,
+                    item.start().unwrap_or(0),
+                );
+
+                let row_header: Vec<Prop> = vec![
+                    Prop::from(item.src().name()),
+                    Prop::from(item.dst().name()),
+                    Prop::from(item.layer_name().unwrap_or(ArcStr::from(""))),
+                ];
+
+                let start_point = 3;
+                let history = item.history();
+
+                Self::create_row(
+                    convert_datetime,
+                    explode,
+                    &column_names,
+                    properties_map,
+                    prop_time_dict,
+                    row_header,
+                    start_point,
+                    history,
+                )
+            })
+            .collect();
+
         Python::with_gil(|py| {
             let pandas = PyModule::import(py, "pandas")?;
-            let column_names = vec![
-                "src",
-                "dst",
-                "layer",
-                "properties",
-                "property_histories",
-                "update_history",
-                "update_history_exploded",
-            ];
-            let mut edges = self.graph.edges();
-            if explode_edges == Some(true) {
-                edges = self.graph.edges().explode_layers().explode();
-            }
-            let edge_tuples: Vec<_> = edges
-                .iter()
-                .map(|e| {
-                    let mut properties: Option<HashMap<ArcStr, Prop>> = None;
-                    let mut temporal_properties: Option<Vec<(ArcStr, (i64, Prop))>> = None;
-                    if include_edge_properties == Some(true) {
-                        if include_property_histories == Some(true) {
-                            properties = Some(e.properties().constant().as_map());
-                            temporal_properties = Some(e.properties().temporal().histories());
-                        } else {
-                            properties = Some(e.properties().as_map());
-                        }
-                    }
-                    let mut update_history_exploded: Option<i64> = None;
-                    let mut update_history: Option<Vec<_>> = None;
-                    if include_update_history == Some(true) {
-                        if explode_edges == Some(true) {
-                            update_history_exploded = e.time();
-                        } else {
-                            update_history = Some(e.history());
-                        }
-                    }
-                    (
-                        e.src().name(),
-                        e.dst().name(),
-                        e.layer_name(),
-                        properties,
-                        temporal_properties,
-                        update_history,
-                        update_history_exploded,
-                    )
-                })
-                .collect();
             let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names)?;
             let df = pandas.call_method("DataFrame", (edge_tuples,), Some(kwargs))?;
-            let kwargs_drop = PyDict::new(py);
-            kwargs_drop.set_item("how", "all")?;
-            kwargs_drop.set_item("axis", 1)?;
-            kwargs_drop.set_item("inplace", true)?;
-            df.call_method("dropna", (), Some(kwargs_drop))?;
             Ok(df.to_object(py))
         })
     }
