@@ -2,32 +2,32 @@ use std::collections::HashMap;
 
 use raphtory::core::Direction;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Query {
     SingleQuery(SingleQuery),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct SingleQuery {
     pub clauses: Vec<Clause>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Clause {
     Match(Match),
     Return(Return),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Match {
     pub pattern: Pattern,
     pub where_clause: Option<Expr>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Pattern(pub Vec<PatternPart>);
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct PatternPart {
     pub var: Option<String>,
     pub node: NodePattern,
@@ -41,12 +41,60 @@ pub struct NodePattern {
     pub props: Option<HashMap<String, Expr>>,
 }
 
+impl NodePattern {
+    pub fn named(name: &str) -> Self {
+        NodePattern {
+            name: Some(name.to_string()),
+            labels: vec![],
+            props: None,
+        }
+    }
+
+    pub fn named_labelled<S:AsRef<str>>(name: &str, labels: impl IntoIterator<Item = S>) -> Self {
+        NodePattern {
+            name: Some(name.to_string()),
+            labels: labels.into_iter().map(|s| s.as_ref().to_string()).collect(),
+            props: None,
+        }
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 pub struct RelPattern {
     pub name: Option<String>,
     pub direction: Direction,
     pub rel_types: Vec<String>,
     pub props: Option<HashMap<String, Expr>>,
+}
+
+impl RelPattern {
+    pub fn out(name: &str) -> Self {
+        RelPattern {
+            name: Some(name.to_string()),
+            direction: Direction::OUT,
+            rel_types: vec![],
+            props: None,
+        }
+    }
+
+    pub fn into(name: &str) -> Self {
+        RelPattern {
+            name: Some(name.to_string()),
+            direction: Direction::IN,
+            rel_types: vec![],
+            props: None,
+        }
+    }
+
+    pub fn undirected(name: &str) -> Self {
+        RelPattern {
+            name: Some(name.to_string()),
+            direction: Direction::BOTH,
+            rel_types: vec![],
+            props: None,
+        }
+    }
+    
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -115,6 +163,13 @@ impl Expr {
         Expr::Var {
             var_name: var.to_string(),
             attrs: args.into_iter().map(|s| s.as_ref().to_string()).collect(),
+        }
+    }
+
+    pub fn prop_named(var: &str) -> Self {
+        Expr::Var {
+            var_name: var.to_string(),
+            attrs: vec![],
         }
     }
 }

@@ -34,12 +34,22 @@ pub enum ParseError {
     ParseFloat(#[from] std::num::ParseFloatError),
 }
 
+fn unsupported<B>(msg: &str, rule: &Rule) -> Result<B, ParseError> {
+    Err(ParseError::Unsupported(format!(
+        "{msg} Unsupported rule {rule:?}"
+    )))
+}
+
 pub fn parse_cypher(input: &str) -> Result<ast::Query, ParseError> {
-    let pairs = CypherParser::parse(Rule::Cypher, input)?;
+    let mut pairs = CypherParser::parse(Rule::Cypher, input)?;
+
+    let pair = pairs
+        .next()
+        .ok_or_else(|| ParseError::SyntaxError("Empty input".to_string()))?;
 
     // rewrite the above with for loops and when meeting SingleQuery use return
 
-    for pair in pairs {
+    for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::Statement => {
                 for pair in pair.into_inner() {
@@ -66,7 +76,7 @@ pub fn parse_cypher(input: &str) -> Result<ast::Query, ParseError> {
                     }
                 }
             }
-            _ => {}
+            rule => return unsupported("parse_cypher", &rule),
         }
     }
 
@@ -87,19 +97,19 @@ pub fn parse_single_query(pair: Pair<Rule>) -> Result<SingleQuery, ParseError> {
                                         let match_clause = parse_match(pair)?;
                                         clauses.push(Clause::Match(match_clause));
                                     }
-                                    Rule::Return => {
-                                        let return_clause = parse_return(pair)?;
-                                        clauses.push(Clause::Return(return_clause));
-                                    }
                                     _ => {}
                                 }
                             }
                         }
-                        _ => {}
+                        Rule::Return => {
+                            let return_clause = parse_return(pair)?;
+                            clauses.push(Clause::Return(return_clause));
+                        }
+                        rule => return unsupported("parse_single_query 2", &rule),
                     }
                 }
             }
-            _ => {}
+            rule => return unsupported("parse_single_query 1", &rule),
         }
     }
     Ok(SingleQuery { clauses })
@@ -110,6 +120,7 @@ pub fn parse_match(pair: Pair<Rule>) -> Result<Match, ParseError> {
     let mut where_clause = None;
     for pair in pair.into_inner() {
         match pair.as_rule() {
+            Rule::MATCH => {}
             Rule::Pattern => {
                 pattern = parse_pattern(pair)?;
             }
@@ -123,7 +134,7 @@ pub fn parse_match(pair: Pair<Rule>) -> Result<Match, ParseError> {
                     }
                 }
             }
-            _ => {}
+            rule => return unsupported("parse_match", &rule),
         }
     }
     Ok(Match {
@@ -140,6 +151,7 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
     inner.next();
     for pair in inner {
         match pair.as_rule() {
+            Rule::RETURN => {}
             Rule::ProjectionBody => {
                 for pair in pair.into_inner() {
                     match pair.as_rule() {
@@ -157,11 +169,11 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
                                 }
                             }
                         }
-                        _ => {}
+                        rule => return unsupported("parse_return 2", &rule),
                     }
                 }
             }
-            _ => {}
+            rule => return unsupported("parse_return 1", &rule),
         }
     }
     Ok(Return { all, items })
@@ -172,13 +184,14 @@ pub fn parse_return_item(pair: Pair<Rule>) -> Result<ReturnItem, ParseError> {
     let mut as_name = None;
     for pair in pair.into_inner() {
         match pair.as_rule() {
+            Rule::AS => {}
             Rule::Expression => {
                 expr = Some(parse_expr(pair.into_inner())?);
             }
             Rule::Variable => {
                 as_name = Some(parse_variable(pair)?);
             }
-            _ => {}
+            rule => return unsupported("parse_return_item", &rule),
         }
     }
     Ok(ReturnItem {
@@ -251,7 +264,7 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
                 op: UnaryOpType::Neg,
                 expr: Box::new(expr?),
             }),
-            _ => unreachable!("Expected not"),
+            rule => unsupported("parse_expr", &rule),
         })
         .parse(pairs)
 }
@@ -262,7 +275,7 @@ pub fn parse_primary(pair: Pair<Rule>) -> Result<Expr, ParseError> {
         Rule::Atom => parse_atom(pair),
         Rule::Literal => parse_literal(pair).map(Expr::Literal),
         Rule::PropertyExpression => parse_prop_expr(pair),
-        rule => todo!("parse_primary Unsuported rule {rule:?}"),
+        rule => unsupported("parse_primary", &rule),
     }
 }
 
@@ -282,7 +295,7 @@ pub fn parse_prop_expr(pair: Pair<Rule>) -> Result<Expr, ParseError> {
                 })?;
                 attrs.push(attr_name);
             }
-            _ => {}
+            rule => return unsupported("parse_prop_expr", &rule),
         }
     }
     let var_name = v_name.ok_or_else(|| {
@@ -312,9 +325,7 @@ pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
                 attrs: Vec::with_capacity(0),
             }),
             Rule::Literal => Ok(Expr::Literal(parse_literal(pair)?)),
-            rule => Err(ParseError::Unsupported(format!(
-                "parse_Atom Unsuported rule {rule:?}"
-            ))),
+            rule => unsupported("parse_atom", &rule),
         })
 }
 
@@ -328,9 +339,7 @@ pub fn parse_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
             Rule::NumberLiteral => parse_number_literal(pair),
             Rule::StringLiteral => parse_string_literal(pair),
             Rule::BooleanLiteral => parse_boolean_literal(pair),
-            rule => Err(ParseError::Unsupported(format!(
-                "parse_literal Unsuported rule {rule:?}"
-            ))),
+            rule => unsupported("parse_literal", &rule),
         })
 }
 
@@ -351,9 +360,7 @@ pub fn parse_number_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
                 let i = pair.as_str().parse()?;
                 Ok(Literal::Int(i))
             }
-            rule => Err(ParseError::Unsupported(format!(
-                "parse_number_literal Unsuported rule {rule:?}"
-            ))),
+            rule => unsupported("parse_number_literal", &rule),
         })
 }
 
@@ -434,7 +441,7 @@ fn parse_pattern_element(
             Rule::RelationshipPattern => {
                 cur_elem_chain.replace(parse_rel_pattern(pair)?);
             }
-            _ => {}
+            rule => return unsupported("parse_pattern_element", &rule),
         }
     }
     Ok(())
@@ -465,7 +472,7 @@ fn parse_rel_detail(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
                 },
                 None => {}
             },
-            _ => {}
+            rule => return unsupported("parse_rel_detail", &rule),
         }
     }
     Ok(rel_pattern)
@@ -478,6 +485,7 @@ fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
 
     for pair in pair.into_inner() {
         match pair.as_rule() {
+            Rule::Dash => {}
             Rule::LeftArrowHead => {
                 direction = Direction::IN;
             }
@@ -487,7 +495,7 @@ fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
             Rule::RelationshipDetail => {
                 rel_pattern = parse_rel_detail(pair)?;
             }
-            _ => {}
+            rule => return unsupported("parse_rel_pattern", &rule),
         }
     }
 
@@ -517,11 +525,11 @@ fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
                         let props = parse_map_literal(pair)?;
                         node.props = Some(props);
                     }
-                    _ => {}
+                    rule => return unsupported("parse_node_pattern 2", &rule),
                 },
                 None => {}
             },
-            _ => {}
+            rule => return unsupported("parse_node_pattern 1", &rule),
         }
     }
 
@@ -557,7 +565,7 @@ fn parse_map_literal(
                 }
             }
 
-            _ => {}
+            rule => return unsupported("parse_map_literal", &rule),
         }
     }
     Ok(map)
@@ -571,7 +579,7 @@ fn parse_list_literal(pair: Pair<'_, Rule>) -> Result<Literal, ParseError> {
                 let expr = parse_expr(pair.into_inner())?;
                 list.push(expr);
             }
-            _ => {}
+            rule => return unsupported("parse_list_literal", &rule),
         }
     }
     Ok(Literal::List(
@@ -593,6 +601,39 @@ mod test {
     use pest::Parser;
 
     use proptest::prelude::*;
+
+    #[test]
+    fn check_parse_query_1() {
+        let input = "MATCH (n) RETURN n";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+
+        assert_eq!(
+            query,
+            Ok(Query::SingleQuery(SingleQuery {
+                clauses: vec![
+                    Clause::Match(Match {
+                        pattern: Pattern(vec![PatternPart {
+                            var: None,
+                            node: NodePattern::named("n"),
+                            rel_chain: vec![]
+                        }]),
+                        where_clause: None
+                    }),
+                    Clause::Return(Return {
+                        all: false,
+                        items: vec![ReturnItem {
+                            expr: Expr::prop_named("n"),
+                            as_name: None
+                        }]
+                    })
+                ]
+            }))
+        );
+    }
 
     #[test]
     fn check_parse_return_1() {
@@ -843,6 +884,52 @@ mod test {
     }
 
     #[test]
+    fn check_edge_pattern_label() {
+        let input = "-[r:KNOWS]->";
+
+        let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
+        assert!(pairs.is_ok());
+
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(
+            rel,
+            Ok(RelPattern {
+                name: Some("r".to_string()),
+                direction: Direction::OUT,
+                rel_types: vec!["KNOWS".to_string()],
+                props: None
+            })
+        );
+    }
+
+    #[test]
+    fn check_edge_pattern_name_only() {
+        let input = "-[r]->";
+
+        let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
+        assert!(pairs.is_ok());
+
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(rel, Ok(RelPattern::out("r")));
+
+        let input = "<-[r]-";
+
+        let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
+        assert!(pairs.is_ok());
+
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(rel, Ok(RelPattern::into("r")));
+
+        let input = "-[r]-";
+
+        let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
+        assert!(pairs.is_ok());
+
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        assert_eq!(rel, Ok(RelPattern::undirected("r")));
+    }
+
+    #[test]
     fn map_literal() {
         let input = "{a: 1, b: 2}";
         let pairs = CypherParser::parse(Rule::MapLiteral, input);
@@ -934,6 +1021,22 @@ mod test {
                 Err(e) => panic!("Error: {:?} testing for {:?}", e, op),
             }
         }
+    }
+
+    #[test]
+    fn match_lanl() {
+        let input = "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B)
+        WHERE A <> B AND B <> E AND A <> E
+        AND login1.eventID = 4624
+        AND prog1.eventID = 4688
+        AND nf1.dstBytes > 100000000
+        AND login1.epochtime < prog1.epochtime
+        AND prog1.epochtime < nf1.epochtime
+        AND nf1.epochtime - login1.epochtime <= 30
+        RETURN count(*)";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok())
     }
 
     #[test]
