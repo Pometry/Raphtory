@@ -97,7 +97,7 @@ impl PyGraphView {
                 if convert_datetime {
                     let mut prop_vec = vec![];
                     prop_view.iter().for_each(|(time, prop)| {
-                        let new_time = NaiveDateTime::from_timestamp_opt(time, 0).unwrap();
+                        let new_time = Self::convert_timestamp(time);
                         let prop_time = Prop::DTime(new_time);
                         prop_vec.push(Prop::List(Arc::from(vec![prop_time, prop])))
                     });
@@ -123,6 +123,13 @@ impl PyGraphView {
                     properties_map.insert(column_name, t_prop.latest().unwrap_or(Prop::from("")));
             });
         }
+    }
+
+    fn convert_timestamp(time: i64) -> NaiveDateTime {
+        let seconds = time / 1_000_000_000;
+        let nanos = (time % 1_000_000_000) as u32;
+        let new_time = NaiveDateTime::from_timestamp_opt(seconds, nanos).unwrap();
+        new_time
     }
 
     fn get_column_names_from_props(
@@ -186,7 +193,7 @@ impl PyGraphView {
                     }
 
                     if convert_datetime {
-                        let new_time = NaiveDateTime::from_timestamp_opt(*time, 0).unwrap();
+                        let new_time = Self::convert_timestamp(*time);
                         row.push(Prop::DTime(new_time));
                     } else {
                         row.push(Prop::from(*time));
@@ -210,7 +217,7 @@ impl PyGraphView {
                 let update_list = history
                     .iter()
                     .map(|val| {
-                        let new_time = NaiveDateTime::from_timestamp_opt(*val, 0).unwrap();
+                        let new_time = Self::convert_timestamp(*val);
                         Prop::DTime(new_time)
                     })
                     .collect_vec();
