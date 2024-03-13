@@ -223,6 +223,8 @@ pow      =  { "^" }
 
 in_op = _{ IN }
 
+is_null_op = @{ IS ~ NOT? ~ NULL}
+
 comp_op = _{ eq | ne | lte | gte | gt | lt }
 eq      =  { "=" }
 ne      =  { "<>" }
@@ -231,19 +233,19 @@ gt      =  { ">" }
 lte      =  { "<=" }
 gte      =  { ">=" }
 
-op = _{ bin_op | math_op | comp_op | in_op }
+is_type_op = _{colon}
+colon = {":"}
+
+op = _{ bin_op | math_op | comp_op | in_op | is_type_op | is_null_op }
 
 unary_op = _{ not | minus }
-not      =  { "NOT" }
+not      =  { ^"NOT" }
 minus    =  { "-" }
+is_null = { ^"IS" ~ NOT? ~ ^"NULL" }
 
-atom = _{ PropertyExpression | unary_op? ~ Atom | "(" ~ Expression ~ ")" }
+atom = _{ PropertyExpression ~ is_null? | unary_op? ~ Atom ~ is_null? | "(" ~ Expression ~ ")" }
 
 Expression = { atom ~ (op ~ atom)* }
-
-StringListNullOperatorExpression = {
-    PropertyOrLabelsExpression ~ (StringOperatorExpression | ListOperatorExpression | NullOperatorExpression)*
-}
 
 ListOperatorExpression = {
     (SP ~ IN ~ SP? ~ PropertyOrLabelsExpression)

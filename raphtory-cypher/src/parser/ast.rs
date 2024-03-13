@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, default};
 
 use raphtory::core::Direction;
 
@@ -263,6 +263,14 @@ impl Expr {
         Expr::Literal(Literal::Int(i))
     }
 
+    pub fn is_null(prop: Expr) -> Self {
+        Expr::eq(prop, Expr::Literal(Literal::Null))
+    }
+
+    pub fn is_not_null(prop: Expr) -> Self {
+        Expr::neq(prop, Expr::Literal(Literal::Null))
+    }
+
     pub fn in_(prop: Expr, list: impl IntoIterator<Item = Literal>) -> Self {
         Self::new(
             BinOpType::In,
@@ -319,6 +327,7 @@ pub enum BinOpType {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
 pub enum Literal {
+    Null,
     Bool(bool),
     Str(String),
     Int(i64),

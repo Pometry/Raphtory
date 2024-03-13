@@ -212,6 +212,7 @@ lazy_static::lazy_static! {
 
         PrattParser::new()
             .op(Op::prefix(not))
+            .op(Op::postfix(is_null))
             .op(Op::infix(and, Left))
             .op(Op::infix(xor, Left))
             .op(Op::infix(or, Left))
@@ -222,6 +223,7 @@ lazy_static::lazy_static! {
             .op(Op::infix(pow, Right))
             .op(Op::infix(modulo, Left))
             .op(Op::infix(IN, Left))
+            .op(Op::infix(IS, Right))
 
     };
 }
@@ -265,6 +267,16 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
                 op: UnaryOpType::Neg,
                 expr: Box::new(expr?),
             }),
+            rule => unsupported("parse_expr", &rule),
+        })
+        .map_postfix(|expr, op| match op.as_rule() {
+            Rule::is_null => {
+                if let Some(Rule::NOT) = op.into_inner().next().map(|op| op.as_rule()) {
+                    Ok(Expr::is_not_null(expr?))
+                } else {
+                    Ok(Expr::is_null(expr?))
+                }
+            }
             rule => unsupported("parse_expr", &rule),
         })
         .parse(pairs)
@@ -342,6 +354,7 @@ pub fn parse_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
             Rule::StringLiteral => parse_string_literal(pair),
             Rule::BooleanLiteral => parse_boolean_literal(pair),
             Rule::ListLiteral => parse_list_literal(pair),
+            Rule::NULL => Ok(Literal::Null),
             rule => unsupported("parse_literal", &rule),
         })
 }
@@ -1060,7 +1073,7 @@ mod test {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn parse_lanl_large() {
+    fn parse_lanl_large_paths_with_expr() {
         let input = "MATCH
         (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B),
         (E)<-[nf2:Netflow]-(C)<-[login2:Events2v]-(A), (C)<-[prog2:Events1v]-(C),
@@ -1090,6 +1103,140 @@ mod test {
 
         let pairs = CypherParser::parse(Rule::Cypher, input);
         assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert!(query.is_ok());
+
+        // get the where expression
+        match query {
+            Ok(Query::SingleQuery(q)) => {
+                let where_clause = q.clauses.iter().find_map(|c| match c {
+                    Clause::Match(Match {
+                        where_clause: Some(expr),
+                        ..
+                    }) => Some(expr),
+                    _ => None,
+                });
+                assert!(where_clause.is_some());
+
+                let where_clause = where_clause.unwrap();
+
+                let ands = count_expr(where_clause, &BinOpType::And);
+                assert_eq!(ands, 34);
+
+                let ltes = count_expr(where_clause, &BinOpType::Lte);
+                assert_eq!(ltes, 3);
+
+                let eqs = count_expr(where_clause, &BinOpType::Eq);
+                assert_eq!(eqs, 10);
+
+                let gts = count_expr(where_clause, &BinOpType::Gt);
+                assert_eq!(gts, 3);
+
+                let sub = count_expr(where_clause, &BinOpType::Sub);
+                assert_eq!(sub, 4);
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn count_expr(expr: &Expr, bin_op_tpe: &BinOpType) -> usize {
+        match expr {
+            Expr::BinOp { op, left, right } if op == bin_op_tpe => {
+                1 + count_expr(left, bin_op_tpe) + count_expr(right, bin_op_tpe)
+            }
+            Expr::BinOp { left, right, .. } => {
+                0 + count_expr(left, bin_op_tpe) + count_expr(right, bin_op_tpe)
+            }
+            _ => 0,
+        }
+    }
+
+    #[test]
+    fn parse_lanl_large_paths() {
+        let input = "MATCH
+        (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B),
+        (E)<-[nf2:Netflow]-(C)<-[login2:Events2v]-(A), (C)<-[prog2:Events1v]-(C),
+        (E)<-[nf3:Netflow]-(D)<-[login3:Events2v]-(A), (D)<-[prog3:Events1v]-(D)
+      RETURN count(*)";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert!(query.is_ok());
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![
+                        PatternPart::path(
+                            NodePattern::named("E"),
+                            vec![
+                                (
+                                    RelPattern::into_labels("nf1", ["Netflow"]),
+                                    NodePattern::named("B")
+                                ),
+                                (
+                                    RelPattern::into_labels("login1", ["Events2v"]),
+                                    NodePattern::named("A")
+                                ),
+                            ]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("B"),
+                            vec![(
+                                RelPattern::into_labels("prog1", ["Events1v"]),
+                                NodePattern::named("B")
+                            ),]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("E"),
+                            vec![
+                                (
+                                    RelPattern::into_labels("nf2", ["Netflow"]),
+                                    NodePattern::named("C")
+                                ),
+                                (
+                                    RelPattern::into_labels("login2", ["Events2v"]),
+                                    NodePattern::named("A")
+                                ),
+                            ]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("C"),
+                            vec![(
+                                RelPattern::into_labels("prog2", ["Events1v"]),
+                                NodePattern::named("C")
+                            ),]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("E"),
+                            vec![
+                                (
+                                    RelPattern::into_labels("nf3", ["Netflow"]),
+                                    NodePattern::named("D")
+                                ),
+                                (
+                                    RelPattern::into_labels("login3", ["Events2v"]),
+                                    NodePattern::named("A")
+                                ),
+                            ]
+                        ),
+                        PatternPart::path(
+                            NodePattern::named("D"),
+                            vec![(
+                                RelPattern::into_labels("prog3", ["Events1v"]),
+                                NodePattern::named("D")
+                            ),]
+                        ),
+                    ]),
+                    None
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+            ]))
+        );
     }
 
     #[test]
@@ -1283,6 +1430,110 @@ mod test {
     }
 
     #[test]
+    fn parse_with_in_clause_and_return_path() {
+        let input = "MATCH p=(a:Person)-[r:KNOWS]->(b:Person)
+        WHERE a.name in ['John', 'Doe'] return p";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::named_path(
+                        "p",
+                        NodePattern {
+                            name: Some("a".to_string()),
+                            labels: vec!["Person".to_string()],
+                            props: None
+                        },
+                        vec![(
+                            RelPattern {
+                                name: Some("r".to_string()),
+                                direction: Direction::OUT,
+                                rel_types: vec!["KNOWS".to_string()],
+                                props: None
+                            },
+                            NodePattern {
+                                name: Some("b".to_string()),
+                                labels: vec!["Person".to_string()],
+                                props: None
+                            }
+                        )]
+                    )]),
+                    Some(Expr::in_(
+                        Expr::prop("a", ["name"]),
+                        [
+                            Literal::Str("John".to_string()),
+                            Literal::Str("Doe".to_string())
+                        ]
+                    ))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("p"), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn parse_where_is_null_and_not_null() {
+        let input = "MATCH (a) WHERE a.name IS NULL RETURN a";
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
+                    Some(Expr::is_null(Expr::prop("a", ["name"])))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+            ]))
+        );
+
+        let input = "MATCH (a) WHERE a.name IS NOT NULL RETURN a";
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
+                    Some(Expr::is_not_null(Expr::prop("a", ["name"])))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+            ]))
+        );
+
+        // with and
+
+        let input = "MATCH (a) WHERE a.name IS NOT NULL AND a.age = 12 RETURN a";
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
+                    Some(Expr::and(
+                        Expr::is_not_null(Expr::prop("a", ["name"])),
+                        Expr::eq(Expr::prop("a", ["age"]), Expr::int(12))
+                    ))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+            ]))
+        );
+    }
+
+    #[test]
     fn match_1() {
         let input = "MATCH (n) RETURN n";
         let pairs = CypherParser::parse(Rule::Cypher, input);
@@ -1442,9 +1693,8 @@ mod test {
     }
 
     #[test]
-    #[ignore = "pest parser fails this one, but it's a valid cypher query"]
     fn match_24() {
-        let input = "MATCH (a)-[:ADMIN]-(b) WHERE a:A";
+        let input = "MATCH (a)-[:ADMIN]-(b) WHERE a:A AND b:B RETURN a, b";
         let pairs = CypherParser::parse(Rule::Cypher, input);
         assert!(pairs.is_ok())
     }
