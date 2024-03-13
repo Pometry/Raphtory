@@ -286,7 +286,6 @@ pub fn parse_primary(pair: Pair<Rule>) -> Result<Expr, ParseError> {
     match pair.as_rule() {
         Rule::Expression => parse_expr(pair.into_inner()),
         Rule::Atom => parse_atom(pair),
-        Rule::Literal => parse_literal(pair).map(Expr::Literal),
         Rule::PropertyExpression => parse_prop_expr(pair),
         rule => unsupported("parse_primary", &rule),
     }
@@ -958,7 +957,7 @@ mod test {
 
     #[test]
     fn map_literal() {
-        let input = "{a: 1, b: 2}";
+        let input = "{a: 1, b: true}";
         let pairs = CypherParser::parse(Rule::MapLiteral, input);
         assert!(pairs.is_ok());
 
@@ -967,7 +966,7 @@ mod test {
             map,
             Ok(vec![
                 ("a".to_string(), Expr::Literal(Literal::Int(1))),
-                ("b".to_string(), Expr::Literal(Literal::Int(2)))
+                ("b".to_string(), Expr::Literal(Literal::Bool(true)))
             ]
             .into_iter()
             .collect())
