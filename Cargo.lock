@@ -3099,6 +3099,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "sqlparser",
  "thiserror",
 ]
 
@@ -3806,6 +3807,15 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+
+[[package]]
+name = "sqlparser"
+version = "0.44.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aaf9c7ff146298ffda83a200f8d5084f08dcee1edfc135fcc1d646a45d50ffd6"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "stable_deref_trait"

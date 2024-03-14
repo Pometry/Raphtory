@@ -1,6 +1,10 @@
-use std::{collections::HashMap, default};
+use std::collections::HashMap;
 
-use raphtory::core::Direction;
+use raphtory::{
+    core::Direction,
+    db::{api::mutation::AdditionOps, graph::graph::Graph},
+    prelude::NO_PROPS,
+};
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Query {
@@ -12,6 +16,36 @@ impl Query {
         Query::SingleQuery(SingleQuery {
             clauses: clauses.into_iter().collect(),
         })
+    }
+
+    pub fn clauses(&self) -> &[Clause] {
+        match self {
+            Query::SingleQuery(q) => &q.clauses,
+        }
+    }
+
+    fn path_graph(&self) -> Graph {
+        let g = Graph::new();
+
+        for clause in self.clauses() {
+            match clause {
+                Clause::Match(m) => {
+                    for part in &m.pattern.0 {
+                        if let Some(name) = &part.var {}
+                    }
+                }
+                Clause::Return(ret) => {
+                    for r in &ret.items {
+                        for node in r.expr.bindings() {
+                            let _ = g.add_node(0, node, NO_PROPS, None);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        g
     }
 }
 
@@ -215,6 +249,25 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn bindings(&self) -> Vec<String> {
+        match self {
+            Expr::Var { var_name, attrs } => {
+                let mut bindings = vec![var_name.clone()];
+                bindings.extend(attrs.clone());
+                bindings
+            }
+            Expr::BinOp { left, right, .. } => {
+                let mut bindings = left.bindings();
+                bindings.extend(right.bindings());
+                bindings
+            }
+            Expr::UnaryOp { expr, .. } => expr.bindings(),
+            Expr::Count(expr) => expr.bindings(),
+            Expr::CountAll => vec![],
+            Expr::Literal(_) => vec![],
+        }
+    }
+
     pub fn new(tpe: BinOpType, left: Expr, right: Expr) -> Self {
         Expr::BinOp {
             op: tpe,

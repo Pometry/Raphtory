@@ -15,9 +15,11 @@ edition.workspace = true
 
 [dependencies]
 arrow2.workspace = true
+
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"
+sqlparser = "0.44"
 raphtory = { path = "../raphtory" }
 rayon.workspace = true
 thiserror.workspace = true
