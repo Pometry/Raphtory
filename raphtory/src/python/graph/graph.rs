@@ -424,17 +424,6 @@ impl PyGraph {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        graph.load_edges_from_pandas(
-            edge_df,
-            edge_src,
-            edge_dst,
-            edge_time,
-            edge_props,
-            edge_const_props,
-            edge_shared_const_props,
-            edge_layer,
-            layer_in_df,
-        )?;
         if let (Some(node_df), Some(node_id), Some(node_time)) = (node_df, node_id, node_time) {
             graph.load_nodes_from_pandas(
                 node_df,
@@ -446,6 +435,17 @@ impl PyGraph {
                 node_shared_const_props,
             )?;
         }
+        graph.load_edges_from_pandas(
+            edge_df,
+            edge_src,
+            edge_dst,
+            edge_time,
+            edge_props,
+            edge_const_props,
+            edge_shared_const_props,
+            edge_layer,
+            layer_in_df,
+        )?;
         Ok(graph.graph)
     }
 

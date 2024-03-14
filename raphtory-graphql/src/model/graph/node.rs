@@ -110,12 +110,11 @@ impl Node {
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
-    pub async fn node_type(&self) -> String {
-        self.vv
-            .properties()
-            .get("type")
-            .map(|p| p.to_string())
-            .unwrap_or("NONE".to_string())
+    pub async fn node_type(&self) -> Option<String> {
+        match self.vv.node_type() {
+            None => None,
+            str => str.map(|s| (*s).to_string()),
+        }
     }
 
     async fn properties(&self) -> GqlProperties {
