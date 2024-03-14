@@ -2,8 +2,7 @@
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::{Direction, PropType},
-    prelude::Prop,
-    prelude::{EdgeViewOps, NodeViewOps},
+    prelude::{EdgeViewOps, NodeViewOps, Prop},
 };
 use std::{
     cmp::Ordering,
