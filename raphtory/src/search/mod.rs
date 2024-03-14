@@ -33,7 +33,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
-    pub(crate) graph: G,
+    pub graph: G,
     pub(crate) node_index: Arc<Index>,
     pub(crate) edge_index: Arc<Index>,
     pub(crate) reader: IndexReader,
@@ -359,11 +359,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 }
             }
 
-            let mut writer_guard = writer_lock.write();
-            writer_guard.commit()?;
             Ok::<(), TantivyError>(())
         })?;
 
+        let mut writer_guard = writer.write();
+        writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }
@@ -412,6 +412,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         for (prop_name, prop_value) in node.properties().constant() {
             let prop_field = schema.get_field(&prop_name)?;
             Self::index_prop_value(&mut document, prop_field, prop_value);
+        }
+
+        match node.node_type() {
+            None => {}
+            Some(str) => document.add_text(schema.get_field("node_type")?, (*str).to_string()),
         }
 
         writer.add_document(document)?;
@@ -497,12 +502,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                     }
                 }
             }
-
-            let mut writer_guard = writer_lock.write();
-            writer_guard.commit()?;
             Ok::<(), TantivyError>(())
         })?;
 
+        let mut writer_guard = writer.write();
+        writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }

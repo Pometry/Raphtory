@@ -8,8 +8,9 @@ members = [
     "python",
     "js-raphtory",
     "raphtory-graphql",
-    "comparison-benchmark/rust/raphtory-rust-benchmark"
-, "examples/lanl"]
+    "comparison-benchmark/rust/raphtory-rust-benchmark",
+    "comparison-benchmark/graphql-benchmark/run_server",
+    "examples/lanl"]
 default-members = ["raphtory"]
 resolver = "2"
 

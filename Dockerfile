@@ -1,4 +1,4 @@
-FROM rust:1.67.1 AS builder
+FROM rust:1.75 AS builder
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ COPY raphtory-graphql ./raphtory-graphql
 WORKDIR /app/raphtory-graphql
 RUN cargo build --release
 
-FROM rust:1.67.1-slim AS runner
+FROM rust:1.75-slim AS runner
 
 WORKDIR /app
 
