@@ -1,62 +1,107 @@
-use std::{num::NonZeroUsize, sync::Arc};
+use std::sync::Arc;
 
-use arrow2::array::Array;
-use raphtory::arrow::graph_impl::Graph2;
+use arrow2::array::{Array, PrimitiveArray};
+use raphtory::arrow::graph_impl::ArrowGraph;
 use rayon::Scope;
 
 pub mod expr;
 mod operators;
 use operators::{Operator, PhysicalOperator};
 
-struct DataBlock {
-    cols: Vec<Box<dyn Array>>,
+use raphtory::arrow::chunked_array::{ChunkedArraySlice, chunked_array::{ChunkedArray, NonNull}};
+
+#[derive(Debug, Clone)]
+pub enum Column{
+    Arrow(Box<dyn Array>),
+    Ids(ChunkedArraySlice<'static, ChunkedArray<PrimitiveArray<u64>, NonNull>>),
+}
+
+pub struct DataBlock {
+    cols: Vec<Column>,
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum ExecError {
     #[error("Failed to create thread pool: {0}")]
     TPBuildErr(#[from] rayon::ThreadPoolBuildError),
+
+    #[error("Layer not found: {0}")]
+    LayerNotFound(String),
 }
 
 #[derive(Clone, Copy)]
 struct Context<'graph, 'scope, 'b> {
     scope: &'b Scope<'scope>,
-    graph: &'graph Graph2,
+    graph: &'graph ArrowGraph,
 }
 
 impl<'graph, 'scope, 'b> Context<'graph, 'scope, 'b> {
-    fn new(scope: &'b Scope<'scope>, graph: &'graph Graph2) -> Self {
+    fn new(scope: &'b Scope<'scope>, graph: &'graph ArrowGraph) -> Self {
         Self { scope, graph }
     }
 }
 
-struct Executor {
-    graph: Graph2,
+pub struct Executor {
+    graph: ArrowGraph,
     pipeline: Pipeline,
 }
 
-struct Pipeline {
+pub struct Pipeline {
     source: Box<dyn Source>,
     operators: Vec<PhysicalOperator>,
     sink: Box<dyn Sink>,
 }
 
-trait Source: Send + Sync {
-    fn produce<'a>(&'a self, producer: Arc<dyn Fn(DataBlock) + 'a>) -> Result<(), ExecError>;
+impl Pipeline {
+    pub fn new(source: impl Source + 'static, sink: impl Sink + 'static) -> Self {
+        Self {
+            source: Box::new(source),
+            operators: Vec::new(),
+            sink: Box::new(sink),
+        }
+    }
+
+    pub fn add_operator(&mut self, operator: PhysicalOperator) {
+        self.operators.push(operator);
+    }
 }
 
-trait Sink: Send + Sync {
+pub trait Source: Send + Sync {
+    fn produce<'a, 'b>(
+        &'a self,
+        g: &'b ArrowGraph,
+        producer: Arc<dyn Fn(DataBlock) + Send + Sync + 'a>,
+    ) -> Result<(), ExecError>;
+}
+
+pub trait Sink: Send + Sync {
     fn consume(&self, block: DataBlock) -> Result<(), ExecError>;
 }
 
+pub struct ChannelSink {
+    sender: std::sync::mpsc::Sender<DataBlock>,
+}
+
+impl Sink for ChannelSink {
+    fn consume(&self, block: DataBlock) -> Result<(), ExecError> {
+        Ok(())
+    }
+}
+
+impl ChannelSink {
+    pub fn new(sender: std::sync::mpsc::Sender<DataBlock>) -> Self {
+        Self { sender }
+    }
+}
+
 impl Executor {
-    fn new(graph: Graph2, pipeline: Pipeline) -> Self {
+    pub fn new(graph: ArrowGraph, pipeline: Pipeline) -> Self {
         Self { graph, pipeline }
     }
 
-    pub fn execute_pipeline(self, num_threads: NonZeroUsize) -> Result<(), ExecError> {
+    pub fn execute_pipeline(self, num_threads: usize) -> Result<(), ExecError> {
         let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads.get())
+            .num_threads(num_threads)
             .build()?;
         let graph = &self.graph;
         let operators = &self.pipeline.operators;
@@ -64,7 +109,7 @@ impl Executor {
         thread_pool.scope(move |scope| {
             let source = &self.pipeline.source;
 
-            source.produce(Arc::new(|input| {
+            source.produce(graph, Arc::new(|input| {
                 let stage = PipelineStage::new(operators);
 
                 run_pipeline(stage, scope, graph, input);
@@ -77,7 +122,7 @@ impl Executor {
 fn run_pipeline<'graph: 'scope, 'scope>(
     stage: PipelineStage<'graph>,
     scope: &Scope<'scope>,
-    graph: &'graph Graph2,
+    graph: &'graph ArrowGraph,
     input: DataBlock,
 ) {
     if let Some((operator, next_stage)) = stage.next_operator() {
@@ -123,5 +168,64 @@ impl<'a> PipelineStage<'a> {
                 ..self
             },
         ))
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use raphtory::prelude::*;
+
+    use super::operators::*;
+    use super::*;
+    use rand::*;
+
+    #[test]
+    fn edge_scan() {
+        let graph = Graph::new();
+
+        // generate 50 random edges format is (time, src, dst, weight, name)
+        let mut rng = rand::thread_rng();
+
+        let edges = (0..50)
+            .map(|_| {
+                (
+                    rng.gen_range(0i64..100i64),
+                    format!("node_{}", rng.gen_range(0..10)),
+                    format!("node_{}", rng.gen_range(0..10)),
+                    rng.gen_range(0.0..100.0),
+                    format!("edge_{}", rng.gen_range(0..10)),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        for (t, src, dst, weight, name) in edges {
+            graph
+                .add_edge(
+                    t,
+                    src,
+                    dst,
+                    [("weight", Prop::F64(weight)), ("name", Prop::str(name))],
+                    None,
+                )
+                .unwrap();
+        }
+
+        let tempdir = tempfile::tempdir().unwrap();
+
+        let graph = ArrowGraph::from_graph(&graph, tempdir.path()).unwrap();
+
+        let edge_scan = EdgeScan::new("test", Arc::new([0, 1, 2]));
+        let (send, recv) = std::sync::mpsc::channel();
+        let pipeline = Pipeline::new(edge_scan, ChannelSink::new(send));
+        let executor = Executor::new(graph, pipeline);
+
+        executor.execute_pipeline(1).unwrap();
+
+        for block in recv.iter() {
+            for col in block.cols {
+                println!("{:?}", col);
+            }
+        }
     }
 }

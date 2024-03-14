@@ -3095,11 +3095,13 @@ dependencies = [
  "pest_derive",
  "pretty_assertions",
  "proptest",
+ "rand 0.8.5",
  "raphtory",
  "rayon",
  "serde",
  "serde_json",
  "sqlparser",
+ "tempfile",
  "thiserror",
 ]
 

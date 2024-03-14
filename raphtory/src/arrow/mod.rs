@@ -22,7 +22,7 @@ use crate::{
 
 pub mod algorithms;
 pub mod arrow_hmap;
-pub(crate) mod chunked_array;
+pub mod chunked_array;
 pub mod edge;
 pub(crate) mod edges;
 pub mod global_order;
