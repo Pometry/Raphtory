@@ -1,10 +1,23 @@
 use std::{iter, sync::Arc};
 
 use arrow2::array::PrimitiveArray;
-use raphtory::{arrow::{chunked_array::{chunked_array::{ChunkedArray, NonNull}, list_array::ChunkedListArray, ChunkedArraySlice}, graph_impl::ArrowGraph, prelude::BaseArrayOps}, core::Direction};
+use polars_lazy::dsl::Expr;
+use raphtory::{
+    arrow::{
+        chunked_array::{
+            array_ops::Chunked,
+            chunked_array::ChunkedArray,
+            list_array::ChunkedListArray,
+            ChunkedArraySlice,
+        },
+        graph_impl::ArrowGraph,
+        prelude::BaseArrayOps,
+    },
+    core::Direction,
+};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use super::{expr::Expr, Context, DataBlock, Source, Column};
+use super::{Context, DataBlock, Source};
 
 pub trait Operator {
     fn execute(&self, input: DataBlock, ctx: Context) -> impl Iterator<Item = DataBlock>;
@@ -35,46 +48,68 @@ pub struct EdgeScan {
 
 impl EdgeScan {
     pub fn new(layer: impl AsRef<str>, columns: Arc<[usize]>) -> Self {
-        Self { layer: layer.as_ref().to_string(), columns }
+        Self {
+            layer: layer.as_ref().to_string(),
+            columns,
+        }
     }
 }
 
+pub type TempPrimCol<T> =
+    ChunkedArraySlice<'static, ChunkedListArray<'static, ChunkedArray<PrimitiveArray<T>>>>;
+pub type PrimCol<T> = ChunkedArraySlice<'static, ChunkedArray<PrimitiveArray<T>>>;
+
 impl Source for EdgeScan {
-    fn produce<'a, 'g>(&'a self, graph: &'g ArrowGraph, producer: Arc<dyn Fn(DataBlock) + Send + Sync + 'a>) -> Result<(), super::ExecError> {
-        let layer_id = graph.find_layer_id(&self.layer).ok_or(super::ExecError::LayerNotFound(self.layer.clone()))?;
+    fn produce<'a, 'g>(
+        &'a self,
+        graph: &'g ArrowGraph,
+        producer: Arc<dyn Fn(DataBlock) + Send + Sync + 'a>,
+    ) -> Result<(), super::ExecError> {
+        let layer_id = graph
+            .find_layer_id(&self.layer)
+            .ok_or(super::ExecError::LayerNotFound(self.layer.clone()))?;
         let layer = graph.layer(layer_id);
 
         let edges = layer.edges_storage();
 
         // chunk edges into windows of 1000 as parallel iterators
-        let chunk_size = 1000;
-        let num_morcels = edges.len() / chunk_size;
-        (0..num_morcels).into_par_iter().map(|i| {
-            let start = i * chunk_size;
-            let end = (i + 1) * chunk_size;
-            (start, end)
-        }).for_each(|(start, end)| {
-            let mut cols = vec![];
-            let srcs = edges.srcs().sliced(start .. end);
-            let dsts = edges.dsts().sliced(start .. end);
-            let time: ChunkedArraySlice<'_, ChunkedListArray<'_, ChunkedArray<PrimitiveArray<i64>, NonNull>>> = edges.time().sliced(start .. end);
-            
-            cols.push(Column::Ids(srcs));
-            cols.push(Column::Ids(dsts));
+        // let chunk_size = 1000;
+        // let num_morcels = edges.len() / chunk_size;
+        // (0..num_morcels).into_par_iter().map(|i| {
+        //     let start = i * chunk_size;
+        //     let end = (i + 1) * chunk_size;
+        //     (start, end)
+        // }).for_each(|(start, end)| {
+        //     let srcs = edges.srcs().sliced(start .. end);
+        //     let dsts: ChunkedArraySlice<'_, ChunkedArray<PrimitiveArray<u64>, NonNull>> = edges.dsts().sliced(start .. end);
+        //     let time: ChunkedArraySlice<'_, ChunkedListArray<'_, ChunkedArray<PrimitiveArray<i64>, NonNull>>> = edges.time().sliced(start .. end);
 
-            for col in self.columns.iter() {
-            }
+        //     let df = DataFrame::from_series(src, dst, time)
+        // });
 
-            let block = DataBlock {
-                cols,
-            };
-            producer(block);
+        let chunk_size = edges.time().values().chunk_size();
+        let chunked_lists_ts = edges.time();
+        let offsets = chunked_lists_ts.offsets();
+        let values = chunked_lists_ts.values();
+        let num_chunks = values.num_chunks();
+
+        (0..num_chunks).into_par_iter().for_each(|chunk_id| {
+            let chunk = values.chunk(chunk_id);
+            let start_offset = chunk_id * chunk_size;
+            let end_offset = (chunk_id + 1) * chunk_size;
+
+            let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
+
+            let start = offsets.find_index(start_offset);
+            let end = offsets.find_index(end_offset);
+
+            let srcs = edges.srcs().sliced(start..end);
+            let dsts = edges.dsts().sliced(start..end);
         });
 
         Ok(())
     }
 }
-
 
 pub struct NodeScan {
     columns: Arc<[usize]>, // name could be one column

@@ -1,30 +1,15 @@
 use std::sync::Arc;
 
-use arrow2::array::PrimitiveArray;
-use raphtory::arrow::{chunked_array::list_array::ChunkedListArray, graph_impl::ArrowGraph};
+use polars_core::frame::DataFrame;
+use raphtory::arrow::graph_impl::ArrowGraph;
 use rayon::Scope;
 
-pub mod expr;
 mod operators;
 use operators::{Operator, PhysicalOperator};
 
-use raphtory::arrow::chunked_array::{ChunkedArraySlice, chunked_array::{ChunkedArray, NonNull}};
-
 #[derive(Debug, Clone)]
-pub enum Column{
-    Ids(ChunkedArraySlice<'static, ChunkedArray<PrimitiveArray<u64>, NonNull>>),
-    TProp(TProp)
-}
-
-#[derive(Debug, Clone)]
-pub enum TProp {
-    I64(TCol<i64>)
-}
-
-pub type TCol<T> = ChunkedArraySlice<'static, ChunkedListArray<'static, ChunkedArray<PrimitiveArray<T>, NonNull>>>;
-
 pub struct DataBlock {
-    cols: Vec<Column>,
+    data: DataFrame,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -230,9 +215,7 @@ mod test {
         executor.execute_pipeline(1).unwrap();
 
         for block in recv.iter() {
-            for col in block.cols {
-                println!("{:?}", col);
-            }
+            println!("{:?}", block);
         }
     }
 }

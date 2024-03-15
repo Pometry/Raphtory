@@ -104,4 +104,5 @@ arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck
     "arrow2?/compute_concatenate",
     "arrow2?/compute_sort",
     "arrow2?/compute_merge_sort",
+    "arrow2?/arrow",
     "dep:strum"]
