@@ -34,7 +34,7 @@ use std::{
 /// it is considered active at any point in the window.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWithDeletions {
-    graph: Arc<InternalGraph>,
+    pub graph: Arc<InternalGraph>,
 }
 
 impl Static for GraphWithDeletions {}

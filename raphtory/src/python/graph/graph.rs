@@ -4,7 +4,7 @@
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::utils::errors::GraphError,
+    core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     db::api::view::internal::MaterializedGraph,
     prelude::*,
     python::{
@@ -33,7 +33,7 @@ use pyo3::types::{IntoPyDict, PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, sync::Arc,
 };
 
 use super::pandas::loaders::{load_edges_from_df, load_nodes_from_df};
@@ -472,7 +472,7 @@ impl PyGraph {
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
+        let graph = &self.graph.0;
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
@@ -538,7 +538,7 @@ impl PyGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
+        let graph = &self.graph.0;
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
@@ -599,7 +599,7 @@ impl PyGraph {
         const_props: Option<Vec<&str>>,
         shared_const_props: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
+        let graph = &self.graph.0;
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
@@ -646,7 +646,7 @@ impl PyGraph {
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
+        let graph = &self.graph.0;
         Python::with_gil(|py| {
             let size: usize = py
                 .eval(
