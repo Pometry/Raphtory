@@ -1,5 +1,8 @@
 use crate::{
-    core::{entities::{graph::tgraph::InnerTemporalGraph, LayerIds}, utils::errors::GraphError},
+    core::{
+        entities::{graph::tgraph::InnerTemporalGraph, LayerIds},
+        utils::errors::GraphError,
+    },
     db::api::view::internal::InternalLayerOps,
     prelude::Layer,
 };

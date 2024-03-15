@@ -202,11 +202,11 @@ def test_load_from_pandas_nodes():
         edge_src="src",
         edge_dst="dst",
         edge_time="time",
-        edge_props=["weight", "marbles"],
+        edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
+        node_properties=["name"],
         node_type="node_type",
     )
     assertions(g)
@@ -216,11 +216,11 @@ def test_load_from_pandas_nodes():
         edge_src="src",
         edge_dst="dst",
         edge_time="time",
-        edge_props=["weight", "marbles"],
+        edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
+        node_properties=["name"],
         node_type="node_type",
     )
     assertions(g)
@@ -286,7 +286,7 @@ def test_load_from_pandas_with_types():
         "time",
         "node_type",
         ["name"],
-        shared_const_props={"tag": "test_tag"},
+        shared_const_properties={"tag": "test_tag"},
     )
     assertions1(g)
     
@@ -297,7 +297,7 @@ def test_load_from_pandas_with_types():
         "time",
         "node_type",
         ["name"],
-        shared_const_props={"tag": "test_tag"},
+        shared_const_properties={"tag": "test_tag"},
     )
     assertions1(g)
 
@@ -313,13 +313,13 @@ def test_load_from_pandas_with_types():
 
     g = Graph()
     g.load_nodes_from_pandas(
-        nodes_df, "id", "time", "node_type", ["name"], const_props=["type"]
+        nodes_df, "id", "time", "node_type", ["name"], const_properties=["type"]
     )
     assertions2(g)
     
     g = GraphWithDeletions()
     g.load_nodes_from_pandas(
-        nodes_df, "id", "time", "node_type", ["name"], const_props=["type"]
+        nodes_df, "id", "time", "node_type", ["name"], const_properties=["type"]
     )
     assertions2(g)
 
@@ -354,8 +354,8 @@ def test_load_from_pandas_with_types():
         "dst",
         "time",
         ["weight", "marbles"],
-        const_props=["marbles_const"],
-        shared_const_props={"type": "Edge", "tag": "test_tag"},
+        const_properties=["marbles_const"],
+        shared_const_properties={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
         layer_in_df=False,
     )
@@ -368,8 +368,8 @@ def test_load_from_pandas_with_types():
         "dst",
         "time",
         ["weight", "marbles"],
-        const_props=["marbles_const"],
-        shared_const_props={"type": "Edge", "tag": "test_tag"},
+        const_properties=["marbles_const"],
+        shared_const_properties={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
         layer_in_df=False,
     )
@@ -423,8 +423,8 @@ def test_load_from_pandas_with_types():
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
-        node_shared_const_props={"type": "Person"},
+        node_properties=["name"],
+        node_shared_const_properties={"type": "Person"},
     )
     assertions5(g)
     
@@ -438,8 +438,8 @@ def test_load_from_pandas_with_types():
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
-        node_shared_const_props={"type": "Person"},
+        node_properties=["name"],
+        node_shared_const_properties={"type": "Person"},
     )
     assertions5(g)
 
@@ -474,8 +474,8 @@ def test_load_from_pandas_with_types():
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
-        node_const_props=["type"],
+        node_properties=["name"],
+        node_const_properties=["type"],
     )
     assertions6(g)
     
@@ -488,8 +488,8 @@ def test_load_from_pandas_with_types():
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
-        node_const_props=["type"],
+        node_properties=["name"],
+        node_const_properties=["type"],
     )
     assertions6(g)
 
@@ -516,15 +516,15 @@ def test_load_from_pandas_with_types():
         edge_src="src",
         edge_dst="dst",
         edge_time="time",
-        edge_props=["weight", "marbles"],
+        edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
+        node_properties=["name"],
         edge_layer="layers",
     )
     g.load_node_props_from_pandas(
-        nodes_df, "id", const_props=["type"], shared_const_props={"tag": "test_tag"}
+        nodes_df, "id", const_properties=["type"], shared_const_properties={"tag": "test_tag"}
     )
     assertions7(g)
     
@@ -544,8 +544,8 @@ def test_load_from_pandas_with_types():
         edges_df,
         "src",
         "dst",
-        const_props=["marbles_const"],
-        shared_const_props={"tag": "test_tag"},
+        const_properties=["marbles_const"],
+        shared_const_properties={"tag": "test_tag"},
         layer="layers",
     )
     assertions8(g)
@@ -555,15 +555,15 @@ def test_load_from_pandas_with_types():
         edge_src="src",
         edge_dst="dst",
         edge_time="time",
-        edge_props=["weight", "marbles"],
+        edge_properties=["weight", "marbles"],
         node_df=nodes_df,
         node_id="id",
         node_time="time",
-        node_props=["name"],
+        node_properties=["name"],
         edge_layer="layers",
     )
     g.load_node_props_from_pandas(
-        nodes_df, "id", const_props=["type"], shared_const_props={"tag": "test_tag"}
+        nodes_df, "id", const_properties=["type"], shared_const_properties={"tag": "test_tag"}
     )
     assertions7(g)
     
@@ -571,8 +571,8 @@ def test_load_from_pandas_with_types():
         edges_df,
         "src",
         "dst",
-        const_props=["marbles_const"],
-        shared_const_props={"tag": "test_tag"},
+        const_properties=["marbles_const"],
+        shared_const_properties={"tag": "test_tag"},
         layer="layers",
     )
     assertions8(g)
@@ -635,12 +635,12 @@ def test_missing_columns():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["not_weight", "marbles"],
-            edge_const_props=["bleep_bloop"],
+            edge_properties=["not_weight", "marbles"],
+            edge_const_properties=["bleep_bloop"],
             node_df=nodes_df,
             node_id="id",
             node_time="time",
-            node_props=["name"],
+            node_properties=["name"],
         )
         
     with pytest.raises(
@@ -654,12 +654,12 @@ def test_missing_columns():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["not_weight", "marbles"],
-            edge_const_props=["bleep_bloop"],
+            edge_properties=["not_weight", "marbles"],
+            edge_const_properties=["bleep_bloop"],
             node_df=nodes_df,
             node_id="id",
             node_time="time",
-            node_props=["name"],
+            node_properties=["name"],
         )
 
     with pytest.raises(
@@ -673,11 +673,11 @@ def test_missing_columns():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["weight", "marbles"],
+            edge_properties=["weight", "marbles"],
             node_df=nodes_df,
             node_id="not_id",
             node_time="not_time",
-            node_props=["not_name"],
+            node_properties=["not_name"],
         )
     
     with pytest.raises(
@@ -691,11 +691,11 @@ def test_missing_columns():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["weight", "marbles"],
+            edge_properties=["weight", "marbles"],
             node_df=nodes_df,
             node_id="not_id",
             node_time="not_time",
-            node_props=["not_name"],
+            node_properties=["not_name"],
         )
 
     with pytest.raises(
@@ -709,7 +709,7 @@ def test_missing_columns():
             edges_df,
             src="sauce",
             dst="dist",
-            const_props=["wait", "marples"],
+            const_properties=["wait", "marples"],
         )
     
     with pytest.raises(
@@ -723,7 +723,7 @@ def test_missing_columns():
             edges_df,
             src="sauce",
             dst="dist",
-            const_props=["wait", "marples"],
+            const_properties=["wait", "marples"],
         )
 
     with pytest.raises(
@@ -736,7 +736,7 @@ def test_missing_columns():
         g.load_node_props_from_pandas(
             nodes_df,
             id="sauce",
-            const_props=["wait", "marples"],
+            const_properties=["wait", "marples"],
         )
         
     with pytest.raises(
@@ -749,7 +749,7 @@ def test_missing_columns():
         g.load_node_props_from_pandas(
             nodes_df,
             id="sauce",
-            const_props=["wait", "marples"],
+            const_properties=["wait", "marples"],
         )
 
 
@@ -814,7 +814,7 @@ def test_unparsable_props():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["weight"],
+            edge_properties=["weight"],
         )
     with pytest.raises(
         Exception,
@@ -827,7 +827,7 @@ def test_unparsable_props():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["weight"],
+            edge_properties=["weight"],
         )
 
     with pytest.raises(
@@ -841,7 +841,7 @@ def test_unparsable_props():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["marbles"],
+            edge_properties=["marbles"],
         )
     with pytest.raises(
         Exception,
@@ -854,7 +854,7 @@ def test_unparsable_props():
             edge_src="src",
             edge_dst="dst",
             edge_time="time",
-            edge_props=["marbles"],
+            edge_properties=["marbles"],
         )
 
 

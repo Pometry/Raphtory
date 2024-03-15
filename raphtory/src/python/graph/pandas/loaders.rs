@@ -1,3 +1,4 @@
+use crate::db::api::mutation::AdditionOps;
 use crate::{
     core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
     prelude::*,
@@ -8,23 +9,22 @@ use crate::{
 };
 use kdam::tqdm;
 use std::{collections::HashMap, iter};
-use crate::db::api::mutation::AdditionOps;
 
 pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     df: &'a PretendDF,
     size: usize,
     node_id: &str,
     time: &str,
-    props: Option<Vec<&str>>,
-    const_props: Option<Vec<&str>>,
-    shared_const_props: Option<HashMap<String, Prop>>,
+    properties: Option<Vec<&str>>,
+    const_properties: Option<Vec<&str>>,
+    shared_const_properties: Option<HashMap<String, Prop>>,
     node_type_col: Option<&str>,
     graph: &InnerTemporalGraph<N>,
 ) -> Result<(), GraphError> {
-    let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
-    let node_type_iter: Box<dyn Iterator<Item = Option<&str>>> = match node_type_col {
+    let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
+    let node_type_iter: Box<dyn Iterator<Item=Option<&str>>> = match node_type_col {
         Some(node_type_col) => {
-            let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
+            let iter_res: Result<Box<dyn Iterator<Item=Option<&str>>>, GraphError> =
                 if let Some(node_types) = df.utf8::<i32>(node_type_col) {
                     Ok(Box::new(node_types))
                 } else if let Some(node_types) = df.utf8::<i64>(node_type_col) {
@@ -51,7 +51,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
             iter,
             prop_iter,
             const_prop_iter,
-            shared_const_props,
+            shared_const_properties,
         )?;
     } else if let (Some(node_id), Some(time)) =
         (df.iter_col::<i64>(node_id), df.iter_col::<i64>(time))
@@ -67,7 +67,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
             iter,
             prop_iter,
             const_prop_iter,
-            shared_const_props,
+            shared_const_properties,
         )?;
     } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.iter_col::<i64>(time))
     {
@@ -87,7 +87,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
                 let actual_type = extract_out_default_type(n_t);
                 let v = graph.add_node(*time, node_id, props, actual_type)?;
                 v.add_constant_properties(const_props)?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
@@ -110,7 +110,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
             if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
                 let v = graph.add_node(*time, node_id, props, n_t)?;
                 v.add_constant_properties(const_props)?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props)?;
                 }
             }
@@ -138,14 +138,14 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     src: &str,
     dst: &str,
     time: &str,
-    props: Option<Vec<&str>>,
-    const_props: Option<Vec<&str>>,
-    shared_const_props: Option<HashMap<String, Prop>>,
+    properties: Option<Vec<&str>>,
+    const_properties: Option<Vec<&str>>,
+    shared_const_properties: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: bool,
     graph: &InnerTemporalGraph<N>,
 ) -> Result<(), GraphError> {
-    let (prop_iter, const_prop_iter) = get_prop_rows(df, props, const_props)?;
+    let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
     let layer = lift_layer(layer, layer_in_df, df);
 
     if let (Some(src), Some(dst), Some(time)) = (
@@ -163,7 +163,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
             triplets,
             prop_iter,
             const_prop_iter,
-            shared_const_props,
+            shared_const_properties,
             layer,
         )?;
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -181,7 +181,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
             triplets,
             prop_iter,
             const_prop_iter,
-            shared_const_props,
+            shared_const_properties,
             layer,
         )?;
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -201,7 +201,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 let e = graph.add_edge(*time, src, dst, props, layer.as_deref())?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
@@ -222,7 +222,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
                 let e = graph.add_edge(*time, src, dst, props, layer.as_deref())?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
@@ -236,15 +236,15 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     Ok(())
 }
 
-pub(crate) fn load_node_props_from_df<'a, const N: usize,>(
+pub(crate) fn load_node_props_from_df<'a, const N: usize>(
     df: &'a PretendDF,
     size: usize,
     node_id: &str,
-    const_props: Option<Vec<&str>>,
-    shared_const_props: Option<HashMap<String, Prop>>,
+    const_properties: Option<Vec<&str>>,
+    shared_const_properties: Option<HashMap<String, Prop>>,
     graph: &InnerTemporalGraph<N>,
 ) -> Result<(), GraphError> {
-    let (_, const_prop_iter) = get_prop_rows(df, None, const_props)?;
+    let (_, const_prop_iter) = get_prop_rows(df, None, const_properties)?;
 
     if let Some(node_id) = df.iter_col::<u64>(node_id) {
         let iter = node_id.map(|i| i.copied());
@@ -260,7 +260,7 @@ pub(crate) fn load_node_props_from_df<'a, const N: usize,>(
                     .node(node_id)
                     .ok_or(GraphError::NodeIdError(node_id))?;
                 v.add_constant_properties(const_props)?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
@@ -279,7 +279,7 @@ pub(crate) fn load_node_props_from_df<'a, const N: usize,>(
                     .node(node_id)
                     .ok_or(GraphError::NodeIdError(node_id))?;
                 v.add_constant_properties(const_props)?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
@@ -298,7 +298,7 @@ pub(crate) fn load_node_props_from_df<'a, const N: usize,>(
                     .node(node_id)
                     .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
                 v.add_constant_properties(const_props)?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
@@ -317,7 +317,7 @@ pub(crate) fn load_node_props_from_df<'a, const N: usize,>(
                     .node(node_id)
                     .ok_or_else(|| GraphError::NodeNameError(node_id.to_owned()))?;
                 v.add_constant_properties(const_props)?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
@@ -335,13 +335,13 @@ pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
     size: usize,
     src: &str,
     dst: &str,
-    const_props: Option<Vec<&str>>,
-    shared_const_props: Option<HashMap<String, Prop>>,
+    const_properties: Option<Vec<&str>>,
+    shared_const_properties: Option<HashMap<String, Prop>>,
     layer: Option<S>,
     layer_in_df: bool,
     graph: &InnerTemporalGraph<N>,
 ) -> Result<(), GraphError> {
-    let (_, const_prop_iter) = get_prop_rows(df, None, const_props)?;
+    let (_, const_prop_iter) = get_prop_rows(df, None, const_properties)?;
     let layer = lift_layer(layer, layer_in_df, df);
 
     if let (Some(src), Some(dst)) = (df.iter_col::<u64>(src), df.iter_col::<u64>(dst)) {
@@ -359,7 +359,7 @@ pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
                     .edge(src, dst)
                     .ok_or(GraphError::EdgeIdError { src, dst })?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
@@ -380,7 +380,7 @@ pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
                     .edge(src, dst)
                     .ok_or(GraphError::EdgeIdError { src, dst })?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
@@ -402,7 +402,7 @@ pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
                         dst: dst.to_owned(),
                     })?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
@@ -424,7 +424,7 @@ pub(crate) fn load_edges_props_from_df<'a, const N: usize, S: AsRef<str>>(
                         dst: dst.to_owned(),
                     })?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
-                if let Some(shared_const_props) = &shared_const_props {
+                if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
             }
@@ -446,20 +446,20 @@ fn load_edges_from_num_iter<
     'a,
     const N: usize,
     S: AsRef<str>,
-    I: Iterator<Item = ((Option<u64>, Option<u64>), Option<&'a i64>)>,
-    PI: Iterator<Item = Vec<(S, Prop)>>,
-    IL: Iterator<Item = Option<String>>,
+    I: Iterator<Item=((Option<u64>, Option<u64>), Option<&'a i64>)>,
+    PI: Iterator<Item=Vec<(S, Prop)>>,
+    IL: Iterator<Item=Option<String>>,
 >(
     graph: &InnerTemporalGraph<N>,
     size: usize,
     edges: I,
-    props: PI,
-    const_props: PI,
-    shared_const_props: Option<HashMap<String, Prop>>,
+    properties: PI,
+    const_properties: PI,
+    shared_const_properties: Option<HashMap<String, Prop>>,
     layer: IL,
 ) -> Result<(), GraphError> {
     for (((((src, dst), time), edge_props), const_props), layer) in tqdm!(
-        edges.zip(props).zip(const_props).zip(layer),
+        edges.zip(properties).zip(const_properties).zip(layer),
         desc = "Loading edges",
         total = size,
         animation = kdam::Animation::FillUp,
@@ -468,7 +468,7 @@ fn load_edges_from_num_iter<
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
             let e = graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
             e.add_constant_properties(const_props, layer.as_deref())?;
-            if let Some(shared_const_props) = &shared_const_props {
+            if let Some(shared_const_props) = &shared_const_properties {
                 e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
             }
         }
@@ -477,21 +477,21 @@ fn load_edges_from_num_iter<
 }
 
 fn load_nodes_from_num_iter<
-    'a, 
+    'a,
     const N: usize,
     S: AsRef<str>,
-    I: Iterator<Item = (Option<u64>, Option<&'a i64>, Option<&'a str>)>,
-    PI: Iterator<Item = Vec<(S, Prop)>>,
+    I: Iterator<Item=(Option<u64>, Option<&'a i64>, Option<&'a str>)>,
+    PI: Iterator<Item=Vec<(S, Prop)>>,
 >(
     graph: &InnerTemporalGraph<N>,
     size: usize,
     nodes: I,
-    props: PI,
-    const_props: PI,
-    shared_const_props: Option<HashMap<String, Prop>>,
+    properties: PI,
+    const_properties: PI,
+    shared_const_properties: Option<HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     for (((node, time, node_type), props), const_props) in tqdm!(
-        nodes.zip(props).zip(const_props),
+        nodes.zip(properties).zip(const_properties),
         desc = "Loading nodes",
         total = size,
         animation = kdam::Animation::FillUp,
@@ -504,7 +504,7 @@ fn load_nodes_from_num_iter<
             let v = graph.add_node(*t, v, props, actual_node_type)?;
             v.add_constant_properties(const_props)?;
 
-            if let Some(shared_const_props) = &shared_const_props {
+            if let Some(shared_const_props) = &shared_const_properties {
                 v.add_constant_properties(shared_const_props.iter())?;
             }
         }
