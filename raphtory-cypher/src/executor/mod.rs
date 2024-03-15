@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use arrow2::array::{Array, PrimitiveArray};
-use raphtory::arrow::graph_impl::ArrowGraph;
+use arrow2::array::PrimitiveArray;
+use raphtory::arrow::{chunked_array::list_array::ChunkedListArray, graph_impl::ArrowGraph};
 use rayon::Scope;
 
 pub mod expr;
@@ -12,9 +12,16 @@ use raphtory::arrow::chunked_array::{ChunkedArraySlice, chunked_array::{ChunkedA
 
 #[derive(Debug, Clone)]
 pub enum Column{
-    Arrow(Box<dyn Array>),
     Ids(ChunkedArraySlice<'static, ChunkedArray<PrimitiveArray<u64>, NonNull>>),
+    TProp(TProp)
 }
+
+#[derive(Debug, Clone)]
+pub enum TProp {
+    I64(TCol<i64>)
+}
+
+pub type TCol<T> = ChunkedArraySlice<'static, ChunkedListArray<'static, ChunkedArray<PrimitiveArray<T>, NonNull>>>;
 
 pub struct DataBlock {
     cols: Vec<Column>,

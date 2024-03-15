@@ -1,8 +1,8 @@
 use std::{iter, sync::Arc};
 
-use arrow2::array::{Array, PrimitiveArray};
-use raphtory::{arrow::{graph_impl::ArrowGraph, prelude::BaseArrayOps, chunked_array::{ChunkedArraySlice, chunked_array::{ChunkedArray, NonNull}}}, core::Direction};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use arrow2::array::PrimitiveArray;
+use raphtory::{arrow::{chunked_array::{chunked_array::{ChunkedArray, NonNull}, list_array::ChunkedListArray, ChunkedArraySlice}, graph_impl::ArrowGraph, prelude::BaseArrayOps}, core::Direction};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use super::{expr::Expr, Context, DataBlock, Source, Column};
 
@@ -54,13 +54,19 @@ impl Source for EdgeScan {
             let end = (i + 1) * chunk_size;
             (start, end)
         }).for_each(|(start, end)| {
+            let mut cols = vec![];
             let srcs = edges.srcs().sliced(start .. end);
             let dsts = edges.dsts().sliced(start .. end);
+            let time: ChunkedArraySlice<'_, ChunkedListArray<'_, ChunkedArray<PrimitiveArray<i64>, NonNull>>> = edges.time().sliced(start .. end);
+            
+            cols.push(Column::Ids(srcs));
+            cols.push(Column::Ids(dsts));
+
+            for col in self.columns.iter() {
+            }
+
             let block = DataBlock {
-                cols: vec![
-                    Column::Ids(srcs),
-                    Column::Ids(dsts),
-                ],
+                cols,
             };
             producer(block);
         });
