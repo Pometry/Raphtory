@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, properties::tprop::LayeredTProp, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, properties::tprop::TPropOps, LayerIds, VID},
         storage::timeindex::TimeIndexOps,
     },
     db::api::view::{
@@ -397,9 +397,11 @@ impl TimeSemantics for ArrowGraph {
         todo!("arrow graph does not have properties yet")
     }
 
-    fn has_temporal_node_prop(&self, _v: VID, _prop_id: usize) -> bool {
-        // FIXME: arrow nodes don't have properties yet
-        false
+    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
+        match &self.inner.node_properties {
+            None => false,
+            Some(props) => props.has_temporal_prop(v, prop_id),
+        }
     }
 
     #[doc = " and the second element is the property value."]
@@ -407,9 +409,11 @@ impl TimeSemantics for ArrowGraph {
         todo!("arrow nodes don't have properties yet")
     }
 
-    fn has_temporal_node_prop_window(&self, _v: VID, _prop_id: usize, _w: Range<i64>) -> bool {
-        // FIXME: arrow nodes don't have properties yet
-        false
+    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        match &self.inner.node_properties {
+            None => false,
+            Some(props) => props.has_temporal_prop_window(v, prop_id, w),
+        }
     }
 
     fn temporal_node_prop_vec_window(

@@ -363,10 +363,10 @@ impl TProp {
 pub enum LockedLayeredTProp<'a> {
     VecProp(Vec<LockedView<'a, TProp>>),
     One(&'a TProp),
-    External(Box<dyn LayeredTProp + 'a>),
+    External(Box<dyn TPropOps + 'a>),
 }
 
-pub trait LayeredTProp {
+pub trait TPropOps {
     fn last_before(&self, t: i64) -> Option<(i64, Prop)>;
     fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_>;
     fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, Prop)> + '_>;
@@ -383,7 +383,7 @@ impl<'a> LockedLayeredTProp<'a> {
     }
 }
 
-impl<'a> LayeredTProp for LockedLayeredTProp<'a> {
+impl<'a> TPropOps for LockedLayeredTProp<'a> {
     fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
         match self {
             LockedLayeredTProp::VecProp(tprop) => tprop

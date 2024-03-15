@@ -24,6 +24,7 @@ pub(crate) mod graph_builder;
 pub mod graph_fragment;
 pub mod graph_impl;
 pub mod load;
+mod node_properties;
 pub(crate) mod nodes;
 pub mod query;
 pub(crate) mod timestamps;

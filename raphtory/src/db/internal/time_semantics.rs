@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
-            properties::tprop::LayeredTProp, LayerIds, VID,
+            properties::tprop::TPropOps, LayerIds, VID,
         },
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
