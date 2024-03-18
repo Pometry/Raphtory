@@ -970,3 +970,27 @@ def test_load_node_from_pandas_with_node_types():
     edges_assertions(g)
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
     edges_assertions(g)
+
+
+def test_load_edge_deletions_from_pandas():
+    edges_df = pd.DataFrame(
+    {
+        "src": [1, 2, 3, 4, 5],
+        "dst": [2, 3, 4, 5, 6],
+        "time": [1, 2, 3, 4, 5],
+    }
+    )
+    edge_dels_df = pd.DataFrame(
+        {
+            "src": [3, 4],
+            "dst": [4, 5],
+            "time": [6, 7],
+        }
+    )
+    
+    g = GraphWithDeletions()
+    g.load_edges_from_pandas(edges_df, "src", "dst", "time")
+    assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
+    g.load_edges_deletions_from_pandas(edge_dels_df, "src", "dst", "time")
+    assert g.window(10, 12).edges.src.id.collect() == [1, 2, 5]
+

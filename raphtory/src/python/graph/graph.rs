@@ -460,11 +460,11 @@ impl PyGraph {
     ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
     ///     id (str): The column name for the node IDs.
     ///     time (str): The column name for the timestamps.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
     ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///     node_type (str): the column name for the node type
-    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
@@ -530,7 +530,7 @@ impl PyGraph {
     ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
     ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:

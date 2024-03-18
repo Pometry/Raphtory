@@ -33,7 +33,8 @@ use std::{
 use super::pandas::{
     dataframe::{process_pandas_py_df, GraphLoadException},
     loaders::{
-        load_edges_from_df, load_edges_props_from_df, load_node_props_from_df, load_nodes_from_df,
+        load_edges_deletions_from_df, load_edges_from_df, load_edges_props_from_df,
+        load_node_props_from_df, load_nodes_from_df,
     },
 };
 
@@ -384,6 +385,8 @@ impl PyGraphWithDeletions {
     ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
     ///     node_const_properties (list): The column names for the node constant properties (optional) Defaults to None.
     ///     node_shared_const_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     ///
     /// Returns:
     ///      Graph: The loaded Graph object.
@@ -445,10 +448,11 @@ impl PyGraphWithDeletions {
     ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
     ///     id (str): The column name for the node IDs.
     ///     time (str): The column name for the timestamps.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
     ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
-    ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
@@ -514,7 +518,7 @@ impl PyGraphWithDeletions {
     ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
     ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
     ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
@@ -563,6 +567,66 @@ impl PyGraphWithDeletions {
                 properties,
                 const_properties,
                 shared_const_properties,
+                layer,
+                layer_in_df.unwrap_or(true),
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
+    /// Load edges deletions from a Pandas DataFrame into the graph.
+    ///
+    /// Arguments:
+    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     time (str): The column name for the update timestamps.
+    ///     layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (df, src, dst, time, layer = None, layer_in_df = true))]
+    fn load_edges_deletions_from_pandas(
+        &self,
+        df: &PyAny,
+        src: &str,
+        dst: &str,
+        time: &str,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph.graph;
+        Python::with_gil(|py| {
+            let size: usize = py
+                .eval(
+                    "index.__len__()",
+                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+
+            let mut cols_to_check = vec![src, dst, time];
+            if layer_in_df.unwrap_or(true) {
+                if let Some(ref layer) = layer {
+                    cols_to_check.push(layer.as_ref());
+                }
+            }
+
+            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+
+            df.check_cols_exist(&cols_to_check)?;
+            load_edges_deletions_from_df(
+                &df,
+                size,
+                src,
+                dst,
+                time,
                 layer,
                 layer_in_df.unwrap_or(true),
                 graph,

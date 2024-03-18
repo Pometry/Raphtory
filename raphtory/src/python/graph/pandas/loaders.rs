@@ -28,18 +28,17 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
         Some(node_type) => {
             if node_type_in_df {
                 let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
-                if let Some(node_types) = df.utf8::<i32>(node_type) {
-                    Ok(Box::new(node_types))
-                } else if let Some(node_types) = df.utf8::<i64>(node_type) {
-                    Ok(Box::new(node_types))
-                } else {
-                    Err(GraphError::LoadFailure(
-                        "Unable to convert / find node_type column in dataframe.".to_string(),
-                    ))
-                };
+                    if let Some(node_types) = df.utf8::<i32>(node_type) {
+                        Ok(Box::new(node_types))
+                    } else if let Some(node_types) = df.utf8::<i64>(node_type) {
+                        Ok(Box::new(node_types))
+                    } else {
+                        Err(GraphError::LoadFailure(
+                            "Unable to convert / find node_type column in dataframe.".to_string(),
+                        ))
+                    };
                 iter_res?
-            }
-            else {
+            } else {
                 Box::new(std::iter::repeat(Some(node_type)))
             }
         }
@@ -232,6 +231,101 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
                 if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
                 }
+            }
+        }
+    } else {
+        return Err(GraphError::LoadFailure(
+            "Source and Target columns must be either u64 or text, Time column must be i64. Ensure these contain no NaN, Null or None values."
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
+    df: &'a PretendDF,
+    size: usize,
+    src: &str,
+    dst: &str,
+    time: &str,
+    layer: Option<S>,
+    layer_in_df: bool,
+    graph: &InnerTemporalGraph<N>,
+) -> Result<(), GraphError> {
+    let layer = lift_layer(layer, layer_in_df, df);
+
+    if let (Some(src), Some(dst), Some(time)) = (
+        df.iter_col::<u64>(src),
+        df.iter_col::<u64>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src
+            .map(|i| i.copied())
+            .zip(dst.map(|i| i.copied()))
+            .zip(time);
+        for (((src, dst), time), layer) in tqdm!(
+            triplets.zip(layer),
+            desc = "Loading edges",
+            total = size,
+            animation = kdam::Animation::FillUp,
+            unit_scale = true
+        ) {
+            if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                graph.delete_edge(*time, src, dst, layer.as_deref());
+            }
+        }
+    } else if let (Some(src), Some(dst), Some(time)) = (
+        df.iter_col::<i64>(src),
+        df.iter_col::<i64>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src
+            .map(i64_opt_into_u64_opt)
+            .zip(dst.map(i64_opt_into_u64_opt))
+            .zip(time);
+        for (((src, dst), time), layer) in tqdm!(
+            triplets.zip(layer),
+            desc = "Loading edges",
+            total = size,
+            animation = kdam::Animation::FillUp,
+            unit_scale = true
+        ) {
+            if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                graph.delete_edge(*time, src, dst, layer.as_deref());
+            }
+        }
+    } else if let (Some(src), Some(dst), Some(time)) = (
+        df.utf8::<i32>(src),
+        df.utf8::<i32>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+        for (((src, dst), time), layer) in tqdm!(
+            triplets.zip(layer),
+            desc = "Loading edges",
+            total = size,
+            animation = kdam::Animation::FillUp,
+            unit_scale = true
+        ) {
+            if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                graph.delete_edge(*time, src, dst, layer.as_deref());
+            }
+        }
+    } else if let (Some(src), Some(dst), Some(time)) = (
+        df.utf8::<i64>(src),
+        df.utf8::<i64>(dst),
+        df.iter_col::<i64>(time),
+    ) {
+        let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
+        for (((src, dst), time), layer) in tqdm!(
+            triplets.zip(layer),
+            desc = "Loading edges",
+            total = size,
+            animation = kdam::Animation::FillUp,
+            unit_scale = true
+        ) {
+            if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
+                graph.delete_edge(*time, src, dst, layer.as_deref());
             }
         }
     } else {
