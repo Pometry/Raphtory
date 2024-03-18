@@ -582,7 +582,14 @@ def test_load_from_pandas_with_types():
         assert g.unique_layers == ["_default", "layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
         assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
         assert g.layers(["layer 3"]).edges.src.id.collect() == [3]
-        
+        with pytest.raises(
+            Exception,
+            match=re.escape(
+                "Invalid layer test_layer."
+            ),
+        ):
+            g.layers(["test_layer"])
+            
     g = Graph()
     g.load_edges_from_pandas(
         edges_df,

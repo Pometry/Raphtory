@@ -552,7 +552,7 @@ impl PyGraph {
             let mut cols_to_check = vec![src, dst, time];
             cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
-            if layer_in_df.unwrap_or(false) {
+            if layer_in_df.unwrap_or(true) {
                 if let Some(ref layer) = layer {
                     cols_to_check.push(layer.as_ref());
                 }
@@ -664,7 +664,7 @@ impl PyGraph {
                 )?
                 .extract()?;
             let mut cols_to_check = vec![src, dst];
-            if layer_in_df.unwrap_or(false) {
+            if layer_in_df.unwrap_or(true) {
                 if let Some(ref layer) = layer {
                     cols_to_check.push(layer.as_ref());
                 }
