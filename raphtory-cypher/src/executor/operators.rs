@@ -83,12 +83,16 @@ impl Source for EdgeScan {
         let values = chunked_lists_ts.values();
         let num_chunks = values.num_chunks();
 
-        (0..num_chunks).into_par_iter().for_each(|chunk_id| {
+        println!("ofsets: {:?}", offsets);
+        println!("values: {:?}", values);
+
+        let out = (0..num_chunks).into_iter().try_for_each(|chunk_id| {
             let time_values = values.chunk(chunk_id);
             let start_offset = chunk_id * chunk_size;
             let end_offset = (chunk_id + 1) * chunk_size;
 
             let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
+            println!("start_offset: {start_offset}, end_offset: {end_offset}, start: {}, end: {}, local_offsets: {:?}", start, end, local_offsets);
 
             let srcs = edges.srcs().sliced(start..end);
             let dsts = edges.dsts().sliced(start..end);
@@ -141,9 +145,10 @@ impl Source for EdgeScan {
 
             let block = DataBlock { data: df };
             producer(block);
+            Ok(())
         });
 
-        Ok(())
+        out
     }
 }
 
@@ -165,7 +170,10 @@ impl Operator for Filter {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use polars_core::df;
     use raphtory::{
+        arrow::{graph_impl::ArrowGraph, Time},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
@@ -213,5 +221,78 @@ mod test {
                 }),
             )
             .expect("Failed to produce data");
+    }
+
+    fn check_edge_scan_sanity(
+        edges: Vec<(u64, u64, Time, f64)>,
+        chunk_size: usize,
+        t_prop_chunk_size: usize,
+    ) {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, chunk_size, t_prop_chunk_size);
+
+        let ((src_col, dst_col), times_col): ((Vec<_>, Vec<_>), Vec<_>) = graph
+            .all_edges(0)
+            .map(|edge| {
+                let times = edge
+                    .timestamps()
+                    .into_iter_t()
+                    .map(Some)
+                    .collect::<Vec<_>>();
+                let src = edge.src().as_u64();
+                let dst = edge.dst().as_u64();
+                let ts_arr: polars_arrow::array::PrimitiveArray<i64> = times.into();
+                let ts_series =
+                    Series::from_arrow("time", ts_arr.boxed()).expect("Failed to make time series");
+                ((src, dst), ts_series)
+            })
+            .unzip();
+
+        let expected = df!(
+            "src" => &src_col,
+            "dst" => &dst_col,
+            "time" => &times_col
+        )
+        .unwrap();
+
+        println!("expected {:?}", expected);
+
+        let edge_scan = EdgeScan::new("_default", Arc::new([0, 1, 2]));
+
+        let tp = rayon::ThreadPoolBuilder::new()
+            .num_threads(1)
+            .build()
+            .unwrap();
+
+        let (send, recv) = std::sync::mpsc::channel();
+
+        tp.install(|| {
+            edge_scan
+                .produce(
+                    &graph,
+                    Arc::new(|data| {
+                        send.send(data.data).expect("Failed to send data")
+                    }),
+                )
+                .expect("Failed to produce data");
+        });
+
+        drop(send);
+
+        let dfs = recv.iter().collect::<Vec<_>>();
+
+        println!("{:?}", dfs);
+    }
+
+    #[test]
+    fn test_edge_scan_sanity_simple() {
+        let edges = vec![
+            (0, 1, 0, 0.0),
+            (0, 1, 1, 0.0),
+            (0, 1, 2, 0.0),
+            (0, 2, 3, 0.0),
+            (0, 3, 4, 0.0),
+        ];
+        check_edge_scan_sanity(edges, 2, 2);
     }
 }

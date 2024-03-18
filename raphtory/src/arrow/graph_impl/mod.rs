@@ -1,4 +1,4 @@
-use arrow2::array::StructArray;
+use arrow2::{datatypes::{DataType, Field}, array::{PrimitiveArray, StructArray}};
 
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
@@ -63,6 +63,46 @@ impl IntoDynamic for ArrowGraph {
 }
 
 impl ArrowGraph {
+    pub fn make_simple_graph(
+        graph_dir: impl AsRef<Path>,
+        edges: &[(u64, u64, i64, f64)],
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> ArrowGraph {
+        // unzip into 4 vectors
+        let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
+            .into_iter()
+            .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
+            .unzip();
+
+        let edge_lists = vec![arrow2::array::StructArray::new(
+            DataType::Struct(vec![
+                Field::new("src", DataType::UInt64, false),
+                Field::new("dst", DataType::UInt64, false),
+                Field::new("time", DataType::Int64, false),
+                Field::new("weight", DataType::Float64, false),
+            ]),
+            vec![
+                PrimitiveArray::from_vec(src).boxed(),
+                PrimitiveArray::from_vec(dst).boxed(),
+                PrimitiveArray::from_vec(time).boxed(),
+                PrimitiveArray::from_vec(weight).boxed(),
+            ],
+            None,
+        )];
+        ArrowGraph::load_from_edge_lists(
+            &edge_lists,
+            std::num::NonZeroUsize::new(1).unwrap(),
+            chunk_size,
+            t_props_chunk_size,
+            graph_dir.as_ref(),
+            0,
+            1,
+            2,
+        )
+            .expect("failed to create graph")
+    }
+
     fn new(inner_graph: TemporalGraph) -> Self {
         let node_meta = Meta::new();
         let mut edge_meta = Meta::new();
@@ -241,10 +281,6 @@ impl ArrowGraph {
 mod test {
     use std::{cmp::Reverse, iter::once, path::Path};
 
-    use arrow2::{
-        array::PrimitiveArray,
-        datatypes::{DataType, Field},
-    };
     use itertools::{chain, Itertools};
 
     use crate::{
@@ -258,40 +294,9 @@ mod test {
 
     fn make_simple_graph(
         graph_dir: impl AsRef<Path>,
-        edges: &[(u64, u64, Time, f64)],
+        edges: &[(u64, u64, i64, f64)],
     ) -> ArrowGraph {
-        // unzip into 4 vectors
-        let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
-            .into_iter()
-            .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
-            .unzip();
-
-        let edge_lists = vec![arrow2::array::StructArray::new(
-            DataType::Struct(vec![
-                Field::new("src", DataType::UInt64, false),
-                Field::new("dst", DataType::UInt64, false),
-                Field::new("time", DataType::Int64, false),
-                Field::new("weight", DataType::Float64, false),
-            ]),
-            vec![
-                PrimitiveArray::from_vec(src).boxed(),
-                PrimitiveArray::from_vec(dst).boxed(),
-                PrimitiveArray::from_vec(time).boxed(),
-                PrimitiveArray::from_vec(weight).boxed(),
-            ],
-            None,
-        )];
-        ArrowGraph::load_from_edge_lists(
-            &edge_lists,
-            std::num::NonZeroUsize::new(1).unwrap(),
-            1000,
-            1000,
-            graph_dir.as_ref(),
-            0,
-            1,
-            2,
-        )
-        .expect("failed to create graph")
+        ArrowGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
     }
 
     fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {
