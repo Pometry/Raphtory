@@ -390,7 +390,7 @@ impl PyGraphWithDeletions {
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
     edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
-    node_const_properties = None, node_shared_const_properties = None, node_type = None))]
+    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -408,6 +408,7 @@ impl PyGraphWithDeletions {
         node_const_properties: Option<Vec<&str>>,
         node_shared_const_properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
     ) -> Result<GraphWithDeletions, GraphError> {
         let graph = PyGraphWithDeletions {
             graph: GraphWithDeletions::new(),
@@ -429,6 +430,7 @@ impl PyGraphWithDeletions {
                 node_id,
                 node_time,
                 node_type,
+                node_type_in_df,
                 node_properties,
                 node_const_properties,
                 node_shared_const_properties,
@@ -449,13 +451,14 @@ impl PyGraphWithDeletions {
     ///     node_type (str): the column name for the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, node_type = None, properties = None, const_properties = None, shared_const_properties = None))]
+    #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
         time: &str,
         node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
         properties: Option<Vec<&str>>,
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
@@ -471,11 +474,13 @@ impl PyGraphWithDeletions {
                 .extract()?;
 
             let mut cols_to_check = vec![id, time];
-            if let Some(node_type) = node_type {
-                cols_to_check.push(node_type);
-            }
             cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+            if node_type_in_df.unwrap_or(true) {
+                if let Some(ref node_type) = node_type {
+                    cols_to_check.push(node_type.as_ref());
+                }
+            }
 
             let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
             df.check_cols_exist(&cols_to_check)?;
@@ -489,6 +494,7 @@ impl PyGraphWithDeletions {
                 const_properties,
                 shared_const_properties,
                 node_type,
+                node_type_in_df.unwrap_or(true),
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

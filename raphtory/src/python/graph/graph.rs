@@ -397,13 +397,15 @@ impl PyGraph {
     ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
     ///     node_const_properties (list): The column names for the node constant properties (optional) Defaults to None.
     ///     node_shared_const_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     ///
     /// Returns:
     ///      Graph: The loaded Graph object.
     #[staticmethod]
     #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
     edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
-    node_const_properties = None, node_shared_const_properties = None, node_type = None))]
+    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
@@ -421,6 +423,7 @@ impl PyGraph {
         node_const_properties: Option<Vec<&str>>,
         node_shared_const_properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
@@ -431,6 +434,7 @@ impl PyGraph {
                 node_id,
                 node_time,
                 node_type,
+                node_type_in_df,
                 node_properties,
                 node_const_properties,
                 node_shared_const_properties,
@@ -460,15 +464,17 @@ impl PyGraph {
     ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
     ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, node_type = None, properties = None, const_properties = None, shared_const_properties = None))]
-    fn load_nodes_from_pandas(
+    #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+        fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
         time: &str,
         node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
         properties: Option<Vec<&str>>,
         const_properties: Option<Vec<&str>>,
         shared_const_properties: Option<HashMap<String, Prop>>,
@@ -484,11 +490,13 @@ impl PyGraph {
                 .extract()?;
 
             let mut cols_to_check = vec![id, time];
-            if let Some(node_type) = node_type {
-                cols_to_check.push(node_type);
-            }
             cols_to_check.extend(properties.as_ref().unwrap_or(&Vec::new()));
             cols_to_check.extend(const_properties.as_ref().unwrap_or(&Vec::new()));
+            if node_type_in_df.unwrap_or(true) {
+                if let Some(ref node_type) = node_type {
+                    cols_to_check.push(node_type.as_ref());
+                }
+            }
 
             let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
             df.check_cols_exist(&cols_to_check)?;
@@ -502,6 +510,7 @@ impl PyGraph {
                 const_properties,
                 shared_const_properties,
                 node_type,
+                node_type_in_df.unwrap_or(true),
                 graph,
             )
             .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;

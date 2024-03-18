@@ -18,23 +18,30 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     properties: Option<Vec<&str>>,
     const_properties: Option<Vec<&str>>,
     shared_const_properties: Option<HashMap<String, Prop>>,
-    node_type_col: Option<&str>,
+    node_type: Option<&str>,
+    node_type_in_df: bool,
     graph: &InnerTemporalGraph<N>,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
-    let node_type_iter: Box<dyn Iterator<Item = Option<&str>>> = match node_type_col {
-        Some(node_type_col) => {
-            let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
-                if let Some(node_types) = df.utf8::<i32>(node_type_col) {
+
+    let node_type: Box<dyn Iterator<Item = Option<&str>>> = match node_type {
+        Some(node_type) => {
+            if node_type_in_df {
+                let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
+                if let Some(node_types) = df.utf8::<i32>(node_type) {
                     Ok(Box::new(node_types))
-                } else if let Some(node_types) = df.utf8::<i64>(node_type_col) {
+                } else if let Some(node_types) = df.utf8::<i64>(node_type) {
                     Ok(Box::new(node_types))
                 } else {
                     Err(GraphError::LoadFailure(
                         "Unable to convert / find node_type column in dataframe.".to_string(),
                     ))
                 };
-            iter_res?
+                iter_res?
+            }
+            else {
+                Box::new(std::iter::repeat(Some(node_type)))
+            }
         }
         None => Box::new(iter::repeat(None)),
     };
@@ -43,7 +50,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
         let iter = node_id
             .map(|i| i.copied())
             .zip(time)
-            .zip(node_type_iter)
+            .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
         load_nodes_from_num_iter(
             graph,
@@ -58,7 +65,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     {
         let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
         let iter = iter
-            .zip(node_type_iter)
+            .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
         load_nodes_from_num_iter(
@@ -73,7 +80,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
-            .zip(node_type_iter)
+            .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
         for (((node_id, time, n_t), props), const_props) in tqdm!(
@@ -96,7 +103,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
-            .zip(node_type_iter)
+            .zip(node_type)
             .map(|((node_id, time), n_t)| (node_id, time, n_t));
 
         for (((node_id, time, n_t), props), const_props) in tqdm!(

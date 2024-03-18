@@ -135,12 +135,12 @@ def test_load_from_pandas_into_existing_graph():
         assert nodes == expected_nodes
     
     g = Graph()
-    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"])
+    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
     
     g = GraphWithDeletions()
-    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", ["name"])
+    g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
 
@@ -285,7 +285,7 @@ def test_load_from_pandas_with_types():
         "id",
         "time",
         "node_type",
-        ["name"],
+        properties=["name"],
         shared_const_properties={"tag": "test_tag"},
     )
     assertions1(g)
@@ -296,7 +296,7 @@ def test_load_from_pandas_with_types():
         "id",
         "time",
         "node_type",
-        ["name"],
+        properties=["name"],
         shared_const_properties={"tag": "test_tag"},
     )
     assertions1(g)
@@ -313,13 +313,13 @@ def test_load_from_pandas_with_types():
 
     g = Graph()
     g.load_nodes_from_pandas(
-        nodes_df, "id", "time", "node_type", ["name"], const_properties=["type"]
+        nodes_df, "id", "time", "node_type", properties=["name"], const_properties=["type"]
     )
     assertions2(g)
     
     g = GraphWithDeletions()
     g.load_nodes_from_pandas(
-        nodes_df, "id", "time", "node_type", ["name"], const_properties=["type"]
+        nodes_df, "id", "time", "node_type", properties=["name"], const_properties=["type"]
     )
     assertions2(g)
 
@@ -354,7 +354,7 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         "time",
-        ["weight", "marbles"],
+        properties=["weight", "marbles"],
         const_properties=["marbles_const"],
         shared_const_properties={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
@@ -368,7 +368,7 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         "time",
-        ["weight", "marbles"],
+        properties=["weight", "marbles"],
         const_properties=["marbles_const"],
         shared_const_properties={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
@@ -905,6 +905,13 @@ def test_load_node_from_pandas_with_node_types():
             "time": [1, 2, 3, 4],
         }
     )
+    nodes_df2 = pd.DataFrame(
+        {
+            "id": ["A", "B", "C", "D"],
+            "time": [1, 2, 3, 4],
+            "node_type": ["node_type1", "node_type2", "node_type3", "node_type4"],
+        }
+    )
     edges_df = pd.DataFrame(
         {
             "src": [1, 2, 3, 4, 5],
@@ -915,6 +922,16 @@ def test_load_node_from_pandas_with_node_types():
     
     def nodes_assertions(g):
         assert g.get_all_node_types() == []
+        assert g.count_nodes() == 4
+        
+    def nodes_assertions2(g):
+        assert g.get_all_node_types() == ['node_type']
+        assert g.count_nodes() == 4
+    
+    def nodes_assertions3(g):
+        all_node_types = g.get_all_node_types()
+        all_node_types.sort()
+        assert all_node_types == ["node_type1", "node_type2", "node_type3", "node_type4"]
         assert g.count_nodes() == 4
     
     def edges_assertions(g):
@@ -927,6 +944,27 @@ def test_load_node_from_pandas_with_node_types():
     g = GraphWithDeletions()
     g.load_nodes_from_pandas(nodes_df, "id", "time")
     nodes_assertions(g)
+    
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df, "id", "time", node_type="node_type", node_type_in_df=False)
+    nodes_assertions2(g)
+    g = GraphWithDeletions()
+    g.load_nodes_from_pandas(nodes_df, "id", "time", node_type="node_type", node_type_in_df=False)
+    nodes_assertions2(g)
+    
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False)
+    nodes_assertions2(g)
+    g = GraphWithDeletions()
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False)
+    nodes_assertions2(g)
+    
+    g = Graph()
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True)
+    nodes_assertions3(g)
+    g = GraphWithDeletions()
+    g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True)
+    nodes_assertions3(g)
     
     g = Graph.load_from_pandas(edges_df, "src", "dst", "time")
     edges_assertions(g)
