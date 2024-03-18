@@ -54,7 +54,7 @@ mod test {
             layer_in_df,
             &graph.0,
         )
-        .expect("failed to load edges from pretend df");
+            .expect("failed to load edges from pretend df");
 
         let actual = graph
             .edges()
@@ -122,7 +122,7 @@ mod test {
             false,
             &graph.0,
         )
-        .expect("failed to load nodes from pretend df");
+            .expect("failed to load nodes from pretend df");
 
         let actual = graph
             .nodes()
@@ -147,13 +147,13 @@ mod test {
                     1,
                     Some(1),
                     Some(Prop::str("a")),
-                    Some(ArcStr::from("atype"))
+                    Some(ArcStr::from("node_type"))
                 ),
                 (
                     2,
                     Some(2),
                     Some(Prop::str("b")),
-                    Some(ArcStr::from("btype"))
+                    Some(ArcStr::from("node_type"))
                 ),
             ]
         );
