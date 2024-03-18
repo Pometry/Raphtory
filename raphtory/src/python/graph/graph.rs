@@ -468,7 +468,7 @@ impl PyGraph {
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
     #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
-        fn load_nodes_from_pandas(
+    fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
