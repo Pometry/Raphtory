@@ -54,7 +54,7 @@ mod test {
             layer_in_df,
             &graph.0,
         )
-            .expect("failed to load edges from pretend df");
+        .expect("failed to load edges from pretend df");
 
         let actual = graph
             .edges()
@@ -122,7 +122,7 @@ mod test {
             false,
             &graph.0,
         )
-            .expect("failed to load nodes from pretend df");
+        .expect("failed to load nodes from pretend df");
 
         let actual = graph
             .nodes()
