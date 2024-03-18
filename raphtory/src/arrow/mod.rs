@@ -24,8 +24,8 @@ pub(crate) mod graph_builder;
 pub mod graph_fragment;
 pub mod graph_impl;
 pub mod load;
-mod node_properties;
 pub(crate) mod nodes;
+mod properties;
 pub mod query;
 pub(crate) mod timestamps;
 
@@ -95,6 +95,11 @@ pub(crate) mod file_prefix {
     pub enum GraphPaths {
         NodeAdditions,
         NodeAdditionsOffsets,
+        NodeTProps,
+        NodeTPropsTimestamps,
+        NodeTPropsSecondaryIndex,
+        NodeTPropsOffsets,
+        NodeConstProps,
         AdjOutSrcs,
         AdjOutDsts,
         AdjOutOffsets,

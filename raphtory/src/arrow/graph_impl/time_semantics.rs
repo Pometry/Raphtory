@@ -16,7 +16,10 @@ use crate::{
 };
 
 use crate::{
-    arrow::prelude::{ArrayOps, BaseArrayOps},
+    arrow::{
+        prelude::{ArrayOps, BaseArrayOps},
+        properties::Properties,
+    },
     core::storage::timeindex::TimeIndexIntoOps,
     prelude::TimeIndexEntry,
 };
@@ -400,30 +403,42 @@ impl TimeSemantics for ArrowGraph {
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
         match &self.inner.node_properties {
             None => false,
-            Some(props) => props.has_temporal_prop(v, prop_id),
+            Some(props) => props.temporal_props.has_prop(v, prop_id),
         }
     }
 
     #[doc = " and the second element is the property value."]
-    fn temporal_node_prop_vec(&self, _v: VID, _id: usize) -> Vec<(i64, Prop)> {
-        todo!("arrow nodes don't have properties yet")
+    fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
+        match &self.inner.node_properties {
+            None => {
+                vec![]
+            }
+            Some(props) => props.temporal_props.prop(v, id).iter().collect(),
+        }
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
         match &self.inner.node_properties {
             None => false,
-            Some(props) => props.has_temporal_prop_window(v, prop_id, w),
+            Some(props) => props.temporal_props.has_prop_window(v, prop_id, w),
         }
     }
 
     fn temporal_node_prop_vec_window(
         &self,
-        _v: VID,
-        _id: usize,
-        _start: i64,
-        _end: i64,
+        v: VID,
+        id: usize,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!("arrow nodes don't have properties yet")
+        match &self.inner.node_properties {
+            None => vec![],
+            Some(props) => props
+                .temporal_props
+                .prop(v, id)
+                .iter_window(start..end)
+                .collect(),
+        }
     }
 
     fn has_temporal_edge_prop_window(

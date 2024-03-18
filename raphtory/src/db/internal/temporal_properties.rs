@@ -14,20 +14,20 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.inner()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter().map(|(t, _)| t).collect())
+            .map(|prop| prop.iter_t().map(|(t, _)| t).collect())
             .unwrap_or_default()
     }
 
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.inner()
             .get_temporal_prop(id)
-            .and_then(|prop| prop.iter().map(|(t, _)| t.dt()).collect())
+            .and_then(|prop| prop.iter_t().map(|(t, _)| t.dt()).collect())
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
         self.inner()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter().map(|(_, v)| v).collect())
+            .map(|prop| prop.iter_t().map(|(_, v)| v).collect())
             .unwrap_or_default()
     }
 

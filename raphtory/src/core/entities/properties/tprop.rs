@@ -184,7 +184,41 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+        match self {
+            TProp::Empty => Box::new(iter::empty()),
+            TProp::Str(cell) => {
+                Box::new(cell.iter().map(|(t, value)| (*t, Prop::Str(value.clone()))))
+            }
+            TProp::I32(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::I32(*value)))),
+            TProp::I64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::I64(*value)))),
+            TProp::U8(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U8(*value)))),
+            TProp::U16(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U16(*value)))),
+            TProp::U32(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U32(*value)))),
+            TProp::U64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::U64(*value)))),
+            TProp::F32(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::F32(*value)))),
+            TProp::F64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::F64(*value)))),
+            TProp::Bool(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::Bool(*value)))),
+            TProp::DTime(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::DTime(*value)))),
+            TProp::Graph(cell) => Box::new(
+                cell.iter()
+                    .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
+            ),
+            TProp::Document(cell) => Box::new(
+                cell.iter()
+                    .map(|(t, value)| (*t, Prop::Document(value.clone()))),
+            ),
+            TProp::List(cell) => Box::new(
+                cell.iter()
+                    .map(|(t, value)| (*t, Prop::List(value.clone()))),
+            ),
+            TProp::Map(cell) => {
+                Box::new(cell.iter().map(|(t, value)| (*t, Prop::Map(value.clone()))))
+            }
+        }
+    }
+
+    pub(crate) fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -398,10 +432,10 @@ impl<'a> TPropOps for LockedLayeredTProp<'a> {
     fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         match self {
             LockedLayeredTProp::VecProp(tprop) => {
-                Box::new(tprop.iter().map(|p| p.iter()).kmerge_by(|a, b| a.0 < b.0))
+                Box::new(tprop.iter().map(|p| p.iter_t()).kmerge_by(|a, b| a.0 < b.0))
             }
             LockedLayeredTProp::External(tprop) => tprop.iter(),
-            LockedLayeredTProp::One(t_prop) => t_prop.iter(),
+            LockedLayeredTProp::One(t_prop) => t_prop.iter_t(),
         }
     }
 
@@ -459,7 +493,7 @@ mod tprop_tests {
         let mut tprop = TProp::Empty;
         tprop.set(1.into(), Prop::I32(10));
 
-        assert_eq!(tprop.iter().collect::<Vec<_>>(), vec![(1, Prop::I32(10))]);
+        assert_eq!(tprop.iter_t().collect::<Vec<_>>(), vec![(1, Prop::I32(10))]);
     }
 
     #[test]
@@ -468,7 +502,7 @@ mod tprop_tests {
         tprop.set(2.into(), "Pometry Inc.".into());
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, "Pometry".into()), (2, "Pometry Inc.".into())]
         );
     }
@@ -479,7 +513,7 @@ mod tprop_tests {
         tprop.set(1.into(), "Pometry Inc.".into());
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, "Pometry".into())]
         );
     }
@@ -488,13 +522,13 @@ mod tprop_tests {
     fn updates_to_prop_can_be_iterated() {
         let tprop = TProp::default();
 
-        assert_eq!(tprop.iter().collect::<Vec<_>>(), vec![]);
+        assert_eq!(tprop.iter_t().collect::<Vec<_>>(), vec![]);
 
         let mut tprop = TProp::from(1.into(), "Pometry".into());
         tprop.set(2.into(), "Pometry Inc.".into());
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![
                 (1, Prop::Str("Pometry".into())),
                 (2, Prop::Str("Pometry Inc.".into()))
@@ -505,7 +539,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::I32(2023));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::I32(2022)), (2, Prop::I32(2023))]
         );
 
@@ -513,7 +547,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::I64(2023));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::I64(2022)), (2, Prop::I64(2023))]
         );
 
@@ -521,7 +555,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::F32(11.0));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::F32(10.0)), (2, Prop::F32(11.0))]
         );
 
@@ -529,7 +563,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::F64(11.0));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::F64(10.0)), (2, Prop::F64(11.0))]
         );
 
@@ -537,7 +571,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U32(2));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::U32(1)), (2, Prop::U32(2))]
         );
 
@@ -545,7 +579,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U64(2));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::U64(1)), (2, Prop::U64(2))]
         );
 
@@ -553,7 +587,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U8(2));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::U8(1)), (2, Prop::U8(2))]
         );
 
@@ -561,7 +595,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::U16(2));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::U16(1)), (2, Prop::U16(2))]
         );
 
@@ -569,7 +603,7 @@ mod tprop_tests {
         tprop.set(2.into(), Prop::Bool(true));
 
         assert_eq!(
-            tprop.iter().collect::<Vec<_>>(),
+            tprop.iter_t().collect::<Vec<_>>(),
             vec![(1, Prop::Bool(true)), (2, Prop::Bool(true))]
         );
     }
