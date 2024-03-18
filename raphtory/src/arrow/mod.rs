@@ -66,6 +66,10 @@ pub enum Error {
     MetadataError(#[from] Box<bincode::ErrorKind>),
     #[error("Failed to cast mmap_mut to [i64]: {0:?}")]
     SliceCastError(bytemuck::PodCastError),
+    #[error("Failed to cast array")]
+    TypeCastError,
+    #[error("Missing chunk {0}")]
+    MissingChunk(usize),
 }
 
 // unsafe impl Send for Error {} // heed::Error can't be made Send
@@ -85,7 +89,10 @@ pub fn adj_schema() -> DataType {
 }
 
 pub(crate) mod file_prefix {
+    use crate::arrow::Error;
+    use itertools::Itertools;
     use std::{
+        cmp::Ordering,
         path::{Path, PathBuf},
         str::FromStr,
     };
@@ -112,6 +119,21 @@ pub(crate) mod file_prefix {
         HashMap,
     }
 
+    #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Copy, Clone)]
+    pub struct GraphFile {
+        pub prefix: GraphPaths,
+        pub chunk: usize,
+    }
+
+    impl GraphFile {
+        pub fn try_from_path(path: impl AsRef<Path>) -> Option<Self> {
+            let mut name_parts = path.as_ref().file_name()?.to_str()?.split("-");
+            let prefix = GraphPaths::from_str(name_parts.next()?).ok()?;
+            let chunk: usize = name_parts.next()?.parse().ok()?;
+            Some(Self { prefix, chunk })
+        }
+    }
+
     impl GraphPaths {
         pub fn try_from(path: impl AsRef<Path>) -> Option<Self> {
             let path = path.as_ref();
@@ -131,6 +153,29 @@ pub(crate) mod file_prefix {
             .as_ref()
             .join(format!("{}-{:08}.ipc", prefix, id));
         file_path
+    }
+
+    pub fn sorted_file_list(
+        dir: impl AsRef<Path>,
+        prefix: GraphPaths,
+    ) -> Result<impl Iterator<Item = PathBuf>, Error> {
+        let mut files = dir
+            .as_ref()
+            .read_dir()?
+            .filter_map_ok(|f| {
+                let path = f.path();
+                GraphFile::try_from_path(&path)
+                    .filter(|f| f.prefix == prefix)
+                    .map(|f| (f.chunk, path))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        files.sort();
+        for (i, (chunk, _)) in files.iter().enumerate() {
+            if &i != chunk {
+                return Err(Error::MissingChunk(i));
+            }
+        }
+        Ok(files.into_iter().map(|(_, path)| path))
     }
 }
 
