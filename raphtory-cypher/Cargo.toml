@@ -21,7 +21,7 @@ pest = "2.7.8"
 pest_derive = "2.7.8"
 sqlparser = "0.44"
 
-polars-core = {version = "0.38", features = ["lazy"]}
+polars-core = {version = "0.38", features = ["lazy", "fmt"]}
 polars-arrow = {version = "0.38", features = ["arrow_rs"]}
 polars-lazy = "0.38"
 
