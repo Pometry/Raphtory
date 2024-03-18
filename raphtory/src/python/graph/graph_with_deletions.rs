@@ -65,8 +65,8 @@ impl IntoPy<PyObject> for GraphWithDeletions {
                 PyGraphView::from(self),
             ),
         )
-            .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
-            .into_py(py)
+        .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
+        .into_py(py)
     }
 }
 
@@ -491,10 +491,10 @@ impl PyGraphWithDeletions {
                 node_type,
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -561,11 +561,11 @@ impl PyGraphWithDeletions {
                 layer_in_df.unwrap_or(true),
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -609,11 +609,11 @@ impl PyGraphWithDeletions {
                 shared_const_properties,
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -670,11 +670,11 @@ impl PyGraphWithDeletions {
                 layer_in_df.unwrap_or(true),
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
             df.check_cols_exist(&cols_to_check)?;
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 }

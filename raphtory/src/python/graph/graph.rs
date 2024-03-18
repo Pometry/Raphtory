@@ -504,10 +504,10 @@ impl PyGraph {
                 node_type,
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -574,11 +574,11 @@ impl PyGraph {
                 layer_in_df.unwrap_or(true),
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -622,11 +622,11 @@ impl PyGraph {
                 shared_const_properties,
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
 
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 
@@ -683,11 +683,11 @@ impl PyGraph {
                 layer_in_df.unwrap_or(true),
                 graph,
             )
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
             df.check_cols_exist(&cols_to_check)?;
             Ok::<(), PyErr>(())
         })
-            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
         Ok(())
     }
 }

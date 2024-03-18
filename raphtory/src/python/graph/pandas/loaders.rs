@@ -22,9 +22,9 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
     graph: &InnerTemporalGraph<N>,
 ) -> Result<(), GraphError> {
     let (prop_iter, const_prop_iter) = get_prop_rows(df, properties, const_properties)?;
-    let node_type_iter: Box<dyn Iterator<Item=Option<&str>>> = match node_type_col {
+    let node_type_iter: Box<dyn Iterator<Item = Option<&str>>> = match node_type_col {
         Some(node_type_col) => {
-            let iter_res: Result<Box<dyn Iterator<Item=Option<&str>>>, GraphError> =
+            let iter_res: Result<Box<dyn Iterator<Item = Option<&str>>>, GraphError> =
                 if let Some(node_types) = df.utf8::<i32>(node_type_col) {
                     Ok(Box::new(node_types))
                 } else if let Some(node_types) = df.utf8::<i64>(node_type_col) {
@@ -446,9 +446,9 @@ fn load_edges_from_num_iter<
     'a,
     const N: usize,
     S: AsRef<str>,
-    I: Iterator<Item=((Option<u64>, Option<u64>), Option<&'a i64>)>,
-    PI: Iterator<Item=Vec<(S, Prop)>>,
-    IL: Iterator<Item=Option<String>>,
+    I: Iterator<Item = ((Option<u64>, Option<u64>), Option<&'a i64>)>,
+    PI: Iterator<Item = Vec<(S, Prop)>>,
+    IL: Iterator<Item = Option<String>>,
 >(
     graph: &InnerTemporalGraph<N>,
     size: usize,
@@ -480,8 +480,8 @@ fn load_nodes_from_num_iter<
     'a,
     const N: usize,
     S: AsRef<str>,
-    I: Iterator<Item=(Option<u64>, Option<&'a i64>, Option<&'a str>)>,
-    PI: Iterator<Item=Vec<(S, Prop)>>,
+    I: Iterator<Item = (Option<u64>, Option<&'a i64>, Option<&'a str>)>,
+    PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
     graph: &InnerTemporalGraph<N>,
     size: usize,
