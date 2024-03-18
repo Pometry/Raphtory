@@ -52,7 +52,7 @@ mod test {
             None,
             layer,
             layer_in_df,
-            &graph,
+            &graph.0,
         )
         .expect("failed to load edges from pretend df");
 
@@ -119,7 +119,8 @@ mod test {
             None,
             None,
             Some("node_type"),
-            &graph,
+            false,
+            &graph.0,
         )
         .expect("failed to load nodes from pretend df");
 
