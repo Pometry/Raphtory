@@ -324,6 +324,7 @@ def test_load_from_pandas_with_types():
     assertions2(g)
 
     def assertions3(g):
+        assert g.unique_layers == ["_default", "test_layer"]
         assert g.layers(["test_layer"]).edges.src.id.collect() == [1, 2, 3, 4, 5]
         assert g.edges.properties.constant.get("type").collect() == [
             {"test_layer": "Edge"},
@@ -577,6 +578,38 @@ def test_load_from_pandas_with_types():
     )
     assertions8(g)
     
+    def assertions_layers_in_df(g):
+        assert g.unique_layers == ["_default", "layer 1", "layer 2", "layer 3", "layer 4", "layer 5"]
+        assert g.layers(["layer 1"]).edges.src.id.collect() == [1]
+        assert g.layers(["layer 3"]).edges.src.id.collect() == [3]
+        
+    g = Graph()
+    g.load_edges_from_pandas(
+        edges_df,
+        "src",
+        "dst",
+        "time",
+        ["weight", "marbles"],
+        const_properties=["marbles_const"],
+        shared_const_properties={"type": "Edge", "tag": "test_tag"},
+        layer="layers",
+        layer_in_df=True,
+    )
+    assertions_layers_in_df(g)
+    
+    g = GraphWithDeletions()
+    g.load_edges_from_pandas(
+        edges_df,
+        "src",
+        "dst",
+        "time",
+        ["weight", "marbles"],
+        const_properties=["marbles_const"],
+        shared_const_properties={"type": "Edge", "tag": "test_tag"},
+        layer="layers",
+        layer_in_df=True,
+    )
+    assertions_layers_in_df(g)
 
 
 def test_missing_columns():
