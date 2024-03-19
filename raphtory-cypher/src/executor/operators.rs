@@ -4,15 +4,14 @@ use arrow2::{
     array::{Arrow2Arrow as A2A, PrimitiveArray},
     bitmap::Bitmap,
     buffer::Buffer,
-    chunk,
     datatypes::{DataType, Field},
-    offset,
     types::NativeType,
 };
 use pl_array::Arrow2Arrow as PolarsA2A;
 use polars_arrow::{array as pl_array, offset::OffsetsBuffer};
 use polars_core::{
     datatypes::{ArrowDataType, PolarsDataType, UInt64Type},
+    frame::DataFrame,
     series::{IntoSeries, Series},
 };
 use polars_lazy::dsl::Expr;
@@ -30,13 +29,24 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use super::{Context, DataBlock, Source};
 
 pub trait Operator {
-    fn execute(&self, input: DataBlock, ctx: Context) -> impl Iterator<Item = DataBlock>;
+    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>>;
 }
 
 #[derive(Debug, Clone)]
 pub enum PhysicalOperator {
     Expand(Expand),
     Filter(Filter),
+    Project(Project),
+}
+
+impl PhysicalOperator {
+    pub fn boxed(self) -> Box<dyn Operator> {
+        match self {
+            PhysicalOperator::Expand(op) => Box::new(op),
+            PhysicalOperator::Filter(op) => Box::new(op),
+            PhysicalOperator::Project(op) => Box::new(op),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +59,25 @@ pub struct Expand {
 #[derive(Debug, Clone)]
 pub struct Filter {
     expr: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct Project {
+    columns: Arc<[usize]>,
+}
+
+impl Operator for Project {
+    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        let df = input.data;
+        let columns = self
+            .columns
+            .iter()
+            .filter_map(|col| df.select_at_idx(*col))
+            .cloned();
+        Box::new(iter::once(DataBlock {
+            data: DataFrame::new(columns.collect()).unwrap(),
+        }))
+    }
 }
 
 pub struct EdgeScan {
@@ -299,14 +328,14 @@ pub struct NodeScan {
 }
 
 impl Operator for Expand {
-    fn execute(&self, input: DataBlock, ctx: Context) -> impl Iterator<Item = DataBlock> {
-        iter::empty()
+    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        Box::new(iter::empty())
     }
 }
 
 impl Operator for Filter {
-    fn execute(&self, input: DataBlock, ctx: Context) -> impl Iterator<Item = DataBlock> {
-        iter::empty()
+    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        Box::new(iter::empty())
     }
 }
 
@@ -362,14 +391,9 @@ mod test {
         .collect()
         .unwrap();
 
-        println!("{:?}", expected);
-
         let edge_scan = EdgeScan::new("_default", [("weight", 1)]);
 
-        let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .build()
-            .unwrap();
+        let tp = rayon::ThreadPoolBuilder::new().build().unwrap();
 
         let (send, recv) = std::sync::mpsc::channel();
 
@@ -395,7 +419,7 @@ mod test {
             .group_by_stable(["src", "dst"])
             .agg([
                 concat_list(["time"]).unwrap().flatten(),
-                concat_list(["weight"]).unwrap().flatten()
+                concat_list(["weight"]).unwrap().flatten(),
             ])
             .collect()
             .unwrap();

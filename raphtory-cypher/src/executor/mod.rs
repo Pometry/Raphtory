@@ -4,7 +4,7 @@ use polars_core::frame::DataFrame;
 use raphtory::arrow::graph_impl::ArrowGraph;
 use rayon::Scope;
 
-mod operators;
+pub mod operators;
 use operators::{Operator, PhysicalOperator};
 
 #[derive(Debug, Clone)]
@@ -101,11 +101,14 @@ impl Executor {
         thread_pool.scope(move |scope| {
             let source = &self.pipeline.source;
 
-            source.produce(graph, Arc::new(|input| {
-                let stage = PipelineStage::new(operators);
+            source.produce(
+                graph,
+                Arc::new(|input| {
+                    let stage = PipelineStage::new(operators);
 
-                run_pipeline(stage, scope, graph, input);
-            }))?;
+                    run_pipeline(stage, scope, graph, input);
+                }),
+            )?;
             Ok(())
         })
     }
@@ -118,21 +121,11 @@ fn run_pipeline<'graph: 'scope, 'scope>(
     input: DataBlock,
 ) {
     if let Some((operator, next_stage)) = stage.next_operator() {
-        match operator {
-            PhysicalOperator::Expand(expand) => {
-                for next_input in expand.execute(input, Context::new(scope, graph)) {
-                    scope.spawn(move |scope2| {
-                        run_pipeline(next_stage, scope2, graph, next_input);
-                    });
-                }
-            }
-            PhysicalOperator::Filter(filter) => {
-                for next_input in filter.execute(input, Context::new(scope, graph)) {
-                    scope.spawn(move |scope2| {
-                        run_pipeline(next_stage, scope2, graph, next_input);
-                    });
-                }
-            }
+        let op = operator.boxed();
+        for next_input in op.execute(input, Context::new(scope, graph)) {
+            scope.spawn(move |scope2| {
+                run_pipeline(next_stage, scope2, graph, next_input);
+            });
         }
     }
 }

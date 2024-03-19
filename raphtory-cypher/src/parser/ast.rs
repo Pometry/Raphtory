@@ -36,7 +36,7 @@ impl Query {
                 }
                 Clause::Return(ret) => {
                     for r in &ret.items {
-                        for node in r.expr.bindings() {
+                        for (node, _) in r.expr.bindings() {
                             let _ = g.add_node(0, node, NO_PROPS, None);
                         }
                     }
@@ -228,7 +228,7 @@ impl ReturnItem {
 
 type Ex = Box<Expr>;
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Expr {
     Var {
         var_name: String,
@@ -249,11 +249,10 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn bindings(&self) -> Vec<String> {
+    pub fn bindings(&self) -> Vec<(String, Vec<String>)> {
         match self {
             Expr::Var { var_name, attrs } => {
-                let mut bindings = vec![var_name.clone()];
-                bindings.extend(attrs.clone());
+                let mut bindings = vec![(var_name.clone(), attrs.clone())];
                 bindings
             }
             Expr::BinOp { left, right, .. } => {
@@ -351,13 +350,13 @@ impl Expr {
     }
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum UnaryOpType {
     Not,
     Neg,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BinOpType {
     Add,
     Sub,
