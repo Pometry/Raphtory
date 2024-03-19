@@ -39,6 +39,11 @@ pub mod prelude {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Failed to memory map file {file:?}, source: {source}")]
+    MMap {
+        file: PathBuf,
+        source: arrow2::error::Error,
+    },
     #[error("Arrow error: {0}")]
     Arrow(#[from] arrow2::error::Error),
     #[error("IO error: {0}")]
