@@ -127,9 +127,11 @@ pub(crate) mod file_prefix {
 
     impl GraphFile {
         pub fn try_from_path(path: impl AsRef<Path>) -> Option<Self> {
-            let mut name_parts = path.as_ref().file_name()?.to_str()?.split("-");
+            let name = path.as_ref().file_stem()?.to_str()?;
+            let mut name_parts = name.split('-');
             let prefix = GraphPaths::from_str(name_parts.next()?).ok()?;
-            let chunk: usize = name_parts.next()?.parse().ok()?;
+            let chunk_str = name_parts.next();
+            let chunk: usize = chunk_str?.parse().ok()?;
             Some(Self { prefix, chunk })
         }
     }

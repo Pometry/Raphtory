@@ -77,6 +77,22 @@ impl ArrowGraph {
                 .resolve_prop_id(prop_name, data_type.into(), false)
                 .expect("Arrow data types should without failing");
         }
+
+        if let Some(props) = self.node_properties.as_ref() {
+            let node_const_props_fields = props.const_props.prop_dtypes();
+            for field in node_const_props_fields {
+                self.node_meta
+                    .resolve_prop_id(&field.name, field.data_type().into(), true)
+                    .expect("Initial resolve should not fail");
+            }
+
+            let node_temporal_props_fields = props.temporal_props.prop_dtypes();
+            for field in node_temporal_props_fields {
+                self.node_meta
+                    .resolve_prop_id(&field.name, field.data_type().into(), false)
+                    .expect("Initial resolve should not fail");
+            }
+        }
     }
 
     pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
