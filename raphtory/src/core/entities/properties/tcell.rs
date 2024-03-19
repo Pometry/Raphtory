@@ -209,7 +209,7 @@ mod tcell_tests {
             tcell.iter().collect::<Vec<_>>(),
             vec![
                 (&TimeIndexEntry::start(1), &"Inc. Pometry"),
-                (&TimeIndexEntry::start(3), &"Pometry")
+                (&TimeIndexEntry::start(2), &"Pometry")
             ]
         );
 
