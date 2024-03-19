@@ -4,11 +4,13 @@ use arrow2::{
     array::{Arrow2Arrow as A2A, PrimitiveArray},
     bitmap::Bitmap,
     buffer::Buffer,
-    datatypes::DataType,
+    chunk,
+    datatypes::{DataType, Field},
+    offset,
     types::NativeType,
 };
 use pl_array::Arrow2Arrow as PolarsA2A;
-use polars_arrow::{array as pl_array, datatypes::Field};
+use polars_arrow::{array as pl_array, offset::OffsetsBuffer};
 use polars_core::{
     datatypes::{ArrowDataType, PolarsDataType, UInt64Type},
     series::{IntoSeries, Series},
@@ -17,6 +19,7 @@ use polars_lazy::dsl::Expr;
 use raphtory::{
     arrow::{
         chunked_array::array_ops::{ArrayOps, Chunked},
+        graph_fragment::TempColGraphFragment,
         graph_impl::ArrowGraph,
         prelude::BaseArrayOps,
     },
@@ -50,14 +53,20 @@ pub struct Filter {
 
 pub struct EdgeScan {
     layer: String,
-    columns: Arc<[usize]>,
+    columns: Arc<[(String, usize)]>,
 }
 
 impl EdgeScan {
-    pub fn new(layer: impl AsRef<str>, columns: Arc<[usize]>) -> Self {
+    pub fn new<S: AsRef<str>>(
+        layer: impl AsRef<str>,
+        columns: impl IntoIterator<Item = (S, usize)>,
+    ) -> Self {
         Self {
             layer: layer.as_ref().to_string(),
-            columns,
+            columns: columns
+                .into_iter()
+                .map(|(name, col_id)| (name.as_ref().to_string(), col_id))
+                .collect(),
         }
     }
 }
@@ -88,6 +97,11 @@ impl Source for EdgeScan {
 
             let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
 
+            let offsets: OffsetsBuffer<i64> =
+                polars_arrow::offset::Offsets::try_from(local_offsets)
+                    .expect("Failed to make offsets")
+                    .into();
+
             let srcs = edges.srcs().sliced(start..end);
             let dsts = edges.dsts().sliced(start..end);
 
@@ -106,13 +120,27 @@ impl Source for EdgeScan {
             let srcs = make_chunked_array::<UInt64Type>(srcs, "src").into_series();
             let dsts = make_chunked_array::<UInt64Type>(dsts, "dst").into_series();
 
-            let time = make_time_col(time_values, local_offsets);
+            let time = make_time_col(time_values, offsets.clone());
 
             let time: Series =
                 Series::from_arrow("time", time.boxed()).expect("Failed to make time series");
 
-            let df = polars_core::frame::DataFrame::new(vec![srcs, dsts, time])
-                .expect("Failed to make a dataframe");
+            let mut columns = vec![srcs, dsts, time];
+
+            for (name, col_id) in self.columns.iter() {
+                let series = property_to_polars_series(
+                    layer,
+                    name,
+                    *col_id,
+                    chunk_id,
+                    edges.data_type(),
+                    offsets.clone(),
+                );
+                columns.push(series);
+            }
+
+            let df =
+                polars_core::frame::DataFrame::new(columns).expect("Failed to make a dataframe");
 
             let block = DataBlock { data: df };
             producer(block);
@@ -123,28 +151,135 @@ impl Source for EdgeScan {
     }
 }
 
+fn property_to_polars_series(
+    graph: &TempColGraphFragment,
+    name: &str,
+    col_id: usize,
+    chunk_id: usize,
+    fields: &[Field],
+    offsets: OffsetsBuffer<i64>,
+) -> Series {
+    let edges = graph.edges_storage();
+
+    let values = match fields[col_id].data_type() {
+        DataType::Int8 => {
+            let col = edges.t_prop_col_at_chunk::<i8>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::Int16 => {
+            let col = edges.t_prop_col_at_chunk::<i16>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::Int32 => {
+            let col = edges.t_prop_col_at_chunk::<i32>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::Int64 => {
+            let col = edges.t_prop_col_at_chunk::<i64>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::UInt8 => {
+            let col = edges.t_prop_col_at_chunk::<u8>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::UInt16 => {
+            let col = edges.t_prop_col_at_chunk::<u16>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::UInt32 => {
+            let col = edges.t_prop_col_at_chunk::<u32>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::UInt64 => {
+            let col = edges.t_prop_col_at_chunk::<u64>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::Float32 => {
+            let col = edges.t_prop_col_at_chunk::<f32>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::Float64 => {
+            let col = edges.t_prop_col_at_chunk::<f64>(col_id, chunk_id);
+            let prop = arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::Utf8 => {
+            let col = edges.utf8_t_prop_col_at_chunk::<i32>(col_id, chunk_id);
+            let prop = utf8_arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        DataType::LargeUtf8 => {
+            let col = edges.utf8_t_prop_col_at_chunk::<i64>(col_id, chunk_id);
+            let prop = utf8_arrow2_to_polars_array(col);
+            prop.boxed()
+        }
+        _ => todo!(),
+    };
+
+    let list_col = pl_array::ListArray::new(
+        ArrowDataType::LargeList(Box::new(polars_arrow::datatypes::Field::new(
+            name,
+            values.data_type().clone(),
+            true,
+        ))),
+        offsets,
+        values,
+        None,
+    );
+
+    Series::from_arrow(name, list_col.boxed()).expect("Failed to make series for property")
+}
+
 fn buffer_to_polars_array<T: NativeType + polars_arrow::types::NativeType>(
     buffer: &Buffer<T>,
     validity: Option<Bitmap>,
 ) -> pl_array::PrimitiveArray<T> {
     let dt = DataType::from(<T as arrow2::types::NativeType>::PRIMITIVE);
     let prim_array = PrimitiveArray::new(dt, buffer.clone(), validity);
-    let prim_array = prim_array.to_data();
+    arrow2_to_polars_array(&prim_array)
+}
+
+fn arrow2_to_polars_array<T: NativeType + polars_arrow::types::NativeType>(
+    array: &arrow2::array::PrimitiveArray<T>,
+) -> pl_array::PrimitiveArray<T> {
+    let prim_array = array.to_data();
     let prim_array: pl_array::PrimitiveArray<T> =
         polars_arrow::array::PrimitiveArray::from_data(&prim_array);
     prim_array
 }
 
-fn make_time_col(time_values: &Buffer<i64>, local_offsets: Vec<i64>) -> pl_array::ListArray<i64> {
+fn utf8_arrow2_to_polars_array<I: arrow2::types::Offset + polars_arrow::offset::Offset>(
+    array: &arrow2::array::Utf8Array<I>,
+) -> pl_array::Utf8Array<I> {
+    let prim_array = array.to_data();
+    let prim_array: pl_array::Utf8Array<I> = polars_arrow::array::Utf8Array::from_data(&prim_array);
+    prim_array
+}
+
+fn make_time_col(
+    time_values: &Buffer<i64>,
+    local_offsets: OffsetsBuffer<i64>,
+) -> pl_array::ListArray<i64> {
     let time_values = PrimitiveArray::new(DataType::Int64, time_values.clone(), None).to_data();
     let time_values: pl_array::PrimitiveArray<i64> =
         polars_arrow::array::PrimitiveArray::from_data(&time_values);
 
-    let offsets =
-        polars_arrow::offset::Offsets::try_from(local_offsets).expect("Failed to make offsets");
     pl_array::ListArray::new(
-        ArrowDataType::LargeList(Box::new(Field::new("time", ArrowDataType::Int64, false))),
-        offsets.into(),
+        ArrowDataType::LargeList(Box::new(polars_arrow::datatypes::Field::new(
+            "time",
+            ArrowDataType::Int64,
+            false,
+        ))),
+        local_offsets,
         time_values.boxed(),
         None,
     )
@@ -193,27 +328,33 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, chunk_size, t_prop_chunk_size);
 
-        let ((src_col, dst_col), times_col): ((Vec<_>, Vec<_>), Vec<_>) = graph
-            .all_edges(0)
-            .map(|edge| {
-                let times = edge
-                    .timestamps()
-                    .into_iter_t()
-                    .map(Some)
-                    .collect::<Vec<_>>();
-                let src = edge.src().as_u64();
-                let dst = edge.dst().as_u64();
-                let ts_arr: polars_arrow::array::PrimitiveArray<i64> = times.into();
-                let ts_series =
-                    Series::from_arrow("time", ts_arr.boxed()).expect("Failed to make time series");
-                ((src, dst), ts_series)
-            })
-            .unzip();
+        let (((src_col, dst_col), times_col), weight_col): (((Vec<_>, Vec<_>), Vec<_>), Vec<_>) =
+            graph
+                .all_edges(0)
+                .map(|edge| {
+                    let times = edge.timestamps().into_iter_t().collect::<Vec<_>>();
+
+                    let weight = edge
+                        .prop_history::<f64>(1)
+                        .map(|(_, v)| v)
+                        .collect::<Vec<_>>();
+                    let weight_arr = pl_array::PrimitiveArray::from_vec(weight);
+                    let weight_series = Series::from_arrow("weight", weight_arr.boxed())
+                        .expect("Failed to make weight series");
+                    let src = edge.src().as_u64();
+                    let dst = edge.dst().as_u64();
+                    let ts_arr = polars_arrow::array::PrimitiveArray::from_vec(times);
+                    let ts_series = Series::from_arrow("time", ts_arr.boxed())
+                        .expect("Failed to make time series");
+                    (((src, dst), ts_series), weight_series)
+                })
+                .unzip();
 
         let expected = df!(
             "src" => &src_col,
             "dst" => &dst_col,
-            "time" => &times_col
+            "time" => &times_col,
+            "weight" => &weight_col
         )
         .unwrap()
         .lazy()
@@ -221,10 +362,12 @@ mod test {
         .collect()
         .unwrap();
 
-        let edge_scan = EdgeScan::new("_default", Arc::new([0, 1, 2]));
+        println!("{:?}", expected);
+
+        let edge_scan = EdgeScan::new("_default", [("weight", 1)]);
 
         let tp = rayon::ThreadPoolBuilder::new()
-            // .num_threads(1)
+            .num_threads(1)
             .build()
             .unwrap();
 
@@ -250,7 +393,10 @@ mod test {
             .lazy()
             .sort_by_exprs([col("src"), col("dst")], [false, false], true, false)
             .group_by_stable(["src", "dst"])
-            .agg([concat_list(["time"]).unwrap().flatten().sort(false)])
+            .agg([
+                concat_list(["time"]).unwrap().flatten(),
+                concat_list(["weight"]).unwrap().flatten()
+            ])
             .collect()
             .unwrap();
 
@@ -260,11 +406,11 @@ mod test {
     #[test]
     fn test_edge_scan_sanity_simple() {
         let edges = vec![
-            (0, 1, 0, 0.0),
-            (0, 1, 1, 0.0),
-            (0, 1, 2, 0.0),
-            (0, 2, 3, 0.0),
-            (0, 3, 4, 0.0),
+            (0, 1, 0, 1.0),
+            (0, 1, 1, 2.0),
+            (0, 1, 2, 3.0),
+            (0, 2, 3, 4.0),
+            (0, 3, 4, 5.0),
         ];
         check_edge_scan_sanity(edges, 2, 2);
     }

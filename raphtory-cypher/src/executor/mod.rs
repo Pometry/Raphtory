@@ -207,7 +207,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&graph, tempdir.path()).unwrap();
 
-        let edge_scan = EdgeScan::new("test", Arc::new([0, 1, 2]));
+        let edge_scan = EdgeScan::new("test", [("weight", 1), ("name", 2)]);
         let (send, recv) = std::sync::mpsc::channel();
         let pipeline = Pipeline::new(edge_scan, ChannelSink::new(send));
         let executor = Executor::new(graph, pipeline);
