@@ -1,4 +1,9 @@
-use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
+use std::{
+    num::TryFromIntError,
+    ops::Range,
+    path::{Path, PathBuf},
+};
+
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
@@ -7,11 +12,8 @@ use arrow2::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{
-    num::TryFromIntError,
-    ops::Range,
-    path::{Path, PathBuf},
-};
+
+use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
 
 pub mod algorithms;
 pub mod arrow_hmap;
@@ -89,14 +91,15 @@ pub fn adj_schema() -> DataType {
 }
 
 pub(crate) mod file_prefix {
-    use crate::arrow::Error;
-    use itertools::Itertools;
     use std::{
-        cmp::Ordering,
         path::{Path, PathBuf},
         str::FromStr,
     };
+
+    use itertools::Itertools;
     use strum::{AsRefStr, EnumString};
+
+    use crate::arrow::Error;
 
     #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq, Copy, Clone)]
     pub enum GraphPaths {

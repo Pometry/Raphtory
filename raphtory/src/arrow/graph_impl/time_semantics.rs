@@ -1,29 +1,21 @@
-use itertools::Itertools;
 use std::{iter, ops::Range, sync::Arc};
 
+use itertools::Itertools;
 use once_cell::sync::Lazy;
+use rayon::prelude::*;
 
 use crate::{
+    arrow::prelude::{ArrayOps, BaseArrayOps},
     core::{
         entities::{edges::edge_ref::EdgeRef, properties::tprop::TPropOps, LayerIds, VID},
-        storage::timeindex::TimeIndexOps,
+        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
         internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
-    prelude::Prop,
+    prelude::{Prop, TimeIndexEntry},
 };
-
-use crate::{
-    arrow::{
-        prelude::{ArrayOps, BaseArrayOps},
-        properties::Properties,
-    },
-    core::storage::timeindex::TimeIndexIntoOps,
-    prelude::TimeIndexEntry,
-};
-use rayon::prelude::*;
 
 use super::ArrowGraph;
 
@@ -375,6 +367,7 @@ impl TimeSemantics for ArrowGraph {
             .layer()
             .expect("arrow edges should always have layer currently");
         layer_ids.contains(layer)
+            && self.layers[*layer].edge(e.pid()).timestamps().first_t() >= Some(t)
     }
 
     fn has_temporal_prop(&self, _prop_id: usize) -> bool {

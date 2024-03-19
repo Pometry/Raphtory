@@ -1,11 +1,3 @@
-use std::ops::Range;
-
-use arrow2::{
-    array::{PrimitiveArray, StructArray},
-    datatypes::{DataType, Field},
-    types::{NativeType, Offset},
-};
-
 use crate::{
     arrow::{
         chunked_array::{
@@ -16,12 +8,17 @@ use crate::{
             ChunkedArraySlice,
         },
         edge::Edge,
-        prelude::{IntoPrimitiveCol, IntoUtf8Col, PrimitiveCol},
         timestamps::TimeStamps,
     },
     core::{entities::properties::tprop::TPropOps, storage::timeindex::TimeIndexOps},
     prelude::{Prop, TimeIndexEntry},
 };
+use arrow2::{
+    array::StructArray,
+    datatypes::{DataType, Field},
+    types::{NativeType, Offset},
+};
+use std::ops::Range;
 
 pub struct TPropColumn<'a, A> {
     props: ChunkedArraySlice<'a, A>,
