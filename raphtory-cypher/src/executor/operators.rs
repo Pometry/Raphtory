@@ -2,7 +2,10 @@ use std::{iter, sync::Arc};
 
 use arrow2::{
     array::{Arrow2Arrow as A2A, PrimitiveArray},
+    bitmap::Bitmap,
+    buffer::Buffer,
     datatypes::DataType,
+    types::NativeType,
 };
 use pl_array::Arrow2Arrow as PolarsA2A;
 use polars_arrow::{array as pl_array, datatypes::Field};
@@ -13,12 +16,7 @@ use polars_core::{
 use polars_lazy::dsl::Expr;
 use raphtory::{
     arrow::{
-        chunked_array::{
-            array_ops::{ArrayOps, Chunked},
-            chunked_array::ChunkedArray,
-            list_array::ChunkedListArray,
-            ChunkedArraySlice,
-        },
+        chunked_array::array_ops::{ArrayOps, Chunked},
         graph_impl::ArrowGraph,
         prelude::BaseArrayOps,
     },
@@ -83,16 +81,12 @@ impl Source for EdgeScan {
         let values = chunked_lists_ts.values();
         let num_chunks = values.num_chunks();
 
-        println!("ofsets: {:?}", offsets);
-        println!("values: {:?}", values);
-
-        let out = (0..num_chunks).into_iter().try_for_each(|chunk_id| {
+        let out = (0..num_chunks).into_par_iter().try_for_each(|chunk_id| {
             let time_values = values.chunk(chunk_id);
             let start_offset = chunk_id * chunk_size;
             let end_offset = (chunk_id + 1) * chunk_size;
 
             let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
-            println!("start_offset: {start_offset}, end_offset: {end_offset}, start: {}, end: {}, local_offsets: {:?}", start, end, local_offsets);
 
             let srcs = edges.srcs().sliced(start..end);
             let dsts = edges.dsts().sliced(start..end);
@@ -103,39 +97,16 @@ impl Source for EdgeScan {
                 .iter_chunks()
                 .zip(dsts.iter_chunks())
                 .map(|(srcs, dsts)| {
-                    let srcs = PrimitiveArray::new(DataType::UInt64, srcs.clone(), None).to_data();
-                    let dsts = PrimitiveArray::new(DataType::UInt64, dsts.clone(), None).to_data();
-
-                    let srcs: pl_array::PrimitiveArray<u64> =
-                        polars_arrow::array::PrimitiveArray::from_data(&srcs);
-                    let dsts: pl_array::PrimitiveArray<u64> =
-                        polars_arrow::array::PrimitiveArray::from_data(&dsts);
+                    let srcs = buffer_to_polars_array::<u64>(srcs, None);
+                    let dsts = buffer_to_polars_array::<u64>(dsts, None);
                     (srcs.boxed(), dsts.boxed())
                 })
                 .unzip();
 
-            let srcs: polars_core::chunked_array::ChunkedArray<UInt64Type> =
-                unsafe { polars_core::chunked_array::ChunkedArray::from_chunks("src", srcs) };
+            let srcs = make_chunked_array::<UInt64Type>(srcs, "src").into_series();
+            let dsts = make_chunked_array::<UInt64Type>(dsts, "dst").into_series();
 
-            let dsts: polars_core::chunked_array::ChunkedArray<UInt64Type> =
-                unsafe { polars_core::chunked_array::ChunkedArray::from_chunks("dst", dsts) };
-
-            let srcs = srcs.into_series();
-            let dsts = dsts.into_series();
-
-            let time_values =
-                PrimitiveArray::new(DataType::Int64, time_values.clone(), None).to_data();
-            let time_values: pl_array::PrimitiveArray<i64> =
-                polars_arrow::array::PrimitiveArray::from_data(&time_values);
-
-            let offsets = polars_arrow::offset::Offsets::try_from(local_offsets)
-                .expect("Failed to make offsets");
-            let time = pl_array::ListArray::new(
-                ArrowDataType::LargeList(Box::new(Field::new("time", ArrowDataType::Int64, false))),
-                offsets.into(),
-                time_values.boxed(),
-                None,
-            );
+            let time = make_time_col(time_values, local_offsets);
 
             let time: Series =
                 Series::from_arrow("time", time.boxed()).expect("Failed to make time series");
@@ -150,6 +121,42 @@ impl Source for EdgeScan {
 
         out
     }
+}
+
+fn buffer_to_polars_array<T: NativeType + polars_arrow::types::NativeType>(
+    buffer: &Buffer<T>,
+    validity: Option<Bitmap>,
+) -> pl_array::PrimitiveArray<T> {
+    let dt = DataType::from(<T as arrow2::types::NativeType>::PRIMITIVE);
+    let prim_array = PrimitiveArray::new(dt, buffer.clone(), validity);
+    let prim_array = prim_array.to_data();
+    let prim_array: pl_array::PrimitiveArray<T> =
+        polars_arrow::array::PrimitiveArray::from_data(&prim_array);
+    prim_array
+}
+
+fn make_time_col(time_values: &Buffer<i64>, local_offsets: Vec<i64>) -> pl_array::ListArray<i64> {
+    let time_values = PrimitiveArray::new(DataType::Int64, time_values.clone(), None).to_data();
+    let time_values: pl_array::PrimitiveArray<i64> =
+        polars_arrow::array::PrimitiveArray::from_data(&time_values);
+
+    let offsets =
+        polars_arrow::offset::Offsets::try_from(local_offsets).expect("Failed to make offsets");
+    pl_array::ListArray::new(
+        ArrowDataType::LargeList(Box::new(Field::new("time", ArrowDataType::Int64, false))),
+        offsets.into(),
+        time_values.boxed(),
+        None,
+    )
+}
+
+fn make_chunked_array<T: PolarsDataType>(
+    chunks: Vec<Box<dyn pl_array::Array>>,
+    name: &str,
+) -> polars_core::prelude::ChunkedArray<T> {
+    let srcs: polars_core::chunked_array::ChunkedArray<T> =
+        unsafe { polars_core::chunked_array::ChunkedArray::from_chunks(name, chunks) };
+    srcs
 }
 
 pub struct NodeScan {
@@ -171,63 +178,18 @@ impl Operator for Filter {
 #[cfg(test)]
 mod test {
     use super::*;
-    use polars_core::df;
-    use raphtory::{
-        arrow::{graph_impl::ArrowGraph, Time},
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
-    };
+    use polars_core::prelude::*;
+    use polars_lazy::{dsl::concat_list, prelude::*};
+
+    use raphtory::arrow::{graph_impl::ArrowGraph, Time};
     use tempfile::tempdir;
 
-    #[test]
-    fn part_point_check() {
-        let v = vec![0, 3, 4, 5];
-        let idx = v.partition_point(|v| v <= &5);
-        assert_eq!(idx, 4);
-    }
-
-    #[test]
-    fn test_edge_scan() {
-        use super::*;
-        use raphtory::arrow::graph_impl::ArrowGraph;
-        use std::sync::Arc;
-
-        let graph = Graph::new();
-
-        let edges = [
-            (0i64, 0u64, 1u64),
-            (1, 0, 1),
-            (2, 0, 1),
-            (3, 1, 2),
-            (4, 2, 3),
-        ];
-
-        for (time, src, dst) in edges.iter() {
-            graph
-                .add_edge(*time, *src, *dst, NO_PROPS, None)
-                .expect("Failed to add edge");
-        }
-
-        let graph_dir = tempdir().unwrap();
-        let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
-
-        let edge_scan = EdgeScan::new("_default", Arc::new([0, 1, 2]));
-
-        edge_scan
-            .produce(
-                &graph,
-                Arc::new(|data| {
-                    println!("{:?}", data);
-                }),
-            )
-            .expect("Failed to produce data");
-    }
-
     fn check_edge_scan_sanity(
-        edges: Vec<(u64, u64, Time, f64)>,
+        mut edges: Vec<(u64, u64, Time, f64)>,
         chunk_size: usize,
         t_prop_chunk_size: usize,
     ) {
+        edges.sort_by_key(|(src, dst, time, _)| (*src, *dst, *time));
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, chunk_size, t_prop_chunk_size);
 
@@ -253,14 +215,16 @@ mod test {
             "dst" => &dst_col,
             "time" => &times_col
         )
+        .unwrap()
+        .lazy()
+        .sort_by_exprs([col("src"), col("dst")], [false, false], true, false)
+        .collect()
         .unwrap();
-
-        println!("expected {:?}", expected);
 
         let edge_scan = EdgeScan::new("_default", Arc::new([0, 1, 2]));
 
         let tp = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
+            // .num_threads(1)
             .build()
             .unwrap();
 
@@ -270,18 +234,27 @@ mod test {
             edge_scan
                 .produce(
                     &graph,
-                    Arc::new(|data| {
-                        send.send(data.data).expect("Failed to send data")
-                    }),
+                    Arc::new(|data| send.send(data.data).expect("Failed to send data")),
                 )
                 .expect("Failed to produce data");
         });
 
         drop(send);
 
-        let dfs = recv.iter().collect::<Vec<_>>();
+        let dfs = recv
+            .iter()
+            .reduce(|df1, df2| df1.vstack(&df2).unwrap())
+            .unwrap();
 
-        println!("{:?}", dfs);
+        let df = dfs
+            .lazy()
+            .sort_by_exprs([col("src"), col("dst")], [false, false], true, false)
+            .group_by_stable(["src", "dst"])
+            .agg([concat_list(["time"]).unwrap().flatten().sort(false)])
+            .collect()
+            .unwrap();
+
+        assert_eq!(df, expected);
     }
 
     #[test]
@@ -294,5 +267,18 @@ mod test {
             (0, 3, 4, 0.0),
         ];
         check_edge_scan_sanity(edges, 2, 2);
+    }
+
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_edge_scan_sanity_proptest(
+            edges in prop::collection::vec((0u64..10u64, 0u64..10u64, 0i64..10i64, 0f64..5f64), 1..25),
+            chunk_size in 2usize..100,
+            t_prop_chunk_size in 2usize..100
+        ) {
+            check_edge_scan_sanity(edges, chunk_size, t_prop_chunk_size);
+        }
     }
 }
