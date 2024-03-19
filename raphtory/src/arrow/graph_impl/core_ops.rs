@@ -133,12 +133,21 @@ impl CoreGraphOps for ArrowGraph {
         self.graph_props.get_temporal_prop(id)
     }
 
-    fn constant_node_prop(&self, _v: VID, _id: usize) -> Option<Prop> {
-        None
+    fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
+        match &self.node_properties {
+            None => None,
+            Some(props) => props.const_props.prop(v, id),
+        }
     }
 
-    fn constant_node_prop_ids(&self, _v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(std::iter::empty())
+    fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        match &self.node_properties {
+            None => Box::new(std::iter::empty()),
+            Some(props) => Box::new(
+                (0..props.const_props.num_props())
+                    .filter(move |id| props.const_props.has_prop(v, *id)),
+            ),
+        }
     }
 
     fn temporal_node_prop(&self, _v: VID, _id: usize) -> Option<LockedView<TProp>> {
