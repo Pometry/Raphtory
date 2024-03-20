@@ -1,26 +1,21 @@
-use itertools::Itertools;
 use std::{iter, ops::Range, sync::Arc};
 
+use itertools::Itertools;
 use once_cell::sync::Lazy;
+use rayon::prelude::*;
 
 use crate::{
+    arrow::prelude::{ArrayOps, BaseArrayOps},
     core::{
-        entities::{edges::edge_ref::EdgeRef, properties::tprop::LayeredTProp, LayerIds, VID},
-        storage::timeindex::TimeIndexOps,
+        entities::{edges::edge_ref::EdgeRef, properties::tprop::TPropOps, LayerIds, VID},
+        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
         internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
-    prelude::Prop,
+    prelude::{Prop, TimeIndexEntry},
 };
-
-use crate::{
-    arrow::prelude::{ArrayOps, BaseArrayOps},
-    core::storage::timeindex::TimeIndexIntoOps,
-    prelude::TimeIndexEntry,
-};
-use rayon::prelude::*;
 
 use super::ArrowGraph;
 
@@ -372,6 +367,7 @@ impl TimeSemantics for ArrowGraph {
             .layer()
             .expect("arrow edges should always have layer currently");
         layer_ids.contains(layer)
+            && self.layers[*layer].edge(e.pid()).timestamps().first_t() >= Some(t)
     }
 
     fn has_temporal_prop(&self, _prop_id: usize) -> bool {
@@ -397,29 +393,45 @@ impl TimeSemantics for ArrowGraph {
         todo!("arrow graph does not have properties yet")
     }
 
-    fn has_temporal_node_prop(&self, _v: VID, _prop_id: usize) -> bool {
-        // FIXME: arrow nodes don't have properties yet
-        false
+    fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
+        match &self.inner.node_properties {
+            None => false,
+            Some(props) => props.temporal_props.has_prop(v, prop_id),
+        }
     }
 
     #[doc = " and the second element is the property value."]
-    fn temporal_node_prop_vec(&self, _v: VID, _id: usize) -> Vec<(i64, Prop)> {
-        todo!("arrow nodes don't have properties yet")
+    fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
+        match &self.inner.node_properties {
+            None => {
+                vec![]
+            }
+            Some(props) => props.temporal_props.prop(v, id).iter().collect(),
+        }
     }
 
-    fn has_temporal_node_prop_window(&self, _v: VID, _prop_id: usize, _w: Range<i64>) -> bool {
-        // FIXME: arrow nodes don't have properties yet
-        false
+    fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
+        match &self.inner.node_properties {
+            None => false,
+            Some(props) => props.temporal_props.has_prop_window(v, prop_id, w),
+        }
     }
 
     fn temporal_node_prop_vec_window(
         &self,
-        _v: VID,
-        _id: usize,
-        _start: i64,
-        _end: i64,
+        v: VID,
+        id: usize,
+        start: i64,
+        end: i64,
     ) -> Vec<(i64, Prop)> {
-        todo!("arrow nodes don't have properties yet")
+        match &self.inner.node_properties {
+            None => vec![],
+            Some(props) => props
+                .temporal_props
+                .prop(v, id)
+                .iter_window(start..end)
+                .collect(),
+        }
     }
 
     fn has_temporal_edge_prop_window(

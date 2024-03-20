@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
-            properties::tprop::LayeredTProp, LayerIds, VID,
+            properties::tprop::TPropOps, LayerIds, VID,
         },
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
@@ -249,7 +249,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
         self.inner()
             .get_temporal_prop(prop_id)
-            .map(|prop| prop.iter().collect())
+            .map(|prop| prop.iter_t().collect())
             .unwrap_or_default()
     }
 

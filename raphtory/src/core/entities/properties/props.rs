@@ -27,8 +27,8 @@ type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
     // properties
-    constant_props: LazyVec<Option<Prop>>,
-    temporal_props: LazyVec<TProp>,
+    pub(crate) constant_props: LazyVec<Option<Prop>>,
+    pub(crate) temporal_props: LazyVec<TProp>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
@@ -72,7 +72,7 @@ impl Props {
     pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
-            Box::new(t_prop.iter())
+            Box::new(t_prop.iter_t())
         } else {
             Box::new(std::iter::empty())
         }

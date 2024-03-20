@@ -1,4 +1,9 @@
-use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
+use std::{
+    num::TryFromIntError,
+    ops::Range,
+    path::{Path, PathBuf},
+};
+
 use arrow2::{
     array::{Array, PrimitiveArray, StructArray, Utf8Array},
     chunk::Chunk,
@@ -7,11 +12,8 @@ use arrow2::{
 };
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::{
-    num::TryFromIntError,
-    ops::Range,
-    path::{Path, PathBuf},
-};
+
+use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
 
 pub mod algorithms;
 pub mod arrow_hmap;
@@ -25,6 +27,7 @@ pub mod graph_fragment;
 pub mod graph_impl;
 pub mod load;
 pub(crate) mod nodes;
+mod properties;
 pub mod query;
 pub(crate) mod timestamps;
 
@@ -36,6 +39,11 @@ pub mod prelude {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Failed to memory map file {file:?}, source: {source}")]
+    MMap {
+        file: PathBuf,
+        source: arrow2::error::Error,
+    },
     #[error("Arrow error: {0}")]
     Arrow(#[from] arrow2::error::Error),
     #[error("IO error: {0}")]
@@ -65,6 +73,10 @@ pub enum Error {
     MetadataError(#[from] Box<bincode::ErrorKind>),
     #[error("Failed to cast mmap_mut to [i64]: {0:?}")]
     SliceCastError(bytemuck::PodCastError),
+    #[error("Failed to cast array")]
+    TypeCastError,
+    #[error("Missing chunk {0}")]
+    MissingChunk(usize),
 }
 
 // unsafe impl Send for Error {} // heed::Error can't be made Send
@@ -88,12 +100,21 @@ pub(crate) mod file_prefix {
         path::{Path, PathBuf},
         str::FromStr,
     };
+
+    use itertools::Itertools;
     use strum::{AsRefStr, EnumString};
+
+    use crate::arrow::Error;
 
     #[derive(AsRefStr, EnumString, PartialEq, Debug, Ord, PartialOrd, Eq, Copy, Clone)]
     pub enum GraphPaths {
         NodeAdditions,
         NodeAdditionsOffsets,
+        NodeTProps,
+        NodeTPropsTimestamps,
+        NodeTPropsSecondaryIndex,
+        NodeTPropsOffsets,
+        NodeConstProps,
         AdjOutSrcs,
         AdjOutDsts,
         AdjOutOffsets,
@@ -104,6 +125,23 @@ pub(crate) mod file_prefix {
         AdjInOffsets,
         Metadata,
         HashMap,
+    }
+
+    #[derive(Debug, PartialEq, Ord, PartialOrd, Eq, Copy, Clone)]
+    pub struct GraphFile {
+        pub prefix: GraphPaths,
+        pub chunk: usize,
+    }
+
+    impl GraphFile {
+        pub fn try_from_path(path: impl AsRef<Path>) -> Option<Self> {
+            let name = path.as_ref().file_stem()?.to_str()?;
+            let mut name_parts = name.split('-');
+            let prefix = GraphPaths::from_str(name_parts.next()?).ok()?;
+            let chunk_str = name_parts.next();
+            let chunk: usize = chunk_str?.parse().ok()?;
+            Some(Self { prefix, chunk })
+        }
     }
 
     impl GraphPaths {
@@ -125,6 +163,29 @@ pub(crate) mod file_prefix {
             .as_ref()
             .join(format!("{}-{:08}.ipc", prefix, id));
         file_path
+    }
+
+    pub fn sorted_file_list(
+        dir: impl AsRef<Path>,
+        prefix: GraphPaths,
+    ) -> Result<impl Iterator<Item = PathBuf>, Error> {
+        let mut files = dir
+            .as_ref()
+            .read_dir()?
+            .filter_map_ok(|f| {
+                let path = f.path();
+                GraphFile::try_from_path(&path)
+                    .filter(|f| f.prefix == prefix)
+                    .map(|f| (f.chunk, path))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        files.sort();
+        for (i, (chunk, _)) in files.iter().enumerate() {
+            if &i != chunk {
+                return Err(Error::MissingChunk(i));
+            }
+        }
+        Ok(files.into_iter().map(|(_, path)| path))
     }
 }
 

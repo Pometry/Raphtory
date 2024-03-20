@@ -1,14 +1,8 @@
-use std::ops::Range;
-
-use arrow2::{
-    datatypes::{DataType, Field},
-    types::{NativeType, Offset},
-};
-
 use crate::{
     arrow::{
         chunked_array::{
             array_ops::{ArrayOps, BaseArrayOps},
+            chunked_array::ChunkedArray,
             col::ChunkedPrimitiveCol,
             utf8_col::GenericChunkedUtf8Col,
             ChunkedArraySlice,
@@ -16,16 +10,40 @@ use crate::{
         edge::Edge,
         timestamps::TimeStamps,
     },
-    core::{entities::properties::tprop::LayeredTProp, storage::timeindex::TimeIndexOps},
+    core::{entities::properties::tprop::TPropOps, storage::timeindex::TimeIndexOps},
     prelude::{Prop, TimeIndexEntry},
 };
+use arrow2::{
+    array::StructArray,
+    datatypes::{DataType, Field},
+    types::{NativeType, Offset},
+};
+use std::ops::Range;
 
 pub struct TPropColumn<'a, A> {
     props: ChunkedArraySlice<'a, A>,
     timestamps: TimeStamps<'a, TimeIndexEntry>,
 }
 
-impl<T: NativeType + Into<Prop>> LayeredTProp for TPropColumn<'_, ChunkedPrimitiveCol<'_, T>> {
+pub fn new_primitive_tprop_column<'a, T: NativeType + Into<Prop>>(
+    timestamps: TimeStamps<'a, TimeIndexEntry>,
+    props: ChunkedArraySlice<'a, &'a ChunkedArray<StructArray>>,
+    col_idx: usize,
+) -> Option<TPropColumn<'a, ChunkedPrimitiveCol<'a, T>>> {
+    let props = props.into_primitive_col(col_idx)?;
+    Some(TPropColumn { props, timestamps })
+}
+
+pub fn new_str_tprop_column<'a, I: Offset>(
+    timestamps: TimeStamps<'a, TimeIndexEntry>,
+    props: ChunkedArraySlice<'a, &'a ChunkedArray<StructArray>>,
+    col_idx: usize,
+) -> Option<TPropColumn<'a, GenericChunkedUtf8Col<'a, I>>> {
+    let props = props.into_utf8_col(col_idx)?;
+    Some(TPropColumn { props, timestamps })
+}
+
+impl<T: NativeType + Into<Prop>> TPropOps for TPropColumn<'_, ChunkedPrimitiveCol<'_, T>> {
     fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
         let (t, t_index) = self.timestamps.last_before(t)?;
         let v = self.props.get(t_index)?;
@@ -74,7 +92,7 @@ impl<T: NativeType + Into<Prop>> LayeredTProp for TPropColumn<'_, ChunkedPrimiti
     }
 }
 
-impl<I: Offset> LayeredTProp for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
+impl<I: Offset> TPropOps for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
     fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
         let (t, t_index) = self.timestamps.last_before(t)?;
         let v = self.props.get(t_index)?;
@@ -123,7 +141,7 @@ impl<I: Offset> LayeredTProp for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
     }
 }
 
-fn new_tprop_column<T: NativeType>(edge: Edge, id: usize) -> Option<Box<dyn LayeredTProp + '_>>
+fn new_tprop_column<T: NativeType>(edge: Edge, id: usize) -> Option<Box<dyn TPropOps + '_>>
 where
     Prop: From<T>,
 {
@@ -132,11 +150,7 @@ where
     Some(Box::new(TPropColumn { props, timestamps }))
 }
 
-pub fn read_tprop_column(
-    id: usize,
-    field: Field,
-    edge: Edge,
-) -> Option<Box<dyn LayeredTProp + '_>> {
+pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<Box<dyn TPropOps + '_>> {
     match field.data_type() {
         DataType::Int64 => new_tprop_column::<i64>(edge, id),
         DataType::Int32 => new_tprop_column::<i32>(edge, id),

@@ -3,7 +3,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_store::EdgeStore,
-            properties::tprop::{LayeredTProp, LockedLayeredTProp},
+            properties::tprop::{LockedLayeredTProp, TPropOps},
             LayerIds,
         },
         storage::{timeindex::TimeIndex, ArcEntry},
@@ -67,10 +67,10 @@ impl CoreEdgeView<'_> {
         &self,
         layer_id: usize,
         prop_id: usize,
-    ) -> Option<Box<dyn LayeredTProp + '_>> {
+    ) -> Option<Box<dyn TPropOps + '_>> {
         match self {
             CoreEdgeView::Mem(e, _) => e.temporal_prop_layer(layer_id, prop_id).map(|t_prop| {
-                let what: Box<dyn LayeredTProp + '_> = Box::new(LockedLayeredTProp::One(t_prop));
+                let what: Box<dyn TPropOps + '_> = Box::new(LockedLayeredTProp::One(t_prop));
                 what
             }),
             #[cfg(feature = "arrow")]

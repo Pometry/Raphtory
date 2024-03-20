@@ -17,7 +17,7 @@ pub enum TCell<A: Clone + Debug + PartialEq> {
 
 const BTREE_CUTOFF: usize = 128;
 
-impl<A: Clone + Debug + PartialEq> TCell<A> {
+impl<A: Clone + Debug + PartialEq + Send + Sync> TCell<A> {
     pub fn new(t: TimeIndexEntry, value: A) -> Self {
         TCell::TCell1(t, value)
     }
@@ -65,17 +65,16 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn iter(&self) -> Box<dyn Iterator<Item = &A> + '_> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
-            TCell::TCell1(_, value) => Box::new(std::iter::once(value)),
-            TCell::TCellCap(svm) => Box::new(svm.iter().map(|(_, value)| value)),
-            TCell::TCellN(btm) => Box::new(btm.values()),
+            TCell::TCell1(t, value) => Box::new(std::iter::once((t, value))),
+            TCell::TCellCap(svm) => Box::new(svm.iter()),
+            TCell::TCellN(btm) => Box::new(btm.iter()),
         }
     }
 
-    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, &A)> + '_> {
+    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => Box::new(std::iter::once((t.t(), value))),
@@ -87,7 +86,7 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
     pub fn iter_window(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + '_> {
+    ) -> Box<dyn Iterator<Item = (&TimeIndexEntry, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
@@ -102,7 +101,7 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + '_> {
+    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + Send + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
@@ -152,7 +151,10 @@ mod tcell_tests {
         let mut tcell = TCell::default();
         tcell.set(TimeIndexEntry::start(16), String::from("lobster"));
 
-        assert_eq!(tcell.iter().collect::<Vec<_>>(), vec!["lobster"]);
+        assert_eq!(
+            tcell.iter().map(|(_, v)| v).collect::<Vec<_>>(),
+            vec!["lobster"]
+        );
     }
 
     #[test]
@@ -179,14 +181,17 @@ mod tcell_tests {
         let tcell: TCell<String> = TCell::default();
 
         let actual = tcell.iter().collect::<Vec<_>>();
-        let expected: Vec<&String> = vec![];
+        let expected = vec![];
         assert_eq!(actual, expected);
 
         assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![]);
 
         let tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
 
-        assert_eq!(tcell.iter().collect::<Vec<_>>(), vec![&"Pometry"]);
+        assert_eq!(
+            tcell.iter().collect::<Vec<_>>(),
+            vec![(&TimeIndexEntry::start(3), &"Pometry")]
+        );
 
         assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(3, &"Pometry")]);
 
@@ -202,7 +207,10 @@ mod tcell_tests {
         assert_eq!(
             // Results are ordered by time
             tcell.iter().collect::<Vec<_>>(),
-            vec![&"Inc. Pometry", &"Pometry"]
+            vec![
+                (&TimeIndexEntry::start(1), &"Inc. Pometry"),
+                (&TimeIndexEntry::start(2), &"Pometry")
+            ]
         );
 
         let mut tcell: TCell<i64> = TCell::default();
