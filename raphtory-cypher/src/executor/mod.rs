@@ -22,7 +22,7 @@ pub enum ExecError {
 }
 
 #[derive(Clone, Copy)]
-struct Context<'graph, 'scope, 'b> {
+pub struct Context<'graph, 'scope, 'b> {
     scope: &'b Scope<'scope>,
     graph: &'graph ArrowGraph,
 }
@@ -45,11 +45,11 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(source: impl Source + 'static, sink: impl Sink + 'static) -> Self {
+    pub fn new(source: Box<dyn Source>, sink: Box<dyn Sink>) -> Self {
         Self {
-            source: Box::new(source),
+            source,
             operators: Vec::new(),
-            sink: Box::new(sink),
+            sink,
         }
     }
 
@@ -200,9 +200,9 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&graph, tempdir.path()).unwrap();
 
-        let edge_scan = EdgeScan::new("test", [("weight", 1), ("name", 2)]);
+        let edge_scan = EdgeScan::new("a", "test", [("weight", 1), ("name", 2)]);
         let (send, recv) = std::sync::mpsc::channel();
-        let pipeline = Pipeline::new(edge_scan, ChannelSink::new(send));
+        let pipeline = Pipeline::new(Box::new(edge_scan), Box::new(ChannelSink::new(send)));
         let executor = Executor::new(graph, pipeline);
 
         executor.execute_pipeline(1).unwrap();

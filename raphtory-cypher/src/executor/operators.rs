@@ -11,10 +11,9 @@ use pl_array::Arrow2Arrow as PolarsA2A;
 use polars_arrow::{array as pl_array, offset::OffsetsBuffer};
 use polars_core::{
     datatypes::{ArrowDataType, PolarsDataType, UInt64Type},
-    frame::DataFrame,
     series::{IntoSeries, Series},
 };
-use polars_lazy::dsl::Expr;
+use polars_lazy::frame::IntoLazy;
 use raphtory::{
     arrow::{
         chunked_array::array_ops::{ArrayOps, Chunked},
@@ -25,6 +24,8 @@ use raphtory::{
     core::Direction,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+
+use crate::{BinOpType, Expr, Literal};
 
 use super::{Context, DataBlock, Source};
 
@@ -49,48 +50,115 @@ impl PhysicalOperator {
     }
 }
 
+use itertools::Itertools;
+
+fn expr_to_polars_expr(expr: &Expr) -> polars_lazy::dsl::Expr {
+    match expr {
+        Expr::BinOp { op, left, right } => {
+            let left = expr_to_polars_expr(&left);
+            let right = expr_to_polars_expr(&right);
+            match op {
+                BinOpType::Add => left + right,
+                BinOpType::Sub => left - right,
+                BinOpType::Mul => left * right,
+                BinOpType::Div => left / right,
+                BinOpType::Mod => left % right,
+                BinOpType::Eq => left.eq(right),
+                BinOpType::Neq => left.neq(right),
+                BinOpType::Lt => left.lt(right),
+                BinOpType::Lte => left.lt_eq(right),
+                BinOpType::Gt => left.gt(right),
+                BinOpType::Gte => left.gt_eq(right),
+                BinOpType::And => left.and(right),
+                BinOpType::Or => left.or(right),
+                _ => todo!(),
+            }
+        }
+        Expr::Literal(Literal::Int(i)) => polars_lazy::dsl::lit(*i),
+        Expr::Literal(Literal::Str(s)) => polars_lazy::dsl::lit(s.as_str()),
+        Expr::Literal(Literal::Float(s)) => polars_lazy::dsl::lit(*s),
+        Expr::Var { var_name, attrs } => {
+            let col_name = std::iter::once(var_name).chain(attrs.iter()).join("_");
+            polars_lazy::dsl::col(col_name.as_str())
+        }
+        Expr::Count(expr) => expr_to_polars_expr(expr).count(),
+
+        _ => todo!(),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Expand {
     dir: Direction,
     from_col: usize,
-    filter: Expr,
+    expr: polars_lazy::dsl::Expr,
 }
 
 #[derive(Debug, Clone)]
 pub struct Filter {
-    expr: Expr,
+    expr: polars_lazy::dsl::Expr,
+}
+
+impl Filter {
+    pub fn new(exprs: Vec<Expr>) -> Self {
+        let expr = exprs
+            .into_iter()
+            .map(|expr| expr_to_polars_expr(&expr))
+            .reduce(|a, b| a.and(b));
+        Self {
+            expr: expr.expect("Failed to make filter expression"),
+        }
+    }
+}
+
+impl Operator for Filter {
+    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        let df = input
+            .data
+            .lazy()
+            .filter(self.expr.clone())
+            .collect()
+            .unwrap();
+        Box::new(iter::once(DataBlock { data: df }))
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Project {
-    columns: Arc<[usize]>,
+    columns: Vec<polars_lazy::dsl::Expr>,
+}
+
+impl Project {
+    pub fn new(columns: Vec<Expr>) -> Self {
+        let columns = columns
+            .into_iter()
+            .map(|expr| expr_to_polars_expr(&expr))
+            .collect();
+        Self { columns }
+    }
 }
 
 impl Operator for Project {
     fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
-        let df = input.data;
-        let columns = self
-            .columns
-            .iter()
-            .filter_map(|col| df.select_at_idx(*col))
-            .cloned();
-        Box::new(iter::once(DataBlock {
-            data: DataFrame::new(columns.collect()).unwrap(),
-        }))
+        let df = input.data.lazy().select(&self.columns).collect().unwrap();
+        Box::new(iter::once(DataBlock { data: df }))
     }
 }
 
 pub struct EdgeScan {
+    var_name: String,
     layer: String,
     columns: Arc<[(String, usize)]>,
 }
 
 impl EdgeScan {
     pub fn new<S: AsRef<str>>(
+        var_name: impl AsRef<str>,
         layer: impl AsRef<str>,
         columns: impl IntoIterator<Item = (S, usize)>,
     ) -> Self {
         Self {
+            var_name: var_name.as_ref().to_string(),
             layer: layer.as_ref().to_string(),
             columns: columns
                 .into_iter()
@@ -146,20 +214,22 @@ impl Source for EdgeScan {
                 })
                 .unzip();
 
-            let srcs = make_chunked_array::<UInt64Type>(srcs, "src").into_series();
-            let dsts = make_chunked_array::<UInt64Type>(dsts, "dst").into_series();
+            let srcs =
+                make_chunked_array::<UInt64Type>(srcs, &self.prefix_col("src")).into_series();
+            let dsts =
+                make_chunked_array::<UInt64Type>(dsts, &self.prefix_col("dst")).into_series();
 
             let time = make_time_col(time_values, offsets.clone());
 
-            let time: Series =
-                Series::from_arrow("time", time.boxed()).expect("Failed to make time series");
+            let time: Series = Series::from_arrow(&self.prefix_col("time"), time.boxed())
+                .expect("Failed to make time series");
 
             let mut columns = vec![srcs, dsts, time];
 
             for (name, col_id) in self.columns.iter() {
                 let series = property_to_polars_series(
                     layer,
-                    name,
+                    &self.prefix_col(name),
                     *col_id,
                     chunk_id,
                     edges.data_type(),
@@ -177,6 +247,12 @@ impl Source for EdgeScan {
         });
 
         out
+    }
+}
+
+impl EdgeScan {
+    fn prefix_col(&self, col: &str) -> String {
+        format!("{}_{}", self.var_name, col)
     }
 }
 
@@ -333,12 +409,6 @@ impl Operator for Expand {
     }
 }
 
-impl Operator for Filter {
-    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
-        Box::new(iter::empty())
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -380,18 +450,18 @@ mod test {
                 .unzip();
 
         let expected = df!(
-            "src" => &src_col,
-            "dst" => &dst_col,
-            "time" => &times_col,
-            "weight" => &weight_col
+            "a_src" => &src_col,
+            "a_dst" => &dst_col,
+            "a_time" => &times_col,
+            "a_weight" => &weight_col
         )
         .unwrap()
         .lazy()
-        .sort_by_exprs([col("src"), col("dst")], [false, false], true, false)
+        .sort_by_exprs([col("a_src"), col("a_dst")], [false, false], true, false)
         .collect()
         .unwrap();
 
-        let edge_scan = EdgeScan::new("_default", [("weight", 1)]);
+        let edge_scan = EdgeScan::new("a", "_default", [("weight", 1)]);
 
         let tp = rayon::ThreadPoolBuilder::new().build().unwrap();
 
@@ -415,11 +485,17 @@ mod test {
 
         let df = dfs
             .lazy()
-            .sort_by_exprs([col("src"), col("dst")], [false, false], true, false)
-            .group_by_stable(["src", "dst"])
+            .explode([col("a_time"), col("a_weight")])
+            .sort_by_exprs(
+                [col("a_src"), col("a_dst"), col("a_time")],
+                [false, false, false],
+                true,
+                false,
+            )
+            .group_by_stable(["a_src", "a_dst"])
             .agg([
-                concat_list(["time"]).unwrap().flatten(),
-                concat_list(["weight"]).unwrap().flatten(),
+                concat_list(["a_time"]).unwrap().flatten(),
+                concat_list(["a_weight"]).unwrap().flatten(),
             ])
             .collect()
             .unwrap();

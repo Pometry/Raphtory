@@ -3437,6 +3437,7 @@ name = "raphtory-cypher"
 version = "0.7.0"
 dependencies = [
  "arrow2",
+ "itertools 0.12.1",
  "lazy_static",
  "pest",
  "pest_derive",

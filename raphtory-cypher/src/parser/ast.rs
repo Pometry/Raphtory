@@ -252,7 +252,7 @@ impl Expr {
     pub fn bindings(&self) -> Vec<(String, Vec<String>)> {
         match self {
             Expr::Var { var_name, attrs } => {
-                let mut bindings = vec![(var_name.clone(), attrs.clone())];
+                let bindings = vec![(var_name.clone(), attrs.clone())];
                 bindings
             }
             Expr::BinOp { left, right, .. } => {
@@ -264,6 +264,13 @@ impl Expr {
             Expr::Count(expr) => expr.bindings(),
             Expr::CountAll => vec![],
             Expr::Literal(_) => vec![],
+        }
+    }
+
+    pub fn var<S: AsRef<str>>(var: &str, attrs: impl IntoIterator<Item = S>) -> Self {
+        Expr::Var {
+            var_name: var.to_string(),
+            attrs: attrs.into_iter().map(|s| s.as_ref().to_string()).collect(),
         }
     }
 
