@@ -1,8 +1,11 @@
-use std::{collections::HashMap, error::Error};
+use std::error::Error;
 
-use executor::{operators::{Filter, Project}, Pipeline, Sink};
+use executor::{
+    operators::{Filter, Project},
+    Pipeline, Sink,
+};
 use parser::ast::*;
-use raphtory::arrow::{graph, graph_impl::ArrowGraph};
+use raphtory::arrow::graph_impl::ArrowGraph;
 
 use crate::executor::{
     operators::{EdgeScan, PhysicalOperator},
@@ -18,12 +21,15 @@ pub fn run_cypher_query(query: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn naive_query_to_pipeline(query: &Query, graph: &ArrowGraph) -> Result<Pipeline, Box<dyn Error>> {
+pub fn naive_query_to_pipeline(
+    sink: Box<dyn Sink>,
+    query: &Query,
+    graph: &ArrowGraph,
+) -> Result<Pipeline, Box<dyn Error>> {
     // only edge scan for now only on the first clause
     let Query::SingleQuery(query) = query;
 
     let mut source: Option<Box<dyn Source>> = None;
-    let mut sink: Option<Box<dyn Sink>> = None;
 
     let mut operators: Vec<PhysicalOperator> = vec![];
 
@@ -81,7 +87,7 @@ fn naive_query_to_pipeline(query: &Query, graph: &ArrowGraph) -> Result<Pipeline
             }
         }
     }
-    let mut pipeline = Pipeline::new(source.unwrap(), sink.unwrap());
+    let mut pipeline = Pipeline::new(source.unwrap(), sink);
 
     for operator in operators {
         pipeline.add_operator(operator);
@@ -139,4 +145,43 @@ fn next_var_bind(var_bind_count: &mut usize) -> String {
     let var = format!("var_{}", var_bind_count);
     *var_bind_count += 1;
     var
+}
+
+#[cfg(test)]
+mod test {
+
+    use self::executor::{ChannelSink, Executor};
+
+    use super::*;
+
+    #[test]
+    fn scan_edge_no_filters() {
+        let query = "MATCH ()-[r]->() RETURN r.src,r.time, r.weight, r.dst";
+        println!("{:?}", query);
+        let query = parser::parse_cypher(query).unwrap();
+        let edges = vec![
+            (0, 1, 0, 1.0),
+            (0, 1, 1, 2.0),
+            (0, 1, 2, 3.0),
+            (0, 2, 3, 4.0),
+            (0, 3, 4, 5.0),
+        ];
+        let graph_dir = tempfile::tempdir().unwrap();
+
+        let (send, recv) = std::sync::mpsc::channel();
+        let sink = ChannelSink::new(send);
+
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, 100, 100);
+        let pipeline = naive_query_to_pipeline(Box::new(sink), &query, &graph).unwrap();
+
+        println!("{:?}", pipeline);
+
+        let executor = Executor::new(graph, pipeline);
+
+        executor.execute_pipeline(1).expect("execution failed");
+
+        while let Ok(block) = recv.recv() {
+            println!("{:?}", block);
+        }
+    }
 }

@@ -139,12 +139,16 @@ impl Project {
 }
 
 impl Operator for Project {
-    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+    fn execute(&self, input: DataBlock, _ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        if self.columns.is_empty() {
+            return Box::new(iter::once(input));
+        }
         let df = input.data.lazy().select(&self.columns).collect().unwrap();
         Box::new(iter::once(DataBlock { data: df }))
     }
 }
 
+#[derive(Debug)]
 pub struct EdgeScan {
     var_name: String,
     layer: String,

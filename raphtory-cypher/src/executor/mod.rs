@@ -5,7 +5,7 @@ use raphtory::arrow::graph_impl::ArrowGraph;
 use rayon::Scope;
 
 pub mod operators;
-use operators::{Operator, PhysicalOperator};
+use operators::PhysicalOperator;
 
 #[derive(Debug, Clone)]
 pub struct DataBlock {
@@ -19,6 +19,9 @@ pub enum ExecError {
 
     #[error("Layer not found: {0}")]
     LayerNotFound(String),
+
+    #[error("Failed to send data block: {0}")]
+    SendError(#[from] std::sync::mpsc::SendError<DataBlock>),
 }
 
 #[derive(Clone, Copy)]
@@ -38,6 +41,7 @@ pub struct Executor {
     pipeline: Pipeline,
 }
 
+#[derive(Debug)]
 pub struct Pipeline {
     source: Box<dyn Source>,
     operators: Vec<PhysicalOperator>,
@@ -58,7 +62,7 @@ impl Pipeline {
     }
 }
 
-pub trait Source: Send + Sync {
+pub trait Source: std::fmt::Debug + Send + Sync {
     fn produce<'a, 'b>(
         &'a self,
         g: &'b ArrowGraph,
@@ -66,16 +70,18 @@ pub trait Source: Send + Sync {
     ) -> Result<(), ExecError>;
 }
 
-pub trait Sink: Send + Sync {
+pub trait Sink: std::fmt::Debug + Send + Sync {
     fn consume(&self, block: DataBlock) -> Result<(), ExecError>;
 }
 
+#[derive(Debug)]
 pub struct ChannelSink {
     sender: std::sync::mpsc::Sender<DataBlock>,
 }
 
 impl Sink for ChannelSink {
     fn consume(&self, block: DataBlock) -> Result<(), ExecError> {
+        self.sender.send(block)?;
         Ok(())
     }
 }
@@ -96,6 +102,7 @@ impl Executor {
             .num_threads(num_threads)
             .build()?;
         let graph = &self.graph;
+        let sink = &self.pipeline.sink;
         let operators = &self.pipeline.operators;
 
         thread_pool.scope(move |scope| {
@@ -106,7 +113,7 @@ impl Executor {
                 Arc::new(|input| {
                     let stage = PipelineStage::new(operators);
 
-                    run_pipeline(stage, scope, graph, input);
+                    run_pipeline(stage, scope, graph, input, sink.as_ref());
                 }),
             )?;
             Ok(())
@@ -119,13 +126,18 @@ fn run_pipeline<'graph: 'scope, 'scope>(
     scope: &Scope<'scope>,
     graph: &'graph ArrowGraph,
     input: DataBlock,
+    sink: &'graph dyn Sink,
 ) {
-    if let Some((operator, next_stage)) = stage.next_operator() {
+    if let Some((done, operator, next_stage)) = stage.next_operator() {
         let op = operator.boxed();
         for next_input in op.execute(input, Context::new(scope, graph)) {
-            scope.spawn(move |scope2| {
-                run_pipeline(next_stage, scope2, graph, next_input);
-            });
+            if !done {
+                scope.spawn(move |scope2| {
+                    run_pipeline(next_stage, scope2, graph, next_input, sink);
+                });
+            } else {
+                sink.consume(next_input).expect("Failed to send data block")
+            }
         }
     }
 }
@@ -144,9 +156,11 @@ impl<'a> PipelineStage<'a> {
         }
     }
 
-    fn next_operator(self) -> Option<(PhysicalOperator, Self)> {
+    fn next_operator(self) -> Option<(bool, PhysicalOperator, Self)> {
         let next = self.operators.get(self.stage)?;
+        let done = self.stage == self.operators.len() - 1;
         Some((
+            done,
             next.clone(),
             Self {
                 stage: self.stage + 1,
