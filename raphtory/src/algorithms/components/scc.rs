@@ -197,8 +197,8 @@ mod strongly_connected_components_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let scc_nodes = strongly_connected_components(&graph, None);
-
-        assert_eq!(scc_nodes, vec![vec![8, 7, 5, 2, 6]]);
+        let mut scc_nodes = strongly_connected_components(&graph, None);
+        scc_nodes[0].sort();
+        assert_eq!(scc_nodes, [[2, 5, 6, 7, 8]]);
     }
 }
