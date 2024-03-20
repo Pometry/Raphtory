@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     core::{
-        entities::nodes::node_ref::NodeRef,
+        entities::{nodes::node_ref::NodeRef, VID},
         state::{
             compute_state::ComputeState,
             shuffle_state::{EvalLocalState, EvalShardState},
@@ -68,11 +68,7 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         let local = Local2::new(prev_local_state);
         let mut v_ref = morcel_id * morcel_size;
         for local_state in morcel {
-            if g.has_node_ref(
-                NodeRef::Internal(v_ref.into()),
-                &g.layer_ids(),
-                g.edge_filter(),
-            ) {
+            if g.has_node(VID(v_ref)) {
                 let mut vv = EvalNodeView::new_local(
                     self.ctx.ss(),
                     v_ref.into(),

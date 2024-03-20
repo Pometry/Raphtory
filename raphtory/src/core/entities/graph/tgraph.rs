@@ -7,7 +7,7 @@ use crate::{
                 edge_store::{EdgeLayer, EdgeStore},
             },
             graph::{
-                tgraph_storage::{GraphStorage, LockedIter},
+                tgraph_storage::{GraphStorage, LockedGraphStorage, LockedIter},
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
             nodes::{
@@ -35,7 +35,10 @@ use crate::{
         },
         ArcStr, Direction, Prop, PropUnwrap,
     },
-    db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
+    db::api::{
+        storage::locked::LockedGraph,
+        view::{internal::EdgeFilter, BoxedIter, Layer},
+    },
     prelude::DeletionOps,
 };
 use dashmap::{DashMap, DashSet};
@@ -67,6 +70,12 @@ impl<const N: usize> InnerTemporalGraph<N> {
     #[inline]
     pub(crate) fn inner(&self) -> &TemporalGraph<N> {
         &self.0
+    }
+
+    pub(crate) fn lock(&self) -> LockedGraph {
+        let nodes = Arc::new(self.inner().storage.nodes.read_lock());
+        let edges = Arc::new(self.inner().storage.edges.read_lock());
+        LockedGraph { nodes, edges }
     }
 }
 
@@ -130,7 +139,8 @@ impl<const N: usize> TemporalGraph<N> {
         self.edge_meta.layer_meta().len()
     }
 
-    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    pub(crate) fn layer_names(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
+        let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(self.edge_meta.layer_meta().get_keys().into_iter()),

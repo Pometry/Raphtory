@@ -141,18 +141,14 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<SCCNode>| {
-            let layers: crate::core::entities::LayerIds = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            local
+            graph
+                .nodes()
                 .iter()
-                .enumerate()
-                .filter_map(|(v_ref_id, state)| {
-                    let v_ref = VID(v_ref_id);
-                    graph
-                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.is_scc_node))
+                .map(|node| {
+                    let VID(id) = node.node;
+                    (id, local[id].is_scc_node)
                 })
-                .collect::<HashMap<_, _>>()
+                .collect()
         },
         threads,
         1,

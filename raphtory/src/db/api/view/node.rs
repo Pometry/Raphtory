@@ -1,19 +1,27 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, VID},
+        entities::{
+            edges::edge_ref::{Dir, EdgeRef},
+            LayerIds, VID,
+        },
         storage::timeindex::AsTime,
         ArcStr, Direction,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, TimeSemantics},
-            TimeOps,
+            internal::{
+                CoreGraphOps, EdgeFilterOps, FilterOps, FilterState, GraphOps, InternalLayerOps,
+                NodeFilterOps, TimeSemantics,
+            },
+            BoxedIter, BoxedLIter, TimeOps,
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
+use std::iter;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -222,38 +230,54 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
     #[inline]
     fn degree(&self) -> Self::ValueType<usize> {
-        self.map(|g, v| g.degree(v, Direction::BOTH, &g.layer_ids(), g.edge_filter()))
+        self.map(|g, v| {
+            let core_graph = g.core_graph();
+            core_graph.node_degree(v, Direction::BOTH, g)
+        })
     }
     #[inline]
     fn in_degree(&self) -> Self::ValueType<usize> {
-        self.map(|g, v| g.degree(v, Direction::IN, &g.layer_ids(), g.edge_filter()))
+        self.map(|g, v| g.core_graph().node_degree(v, Direction::IN, g))
     }
     #[inline]
     fn out_degree(&self) -> Self::ValueType<usize> {
-        self.map(|g, v| g.degree(v, Direction::OUT, &g.layer_ids(), g.edge_filter()))
+        self.map(|g, v| g.core_graph().node_degree(v, Direction::OUT, g))
     }
     #[inline]
     fn edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| g.node_edges(v, Direction::BOTH, g.layer_ids(), g.edge_filter()))
+        self.map_edges(|g, v| g.core_graph().node_edges_iter(v, Direction::BOTH, g))
     }
     #[inline]
     fn in_edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| g.node_edges(v, Direction::IN, g.layer_ids(), g.edge_filter()))
+        self.map_edges(|g, v| g.core_graph().node_edges_iter(v, Direction::IN, g))
     }
     #[inline]
     fn out_edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| g.node_edges(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
+        self.map_edges(|g, v| g.core_graph().node_edges_iter(v, Direction::OUT, g))
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
-        self.hop(|g, v| g.neighbours(v, Direction::BOTH, g.layer_ids(), g.edge_filter()))
+        self.hop(|g, v| {
+            g.core_graph()
+                .node_edges_iter(v, Direction::BOTH, g)
+                .map(|e| e.remote())
+                .dedup()
+        })
     }
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
-        self.hop(|g, v| g.neighbours(v, Direction::IN, g.layer_ids(), g.edge_filter()))
+        self.hop(|g, v| {
+            g.core_graph()
+                .node_edges_iter(v, Direction::IN, g)
+                .map(|e| e.remote())
+        })
     }
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
-        self.hop(|g, v| g.neighbours(v, Direction::OUT, g.layer_ids(), g.edge_filter()))
+        self.hop(|g, v| {
+            g.core_graph()
+                .node_edges_iter(v, Direction::OUT, g)
+                .map(|e| e.remote())
+        })
     }
 }

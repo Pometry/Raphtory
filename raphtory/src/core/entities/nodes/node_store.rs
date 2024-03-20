@@ -18,6 +18,7 @@ use crate::{
     prelude::Graph,
 };
 use itertools::Itertools;
+use ouroboros::self_referencing;
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
@@ -282,7 +283,7 @@ impl NodeStore {
     // this is important because it calculates degree
     pub(crate) fn neighbours<'a>(
         &'a self,
-        layers: LayerIds,
+        layers: &LayerIds,
         d: Direction,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'a> {
         match layers {
@@ -290,8 +291,7 @@ impl NodeStore {
                 let iter = self
                     .layers
                     .iter()
-                    .enumerate()
-                    .map(|(layer_id, _)| self.neighbours(layer_id.into(), d))
+                    .map(|layer| self.neighbours_from_adj(layer, d))
                     .kmerge()
                     .dedup();
                 Box::new(iter)
@@ -299,8 +299,8 @@ impl NodeStore {
             LayerIds::One(one) => {
                 let iter = self
                     .layers
-                    .get(one)
-                    .map(|layer| self.neighbours_from_adj(layer, d, layers))
+                    .get(*one)
+                    .map(|layer| self.neighbours_from_adj(layer, d))
                     .unwrap_or(Box::new(iter::empty()));
                 Box::new(iter)
             }
@@ -308,7 +308,7 @@ impl NodeStore {
                 let iter = layers
                     .iter()
                     .filter_map(|l| self.layers.get(*l))
-                    .map(|layer| self.neighbours_from_adj(layer, d, layers.clone().into()))
+                    .map(|layer| self.neighbours_from_adj(layer, d))
                     .kmerge()
                     .dedup();
                 Box::new(iter)
@@ -321,14 +321,13 @@ impl NodeStore {
         &'a self,
         layer: &'a Adj,
         d: Direction,
-        layers: LayerIds,
     ) -> Box<dyn Iterator<Item = VID> + Send + '_> {
         let iter: Box<dyn Iterator<Item = VID> + Send> = match d {
             Direction::IN => Box::new(layer.iter(d).map(|(from_v, _)| from_v)),
             Direction::OUT => Box::new(layer.iter(d).map(|(to_v, _)| to_v)),
             Direction::BOTH => Box::new(
-                self.neighbours(layers.clone(), Direction::OUT)
-                    .merge(self.neighbours(layers, Direction::IN))
+                self.neighbours_from_adj(layer, Direction::OUT)
+                    .merge(self.neighbours_from_adj(layer, Direction::IN))
                     .dedup(),
             ),
         };
@@ -369,6 +368,22 @@ impl NodeStore {
 }
 
 impl ArcEntry<NodeStore> {
+    pub fn into_edges(self, layers: &LayerIds, dir: Direction) -> LockedAdjIter {
+        LockedAdjIterBuilder {
+            entry: self,
+            iter_builder: |node| node.edge_tuples(layers, dir),
+        }
+        .build()
+    }
+
+    pub fn into_neighbours(self, layers: &LayerIds, dir: Direction) -> LockedNeighboursIter {
+        LockedNeighboursIterBuilder {
+            entry: self,
+            iter_builder: |node| node.neighbours(layers, dir),
+        }
+        .build()
+    }
+
     pub fn into_layers(self) -> LockedLayers {
         let len = self.layers.len();
         LockedLayers {
@@ -383,6 +398,39 @@ impl ArcEntry<NodeStore> {
             entry: self,
             offset,
         })
+    }
+}
+
+#[self_referencing]
+pub struct LockedAdjIter {
+    entry: ArcEntry<NodeStore>,
+    #[borrows(entry)]
+    #[covariant]
+    iter: Box<dyn Iterator<Item = EdgeRef> + Send + 'this>,
+}
+
+impl Iterator for LockedAdjIter {
+    type Item = EdgeRef;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
+    }
+}
+
+#[self_referencing]
+pub struct LockedNeighboursIter {
+    entry: ArcEntry<NodeStore>,
+    #[borrows(entry)]
+    #[covariant]
+    iter: Box<dyn Iterator<Item = VID> + Send + 'this>,
+}
+
+impl Iterator for LockedNeighboursIter {
+    type Item = VID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.with_iter_mut(|iter| iter.next())
     }
 }
 

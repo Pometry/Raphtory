@@ -17,10 +17,10 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    pub(crate) nodes: storage::RawStorage<NodeStore, N>,
+    pub(crate) nodes: storage::RawStorage<NodeStore, N, VID>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    pub(crate) edges: storage::RawStorage<EdgeStore, N>,
+    pub(crate) edges: storage::RawStorage<EdgeStore, N, EID>,
 }
 
 impl<const N: usize> GraphStorage<N> {
@@ -169,7 +169,7 @@ impl Deref for GraphEntry<NodeStore> {
     type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
-        self.locked_gs.get_node(self.i)
+        self.locked_gs.get_node(VID(self.i))
     }
 }
 
@@ -177,14 +177,14 @@ impl Deref for GraphEntry<EdgeStore> {
     type Target = EdgeStore;
 
     fn deref(&self) -> &Self::Target {
-        self.locked_gs.get_edge(self.i)
+        self.locked_gs.get_edge(EID(self.i))
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct LockedGraphStorage {
-    nodes: storage::ReadLockedStorage<NodeStore>,
-    edges: storage::ReadLockedStorage<EdgeStore>,
+    nodes: storage::ReadLockedStorage<NodeStore, VID>,
+    edges: storage::ReadLockedStorage<EdgeStore, EID>,
 }
 
 impl LockedGraphStorage {
@@ -195,11 +195,11 @@ impl LockedGraphStorage {
         }
     }
 
-    pub(crate) fn get_node(&self, id: usize) -> &NodeStore {
+    pub(crate) fn get_node(&self, id: VID) -> &NodeStore {
         self.nodes.get(id)
     }
 
-    pub(crate) fn get_edge(&self, id: usize) -> &EdgeStore {
+    pub(crate) fn get_edge(&self, id: EID) -> &EdgeStore {
         self.edges.get(id)
     }
 }

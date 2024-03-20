@@ -219,7 +219,7 @@ impl<
             }
 
             if self.include_deletions() {
-                for t in edge.graph.edge_deletion_history(edge.edge, layer_ids) {
+                for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
                     let ti = TimeIndexEntry::from_input(self, t)?;
                     let src_id = self.resolve_node(edge.src().id(), Some(&edge.src().name()));
                     let dst_id = self.resolve_node(edge.dst().id(), Some(&edge.dst().name()));

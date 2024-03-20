@@ -18,7 +18,10 @@ use crate::{
         },
         ArcStr,
     },
-    db::api::view::{internal::CoreGraphOps, BoxedIter},
+    db::api::{
+        storage::locked::LockedGraph,
+        view::{internal::CoreGraphOps, BoxedIter},
+    },
     prelude::Prop,
 };
 use itertools::Itertools;
@@ -30,6 +33,13 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().internal_num_nodes()
     }
 
+    fn unfiltered_num_layers(&self) -> usize {
+        self.inner().num_layers()
+    }
+
+    fn core_graph(&self) -> LockedGraph {
+        self.lock()
+    }
     #[inline]
     fn node_meta(&self) -> &Meta {
         &self.inner().node_meta
@@ -60,7 +70,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         self.inner().layer_names(layer_ids)
     }
 
@@ -275,7 +285,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edges(&self) -> ReadLockedStorage<EdgeStore> {
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID> {
         self.inner().storage.edges.read_lock()
     }
 
@@ -285,7 +295,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_nodes(&self) -> ReadLockedStorage<NodeStore> {
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID> {
         self.inner().storage.nodes.read_lock()
     }
 

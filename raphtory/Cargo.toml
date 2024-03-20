@@ -38,6 +38,7 @@ ordered-float = { workspace = true }
 glam = { workspace = true }
 quad-rand = { workspace = true }
 serde_json = { workspace = true }
+ouroboros = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

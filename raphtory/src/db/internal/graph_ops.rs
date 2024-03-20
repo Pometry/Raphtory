@@ -19,12 +19,7 @@ use rayon::prelude::*;
 use std::{iter, ops::Deref};
 
 impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        _layer_ids: &LayerIds,
-        _filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
+    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID> {
         match v {
             NodeRef::Internal(l) => Some(l),
             NodeRef::External(_) => {
@@ -44,48 +39,11 @@ impl<'graph, const N: usize> GraphOps<'graph> for InnerTemporalGraph<N> {
         if e_id_usize >= self.inner().storage.edges.len() {
             return None;
         }
-        let e = self.inner().storage.edges.get(e_id_usize);
+        let e = self.inner().storage.edges.get(e_id);
         filter
             .map(|f| f(&*e, layer_ids))
             .unwrap_or(true)
             .then(|| EdgeRef::new_outgoing(e_id, e.src(), e.dst()))
-    }
-
-    fn nodes_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
-        self.inner().internal_num_nodes()
-    }
-
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.inner().num_edges(&layers, filter)
-    }
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        let edges = self.inner().storage.edges.read_lock();
-        edges
-            .par_iter()
-            .filter(|&e| e.has_layer(&layers) && filter.map(|f| f(e, &layers)).unwrap_or(true))
-            .map(|e| {
-                e.updates_iter(&layers)
-                    .map(|(_, additions, deletions)| {
-                        additions.len()
-                            + deletions
-                                .first()
-                                .map(|first_deletion| {
-                                    additions
-                                        .first()
-                                        .map(|first_addition| {
-                                            if first_deletion < first_addition {
-                                                1
-                                            } else {
-                                                0
-                                            }
-                                        })
-                                        .unwrap_or(1)
-                                })
-                                .unwrap_or(0)
-                    })
-                    .sum::<usize>()
-            })
-            .sum()
     }
 
     #[inline]

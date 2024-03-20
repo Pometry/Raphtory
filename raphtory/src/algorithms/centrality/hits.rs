@@ -1,14 +1,14 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::nodes::node_ref::NodeRef,
+        entities::{nodes::node_ref::NodeRef, VID},
         state::{
             accumulator_id::accumulators::{max, sum},
             compute_state::ComputeStateVec,
         },
     },
     db::{
-        api::view::{NodeViewOps, StaticGraphViewOps},
+        api::view::{internal::CoreGraphOps, NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -141,14 +141,13 @@ pub fn hits<G: StaticGraphViewOps>(
         |_, _, _, local| {
             let mut hubs = HashMap::new();
             let mut auths = HashMap::new();
-            let layers = g.layer_ids();
-            let edge_filter = g.edge_filter();
-            for (v_ref, hit) in local.iter().enumerate() {
-                if g.has_node_ref(NodeRef::Internal(v_ref.into()), &layers, edge_filter) {
-                    let v_gid = g.node_name(v_ref.into());
-                    hubs.insert(v_gid.clone(), hit.hub_score);
-                    auths.insert(v_gid, hit.auth_score);
-                }
+            let nodes = g.nodes();
+            for node in nodes {
+                let v_gid = node.name();
+                let VID(v_id) = node.node;
+                let hit = &local[v_id];
+                hubs.insert(v_gid.clone(), hit.hub_score);
+                auths.insert(v_gid, hit.auth_score);
             }
             (hubs, auths)
         },

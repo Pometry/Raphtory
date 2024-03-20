@@ -1,6 +1,10 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            LayerIds, EID, VID,
+        },
         Direction,
     },
     db::api::{
@@ -8,7 +12,8 @@ use crate::{
         view::{
             internal::{
                 Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritLayerOps, InheritMaterialize, InheritTimeSemantics, Static, TimeSemantics,
+                InheritEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritTimeSemantics, NodeFilterOps, Static, TimeSemantics,
             },
             BoxedLIter,
         },
@@ -27,7 +32,6 @@ use std::{
 pub struct NodeSubgraph<G> {
     pub(crate) graph: G,
     pub(crate) nodes: Arc<FxHashSet<VID>>,
-    edge_filter: EdgeFilter,
 }
 
 impl<G> Static for NodeSubgraph<G> {}
@@ -60,39 +64,46 @@ impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     pub fn new(graph: G, nodes: FxHashSet<VID>) -> Self {
         let nodes = Arc::new(nodes);
-        let nodes_cloned = nodes.clone();
-        let edge_filter: EdgeFilter = match graph.edge_filter().cloned() {
-            Some(f) => Arc::new(move |e, l| {
-                nodes_cloned.contains(&e.src()) && nodes_cloned.contains(&e.dst()) && f(e, l)
-            }),
-            None => Arc::new(move |e, _l| {
-                nodes_cloned.contains(&e.src()) && nodes_cloned.contains(&e.dst())
-            }),
-        };
-        Self {
-            graph,
-            nodes,
-            edge_filter,
-        }
+        Self { graph, nodes }
     }
 }
 
+// FIXME: this should use the list version ideally
+impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
-    #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
-        Some(&self.edge_filter)
+    fn edges_filtered(&self) -> bool {
+        true
+    }
+
+    fn edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge(edge, layer_ids)
+            && self.nodes.contains(&edge.src)
+            && self.nodes.contains(&edge.dst)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
+    // FIXME: should use list version and make this true
+    fn node_list_trusted(&self) -> bool {
+        false
+    }
+    fn nodes_filtered(&self) -> bool {
+        true
+    }
+
+    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid)
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph<G> {
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
+    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID> {
         self.graph
-            .internal_node_ref(v, layer_ids, filter)
+            .internal_node_ref(v, layer_ids)
             .filter(|v| self.nodes.contains(v))
     }
 
@@ -105,28 +116,6 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
         self.graph
             .find_edge_id(e_id, layer_ids, filter)
             .filter(|e| self.nodes.contains(&e.src()) && self.nodes.contains(&e.dst()))
-    }
-
-    fn nodes_len(&self, _layer_ids: LayerIds, _filter: Option<&EdgeFilter>) -> usize {
-        self.nodes.len()
-    }
-
-    fn edges_len(&self, layer: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.nodes
-            .par_iter()
-            .map(|v| self.degree(*v, Direction::OUT, &layer, filter))
-            .sum()
-    }
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.nodes
-            .par_iter()
-            .flat_map_iter(move |&v| {
-                let layers = layers.clone();
-                self.graph
-                    .node_edges(v, Direction::OUT, layers.clone(), filter)
-                    .flat_map(move |eref| self.edge_exploded(eref, layers.clone()))
-            })
-            .count()
     }
 
     fn has_edge_ref(
@@ -145,7 +134,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
         layer_ids: &LayerIds,
         edge_filter: Option<&EdgeFilter>,
     ) -> bool {
-        self.internal_node_ref(v, layer_ids, edge_filter).is_some()
+        self.internal_node_ref(v, layer_ids).is_some()
     }
 
     fn degree(&self, v: VID, d: Direction, layer: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
@@ -153,7 +142,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
     }
 
     fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers, filter)
+        self.internal_node_ref(v.into(), layers)
     }
 
     fn edge_ref(

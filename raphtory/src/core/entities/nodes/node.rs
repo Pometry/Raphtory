@@ -48,21 +48,6 @@ impl<'a, const N: usize> Node<'a, N> {
         self.node.temporal_properties(prop_id, window)
     }
 
-    pub fn neighbours<'b>(
-        &'a self,
-        layers: Vec<&'b str>,
-        dir: Direction,
-    ) -> impl Iterator<Item = Node<'a, N>> + 'a {
-        let layer_ids = layers
-            .iter()
-            .filter_map(|str| self.graph.node_meta.get_layer_id(str))
-            .collect_vec();
-
-        (*self.node)
-            .neighbours(layer_ids.into(), dir)
-            .map(move |dst| self.graph.node(dst))
-    }
-
     pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex<i64>>> {
         match self.node {
             VRef::Entry(entry) => {
@@ -111,10 +96,6 @@ impl ArcNode {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
         self.e.edge_tuples(&layers, dir)
-    }
-
-    pub fn neighbours(&self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> + '_ {
-        self.e.neighbours(layers, dir)
     }
 }
 

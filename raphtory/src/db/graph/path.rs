@@ -3,7 +3,10 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{
+                internal::{CoreGraphOps, OneHopFilter},
+                BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
+            },
         },
         graph::{
             edges::{Edges, NestedEdges},
@@ -157,7 +160,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
         let base_graph = self.base_graph;
         let op = self.op;
         graph
-            .node_refs(graph.layer_ids(), graph.edge_filter())
+            .core_graph()
+            .nodes_iter(&graph)
             .map(move |node| {
                 let op = op.clone();
                 let node_op = Arc::new(move || op(node));

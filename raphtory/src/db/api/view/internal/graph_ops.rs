@@ -13,12 +13,7 @@ use crate::{
 /// represented by the raphtory_core::tgraph::TGraph struct.
 pub trait GraphOps<'graph>: Send + Sync {
     /// Check if a node exists and returns internal reference.
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<VID>;
+    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID>;
 
     fn find_edge_id(
         &self,
@@ -26,14 +21,6 @@ pub trait GraphOps<'graph>: Send + Sync {
         layer_ids: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef>;
-
-    /// Returns the total number of nodes in the graph.
-    fn nodes_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize;
-
-    /// Returns the total number of edges in the graph.
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
-
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize;
 
     /// Returns true if the graph contains an edge between the source node
     /// (src) and the destination node (dst).
@@ -57,7 +44,7 @@ pub trait GraphOps<'graph>: Send + Sync {
     /// * `v` - NodeRef of the node to check.
     #[inline]
     fn has_node_ref(&self, v: NodeRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
-        self.internal_node_ref(v, layers, filter).is_some()
+        self.internal_node_ref(v, layers).is_some()
     }
 
     /// Returns the number of edges that point towards or from the specified node
@@ -76,7 +63,7 @@ pub trait GraphOps<'graph>: Send + Sync {
     /// * `v` - The node ID to lookup.
     #[inline]
     fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers, filter)
+        self.internal_node_ref(v.into(), layers)
     }
 
     /// Returns the edge reference that corresponds to the specified src and dst node
@@ -160,13 +147,8 @@ where
     G::Base: GraphOps<'base>,
 {
     #[inline]
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
-        self.base().internal_node_ref(v, layer_ids, filter)
+    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID> {
+        self.base().internal_node_ref(v, layer_ids)
     }
 
     #[inline]
@@ -177,21 +159,6 @@ where
         filter: Option<&EdgeFilter>,
     ) -> Option<EdgeRef> {
         self.base().find_edge_id(e_id, layer_ids, filter)
-    }
-
-    #[inline]
-    fn nodes_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.base().nodes_len(layer_ids, filter)
-    }
-
-    #[inline]
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.base().edges_len(layers, filter)
-    }
-
-    #[inline]
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.base().temporal_edges_len(layers, filter)
     }
 
     #[inline]

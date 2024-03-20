@@ -14,7 +14,10 @@ use crate::{
         },
     },
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+};
 
 #[derive(Clone, Debug, Default)]
 struct OutState {
@@ -70,19 +73,15 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<OutState>| {
-            let layers: crate::core::entities::LayerIds = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            local
+        |_, _, _, mut local: Vec<OutState>| {
+            graph
+                .nodes()
                 .iter()
-                .enumerate()
-                .filter_map(|(v_ref_id, state)| {
-                    let v_ref = VID(v_ref_id);
-                    graph
-                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.out_components.clone()))
+                .map(|node| {
+                    let VID(id) = node.node;
+                    (id, mem::take(&mut local[id].out_components))
                 })
-                .collect::<HashMap<_, _>>()
+                .collect()
         },
         threads,
         1,

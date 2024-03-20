@@ -1,11 +1,14 @@
 mod core_deletion_ops;
 mod core_ops;
 mod edge_filter_ops;
+mod filter_ops;
 mod graph_ops;
 mod inherit;
 mod into_dynamic;
 mod layer_ops;
+mod list_ops;
 mod materialize;
+mod node_filter_ops;
 mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
@@ -22,11 +25,14 @@ use std::{
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
+pub use filter_ops::*;
 pub use graph_ops::*;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
+pub use list_ops::*;
 pub use materialize::*;
+pub use node_filter_ops::*;
 pub use one_hop_filter::*;
 pub use time_semantics::*;
 
@@ -34,7 +40,9 @@ pub use time_semantics::*;
 pub trait BoxableGraphView<'graph>:
     CoreGraphOps
     + GraphOps<'graph>
+    + ListOps
     + EdgeFilterOps
+    + NodeFilterOps
     + InternalLayerOps
     + TimeSemantics
     + InternalMaterialize
@@ -49,7 +57,9 @@ impl<
         'graph,
         G: CoreGraphOps
             + GraphOps<'graph>
+            + ListOps
             + EdgeFilterOps
+            + NodeFilterOps
             + InternalLayerOps
             + TimeSemantics
             + InternalMaterialize
@@ -62,6 +72,10 @@ impl<
 }
 
 pub trait InheritViewOps: Base + Send + Sync {}
+
+impl<G: InheritViewOps> InheritNodeFilterOps for G {}
+
+impl<G: InheritViewOps> InheritListOps for G {}
 
 impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
 impl<G: InheritViewOps> InheritGraphOps for G {}
