@@ -156,7 +156,7 @@ mod test {
 
     #[test]
     fn scan_edge_no_filters() {
-        let query = "MATCH ()-[r]->() RETURN r.src,r.time, r.weight, r.dst";
+        let query = "MATCH ()-[r]->() where r.time < 4 RETURN r.src,r.time, r.weight, r.dst";
         println!("{:?}", query);
         let query = parser::parse_cypher(query).unwrap();
         let edges = vec![
