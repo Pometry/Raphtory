@@ -58,7 +58,7 @@ impl<'a, const N: usize> Deref for ERef<'a, N> {
     fn deref(&self) -> &Self::Target {
         match self {
             ERef::ERef(e) => e,
-            ERef::ELock { lock, eid } => lock.get_edge((*eid).into()),
+            ERef::ELock { lock, eid } => lock.get_edge((*eid)),
         }
     }
 }
@@ -253,7 +253,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     pub(crate) fn active(&'a self, layer_ids: LayerIds, w: Range<i64>) -> bool {
         match &self.edge_id {
             ERef::ELock { lock, .. } => {
-                let e = lock.get_edge(self.edge_id().into());
+                let e = lock.get_edge(self.edge_id());
                 self.check_layers(layer_ids, e, |t| t.active(w.clone()))
             }
             ERef::ERef(entry) => {
@@ -280,7 +280,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     pub(crate) fn layer_ids(&self) -> LayerIds {
         match &self.edge_id {
             ERef::ELock { lock, .. } => {
-                let e = lock.get_edge(self.edge_id().into());
+                let e = lock.get_edge(self.edge_id());
                 e.layer_ids()
             }
             ERef::ERef(entry) => (*entry).layer_ids(),

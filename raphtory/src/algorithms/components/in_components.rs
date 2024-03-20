@@ -1,9 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
@@ -14,10 +11,7 @@ use crate::{
         },
     },
 };
-use std::{
-    collections::{HashMap, HashSet},
-    mem,
-};
+use std::{collections::HashSet, mem};
 
 #[derive(Clone, Debug, Default)]
 struct InState {
@@ -90,10 +84,9 @@ where
 
 #[cfg(test)]
 mod components_test {
-    use crate::prelude::*;
-
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
+    use crate::{db::api::mutation::AdditionOps, prelude::*};
+    use std::collections::HashMap;
 
     #[test]
     fn in_components_test() {

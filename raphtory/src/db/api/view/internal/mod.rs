@@ -2,7 +2,6 @@ mod core_deletion_ops;
 mod core_ops;
 mod edge_filter_ops;
 mod filter_ops;
-mod graph_ops;
 mod inherit;
 mod into_dynamic;
 mod layer_ops;
@@ -26,7 +25,6 @@ pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
-pub use graph_ops::*;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
@@ -39,7 +37,6 @@ pub use time_semantics::*;
 /// Marker trait to indicate that an object is a valid graph view
 pub trait BoxableGraphView<'graph>:
     CoreGraphOps
-    + GraphOps<'graph>
     + ListOps
     + EdgeFilterOps
     + NodeFilterOps
@@ -56,7 +53,6 @@ pub trait BoxableGraphView<'graph>:
 impl<
         'graph,
         G: CoreGraphOps
-            + GraphOps<'graph>
             + ListOps
             + EdgeFilterOps
             + NodeFilterOps
@@ -78,7 +74,6 @@ impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 impl<G: InheritViewOps> InheritListOps for G {}
 
 impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
-impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}

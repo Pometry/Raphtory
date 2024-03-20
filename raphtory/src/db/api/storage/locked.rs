@@ -16,13 +16,7 @@ use crate::{
         storage::ReadLockedStorage,
         Direction,
     },
-    db::api::view::{
-        internal::{
-            CoreGraphOps, EdgeFilterOps, FilterOps, FilterState, InternalLayerOps, ListOps,
-            NodeFilterOps,
-        },
-        IntoDynBoxed,
-    },
+    db::api::view::internal::{FilterOps, FilterState},
     prelude::GraphViewOps,
 };
 
@@ -40,7 +34,7 @@ impl LockedGraph {
         let layer_ids = view.layer_ids().clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new((0..view.unfiltered_num_layers())),
+            LayerIds::All => Box::new(0..view.unfiltered_num_layers()),
             LayerIds::One(id) => Box::new(iter::once(id)),
             LayerIds::Multiple(ids) => Box::new((0..ids.len()).map(move |i| ids[i])),
         }

@@ -1,4 +1,4 @@
-use std::{iter, ops::Deref};
+use std::iter;
 
 use chrono::{DateTime, Utc};
 
@@ -204,7 +204,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             }
             None => {
                 let edge = g.core_edge(e.pid());
-                g.include_edge_window(&edge, t..t.saturating_add(1), &g.layer_ids())
+                g.include_edge_window(&edge, t..t.saturating_add(1), g.layer_ids())
             }
         })
     }

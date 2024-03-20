@@ -1,14 +1,19 @@
+use std::collections::HashMap;
+
+use num_traits::abs;
+use ordered_float::OrderedFloat;
+
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{nodes::node_ref::NodeRef, VID},
+        entities::VID,
         state::{
             accumulator_id::accumulators::{max, sum},
             compute_state::ComputeStateVec,
         },
     },
     db::{
-        api::view::{internal::CoreGraphOps, NodeViewOps, StaticGraphViewOps},
+        api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
             context::Context,
             node::eval_node::EvalNodeView,
@@ -17,9 +22,6 @@ use crate::{
         },
     },
 };
-use num_traits::abs;
-use ordered_float::OrderedFloat;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct Hits {
@@ -176,11 +178,12 @@ pub fn hits<G: StaticGraphViewOps>(
 
 #[cfg(test)]
 mod hits_tests {
-    use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+
+    use super::*;
 
     fn load_graph(edges: Vec<(u64, u64)>) -> Graph {
         let graph = Graph::new();

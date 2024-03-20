@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::{nodes::node_ref::NodeRef, VID},
+        entities::VID,
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
@@ -64,7 +64,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let tol: f64 = tol.unwrap_or_else(|| 0.000001f64);
+    let tol: f64 = tol.unwrap_or(0.000001f64);
     let damp = damping_factor.unwrap_or(0.85);
     let iter_count = iter_count.unwrap_or(20);
     let teleport_prob = (1f64 - damp) / n as f64;

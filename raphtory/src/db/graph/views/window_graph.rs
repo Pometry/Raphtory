@@ -37,15 +37,22 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Range,
+};
+
+use chrono::{DateTime, Utc};
+
 use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            LayerIds, EID, VID,
+            nodes::node_store::NodeStore,
+            LayerIds, VID,
         },
         storage::timeindex::AsTime,
-        ArcStr, Direction, Prop,
+        ArcStr, Prop,
     },
     db::{
         api::{
@@ -54,22 +61,15 @@ use crate::{
             },
             view::{
                 internal::{
-                    Base, CoreGraphOps, EdgeFilter, EdgeFilterOps, EdgeWindowFilter, GraphOps,
-                    Immutable, InheritCoreOps, InheritLayerOps, InheritListOps, InheritMaterialize,
-                    NodeFilterOps, Static, TimeSemantics,
+                    Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
+                    InheritListOps, InheritMaterialize, NodeFilterOps, Static, TimeSemantics,
                 },
-                BoxedIter, BoxedLIter,
+                BoxedIter,
             },
         },
         graph::graph::graph_equal,
     },
     prelude::GraphViewOps,
-};
-use chrono::{DateTime, Utc};
-use std::{
-    fmt::{Debug, Formatter},
-    ops::Range,
-    sync::Arc,
 };
 
 /// A struct that represents a windowed view of a `Graph`.
@@ -477,197 +477,6 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> GraphOps<'graph> for WindowedGraph<G> {
-    #[inline]
-    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID> {
-        self.graph.internal_node_ref(v, layer_ids).filter(|&v| {
-            let node = self.graph.core_node(v);
-            self.filter_node(&node, layer_ids)
-        })
-    }
-
-    #[inline]
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.graph.find_edge_id(e_id, layer_ids, filter)
-    }
-
-    /// Check if there is an edge from src to dst in the window.
-    ///
-    /// # Arguments
-    ///
-    /// - `src` - The source node.
-    /// - `dst` - The destination node.
-    ///
-    /// Returns:
-    ///
-    /// A result containing `true` if there is an edge from src to dst in the window, `false` otherwise.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if either `src` or `dst` is not a valid node.
-    #[inline]
-    fn has_edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> bool {
-        // filter takes care of checking the window
-        self.graph.has_edge_ref(src, dst, layer, filter)
-    }
-
-    /// Check if a node v exists in the window.
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The node to check.
-    ///
-    /// Returns:
-    ///
-    /// A result containing `true` if the node exists in the window, `false` otherwise.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `v` is not a valid node.
-    #[inline]
-    fn has_node_ref(&self, v: NodeRef, layers: &LayerIds, filter: Option<&EdgeFilter>) -> bool {
-        self.internal_node_ref(v, layers).is_some()
-    }
-
-    /// Returns the number of edges from a node in the window.
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The node to check.
-    /// - `d` - The direction of the edges to count.
-    ///
-    /// Returns:
-    ///
-    /// A result containing the number of edges from the node in the window.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `v` is not a valid node.
-    #[inline]
-    fn degree(&self, v: VID, d: Direction, layer: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.graph.degree(v, d, layer, filter)
-    }
-
-    /// Get the reference of the node with ID v if it exists
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The ID of the node to get
-    ///
-    /// Returns:
-    ///
-    /// A result of an option containing the node reference if it exists, `None` otherwise.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `v` is not a valid node.
-    #[inline]
-    fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers)
-    }
-
-    /// Get an iterator over the references of an edges as a reference
-    ///
-    /// # Arguments
-    ///
-    /// - `src` - The source node of the edge
-    /// - `dst` - The destination node of the edge
-    ///
-    /// Returns:
-    ///
-    /// A result of an option containing the edge reference if it exists, `None` otherwise.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if `src` or `dst` are not valid nodes.
-    #[inline]
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.graph.edge_ref(src, dst, layer, filter)
-    }
-
-    /// Get an iterator over the references of all nodes as references
-    ///
-    /// Returns:
-    ///
-    /// An iterator over the references of all nodes
-    #[inline]
-    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
-        let g = self.clone();
-        let core_nodes = self.core_nodes();
-        Box::new(
-            self.graph
-                .node_refs(layers.clone(), filter)
-                .filter(move |v| {
-                    let node = core_nodes.get(*v);
-                    g.include_node_window(node, g.start_bound()..g.end_bound(), &layers)
-                }),
-        )
-    }
-
-    /// Get an iterator of all edges as references
-    ///
-    /// Returns:
-    ///
-    /// An iterator over all edges as references
-    #[inline]
-    fn edge_refs(
-        &self,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        self.graph.edge_refs(layer, filter)
-    }
-
-    #[inline]
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        self.graph.node_edges(v, d, layer, filter)
-    }
-
-    /// Get the neighbours of a node as references in a given direction
-    ///
-    /// # Arguments
-    ///
-    /// - `v` - The node to get the neighbours for
-    /// - `d` - The direction of the edges
-    ///
-    /// Returns:
-    ///
-    /// An iterator over all neighbours in that node direction as references
-    #[inline]
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        self.graph.neighbours(v, d, layer, filter)
-    }
-}
-
 /// A windowed graph is a graph that only allows access to nodes and edges within a time window.
 ///
 /// This struct is used to represent a graph with a time window. It is constructed
@@ -703,17 +512,18 @@ impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
 
 #[cfg(test)]
 mod views_test {
-
-    use super::*;
-    use crate::{
-        algorithms::centrality::degree_centrality::degree_centrality,
-        db::graph::graph::assert_graph_equal, prelude::*,
-    };
     use itertools::Itertools;
     use quickcheck::TestResult;
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
     use rayon::prelude::*;
+
+    use crate::{
+        algorithms::centrality::degree_centrality::degree_centrality,
+        db::graph::graph::assert_graph_equal, prelude::*,
+    };
+
+    use super::*;
 
     #[test]
     fn windowed_graph_nodes_degree() {

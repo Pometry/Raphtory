@@ -1,27 +1,14 @@
 use crate::{
-    core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
-            LayerIds, EID, VID,
-        },
-        Direction,
-    },
+    core::entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::{
-            internal::{
-                Base, EdgeFilter, EdgeFilterOps, GraphOps, Immutable, InheritCoreOps,
-                InheritEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
-                InheritTimeSemantics, NodeFilterOps, Static, TimeSemantics,
-            },
-            BoxedLIter,
+        view::internal::{
+            Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
+            InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
-use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     fmt::{Debug, Formatter},
@@ -97,107 +84,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
 
     fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid)
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph<G> {
-    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID> {
-        self.graph
-            .internal_node_ref(v, layer_ids)
-            .filter(|v| self.nodes.contains(v))
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.graph
-            .find_edge_id(e_id, layer_ids, filter)
-            .filter(|e| self.nodes.contains(&e.src()) && self.nodes.contains(&e.dst()))
-    }
-
-    fn has_edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> bool {
-        self.graph.has_edge_ref(src, dst, layer, filter)
-    }
-
-    fn has_node_ref(
-        &self,
-        v: NodeRef,
-        layer_ids: &LayerIds,
-        edge_filter: Option<&EdgeFilter>,
-    ) -> bool {
-        self.internal_node_ref(v, layer_ids).is_some()
-    }
-
-    fn degree(&self, v: VID, d: Direction, layer: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        self.graph.degree(v, d, layer, filter)
-    }
-
-    fn node_ref(&self, v: u64, layers: &LayerIds, filter: Option<&EdgeFilter>) -> Option<VID> {
-        self.internal_node_ref(v.into(), layers)
-    }
-
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        self.graph.edge_ref(src, dst, layer, filter)
-    }
-
-    fn node_refs(
-        &self,
-        _layers: LayerIds,
-        _filter: Option<&EdgeFilter>,
-    ) -> Box<dyn Iterator<Item = VID> + Send> {
-        // this sucks but seems to be the only way currently (see also http://smallcultfollowing.com/babysteps/blog/2018/09/02/rust-pattern-iterating-an-over-a-rc-vec-t/)
-        let verts = Vec::from_iter(self.nodes.iter().copied());
-        Box::new(verts.into_iter())
-    }
-
-    fn edge_refs(
-        &self,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        let g1 = self.graph.clone();
-        let nodes = self.nodes.clone().iter().copied().collect_vec();
-        let filter = filter.cloned();
-        Box::new(
-            nodes.into_iter().flat_map(move |v| {
-                g1.node_edges(v, Direction::OUT, layer.clone(), filter.as_ref())
-            }),
-        )
-    }
-
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        self.graph.node_edges(v, d, layer, filter)
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        self.graph.neighbours(v, d, layers, filter)
     }
 }
 

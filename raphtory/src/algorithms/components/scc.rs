@@ -1,9 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::StaticGraphViewOps,
         task::{

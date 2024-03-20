@@ -7,10 +7,7 @@ use crate::{
         },
         Prop,
     },
-    db::api::view::{
-        internal::{Base, EdgeFilter, EdgeWindowFilter},
-        BoxedIter, MaterializedGraph,
-    },
+    db::api::view::{internal::Base, BoxedIter, MaterializedGraph},
 };
 use enum_dispatch::enum_dispatch;
 use std::ops::Range;

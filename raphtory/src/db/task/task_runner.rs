@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, VID},
+        entities::VID,
         state::{
             compute_state::ComputeState,
             shuffle_state::{EvalLocalState, EvalShardState},

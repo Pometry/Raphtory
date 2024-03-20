@@ -334,7 +334,7 @@ impl<const N: usize> TemporalGraph<N> {
                 let edges_locked = self.storage.edges.read_lock();
                 node_store
                     .edge_tuples(layers, dir)
-                    .filter(|e| filter(edges_locked.get(e.pid().into()), layers))
+                    .filter(|e| filter(edges_locked.get(e.pid()), layers))
                     .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count()
             }

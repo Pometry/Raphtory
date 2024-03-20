@@ -1,3 +1,7 @@
+use std::fmt::{Debug, Formatter};
+
+use itertools::Itertools;
+
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds},
@@ -7,19 +11,13 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritTimeSemantics,
-                InternalLayerOps, Static,
+                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
     },
     prelude::GraphViewOps,
-};
-use itertools::Itertools;
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
 };
 
 #[derive(Clone)]
@@ -62,8 +60,6 @@ impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InheritGraphOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     fn edges_filtered(&self) -> bool {
@@ -127,8 +123,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
-    use crate::prelude::*;
     use itertools::Itertools;
+
+    use crate::prelude::*;
+
     #[test]
     fn test_layer_node() {
         let g = Graph::new();

@@ -4,15 +4,15 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{NodeList, OneHopFilter, Static},
-                BaseNodeViewOps, BoxedIter, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                internal::{OneHopFilter, Static},
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
     },
     prelude::*,
 };
-use rayon::iter::Either;
+
 use std::{marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]

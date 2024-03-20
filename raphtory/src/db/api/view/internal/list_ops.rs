@@ -4,7 +4,7 @@ use crate::{
 };
 use enum_dispatch::enum_dispatch;
 use rayon::{iter::Either, prelude::*};
-use std::{sync::Arc, vec::IntoIter};
+use std::sync::Arc;
 
 #[enum_dispatch]
 pub trait ListOps {

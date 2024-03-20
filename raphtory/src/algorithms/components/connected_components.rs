@@ -1,9 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
@@ -14,7 +11,7 @@ use crate::{
         },
     },
 };
-use std::{cmp, collections::HashMap};
+use std::cmp;
 
 #[derive(Clone, Debug, Default)]
 struct WccState {
@@ -94,14 +91,11 @@ where
 
 #[cfg(test)]
 mod cc_test {
-    use crate::prelude::*;
-    use std::cmp::Reverse;
-
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
+    use crate::{db::api::mutation::AdditionOps, prelude::*};
     use itertools::*;
     use quickcheck_macros::quickcheck;
-    use std::iter::once;
+    use std::{cmp::Reverse, collections::HashMap, iter::once};
 
     #[test]
     fn run_loop_simple_connected_components() {

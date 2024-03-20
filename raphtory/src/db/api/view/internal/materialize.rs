@@ -16,7 +16,7 @@ use crate::{
             ArcEntry, ReadLockedStorage,
         },
         utils::errors::GraphError,
-        ArcStr, Direction, PropType,
+        ArcStr, PropType,
     },
     db::{
         api::{
@@ -25,14 +25,14 @@ use crate::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             storage::locked::LockedGraph,
-            view::{internal::*, BoxedIter, BoxedLIter},
+            view::{internal::*, BoxedIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
             views::deletion_graph::GraphWithDeletions,
         },
     },
-    prelude::{Layer, Prop},
+    prelude::*,
     BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
@@ -80,97 +80,6 @@ struct VersionedGraph<T> {
 }
 
 impl Static for MaterializedGraph {}
-
-impl<'graph> GraphOps<'graph> for MaterializedGraph {
-    fn internal_node_ref(&self, v: NodeRef, layer_ids: &LayerIds) -> Option<VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.internal_node_ref(v, layer_ids),
-            MaterializedGraph::PersistentGraph(g) => g.internal_node_ref(v, layer_ids),
-        }
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
-        }
-    }
-
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.degree(v, d, layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.degree(v, d, layers, filter),
-        }
-    }
-
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_ref(src, dst, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edge_ref(src, dst, layer, filter),
-        }
-    }
-
-    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.node_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.node_refs(layers, filter),
-        }
-    }
-
-    fn edge_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edge_refs(layers, filter),
-        }
-    }
-
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.node_edges(v, d, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.node_edges(v, d, layer, filter),
-        }
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.neighbours(v, d, layers, filter),
-        }
-    }
-}
 
 impl MaterializedGraph {
     pub fn into_events(self) -> Option<Graph> {
@@ -259,8 +168,8 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, InternalMaterialize,
-            MaterializedGraph, NodeFilterOps, TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, InternalLayerOps, InternalMaterialize, MaterializedGraph,
+            TimeSemantics,
         },
         prelude::*,
     };

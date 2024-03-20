@@ -1,27 +1,20 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::{Dir, EdgeRef},
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
         ArcStr, Direction,
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{
-                CoreGraphOps, EdgeFilterOps, FilterOps, FilterState, GraphOps, InternalLayerOps,
-                NodeFilterOps, TimeSemantics,
-            },
-            BoxedIter, BoxedLIter, TimeOps,
+            internal::{CoreGraphOps, TimeSemantics},
+            TimeOps,
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use std::iter;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;

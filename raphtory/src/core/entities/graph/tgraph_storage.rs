@@ -45,34 +45,34 @@ impl<const N: usize> GraphStorage<N> {
 
     #[inline]
     pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
-        self.nodes.entry_mut(id.into())
+        self.nodes.entry_mut(id)
     }
 
     #[inline]
     pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore> {
-        self.edges.entry_mut(id.into())
+        self.edges.entry_mut(id)
     }
 
     #[inline]
     pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore, N> {
-        self.nodes.entry(id.into())
+        self.nodes.entry(id)
     }
 
     pub(crate) fn get_node_arc(&self, id: VID) -> ArcEntry<NodeStore> {
-        self.nodes.entry_arc(id.into())
+        self.nodes.entry_arc(id)
     }
 
     pub(crate) fn get_edge_arc(&self, id: EID) -> ArcEntry<EdgeStore> {
-        self.edges.entry_arc(id.into())
+        self.edges.entry_arc(id)
     }
 
     #[inline]
     pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore, N> {
-        self.edges.entry(id.into())
+        self.edges.entry(id)
     }
 
     pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
-        self.nodes.pair_entry_mut(i.into(), j.into())
+        self.nodes.pair_entry_mut(i, j)
     }
 
     fn lock(&self) -> LockedGraphStorage {

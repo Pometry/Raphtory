@@ -20,7 +20,6 @@ use crate::{
     prelude::*,
 };
 use itertools::{EitherOrBoth, Itertools};
-use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -220,8 +219,6 @@ impl InheritCoreOps for GraphWithDeletions {}
 
 impl InheritCoreDeletionOps for GraphWithDeletions {}
 
-impl InheritGraphOps for GraphWithDeletions {}
-
 impl InheritPropertiesOps for GraphWithDeletions {}
 
 impl InheritLayerOps for GraphWithDeletions {}
@@ -366,7 +363,7 @@ impl TimeSemantics for GraphWithDeletions {
         let edge = self.graph.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(&layer_ids)
+            .updates_iter(layer_ids)
             .filter_map(
                 |(l, additions, deletions)| match (additions.first(), deletions.first()) {
                     (Some(a), Some(d)) => (d < a).then_some(l),
@@ -398,7 +395,7 @@ impl TimeSemantics for GraphWithDeletions {
         let edge = self.graph.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
-            .updates_iter(&layer_ids)
+            .updates_iter(layer_ids)
             .filter_map(|(l, additions, deletions)| {
                 alive_at(additions, deletions, w.start).then_some(l)
             })
@@ -464,7 +461,7 @@ impl TimeSemantics for GraphWithDeletions {
             )),
             None => {
                 let entry = self.core_edge(e.pid());
-                if edge_alive_at_end(entry.deref(), i64::MAX, &layer_ids) {
+                if edge_alive_at_end(entry.deref(), i64::MAX, layer_ids) {
                     Some(i64::MAX)
                 } else {
                     self.edge_deletions(e, layer_ids.clone()).last_t()
@@ -492,11 +489,11 @@ impl TimeSemantics for GraphWithDeletions {
             )),
             None => {
                 let entry = self.core_edge(e.pid());
-                if edge_alive_at_end(entry.deref(), w.end, &layer_ids) {
+                if edge_alive_at_end(entry.deref(), w.end, layer_ids) {
                     return Some(w.end - 1);
                 }
                 entry
-                    .updates_iter(&layer_ids)
+                    .updates_iter(layer_ids)
                     .flat_map(|(_, additions, deletions)| {
                         let last_deletion = deletions.range(w.clone()).last()?;
                         if last_deletion.t() > w.start || additions.active(w.clone()) {

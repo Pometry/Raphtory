@@ -2,7 +2,6 @@ pub(crate) mod addition;
 pub(crate) mod core_ops;
 pub(crate) mod deletion;
 pub(crate) mod edge_filter_ops;
-pub(crate) mod graph_ops;
 pub(crate) mod layer_ops;
 mod list_ops;
 pub(crate) mod materialize;

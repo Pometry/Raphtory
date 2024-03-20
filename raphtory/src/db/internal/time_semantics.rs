@@ -9,16 +9,15 @@ use crate::{
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
+        internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
         BoxedIter,
     },
     prelude::Prop,
 };
 use genawaiter::sync::GenBoxed;
 use itertools::kmerge;
-use once_cell::sync::Lazy;
 use rayon::prelude::*;
-use std::{ops::Range, sync::Arc};
+use std::ops::Range;
 
 impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {

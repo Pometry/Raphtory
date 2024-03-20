@@ -1,9 +1,6 @@
 use crate::{
     core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::{
-        api::view::internal::{EdgeFilter, EdgeFilterOps},
-        graph::graph::InternalGraph,
-    },
+    db::{api::view::internal::EdgeFilterOps, graph::graph::InternalGraph},
 };
 
 impl EdgeFilterOps for InternalGraph {

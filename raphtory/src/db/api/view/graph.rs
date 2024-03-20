@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef,
-            LayerIds, EID, VID,
+            LayerIds, VID,
         },
         storage::timeindex::AsTime,
         utils::errors::GraphError,
@@ -179,10 +179,10 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         Ok(self.new_base_graph(g))
     }
     fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
-        let layer_ids = self.layer_ids();
+        let _layer_ids = self.layer_ids();
         let nodes: FxHashSet<VID> = nodes
             .into_iter()
-            .flat_map(|v| self.internal_node_ref(v.into(), &layer_ids))
+            .flat_map(|v| (&self).node(v).map(|v| v.node))
             .collect();
         NodeSubgraph::new(self.clone(), nodes)
     }
@@ -207,7 +207,7 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
             let layer_ids = self.layer_ids();
             node_list
                 .par_iter()
-                .filter(|id| self.filter_node(core_nodes.get(*id), &layer_ids))
+                .filter(|id| self.filter_node(core_nodes.get(*id), layer_ids))
                 .count()
         } else {
             self.node_list().len()
@@ -222,7 +222,7 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
             let layer_ids = self.layer_ids();
             edge_list
                 .par_iter()
-                .filter(|eid| self.filter_edge(core_edges.get(*eid), &layer_ids))
+                .filter(|eid| self.filter_edge(core_edges.get(*eid), layer_ids))
                 .count()
         } else {
             self.edge_list().len()
@@ -235,8 +235,8 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.edge_list()
             .par_iter()
             .map(|eid| core_edges.get(eid))
-            .filter(|edge| self.filter_edge(edge, &layer_ids))
-            .map(|edge| self.edge_exploded_count(edge, &layer_ids))
+            .filter(|edge| self.filter_edge(edge, layer_ids))
+            .map(|edge| self.edge_exploded_count(edge, layer_ids))
             .sum()
     }
 

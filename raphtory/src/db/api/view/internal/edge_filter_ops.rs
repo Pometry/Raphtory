@@ -132,16 +132,15 @@ impl EdgeLike for EdgeStore {
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
+        self.additions.get(layer_id).map(TimeIndexLike::Ref)
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
+        self.deletions.get(layer_id).map(TimeIndexLike::Ref)
     }
 }
 
 pub type EdgeFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds) -> bool + Send + Sync>;
-pub type EdgeWindowFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds, Range<i64>) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {

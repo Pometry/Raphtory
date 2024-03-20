@@ -3,10 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{
-                internal::{CoreGraphOps, OneHopFilter},
-                BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
-            },
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
             edges::{Edges, NestedEdges},

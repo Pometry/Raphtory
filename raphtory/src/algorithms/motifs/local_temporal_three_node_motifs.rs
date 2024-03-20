@@ -21,7 +21,6 @@ use crate::{
     },
 };
 
-use crate::core::entities::nodes::node_ref::NodeRef;
 use itertools::{enumerate, Itertools};
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
