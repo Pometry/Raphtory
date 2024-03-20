@@ -35,7 +35,7 @@ pub use one_hop_filter::*;
 pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view
-pub trait BoxableGraphView<'graph>:
+pub trait BoxableGraphView:
     CoreGraphOps
     + ListOps
     + EdgeFilterOps
@@ -51,7 +51,6 @@ pub trait BoxableGraphView<'graph>:
 }
 
 impl<
-        'graph,
         G: CoreGraphOps
             + ListOps
             + EdgeFilterOps
@@ -63,7 +62,7 @@ impl<
             + ConstPropertiesOps
             + Send
             + Sync,
-    > BoxableGraphView<'graph> for G
+    > BoxableGraphView for G
 {
 }
 
@@ -85,14 +84,14 @@ impl<G: InheritViewOps> InheritPropertiesOps for G {}
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
 pub trait Static {}
 
-impl<G: BoxableGraphView<'static> + Static + 'static> From<G> for DynamicGraph {
+impl<G: BoxableGraphView + Static + 'static> From<G> for DynamicGraph {
     fn from(value: G) -> Self {
         DynamicGraph(Arc::new(value))
     }
 }
 
-impl From<Arc<dyn BoxableGraphView<'static>>> for DynamicGraph {
-    fn from(value: Arc<dyn BoxableGraphView<'static>>) -> Self {
+impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
+    fn from(value: Arc<dyn BoxableGraphView>) -> Self {
         DynamicGraph(value)
     }
 }
@@ -101,7 +100,7 @@ impl From<Arc<dyn BoxableGraphView<'static>>> for DynamicGraph {
 pub trait Immutable {}
 
 #[derive(Clone)]
-pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView<'static>>);
+pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
 impl Debug for DynamicGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -115,17 +114,17 @@ impl Debug for DynamicGraph {
 }
 
 impl DynamicGraph {
-    pub fn new<G: GraphViewOps<'static>>(graph: G) -> Self {
+    pub fn new<G: BoxableGraphView + 'static>(graph: G) -> Self {
         Self(Arc::new(graph))
     }
 
-    pub fn new_from_arc<G: GraphViewOps<'static>>(graph_arc: Arc<G>) -> Self {
+    pub fn new_from_arc<G: BoxableGraphView + 'static>(graph_arc: Arc<G>) -> Self {
         Self(graph_arc)
     }
 }
 
 impl Base for DynamicGraph {
-    type Base = dyn BoxableGraphView<'static>;
+    type Base = dyn BoxableGraphView;
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {

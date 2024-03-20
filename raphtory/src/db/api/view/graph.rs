@@ -31,7 +31,7 @@ use std::sync::Arc;
 /// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
 ///
-pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
+pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self, Self>;
 
@@ -97,7 +97,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn properties(&self) -> Properties<Self>;
 }
 
-impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
         let edges = Arc::new(move || {
