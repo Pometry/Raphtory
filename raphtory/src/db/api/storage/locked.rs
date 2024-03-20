@@ -74,10 +74,10 @@ impl LockedGraph {
         }
     }
 
-    pub fn nodes_par<'graph, G: GraphViewOps<'graph>>(
-        &'graph self,
-        view: &'graph G,
-    ) -> impl ParallelIterator<Item = VID> + 'graph {
+    pub fn nodes_par<'a, 'graph: 'a, G: GraphViewOps<'graph>>(
+        &'a self,
+        view: &'a G,
+    ) -> impl ParallelIterator<Item = VID> + 'a {
         view.node_list()
             .into_par_iter()
             .filter(|&vid| view.filter_node(self.nodes.get(vid), view.layer_ids()))

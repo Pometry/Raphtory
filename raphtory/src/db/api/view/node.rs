@@ -8,6 +8,7 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
+        storage::locked::LockedGraph,
         view::{
             internal::{CoreGraphOps, TimeSemantics},
             TimeOps,
@@ -28,7 +29,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
-    fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
+    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O>;
@@ -37,7 +38,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -45,7 +46,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: for<'a> Fn(&LockedGraph, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -174,42 +175,42 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
 
     #[inline]
     fn id(&self) -> Self::ValueType<u64> {
-        self.map(|g, v| g.node_id(v))
+        self.map(|_cg, g, v| g.node_id(v))
     }
     #[inline]
     fn name(&self) -> Self::ValueType<String> {
-        self.map(|g, v| g.node_name(v))
+        self.map(|_cg, g, v| g.node_name(v))
     }
     #[inline]
     fn node_type(&self) -> Self::ValueType<Option<ArcStr>> {
-        self.map(|g, v| g.node_type(v))
+        self.map(|_cg, g, v| g.node_type(v))
     }
     #[inline]
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, v| g.node_earliest_time(v))
+        self.map(|_cg, g, v| g.node_earliest_time(v))
     }
     #[inline]
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        self.map(|g, v| g.node_earliest_time(v)?.dt())
+        self.map(|_cg, g, v| g.node_earliest_time(v)?.dt())
     }
 
     #[inline]
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, v| g.node_latest_time(v))
+        self.map(|_cg, g, v| g.node_latest_time(v))
     }
 
     #[inline]
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
-        self.map(|g, v| g.node_latest_time(v)?.dt())
+        self.map(|_cg, g, v| g.node_latest_time(v)?.dt())
     }
 
     #[inline]
     fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, v| g.node_history(v))
+        self.map(|_cg, g, v| g.node_history(v))
     }
     #[inline]
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
-        self.map(|g, v| {
+        self.map(|_cg, g, v| {
             g.node_history(v)
                 .iter()
                 .map(|t| t.dt())
@@ -223,58 +224,52 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
     #[inline]
     fn degree(&self) -> Self::ValueType<usize> {
-        self.map(|g, v| {
-            let core_graph = g.core_graph();
-            core_graph.node_degree(v, Direction::BOTH, g)
-        })
+        self.map(|cg, g, v| cg.node_degree(v, Direction::BOTH, g))
     }
     #[inline]
     fn in_degree(&self) -> Self::ValueType<usize> {
-        self.map(|g, v| g.core_graph().node_degree(v, Direction::IN, g))
+        self.map(|cg, g, v| cg.node_degree(v, Direction::IN, g))
     }
     #[inline]
     fn out_degree(&self) -> Self::ValueType<usize> {
-        self.map(|g, v| g.core_graph().node_degree(v, Direction::OUT, g))
+        self.map(|cg, g, v| cg.node_degree(v, Direction::OUT, g))
     }
     #[inline]
     fn edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| {
-            g.core_graph()
+        self.map_edges(|cg, g, v| {
+            cg.clone()
                 .into_node_edges_iter(v, Direction::BOTH, g.clone())
         })
     }
     #[inline]
     fn in_edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| {
-            g.core_graph()
-                .into_node_edges_iter(v, Direction::IN, g.clone())
-        })
+        self.map_edges(|cg, g, v| cg.clone().into_node_edges_iter(v, Direction::IN, g.clone()))
     }
     #[inline]
     fn out_edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| {
-            g.core_graph()
+        self.map_edges(|cg, g, v| {
+            cg.clone()
                 .into_node_edges_iter(v, Direction::OUT, g.clone())
         })
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
-        self.hop(|g, v| {
-            g.core_graph()
+        self.hop(|cg, g, v| {
+            cg.clone()
                 .into_node_neighbours_iter(v, Direction::BOTH, g.clone())
         })
     }
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
-        self.hop(|g, v| {
-            g.core_graph()
+        self.hop(|cg, g, v| {
+            cg.clone()
                 .into_node_neighbours_iter(v, Direction::IN, g.clone())
         })
     }
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
-        self.hop(|g, v| {
-            g.core_graph()
+        self.hop(|cg, g, v| {
+            cg.clone()
                 .into_node_neighbours_iter(v, Direction::OUT, g.clone())
         })
     }

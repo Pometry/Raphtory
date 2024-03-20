@@ -13,6 +13,8 @@ use crate::{
     prelude::*,
 };
 
+use crate::db::api::storage::locked::LockedGraph;
+use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
@@ -66,6 +68,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
             .into_dyn_boxed()
     }
 
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
+        let cg = self.graph.core_graph();
+        cg.into_nodes_par(&self.graph)
+            .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
+    }
+
     /// Returns the number of nodes in the graph.
     pub fn len(&self) -> usize {
         self.graph.count_nodes()
@@ -100,21 +108,22 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Sync + 'graph>(
+    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
         let g = self.graph.clone();
-        Box::new(self.iter_refs().map(move |v| op(&g, v)))
+        let cg = g.core_graph();
+        Box::new(self.iter_refs().map(move |v| op(&cg, &g, v)))
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
     }
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -123,7 +132,10 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
         let base_graph = self.base_graph.clone();
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
-        let edges = Arc::new(move |node: VID| op(&graph, node).into_dyn_boxed());
+        let edges = Arc::new(move |node: VID| {
+            let cg = graph.core_graph();
+            op(&cg, &graph, node).into_dyn_boxed()
+        });
         let graph = self.graph.clone();
         NestedEdges {
             base_graph,
@@ -135,7 +147,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -144,7 +156,8 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
         let nodes = self.clone();
         let nodes = Arc::new(move || nodes.iter_refs().into_dyn_boxed());
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
-            op(&graph, v).into_dyn_boxed()
+            let cg = graph.core_graph();
+            op(&cg, &graph, v).into_dyn_boxed()
         })
     }
 }

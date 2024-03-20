@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            storage::locked::LockedGraph,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
@@ -83,27 +84,29 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + Clone + 'graph>(
+    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
         let graph = self.graph.clone();
+        let cg = graph.core_graph();
         self.iter_refs()
             .map(move |it| {
                 let graph = graph.clone();
                 let op = op.clone();
-                it.map(move |node| op(&graph, node)).into_dyn_boxed()
+                let cg = cg.clone();
+                it.map(move |node| op(&cg, &graph, node)).into_dyn_boxed()
             })
             .into_dyn_boxed()
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
     }
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -112,11 +115,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let base_graph = self.base_graph.clone();
         let nodes = self.nodes.clone();
         let node_op = self.op.clone();
+        let cg = graph.core_graph();
         let edges = Arc::new(move |node: VID| {
             let op = op.clone();
             let graph = graph.clone();
+            let cg = cg.clone();
             node_op(node)
-                .flat_map(move |node| op(&graph, node))
+                .flat_map(move |node| op(&cg, &graph, node))
                 .into_dyn_boxed()
         });
         let graph = self.graph.clone();
@@ -130,7 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -141,7 +146,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
             let op = op.clone();
             let graph = graph.clone();
-            Box::new(old_op(v).flat_map(move |vv| op(&graph, vv)))
+            let cg = graph.core_graph();
+            Box::new(old_op(v).flat_map(move |vv| op(&cg, &graph, vv)))
         })
     }
 }
@@ -270,21 +276,22 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O + Send + 'graph>(
+    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
         let graph = self.graph.clone();
-        Box::new(self.iter_refs().map(move |node| op(&graph, node)))
+        let cg = graph.core_graph();
+        Box::new(self.iter_refs().map(move |node| op(&cg, &graph, node)))
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
-        self.map(|g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
+        self.map(|_cg, g, v| Properties::new(NodeView::new_internal(g.clone(), v)))
     }
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -295,8 +302,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let edges = Arc::new(move || {
             let graph = graph.clone();
             let op = op.clone();
+            let cg = graph.core_graph();
             node_op()
-                .flat_map(move |node| op(&graph, node))
+                .flat_map(move |node| op(&cg, &graph, node))
                 .into_dyn_boxed()
         });
         let graph = self.graph.clone();
@@ -309,7 +317,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -320,7 +328,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         PathFromNode::new(self.base_graph.clone(), move || {
             let op = op.clone();
             let graph = graph.clone();
-            old_op().flat_map(move |vv| op(&graph, vv)).into_dyn_boxed()
+            let cg = graph.core_graph();
+            old_op()
+                .flat_map(move |vv| op(&cg, &graph, vv))
+                .into_dyn_boxed()
         })
     }
 }
