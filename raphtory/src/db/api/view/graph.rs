@@ -102,7 +102,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let graph = self.clone();
         let edges = Arc::new(move || {
             let core_graph = graph.core_graph();
-            core_graph.edges_iter(&graph).into_dyn_boxed()
+            core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
         });
         Edges {
             base_graph: self.clone(),

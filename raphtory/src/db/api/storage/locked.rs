@@ -1,15 +1,7 @@
-use std::{iter, sync::Arc};
-
-use itertools::Itertools;
-use rayon::prelude::*;
-
 use crate::{
     core::{
         entities::{
-            edges::{
-                edge_ref::{Dir, EdgeRef},
-                edge_store::EdgeStore,
-            },
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             nodes::node_store::NodeStore,
             LayerIds, EID, VID,
         },
@@ -19,6 +11,9 @@ use crate::{
     db::api::view::internal::{FilterOps, FilterState},
     prelude::GraphViewOps,
 };
+use itertools::Itertools;
+use rayon::prelude::*;
+use std::{iter, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct LockedGraph {
@@ -54,29 +49,68 @@ impl LockedGraph {
     }
 
     pub fn nodes_iter<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        view: &G,
+        &'graph self,
+        view: &'graph G,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'graph> {
         let iter = view.node_list().into_iter();
         if view.node_list_trusted() {
             iter
         } else {
-            let nodes = self.nodes.clone();
-            let view = view.clone();
-            Box::new(iter.filter(move |&vid| view.filter_node(nodes.get(vid), view.layer_ids())))
+            Box::new(iter.filter(|&vid| view.filter_node(self.nodes.get(vid), view.layer_ids())))
         }
     }
 
+    pub fn into_nodes_iter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        view: G,
+    ) -> Box<dyn Iterator<Item = VID> + Send + 'graph> {
+        let iter = view.node_list().into_iter();
+        if view.node_list_trusted() {
+            iter
+        } else {
+            Box::new(
+                iter.filter(move |&vid| view.filter_node(self.nodes.get(vid), view.layer_ids())),
+            )
+        }
+    }
+
+    pub fn nodes_par<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        view: &'graph G,
+    ) -> impl ParallelIterator<Item = VID> + 'graph {
+        view.node_list()
+            .into_par_iter()
+            .filter(|&vid| view.filter_node(self.nodes.get(vid), view.layer_ids()))
+    }
+
+    pub fn into_nodes_par<'graph, G: GraphViewOps<'graph>>(
+        self,
+        view: G,
+    ) -> impl ParallelIterator<Item = VID> + 'graph {
+        view.node_list()
+            .into_par_iter()
+            .filter(move |&vid| view.filter_node(self.nodes.get(vid), view.layer_ids()))
+    }
+
     pub fn edges_iter<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        view: &G,
+        &'graph self,
+        view: &'graph G,
     ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
-        let core_edges = self.edges.clone();
-        let view = view.clone();
-        view.edge_list().into_iter().filter_map(move |id| {
-            let edge = core_edges.get(id);
+        view.edge_list().into_iter().filter_map(|id| {
+            let edge = self.edges.get(id);
             view.filter_edge(edge, view.layer_ids())
-                .then(move || EdgeRef::new_outgoing(edge.eid, edge.src, edge.dst))
+                .then(|| edge.into())
+        })
+    }
+
+    pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        view: G,
+    ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
+        view.edge_list().into_iter().filter_map(move |id| {
+            let edge = self.edges.get(id);
+            view.filter_edge(edge, view.layer_ids())
+                .then(|| edge.into())
         })
     }
 
@@ -110,6 +144,48 @@ impl LockedGraph {
                 && view.filter_node(dst, layer_ids))
             .then_some(EdgeRef::new_outgoing(eid, edge.src, edge.dst))
         })
+    }
+
+    pub fn node_neighbours_iter<'graph, G: GraphViewOps<'graph>>(
+        &'graph self,
+        node: VID,
+        dir: Direction,
+        view: &'graph G,
+    ) -> Box<dyn Iterator<Item = VID> + Send + 'graph> {
+        let source = self.nodes.get(node);
+        match view.filter_state() {
+            FilterState::Both => {
+                let iter = source
+                    .edge_tuples(view.layer_ids(), dir)
+                    .filter(|eref| {
+                        view.filter_node(self.nodes.get(eref.remote()), view.layer_ids())
+                            && view.filter_edge(self.edges.get(eref.pid()), view.layer_ids())
+                    })
+                    .map(|e| e.remote());
+                if matches!(dir, Direction::BOTH) {
+                    Box::new(iter.dedup())
+                } else {
+                    Box::new(iter)
+                }
+            }
+            FilterState::Edges => {
+                let iter = source
+                    .edge_tuples(view.layer_ids(), dir)
+                    .filter(|eref| view.filter_edge(self.edges.get(eref.pid()), view.layer_ids()))
+                    .map(|e| e.remote());
+                if matches!(dir, Direction::BOTH) {
+                    Box::new(iter.dedup())
+                } else {
+                    Box::new(iter)
+                }
+            }
+            FilterState::Nodes => Box::new(
+                source
+                    .neighbours(view.layer_ids(), dir)
+                    .filter(|&n| view.filter_node(self.nodes.get(n), view.layer_ids())),
+            ),
+            FilterState::Neither => Box::new(source.neighbours(view.layer_ids(), dir)),
+        }
     }
 
     pub fn into_node_neighbours_iter<'graph, G: GraphViewOps<'graph>>(
@@ -213,144 +289,51 @@ impl LockedGraph {
     }
 
     pub fn node_edges_iter<'graph, G: GraphViewOps<'graph>>(
-        &self,
+        &'graph self,
         node: VID,
         dir: Direction,
-        view: &G,
-    ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
+        view: &'graph G,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'graph> {
+        let layers = view.layer_ids();
+        let local = self.nodes.get(node);
+        let iter = local.edge_tuples(layers, dir);
+        match view.filter_state() {
+            FilterState::Neither => Box::new(iter),
+            FilterState::Both => Box::new(iter.filter(|e| {
+                view.filter_edge(self.edges.get(e.pid()), view.layer_ids())
+                    && view.filter_node(self.nodes.get(e.remote()), view.layer_ids())
+            })),
+            FilterState::Nodes => Box::new(
+                iter.filter(|e| view.filter_node(self.nodes.get(e.remote()), view.layer_ids())),
+            ),
+            FilterState::Edges => Box::new(
+                iter.filter(|e| view.filter_edge(self.edges.get(e.pid()), view.layer_ids())),
+            ),
+        }
+    }
+
+    pub fn into_node_edges_iter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        node: VID,
+        dir: Direction,
+        view: G,
+    ) -> Box<dyn Iterator<Item = EdgeRef> + Send + 'graph> {
         let layers = view.layer_ids();
         let local = self.nodes.arc_entry(node);
-        match dir {
-            Direction::OUT => {
-                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match layers {
-                    LayerIds::None => Box::new(iter::empty()),
-                    LayerIds::All => Box::new(
-                        local
-                            .into_layers()
-                            .map(move |layer| {
-                                layer
-                                    .into_tuples(Dir::Out)
-                                    .map(move |(n, e)| EdgeRef::new_outgoing(e, node, n))
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                    LayerIds::One(layer) => {
-                        Box::new(local.into_layer(*layer).into_iter().flat_map(move |it| {
-                            it.into_tuples(Dir::Out)
-                                .map(move |(n, e)| EdgeRef::new_outgoing(e, node, n))
-                        }))
-                    }
-                    LayerIds::Multiple(ids) => Box::new(
-                        ids.iter()
-                            .map(move |&layer| {
-                                local
-                                    .clone()
-                                    .into_layer(layer)
-                                    .into_iter()
-                                    .flat_map(move |it| {
-                                        it.into_tuples(Dir::Out)
-                                            .map(move |(n, e)| EdgeRef::new_outgoing(e, node, n))
-                                    })
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                };
-                match view.filter_state() {
-                    FilterState::Neither => iter,
-                    FilterState::Both => {
-                        let nodes = self.nodes.clone();
-                        let edges = self.edges.clone();
-                        let view = view.clone();
-                        Box::new(iter.filter(move |e| {
-                            view.filter_edge(edges.get(e.pid()), view.layer_ids())
-                                && view.filter_node(nodes.get(e.remote()), view.layer_ids())
-                        }))
-                    }
-                    FilterState::Nodes => {
-                        let nodes = self.nodes.clone();
-                        let view = view.clone();
-                        Box::new(iter.filter(move |e| {
-                            view.filter_node(nodes.get(e.remote()), view.layer_ids())
-                        }))
-                    }
-                    FilterState::Edges => {
-                        let edges = self.edges.clone();
-                        let view = view.clone();
-                        Box::new(iter.filter(move |e| {
-                            view.filter_edge(edges.get(e.pid()), view.layer_ids())
-                        }))
-                    }
-                }
+        let iter = local.into_edges(layers, dir);
+        match view.filter_state() {
+            FilterState::Neither => Box::new(iter),
+            FilterState::Both => Box::new(iter.filter(move |e| {
+                view.filter_edge(self.edges.get(e.pid()), view.layer_ids())
+                    && view.filter_node(self.nodes.get(e.remote()), view.layer_ids())
+            })),
+            FilterState::Nodes => {
+                Box::new(iter.filter(move |e| {
+                    view.filter_node(self.nodes.get(e.remote()), view.layer_ids())
+                }))
             }
-            Direction::IN => {
-                let iter: Box<dyn Iterator<Item = EdgeRef> + Send> = match &layers {
-                    LayerIds::None => Box::new(iter::empty()),
-                    LayerIds::All => Box::new(
-                        local
-                            .into_layers()
-                            .map(move |layer| {
-                                layer
-                                    .into_tuples(Dir::Into)
-                                    .map(move |(n, e)| EdgeRef::new_incoming(e, n, node))
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                    LayerIds::One(layer) => {
-                        Box::new(local.into_layer(*layer).into_iter().flat_map(move |it| {
-                            it.into_tuples(Dir::Into)
-                                .map(move |(n, e)| EdgeRef::new_incoming(e, n, node))
-                        }))
-                    }
-                    LayerIds::Multiple(ids) => Box::new(
-                        ids.iter()
-                            .map(move |&layer| {
-                                local
-                                    .clone()
-                                    .into_layer(layer)
-                                    .into_iter()
-                                    .flat_map(move |it| {
-                                        it.into_tuples(Dir::Into)
-                                            .map(move |(n, e)| EdgeRef::new_incoming(e, n, node))
-                                    })
-                            })
-                            .kmerge()
-                            .dedup(),
-                    ),
-                };
-                match view.filter_state() {
-                    FilterState::Neither => iter,
-                    FilterState::Both => {
-                        let nodes = self.nodes.clone();
-                        let edges = self.edges.clone();
-                        let view = view.clone();
-                        Box::new(iter.filter(move |e| {
-                            view.filter_edge(edges.get(e.pid()), view.layer_ids())
-                                && view.filter_node(nodes.get(e.remote()), view.layer_ids())
-                        }))
-                    }
-                    FilterState::Nodes => {
-                        let nodes = self.nodes.clone();
-                        let view = view.clone();
-                        Box::new(iter.filter(move |e| {
-                            view.filter_node(nodes.get(e.remote()), view.layer_ids())
-                        }))
-                    }
-                    FilterState::Edges => {
-                        let edges = self.edges.clone();
-                        let view = view.clone();
-                        Box::new(iter.filter(move |e| {
-                            view.filter_edge(edges.get(e.pid()), view.layer_ids())
-                        }))
-                    }
-                }
-            }
-            Direction::BOTH => Box::new(
-                self.node_edges_iter(node, Direction::IN, view)
-                    .filter(|e| e.src() != e.dst())
-                    .merge(self.node_edges_iter(node, Direction::OUT, view)),
+            FilterState::Edges => Box::new(
+                iter.filter(move |e| view.filter_edge(self.edges.get(e.pid()), view.layer_ids())),
             ),
         }
     }

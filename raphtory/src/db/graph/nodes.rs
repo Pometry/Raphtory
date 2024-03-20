@@ -56,7 +56,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
     #[inline]
     fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         let g = self.graph.core_graph();
-        g.nodes_iter(&self.graph)
+        g.into_nodes_iter(self.graph.clone())
     }
     pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
         let base_graph = self.base_graph.clone();

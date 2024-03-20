@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -13,8 +15,6 @@ use crate::{
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
-use chrono::{DateTime, Utc};
-use itertools::Itertools;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -238,39 +238,44 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
     #[inline]
     fn edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| g.core_graph().node_edges_iter(v, Direction::BOTH, g))
+        self.map_edges(|g, v| {
+            g.core_graph()
+                .into_node_edges_iter(v, Direction::BOTH, g.clone())
+        })
     }
     #[inline]
     fn in_edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| g.core_graph().node_edges_iter(v, Direction::IN, g))
+        self.map_edges(|g, v| {
+            g.core_graph()
+                .into_node_edges_iter(v, Direction::IN, g.clone())
+        })
     }
     #[inline]
     fn out_edges(&self) -> Self::Edges {
-        self.map_edges(|g, v| g.core_graph().node_edges_iter(v, Direction::OUT, g))
+        self.map_edges(|g, v| {
+            g.core_graph()
+                .into_node_edges_iter(v, Direction::OUT, g.clone())
+        })
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
         self.hop(|g, v| {
             g.core_graph()
-                .node_edges_iter(v, Direction::BOTH, g)
-                .map(|e| e.remote())
-                .dedup()
+                .into_node_neighbours_iter(v, Direction::BOTH, g.clone())
         })
     }
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
         self.hop(|g, v| {
             g.core_graph()
-                .node_edges_iter(v, Direction::IN, g)
-                .map(|e| e.remote())
+                .into_node_neighbours_iter(v, Direction::IN, g.clone())
         })
     }
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|g, v| {
             g.core_graph()
-                .node_edges_iter(v, Direction::OUT, g)
-                .map(|e| e.remote())
+                .into_node_neighbours_iter(v, Direction::OUT, g.clone())
         })
     }
 }

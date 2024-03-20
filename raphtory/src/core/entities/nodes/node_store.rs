@@ -189,6 +189,7 @@ impl NodeStore {
             Direction::IN => self.merge_layers(layers, Direction::IN, self_id),
             Direction::BOTH => Box::new(
                 self.edge_tuples(layers, Direction::OUT)
+                    .filter(|e| e.src() != e.dst())
                     .merge_by(self.edge_tuples(layers, Direction::IN), |e1, e2| {
                         e1.remote() < e2.remote()
                     }),
