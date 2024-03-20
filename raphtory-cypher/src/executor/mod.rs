@@ -175,8 +175,7 @@ mod test {
 
     use raphtory::prelude::*;
 
-    use super::operators::*;
-    use super::*;
+    use super::{operators::*, *};
     use rand::*;
 
     #[test]

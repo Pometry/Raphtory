@@ -1,4 +1,7 @@
-use arrow2::{datatypes::{DataType, Field}, array::{PrimitiveArray, StructArray}};
+use arrow2::{
+    array::{PrimitiveArray, StructArray},
+    datatypes::{DataType, Field},
+};
 
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,

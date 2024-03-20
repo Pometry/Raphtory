@@ -13,7 +13,7 @@ use polars_core::{
     datatypes::{ArrowDataType, PolarsDataType, UInt64Type},
     series::{IntoSeries, Series},
 };
-use polars_lazy::frame::IntoLazy;
+use polars_lazy::{dsl::concat_list, frame::IntoLazy};
 use raphtory::{
     arrow::{
         chunked_array::array_ops::{ArrayOps, Chunked},
@@ -79,7 +79,7 @@ fn expr_to_polars_expr(expr: &Expr) -> polars_lazy::dsl::Expr {
         Expr::Literal(Literal::Float(s)) => polars_lazy::dsl::lit(*s),
         Expr::Var { var_name, attrs } => {
             let col_name = std::iter::once(var_name).chain(attrs.iter()).join("_");
-            polars_lazy::dsl::col(col_name.as_str())
+            polars_lazy::dsl::col(col_name.as_str()) //.list().eval(/* what do I put here? */, false)
         }
         Expr::Count(expr) => expr_to_polars_expr(expr).count(),
 
@@ -110,13 +110,56 @@ impl Filter {
         }
     }
 }
+use polars_core::prelude::*;
+use polars_lazy::prelude::*;
 
 impl Operator for Filter {
     fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        // find all props that don't end in src or dst
+
+        let temp_cols_names = input
+            .data
+            .get_columns()
+            .iter()
+            .filter_map(|s| {
+                if !(s.name().ends_with("src") || s.name().ends_with("dst")) {
+                    Some(s.name().to_owned())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        let temp_cols = temp_cols_names
+            .iter()
+            .map(|name| col(name))
+            .collect::<Vec<_>>();
+
+        let temp_cols_agg = temp_cols_names
+            .iter()
+            .map(|name| concat_list([name.as_str()]).unwrap().flatten())
+            .collect::<Vec<_>>();
+
+        let src_dest_cols = input
+            .data
+            .get_columns()
+            .iter()
+            .filter_map(|s| {
+                if s.name().ends_with("src") || s.name().ends_with("dst") {
+                    Some(s.name().to_owned())
+                } else {
+                    None
+                }
+            })
+            .map(|name| col(&name))
+            .collect::<Vec<_>>();
+
         let df = input
             .data
             .lazy()
+            .explode(temp_cols)
             .filter(self.expr.clone())
+            .group_by(src_dest_cols)
+            .agg(temp_cols_agg)
             .collect()
             .unwrap();
         Box::new(iter::once(DataBlock { data: df }))
@@ -417,7 +460,7 @@ impl Operator for Expand {
 mod test {
     use super::*;
     use polars_core::prelude::*;
-    use polars_lazy::{dsl::concat_list, prelude::*};
+    use polars_lazy::prelude::*;
 
     use raphtory::arrow::{graph_impl::ArrowGraph, Time};
     use tempfile::tempdir;
@@ -464,6 +507,20 @@ mod test {
         .sort_by_exprs([col("a_src"), col("a_dst")], [false, false], true, false)
         .collect()
         .unwrap();
+
+        println!("{:?}", expected);
+        // let check = expected
+        //     .clone()
+        //     .lazy()
+        //     .select([ col("a_src"), col("a_dst"), col("a_time").list().eval(col("").filter(col("").lt(4)), false) ])
+        //     .filter(col("a_time").list().len().gt(0))
+        //     .collect();
+        let check = expected
+            .clone()
+            .lazy()
+            .explode([col("a_time"), col("a_weight")])
+            .collect();
+        println!("{:?}", check);
 
         let edge_scan = EdgeScan::new("a", "_default", [("weight", 1)]);
 
