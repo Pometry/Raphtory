@@ -21,11 +21,10 @@ use crate::{
     },
 };
 
-use crate::core::entities::nodes::node_ref::NodeRef;
 use itertools::{enumerate, Itertools};
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
-use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
+use std::{cmp::Ordering, collections::HashMap, mem, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -299,18 +298,15 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _els, local| {
+        |_, _, _els, mut local| {
             let mut tri_motifs = HashMap::new();
-            let layers = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            for (vref, mc) in enumerate(local) {
-                if graph.has_node_ref(NodeRef::Internal(vref.into()), &layers, edge_filter) {
-                    let v_gid = graph.node_name(vref.into());
-                    if mc.triangle.is_empty() {
-                        tri_motifs.insert(v_gid.clone(), vec![[0; 8]; delta_len]);
-                    } else {
-                        tri_motifs.insert(v_gid.clone(), mc.triangle);
-                    }
+            for node in graph.nodes() {
+                let v_gid = node.name();
+                let triangle = mem::take(&mut local[node.node.0].triangle);
+                if triangle.is_empty() {
+                    tri_motifs.insert(v_gid.clone(), vec![[0; 8]; delta_len]);
+                } else {
+                    tri_motifs.insert(v_gid.clone(), triangle);
                 }
             }
             tri_motifs

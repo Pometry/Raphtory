@@ -1,6 +1,9 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef, LayerIds, VID},
+        entities::{
+            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, nodes::node_ref::NodeRef,
+            LayerIds, VID,
+        },
         storage::timeindex::AsTime,
         utils::errors::GraphError,
         ArcStr, OptionAsStr,
@@ -19,6 +22,7 @@ use crate::{
     prelude::{DeletionOps, NO_PROPS},
 };
 use chrono::{DateTime, Utc};
+use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::sync::Arc;
 
@@ -27,7 +31,7 @@ use std::sync::Arc;
 /// that are used to define the type of the nodes, edges
 /// and the corresponding iterators.
 ///
-pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'graph {
+pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
     fn edges(&self) -> Edges<'graph, Self, Self>;
 
@@ -93,10 +97,13 @@ pub trait GraphViewOps<'graph>: BoxableGraphView<'graph> + Sized + Clone + 'grap
     fn properties(&self) -> Properties<Self>;
 }
 
-impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        let edges = Arc::new(move || graph.edge_refs(graph.layer_ids(), graph.edge_filter()));
+        let edges = Arc::new(move || {
+            let core_graph = graph.core_graph();
+            core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
+        });
         Edges {
             base_graph: self.clone(),
             graph: self.clone(),
@@ -140,7 +147,7 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
                 }
 
                 if self.include_deletions() {
-                    for t in self.edge_deletion_history(e.edge, layer_ids) {
+                    for t in self.edge_deletion_history(e.edge, &layer_ids) {
                         g.delete_edge(t, e.src().id(), e.dst().id(), layer_name)?;
                     }
                 }
@@ -172,11 +179,10 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         Ok(self.new_base_graph(g))
     }
     fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
-        let filter = self.edge_filter();
-        let layer_ids = self.layer_ids();
+        let _layer_ids = self.layer_ids();
         let nodes: FxHashSet<VID> = nodes
             .into_iter()
-            .flat_map(|v| self.internal_node_ref(v.into(), &layer_ids, filter))
+            .flat_map(|v| (&self).node(v).map(|v| v.node))
             .collect();
         NodeSubgraph::new(self.clone(), nodes)
     }
@@ -194,51 +200,133 @@ impl<'graph, G: BoxableGraphView<'graph> + Sized + Clone + 'graph> GraphViewOps<
         self.latest_time_global()
     }
 
+    #[inline]
     fn count_nodes(&self) -> usize {
-        self.nodes_len(self.layer_ids(), self.edge_filter())
+        if !self.node_list_trusted() {
+            let node_list = self.node_list();
+            let core_nodes = self.core_nodes();
+            let layer_ids = self.layer_ids();
+            match node_list {
+                NodeList::All { .. } => core_nodes
+                    .locks
+                    .par_iter()
+                    .map(|v| {
+                        v.par_iter()
+                            .filter(|v| self.filter_node(v, layer_ids))
+                            .count()
+                    })
+                    .sum(),
+                NodeList::List { nodes } => nodes
+                    .par_iter()
+                    .filter(|&&id| self.filter_node(core_nodes.get(id), layer_ids))
+                    .count(),
+            }
+        } else {
+            self.node_list().len()
+        }
     }
 
     #[inline]
     fn count_edges(&self) -> usize {
-        self.edges_len(self.layer_ids(), self.edge_filter())
+        if self.edges_filtered() {
+            let edge_list = self.edge_list();
+            let core_edges = self.core_edges();
+            let layer_ids = self.layer_ids();
+            edge_list
+                .par_iter()
+                .filter(|eid| self.filter_edge(core_edges.get(*eid), layer_ids))
+                .count()
+        } else {
+            self.edge_list().len()
+        }
     }
 
     fn count_temporal_edges(&self) -> usize {
-        self.temporal_edges_len(self.layer_ids(), self.edge_filter())
+        let core_edges = self.core_edges();
+        let layer_ids = self.layer_ids();
+        self.edge_list()
+            .par_iter()
+            .map(|eid| core_edges.get(eid))
+            .filter(|edge| self.filter_edge(edge, layer_ids))
+            .map(|edge| self.edge_exploded_count(edge, layer_ids))
+            .sum()
     }
 
     fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool {
-        self.has_node_ref(v.into(), &self.layer_ids(), self.edge_filter())
+        if let Some(node_id) = self.internalise_node(v.into()) {
+            if self.nodes_filtered() {
+                let node = self.core_node_ref(node_id);
+                self.filter_node(&node, self.layer_ids())
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 
+    #[inline]
     fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool {
-        let src_ref = src.into();
-        let dst_ref = dst.into();
-        if let Some(src) = self.internalise_node(src_ref) {
-            if let Some(dst) = self.internalise_node(dst_ref) {
-                return self.has_edge_ref(src, dst, &self.layer_ids(), self.edge_filter());
-            }
-        }
-        false
+        (&self).edge(src, dst).is_some()
     }
 
     fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>> {
         let v = v.into();
-        self.internal_node_ref(v, &self.layer_ids(), self.edge_filter())
-            .map(|v| NodeView::new_internal(self.clone(), v))
+        let vid = self.internalise_node(v)?;
+        if self.nodes_filtered() {
+            let core_node = self.core_node_ref(vid);
+            if !self.filter_node(&core_node, self.layer_ids()) {
+                return None;
+            }
+        }
+        Some(NodeView::new_internal(self.clone(), vid))
     }
 
     fn edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
         let layer_ids = self.layer_ids();
-        let edge_filter = self.edge_filter();
-        if let Some(src) = self.internal_node_ref(src.into(), &layer_ids, edge_filter) {
-            if let Some(dst) = self.internal_node_ref(dst.into(), &layer_ids, edge_filter) {
-                return self
-                    .edge_ref(src, dst, &layer_ids, edge_filter)
-                    .map(|e| EdgeView::new(self.clone(), e));
+        let src = self.internalise_node(src.into())?;
+        let dst = self.internalise_node(dst.into())?;
+        let src_node = self.core_node_ref(src);
+        match self.filter_state() {
+            FilterState::Neither => {
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
+            }
+            FilterState::Both => {
+                if !self.filter_node(&src_node, self.layer_ids()) {
+                    return None;
+                }
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                if !self.filter_edge(&self.core_edge_ref(eid), layer_ids) {
+                    return None;
+                }
+                if !self.filter_node(&self.core_node_ref(dst), layer_ids) {
+                    return None;
+                }
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
+            }
+            FilterState::Nodes => {
+                if !self.filter_node(&src_node, self.layer_ids()) {
+                    return None;
+                }
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                if !self.filter_node(&self.core_node_ref(dst), layer_ids) {
+                    return None;
+                }
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
+            }
+            FilterState::Edges | FilterState::BothIndependent => {
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                if !self.filter_edge(&self.core_edge_ref(eid), layer_ids) {
+                    return None;
+                }
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
             }
         }
-        None
     }
 
     fn properties(&self) -> Properties<Self> {

@@ -1,9 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::StaticGraphViewOps,
         task::{
@@ -141,18 +138,14 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<SCCNode>| {
-            let layers: crate::core::entities::LayerIds = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            local
+            graph
+                .nodes()
                 .iter()
-                .enumerate()
-                .filter_map(|(v_ref_id, state)| {
-                    let v_ref = VID(v_ref_id);
-                    graph
-                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.is_scc_node))
+                .map(|node| {
+                    let VID(id) = node.node;
+                    (id, local[id].is_scc_node)
                 })
-                .collect::<HashMap<_, _>>()
+                .collect()
         },
         threads,
         1,
@@ -201,8 +194,8 @@ mod strongly_connected_components_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let scc_nodes = strongly_connected_components(&graph, None);
-
-        assert_eq!(scc_nodes, vec![vec![8, 7, 5, 2, 6]]);
+        let mut scc_nodes = strongly_connected_components(&graph, None);
+        scc_nodes[0].sort();
+        assert_eq!(scc_nodes, [[2, 5, 6, 7, 8]]);
     }
 }
