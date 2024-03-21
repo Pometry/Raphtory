@@ -74,7 +74,7 @@ impl<Index, T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, 
 
 #[derive(Debug)]
 pub struct ReadLockedStorage<T, Index = usize> {
-    locks: Vec<Arc<ArcRwLockReadGuard<Vec<T>>>>,
+    pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<Vec<T>>>>,
     len: usize,
     _index: PhantomData<Index>,
 }

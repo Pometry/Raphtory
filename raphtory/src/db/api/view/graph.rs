@@ -208,9 +208,14 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             let layer_ids = self.layer_ids();
             match node_list {
                 NodeList::All { .. } => core_nodes
+                    .locks
                     .par_iter()
-                    .filter(|v| self.filter_node(v, layer_ids))
-                    .count(),
+                    .map(|v| {
+                        v.par_iter()
+                            .filter(|v| self.filter_node(v, layer_ids))
+                            .count()
+                    })
+                    .sum(),
                 NodeList::List { nodes } => nodes
                     .par_iter()
                     .filter(|&&id| self.filter_node(core_nodes.get(id), layer_ids))
