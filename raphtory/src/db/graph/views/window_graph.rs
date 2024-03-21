@@ -134,10 +134,11 @@ impl<'graph, G: GraphViewOps<'graph>> InheritListOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn node_list_trusted(&self) -> bool {
-        false
+        self.graph.node_list_trusted() && !self.nodes_filtered()
     }
     fn nodes_filtered(&self) -> bool {
-        true
+        self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
+            || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
     }
 
     fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {

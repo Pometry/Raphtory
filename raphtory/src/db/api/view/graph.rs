@@ -200,15 +200,22 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         self.latest_time_global()
     }
 
+    #[inline]
     fn count_nodes(&self) -> usize {
-        if self.nodes_filtered() {
+        if !self.node_list_trusted() {
             let node_list = self.node_list();
             let core_nodes = self.core_nodes();
             let layer_ids = self.layer_ids();
-            node_list
-                .par_iter()
-                .filter(|id| self.filter_node(core_nodes.get(*id), layer_ids))
-                .count()
+            match node_list {
+                NodeList::All { .. } => core_nodes
+                    .par_iter()
+                    .filter(|v| self.filter_node(v, layer_ids))
+                    .count(),
+                NodeList::List { nodes } => nodes
+                    .par_iter()
+                    .filter(|&&id| self.filter_node(core_nodes.get(id), layer_ids))
+                    .count(),
+            }
         } else {
             self.node_list().len()
         }
