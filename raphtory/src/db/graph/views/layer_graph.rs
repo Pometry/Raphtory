@@ -1,21 +1,23 @@
+use std::fmt::{Debug, Formatter};
+
+use itertools::Itertools;
+
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::{
+        entities::{edges::edge_store::EdgeStore, LayerIds},
+        utils::errors::GraphError,
+    },
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::{
             internal::{
-                Base, EdgeFilter, EdgeFilterOps, Immutable, InheritCoreOps, InheritGraphOps,
-                InheritMaterialize, InheritTimeSemantics, InternalLayerOps, Static,
+                Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritTimeSemantics, InternalLayerOps, Static,
             },
             Layer,
         },
     },
     prelude::GraphViewOps,
-};
-use itertools::Itertools;
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
 };
 
 #[derive(Clone)]
@@ -24,8 +26,6 @@ pub struct LayeredGraph<G> {
     pub graph: G,
     /// The layer this graphs points to.
     pub layers: LayerIds,
-
-    edge_filter: EdgeFilter,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for LayeredGraph<G> {}
@@ -51,32 +51,41 @@ impl<'graph, G: GraphViewOps<'graph>> Base for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {}
 
+impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritGraphOps for LayeredGraph<G> {}
-
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
-        Some(&self.edge_filter)
+    fn edges_filtered(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    #[inline]
+    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge(edge, layer_ids) && edge.has_layer(&self.layers)
     }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
-        let edge_filter: EdgeFilter = match graph.edge_filter().cloned() {
-            None => Arc::new(|e, l| e.has_layer(l)),
-            Some(f) => Arc::new(move |e, l| e.has_layer(l) && f(e, l)),
-        };
-        Self {
-            graph,
-            layers,
-            edge_filter,
-        }
+        Self { graph, layers }
     }
 
     /// Get the intersection between the previously requested layers and the layers of
@@ -107,8 +116,8 @@ impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
-    fn layer_ids(&self) -> LayerIds {
-        self.layers.clone()
+    fn layer_ids(&self) -> &LayerIds {
+        &self.layers
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
@@ -122,8 +131,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
-    use crate::prelude::*;
     use itertools::Itertools;
+
+    use crate::prelude::*;
+
     #[test]
     fn test_layer_node() {
         let g = Graph::new();

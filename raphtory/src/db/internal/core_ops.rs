@@ -14,11 +14,14 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
+            ArcEntry, Entry, ReadLockedStorage,
         },
         ArcStr,
     },
-    db::api::view::{internal::CoreGraphOps, BoxedIter},
+    db::api::{
+        storage::locked::LockedGraph,
+        view::{internal::CoreGraphOps, BoxedIter},
+    },
     prelude::Prop,
 };
 use itertools::Itertools;
@@ -30,6 +33,13 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().internal_num_nodes()
     }
 
+    fn unfiltered_num_layers(&self) -> usize {
+        self.inner().num_layers()
+    }
+
+    fn core_graph(&self) -> LockedGraph {
+        self.lock()
+    }
     #[inline]
     fn node_meta(&self) -> &Meta {
         &self.inner().node_meta
@@ -60,7 +70,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         self.inner().layer_names(layer_ids)
     }
 
@@ -275,23 +285,33 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
-        Box::new(self.inner().storage.edges.read_lock().into_iter())
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID> {
+        self.inner().storage.edges.read_lock()
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore> {
         self.inner().storage.edges.entry_arc(eid.into())
     }
 
     #[inline]
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
-        Box::new(self.inner().storage.nodes.read_lock().into_iter())
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID> {
+        self.inner().storage.nodes.read_lock()
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
+    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore> {
         self.inner().storage.nodes.entry_arc(vid.into())
+    }
+
+    #[inline]
+    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore> {
+        self.inner().storage.edges.entry(eid)
+    }
+
+    #[inline]
+    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
+        self.inner().storage.nodes.entry(vid)
     }
 }
 

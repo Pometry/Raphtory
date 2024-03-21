@@ -303,7 +303,7 @@ where
     {
         let mut groups: HashMap<V, Vec<String>> = HashMap::new();
 
-        for node in self.graph.nodes().iter() {
+        for node in self.graph.nodes() {
             if let Some(value) = self.result.get(&node.node.0) {
                 let entry = groups.entry(value.clone()).or_default();
                 entry.push(node.name().to_string());

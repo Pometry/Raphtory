@@ -53,6 +53,13 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
             TimeIndexLike::Range(t) => t.iter(),
         }
     }
+
+    fn len(&self) -> usize {
+        match self {
+            TimeIndexLike::Ref(ts) => ts.len(),
+            TimeIndexLike::Range(ts) => ts.len(),
+        }
+    }
 }
 
 impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
@@ -125,27 +132,29 @@ impl EdgeLike for EdgeStore {
     }
 
     fn additions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.additions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
+        self.additions.get(layer_id).map(TimeIndexLike::Ref)
     }
 
     fn deletions(&self, layer_id: usize) -> Option<TimeIndexLike<'_>> {
-        self.deletions.get(layer_id).map(|x| TimeIndexLike::Ref(x))
+        self.deletions.get(layer_id).map(TimeIndexLike::Ref)
     }
 }
 
 pub type EdgeFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds) -> bool + Send + Sync>;
-pub type EdgeWindowFilter = Arc<dyn Fn(&dyn EdgeLike, &LayerIds, Range<i64>) -> bool + Send + Sync>;
 
 #[enum_dispatch]
 pub trait EdgeFilterOps {
-    /// Return the optional edge filter for the graph
-    fn edge_filter(&self) -> Option<&EdgeFilter>;
+    /// If true, the edges from the underlying storage are filtered
+    fn edges_filtered(&self) -> bool;
 
-    /// Called by the windowed graph to get the edge filter (override if it should include more/different edges than a non-windowed graph)
-    #[inline]
-    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
-        self.edge_filter()
-    }
+    /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
+    fn edge_list_trusted(&self) -> bool;
+
+    /// If true, do not need to check src and dst of the edge separately, even if nodes are filtered
+    /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
+    fn edge_filter_includes_node_filter(&self) -> bool;
+
+    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool;
 }
 
 pub trait InheritEdgeFilterOps: Base {}
@@ -170,12 +179,22 @@ pub trait DelegateEdgeFilterOps {
 
 impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
-        self.graph().edge_filter()
+    fn edges_filtered(&self) -> bool {
+        self.graph().edges_filtered()
     }
 
     #[inline]
-    fn edge_filter_window(&self) -> Option<&EdgeFilter> {
-        self.graph().edge_filter_window()
+    fn edge_list_trusted(&self) -> bool {
+        self.graph().edge_list_trusted()
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph().edge_filter_includes_node_filter()
+    }
+
+    #[inline]
+    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+        self.graph().filter_edge(edge, layer_ids)
     }
 }

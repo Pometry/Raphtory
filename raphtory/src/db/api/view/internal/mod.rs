@@ -1,11 +1,13 @@
 mod core_deletion_ops;
 mod core_ops;
 mod edge_filter_ops;
-mod graph_ops;
+mod filter_ops;
 mod inherit;
 mod into_dynamic;
 mod layer_ops;
+mod list_ops;
 mod materialize;
+mod node_filter_ops;
 mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
@@ -22,19 +24,22 @@ use std::{
 pub use core_deletion_ops::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
-pub use graph_ops::*;
+pub use filter_ops::*;
 pub use inherit::Base;
 pub use into_dynamic::IntoDynamic;
 pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
+pub use list_ops::*;
 pub use materialize::*;
+pub use node_filter_ops::*;
 pub use one_hop_filter::*;
 pub use time_semantics::*;
 
 /// Marker trait to indicate that an object is a valid graph view
-pub trait BoxableGraphView<'graph>:
+pub trait BoxableGraphView:
     CoreGraphOps
-    + GraphOps<'graph>
+    + ListOps
     + EdgeFilterOps
+    + NodeFilterOps
     + InternalLayerOps
     + TimeSemantics
     + InternalMaterialize
@@ -46,10 +51,10 @@ pub trait BoxableGraphView<'graph>:
 }
 
 impl<
-        'graph,
         G: CoreGraphOps
-            + GraphOps<'graph>
+            + ListOps
             + EdgeFilterOps
+            + NodeFilterOps
             + InternalLayerOps
             + TimeSemantics
             + InternalMaterialize
@@ -57,14 +62,17 @@ impl<
             + ConstPropertiesOps
             + Send
             + Sync,
-    > BoxableGraphView<'graph> for G
+    > BoxableGraphView for G
 {
 }
 
 pub trait InheritViewOps: Base + Send + Sync {}
 
+impl<G: InheritViewOps> InheritNodeFilterOps for G {}
+
+impl<G: InheritViewOps> InheritListOps for G {}
+
 impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
-impl<G: InheritViewOps> InheritGraphOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
@@ -76,14 +84,14 @@ impl<G: InheritViewOps> InheritPropertiesOps for G {}
 /// Used to avoid conflicts when implementing `From` for dynamic wrappers.
 pub trait Static {}
 
-impl<G: BoxableGraphView<'static> + Static + 'static> From<G> for DynamicGraph {
+impl<G: BoxableGraphView + Static + 'static> From<G> for DynamicGraph {
     fn from(value: G) -> Self {
         DynamicGraph(Arc::new(value))
     }
 }
 
-impl From<Arc<dyn BoxableGraphView<'static>>> for DynamicGraph {
-    fn from(value: Arc<dyn BoxableGraphView<'static>>) -> Self {
+impl From<Arc<dyn BoxableGraphView>> for DynamicGraph {
+    fn from(value: Arc<dyn BoxableGraphView>) -> Self {
         DynamicGraph(value)
     }
 }
@@ -92,7 +100,7 @@ impl From<Arc<dyn BoxableGraphView<'static>>> for DynamicGraph {
 pub trait Immutable {}
 
 #[derive(Clone)]
-pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView<'static>>);
+pub struct DynamicGraph(pub(crate) Arc<dyn BoxableGraphView>);
 
 impl Debug for DynamicGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -106,17 +114,17 @@ impl Debug for DynamicGraph {
 }
 
 impl DynamicGraph {
-    pub fn new<G: GraphViewOps<'static>>(graph: G) -> Self {
+    pub fn new<G: BoxableGraphView + 'static>(graph: G) -> Self {
         Self(Arc::new(graph))
     }
 
-    pub fn new_from_arc<G: GraphViewOps<'static>>(graph_arc: Arc<G>) -> Self {
+    pub fn new_from_arc<G: BoxableGraphView + 'static>(graph_arc: Arc<G>) -> Self {
         Self(graph_arc)
     }
 }
 
 impl Base for DynamicGraph {
-    type Base = dyn BoxableGraphView<'static>;
+    type Base = dyn BoxableGraphView;
 
     #[inline(always)]
     fn base(&self) -> &Self::Base {

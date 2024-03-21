@@ -64,21 +64,14 @@ impl From<usize> for EID {
     }
 }
 
-pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, NodeStore, N>),        // returned from graph.node
-    LockedEntry(GraphEntry<NodeStore, N>), // returned from locked_nodes
+pub(crate) enum VRef<'a> {
+    Entry(Entry<'a, NodeStore>),        // returned from graph.node
+    LockedEntry(GraphEntry<NodeStore>), // returned from locked_nodes
 }
 
 // return index -> usize for VRef
-impl<'a, const N: usize> VRef<'a, N> {
-    fn index(&'a self) -> usize {
-        match self {
-            VRef::Entry(e) => e.index(),
-            VRef::LockedEntry(ge) => ge.index(),
-        }
-    }
-
-    fn edge_ref(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a, N> {
+impl<'a> VRef<'a> {
+    fn edge_ref<const N: usize>(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a> {
         match self {
             VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
             VRef::LockedEntry(ge) => ERef::ELock {
@@ -89,7 +82,7 @@ impl<'a, const N: usize> VRef<'a, N> {
     }
 }
 
-impl<'a, const N: usize> Deref for VRef<'a, N> {
+impl<'a> Deref for VRef<'a> {
     type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
@@ -104,7 +97,7 @@ pub(crate) trait GraphItem<'a, const N: usize> {
     fn from_edge_ids(
         src: VID,
         dst: VID,
-        e_id: ERef<'a, N>,
+        e_id: ERef<'a>,
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self;
@@ -162,9 +155,9 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> LayerIds {
         match e.layer() {
-            None => self,
+            None => self.clone(),
             Some(l) => self.find(*l).map(LayerIds::One).unwrap_or(LayerIds::None),
         }
     }

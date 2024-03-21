@@ -81,8 +81,9 @@ impl<I: IntoIterator<Item = V>, V: Into<NodeRef> + Debug> IntoSeeds for I {
         self.into_iter()
             .map(|v| {
                 let description = format!("{:?}", v);
-                graph
-                    .internal_node_ref(v.into(), &graph.layer_ids(), graph.edge_filter())
+                (&graph)
+                    .node(v)
+                    .map(|node| node.node)
                     .ok_or(SeedError::InvalidNode(description))
             })
             .collect()
@@ -93,12 +94,9 @@ impl IntoSeeds for Probability {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,
-        rng: &mut R,
+        _rng: &mut R,
     ) -> Result<Vec<VID>, SeedError> {
-        Ok(graph
-            .node_refs(graph.layer_ids(), graph.edge_filter())
-            .filter(|_| self.sample(rng))
-            .collect())
+        Ok(graph.nodes().iter().map(|node| node.node).collect())
     }
 }
 
@@ -117,7 +115,9 @@ impl IntoSeeds for Number {
             })
         } else {
             Ok(graph
-                .node_refs(graph.layer_ids(), graph.edge_filter())
+                .nodes()
+                .iter()
+                .map(|node| node.node)
                 .choose_multiple(rng, num_seeds))
         }
     }

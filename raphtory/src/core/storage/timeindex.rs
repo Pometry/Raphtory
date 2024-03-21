@@ -6,6 +6,7 @@ use crate::{
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::{Itertools, KMerge};
 use num_traits::Saturating;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::{max, min},
@@ -313,6 +314,10 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {
         Box::new(self.view.as_ref().iter().map(|t| t.iter()).kmerge().dedup())
     }
+
+    fn len(&self) -> usize {
+        self.iter().count()
+    }
 }
 
 pub trait TimeIndexOps: Send + Sync {
@@ -342,6 +347,8 @@ pub trait TimeIndexOps: Send + Sync {
     fn iter_t(&self) -> Box<dyn Iterator<Item = i64> + Send + '_> {
         Box::new(self.iter().map(|time| time.t()))
     }
+
+    fn len(&self) -> usize;
 }
 
 pub trait TimeIndexIntoOps: Sized {
@@ -424,6 +431,14 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
             TimeIndex::Set(ts) => Box::new(ts.iter().copied()),
         }
     }
+
+    fn len(&self) -> usize {
+        match self {
+            TimeIndex::Empty => 0,
+            TimeIndex::One(_) => 1,
+            TimeIndex::Set(ts) => ts.len(),
+        }
+    }
 }
 
 impl<'b, T: AsTime> TimeIndexOps for TimeIndexWindow<'b, T>
@@ -493,6 +508,24 @@ where
             TimeIndexWindow::All(timeindex) => Box::new(timeindex.iter()),
         }
     }
+
+    fn len(&self) -> usize {
+        match self {
+            TimeIndexWindow::Empty => 0,
+            TimeIndexWindow::TimeIndexRange { timeindex, range } => match timeindex {
+                TimeIndex::Empty => 0,
+                TimeIndex::One(t) => {
+                    if range.contains(&t.t()) {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                TimeIndex::Set(ts) => ts.range(T::range(range.clone())).count(),
+            },
+            TimeIndexWindow::All(ts) => ts.len(),
+        }
+    }
 }
 
 impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops> {
@@ -522,5 +555,9 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
 
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         Box::new(self.timeindex.iter().map(|t| t.iter()).kmerge())
+    }
+
+    fn len(&self) -> usize {
+        self.timeindex.par_iter().map(|ts| ts.len()).sum()
     }
 }

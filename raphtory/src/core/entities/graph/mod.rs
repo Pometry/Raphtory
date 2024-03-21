@@ -5,8 +5,11 @@ pub(crate) mod timer;
 #[cfg(test)]
 mod test {
     use crate::{
-        core::{Direction, PropType},
-        db::api::mutation::internal::InternalAdditionOps,
+        core::{
+            entities::{LayerIds, VID},
+            Direction, PropType,
+        },
+        db::api::{mutation::internal::InternalAdditionOps, view::internal::CoreGraphOps},
         prelude::{IntoProp, Prop, NO_PROPS},
     };
 
@@ -35,16 +38,15 @@ mod test {
             l_tether,
         );
 
-        let first = g.inner().node(0.into());
+        let first = g.inner().storage.nodes.get(v1);
 
         let ns = first
-            .neighbours(vec!["btc", "eth"], Direction::OUT)
-            .map(|v| v.id().0)
+            .neighbours(&vec![l_btc, l_eth].into(), Direction::OUT)
             .collect::<Vec<_>>();
 
-        assert_eq!(ns, vec![1]);
+        assert_eq!(ns, vec![v2]);
 
-        let first = g.inner().node_arc(0.into());
+        let first = g.inner().node_arc(v1);
         let edges = first
             .edge_tuples([0, 1, 2, 3, 4].into(), Direction::OUT)
             .collect::<Vec<_>>();
@@ -66,12 +68,11 @@ mod test {
                 .add_edge_internal(t.into(), src, dst, empty.clone(), 0);
         }
 
-        let v = g.inner().node(0.into());
+        let v = g.inner().storage.get_node(v1);
 
         let ns = v
-            .neighbours(vec![], Direction::BOTH)
-            .map(|v| v.id().0)
+            .neighbours(&LayerIds::All, Direction::BOTH)
             .collect::<Vec<_>>();
-        assert_eq!(ns, vec![1, 2]);
+        assert_eq!(ns, [v2, v3]);
     }
 }

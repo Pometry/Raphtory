@@ -13,11 +13,14 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
+            ArcEntry, Entry, ReadLockedStorage,
         },
         ArcStr, Prop,
     },
-    db::api::view::{internal::Base, BoxedIter},
+    db::api::{
+        storage::locked::LockedGraph,
+        view::{internal::Base, BoxedIter},
+    },
 };
 use enum_dispatch::enum_dispatch;
 
@@ -26,6 +29,21 @@ use enum_dispatch::enum_dispatch;
 pub trait CoreGraphOps {
     /// get the number of nodes in the main graph
     fn unfiltered_num_nodes(&self) -> usize;
+
+    fn unfiltered_num_layers(&self) -> usize;
+
+    fn core_graph(&self) -> LockedGraph;
+
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID>;
+
+    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore>;
+
+    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore>;
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID>;
+
+    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore>;
+
+    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore>;
 
     fn node_meta(&self) -> &Meta;
 
@@ -38,7 +56,7 @@ pub trait CoreGraphOps {
     fn get_layer_id(&self, name: &str) -> Option<usize>;
 
     /// Get the layer name for a given id
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr>;
 
     /// Get all node types
     fn get_all_node_types(&self) -> Vec<ArcStr>;
@@ -198,13 +216,6 @@ pub trait CoreGraphOps {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
-
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>>;
-
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>>;
-
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore>;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -234,6 +245,16 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
+    fn unfiltered_num_layers(&self) -> usize {
+        self.graph().unfiltered_num_layers()
+    }
+
+    #[inline]
+    fn core_graph(&self) -> LockedGraph {
+        self.graph().core_graph()
+    }
+
+    #[inline]
     fn node_meta(&self) -> &Meta {
         self.graph().node_meta()
     }
@@ -259,7 +280,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         self.graph().get_layer_names_from_ids(layer_ids)
     }
 
@@ -371,22 +392,32 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = ArcEntry<EdgeStore>>> {
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID> {
         self.graph().core_edges()
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
-        self.graph().core_edge(eid)
+    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.graph().core_edge_arc(eid)
     }
 
     #[inline]
-    fn core_nodes(&self) -> Box<dyn Iterator<Item = ArcEntry<NodeStore>>> {
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID> {
         self.graph().core_nodes()
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
-        self.graph().core_node(vid)
+    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore> {
+        self.graph().core_node_arc(vid)
+    }
+
+    #[inline]
+    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore> {
+        self.graph().core_edge_ref(eid)
+    }
+
+    #[inline]
+    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
+        self.graph().core_node_ref(vid)
     }
 }

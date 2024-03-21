@@ -1,6 +1,5 @@
 use crate::{
     core::{ArcStr, Prop},
-    db::api::view::node::BaseNodeViewOps,
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
     python::graph::views::graph_view::PyGraphView,
 };
@@ -10,6 +9,7 @@ use pyo3::{
     types::{PyDict, PyList, PyTuple},
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 #[pymethods]
@@ -42,8 +42,8 @@ impl PyGraphView {
             let node_tuples: Vec<_> = self
                 .graph
                 .nodes()
-                .map(|g, b| {
-                    let v = g.node(b).unwrap();
+                .par_iter()
+                .map(|v| {
                     let mut properties: Option<HashMap<ArcStr, Prop>> = None;
                     let mut temporal_properties: Option<Vec<(ArcStr, (i64, Prop))>> = None;
                     let mut update_history: Option<Vec<_>> = None;
