@@ -255,7 +255,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn has_node<T: Into<NodeRef>>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.into()) {
             if self.nodes_filtered() {
-                let node = self.core_node(node_id);
+                let node = self.core_node_ref(node_id);
                 self.filter_node(&node, self.layer_ids())
             } else {
                 true
@@ -265,30 +265,16 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         }
     }
 
+    #[inline]
     fn has_edge<T: Into<NodeRef>>(&self, src: T, dst: T) -> bool {
-        let src_ref = src.into();
-        let dst_ref = dst.into();
-        if let Some(src) = self.internalise_node(src_ref) {
-            if let Some(dst) = self.internalise_node(dst_ref) {
-                let src_node = self.core_node(src);
-                if let Some(eid) = src_node.find_edge(dst, self.layer_ids()) {
-                    return if self.edges_filtered() {
-                        let edge = self.core_edge(eid);
-                        self.filter_edge(&edge, self.layer_ids())
-                    } else {
-                        true
-                    };
-                }
-            }
-        }
-        false
+        (&self).edge(src, dst).is_some()
     }
 
     fn node<T: Into<NodeRef>>(&self, v: T) -> Option<NodeView<Self, Self>> {
         let v = v.into();
         let vid = self.internalise_node(v)?;
         if self.nodes_filtered() {
-            let core_node = self.core_node(vid);
+            let core_node = self.core_node_ref(vid);
             if !self.filter_node(&core_node, self.layer_ids()) {
                 return None;
             }
@@ -300,15 +286,47 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.into())?;
         let dst = self.internalise_node(dst.into())?;
-        let eid = self.core_node(src).find_edge(dst, layer_ids)?;
-        if self.edges_filtered() {
-            let core_edge = self.core_edge(eid);
-            if !self.filter_edge(&core_edge, layer_ids) {
-                return None;
+        let src_node = self.core_node_ref(src);
+        match self.filter_state() {
+            FilterState::Neither => {
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
+            }
+            FilterState::Both => {
+                if !self.filter_node(&src_node, self.layer_ids()) {
+                    return None;
+                }
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                if !self.filter_edge(&self.core_edge_ref(eid), layer_ids) {
+                    return None;
+                }
+                if !self.filter_node(&self.core_node_ref(dst), layer_ids) {
+                    return None;
+                }
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
+            }
+            FilterState::Nodes => {
+                if !self.filter_node(&src_node, self.layer_ids()) {
+                    return None;
+                }
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                if !self.filter_node(&self.core_node_ref(dst), layer_ids) {
+                    return None;
+                }
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
+            }
+            FilterState::Edges | FilterState::BothIndependent => {
+                let eid = src_node.find_edge(dst, layer_ids)?;
+                if !self.filter_edge(&self.core_edge_ref(eid), layer_ids) {
+                    return None;
+                }
+                let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
+                Some(EdgeView::new(self.clone(), edge_ref))
             }
         }
-        let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
-        Some(EdgeView::new(self.clone(), edge_ref))
     }
 
     fn properties(&self) -> Properties<Self> {

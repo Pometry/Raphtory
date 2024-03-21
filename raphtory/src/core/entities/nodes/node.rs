@@ -23,20 +23,16 @@ use itertools::Itertools;
 use std::{ops::Range, sync::Arc};
 
 pub struct Node<'a, const N: usize> {
-    node: VRef<'a, N>,
+    node: VRef<'a>,
     pub graph: &'a TGraph<N>,
 }
 
 impl<'a, const N: usize> Node<'a, N> {
-    pub fn id(&self) -> VID {
-        self.node.index().into()
-    }
-
-    pub(crate) fn new(node: VRef<'a, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn new(node: VRef<'a>, graph: &'a TGraph<N>) -> Self {
         Node { node, graph }
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, NodeStore, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, NodeStore>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
     }
 

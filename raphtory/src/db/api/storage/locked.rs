@@ -168,7 +168,7 @@ impl LockedGraph {
                     Box::new(iter)
                 }
             }
-            FilterState::Edges => {
+            FilterState::Edges | FilterState::BothIndependent => {
                 let iter = source
                     .edge_tuples(view.layer_ids(), dir)
                     .filter(|eref| view.filter_edge(self.edges.get(eref.pid()), view.layer_ids()))
@@ -210,7 +210,7 @@ impl LockedGraph {
                     Box::new(iter)
                 }
             }
-            FilterState::Edges => {
+            FilterState::Edges | FilterState::BothIndependent => {
                 let source = self.nodes.arc_entry(node);
                 let iter = source
                     .into_edges(view.layer_ids(), dir)
@@ -238,6 +238,7 @@ impl LockedGraph {
         }
     }
 
+    #[inline]
     pub fn node_degree<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: VID,
@@ -263,7 +264,7 @@ impl LockedGraph {
                     edges_iter.count()
                 }
             }
-            FilterState::Edges => {
+            FilterState::Edges | FilterState::BothIndependent => {
                 let edges_iter = core_nodes
                     .get(node)
                     .edge_tuples(view.layer_ids(), dir)
@@ -306,7 +307,7 @@ impl LockedGraph {
             FilterState::Nodes => Box::new(
                 iter.filter(|e| view.filter_node(self.nodes.get(e.remote()), view.layer_ids())),
             ),
-            FilterState::Edges => Box::new(
+            FilterState::Edges | FilterState::BothIndependent => Box::new(
                 iter.filter(|e| view.filter_edge(self.edges.get(e.pid()), view.layer_ids())),
             ),
         }
@@ -332,7 +333,7 @@ impl LockedGraph {
                     view.filter_node(self.nodes.get(e.remote()), view.layer_ids())
                 }))
             }
-            FilterState::Edges => Box::new(
+            FilterState::Edges | FilterState::BothIndependent => Box::new(
                 iter.filter(move |e| view.filter_edge(self.edges.get(e.pid()), view.layer_ids())),
             ),
         }

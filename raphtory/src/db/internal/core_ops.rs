@@ -14,7 +14,7 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, ReadLockedStorage,
+            ArcEntry, Entry, ReadLockedStorage,
         },
         ArcStr,
     },
@@ -290,7 +290,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
+    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore> {
         self.inner().storage.edges.entry_arc(eid.into())
     }
 
@@ -300,8 +300,18 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
+    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore> {
         self.inner().storage.nodes.entry_arc(vid.into())
+    }
+
+    #[inline]
+    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore> {
+        self.inner().storage.edges.entry(eid)
+    }
+
+    #[inline]
+    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
+        self.inner().storage.nodes.entry(vid)
     }
 }
 

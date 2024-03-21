@@ -4,11 +4,16 @@ use crate::{
 };
 
 impl EdgeFilterOps for InternalGraph {
+    ///
     fn edges_filtered(&self) -> bool {
         false
     }
 
     fn edge_list_trusted(&self) -> bool {
+        true
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
         true
     }
 

@@ -284,7 +284,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore, N> {
+    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore> {
         self.storage.get_node(v)
     }
 
@@ -293,7 +293,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
+    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore> {
         self.storage.get_edge(e)
     }
 }

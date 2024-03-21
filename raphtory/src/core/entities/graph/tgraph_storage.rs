@@ -54,7 +54,7 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     #[inline]
-    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore, N> {
+    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore> {
         self.nodes.entry(id)
     }
 
@@ -67,7 +67,7 @@ impl<const N: usize> GraphStorage<N> {
     }
 
     #[inline]
-    pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore, N> {
+    pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore> {
         self.edges.entry(id)
     }
 

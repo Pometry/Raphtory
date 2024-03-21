@@ -203,7 +203,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         .unwrap_or(tt.t())
             }
             None => {
-                let edge = g.core_edge(e.pid());
+                let edge = g.core_edge_arc(e.pid());
                 g.include_edge_window(&edge, t..t.saturating_add(1), g.layer_ids())
             }
         })

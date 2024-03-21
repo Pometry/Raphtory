@@ -58,14 +58,22 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
 // FIXME: this should use the list version ideally
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
+    #[inline]
     fn edges_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
     }
 
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    #[inline]
     fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self.nodes.contains(&edge.src)
@@ -74,12 +82,12 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
+    fn nodes_filtered(&self) -> bool {
+        true
+    }
     // FIXME: should use list version and make this true
     fn node_list_trusted(&self) -> bool {
         false
-    }
-    fn nodes_filtered(&self) -> bool {
-        true
     }
 
     fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {

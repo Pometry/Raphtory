@@ -13,7 +13,7 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, ReadLockedStorage,
+            ArcEntry, Entry, ReadLockedStorage,
         },
         utils::errors::GraphError,
         ArcStr, PropType,
@@ -39,7 +39,6 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
-
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]

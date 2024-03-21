@@ -13,7 +13,7 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, ReadLockedStorage,
+            ArcEntry, Entry, ReadLockedStorage,
         },
         ArcStr, Prop,
     },
@@ -33,6 +33,17 @@ pub trait CoreGraphOps {
     fn unfiltered_num_layers(&self) -> usize;
 
     fn core_graph(&self) -> LockedGraph;
+
+    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID>;
+
+    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore>;
+
+    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore>;
+    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID>;
+
+    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore>;
+
+    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore>;
 
     fn node_meta(&self) -> &Meta;
 
@@ -205,13 +216,6 @@ pub trait CoreGraphOps {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
-
-    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID>;
-
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore>;
-    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID>;
-
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore>;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -393,8 +397,8 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> ArcEntry<EdgeStore> {
-        self.graph().core_edge(eid)
+    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore> {
+        self.graph().core_edge_arc(eid)
     }
 
     #[inline]
@@ -403,7 +407,17 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
-        self.graph().core_node(vid)
+    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore> {
+        self.graph().core_node_arc(vid)
+    }
+
+    #[inline]
+    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore> {
+        self.graph().core_edge_ref(eid)
+    }
+
+    #[inline]
+    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
+        self.graph().core_node_ref(vid)
     }
 }

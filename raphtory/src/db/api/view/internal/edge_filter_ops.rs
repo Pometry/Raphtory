@@ -150,6 +150,10 @@ pub trait EdgeFilterOps {
     /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
     fn edge_list_trusted(&self) -> bool;
 
+    /// If true, do not need to check src and dst of the edge separately, even if nodes are filtered
+    /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
+    fn edge_filter_includes_node_filter(&self) -> bool;
+
     fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool;
 }
 
@@ -182,6 +186,11 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph().edge_list_trusted()
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph().edge_filter_includes_node_filter()
     }
 
     #[inline]

@@ -205,14 +205,11 @@ where
     }
 
     #[inline]
-    pub fn entry(&self, index: Index) -> Entry<'_, T, N> {
+    pub fn entry(&self, index: Index) -> Entry<'_, T> {
         let index = index.into();
-        let (bucket, _) = resolve::<N>(index);
+        let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.read_recursive();
-        Entry {
-            offset: index,
-            guard,
-        }
+        Entry { offset, guard }
     }
 
     #[inline]
@@ -286,12 +283,12 @@ where
 }
 
 #[derive(Debug)]
-pub struct Entry<'a, T: 'static, const N: usize> {
+pub struct Entry<'a, T: 'static> {
     offset: usize,
     guard: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {
+impl<'a, T: 'static> Clone for Entry<'a, T> {
     fn clone(&self) -> Self {
         let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
         let i = self.offset;
@@ -332,33 +329,25 @@ where
     }
 }
 
-impl<'a, T, const N: usize> Entry<'a, T, N> {
+impl<'a, T> Entry<'a, T> {
     pub fn value(&self) -> &T {
-        let (_, offset) = resolve::<N>(self.offset);
-        &self.guard[offset]
-    }
-
-    pub fn index(&self) -> usize {
-        self.offset
+        &self.guard[self.offset]
     }
 
     pub fn map<U, F: Fn(&T) -> &U>(self, f: F) -> LockedView<'a, U> {
-        let (_, offset) = resolve::<N>(self.offset);
         let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
-            let what = &guard[offset];
+            let what = &guard[self.offset];
             f(what)
         });
-
         LockedView::LockMapped(mapped_guard)
     }
 }
 
-impl<'a, T, const N: usize> Deref for Entry<'a, T, N> {
+impl<'a, T> Deref for Entry<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        let (_, offset) = resolve::<N>(self.offset);
-        &self.guard[offset]
+        self.value()
     }
 }
 

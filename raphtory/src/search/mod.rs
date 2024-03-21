@@ -581,7 +581,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let core_edge = self.graph.core_edge(EID(edge_id));
+        let core_edge = self.graph.core_edge_arc(EID(edge_id));
         let layer_ids = self.graph.layer_ids();
         if !self.graph.filter_edge(&core_edge, layer_ids) {
             return None;
@@ -589,10 +589,10 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         if self.graph.nodes_filtered() {
             if !self
                 .graph
-                .filter_node(&self.graph.core_node(core_edge.src), layer_ids)
+                .filter_node(&self.graph.core_node_arc(core_edge.src), layer_ids)
                 || !self
                     .graph
-                    .filter_node(&self.graph.core_node(core_edge.dst), layer_ids)
+                    .filter_node(&self.graph.core_node_arc(core_edge.dst), layer_ids)
             {
                 return None;
             }

@@ -101,7 +101,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
+        let core_edge = self.core_edge_arc(e.pid());
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
@@ -112,7 +112,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
+        let core_edge = self.core_edge_arc(e.pid());
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)

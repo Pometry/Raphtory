@@ -133,14 +133,18 @@ impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
+    #[inline]
     fn node_list_trusted(&self) -> bool {
         self.graph.node_list_trusted() && !self.nodes_filtered()
     }
+
+    #[inline]
     fn nodes_filtered(&self) -> bool {
         self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
             || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
     }
 
+    #[inline]
     fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids)
             && self
@@ -462,14 +466,22 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
+    #[inline]
     fn edges_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
     }
 
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    #[inline]
     fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self

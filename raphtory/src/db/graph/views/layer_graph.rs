@@ -62,14 +62,22 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
+    #[inline]
     fn edges_filtered(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
     }
 
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    #[inline]
     fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids) && edge.has_layer(&self.layers)
     }

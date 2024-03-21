@@ -126,7 +126,7 @@ impl<
         }
 
         let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node(node.node).name.as_str());
+            self.resolve_node(node.id(), node.graph.core_node_arc(node.node).name.as_str());
         let node_internal_type_id = self
             .resolve_node_type(node_internal, node.node_type().as_str())
             .unwrap_or(0usize);

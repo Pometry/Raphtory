@@ -4,13 +4,16 @@ use crate::{
 };
 
 impl<const N: usize> NodeFilterOps for InnerTemporalGraph<N> {
+    #[inline]
     fn node_list_trusted(&self) -> bool {
         true
     }
+    #[inline]
     fn nodes_filtered(&self) -> bool {
         false
     }
 
+    #[inline]
     fn filter_node(&self, _node: &NodeStore, _layer_ids: &LayerIds) -> bool {
         true
     }

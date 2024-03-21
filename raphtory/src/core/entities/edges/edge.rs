@@ -25,8 +25,8 @@ use std::{
 };
 
 #[derive(Debug)]
-pub(crate) enum ERef<'a, const N: usize> {
-    ERef(Entry<'a, EdgeStore, N>),
+pub(crate) enum ERef<'a> {
+    ERef(Entry<'a, EdgeStore>),
     ELock {
         lock: Arc<LockedGraphStorage>,
         eid: EID,
@@ -34,15 +34,15 @@ pub(crate) enum ERef<'a, const N: usize> {
 }
 
 // impl fn edge_id for ERef
-impl<'a, const N: usize> ERef<'a, N> {
+impl<'a> ERef<'a> {
     pub(crate) fn edge_id(&self) -> EID {
         match self {
             ERef::ELock { lock: _, eid } => *eid,
-            ERef::ERef(es) => es.index().into(),
+            ERef::ERef(es) => es.eid,
         }
     }
 
-    fn node_ref(&self, src: VID) -> Option<VRef<'a, N>> {
+    fn node_ref(&self, src: VID) -> Option<VRef<'a>> {
         match self {
             ERef::ELock { lock, .. } => {
                 Some(VRef::LockedEntry(GraphEntry::new(lock.clone(), src.into())))
@@ -52,7 +52,7 @@ impl<'a, const N: usize> ERef<'a, N> {
     }
 }
 
-impl<'a, const N: usize> Deref for ERef<'a, N> {
+impl<'a> Deref for ERef<'a> {
     type Target = EdgeStore;
 
     fn deref(&self) -> &Self::Target {
@@ -67,7 +67,7 @@ impl<'a, const N: usize> GraphItem<'a, N> for EdgeView<'a, N> {
     fn from_edge_ids(
         src: VID,
         dst: VID,
-        e_id: ERef<'a, N>,
+        e_id: ERef<'a>,
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self {
@@ -78,7 +78,7 @@ impl<'a, const N: usize> GraphItem<'a, N> for EdgeView<'a, N> {
 pub struct EdgeView<'a, const N: usize> {
     src: VID,
     dst: VID,
-    edge_id: ERef<'a, N>,
+    edge_id: ERef<'a>,
     dir: Direction,
     graph: &'a TGraph<N>,
 }
@@ -222,7 +222,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
     pub(crate) fn from_edge_ids(
         v1: VID, // the initiator of the edges call
         v2: VID, // the edge on the other side
-        edge_id: ERef<'a, N>,
+        edge_id: ERef<'a>,
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self {
@@ -240,7 +240,7 @@ impl<'a, const N: usize> EdgeView<'a, N> {
         }
     }
 
-    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(entry: Entry<'a, EdgeStore>, graph: &'a TGraph<N>) -> Self {
         Self {
             src: entry.src(),
             dst: entry.dst(),
