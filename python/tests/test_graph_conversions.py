@@ -1063,12 +1063,12 @@ def test_to_df():
     )
 
     compare_df(
-        g.to_node_df(explode=False),
+        g.to_node_df(explode=False, include_property_histories=True),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_explode.json"),
     )
 
     compare_df(
-        g.to_node_df(convert_datetime=False),
+        g.to_node_df(convert_datetime=False, include_property_histories=True),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_datetime.json"),
     )
 

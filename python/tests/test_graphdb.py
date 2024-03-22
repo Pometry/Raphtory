@@ -13,10 +13,9 @@ from math import isclose
 from datetime import datetime, timezone
 import string
 from pathlib import Path
-from distutils import dir_util
 from pytest import fixture
 import os
-
+import shutil
 
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
@@ -2091,7 +2090,11 @@ def datadir(tmpdir, request):
     filename = request.module.__file__
     test_dir, _ = os.path.splitext(filename)
     if os.path.isdir(test_dir):
-        dir_util.copy_tree(test_dir, str(tmpdir))
+        try:
+            shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
+            return tmpdir
+        except Exception as e:
+            raise e
     return tmpdir
 
 
