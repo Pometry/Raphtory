@@ -6,6 +6,7 @@ pub(crate) mod internal;
 mod layer;
 pub(crate) mod node;
 mod reset_filter;
+mod node_state;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;

@@ -56,6 +56,16 @@ impl<G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<G2, G2H>>
     }
 }
 
+impl<'a, G: Clone, GH: Clone> NodeView<&'a G, &'a GH> {
+    pub fn cloned(&self) -> NodeView<G, GH> {
+        NodeView {
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            node: self.node,
+        }
+    }
+}
+
 impl<G, GH> AsNodeRef for NodeView<G, GH> {
     fn as_node_ref(&self) -> NodeRef {
         NodeRef::Internal(self.node)

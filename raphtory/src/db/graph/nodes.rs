@@ -107,6 +107,13 @@ where
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
+        let cg = self.graph.core_graph();
+        cg.into_nodes_par(self.graph.clone()).map(move |n| {
+            NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
+        })
+    }
+
     /// Returns the number of nodes in the graph.
     pub fn len(&self) -> usize {
         self.iter().count()
