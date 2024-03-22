@@ -1,6 +1,7 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
-use arrow::datatypes::DataType;
+use arrow::datatypes::{DataType, UInt64Type};
+use arrow_buffer::{Buffer, OffsetBuffer, ScalarBuffer};
 use arrow_schema::Field;
 use async_trait::async_trait;
 use datafusion::{
@@ -16,7 +17,7 @@ use datafusion::{
         context::{ExecutionProps, SessionState},
         SendableRecordBatchStream, TaskContext,
     },
-    logical_expr::{col, expr, Expr},
+    logical_expr::{col, expr, Expr, LogicalPlanBuilder},
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
@@ -25,56 +26,56 @@ use datafusion::{
     physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
-use raphtory::arrow::graph_impl::ArrowGraph;
+use raphtory::arrow::{chunked_array::array_ops::{ArrayOps, BaseArrayOps, Chunked}, graph_impl::ArrowGraph};
 
-use super::ExecError;
+use super::{arrow2_to_arrow, ExecError};
 
 pub struct EdgeListTableProvider {
     layer_id: usize,
+    bind_name: String,
     layer_name: String,
     graph: ArrowGraph,
-    schema: SchemaRef,
+    nested_schema: SchemaRef,
     num_partitions: usize,
     sorted_by: Vec<PhysicalSortExpr>,
 }
 
 impl EdgeListTableProvider {
-    pub fn new(layer_name: &str, graph: ArrowGraph) -> Result<Self, ExecError> {
+    pub fn new(layer_name: &str, bind_name: &str, graph: ArrowGraph) -> Result<Self, ExecError> {
         let layer_id = graph
             .find_layer_id(layer_name)
             .ok_or_else(|| ExecError::LayerNotFound(layer_name.to_string()))?;
 
-        let schema = lift_arrow_schema(&graph, layer_id, layer_name)?;
+        let schema = lift_nested_arrow_schema(&graph, layer_id, bind_name)?;
 
         let num_partitions = graph.layer(layer_id).edges_storage().t_props_num_chunks();
 
         //src
         let expr = Expr::Sort(expr::Sort::new(Box::new(col("src")), true, true));
         let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
-        let sort_by_src =
-            create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
+        let sort_by_src = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         //dst
         let expr = Expr::Sort(expr::Sort::new(Box::new(col("dst")), true, true));
         let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
-        let sort_by_dst =
-            create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
+        let sort_by_dst = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         Ok(Self {
             layer_id,
             layer_name: layer_name.to_string(),
+            bind_name: bind_name.to_string(),
             graph,
-            schema,
+            nested_schema: schema,
             num_partitions,
             sorted_by: vec![sort_by_src, sort_by_dst],
         })
     }
 }
 
-fn lift_arrow_schema(
+fn lift_nested_arrow_schema(
     graph: &ArrowGraph,
     layer_id: usize,
-    layer_name: &str,
+    bind_name: &str,
 ) -> Result<Arc<Schema>, ExecError> {
     let arrow2_fields = graph.layer(layer_id).edges_data_type();
     let a2_dt = arrow2::datatypes::DataType::Struct(arrow2_fields.clone());
@@ -82,9 +83,14 @@ fn lift_arrow_schema(
     let schema = match a_dt {
         DataType::Struct(fields) => {
             let node_and_edge_fields = Schema::new(vec![
-                Field::new(src_col(layer_name), DataType::UInt64, false),
-                Field::new(dst_col(layer_name), DataType::UInt64, false),
+                Field::new(src_col(bind_name), DataType::UInt64, false),
+                Field::new(dst_col(bind_name), DataType::UInt64, false),
             ]);
+            // all the fields need to be made into lists
+            let fields = fields
+                .iter()
+                .map(|f| Arc::new(Field::new(f.name(), DataType::List(f.clone()), false)))
+                .collect::<Vec<_>>();
 
             let props_fields = Schema::new(fields);
             let schema = Schema::try_merge([node_and_edge_fields, props_fields])?;
@@ -111,7 +117,7 @@ impl TableProvider for EdgeListTableProvider {
     }
 
     fn schema(&self) -> SchemaRef {
-        self.schema.clone()
+        self.nested_schema.clone()
     }
 
     /// Get the type of this table for metadata/catalog purposes.
@@ -122,7 +128,7 @@ impl TableProvider for EdgeListTableProvider {
     async fn scan(
         &self,
         _state: &SessionState,
-        _projection: Option<&Vec<usize>>,
+        projection: Option<&Vec<usize>>,
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
@@ -130,9 +136,10 @@ impl TableProvider for EdgeListTableProvider {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
             graph: self.graph.clone(),
-            schema: self.schema.clone(),
+            schema: self.nested_schema.clone(),
             num_partitions: self.num_partitions,
             sorted_by: self.sorted_by.clone(),
+            projection: projection.cloned(),
         }))
     }
 }
@@ -144,13 +151,45 @@ struct EdgeListExecPlan {
     schema: SchemaRef,
     num_partitions: usize,
     sorted_by: Vec<PhysicalSortExpr>,
+    projection: Option<Vec<usize>>,
 }
 
 impl EdgeListExecPlan {
     fn stream_record_batches(
         &self,
-        chunk: usize,
+        chunk_id: usize,
     ) -> impl Stream<Item = Result<RecordBatch, DataFusionError>> {
+        let layer = self.graph.layer(self.layer_id);
+        let edges = layer.edges_storage();
+        let chunk_size = edges.time().values().chunk_size();
+
+        let chunked_lists_ts = edges.time();
+        let offsets = chunked_lists_ts.offsets();
+        let values = chunked_lists_ts.values();
+
+        let time_values = values.chunk(chunk_id);
+        let start_offset = chunk_id * chunk_size;
+        let end_offset = (chunk_id + 1) * chunk_size;
+
+        let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
+
+        let offsets: OffsetBuffer<i64> = OffsetBuffer::new(local_offsets.into());
+
+        let srcs = edges.srcs().sliced(start..end);
+        let dsts = edges.dsts().sliced(start..end);
+
+        // take every chunk here and surface the primitive arrays
+        // convert from arrow2 to arrow-rs then to polars
+        let (srcs, dsts): (Vec<_>, Vec<_>) = srcs
+            .iter_chunks()
+            .zip(dsts.iter_chunks())
+            .map(|(srcs, dsts)| {
+                let srcs = arrow2_to_arrow::<u64, UInt64Type>(srcs);
+                let dsts = arrow2_to_arrow::<u64, UInt64Type>(dsts);
+                (srcs, dsts)
+            })
+            .unzip();
+
         futures::stream::empty()
     }
 }
@@ -169,8 +208,6 @@ impl DisplayAs for EdgeListExecPlan {
 
 #[async_trait]
 impl ExecutionPlan for EdgeListExecPlan {
-    /// Returns the execution plan as [`Any`] so that it can be
-    /// downcast to a specific implementation.
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -180,56 +217,22 @@ impl ExecutionPlan for EdgeListExecPlan {
         self.schema.clone()
     }
 
-    /// Specifies how the output of this `ExecutionPlan` is split into
-    /// partitions.
     fn output_partitioning(&self) -> Partitioning {
         Partitioning::UnknownPartitioning(self.num_partitions)
     }
 
-    /// If the output of this `ExecutionPlan` within each partition is sorted,
-    /// returns `Some(keys)` with the description of how it was sorted.
-    ///
-    /// For example, Sort, (obviously) produces sorted output as does
-    /// SortPreservingMergeStream. Less obviously `Projection`
-    /// produces sorted output if its input was sorted as it does not
-    /// reorder the input rows,
-    ///
-    /// It is safe to return `None` here if your `ExecutionPlan` does not
-    /// have any particular output order here
     fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
         Some(&self.sorted_by)
     }
 
-    /// Returns `false` if this `ExecutionPlan`'s implementation may reorder
-    /// rows within or between partitions.
-    ///
-    /// For example, Projection, Filter, and Limit maintain the order
-    /// of inputs -- they may transform values (Projection) or not
-    /// produce the same number of rows that went in (Filter and
-    /// Limit), but the rows that are produced go in the same way.
-    ///
-    /// DataFusion uses this metadata to apply certain optimizations
-    /// such as automatically repartitioning correctly.
-    ///
-    /// The default implementation returns `false`
-    ///
-    /// WARNING: if you override this default, you *MUST* ensure that
-    /// the `ExecutionPlan`'s maintains the ordering invariant or else
-    /// DataFusion may produce incorrect results.
     fn maintains_input_order(&self) -> Vec<bool> {
         vec![true; self.children().len()]
     }
 
-    /// Get a list of children `ExecutionPlan`s that act as inputs to this plan.
-    /// The returned list will be empty for leaf nodes such as scans, will contain
-    /// a single value for unary nodes, or two values for binary nodes (such as
-    /// joins).
     fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
         vec![]
     }
 
-    /// Returns a new `ExecutionPlan` where all existing children were replaced
-    /// by the `children`, in order
     fn with_new_children(
         self: Arc<Self>,
         _children: Vec<Arc<dyn ExecutionPlan>>,
@@ -261,9 +264,6 @@ impl ExecutionPlan for EdgeListExecPlan {
         None
     }
 
-    /// Returns statistics for this `ExecutionPlan` node. If statistics are not
-    /// available, should return [`Statistics::new_unknown`] (the default), not
-    /// an error.
     fn statistics(&self) -> Result<Statistics, DataFusionError> {
         Ok(Statistics::new_unknown(&self.schema()))
     }

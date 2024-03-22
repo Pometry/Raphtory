@@ -1,3 +1,5 @@
+use arrow::datatypes::ArrowPrimitiveType;
+use arrow2::{array::Arrow2Arrow, types::NativeType};
 use datafusion::execution::context::{SQLOptions, SessionContext};
 
 use sqlparser::ast::{self as sql_ast};
@@ -29,6 +31,12 @@ pub async fn run_with_datafusion(sql: sql_ast::Statement) -> Result<(), ExecErro
     opts.verify_plan(&plan)?;
     ctx.execute_logical_plan(plan).await?;
     Ok(())
+}
+
+fn arrow2_to_arrow<T: NativeType, U: ArrowPrimitiveType>(buffer: &arrow2::buffer::Buffer<T>) -> arrow::array::PrimitiveArray<U> {
+    let dt = arrow2::datatypes::DataType::from(<T as arrow2::types::NativeType>::PRIMITIVE);
+    let prim_array = arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
+    prim_array.to_data().into()
 }
 
 #[cfg(test)]
