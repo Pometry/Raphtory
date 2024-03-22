@@ -6,7 +6,7 @@ use itertools::Merge;
 use std::sync::Arc;
 
 pub struct Paged<'a, const N: usize> {
-    guard: Arc<VRef<'a, N>>,
+    guard: Arc<VRef<'a>>,
     data: Vec<(VID, EID)>,
     i: usize,
     size: usize,
@@ -18,7 +18,7 @@ pub struct Paged<'a, const N: usize> {
 
 impl<'a, const N: usize> Paged<'a, N> {
     pub(crate) fn new(
-        guard: Arc<VRef<'a, N>>,
+        guard: Arc<VRef<'a>>,
         dir: Direction,
         layer_id: usize,
         src: VID,

@@ -13,7 +13,7 @@ use tantivy::{
 
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
         ArcStr, OptionAsStr, PropType,
@@ -479,28 +479,22 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let e_ids = (0..g.count_edges()).collect::<Vec<_>>();
-        let edge_filter = g.edge_filter();
-        e_ids.par_chunks(128).try_for_each(|e_ids| {
+        let locked_g = g.core_graph();
+
+        locked_g.edges_par(&g).try_for_each(|e_ref| {
             let writer_lock = writer.clone();
             {
                 let writer_guard = writer_lock.read();
-                for e_id in e_ids {
-                    if let Some(e_ref) =
-                        g.find_edge_id((*e_id).into(), &g.layer_ids(), edge_filter.as_deref())
-                    {
-                        let e_view = EdgeView::new(g.clone(), e_ref);
-                        Self::index_edge_view(
-                            e_view,
-                            &schema,
-                            &writer_guard,
-                            time_field,
-                            source_field,
-                            destination_field,
-                            edge_id_field,
-                        )?;
-                    }
-                }
+                let e_view = EdgeView::new(g.clone(), e_ref);
+                Self::index_edge_view(
+                    e_view,
+                    &schema,
+                    &writer_guard,
+                    time_field,
+                    source_field,
+                    destination_field,
+                    edge_id_field,
+                )?;
             }
             Ok::<(), TantivyError>(())
         })?;
@@ -587,12 +581,23 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let e_ref = self.graph.find_edge_id(
-            edge_id.into(),
-            &self.graph.layer_ids(),
-            self.graph.edge_filter().as_deref(),
-        )?;
-        let e_view = EdgeView::new(self.graph.clone(), e_ref);
+        let core_edge = self.graph.core_edge_arc(EID(edge_id));
+        let layer_ids = self.graph.layer_ids();
+        if !self.graph.filter_edge(&core_edge, layer_ids) {
+            return None;
+        }
+        if self.graph.nodes_filtered() {
+            if !self
+                .graph
+                .filter_node(&self.graph.core_node_arc(core_edge.src), layer_ids)
+                || !self
+                    .graph
+                    .filter_node(&self.graph.core_node_arc(core_edge.dst), layer_ids)
+            {
+                return None;
+            }
+        }
+        let e_view = EdgeView::new(self.graph.clone(), EdgeRef::from(core_edge));
         Some(e_view)
     }
 

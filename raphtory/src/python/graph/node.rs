@@ -568,7 +568,7 @@ impl PyNodes {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'static, G, GH> {
     fn repr(&self) -> String {
         format!("Nodes({})", iterator_repr(self.iter()))
     }
