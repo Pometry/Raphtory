@@ -5,7 +5,7 @@ use sqlparser::ast as sql_ast;
 mod executor;
 pub mod parser;
 
-pub fn cypher_to_sql(query: &Query) -> sql_ast::Statement {
+pub fn cypher_to_sql(_query: &Query) -> sql_ast::Statement {
     todo!()
 
 }
@@ -81,7 +81,7 @@ pub fn cypher_to_sql(query: &Query) -> sql_ast::Statement {
 
 fn extract_column_names_and_ids(
     name: &str,
-    var_bind_count: &mut usize,
+    _var_bind_count: &mut usize,
     query: &SingleQuery,
     graph: &ArrowGraph,
     layer_id: usize,

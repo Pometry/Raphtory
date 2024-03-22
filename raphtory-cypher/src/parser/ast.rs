@@ -31,7 +31,7 @@ impl Query {
             match clause {
                 Clause::Match(m) => {
                     for part in &m.pattern.0 {
-                        if let Some(name) = &part.var {}
+                        if let Some(_name) = &part.var {}
                     }
                 }
                 Clause::Return(ret) => {

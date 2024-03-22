@@ -1,5 +1,5 @@
-use datafusion::{datasource::TableProvider, execution::context::{SQLOptions, SessionContext}};
-use raphtory::arrow::graph_impl::ArrowGraph;
+use datafusion::execution::context::{SQLOptions, SessionContext};
+
 use sqlparser::ast::{self as sql_ast};
 
 mod table_provider;
@@ -14,6 +14,9 @@ pub enum ExecError {
 
     #[error("Failed to execute plan: {0}")]
     DataFusionError(#[from] datafusion::error::DataFusionError),
+
+    #[error("Arrow schema error: {0}")]
+    ArrowError(#[from] arrow_schema::ArrowError),
 }
 
 pub async fn run_with_datafusion(sql: sql_ast::Statement) -> Result<(), ExecError> {
@@ -30,11 +33,11 @@ pub async fn run_with_datafusion(sql: sql_ast::Statement) -> Result<(), ExecErro
 
 #[cfg(test)]
 mod test{
-    use super::*;
+    
 
     #[tokio::test]
     async fn test_run_with_datafusion() {
-        let sql = "SELECT * FROM test";
+        let _sql = "SELECT * FROM test";
     }
 
 }

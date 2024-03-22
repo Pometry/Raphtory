@@ -384,9 +384,9 @@ pub fn parse_number_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
 pub fn parse_string_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
     let s = pair
         .as_str()
-        .strip_prefix("'")
+        .strip_prefix('\'')
         .ok_or_else(|| ParseError::SyntaxError("String literal missing opening quote".to_string()))?
-        .strip_suffix("'")
+        .strip_suffix('\'')
         .ok_or_else(|| {
             ParseError::SyntaxError("String literal missing closing quote".to_string())
         })?;
@@ -804,8 +804,8 @@ mod test {
             let n = input;
 
             let str_num = format!("{:+e}", n);
-            let input = str_num.strip_prefix("+").unwrap();
-            let pairs = CypherParser::parse(Rule::Literal, &input);
+            let input = str_num.strip_prefix('+').unwrap();
+            let pairs = CypherParser::parse(Rule::Literal, input);
             assert!(pairs.is_ok());
 
             let literal = parse_literal(pairs.unwrap().next().unwrap());
@@ -814,7 +814,7 @@ mod test {
 
             let str_num = format!("{:.1000}", n);
             let input = str_num.trim();
-            let pairs = CypherParser::parse(Rule::Literal, &input);
+            let pairs = CypherParser::parse(Rule::Literal, input);
             assert!(pairs.is_ok());
 
             let literal = parse_literal(pairs.unwrap().next().unwrap());
@@ -822,11 +822,11 @@ mod test {
         }
 
         #[test]
-        fn literal_string(input in any::<String>().prop_filter("no single qotes", |s| !s.contains("'") && !s.contains("\\")).prop_map(|input| format!("'{}'", input))) {
+        fn literal_string(input in any::<String>().prop_filter("no single qotes", |s| !s.contains('\'') && !s.contains('\\')).prop_map(|input| format!("'{}'", input))) {
             let pairs = CypherParser::parse(Rule::Literal, &input);
             assert!(pairs.is_ok());
 
-            let actual_input = input.strip_prefix("'").unwrap().strip_suffix("'").unwrap();
+            let actual_input = input.strip_prefix('\'').unwrap().strip_suffix('\'').unwrap();
             let literal = parse_literal(pairs.unwrap().next().unwrap());
             assert_eq!(literal, Ok(Literal::Str(actual_input.to_string())));
         }
@@ -1174,7 +1174,7 @@ mod test {
                 1 + count_expr(left, bin_op_tpe) + count_expr(right, bin_op_tpe)
             }
             Expr::BinOp { left, right, .. } => {
-                0 + count_expr(left, bin_op_tpe) + count_expr(right, bin_op_tpe)
+                count_expr(left, bin_op_tpe) + count_expr(right, bin_op_tpe)
             }
             _ => 0,
         }

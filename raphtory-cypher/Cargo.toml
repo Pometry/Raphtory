@@ -26,9 +26,13 @@ sqlparser = "0.43.1"
 # polars-lazy = { version = "0.38", features = ["list_eval"] }
 
 datafusion = { version = "36.0" }
-arrow = { version = "51" }
+arrow = { version = "50" }
 async-trait = "0.1.73"
 futures = "0.3"
+arrow-buffer = { version = "50"}
+arrow-schema = { version = "50"}
+arrow-data = { version = "50"}
+arrow-array = { version = "50"}
 
 raphtory = { path = "../raphtory" }
 rayon.workspace = true
