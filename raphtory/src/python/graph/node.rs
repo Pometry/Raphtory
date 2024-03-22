@@ -35,15 +35,10 @@ use pyo3::{
     pymethods, PyAny, PyObject, PyRef, PyResult, Python,
 };
 use python::types::repr::{iterator_repr, Repr};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use itertools::Itertools;
+use std::collections::{HashMap};
 use pyo3::types::PyDict;
 use rayon::prelude::*;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
-use crate::core::entities::properties::props::Meta;
-use crate::core::storage::timeindex::AsTime;
-use crate::db::api::properties::internal::PropertiesOps;
+use rayon::iter::{IntoParallelIterator};
 use crate::db::api::view::internal::CoreGraphOps;
 use python::utils::export::{extract_properties, get_column_names_from_props, create_row};
 

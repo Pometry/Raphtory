@@ -7,7 +7,7 @@ use crate::core::storage::timeindex::AsTime;
 use crate::db::api::properties::internal::PropertiesOps;
 use crate::db::api::properties::Properties;
 use rayon::prelude::*;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator};
+use rayon::iter::{IntoParallelRefIterator};
 
 
 pub(crate) fn extract_properties<P>(

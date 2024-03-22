@@ -26,7 +26,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use pyo3::{prelude::*, pyclass, pymethods, IntoPy, PyObject, Python, PyResult, ToPyObject};
+use pyo3::{pyclass, pymethods, IntoPy, PyObject, Python, PyResult, ToPyObject};
 use pyo3::prelude::PyModule;
 use pyo3::types::PyDict;
 use crate::core::Prop;
