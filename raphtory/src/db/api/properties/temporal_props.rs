@@ -177,8 +177,8 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_map()
     }
 
-    fn into_dtime(self) -> Option<NaiveDateTime> {
-        self.latest().into_dtime()
+    fn into_ndtime(self) -> Option<NaiveDateTime> {
+        self.latest().into_ndtime()
     }
 
     fn into_graph(self) -> Option<Graph> {

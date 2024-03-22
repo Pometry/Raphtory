@@ -33,7 +33,7 @@ impl From<JsProp> for JsValue {
             Prop::F32(v) => v.into(),
             Prop::F64(v) => v.into(),
             Prop::Bool(v) => v.into(),
-            Prop::DTime(v) => js_sys::Date::new_with_year_month_day_hr_min_sec_milli(
+            Prop::NDTime(v) => js_sys::Date::new_with_year_month_day_hr_min_sec_milli(
                 v.year() as u32,
                 v.month() as i32,
                 v.day() as i32,

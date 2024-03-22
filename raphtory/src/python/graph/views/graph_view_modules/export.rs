@@ -1,16 +1,12 @@
 use crate::{
-    core::{entities::properties::props::Meta, ArcStr, Prop},
-    db::{
-        api::{
-            properties::{internal::PropertiesOps, Properties},
-            view::{internal::CoreGraphOps, DynamicGraph},
-        },
-        graph::node::NodeView,
+    core::{entities::properties::props::Meta, storage::timeindex::AsTime, ArcStr, Prop},
+    db::api::{
+        properties::{internal::PropertiesOps, Properties},
+        view::internal::CoreGraphOps,
     },
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap, TimeOps},
     python::graph::views::graph_view::PyGraphView,
 };
-use chrono::NaiveDateTime;
 use itertools::Itertools;
 use pyo3::{
     prelude::*,
@@ -21,7 +17,7 @@ use pyo3::{
 use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 impl PyGraphView {
@@ -32,8 +28,8 @@ impl PyGraphView {
         column_names: &Vec<String>,
         is_prop_both_temp_and_const: &HashSet<String>,
         item: &Properties<P>,
-        mut properties_map: &mut HashMap<String, Prop>,
-        mut prop_time_dict: &mut HashMap<i64, HashMap<String, Prop>>,
+        properties_map: &mut HashMap<String, Prop>,
+        prop_time_dict: &mut HashMap<i64, HashMap<String, Prop>>,
         start_time: i64,
     ) where
         P: PropertiesOps + Clone,
@@ -97,8 +93,7 @@ impl PyGraphView {
                 if convert_datetime {
                     let mut prop_vec = vec![];
                     prop_view.iter().for_each(|(time, prop)| {
-                        let new_time = Self::convert_timestamp(time);
-                        let prop_time = Prop::DTime(new_time);
+                        let prop_time = Prop::DTime(time.dt().unwrap());
                         prop_vec.push(Prop::List(Arc::from(vec![prop_time, prop])))
                     });
                     let wrapped = Prop::from(prop_vec);
@@ -125,15 +120,8 @@ impl PyGraphView {
         }
     }
 
-    fn convert_timestamp(time: i64) -> NaiveDateTime {
-        let seconds = time / 1_000_000_000;
-        let nanos = (time % 1_000_000_000) as u32;
-        let new_time = NaiveDateTime::from_timestamp_opt(seconds, nanos).unwrap();
-        new_time
-    }
-
     fn get_column_names_from_props(
-        mut column_names: &mut Vec<String>,
+        column_names: &mut Vec<String>,
         edge_meta: &Meta,
     ) -> HashSet<String> {
         let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
@@ -171,7 +159,7 @@ impl PyGraphView {
         convert_datetime: bool,
         explode: bool,
         column_names: &Vec<String>,
-        mut properties_map: HashMap<String, Prop>,
+        properties_map: HashMap<String, Prop>,
         prop_time_dict: HashMap<i64, HashMap<String, Prop>>,
         row_header: Vec<Prop>,
         start_point: usize,
@@ -193,8 +181,7 @@ impl PyGraphView {
                     }
 
                     if convert_datetime {
-                        let new_time = Self::convert_timestamp(*time);
-                        row.push(Prop::DTime(new_time));
+                        row.push(Prop::DTime(time.dt().unwrap()));
                     } else {
                         row.push(Prop::from(*time));
                     }
@@ -216,10 +203,7 @@ impl PyGraphView {
             if convert_datetime {
                 let update_list = history
                     .iter()
-                    .map(|val| {
-                        let new_time = Self::convert_timestamp(*val);
-                        Prop::DTime(new_time)
-                    })
+                    .map(|val| Prop::DTime(val.dt().unwrap()))
                     .collect_vec();
                 let _ = row.push(Prop::from(update_list));
             } else {
@@ -242,13 +226,13 @@ impl PyGraphView {
     /// - "update_history": The update history of the node.
     ///
     /// Args:
-    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.  Defaults to `true`.
+    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploding. Defaults to `false`.
     ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
     ///     explode (bool): A boolean, if set to `true`, will explode each node update into its own row. Defaults to `false`
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
+    #[pyo3(signature = (include_property_histories=false, convert_datetime=false, explode=false))]
     pub fn to_node_df(
         &self,
         include_property_histories: bool,
@@ -322,7 +306,7 @@ impl PyGraphView {
     /// - "update_history_exploded": The exploded update history of the edge. This column will be included if `explode_edges` is set to `true`.
     ///
     /// Args:
-    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.  Defaults to `true`.
+    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploded. Defaults to `false`.
     ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
     ///     explode (bool): A boolean, if set to `true`, will explode each edge update into its own row. Defaults to `false`
     ///
