@@ -1,14 +1,16 @@
-use std::collections::HashMap;
 use crate::{
-    core::ArcStr,
+    core::{ArcStr, Prop},
     db::{
-        api::view::{BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{
+            internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+            StaticGraphViewOps,
+        },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, TimeOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
     python::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
@@ -21,20 +23,19 @@ use crate::{
                 OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
             },
         },
-        utils::PyTime,
-        utils::export::{extract_properties, get_column_names_from_props, create_row},
+        utils::{
+            export::{create_row, extract_properties, get_column_names_from_props},
+            PyTime,
+        },
     },
 };
 use itertools::Itertools;
-use pyo3::{pyclass, pymethods, IntoPy, PyObject, Python, PyResult, ToPyObject};
-use pyo3::prelude::PyModule;
-use pyo3::types::PyDict;
-use crate::core::Prop;
-use rayon::prelude::*;
-use rayon::iter::{IntoParallelIterator};
-use crate::db::api::view::internal::CoreGraphOps;
-use crate::prelude::NodeViewOps;
-
+use pyo3::{
+    prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
+    ToPyObject,
+};
+use rayon::{iter::IntoParallelIterator, prelude::*};
+use std::collections::HashMap;
 
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
@@ -239,7 +240,6 @@ impl PyEdges {
         (move || edges.layer_names().map(|e| e.collect_vec())).into()
     }
 
-
     /// Converts the graph's edges into a Pandas DataFrame.
     ///
     /// This method will create a DataFrame with the following columns:
@@ -271,8 +271,7 @@ impl PyEdges {
             String::from("layer"),
         ];
         let edge_meta = self.edges.graph.edge_meta();
-        let is_prop_both_temp_and_const =
-            get_column_names_from_props(&mut column_names, edge_meta);
+        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
         let mut edges = self.edges.explode_layers();
         if explode == true {
@@ -328,8 +327,6 @@ impl PyEdges {
             Ok(df.to_object(py))
         })
     }
-
-
 }
 
 impl Repr for PyEdges {

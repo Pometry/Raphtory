@@ -7,7 +7,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
             },
         },
@@ -32,15 +32,16 @@ use pyo3::{
     prelude::*,
     pyclass,
     pyclass::CompareOp,
-    pymethods, PyAny, PyObject, PyRef, PyResult, Python,
+    pymethods,
+    types::PyDict,
+    PyAny, PyObject, PyRef, PyResult, Python,
 };
-use python::types::repr::{iterator_repr, Repr};
-use std::collections::{HashMap};
-use pyo3::types::PyDict;
-use rayon::prelude::*;
-use rayon::iter::{IntoParallelIterator};
-use crate::db::api::view::internal::CoreGraphOps;
-use python::utils::export::{extract_properties, get_column_names_from_props, create_row};
+use python::{
+    types::repr::{iterator_repr, Repr},
+    utils::export::{create_row, extract_properties, get_column_names_from_props},
+};
+use rayon::{iter::IntoParallelIterator, prelude::*};
+use std::collections::HashMap;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]
@@ -588,15 +589,14 @@ impl PyNodes {
     ///     If successful, this PyObject will be a Pandas DataFrame.
     #[pyo3(signature = (include_property_histories=false, convert_datetime=false, explode=false))]
     pub fn to_df(
-        &self,         
+        &self,
         include_property_histories: bool,
         convert_datetime: bool,
         explode: bool,
     ) -> PyResult<PyObject> {
         let mut column_names = vec![String::from("name"), String::from("type")];
         let meta = self.nodes.graph.node_meta();
-        let is_prop_both_temp_and_const =
-            get_column_names_from_props(&mut column_names, meta);
+        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
 
         let node_tuples: Vec<_> = self
             .nodes
@@ -646,7 +646,6 @@ impl PyNodes {
             Ok(df_data.to_object(py))
         })
     }
-
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'static, G, GH> {

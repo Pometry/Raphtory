@@ -1,14 +1,13 @@
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use crate::{
+    core::{entities::properties::props::Meta, storage::timeindex::AsTime, ArcStr, Prop},
+    db::api::properties::{internal::PropertiesOps, Properties},
+};
 use itertools::Itertools;
-use crate::core::entities::properties::props::Meta;
-use crate::core::{ArcStr, Prop};
-use crate::core::storage::timeindex::AsTime;
-use crate::db::api::properties::internal::PropertiesOps;
-use crate::db::api::properties::Properties;
-use rayon::prelude::*;
-use rayon::iter::{IntoParallelRefIterator};
-
+use rayon::{iter::IntoParallelRefIterator, prelude::*};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 pub(crate) fn extract_properties<P>(
     include_property_histories: bool,
@@ -103,12 +102,10 @@ pub(crate) fn extract_properties<P>(
             } else {
                 name.to_string()
             };
-            let _ =
-                properties_map.insert(column_name, t_prop.latest().unwrap_or(Prop::from("")));
+            let _ = properties_map.insert(column_name, t_prop.latest().unwrap_or(Prop::from("")));
         });
     }
 }
-
 
 pub(crate) fn get_column_names_from_props(
     column_names: &mut Vec<String>,
@@ -197,11 +194,9 @@ pub(crate) fn create_row(
                 .collect_vec();
             let _ = row.push(Prop::from(update_list));
         } else {
-            let update_list =
-                Prop::from(history.iter().map(|&val| Prop::from(val)).collect_vec());
+            let update_list = Prop::from(history.iter().map(|&val| Prop::from(val)).collect_vec());
             let _ = row.push(update_list);
         }
         vec![row]
     }
 }
-

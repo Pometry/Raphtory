@@ -9,10 +9,7 @@ use pyo3::{
     types::{PyDict, PyList, PyTuple},
     IntoPy, PyObject, PyResult, Python, ToPyObject,
 };
-use std::{
-    collections::HashMap,
-};
-
+use std::collections::HashMap;
 
 #[pymethods]
 impl PyGraphView {
