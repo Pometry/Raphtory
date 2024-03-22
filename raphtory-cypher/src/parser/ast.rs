@@ -127,7 +127,7 @@ impl PatternPart {
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NodePattern {
-    pub name: Option<String>,
+    pub name: String,
     pub labels: Vec<String>,
     pub props: Option<HashMap<String, Expr>>,
 }
@@ -135,7 +135,7 @@ pub struct NodePattern {
 impl NodePattern {
     pub fn named(name: &str) -> Self {
         NodePattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             labels: vec![],
             props: None,
         }
@@ -143,7 +143,7 @@ impl NodePattern {
 
     pub fn named_labelled<S: AsRef<str>>(name: &str, labels: impl IntoIterator<Item = S>) -> Self {
         NodePattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             labels: labels.into_iter().map(|s| s.as_ref().to_string()).collect(),
             props: None,
         }
@@ -152,7 +152,7 @@ impl NodePattern {
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RelPattern {
-    pub name: Option<String>,
+    pub name: String,
     pub direction: Direction,
     pub rel_types: Vec<String>,
     pub props: Option<HashMap<String, Expr>>,
@@ -161,7 +161,7 @@ pub struct RelPattern {
 impl RelPattern {
     pub fn out(name: &str) -> Self {
         RelPattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             direction: Direction::OUT,
             rel_types: vec![],
             props: None,
@@ -170,7 +170,7 @@ impl RelPattern {
 
     pub fn into(name: &str) -> Self {
         RelPattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             direction: Direction::IN,
             rel_types: vec![],
             props: None,
@@ -179,7 +179,7 @@ impl RelPattern {
 
     pub fn into_labels<S: AsRef<str>>(name: &str, labels: impl IntoIterator<Item = S>) -> Self {
         RelPattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             direction: Direction::IN,
             rel_types: labels.into_iter().map(|s| s.as_ref().to_string()).collect(),
             props: None,
@@ -188,7 +188,7 @@ impl RelPattern {
 
     pub fn out_labels<S: AsRef<str>>(name: &str, labels: impl IntoIterator<Item = S>) -> Self {
         RelPattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             direction: Direction::OUT,
             rel_types: labels.into_iter().map(|s| s.as_ref().to_string()).collect(),
             props: None,
@@ -197,7 +197,7 @@ impl RelPattern {
 
     pub fn undirected(name: &str) -> Self {
         RelPattern {
-            name: Some(name.to_string()),
+            name: name.to_string(),
             direction: Direction::BOTH,
             rel_types: vec![],
             props: None,

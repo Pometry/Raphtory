@@ -85,6 +85,7 @@ pub fn parse_cypher(input: &str) -> Result<ast::Query, ParseError> {
 
 pub fn parse_single_query(pair: Pair<Rule>) -> Result<SingleQuery, ParseError> {
     let mut clauses = Vec::new();
+    let mut un_named_counter = 0;
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::SinglePartQuery => {
@@ -94,7 +95,8 @@ pub fn parse_single_query(pair: Pair<Rule>) -> Result<SingleQuery, ParseError> {
                             for pair in pair.into_inner() {
                                 match pair.as_rule() {
                                     Rule::Match => {
-                                        let match_clause = parse_match(pair)?;
+                                        let match_clause =
+                                            parse_match(pair, &mut un_named_counter)?;
                                         clauses.push(Clause::Match(match_clause));
                                     }
                                     _ => {}
@@ -115,14 +117,14 @@ pub fn parse_single_query(pair: Pair<Rule>) -> Result<SingleQuery, ParseError> {
     Ok(SingleQuery { clauses })
 }
 
-pub fn parse_match(pair: Pair<Rule>) -> Result<Match, ParseError> {
+pub fn parse_match(pair: Pair<Rule>, un_named_counter: &mut usize) -> Result<Match, ParseError> {
     let mut pattern = Pattern::default();
     let mut where_clause = None;
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::MATCH => {}
             Rule::Pattern => {
-                pattern = parse_pattern(pair)?;
+                pattern = parse_pattern(pair, un_named_counter)?;
             }
             Rule::Where => {
                 for pair in pair.into_inner() {
@@ -396,12 +398,15 @@ pub fn parse_boolean_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
     Ok(Literal::Bool(b))
 }
 
-pub fn parse_pattern(pair: Pair<Rule>) -> Result<Pattern, ParseError> {
+pub fn parse_pattern(
+    pair: Pair<Rule>,
+    un_named_counter: &mut usize,
+) -> Result<Pattern, ParseError> {
     let mut parts = Vec::new();
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::PatternPart => {
-                parts.push(parse_pattern_part(pair)?);
+                parts.push(parse_pattern_part(pair, un_named_counter)?);
             }
             _ => {}
         }
@@ -409,7 +414,10 @@ pub fn parse_pattern(pair: Pair<Rule>) -> Result<Pattern, ParseError> {
     Ok(Pattern(parts))
 }
 
-pub fn parse_pattern_part(pair: Pair<Rule>) -> Result<PatternPart, ParseError> {
+pub fn parse_pattern_part(
+    pair: Pair<Rule>,
+    un_named_counter: &mut usize,
+) -> Result<PatternPart, ParseError> {
     let mut var = None;
     let mut first_node = None;
     let mut rel_chain = Vec::new();
@@ -419,7 +427,7 @@ pub fn parse_pattern_part(pair: Pair<Rule>) -> Result<PatternPart, ParseError> {
                 var = Some(parse_variable(pair)?);
             }
             Rule::PatternElement => {
-                parse_pattern_element(&mut rel_chain, &mut first_node, pair)?;
+                parse_pattern_element(&mut rel_chain, &mut first_node, pair, un_named_counter)?;
             }
             _ => {}
         }
@@ -435,6 +443,7 @@ fn parse_pattern_element(
     rel_chain: &mut Vec<(RelPattern, NodePattern)>,
     first_node: &mut Option<NodePattern>,
     pair: Pair<'_, Rule>,
+    un_named_counter: &mut usize,
 ) -> Result<(), ParseError> {
     let mut rels = vec![];
     let mut nodes = vec![];
@@ -443,14 +452,14 @@ fn parse_pattern_element(
         match pair.as_rule() {
             Rule::NodePattern => {
                 if first_node.is_none() {
-                    let np = parse_node_pattern(pair)?;
+                    let np = parse_node_pattern(pair, un_named_counter)?;
                     *first_node = Some(np);
                 } else {
-                    nodes.push(parse_node_pattern(pair)?);
+                    nodes.push(parse_node_pattern(pair, un_named_counter)?);
                 }
             }
             Rule::RelationshipPattern => {
-                rels.push(parse_rel_pattern(pair)?);
+                rels.push(parse_rel_pattern(pair, un_named_counter)?);
             }
             rule => return unsupported("parse_pattern_element", &rule),
         }
@@ -464,13 +473,16 @@ fn parse_pattern_element(
     Ok(())
 }
 
-fn parse_rel_detail(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
+fn parse_rel_detail(
+    pair: Pair<'_, Rule>,
+    un_named_counter: &mut usize,
+) -> Result<RelPattern, ParseError> {
     let mut rel_pattern = RelPattern::default();
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::Variable => {
                 let var = parse_variable(pair)?;
-                rel_pattern.name = Some(var);
+                rel_pattern.name = var;
             }
             Rule::RelationshipTypes => {
                 let rel_types = pair
@@ -492,10 +504,19 @@ fn parse_rel_detail(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
             rule => return unsupported("parse_rel_detail", &rule),
         }
     }
+
+    if rel_pattern.name.is_empty() {
+        rel_pattern.name = format!("r_{}", un_named_counter);
+        *un_named_counter += 1;
+    }
+
     Ok(rel_pattern)
 }
 
-fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
+fn parse_rel_pattern(
+    pair: Pair<'_, Rule>,
+    un_named_counter: &mut usize,
+) -> Result<RelPattern, ParseError> {
     let mut rel_pattern = RelPattern::default();
 
     let mut direction = Direction::BOTH;
@@ -510,7 +531,7 @@ fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
                 direction = Direction::OUT;
             }
             Rule::RelationshipDetail => {
-                rel_pattern = parse_rel_detail(pair)?;
+                rel_pattern = parse_rel_detail(pair, un_named_counter)?;
             }
             rule => return unsupported("parse_rel_pattern", &rule),
         }
@@ -521,13 +542,16 @@ fn parse_rel_pattern(pair: Pair<'_, Rule>) -> Result<RelPattern, ParseError> {
     Ok(rel_pattern)
 }
 
-fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
+fn parse_node_pattern(
+    pair: Pair<'_, Rule>,
+    un_named_counter: &mut usize,
+) -> Result<NodePattern, ParseError> {
     let mut node = NodePattern::default();
     for pair in pair.into_inner() {
         match pair.as_rule() {
             Rule::Variable => {
                 let var = parse_variable(pair)?;
-                node.name = Some(var);
+                node.name = var;
             }
             Rule::NodeLabels => {
                 let labels = pair
@@ -548,6 +572,11 @@ fn parse_node_pattern(pair: Pair<'_, Rule>) -> Result<NodePattern, ParseError> {
             },
             rule => return unsupported("parse_node_pattern 1", &rule),
         }
+    }
+
+    if node.name.is_empty() {
+        node.name = format!("n_{}", un_named_counter);
+        *un_named_counter += 1;
     }
 
     Ok(node)
@@ -811,11 +840,11 @@ mod test {
         let pairs = CypherParser::parse(Rule::NodePattern, input);
         assert!(pairs.is_ok());
 
-        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(
             node,
             Ok(NodePattern {
-                name: None,
+                name: "n_0".to_string(),
                 labels: vec![],
                 props: None
             })
@@ -829,11 +858,11 @@ mod test {
         let pairs = CypherParser::parse(Rule::NodePattern, input);
         assert!(pairs.is_ok());
 
-        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(
             node,
             Ok(NodePattern {
-                name: Some("n".to_string()),
+                name: "n".to_string(),
                 labels: vec![],
                 props: None
             })
@@ -847,11 +876,11 @@ mod test {
         let pairs = CypherParser::parse(Rule::NodePattern, input);
         assert!(pairs.is_ok());
 
-        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(
             node,
             Ok(NodePattern {
-                name: Some("n".to_string()),
+                name: "n".to_string(),
                 labels: vec!["Person".to_string()],
                 props: None
             })
@@ -865,11 +894,11 @@ mod test {
         let pairs = CypherParser::parse(Rule::NodePattern, input);
         assert!(pairs.is_ok());
 
-        let node = parse_node_pattern(pairs.unwrap().next().unwrap());
+        let node = parse_node_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(
             node,
             Ok(NodePattern {
-                name: Some("n".to_string()),
+                name: "n".to_string(),
                 labels: vec!["Person".to_string()],
                 props: Some(
                     vec![(
@@ -890,11 +919,11 @@ mod test {
         let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
         assert!(pairs.is_ok());
 
-        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(
             rel,
             Ok(RelPattern {
-                name: Some("r".to_string()),
+                name: "r".to_string(),
                 direction: Direction::OUT,
                 rel_types: vec!["KNOWS".to_string()],
                 props: Some(
@@ -916,11 +945,11 @@ mod test {
         let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
         assert!(pairs.is_ok());
 
-        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(
             rel,
             Ok(RelPattern {
-                name: Some("r".to_string()),
+                name: "r".to_string(),
                 direction: Direction::OUT,
                 rel_types: vec!["KNOWS".to_string()],
                 props: None
@@ -935,7 +964,7 @@ mod test {
         let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
         assert!(pairs.is_ok());
 
-        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(rel, Ok(RelPattern::out("r")));
 
         let input = "<-[r]-";
@@ -943,7 +972,7 @@ mod test {
         let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
         assert!(pairs.is_ok());
 
-        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(rel, Ok(RelPattern::into("r")));
 
         let input = "-[r]-";
@@ -951,7 +980,7 @@ mod test {
         let pairs = CypherParser::parse(Rule::RelationshipPattern, input);
         assert!(pairs.is_ok());
 
-        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap());
+        let rel = parse_rel_pattern(pairs.unwrap().next().unwrap(), &mut 0);
         assert_eq!(rel, Ok(RelPattern::undirected("r")));
     }
 
@@ -1445,19 +1474,19 @@ mod test {
                     Pattern(vec![PatternPart::named_path(
                         "p",
                         NodePattern {
-                            name: Some("a".to_string()),
+                            name: "a".to_string(),
                             labels: vec!["Person".to_string()],
                             props: None
                         },
                         vec![(
                             RelPattern {
-                                name: Some("r".to_string()),
+                                name: "r".to_string(),
                                 direction: Direction::OUT,
                                 rel_types: vec!["KNOWS".to_string()],
                                 props: None
                             },
                             NodePattern {
-                                name: Some("b".to_string()),
+                                name: "b".to_string(),
                                 labels: vec!["Person".to_string()],
                                 props: None
                             }

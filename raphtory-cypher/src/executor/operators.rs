@@ -8,7 +8,10 @@ use arrow2::{
     types::NativeType,
 };
 use pl_array::Arrow2Arrow as PolarsA2A;
-use polars_arrow::{array as pl_array, offset::OffsetsBuffer};
+use polars_arrow::{
+    array::{self as pl_array, MutableArray, MutableListArray},
+    offset::OffsetsBuffer,
+};
 use polars_core::{
     datatypes::{ArrowDataType, PolarsDataType, UInt64Type},
     series::{IntoSeries, Series},
@@ -21,7 +24,7 @@ use raphtory::{
         graph_impl::ArrowGraph,
         prelude::BaseArrayOps,
     },
-    core::Direction,
+    core::{entities::VID, Direction},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
@@ -91,7 +94,85 @@ fn expr_to_polars_expr(expr: &Expr) -> polars_lazy::dsl::Expr {
 pub struct Expand {
     dir: Direction,
     from_col: usize,
-    expr: polars_lazy::dsl::Expr,
+    bind_name: String,
+    // layers: Vec<usize>,
+    // expr: polars_lazy::dsl::Expr,
+}
+
+impl Expand {
+    pub fn new(
+        dir: Direction,
+        from_col: usize,
+        bind_name: impl AsRef<str>,
+    ) -> Self {
+        Self {
+            dir,
+            from_col,
+            bind_name: bind_name.as_ref().to_string(),
+        }
+    }
+
+}
+
+impl Operator for Expand {
+    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
+        let col = &input.data.get_columns()[self.from_col];
+
+        let chunked = col.u64().expect("Failed to get u64 column");
+
+        let mut v_ids: pl_array::MutableListArray<i64, pl_array::MutablePrimitiveArray<u64>> =
+            pl_array::MutableListArray::new_from(
+                pl_array::MutablePrimitiveArray::<u64>::new(),
+                ArrowDataType::LargeList(Box::new(ArrowField::new(
+                    "name",
+                    ArrowDataType::UInt64,
+                    false,
+                ))),
+                col.len() * 5, // finger in the air
+            );
+
+        let mut e_ids: pl_array::MutableListArray<i64, pl_array::MutablePrimitiveArray<u64>> =
+            pl_array::MutableListArray::new_from(
+                pl_array::MutablePrimitiveArray::<u64>::new(),
+                ArrowDataType::LargeList(Box::new(ArrowField::new(
+                    "name",
+                    ArrowDataType::UInt64,
+                    false,
+                ))),
+                col.len() * 5, // finger in the air
+            );
+
+        chunked.into_iter().for_each(|v_id_u64| {
+            v_id_u64.map(|vid| VID(vid as usize)).map(|vid| {
+                let g = ctx.graph;
+                for (e_id, v_id) in g
+                    .edges(vid, self.dir, 0)
+                    .map(|(e_id, v_id)| (e_id.0 as u64, v_id.0 as u64))
+                {
+                    v_ids.mut_values().push(Some(v_id));
+                    e_ids.mut_values().push(Some(e_id));
+                }
+            });
+            v_ids.try_push_valid().expect("Failed to push validity");
+            e_ids.try_push_valid().expect("Failed to push validity");
+        });
+
+        let v_ids: pl_array::ListArray<i64> = v_ids.into();
+        let v_ids_series = Series::from_arrow(&format!("v_{}", self.bind_name), v_ids.boxed())
+            .expect("Failed to make series");
+
+        let e_ids: pl_array::ListArray<i64> = e_ids.into();
+        let e_ids_series = Series::from_arrow(&format!("e_{}", self.bind_name), e_ids.boxed())
+            .expect("Failed to make series");
+
+        let mut df = input.data.clone();
+        df.with_column(v_ids_series)
+            .expect("Failed to add v_ids columns")
+            .with_column(e_ids_series)
+            .expect("Failed to add e_ids columns");
+
+        Box::new(std::iter::once(DataBlock { data: df }))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -448,12 +529,6 @@ fn make_chunked_array<T: PolarsDataType>(
 
 pub struct NodeScan {
     columns: Arc<[usize]>, // name could be one column
-}
-
-impl Operator for Expand {
-    fn execute(&self, input: DataBlock, ctx: Context) -> Box<dyn Iterator<Item = DataBlock>> {
-        Box::new(iter::empty())
-    }
 }
 
 #[cfg(test)]
