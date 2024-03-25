@@ -158,7 +158,7 @@ pub trait NodeStateOps<'graph>:
         self.top_k_by(|v1, v2| cmp(v1, v2).reverse(), k)
     }
 
-    fn min_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
+    fn min_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
         &self,
         cmp: F,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
@@ -166,7 +166,7 @@ pub trait NodeStateOps<'graph>:
             .min_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()))
     }
 
-    fn max_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
+    fn max_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
         &self,
         cmp: F,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
@@ -174,7 +174,7 @@ pub trait NodeStateOps<'graph>:
             .max_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()).reverse())
     }
 
-    fn median_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
+    fn median_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
         &self,
         cmp: F,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {

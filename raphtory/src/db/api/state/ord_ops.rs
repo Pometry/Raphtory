@@ -85,13 +85,25 @@ where
     ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
 
     /// Returns a tuple of the min result with its key
-    fn min(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+
+    fn min(&self) -> Option<Self::Value<'_>> {
+        self.min_item().map(|(_, v)| v)
+    }
 
     /// Returns a tuple of the max result with its key
-    fn max(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn max_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+
+    fn max(&self) -> Option<Self::Value<'_>> {
+        self.max_item().map(|(_, v)| v)
+    }
 
     /// Returns a tuple of the median result with its key
-    fn median(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+
+    fn median(&self) -> Option<Self::Value<'_>> {
+        self.median_item().map(|(_, v)| v)
+    }
 }
 
 pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
@@ -131,13 +143,25 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
 
     /// Returns a tuple of the min result with its key
-    fn min(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+
+    fn min(&self) -> Option<Self::Value<'_>> {
+        self.min_item().map(|(_, v)| v)
+    }
 
     /// Returns a tuple of the max result with its key
-    fn max(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn max_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+
+    fn max(&self) -> Option<Self::Value<'_>> {
+        self.max_item().map(|(_, v)| v)
+    }
 
     /// Returns a tuple of the median result with its key
-    fn median(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+    fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
+
+    fn median(&self) -> Option<Self::Value<'_>> {
+        self.median_item().map(|(_, v)| v)
+    }
 }
 
 impl<'graph, V: NodeStateOps<'graph>> OrderedNodeStateOps<'graph> for V
@@ -166,16 +190,16 @@ where
         self.bottom_k_by(Ord::cmp, k)
     }
 
-    fn min(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        self.min_by(Ord::cmp)
+    fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        self.min_item_by(Ord::cmp)
     }
 
-    fn max(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        self.max_by(Ord::cmp)
+    fn max_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        self.max_item_by(Ord::cmp)
     }
 
-    fn median(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        self.median_by(Ord::cmp)
+    fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        self.median_item_by(Ord::cmp)
     }
 }
 
@@ -205,16 +229,16 @@ where
         self.bottom_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
-    fn min(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        self.min_by(|a, b| a.as_ord().cmp(b.as_ord()))
+    fn min_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        self.min_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 
-    fn max(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        self.max_by(|a, b| a.as_ord().cmp(b.as_ord()))
+    fn max_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        self.max_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 
-    fn median(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        self.median_by(|a, b| a.as_ord().cmp(b.as_ord()))
+    fn median_item(&self) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+        self.median_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 }
 

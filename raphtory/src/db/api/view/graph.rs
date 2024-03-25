@@ -497,6 +497,7 @@ mod test_materialize {
         assert!(gm
             .nodes()
             .name()
+            .values()
             .collect::<Vec<String>>()
             .eq(&vec!["1", "2"]));
 

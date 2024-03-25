@@ -166,7 +166,7 @@ where
 {
     type BaseGraph = G;
     type Graph = GH;
-    type ValueType<T: 'graph> = BoxedLIter<'graph, T>;
+    type ValueType<T: 'graph> = LazyNodeState<'graph, T, G, GH>;
     type PropType = NodeView<GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
@@ -176,8 +176,8 @@ where
         op: F,
     ) -> Self::ValueType<O> {
         let g = self.graph.clone();
-        let cg = g.core_graph();
-        Box::new(self.iter_refs().map(move |v| op(&cg, &g, v)))
+        let bg = self.base_graph.clone();
+        LazyNodeState::new(bg, g, self.graph.node_list(), op)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {

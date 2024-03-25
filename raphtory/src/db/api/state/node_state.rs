@@ -262,8 +262,8 @@ mod test {
             keys: None,
             _marker: Default::default(),
         };
-        let min_float = float_state.min().unwrap().1;
-        let min_int = int_state.min().unwrap().1;
+        let min_float = float_state.min_item().unwrap().1;
+        let min_int = int_state.min_item().unwrap().1;
         assert_eq!(min_float, &0.0);
         assert_eq!(min_int, &1);
     }

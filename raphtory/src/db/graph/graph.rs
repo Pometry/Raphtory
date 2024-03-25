@@ -24,6 +24,7 @@ use crate::{
     },
     prelude::*,
 };
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -44,7 +45,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     g2: &G2,
 ) -> bool {
     if g1.count_nodes() == g2.count_nodes() && g1.count_edges() == g2.count_edges() {
-        g1.nodes().id().all(|v| g2.has_node(v)) && // all nodes exist in other
+        g1.nodes().id().par_values().all(|v| g2.has_node(v)) && // all nodes exist in other
             g1.count_temporal_edges() == g2.count_temporal_edges() && // same number of exploded edges
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
@@ -87,7 +88,7 @@ pub fn assert_graph_equal<
         g1.count_temporal_edges(),
         g2.count_temporal_edges()
     );
-    for n_id in g1.nodes().id() {
+    for n_id in g1.nodes().id().values() {
         assert!(g2.has_node(n_id), "missing node {n_id}");
     }
     for e in g1.edges().explode() {

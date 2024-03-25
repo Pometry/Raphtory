@@ -14,11 +14,31 @@ use rayon::prelude::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
 pub struct LazyNodeState<'graph, V, G, GH = G> {
-    op: Arc<dyn Fn(&LockedGraph, &GH, VID) -> V + Send + Sync>,
+    op: Arc<dyn Fn(&LockedGraph, &GH, VID) -> V + Send + Sync + 'graph>,
     base_graph: G,
     graph: GH,
     nodes: NodeList,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph>
+    LazyNodeState<'graph, V, G, GH>
+{
+    pub(crate) fn new(
+        base_graph: G,
+        graph: GH,
+        nodes: NodeList,
+        op: impl Fn(&LockedGraph, &GH, VID) -> V + Send + Sync + 'graph,
+    ) -> Self {
+        let op = Arc::new(op);
+        Self {
+            op,
+            base_graph,
+            graph,
+            nodes,
+            _marker: Default::default(),
+        }
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph> IntoIterator
@@ -163,34 +183,25 @@ impl<
         &self,
         index: usize,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        let vid = if self.graph.node_list_trusted() {
-            match self.graph.node_list() {
+        if self.graph.nodes_filtered() {
+            self.iter().skip(index).next()
+        } else {
+            let vid = match &self.nodes {
                 NodeList::All { num_nodes } => {
-                    if index < num_nodes {
+                    if index < *num_nodes {
                         VID(index)
                     } else {
                         return None;
                     }
                 }
                 NodeList::List { nodes } => *nodes.get(index)?,
-            }
-        } else {
+            };
             let cg = self.graph.core_graph();
-            self.graph
-                .node_list()
-                .into_iter()
-                .filter(|vid| {
-                    self.graph
-                        .filter_node(cg.nodes.get(*vid), self.graph.layer_ids())
-                })
-                .skip(index)
-                .next()?
-        };
-        let cg = self.graph.core_graph();
-        Some((
-            NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, vid),
-            (self.op)(&cg, &self.graph, vid),
-        ))
+            Some((
+                NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, vid),
+                (self.op)(&cg, &self.graph, vid),
+            ))
+        }
     }
 
     fn get_by_node<N: Into<NodeRef>>(
@@ -198,6 +209,14 @@ impl<
         node: N,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
         let vid = self.graph.internalise_node(node.into())?;
+        match &self.nodes {
+            NodeList::All { .. } => {}
+            NodeList::List { nodes } => {
+                if !nodes.contains(&vid) {
+                    return None;
+                }
+            }
+        }
         let cg = self.graph.core_graph();
         self.graph
             .filter_node(cg.nodes.get(vid), self.graph.layer_ids())
