@@ -1,5 +1,6 @@
 use arrow::datatypes::ArrowPrimitiveType;
 use arrow2::{array::Arrow2Arrow, types::NativeType};
+use arrow_array::{GenericStringArray, OffsetSizeTrait};
 use datafusion::execution::context::{SQLOptions, SessionContext};
 
 use sqlparser::ast::{self as sql_ast};
@@ -33,21 +34,42 @@ pub async fn run_with_datafusion(sql: sql_ast::Statement) -> Result<(), ExecErro
     Ok(())
 }
 
-fn arrow2_to_arrow<T: NativeType, U: ArrowPrimitiveType>(buffer: &arrow2::buffer::Buffer<T>) -> arrow::array::PrimitiveArray<U> {
-    let dt = arrow2::datatypes::DataType::from(<T as arrow2::types::NativeType>::PRIMITIVE);
+fn arrow2_to_arrow_buf<U: ArrowPrimitiveType>(
+    buffer: &arrow2::buffer::Buffer<U::Native>,
+) -> arrow::array::PrimitiveArray<U>
+where
+    U::Native: NativeType,
+{
+    let dt = arrow2::datatypes::DataType::from(<U::Native as arrow2::types::NativeType>::PRIMITIVE);
     let prim_array = arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
     prim_array.to_data().into()
 }
 
+fn arrow2_to_arrow<U: ArrowPrimitiveType>(
+    array: &arrow2::array::PrimitiveArray<U::Native>,
+) -> arrow::array::PrimitiveArray<U>
+where
+    U::Native: NativeType,
+{
+    array.to_data().into()
+}
+
+fn utf8_arrow2_to_arrow<I: arrow2::offset::Offset + OffsetSizeTrait>(
+    array: &arrow2::array::Utf8Array<I>,
+) -> GenericStringArray<I>
+where
+    I: arrow2::offset::Offset,
+{
+    array.to_data().into()
+}
+
 #[cfg(test)]
-mod test{
-    
+mod test {
 
     #[tokio::test]
     async fn test_run_with_datafusion() {
         let _sql = "SELECT * FROM test";
     }
-
 }
 
 // #[derive(Clone, Copy)]
