@@ -41,7 +41,7 @@ use std::{
 };
 
 /// View of a Node in a Graph
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
