@@ -116,7 +116,7 @@ Return = {
 }
 
 ProjectionBody = {
-    DISTINCT? ~ ProjectionItems ~ (SP ~ Order)? ~ (SP ~ Skip)? ~ (SP ~ Limit)?
+    DISTINCT? ~ ProjectionItems ~ Order? ~ Skip? ~ Limit?
 }
 
 ProjectionItems = {
@@ -130,15 +130,15 @@ ProjectionItem = {
 }
 
 Order = {
-    ORDER ~ SP ~ BY ~ SP ~ SortItem ~ ("," ~ SP? ~ SortItem)*
+    ORDER ~ BY ~ SortItem ~ ("," ~ SortItem)*
 }
 
 Skip = {
-    SKIP ~ SP ~ Expression
+    SKIP ~ Expression
 }
 
 Limit = {
-    LIMIT ~ SP ~ Expression
+    LIMIT ~ Expression
 }
 
 SortItem = {

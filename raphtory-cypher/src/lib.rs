@@ -1,13 +1,123 @@
+use std::sync::Arc;
+
+use datafusion::{
+    execution::context::{SQLOptions, SessionContext},
+    physical_plan::projection,
+};
+use executor::{table_provider::EdgeListTableProvider, ExecError};
 use parser::ast::*;
 use raphtory::arrow::graph_impl::ArrowGraph;
-use sqlparser::ast as sql_ast;
+use sqlparser::ast::{self as sql_ast, Select};
 
 mod executor;
 pub mod parser;
 
-pub fn cypher_to_sql(_query: &Query) -> sql_ast::Statement {
-    todo!()
+pub fn cypher_to_sql(query: &Query) -> sql_ast::Statement {
+    sql_ast::Statement::Query(Box::new(sql_ast::Query {
+        // WITH (common table expressions, or CTEs)
+        with: None,
+        // SELECT or UNION / EXCEPT / INTERSECT
+        body: parse_select_body(query),
+        // ORDER BY
+        order_by: parse_order_by(query),
+        // `LIMIT { <N> | ALL }`
+        limit: parse_limit(query),
 
+        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
+        limit_by: vec![],
+        // `OFFSET <N> [ { ROW | ROWS } ]`
+        offset: None,
+        // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
+        fetch: None,
+        // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
+        locks: vec![],
+        // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
+        // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
+        // (MSSQL-specific)
+        for_clause: None,
+    }))
+}
+
+fn parse_limit(_query: &Query) -> Option<sql_ast::Expr> {
+    // TODO: implement actual limit
+    None
+}
+
+fn parse_order_by(query: &Query) -> Vec<sql_ast::OrderByExpr> {
+    vec![]
+}
+
+fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
+    let mut projection = vec![];
+    let mut tables = vec![];
+    let mut order_by = vec![];
+
+    Box::new(sql_ast::SetExpr::Select(Box::new(sql_ast::Select {
+        distinct: None,
+        // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
+        top: None,
+        // projection expressions
+        projection: projection,
+        // INTO
+        into: None,
+        // FROM
+        from: tables,
+        // LATERAL VIEWs
+        lateral_views: vec![],
+        // WHERE
+        selection: parse_selection(query),
+        // GROUP BY
+        group_by: GroupByExpr,
+        // CLUSTER BY (Hive)
+        cluster_by: vec![],
+        // DISTRIBUTE BY (Hive)
+        distribute_by: vec![],
+        // SORT BY (Hive)
+        sort_by: order_by,
+        // HAVING
+        having: None,
+        // WINDOW AS
+        named_window: vec![],
+        // QUALIFY (Snowflake)
+        qualify: None,
+    })))
+}
+
+pub async fn run_query(query: &Query, graph: &ArrowGraph) -> Result<(), ExecError> {
+    let ctx = SessionContext::new();
+
+    for layer in graph.layer_names() {
+        let table = EdgeListTableProvider::new(layer, graph.clone())?;
+        ctx.register_table(layer, Arc::new(table))?;
+    }
+
+    let query = cypher_to_sql(query);
+    let plan = ctx
+        .state()
+        .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
+            query,
+        )))
+        .await?;
+    let opts = SQLOptions::new();
+    opts.verify_plan(&plan)?;
+    ctx.execute_logical_plan(plan).await?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn test_cypher_to_sql_select() {
+        let query = "MATCH ()-[e]->() RETURN e";
+        let query = parser::parse_cypher(query).unwrap();
+        let sql = cypher_to_sql(&query);
+
+        assert_eq!(sql.to_string(), "SELECT e.* FROM graph AS e".to_string());
+    }
 }
 
 // pub fn naive_query_to_pipeline(
