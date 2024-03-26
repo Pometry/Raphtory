@@ -16,6 +16,7 @@ use std::{
     array,
     fmt::Debug,
     iter::FusedIterator,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -59,28 +60,53 @@ impl<T: Default> LockVec<T> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct RawStorage<T: Default, const N: usize> {
+pub struct RawStorage<T: Default, const N: usize, Index = usize> {
     pub(crate) data: Box<[LockVec<T>]>,
     len: AtomicUsize,
+    _index: PhantomData<Index>,
 }
 
-impl<T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, N> {
+impl<Index, T: PartialEq + Default, const N: usize> PartialEq for RawStorage<T, N, Index> {
     fn eq(&self, other: &Self) -> bool {
         self.data.eq(&other.data)
     }
 }
 
 #[derive(Debug)]
-pub struct ReadLockedStorage<T, const N: usize> {
-    locks: [ArcRwLockReadGuard<Vec<T>>; N],
+pub struct ReadLockedStorage<T, Index = usize> {
+    pub(crate) locks: Vec<Arc<ArcRwLockReadGuard<Vec<T>>>>,
     len: usize,
+    _index: PhantomData<Index>,
 }
 
-impl<T, const N: usize> ReadLockedStorage<T, N> {
-    pub(crate) fn get(&self, index: usize) -> &T {
-        let (bucket, offset) = resolve::<N>(index);
+impl<Index, T> ReadLockedStorage<T, Index>
+where
+    usize: From<Index>,
+{
+    fn resolve(&self, index: Index) -> (usize, usize) {
+        let index: usize = index.into();
+        let n = self.locks.len();
+        let bucket = index % n;
+        let offset = index / n;
+        (bucket, offset)
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub(crate) fn get(&self, index: Index) -> &T {
+        let (bucket, offset) = self.resolve(index);
         let bucket = &self.locks[bucket];
         &bucket[offset]
+    }
+
+    pub(crate) fn arc_entry(&self, index: Index) -> ArcEntry<T> {
+        let (bucket, offset) = self.resolve(index);
+        ArcEntry {
+            guard: self.locks[bucket].clone(),
+            i: offset,
+        }
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &T> + '_ {
@@ -102,9 +128,8 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
             .into_iter()
             .enumerate()
             .flat_map(|(bucket, data)| {
-                let arc_data = Arc::new(data);
-                (0..arc_data.len()).map(move |offset| ArcEntry {
-                    guard: arc_data.clone(),
+                (0..data.len()).map(move |offset| ArcEntry {
+                    guard: data.clone(),
                     i: offset,
                 })
             })
@@ -118,31 +143,38 @@ impl<T, const N: usize> ReadLockedStorage<T, N> {
             .into_par_iter()
             .enumerate()
             .flat_map(|(bucket, data)| {
-                let arc_data = Arc::new(data);
-                (0..arc_data.len())
-                    .into_par_iter()
-                    .map(move |offset| ArcEntry {
-                        guard: arc_data.clone(),
-                        i: offset,
-                    })
+                (0..data.len()).into_par_iter().map(move |offset| ArcEntry {
+                    guard: data.clone(),
+                    i: offset,
+                })
             })
     }
 }
 
-impl<T: Default + Send + Sync, const N: usize> RawStorage<T, N> {
+impl<Index, T: Default + Send + Sync, const N: usize> RawStorage<T, N, Index>
+where
+    usize: From<Index>,
+{
     pub fn count_with_filter<F: Fn(&T) -> bool + Send + Sync>(&self, f: F) -> usize {
         self.read_lock().par_iter().filter(|x| f(x)).count()
     }
 }
 
-impl<T: Default, const N: usize> RawStorage<T, N> {
+impl<Index, T: Default, const N: usize> RawStorage<T, N, Index>
+where
+    usize: From<Index>,
+{
     #[inline]
-    pub fn read_lock(&self) -> ReadLockedStorage<T, N> {
-        let guards: [ArcRwLockReadGuard<Vec<T>>; N] =
-            array::from_fn(|i| self.data[i].read_arc_lock());
+    pub fn read_lock(&self) -> ReadLockedStorage<T, Index> {
+        let guards = self
+            .data
+            .iter()
+            .map(|v| Arc::new(v.read_arc_lock()))
+            .collect();
         ReadLockedStorage {
             locks: guards,
             len: self.len(),
+            _index: PhantomData,
         }
     }
 
@@ -156,6 +188,7 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         Self {
             data,
             len: AtomicUsize::new(0),
+            _index: PhantomData,
         }
     }
 
@@ -172,23 +205,23 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
     }
 
     #[inline]
-    pub fn entry(&self, index: usize) -> Entry<'_, T, N> {
-        let (bucket, _) = resolve::<N>(index);
+    pub fn entry(&self, index: Index) -> Entry<'_, T> {
+        let index = index.into();
+        let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.read_recursive();
-        Entry {
-            offset: index,
-            guard,
-        }
+        Entry { offset, guard }
     }
 
     #[inline]
-    pub fn get(&self, index: usize) -> impl Deref<Target = T> + '_ {
+    pub fn get(&self, index: Index) -> impl Deref<Target = T> + '_ {
+        let index = index.into();
         let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.read_recursive();
         RwLockReadGuard::map(guard, |guard| &guard[offset])
     }
 
-    pub fn entry_arc(&self, index: usize) -> ArcEntry<T> {
+    pub fn entry_arc(&self, index: Index) -> ArcEntry<T> {
+        let index = index.into();
         let (bucket, offset) = resolve::<N>(index);
         let guard = &self.data[bucket].data;
         let arc_guard = RwLock::read_arc_recursive(guard);
@@ -198,14 +231,17 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         }
     }
 
-    pub fn entry_mut(&self, index: usize) -> EntryMut<'_, T> {
+    pub fn entry_mut(&self, index: Index) -> EntryMut<'_, T> {
+        let index = index.into();
         let (bucket, offset) = resolve::<N>(index);
         let guard = self.data[bucket].data.write();
         EntryMut { i: offset, guard }
     }
 
     // This helps get the right locks when adding an edge
-    pub fn pair_entry_mut(&self, i: usize, j: usize) -> PairEntryMut<'_, T> {
+    pub fn pair_entry_mut(&self, i: Index, j: Index) -> PairEntryMut<'_, T> {
+        let i = i.into();
+        let j = j.into();
         let (bucket_i, offset_i) = resolve::<N>(i);
         let (bucket_j, offset_j) = resolve::<N>(j);
         // always acquire lock for smaller bucket first to avoid deadlock between two updates for the same pair of buckets
@@ -241,18 +277,18 @@ impl<T: Default, const N: usize> RawStorage<T, N> {
         self.len.load(Ordering::SeqCst)
     }
 
-    pub fn iter(&self) -> Iter<T, N> {
+    pub fn iter(&self) -> Iter<T, N, Index> {
         Iter::new(self)
     }
 }
 
 #[derive(Debug)]
-pub struct Entry<'a, T: 'static, const N: usize> {
+pub struct Entry<'a, T: 'static> {
     offset: usize,
     guard: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<'a, T: 'static, const N: usize> Clone for Entry<'a, T, N> {
+impl<'a, T: 'static> Clone for Entry<'a, T> {
     fn clone(&self) -> Self {
         let guard = RwLockReadGuard::rwlock(&self.guard).read_recursive();
         let i = self.offset;
@@ -293,33 +329,25 @@ where
     }
 }
 
-impl<'a, T, const N: usize> Entry<'a, T, N> {
+impl<'a, T> Entry<'a, T> {
     pub fn value(&self) -> &T {
-        let (_, offset) = resolve::<N>(self.offset);
-        &self.guard[offset]
-    }
-
-    pub fn index(&self) -> usize {
-        self.offset
+        &self.guard[self.offset]
     }
 
     pub fn map<U, F: Fn(&T) -> &U>(self, f: F) -> LockedView<'a, U> {
-        let (_, offset) = resolve::<N>(self.offset);
         let mapped_guard = RwLockReadGuard::map(self.guard, |guard| {
-            let what = &guard[offset];
+            let what = &guard[self.offset];
             f(what)
         });
-
         LockedView::LockMapped(mapped_guard)
     }
 }
 
-impl<'a, T, const N: usize> Deref for Entry<'a, T, N> {
+impl<'a, T> Deref for Entry<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        let (_, offset) = resolve::<N>(self.offset);
-        &self.guard[offset]
+        self.value()
     }
 }
 

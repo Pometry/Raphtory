@@ -25,7 +25,7 @@
 //!
 
 use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -166,9 +166,10 @@ pub enum PropType {
     Bool,
     List,
     Map,
-    DTime,
+    NDTime,
     Graph,
     Document,
+    DTime,
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.
@@ -186,7 +187,8 @@ pub enum Prop {
     Bool(bool),
     List(Arc<Vec<Prop>>),
     Map(Arc<HashMap<ArcStr, Prop>>),
-    DTime(NaiveDateTime),
+    NDTime(NaiveDateTime),
+    DTime(DateTime<Utc>),
     Graph(Graph),
     Document(DocumentInput),
 }
@@ -204,7 +206,7 @@ impl PartialOrd for Prop {
             (Prop::F32(a), Prop::F32(b)) => a.partial_cmp(b),
             (Prop::F64(a), Prop::F64(b)) => a.partial_cmp(b),
             (Prop::Bool(a), Prop::Bool(b)) => a.partial_cmp(b),
-            (Prop::DTime(a), Prop::DTime(b)) => a.partial_cmp(b),
+            (Prop::NDTime(a), Prop::NDTime(b)) => a.partial_cmp(b),
             _ => None,
         }
     }
@@ -235,6 +237,7 @@ impl Prop {
                 Value::Object(map)
             }
             Prop::DTime(value) => Value::String(value.to_string()),
+            Prop::NDTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
             Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
         }
@@ -254,9 +257,10 @@ impl Prop {
             Prop::Bool(_) => PropType::Bool,
             Prop::List(_) => PropType::List,
             Prop::Map(_) => PropType::Map,
-            Prop::DTime(_) => PropType::DTime,
+            Prop::NDTime(_) => PropType::NDTime,
             Prop::Graph(_) => PropType::Graph,
             Prop::Document(_) => PropType::Document,
+            Prop::DTime(_) => PropType::DTime,
         }
     }
 
@@ -355,9 +359,9 @@ pub trait PropUnwrap: Sized {
         self.into_map().unwrap()
     }
 
-    fn into_dtime(self) -> Option<NaiveDateTime>;
-    fn unwrap_dtime(self) -> NaiveDateTime {
-        self.into_dtime().unwrap()
+    fn into_ndtime(self) -> Option<NaiveDateTime>;
+    fn unwrap_ndtime(self) -> NaiveDateTime {
+        self.into_ndtime().unwrap()
     }
 
     fn into_graph(self) -> Option<Graph>;
@@ -420,8 +424,8 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_map())
     }
 
-    fn into_dtime(self) -> Option<NaiveDateTime> {
-        self.and_then(|p| p.into_dtime())
+    fn into_ndtime(self) -> Option<NaiveDateTime> {
+        self.and_then(|p| p.into_ndtime())
     }
 
     fn into_graph(self) -> Option<Graph> {
@@ -530,8 +534,8 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_dtime(self) -> Option<NaiveDateTime> {
-        if let Prop::DTime(v) = self {
+    fn into_ndtime(self) -> Option<NaiveDateTime> {
+        if let Prop::NDTime(v) = self {
             Some(v)
         } else {
             None
@@ -569,6 +573,7 @@ impl Display for Prop {
             Prop::F64(value) => write!(f, "{}", value),
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
+            Prop::NDTime(value) => write!(f, "{}", value),
             Prop::Graph(value) => write!(
                 f,
                 "Graph(num_nodes={}, num_edges={})",
@@ -674,6 +679,12 @@ impl From<f32> for Prop {
 impl From<f64> for Prop {
     fn from(f: f64) -> Self {
         Prop::F64(f)
+    }
+}
+
+impl From<DateTime<Utc>> for Prop {
+    fn from(f: DateTime<Utc>) -> Self {
+        Prop::DTime(f)
     }
 }
 

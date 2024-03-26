@@ -13,10 +13,9 @@ from math import isclose
 from datetime import datetime, timezone
 import string
 from pathlib import Path
-from distutils import dir_util
 from pytest import fixture
 import os
-
+import shutil
 
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
@@ -1985,8 +1984,6 @@ def test_leading_zeroes_ids():
     # assert g.node(g.node(1).name) is not None
 
 
-
-
 def test_node_types():
     g = Graph()
     a = g.add_node(0, "A", None, None)
@@ -1995,12 +1992,14 @@ def test_node_types():
     assert b.node_type == "BTYPE"
     assert set(g.nodes.node_type) == {None, "BTYPE"}
 
+
 def test_node_types_change():
     g = Graph()
     a = g.add_node(0, "A", None, None)
     assert a.node_type == None
     a.set_node_type("YO")
     assert a.node_type == "YO"
+
 
 def test_is_self_loop():
     g = Graph()
@@ -2010,6 +2009,7 @@ def test_is_self_loop():
     g.add_node(0, "B", None, None)
     ee = g.add_edge(0, "A", "B", None, None)
     assert not ee.is_self_loop()
+
 
 def test_fuzzy_search():
     g = Graph()
@@ -2090,19 +2090,26 @@ def datadir(tmpdir, request):
     filename = request.module.__file__
     test_dir, _ = os.path.splitext(filename)
     if os.path.isdir(test_dir):
-        dir_util.copy_tree(test_dir, str(tmpdir))
+        try:
+            shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
+            return tmpdir
+        except Exception as e:
+            raise e
     return tmpdir
 
 
 def test_bincode_has_not_changed(datadir):
     try:
-        bincode_path = datadir.join('graph.bincode')
+        bincode_path = datadir.join("graph.bincode")
         _ = Graph.load_from_file(str(bincode_path))
     except Exception as e:
         print(e)
-        raise Exception("This test has failed because you have updated core which has changed the bincode. Please can "
-                        "you increment the raphtory/src/lib.rs::BINCODE_VERSION in rust by 1. Then create an empty "
-                        "graph and overwrite this file python/resources/tests/test_graphdb/graph.bincode")
+        raise Exception(
+            "This test has failed because you have updated core which has changed the bincode. Please can "
+            "you increment the raphtory/src/lib.rs::BINCODE_VERSION in rust by 1. Then create an empty "
+            "graph and overwrite this file python/resources/tests/test_graphdb/graph.bincode"
+        )
+
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
 # g = Graph()

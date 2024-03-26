@@ -81,6 +81,14 @@ def test_load_from_pandas_with_invalid_data():
         g = GraphWithDeletions.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(exc_info)
 
+    # Optionally, you can check the exception message or type
+    assert "Failed to load graph" in str(exc_info.value)
+    assert "ArrowInvalid" in str(exc_info.value)
+    assert (
+        "Could not convert '3.0 KG' with type str: tried to convert to double"
+        in str(exc_info.value)
+    )
+
 
 def test_load_from_pandas_into_existing_graph():
     edges_df = pd.DataFrame(

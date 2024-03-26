@@ -17,10 +17,10 @@ use std::{
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct GraphStorage<const N: usize> {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    pub(crate) nodes: storage::RawStorage<NodeStore, N>,
+    pub(crate) nodes: storage::RawStorage<NodeStore, N, VID>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    pub(crate) edges: storage::RawStorage<EdgeStore, N>,
+    pub(crate) edges: storage::RawStorage<EdgeStore, N, EID>,
 }
 
 impl<const N: usize> GraphStorage<N> {
@@ -45,41 +45,41 @@ impl<const N: usize> GraphStorage<N> {
 
     #[inline]
     pub(crate) fn get_node_mut(&self, id: VID) -> EntryMut<'_, NodeStore> {
-        self.nodes.entry_mut(id.into())
+        self.nodes.entry_mut(id)
     }
 
     #[inline]
     pub(crate) fn get_edge_mut(&self, id: EID) -> EntryMut<'_, EdgeStore> {
-        self.edges.entry_mut(id.into())
+        self.edges.entry_mut(id)
     }
 
     #[inline]
-    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore, N> {
-        self.nodes.entry(id.into())
+    pub(crate) fn get_node(&self, id: VID) -> Entry<'_, NodeStore> {
+        self.nodes.entry(id)
     }
 
     pub(crate) fn get_node_arc(&self, id: VID) -> ArcEntry<NodeStore> {
-        self.nodes.entry_arc(id.into())
+        self.nodes.entry_arc(id)
     }
 
     pub(crate) fn get_edge_arc(&self, id: EID) -> ArcEntry<EdgeStore> {
-        self.edges.entry_arc(id.into())
+        self.edges.entry_arc(id)
     }
 
     #[inline]
-    pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore, N> {
-        self.edges.entry(id.into())
+    pub(crate) fn get_edge(&self, id: EID) -> Entry<'_, EdgeStore> {
+        self.edges.entry(id)
     }
 
     pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
-        self.nodes.pair_entry_mut(i.into(), j.into())
+        self.nodes.pair_entry_mut(i, j)
     }
 
-    fn lock(&self) -> LockedGraphStorage<N> {
+    fn lock(&self) -> LockedGraphStorage {
         LockedGraphStorage::new(self)
     }
 
-    pub(crate) fn locked_nodes(&self) -> LockedIter<N, NodeStore> {
+    pub(crate) fn locked_nodes(&self) -> LockedIter<NodeStore> {
         LockedIter {
             from: 0,
             to: self.nodes.len(),
@@ -97,15 +97,15 @@ impl<const N: usize> GraphStorage<N> {
     }
 }
 
-pub(crate) struct LockedIter<const N: usize, T> {
+pub(crate) struct LockedIter<T> {
     from: usize,
     to: usize,
-    locked_gs: Arc<LockedGraphStorage<N>>,
+    locked_gs: Arc<LockedGraphStorage>,
     phantom: std::marker::PhantomData<T>,
 }
 
-impl<const N: usize> Iterator for LockedIter<N, NodeStore> {
-    type Item = GraphEntry<NodeStore, N>;
+impl Iterator for LockedIter<NodeStore> {
+    type Item = GraphEntry<NodeStore>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.from < self.to {
@@ -122,8 +122,8 @@ impl<const N: usize> Iterator for LockedIter<N, NodeStore> {
     }
 }
 
-impl<'a, const N: usize> Iterator for LockedIter<N, EdgeStore> {
-    type Item = GraphEntry<EdgeStore, N>;
+impl<'a> Iterator for LockedIter<EdgeStore> {
+    type Item = GraphEntry<EdgeStore>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.from < self.to {
@@ -140,15 +140,15 @@ impl<'a, const N: usize> Iterator for LockedIter<N, EdgeStore> {
     }
 }
 
-pub struct GraphEntry<T, const N: usize> {
-    locked_gs: Arc<LockedGraphStorage<N>>,
+pub struct GraphEntry<T> {
+    locked_gs: Arc<LockedGraphStorage>,
     i: usize,
     _marker: std::marker::PhantomData<T>,
 }
 
 // impl new
-impl<'a, const N: usize, T> GraphEntry<T, N> {
-    pub(crate) fn new(gs: Arc<LockedGraphStorage<N>>, i: usize) -> Self {
+impl<'a, T> GraphEntry<T> {
+    pub(crate) fn new(gs: Arc<LockedGraphStorage>, i: usize) -> Self {
         Self {
             locked_gs: gs,
             i,
@@ -160,46 +160,46 @@ impl<'a, const N: usize, T> GraphEntry<T, N> {
         self.i
     }
 
-    pub(crate) fn locked_gs(&self) -> &Arc<LockedGraphStorage<N>> {
+    pub(crate) fn locked_gs(&self) -> &Arc<LockedGraphStorage> {
         &self.locked_gs
     }
 }
 
-impl<'a, const N: usize> Deref for GraphEntry<NodeStore, N> {
+impl Deref for GraphEntry<NodeStore> {
     type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
-        self.locked_gs.get_node(self.i)
+        self.locked_gs.get_node(VID(self.i))
     }
 }
 
-impl<'a, const N: usize> Deref for GraphEntry<EdgeStore, N> {
+impl Deref for GraphEntry<EdgeStore> {
     type Target = EdgeStore;
 
     fn deref(&self) -> &Self::Target {
-        self.locked_gs.get_edge(self.i)
+        self.locked_gs.get_edge(EID(self.i))
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct LockedGraphStorage<const N: usize> {
-    nodes: storage::ReadLockedStorage<NodeStore, N>,
-    edges: storage::ReadLockedStorage<EdgeStore, N>,
+pub(crate) struct LockedGraphStorage {
+    nodes: storage::ReadLockedStorage<NodeStore, VID>,
+    edges: storage::ReadLockedStorage<EdgeStore, EID>,
 }
 
-impl<const N: usize> LockedGraphStorage<N> {
-    pub(crate) fn new(storage: &GraphStorage<N>) -> Self {
+impl LockedGraphStorage {
+    pub(crate) fn new<const N: usize>(storage: &GraphStorage<N>) -> Self {
         Self {
             nodes: storage.nodes.read_lock(),
             edges: storage.edges.read_lock(),
         }
     }
 
-    pub(crate) fn get_node(&self, id: usize) -> &NodeStore {
+    pub(crate) fn get_node(&self, id: VID) -> &NodeStore {
         self.nodes.get(id)
     }
 
-    pub(crate) fn get_edge(&self, id: usize) -> &EdgeStore {
+    pub(crate) fn get_edge(&self, id: EID) -> &EdgeStore {
         self.edges.get(id)
     }
 }

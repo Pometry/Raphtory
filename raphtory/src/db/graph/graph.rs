@@ -266,7 +266,7 @@ mod db_tests {
 
         assert_eq!(g.nodes().collect(), Vec::<NodeView<Graph, Graph>>::new());
         assert_eq!(g.edges().collect(), Vec::<EdgeView<Graph, Graph>>::new());
-        assert!(g.edge_filter().is_none());
+        assert!(!g.edges_filtered());
         assert!(g.edge(1, 2).is_none());
         assert!(g.latest_time_global().is_none());
         assert!(g.latest_time_window(1, 2).is_none());

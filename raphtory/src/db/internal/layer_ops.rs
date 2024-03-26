@@ -8,8 +8,8 @@ use crate::{
 };
 
 impl<const N: usize> InternalLayerOps for InnerTemporalGraph<N> {
-    fn layer_ids(&self) -> LayerIds {
-        LayerIds::All
+    fn layer_ids(&self) -> &LayerIds {
+        &LayerIds::All
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {

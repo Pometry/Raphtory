@@ -8,7 +8,7 @@ members = [
     "js-raphtory",
     "raphtory-graphql",
     "comparison-benchmark/rust/raphtory-rust-benchmark"
-, "comparison-benchmark/graphql-benchmark/run_server"]
+    , "comparison-benchmark/graphql-benchmark/run_server"]
 default-members = ["raphtory"]
 resolver = "2"
 
@@ -104,3 +104,4 @@ js-sys = "0.3.68"
 console_error_panic_hook = "0.1.7"
 wee_alloc = "0.4.5"
 wasm-bindgen-test = "0.3.41"
+ouroboros = "0.18.3"

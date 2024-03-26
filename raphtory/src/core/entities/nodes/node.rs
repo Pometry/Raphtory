@@ -23,20 +23,16 @@ use itertools::Itertools;
 use std::{ops::Range, sync::Arc};
 
 pub struct Node<'a, const N: usize> {
-    node: VRef<'a, N>,
+    node: VRef<'a>,
     pub graph: &'a TGraph<N>,
 }
 
 impl<'a, const N: usize> Node<'a, N> {
-    pub fn id(&self) -> VID {
-        self.node.index().into()
-    }
-
-    pub(crate) fn new(node: VRef<'a, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn new(node: VRef<'a>, graph: &'a TGraph<N>) -> Self {
         Node { node, graph }
     }
 
-    pub(crate) fn from_entry(node: Entry<'a, NodeStore, N>, graph: &'a TGraph<N>) -> Self {
+    pub(crate) fn from_entry(node: Entry<'a, NodeStore>, graph: &'a TGraph<N>) -> Self {
         Self::new(VRef::Entry(node), graph)
     }
 
@@ -46,21 +42,6 @@ impl<'a, const N: usize> Node<'a, N> {
         window: Option<Range<i64>>,
     ) -> impl Iterator<Item = (i64, Prop)> + 'a {
         self.node.temporal_properties(prop_id, window)
-    }
-
-    pub fn neighbours<'b>(
-        &'a self,
-        layers: Vec<&'b str>,
-        dir: Direction,
-    ) -> impl Iterator<Item = Node<'a, N>> + 'a {
-        let layer_ids = layers
-            .iter()
-            .filter_map(|str| self.graph.node_meta.get_layer_id(str))
-            .collect_vec();
-
-        (*self.node)
-            .neighbours(layer_ids.into(), dir)
-            .map(move |dst| self.graph.node(dst))
     }
 
     pub(crate) fn additions(self) -> Option<LockedView<'a, TimeIndex<i64>>> {
@@ -111,10 +92,6 @@ impl ArcNode {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + '_ {
         self.e.edge_tuples(&layers, dir)
-    }
-
-    pub fn neighbours(&self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> + '_ {
-        self.e.neighbours(layers, dir)
     }
 }
 
