@@ -21,8 +21,8 @@ use datafusion::{
     logical_expr::{col, expr, Expr},
     physical_expr::PhysicalSortExpr,
     physical_plan::{
-        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan, Partitioning,
+        metrics::MetricsSet, projection, stream::RecordBatchStreamAdapter, DisplayAs,
+        DisplayFormatType, ExecutionPlan, Partitioning,
     },
     physical_planner::create_physical_sort_expr,
 };
@@ -124,14 +124,20 @@ impl TableProvider for EdgeListTableProvider {
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
+
+        let schema = projection
+            .as_ref()
+            .map(|proj| Arc::new(self.schema().project(&proj).expect("failed projection")))
+            .unwrap_or_else(|| self.schema().clone());
+
         Ok(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
             graph: self.graph.clone(),
-            schema: self.nested_schema.clone(),
+            schema,
             num_partitions: self.num_partitions,
             sorted_by: self.sorted_by.clone(),
-            projection: projection.cloned(),
+            projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
 }
@@ -143,7 +149,7 @@ struct EdgeListExecPlan {
     schema: SchemaRef,
     num_partitions: usize,
     sorted_by: Vec<PhysicalSortExpr>,
-    projection: Option<Vec<usize>>,
+    projection: Option<Arc<[usize]>>,
 }
 
 async fn produce_record_batch(
@@ -151,6 +157,7 @@ async fn produce_record_batch(
     schema: SchemaRef,
     layer_id: usize,
     chunk_id: usize,
+    projection: Option<Arc<[usize]>>,
 ) -> Result<RecordBatch, DataFusionError> {
     let layer = graph.layer(layer_id);
     let edges = layer.edges_storage();
@@ -211,8 +218,20 @@ async fn produce_record_batch(
         columns.push(arr);
     }
 
-    RecordBatch::try_new(schema.clone(), columns)
-        .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+    if let Some(projection) = projection {
+        // FIXME: this is not an actual projection we could avoid doing some work before we get here
+        let columns = projection
+            .iter()
+            .map(|&i| columns[i].clone())
+            .collect::<Vec<_>>();
+        let schema = schema.project(&projection)?;
+
+        RecordBatch::try_new(Arc::new(schema), columns)
+            .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+    } else {
+        RecordBatch::try_new(schema.clone(), columns)
+            .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+    }
 }
 
 fn property_to_arrow_column(
@@ -294,11 +313,13 @@ impl EdgeListExecPlan {
         &self,
         chunk_id: usize,
     ) -> impl Stream<Item = Result<RecordBatch, DataFusionError>> {
+        println!("Projection: {:?}", self.projection);
         futures::stream::once(produce_record_batch(
             self.graph.clone(),
             self.schema.clone(),
             self.layer_id,
             chunk_id,
+            self.projection.clone(),
         ))
     }
 }
@@ -407,7 +428,14 @@ mod test {
         )
         .unwrap();
 
-        let df = ctx.sql("SELECT * FROM graph").await.unwrap();
+        let state = ctx.state();
+        let dialect = state.config_options().sql_parser.dialect.as_str();
+        // let plan = state.sql_to_statement("SELECT g1.*,g2.*,g3.* FROM graph as g1 join graph as g2 on g1.dst=g2.src join graph as g3 on g2.dst=g3.src", dialect);
+        // println!("{:?}", plan);
+        let df = ctx
+            .sql("SELECT g1.src,g2.dst from graph g1 join graph g2 on g1.dst=g2.src")
+            .await
+            .unwrap();
         let data = df.collect().await.unwrap();
 
         print_batches(&data).unwrap();

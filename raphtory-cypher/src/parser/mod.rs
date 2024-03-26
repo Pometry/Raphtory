@@ -641,6 +641,7 @@ fn parse_list_literal(pair: Pair<'_, Rule>) -> Result<Literal, ParseError> {
 #[cfg(test)]
 mod test {
 
+    // FIXME: add support for named expressions and function calls eg. return count(x) as y
     use crate::parser::parse_expr;
 
     use super::*;

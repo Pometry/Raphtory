@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
-use datafusion::{
-    execution::context::{SQLOptions, SessionContext},
-    physical_plan::projection,
-};
+use datafusion::execution::context::{SQLOptions, SessionContext};
 use executor::{table_provider::EdgeListTableProvider, ExecError};
 use parser::ast::*;
 use raphtory::arrow::graph_impl::ArrowGraph;
-use sqlparser::ast::{self as sql_ast, Select};
+use sqlparser::ast::{self as sql_ast, GroupByExpr};
 
 mod executor;
 pub mod parser;
@@ -48,8 +45,6 @@ fn parse_order_by(query: &Query) -> Vec<sql_ast::OrderByExpr> {
 }
 
 fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
-    let mut projection = vec![];
-    let mut tables = vec![];
     let mut order_by = vec![];
 
     Box::new(sql_ast::SetExpr::Select(Box::new(sql_ast::Select {
@@ -57,17 +52,17 @@ fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
         // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
         top: None,
         // projection expressions
-        projection: projection,
+        projection: parse_projection(query),
         // INTO
         into: None,
         // FROM
-        from: tables,
+        from: parse_tables(query),
         // LATERAL VIEWs
         lateral_views: vec![],
         // WHERE
         selection: parse_selection(query),
         // GROUP BY
-        group_by: GroupByExpr,
+        group_by: GroupByExpr::All,
         // CLUSTER BY (Hive)
         cluster_by: vec![],
         // DISTRIBUTE BY (Hive)
@@ -81,6 +76,153 @@ fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
         // QUALIFY (Snowflake)
         qualify: None,
     })))
+}
+
+fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
+    // Ok(Statement(Query(Query { with: None, body: Select(Select { distinct: None, top: None, projection: [QualifiedWildcard(ObjectName([Ident { value: "g1", quote_style: None }]), WildcardAdditionalOptions { opt_exclude: None, opt_except: None, opt_rename: None, opt_replace: None }), QualifiedWildcard(ObjectName([Ident { value: "g2", quote_style: None }]), WildcardAdditionalOptions { opt_exclude: None, opt_except: None, opt_rename: None, opt_replace: None }), QualifiedWildcard(ObjectName([Ident { value: "g3", quote_style: None }]), WildcardAdditionalOptions { opt_exclude: None, opt_except: None, opt_rename: None, opt_replace: None })], into: None, from: [TableWithJoins { relation: Table { name: ObjectName([Ident { value: "graph", quote_style: None }]), alias: Some(TableAlias { name: Ident { value: "g1", quote_style: None }, columns: [] }), args: None, with_hints: [], version: None, partitions: [] }, joins: [Join { relation: Table { name: ObjectName([Ident { value: "graph", quote_style: None }]), alias: Some(TableAlias { name: Ident { value: "g2", quote_style: None }, columns: [] }), args: None, with_hints: [], version: None, partitions: [] }, join_operator: Inner(On(BinaryOp { left: CompoundIdentifier([Ident { value: "g1", quote_style: None }, Ident { value: "dst", quote_style: None }]), op: Eq, right: CompoundIdentifier([Ident { value: "g2", quote_style: None }, Ident { value: "src", quote_style: None }]) })) }, Join { relation: Table { name: ObjectName([Ident { value: "graph", quote_style: None }]), alias: Some(TableAlias { name: Ident { value: "g3", quote_style: None }, columns: [] }), args: None, with_hints: [], version: None, partitions: [] }, join_operator: Inner(On(BinaryOp { left: CompoundIdentifier([Ident { value: "g2", quote_style: None }, Ident { value: "dst", quote_style: None }]), op: Eq, right: CompoundIdentifier([Ident { value: "g3", quote_style: None }, Ident { value: "src", quote_style: None }]) })) }] }], lateral_views: [], selection: None, group_by: Expressions([]), cluster_by: [], distribute_by: [], sort_by: [], having: None, named_window: [], qualify: None }), order_by: [], limit: None, limit_by: [], offset: None, fetch: None, locks: [], for_clause: None }))) Processing field: Field { name: "weight", data_type: Float64, is_nullable: false, metadata: {} }
+    let m = query
+        .clauses()
+        .into_iter()
+        .find(|clause| matches!(clause, Clause::Match(_)));
+    if let Some(Clause::Match(m)) = m {
+        let mut tables = vec![];
+        for part in m.pattern.0.iter() {
+
+        }
+        tables
+    } else {
+        vec![]
+    }
+}
+
+fn parse_projection(query: &Query) -> Vec<sql_ast::SelectItem> {
+    query
+        .clauses()
+        .iter()
+        .find(|clause| matches!(clause, Clause::Return(_)))
+        .map(|clause| match clause {
+            Clause::Return(ret) => ret
+                .items
+                .iter()
+                .map(|ret_i| {
+                    let expr = cypher_to_sql_expr(&ret_i.expr);
+                    sql_ast::SelectItem::UnnamedExpr(expr)
+                })
+                .collect(),
+            _ => unreachable!(),
+        })
+        .unwrap_or_default()
+}
+
+fn parse_selection(query: &Query) -> Option<sql_ast::Expr> {
+    query
+        .clauses()
+        .into_iter()
+        .filter_map(|clause| match clause {
+            Clause::Match(m) => m.where_clause.as_ref().map(|expr| cypher_to_sql_expr(expr)),
+            _ => None,
+        })
+        .reduce(|a, b| sql_ast::Expr::BinaryOp {
+            left: Box::new(a),
+            op: sql_ast::BinaryOperator::And,
+            right: Box::new(b),
+        })
+}
+
+fn cypher_unary_op_to_sql(op: &UnaryOpType) -> sql_ast::UnaryOperator {
+    match op {
+        UnaryOpType::Not => sql_ast::UnaryOperator::Not,
+        UnaryOpType::Neg => sql_ast::UnaryOperator::Minus,
+    }
+}
+
+fn cypher_binary_op_to_sql(op: &BinOpType) -> sql_ast::BinaryOperator {
+    match op {
+        BinOpType::Add => sql_ast::BinaryOperator::Plus,
+        BinOpType::Sub => sql_ast::BinaryOperator::Minus,
+        BinOpType::Mul => sql_ast::BinaryOperator::Multiply,
+        BinOpType::Div => sql_ast::BinaryOperator::Divide,
+        BinOpType::Mod => sql_ast::BinaryOperator::Modulo,
+        BinOpType::Eq => sql_ast::BinaryOperator::Eq,
+        BinOpType::Neq => sql_ast::BinaryOperator::NotEq,
+        BinOpType::Gt => sql_ast::BinaryOperator::Gt,
+        BinOpType::Gte => sql_ast::BinaryOperator::GtEq,
+        BinOpType::Lt => sql_ast::BinaryOperator::Lt,
+        BinOpType::Lte => sql_ast::BinaryOperator::LtEq,
+        BinOpType::And => sql_ast::BinaryOperator::And,
+        BinOpType::Or => sql_ast::BinaryOperator::Or,
+        BinOpType::Xor => sql_ast::BinaryOperator::Xor,
+        BinOpType::In => unimplemented!("IN operator handled in cypher_to_sql_expr"),
+        _ => unimplemented!("unsupported binary operator {:?}", op),
+    }
+}
+
+fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
+    match expr {
+        Expr::Var { var_name, attrs } => {
+            if attrs.is_empty() {
+                sql_ast::Expr::Identifier(sql_ast::Ident::new(var_name))
+            } else {
+                sql_ast::Expr::CompoundIdentifier(
+                    attrs.iter().map(|attr| sql_ast::Ident::new(attr)).collect(),
+                )
+            }
+        }
+        Expr::BinOp {
+            op: BinOpType::In,
+            left,
+            right,
+        } => {
+            let sql_list = match right.as_ref() {
+                Expr::Literal(Literal::List(exprs)) => exprs
+                    .into_iter()
+                    .map(|lit| cypher_to_sql_expr(&Expr::Literal(lit.clone())))
+                    .collect::<Vec<_>>(),
+                expr => unimplemented!("unexpected right hand side of IN operator {:?}", expr),
+            };
+            sql_ast::Expr::InList {
+                expr: Box::new(cypher_to_sql_expr(left)),
+                list: sql_list,
+                negated: false,
+            }
+        }
+        Expr::BinOp { op, left, right } => sql_ast::Expr::BinaryOp {
+            left: Box::new(cypher_to_sql_expr(left)),
+            op: cypher_binary_op_to_sql(op),
+            right: Box::new(cypher_to_sql_expr(right)),
+        },
+        Expr::UnaryOp { op, expr } => sql_ast::Expr::UnaryOp {
+            op: cypher_unary_op_to_sql(op),
+            expr: Box::new(cypher_to_sql_expr(expr)),
+        },
+        Expr::CountAll => sql_ast::Expr::Function(sql_ast::Function {
+            name: sql_ast::ObjectName(vec![sql_ast::Ident::new("COUNT")]),
+            args: vec![sql_ast::FunctionArg::Unnamed(
+                sql_ast::FunctionArgExpr::Wildcard,
+            )],
+            over: None,
+            distinct: false,
+            filter: None,
+            null_treatment: None,
+            special: false,
+            order_by: vec![],
+        }),
+
+        // literals
+        Expr::Literal(Literal::Null) => sql_ast::Expr::Value(sql_ast::Value::Null),
+        Expr::Literal(Literal::Bool(b)) => sql_ast::Expr::Value(sql_ast::Value::Boolean(*b)),
+        Expr::Literal(Literal::Int(i)) => {
+            sql_ast::Expr::Value(sql_ast::Value::Number(i.to_string(), true))
+        }
+        Expr::Literal(Literal::Float(f)) => {
+            sql_ast::Expr::Value(sql_ast::Value::Number(f.to_string(), false))
+        }
+        Expr::Literal(Literal::Str(s)) => {
+            sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(s.to_string()))
+        }
+
+        _ => todo!(),
+    }
 }
 
 pub async fn run_query(query: &Query, graph: &ArrowGraph) -> Result<(), ExecError> {
