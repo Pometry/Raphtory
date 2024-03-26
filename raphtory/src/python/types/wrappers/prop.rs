@@ -20,6 +20,7 @@ impl ToPyObject for Prop {
             Prop::U64(u64) => u64.into_py(py),
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
+            Prop::NDTime(ndtime) => ndtime.into_py(py),
             Prop::Graph(g) => g.clone().into_py(py), // Need to find a better way
             Prop::Document(d) => PyDocument::from(d.clone()).into_py(py),
             Prop::I32(v) => v.into_py(py),
@@ -42,6 +43,7 @@ impl IntoPy<PyObject> for Prop {
             Prop::U64(u64) => u64.into_py(py),
             Prop::F64(f64) => f64.into_py(py),
             Prop::DTime(dtime) => dtime.into_py(py),
+            Prop::NDTime(ndtime) => ndtime.into_py(py),
             Prop::Graph(g) => g.into_py(py), // Need to find a better way
             Prop::Document(d) => PyDocument::from(d).into_py(py),
             Prop::I32(v) => v.into_py(py),
@@ -66,7 +68,7 @@ impl<'source> FromPyObject<'source> for Prop {
             return Ok(Prop::F64(v));
         }
         if let Ok(d) = ob.extract() {
-            return Ok(Prop::DTime(d));
+            return Ok(Prop::NDTime(d));
         }
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
@@ -101,6 +103,7 @@ impl Repr for Prop {
             Prop::U64(v) => v.repr(),
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
+            Prop::NDTime(v) => v.repr(),
             Prop::Graph(g) => PyGraphView::from(g.clone()).repr(),
             Prop::Document(d) => d.content.repr(), // We can't reuse the __repr__ defined for PyDocument because it needs to run python code
             Prop::I32(v) => v.repr(),

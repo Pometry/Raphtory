@@ -7,7 +7,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
             },
         },
@@ -32,9 +32,15 @@ use pyo3::{
     prelude::*,
     pyclass,
     pyclass::CompareOp,
-    pymethods, PyAny, PyObject, PyRef, PyResult, Python,
+    pymethods,
+    types::PyDict,
+    PyAny, PyObject, PyRef, PyResult, Python,
 };
-use python::types::repr::{iterator_repr, Repr};
+use python::{
+    types::repr::{iterator_repr, Repr},
+    utils::export::{create_row, extract_properties, get_column_names_from_props},
+};
+use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
 /// A node (or node) in the graph.
@@ -565,6 +571,78 @@ impl PyNodes {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
+    }
+
+    /// Converts the graph's nodes into a Pandas DataFrame.
+    ///
+    /// This method will create a DataFrame with the following columns:
+    /// - "name": The name of the node.
+    /// - "properties": The properties of the node.
+    /// - "update_history": The update history of the node.
+    ///
+    /// Args:
+    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.
+    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///
+    /// Returns:
+    ///     If successful, this PyObject will be a Pandas DataFrame.
+    #[pyo3(signature = (include_property_history=false, convert_datetime=false))]
+    pub fn to_df(
+        &self,
+        include_property_history: bool,
+        convert_datetime: bool,
+    ) -> PyResult<PyObject> {
+        let mut column_names = vec![String::from("name"), String::from("type")];
+        let meta = self.nodes.graph.node_meta();
+        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
+
+        let node_tuples: Vec<_> = self
+            .nodes
+            .collect()
+            .into_par_iter()
+            .flat_map(|item| {
+                let mut properties_map: HashMap<String, Prop> = HashMap::new();
+                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
+                extract_properties(
+                    include_property_history,
+                    convert_datetime,
+                    false,
+                    &column_names,
+                    &is_prop_both_temp_and_const,
+                    &item.properties(),
+                    &mut properties_map,
+                    &mut prop_time_dict,
+                    item.start().unwrap_or(0),
+                );
+
+                let row_header: Vec<Prop> = vec![
+                    Prop::from(item.name()),
+                    Prop::from(item.node_type().unwrap_or_else(|| ArcStr::from(""))),
+                ];
+
+                let start_point = 2;
+                let history = item.history();
+
+                create_row(
+                    convert_datetime,
+                    false,
+                    &column_names,
+                    properties_map,
+                    prop_time_dict,
+                    row_header,
+                    start_point,
+                    history,
+                )
+            })
+            .collect();
+
+        Python::with_gil(|py| {
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("columns", column_names.clone())?;
+            let pandas = PyModule::import(py, "pandas")?;
+            let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
+            Ok(df_data.to_object(py))
+        })
     }
 }
 
