@@ -33,23 +33,19 @@ use std::{
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GraphWithDeletions {
-    pub graph: Arc<InternalGraph>,
-}
+pub struct GraphWithDeletions(pub Arc<InternalGraph>);
 
 impl Static for GraphWithDeletions {}
 
 impl From<InternalGraph> for GraphWithDeletions {
     fn from(value: InternalGraph) -> Self {
-        Self {
-            graph: Arc::new(value),
-        }
+        Self(Arc::new(value))
     }
 }
 
 impl Display for GraphWithDeletions {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.graph, f)
+        Display::fmt(&self.0, f)
     }
 }
 
@@ -127,9 +123,7 @@ impl Default for GraphWithDeletions {
 
 impl GraphWithDeletions {
     pub fn new() -> Self {
-        Self {
-            graph: Arc::new(InternalGraph::default()),
-        }
+        Self(Arc::new(InternalGraph::default()))
     }
 
     /// Save a graph to a directory
@@ -187,15 +181,13 @@ impl Base for GraphWithDeletions {
     type Base = InternalGraph;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
-        &self.graph
+        &self.0
     }
 }
 
 impl InternalMaterialize for GraphWithDeletions {
     fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
-        MaterializedGraph::PersistentGraph(GraphWithDeletions {
-            graph: Arc::new(graph),
-        })
+        MaterializedGraph::PersistentGraph(GraphWithDeletions(Arc::new(graph)))
     }
 
     fn include_deletions(&self) -> bool {
@@ -221,7 +213,7 @@ impl InheritEdgeFilterOps for GraphWithDeletions {}
 
 impl TimeSemantics for GraphWithDeletions {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
-        self.graph.node_earliest_time(v)
+        self.0.node_earliest_time(v)
     }
 
     fn node_latest_time(&self, _v: VID) -> Option<i64> {
@@ -229,27 +221,27 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn view_start(&self) -> Option<i64> {
-        self.graph.view_start()
+        self.0.view_start()
     }
 
     fn view_end(&self) -> Option<i64> {
-        self.graph.view_end()
+        self.0.view_end()
     }
 
     fn earliest_time_global(&self) -> Option<i64> {
-        self.graph.earliest_time_global()
+        self.0.earliest_time_global()
     }
 
     fn latest_time_global(&self) -> Option<i64> {
-        self.graph.latest_time_global()
+        self.0.latest_time_global()
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph.earliest_time_window(start, end)
+        self.0.earliest_time_window(start, end)
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        self.graph.latest_time_window(start, end)
+        self.0.latest_time_window(start, end)
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
@@ -278,7 +270,7 @@ impl TimeSemantics for GraphWithDeletions {
         _edge_filter: Option<&EdgeFilter>,
     ) -> bool {
         // FIXME: Think about node deletions
-        let v = self.graph.inner().storage.get_node(v);
+        let v = self.0.inner().storage.get_node(v);
         v.timestamps().first_t().filter(|&t| t <= w.end).is_some()
     }
 
@@ -288,23 +280,23 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn node_history(&self, v: VID) -> Vec<i64> {
-        self.graph.node_history(v)
+        self.0.node_history(v)
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.graph.node_history_window(v, w)
+        self.0.node_history_window(v, w)
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        self.graph.edge_history(e, layer_ids)
+        self.0.edge_history(e, layer_ids)
     }
 
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        self.graph.edge_history_window(e, layer_ids, w)
+        self.0.edge_history_window(e, layer_ids, w)
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        let edge = self.graph.core_edge(e.pid());
+        let edge = self.0.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
             .updates_iter(&layer_ids)
@@ -319,12 +311,12 @@ impl TimeSemantics for GraphWithDeletions {
         alive_layers
             .into_iter()
             .map(move |l| e.at(i64::MIN.into()).at_layer(l))
-            .chain(self.graph.edge_exploded(e, layer_ids))
+            .chain(self.0.edge_exploded(e, layer_ids))
             .into_dyn_boxed()
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: LayerIds) -> BoxedIter<EdgeRef> {
-        self.graph.edge_layers(e, layer_ids)
+        self.0.edge_layers(e, layer_ids)
     }
 
     fn edge_window_exploded(
@@ -336,7 +328,7 @@ impl TimeSemantics for GraphWithDeletions {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
-        let edge = self.graph.core_edge(e.pid());
+        let edge = self.0.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
             .updates_iter(&layer_ids)
@@ -357,7 +349,7 @@ impl TimeSemantics for GraphWithDeletions {
         alive_layers
             .into_iter()
             .map(move |l| e.at(w.start.into()).at_layer(l))
-            .chain(self.graph.edge_window_exploded(e, w, layer_ids))
+            .chain(self.0.edge_window_exploded(e, w, layer_ids))
             .into_dyn_boxed()
     }
 
@@ -369,18 +361,14 @@ impl TimeSemantics for GraphWithDeletions {
     ) -> BoxedIter<EdgeRef> {
         let g = self.clone();
         let window_filter = self.include_edge_window().clone();
-        Box::new(
-            self.graph
-                .edge_layers(e, layer_ids.clone())
-                .filter(move |&e| {
-                    let entry = g.core_edge(e.pid());
-                    window_filter(
-                        entry.deref(),
-                        &layer_ids.clone().constrain_from_edge(e),
-                        w.clone(),
-                    )
-                }),
-        )
+        Box::new(self.0.edge_layers(e, layer_ids.clone()).filter(move |&e| {
+            let entry = g.core_edge(e.pid());
+            window_filter(
+                entry.deref(),
+                &layer_ids.clone().constrain_from_edge(e),
+                w.clone(),
+            )
+        }))
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: LayerIds) -> Option<i64> {
@@ -485,7 +473,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
-        let edge = self.graph.core_edge(e.pid());
+        let edge = self.0.core_edge(e.pid());
         let res = edge
             .updates_iter(&layer_ids)
             .any(|(_, additions, deletions)| additions.last() > deletions.last());
@@ -493,39 +481,39 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, end: i64) -> bool {
-        let edge = self.graph.core_edge(e.pid());
+        let edge = self.0.core_edge(e.pid());
         edge_alive_at_end(edge.deref(), end, &layer_ids)
     }
 
     #[inline]
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        self.graph.has_temporal_prop(prop_id)
+        self.0.has_temporal_prop(prop_id)
     }
 
     fn temporal_prop_vec(&self, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec(prop_id)
+        self.0.temporal_prop_vec(prop_id)
     }
 
     #[inline]
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph.has_temporal_prop_window(prop_id, w)
+        self.0.has_temporal_prop_window(prop_id, w)
     }
 
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
-        self.graph.temporal_prop_vec_window(prop_id, start, end)
+        self.0.temporal_prop_vec_window(prop_id, start, end)
     }
 
     #[inline]
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        self.graph.has_temporal_node_prop(v, prop_id)
+        self.0.has_temporal_node_prop(v, prop_id)
     }
 
     fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.graph.temporal_node_prop_vec(v, prop_id)
+        self.0.temporal_node_prop_vec(v, prop_id)
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        self.graph
+        self.0
             .has_temporal_node_prop_window(v, prop_id, i64::MIN..w.end)
     }
 
@@ -619,7 +607,7 @@ impl TimeSemantics for GraphWithDeletions {
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
-        self.graph.has_temporal_edge_prop(e, prop_id, layer_ids)
+        self.0.has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
     fn temporal_edge_prop_vec(
@@ -628,7 +616,7 @@ impl TimeSemantics for GraphWithDeletions {
         prop_id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.graph.temporal_edge_prop_vec(e, prop_id, layer_ids)
+        self.0.temporal_edge_prop_vec(e, prop_id, layer_ids)
     }
 }
 
