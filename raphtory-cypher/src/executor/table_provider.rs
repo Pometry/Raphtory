@@ -21,7 +21,7 @@ use datafusion::{
     logical_expr::{col, expr, Expr},
     physical_expr::PhysicalSortExpr,
     physical_plan::{
-        metrics::MetricsSet, projection, stream::RecordBatchStreamAdapter, DisplayAs,
+        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs,
         DisplayFormatType, ExecutionPlan, Partitioning,
     },
     physical_planner::create_physical_sort_expr,
@@ -431,7 +431,8 @@ mod test {
         let state = ctx.state();
         let dialect = state.config_options().sql_parser.dialect.as_str();
         // let plan = state.sql_to_statement("SELECT g1.*,g2.*,g3.* FROM graph as g1 join graph as g2 on g1.dst=g2.src join graph as g3 on g2.dst=g3.src", dialect);
-        // println!("{:?}", plan);
+        let plan = state.sql_to_statement("select * from graph", dialect);
+        println!("{:?}", plan);
         let df = ctx
             .sql("SELECT g1.src,g2.dst from graph g1 join graph g2 on g1.dst=g2.src")
             .await

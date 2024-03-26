@@ -93,14 +93,6 @@ pub struct PatternPart {
 }
 
 impl PatternPart {
-    // pub fn node(node: NodePattern) -> Self {
-    //     PatternPart {
-    //         var: None,
-    //         node,
-    //         rel_chain: vec![],
-    //     }
-    // }
-
     pub fn named_path(
         name: &str,
         start: NodePattern,
