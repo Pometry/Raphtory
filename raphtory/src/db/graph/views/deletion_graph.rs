@@ -515,16 +515,16 @@ impl TimeSemantics for GraphWithDeletions {
             .collect()
     }
 
-    fn edge_is_valid(&self, e: EdgeRef, layer_ids: LayerIds) -> bool {
-        let edge = self.0.core_edge(e.pid());
+    fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
+        let edge = self.0.core_edge_arc(e.pid());
         let res = edge
             .updates_iter(layer_ids)
             .any(|(_, additions, deletions)| additions.last() > deletions.last());
         res
     }
 
-    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: LayerIds, end: i64) -> bool {
-        let edge = self.0.core_edge(e.pid());
+    fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, end: i64) -> bool {
+        let edge = self.0.core_edge_arc(e.pid());
         edge_alive_at_end(edge.deref(), end, &layer_ids)
     }
 
