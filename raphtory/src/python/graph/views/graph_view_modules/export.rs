@@ -141,18 +141,18 @@ impl PyGraphView {
     ///         include_node_properties (bool): A boolean that is set to True if you want to include the node properties in the graph. By default this is set to True.
     ///         include_edge_properties (bool): A boolean that is set to True if you want to include the edge properties in the graph. By default this is set to True.
     ///         include_update_history (bool): A boolean that is set to True if you want to include the update histories in the graph. By default this is set to True.
-    ///         include_property_histories (bool): A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
+    ///         include_property_history (bool): A boolean that is set to True if you want to include the histories in the graph. By default this is set to True.
     ///
     ///     Returns:
     ///         A Networkx MultiDiGraph.
-    #[pyo3(signature = (explode_edges=false, include_node_properties=true, include_edge_properties=true,include_update_history=true,include_property_histories=true))]
+    #[pyo3(signature = (explode_edges=false, include_node_properties=true, include_edge_properties=true,include_update_history=true,include_property_history=true))]
     pub fn to_networkx(
         &self,
         explode_edges: Option<bool>,
         include_node_properties: Option<bool>,
         include_edge_properties: Option<bool>,
         include_update_history: Option<bool>,
-        include_property_histories: Option<bool>,
+        include_property_history: Option<bool>,
     ) -> PyResult<PyObject> {
         Python::with_gil(|py| {
             let networkx = py.import("networkx")?.getattr("MultiDiGraph")?.call0()?;
@@ -161,7 +161,7 @@ impl PyGraphView {
             for v in self.graph.nodes().iter() {
                 let properties = PyDict::new(py);
                 if include_node_properties.unwrap_or(true) {
-                    if include_property_histories.unwrap_or(true) {
+                    if include_property_history.unwrap_or(true) {
                         let const_props = v.properties().constant().as_map();
                         let const_props_py = PyDict::new(py);
                         for (key, value) in const_props {
@@ -207,7 +207,7 @@ impl PyGraphView {
                 let src = e.src().name();
                 let dst = e.dst().name();
                 if include_edge_properties.unwrap_or(true) {
-                    if include_property_histories.unwrap_or(true) {
+                    if include_property_history.unwrap_or(true) {
                         let const_props = e.properties().constant().as_map();
                         let const_props_py = PyDict::new(py);
                         for (key, value) in const_props {

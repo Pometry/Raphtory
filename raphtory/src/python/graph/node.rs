@@ -577,22 +577,20 @@ impl PyNodes {
     ///
     /// This method will create a DataFrame with the following columns:
     /// - "name": The name of the node.
-    /// - "properties": The properties of the node. This column will be included if `include_node_properties` is set to `true`.
+    /// - "properties": The properties of the node.
     /// - "update_history": The update history of the node.
     ///
     /// Args:
-    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploding. Defaults to `false`.
+    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.
     ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
-    ///     explode (bool): A boolean, if set to `true`, will explode each node update into its own row. Defaults to `false`
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_property_histories=false, convert_datetime=false, explode=false))]
+    #[pyo3(signature = (include_property_history=false, convert_datetime=false))]
     pub fn to_df(
         &self,
-        include_property_histories: bool,
+        include_property_history: bool,
         convert_datetime: bool,
-        explode: bool,
     ) -> PyResult<PyObject> {
         let mut column_names = vec![String::from("name"), String::from("type")];
         let meta = self.nodes.graph.node_meta();
@@ -606,9 +604,9 @@ impl PyNodes {
                 let mut properties_map: HashMap<String, Prop> = HashMap::new();
                 let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
                 extract_properties(
-                    include_property_histories,
+                    include_property_history,
                     convert_datetime,
-                    explode,
+                    false,
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
@@ -627,7 +625,7 @@ impl PyNodes {
 
                 create_row(
                     convert_datetime,
-                    explode,
+                    false,
                     &column_names,
                     properties_map,
                     prop_time_dict,

@@ -10,7 +10,7 @@ use std::{
 };
 
 pub(crate) fn extract_properties<P>(
-    include_property_histories: bool,
+    include_property_history: bool,
     convert_datetime: bool,
     explode: bool,
     column_names: &Vec<String>,
@@ -71,7 +71,7 @@ pub(crate) fn extract_properties<P>(
                 let data_dict = prop_time_dict.get_mut(&time).unwrap();
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
-    } else if include_property_histories {
+    } else if include_property_history {
         item.temporal().iter().for_each(|(name, prop_view)| {
             let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
                 format!("{}_temporal", name)

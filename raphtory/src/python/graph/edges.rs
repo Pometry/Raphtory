@@ -246,22 +246,20 @@ impl PyEdges {
     /// - "src": The source node of the edge.
     /// - "dst": The destination node of the edge.
     /// - "layer": The layer of the edge.
-    /// - "properties": The properties of the edge. This column will be included if `include_edge_properties` is set to `true`.
-    /// - "property_histories": The history of the edge's properties. This column will be included if both `include_edge_properties` and `include_property_histories` are set to `true`.
+    /// - "properties": The properties of the edge.
     /// - "update_history": The update history of the edge. This column will be included if `include_update_history` is set to `true`.
-    /// - "update_history_exploded": The exploded update history of the edge. This column will be included if `explode_edges` is set to `true`.
     ///
     /// Args:
-    ///     include_property_histories (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploded. Defaults to `false`.
+    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploded. Defaults to `false`.
     ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
     ///     explode (bool): A boolean, if set to `true`, will explode each edge update into its own row. Defaults to `false`
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_property_histories=true, convert_datetime=false, explode=false))]
+    #[pyo3(signature = (include_property_history=true, convert_datetime=false, explode=false))]
     pub fn to_df(
         &self,
-        include_property_histories: bool,
+        include_property_history: bool,
         convert_datetime: bool,
         explode: bool,
     ) -> PyResult<PyObject> {
@@ -286,7 +284,7 @@ impl PyEdges {
                 let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
 
                 extract_properties(
-                    include_property_histories,
+                    include_property_history,
                     convert_datetime,
                     explode,
                     &column_names,

@@ -696,7 +696,7 @@ def test_networkx_no_history():
     g = build_graph()
 
     networkxGraph = g.to_networkx(
-        include_property_histories=False, include_update_history=False
+        include_property_history=False, include_update_history=False
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -834,7 +834,7 @@ def test_networkx_no_history():
     ]
     compare_list_of_dicts(edgeList, resultList)
 
-    networkxGraph = g.to_networkx(include_property_histories=False, explode_edges=True)
+    networkxGraph = g.to_networkx(include_property_history=False, explode_edges=True)
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
         (
@@ -955,7 +955,7 @@ def build_to_df():
 
     edge_df = g.edges.to_df()
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_all.json")
-    edge_df = g.edges.to_df(include_property_histories=False)
+    edge_df = g.edges.to_df(include_property_history=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_props.json")
     edge_df = g.edges.to_df(explode=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_explode.json")
@@ -966,24 +966,15 @@ def build_to_df():
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode.json")
     edge_df = g.edges.to_df(explode=True, convert_datetime=True)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_datetime.json")
-    edge_df = g.edges.to_df(explode=True, include_property_histories=True)
+    edge_df = g.edges.to_df(explode=True, include_property_history=True)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_no_hist.json")
 
     node_df = g.nodes.to_df()
     save_df_to_json(node_df, "expected/dataframe_output/node_df_all.json")
-    node_df = g.nodes.to_df(include_property_histories=False)
+    node_df = g.nodes.to_df(include_property_history=False)
     save_df_to_json(node_df, "expected/dataframe_output/node_df_no_hist.json")
-    node_df = g.nodes.to_df(explode=False)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_explode.json")
     node_df = g.nodes.to_df(convert_datetime=False)
     save_df_to_json(node_df, "expected/dataframe_output/node_df_no_datetime.json")
-
-    node_df = g.nodes.to_df(explode=True)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_explode.json")
-    node_df = g.nodes.to_df(explode=True, include_property_histories=False)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_explode_no_hist.json")
-    node_df = g.nodes.to_df(explode=True, convert_datetime=True)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_explode_datetime.json")
 
 
 def jsonify_df(df):
@@ -1026,7 +1017,7 @@ def test_to_df():
     )
 
     compare_df(
-        g.edges.to_df(include_property_histories=False),
+        g.edges.to_df(include_property_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
     )
 
@@ -1051,40 +1042,23 @@ def test_to_df():
     # )
 
     compare_df(
-        g.edges.to_df(explode=True, include_property_histories=True),
+        g.edges.to_df(explode=True, include_property_history=True),
         pd.read_json(
             base_dir / "expected/dataframe_output/edge_df_explode_no_hist.json"
         ),
     )
 
     compare_df(
-        g.nodes.to_df(include_property_histories=False),
+        g.nodes.to_df(include_property_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_hist.json"),
     )
 
     compare_df(
-        g.nodes.to_df(explode=False, include_property_histories=True),
+        g.nodes.to_df(include_property_history=True),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_explode.json"),
     )
 
     compare_df(
-        g.nodes.to_df(convert_datetime=False, include_property_histories=True),
+        g.nodes.to_df(convert_datetime=False, include_property_history=True),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_datetime.json"),
     )
-
-    compare_df(
-        g.nodes.to_df(explode=True),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_explode.json"),
-    )
-
-    compare_df(
-        g.nodes.to_df(explode=True, include_property_histories=False),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/node_df_explode_no_hist.json"
-        ),
-    )
-
-    # compare_df(
-    #     g.nodes.to_df(explode=True, convert_datetime=True),
-    #     pd.read_json(base_dir / "expected/dataframe_output/node_df_explode_datetime.json")
-    # )
