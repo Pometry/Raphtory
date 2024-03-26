@@ -146,7 +146,14 @@ fn parse_projection(query: &Query) -> Vec<sql_ast::SelectItem> {
                 .iter()
                 .map(|ret_i| {
                     let expr = cypher_to_sql_expr(&ret_i.expr);
-                    sql_ast::SelectItem::UnnamedExpr(expr)
+                    if let Some(name) = ret_i.as_name.as_ref() {
+                        sql_ast::SelectItem::ExprWithAlias {
+                            expr,
+                            alias: sql_ast::Ident::new(name),
+                        }
+                    } else {
+                        sql_ast::SelectItem::UnnamedExpr(expr)
+                    }
                 })
                 .collect(),
             _ => unreachable!(),
@@ -296,7 +303,9 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
     }
 }
 
-pub async fn run_query(query: &Query, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
+pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
+    println!("Running query: {:?}", query);
+    let query = parser::parse_cypher(query)?;
     let ctx = SessionContext::new();
 
     for layer in graph.layer_names() {
@@ -304,7 +313,7 @@ pub async fn run_query(query: &Query, graph: &ArrowGraph) -> Result<DataFrame, E
         ctx.register_table(layer, Arc::new(table))?;
     }
 
-    let query = cypher_to_sql(query);
+    let query = cypher_to_sql(&query);
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -322,6 +331,8 @@ pub async fn run_query(query: &Query, graph: &ArrowGraph) -> Result<DataFrame, E
 mod cyper_2_sql_tests {
 
     use super::*;
+    use arrow::util::pretty::print_batches;
+    use tempfile::tempdir;
 
     #[test]
     fn select_all() {
@@ -336,6 +347,14 @@ mod cyper_2_sql_tests {
     #[test]
     fn select_wildcard_name() {
         check_cypher_to_sql("MATCH ()-[e]-() RETURN *", "SELECT * FROM _default AS e");
+    }
+
+    #[test]
+    fn select_projection() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN e.src, e.weight",
+            "SELECT e.src, e.weight FROM _default AS e",
+        );
     }
 
     #[test]
@@ -383,5 +402,41 @@ mod cyper_2_sql_tests {
         // println!("{:?}", query);
         let sql = cypher_to_sql(&query);
         assert_eq!(sql.to_string(), expected.to_string());
+    }
+
+    #[tokio::test]
+    async fn select_table_filter_weight() {
+        let graph_dir = tempdir().unwrap();
+        let edges = vec![
+            (0, 1, 1, 3.),
+            (0, 1, 2, 4.),
+            (1, 2, 2, 4.),
+            (1, 2, 3, 4.),
+            (2, 3, 5, 5.),
+            (3, 4, 1, 6.),
+            (3, 4, 3, 6.),
+            (3, 4, 7, 6.),
+            (4, 5, 9, 7.),
+        ];
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+
+        let df = run_cypher("match ()-[e {src: 0}]->() RETURN *", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).unwrap();
+
+        let df = run_cypher(
+            "match ()-[e]->() where e.time >2 and e.weight<7 RETURN *",
+            &graph,
+        )
+        .await
+        .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).unwrap();
     }
 }

@@ -21,8 +21,8 @@ use datafusion::{
     logical_expr::{col, expr, Expr},
     physical_expr::PhysicalSortExpr,
     physical_plan::{
-        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs,
-        DisplayFormatType, ExecutionPlan, Partitioning,
+        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
+        ExecutionPlan, Partitioning,
     },
     physical_planner::create_physical_sort_expr,
 };
@@ -124,7 +124,6 @@ impl TableProvider for EdgeListTableProvider {
         _filters: &[Expr],
         _limit: Option<usize>,
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
-
         let schema = projection
             .as_ref()
             .map(|proj| Arc::new(self.schema().project(&proj).expect("failed projection")))
@@ -213,7 +212,6 @@ async fn produce_record_batch(
         // we always skip the time column
         let col_id = col_id + 1; // we skip the time column
 
-        println!("Processing field: {:?}", field);
         let arr = property_to_arrow_column(layer, col_id, chunk_id, field);
         columns.push(arr);
     }
@@ -224,9 +222,8 @@ async fn produce_record_batch(
             .iter()
             .map(|&i| columns[i].clone())
             .collect::<Vec<_>>();
-        let schema = schema.project(&projection)?;
 
-        RecordBatch::try_new(Arc::new(schema), columns)
+        RecordBatch::try_new(schema.clone(), columns)
             .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
     } else {
         RecordBatch::try_new(schema.clone(), columns)
@@ -313,7 +310,6 @@ impl EdgeListExecPlan {
         &self,
         chunk_id: usize,
     ) -> impl Stream<Item = Result<RecordBatch, DataFusionError>> {
-        println!("Projection: {:?}", self.projection);
         futures::stream::once(produce_record_batch(
             self.graph.clone(),
             self.schema.clone(),
@@ -431,10 +427,10 @@ mod test {
         let state = ctx.state();
         let dialect = state.config_options().sql_parser.dialect.as_str();
         // let plan = state.sql_to_statement("SELECT g1.*,g2.*,g3.* FROM graph as g1 join graph as g2 on g1.dst=g2.src join graph as g3 on g2.dst=g3.src", dialect);
-        let plan = state.sql_to_statement("select * from graph", dialect);
+        let plan = state.sql_to_statement("select graph.a as b from graph", dialect);
         println!("{:?}", plan);
         let df = ctx
-            .sql("SELECT g1.src,g2.dst from graph g1 join graph g2 on g1.dst=g2.src")
+            .sql("select e.src, e.weight from graph as e")
             .await
             .unwrap();
         let data = df.collect().await.unwrap();

@@ -20,6 +20,9 @@ pub enum ExecError {
 
     #[error("Arrow schema error: {0}")]
     ArrowError(#[from] arrow_schema::ArrowError),
+
+    #[error("Failed to parse cypher {0}")]
+    CypherParseError(#[from] super::parser::ParseError),
 }
 
 pub async fn run_with_datafusion(sql: sql_ast::Statement) -> Result<(), ExecError> {
