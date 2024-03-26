@@ -44,6 +44,7 @@ def test_load_from_pandas():
         (5, 6, 5.0, "purple"),
     ]
 
+
 def test_load_from_pandas_with_invalid_data():
     # Create a DataFrame with invalid data
     df = pd.DataFrame(
@@ -63,7 +64,11 @@ def test_load_from_pandas_with_invalid_data():
     # Optionally, you can check the exception message or type
     assert "Failed to load graph" in str(exc_info.value)
     assert "ArrowInvalid" in str(exc_info.value)
-    assert "Could not convert '3.0 KG' with type str: tried to convert to double" in str(exc_info.value)
+    assert (
+        "Could not convert '3.0 KG' with type str: tried to convert to double"
+        in str(exc_info.value)
+    )
+
 
 def test_load_from_pandas_into_existing_graph():
     edges_df = pd.DataFrame(

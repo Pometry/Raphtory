@@ -10,7 +10,7 @@ use crate::{
     },
     db::graph::graph::Graph,
 };
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter, ops::Range, sync::Arc};
@@ -31,7 +31,8 @@ pub enum TProp {
     F32(TCell<f32>),
     F64(TCell<f64>),
     Bool(TCell<bool>),
-    DTime(TCell<NaiveDateTime>),
+    DTime(TCell<DateTime<Utc>>),
+    NDTime(TCell<NaiveDateTime>),
     Graph(TCell<Graph>),
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
@@ -52,11 +53,12 @@ impl TProp {
             TProp::F32(_) => PropType::F32,
             TProp::F64(_) => PropType::F64,
             TProp::Bool(_) => PropType::Bool,
-            TProp::DTime(_) => PropType::DTime,
+            TProp::NDTime(_) => PropType::NDTime,
             TProp::Graph(_) => PropType::Graph,
             TProp::Document(_) => PropType::Document,
             TProp::List(_) => PropType::List,
             TProp::Map(_) => PropType::Map,
+            TProp::DTime(_) => PropType::DTime,
         }
     }
 
@@ -73,6 +75,7 @@ impl TProp {
             Prop::F64(value) => TProp::F64(TCell::new(t, value)),
             Prop::Bool(value) => TProp::Bool(TCell::new(t, value)),
             Prop::DTime(value) => TProp::DTime(TCell::new(t, value)),
+            Prop::NDTime(value) => TProp::NDTime(TCell::new(t, value)),
             Prop::Graph(value) => TProp::Graph(TCell::new(t, value)),
             Prop::Document(value) => TProp::Document(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
@@ -120,6 +123,9 @@ impl TProp {
                 (TProp::DTime(cell), Prop::DTime(a)) => {
                     cell.set(t, a);
                 }
+                (TProp::NDTime(cell), Prop::NDTime(a)) => {
+                    cell.set(t, a);
+                }
                 (TProp::Graph(cell), Prop::Graph(a)) => {
                     cell.set(t, a);
                 }
@@ -152,6 +158,7 @@ impl TProp {
             TProp::F64(cell) => cell.at(ti).map(|v| Prop::F64(*v)),
             TProp::Bool(cell) => cell.at(ti).map(|v| Prop::Bool(*v)),
             TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
+            TProp::NDTime(cell) => cell.at(ti).map(|v| Prop::NDTime(*v)),
             TProp::Graph(cell) => cell.at(ti).map(|v| Prop::Graph(v.clone())),
             TProp::Document(cell) => cell.at(ti).map(|v| Prop::Document(v.clone())),
             TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
@@ -173,6 +180,7 @@ impl TProp {
             TProp::F64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::F64(*v))),
             TProp::Bool(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Bool(*v))),
             TProp::DTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::DTime(*v))),
+            TProp::NDTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::NDTime(*v))),
             TProp::Graph(cell) => cell
                 .last_before(t)
                 .map(|(t, v)| (t, Prop::Graph(v.clone()))),
@@ -202,6 +210,9 @@ impl TProp {
             TProp::Bool(cell) => Box::new(cell.iter_t().map(|(t, value)| (t, Prop::Bool(*value)))),
             TProp::DTime(cell) => {
                 Box::new(cell.iter_t().map(|(t, value)| (t, Prop::DTime(*value))))
+            }
+            TProp::NDTime(cell) => {
+                Box::new(cell.iter_t().map(|(t, value)| (t, Prop::NDTime(*value))))
             }
             TProp::Graph(cell) => Box::new(
                 cell.iter_t()
@@ -271,6 +282,10 @@ impl TProp {
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::DTime(*value))),
             ),
+            TProp::NDTime(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::NDTime(*value))),
+            ),
             TProp::Graph(cell) => Box::new(
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
@@ -339,6 +354,10 @@ impl TProp {
             TProp::DTime(cell) => Box::new(
                 cell.iter_window_t(r)
                     .map(|(t, value)| (t, Prop::DTime(*value))),
+            ),
+            TProp::NDTime(cell) => Box::new(
+                cell.iter_window_t(r)
+                    .map(|(t, value)| (t, Prop::NDTime(*value))),
             ),
             TProp::Graph(cell) => Box::new(
                 cell.iter_window_t(r)

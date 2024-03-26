@@ -1,5 +1,6 @@
 from raphtory import Graph
 
+
 def test_search_in_python():
     g = Graph()
     g.add_node(
@@ -99,7 +100,11 @@ def test_type_search():
     hamza = g.add_node(2, "hamza", node_type="type_2")
     indexed = g.index()
     assert indexed.search_nodes("node_type:type_1") == [ben]
-    assert set(indexed.search_nodes("node_type:type_1 OR node_type:type_2")) == {hamza, ben}
+    assert set(indexed.search_nodes("node_type:type_1 OR node_type:type_2")) == {
+        hamza,
+        ben,
+    }
+
 
 def test_search_with_windows():
     # Window test

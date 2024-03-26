@@ -108,6 +108,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         PropType::List => return Err("Weight type: List, not supported"),
         PropType::Map => return Err("Weight type: Map, not supported"),
         PropType::DTime => return Err("Weight type: DTime, not supported"),
+        PropType::NDTime => return Err("Weight type: NDTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
@@ -126,6 +127,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: InputNode
         PropType::List => return Err("Weight type: List, not supported"),
         PropType::Map => return Err("Weight type: Map, not supported"),
         PropType::DTime => return Err("Weight type: DTime, not supported"),
+        PropType::NDTime => return Err("Weight type: NDTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };

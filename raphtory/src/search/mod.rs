@@ -136,7 +136,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 Prop::Str(_) => {
                     schema.add_text_field(prop_name.as_ref(), TEXT);
                 }
-                Prop::DTime(_) => {
+                Prop::NDTime(_) => {
                     schema.add_date_field(prop_name.as_ref(), INDEXED);
                 }
                 _ => todo!(),
@@ -151,7 +151,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             Prop::Str(_) => {
                 schema.add_text_field(prop, TEXT);
             }
-            Prop::DTime(_) => {
+            Prop::NDTime(_) => {
                 schema.add_date_field(prop, INDEXED);
             }
             Prop::U8(_) => {
@@ -295,7 +295,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 // add the property to the document
                 document.add_text(prop_field, prop_text);
             }
-            Prop::DTime(prop_time) => {
+            Prop::NDTime(prop_time) => {
                 let time = tantivy::DateTime::from_timestamp_nanos(
                     prop_time.and_utc().timestamp_nanos_opt().unwrap(),
                 );

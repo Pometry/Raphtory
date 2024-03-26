@@ -1,13 +1,16 @@
 use crate::{
-    core::ArcStr,
+    core::{ArcStr, Prop},
     db::{
-        api::view::{BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{
+            internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+            StaticGraphViewOps,
+        },
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
         },
     },
-    prelude::{EdgeViewOps, GraphViewOps, LayerOps, TimeOps},
+    prelude::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
     python::{
         graph::properties::{PyNestedPropsIterable, PyPropsList},
         types::{
@@ -20,11 +23,19 @@ use crate::{
                 OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
             },
         },
-        utils::PyTime,
+        utils::{
+            export::{create_row, extract_properties, get_column_names_from_props},
+            PyTime,
+        },
     },
 };
 use itertools::Itertools;
-use pyo3::{pyclass, pymethods, IntoPy, PyObject, Python};
+use pyo3::{
+    prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
+    ToPyObject,
+};
+use rayon::{iter::IntoParallelIterator, prelude::*};
+use std::collections::HashMap;
 
 /// A list of edges that can be iterated over.
 #[pyclass(name = "Edges")]
@@ -227,6 +238,92 @@ impl PyEdges {
     fn layer_names(&self) -> ArcStringVecIterable {
         let edges = self.edges.clone();
         (move || edges.layer_names().map(|e| e.collect_vec())).into()
+    }
+
+    /// Converts the graph's edges into a Pandas DataFrame.
+    ///
+    /// This method will create a DataFrame with the following columns:
+    /// - "src": The source node of the edge.
+    /// - "dst": The destination node of the edge.
+    /// - "layer": The layer of the edge.
+    /// - "properties": The properties of the edge.
+    /// - "update_history": The update history of the edge. This column will be included if `include_update_history` is set to `true`.
+    ///
+    /// Args:
+    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown. Ignored if exploded. Defaults to `false`.
+    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///     explode (bool): A boolean, if set to `true`, will explode each edge update into its own row. Defaults to `false`
+    ///
+    /// Returns:
+    ///     If successful, this PyObject will be a Pandas DataFrame.
+    #[pyo3(signature = (include_property_history=true, convert_datetime=false, explode=false))]
+    pub fn to_df(
+        &self,
+        include_property_history: bool,
+        convert_datetime: bool,
+        explode: bool,
+    ) -> PyResult<PyObject> {
+        let mut column_names = vec![
+            String::from("src"),
+            String::from("dst"),
+            String::from("layer"),
+        ];
+        let edge_meta = self.edges.graph.edge_meta();
+        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
+
+        let mut edges = self.edges.explode_layers();
+        if explode == true {
+            edges = self.edges.explode_layers().explode();
+        }
+
+        let edge_tuples: Vec<_> = edges
+            .collect()
+            .into_par_iter()
+            .flat_map(|item| {
+                let mut properties_map: HashMap<String, Prop> = HashMap::new();
+                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
+
+                extract_properties(
+                    include_property_history,
+                    convert_datetime,
+                    explode,
+                    &column_names,
+                    &is_prop_both_temp_and_const,
+                    &item.properties(),
+                    &mut properties_map,
+                    &mut prop_time_dict,
+                    item.start().unwrap_or(0),
+                );
+
+                let row_header: Vec<Prop> = vec![
+                    Prop::from(item.src().name()),
+                    Prop::from(item.dst().name()),
+                    Prop::from(item.layer_name().unwrap_or(ArcStr::from(""))),
+                ];
+
+                let start_point = 3;
+                let history = item.history();
+
+                create_row(
+                    convert_datetime,
+                    explode,
+                    &column_names,
+                    properties_map,
+                    prop_time_dict,
+                    row_header,
+                    start_point,
+                    history,
+                )
+            })
+            .collect();
+
+        Python::with_gil(|py| {
+            let pandas = PyModule::import(py, "pandas")?;
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("columns", column_names)?;
+            let df = pandas.call_method("DataFrame", (edge_tuples,), Some(kwargs))?;
+            Ok(df.to_object(py))
+        })
     }
 }
 

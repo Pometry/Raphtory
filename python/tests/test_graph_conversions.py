@@ -696,7 +696,7 @@ def test_networkx_no_history():
     g = build_graph()
 
     networkxGraph = g.to_networkx(
-        include_property_histories=False, include_update_history=False
+        include_property_history=False, include_update_history=False
     )
 
     nodeList = list(networkxGraph.nodes(data=True))
@@ -834,7 +834,7 @@ def test_networkx_no_history():
     ]
     compare_list_of_dicts(edgeList, resultList)
 
-    networkxGraph = g.to_networkx(include_property_histories=False, explode_edges=True)
+    networkxGraph = g.to_networkx(include_property_history=False, explode_edges=True)
     edgeList = list(networkxGraph.edges(data=True))
     resultList = [
         (
@@ -953,34 +953,28 @@ def save_df_to_json(df, filename):
 def build_to_df():
     g = build_graph()
 
-    edge_df = g.to_edge_df()
+    edge_df = g.edges.to_df()
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_all.json")
-    edge_df = g.to_edge_df(include_edge_properties=False)
+    edge_df = g.edges.to_df(include_property_history=False)
     save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_props.json")
-    edge_df = g.to_edge_df(include_update_history=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_hist.json")
-    edge_df = g.to_edge_df(include_property_histories=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_prop_hist.json")
+    edge_df = g.edges.to_df(explode=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_explode.json")
+    edge_df = g.edges.to_df(convert_datetime=False)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_no_datetime.json")
 
-    edge_df = g.to_edfe_df(explode_edges=True)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded.json")
-    edge_df = g.to_edfe_df(explode_edges=True, include_edge_properties=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_props.json")
-    edge_df = g.to_edfe_df(explode_edges=True, include_update_history=False)
-    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_exploded_no_hist.json")
-    edge_df = g.to_edfe_df(explode_edges=True, include_property_histories=False)
-    save_df_to_json(
-        edge_df, "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
-    )
+    edge_df = g.edges.to_df(explode=True)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode.json")
+    edge_df = g.edges.to_df(explode=True, convert_datetime=True)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_datetime.json")
+    edge_df = g.edges.to_df(explode=True, include_property_history=True)
+    save_df_to_json(edge_df, "expected/dataframe_output/edge_df_explode_no_hist.json")
 
-    node_df = g.to_edge_df()
+    node_df = g.nodes.to_df()
     save_df_to_json(node_df, "expected/dataframe_output/node_df_all.json")
-    node_df = g.to_edge_df(include_node_properties=False)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_props.json")
-    node_df = g.to_edge_df(include_update_history=False)
+    node_df = g.nodes.to_df(include_property_history=False)
     save_df_to_json(node_df, "expected/dataframe_output/node_df_no_hist.json")
-    node_df = g.to_edge_df(include_property_histories=False)
-    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_prop_hist.json")
+    node_df = g.nodes.to_df(convert_datetime=False)
+    save_df_to_json(node_df, "expected/dataframe_output/node_df_no_datetime.json")
 
 
 def jsonify_df(df):
@@ -1018,64 +1012,53 @@ def test_to_df():
     g = build_graph()
 
     compare_df(
-        g.to_edge_df(),
+        g.edges.to_df(),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_all.json"),
     )
 
     compare_df(
-        g.to_edge_df(include_edge_properties=False),
+        g.edges.to_df(include_property_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_props.json"),
     )
 
     compare_df(
-        g.to_edge_df(include_update_history=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_hist.json"),
+        g.edges.to_df(explode=False),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_explode.json"),
     )
 
     compare_df(
-        g.to_edge_df(include_property_histories=False),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_prop_hist.json"),
+        g.edges.to_df(convert_datetime=False),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_no_datetime.json"),
     )
 
     compare_df(
-        g.to_edge_df(explode_edges=True),
-        pd.read_json(base_dir / "expected/dataframe_output/edge_df_exploded.json"),
+        g.edges.to_df(explode=True),
+        pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode.json"),
     )
 
+    # compare_df(
+    #     g.edges.to_df(explode=True, convert_datetime=True),
+    #     pd.read_json(base_dir / "expected/dataframe_output/edge_df_explode_datetime.json")
+    # )
+
     compare_df(
-        g.to_edge_df(explode_edges=True, include_edge_properties=False),
+        g.edges.to_df(explode=True, include_property_history=True),
         pd.read_json(
-            base_dir / "expected/dataframe_output/edge_df_exploded_no_props.json"
+            base_dir / "expected/dataframe_output/edge_df_explode_no_hist.json"
         ),
     )
 
     compare_df(
-        g.to_edge_df(explode_edges=True, include_update_history=False),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/edge_df_exploded_no_hist.json"
-        ),
-    )
-
-    compare_df(
-        g.to_edge_df(explode_edges=True, include_property_histories=False),
-        pd.read_json(
-            base_dir / "expected/dataframe_output/edge_df_exploded_no_prop_hist.json"
-        ),
-    )
-
-    compare_df(
-        g.to_node_df(),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_all.json"),
-    )
-    compare_df(
-        g.to_node_df(include_node_properties=False),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_props.json"),
-    )
-    compare_df(
-        g.to_node_df(include_update_history=False),
+        g.nodes.to_df(include_property_history=False),
         pd.read_json(base_dir / "expected/dataframe_output/node_df_no_hist.json"),
     )
+
     compare_df(
-        g.to_node_df(include_property_histories=False),
-        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_prop_hist.json"),
+        g.nodes.to_df(include_property_history=True),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_explode.json"),
+    )
+
+    compare_df(
+        g.nodes.to_df(convert_datetime=False, include_property_history=True),
+        pd.read_json(base_dir / "expected/dataframe_output/node_df_no_datetime.json"),
     )
