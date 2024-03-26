@@ -1,8 +1,9 @@
 use crate::{
-    core::entities::graph::tgraph::InnerTemporalGraph,
-    db::api::view::internal::{EdgeFilter, EdgeFilterOps},
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::{api::view::internal::EdgeFilterOps, graph::graph::InternalGraph},
+    core::entities::{edges::edge_store::EdgeStore, graph::tgraph::InnerTemporalGraph, LayerIds},
+    db::{
+        api::view::internal::{EdgeFilter, EdgeFilterOps},
+        graph::graph::InternalGraph,
+    },
 };
 
 impl<const N: usize> EdgeFilterOps for InnerTemporalGraph<N> {
