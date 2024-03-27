@@ -236,14 +236,19 @@ gte      =  { ">=" }
 is_type_op = _{colon}
 colon = {":"}
 
-op = _{ bin_op | math_op | comp_op | in_op | is_type_op | is_null_op }
+str_op = _{ starts_with | ends_with | contains }
+starts_with = {STARTS ~ WITH}
+ends_with = {ENDS ~ WITH}
+contains = {CONTAINS}
+
+op = _{ bin_op | math_op | comp_op | in_op | is_type_op | is_null_op | str_op }
 
 unary_op = _{ not | minus }
 not      =  { ^"NOT" }
 minus    =  { "-" }
 is_null = { ^"IS" ~ NOT? ~ ^"NULL" }
 
-atom = _{ PropertyExpression ~ is_null? | unary_op? ~ Atom ~ is_null? | "(" ~ Expression ~ ")" }
+atom = _{ unary_op? ~ PropertyExpression ~ is_null? | unary_op? ~ Atom ~ is_null? | "(" ~ Expression ~ ")" }
 
 Expression = { atom ~ (op ~ atom)* }
 
@@ -257,9 +262,6 @@ StringOperatorExpression = {
     ((SP ~ STARTS ~ SP ~ WITH) | (SP ~ ENDS ~ SP ~ WITH) | (SP ~ CONTAINS)) ~ SP? ~ PropertyOrLabelsExpression
 }
 
-NullOperatorExpression = {
-    SP ~ IS ~ SP ~ (NOT ~ SP)? ~ NULL
-}
 
 PropertyOrLabelsExpression = {
     Atom ~ (SP? ~ PropertyLookup)* ~ (SP? ~ NodeLabels)?
@@ -394,7 +396,7 @@ Parameter = {
 }
 
 PropertyExpression = {
-    Atom ~ (SP? ~ PropertyLookup)+
+    Atom ~ (PropertyLookup)+
 }
 
 PropertyKeyName = {

@@ -224,7 +224,7 @@ lazy_static::lazy_static! {
             .op(Op::infix(multiply, Left) | Op::infix(divide, Left))
             .op(Op::infix(pow, Right))
             .op(Op::infix(modulo, Left))
-            .op(Op::infix(IN, Left))
+            .op(Op::infix(IN, Left) | Op::infix(contains, Left) | Op::infix(starts_with, Left) | Op::infix(ends_with, Left))
             .op(Op::infix(IS, Right))
 
     };
@@ -251,6 +251,9 @@ pub fn parse_expr(pairs: Pairs<Rule>) -> Result<Expr, ParseError> {
                 Rule::or => BinOpType::Or,
                 Rule::xor => BinOpType::Xor,
                 Rule::IN => BinOpType::In,
+                Rule::contains => BinOpType::Contains,
+                Rule::starts_with => BinOpType::StartsWith,
+                Rule::ends_with => BinOpType::EndsWith,
                 rule => return unsupported("parse_expr", &rule),
             };
 
@@ -1555,6 +1558,51 @@ mod test {
                     Some(Expr::and(
                         Expr::is_not_null(Expr::prop("a", ["name"])),
                         Expr::eq(Expr::prop("a", ["age"]), Expr::int(12))
+                    ))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn parse_contains_starts_ends_with() {
+        let input = "MATCH (a) WHERE a.name CoNTaINS 'John' AND a.name ENDS WITH 'Doe' RETURN a";
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
+                    Some(Expr::and(
+                        Expr::contains(Expr::prop("a", ["name"]), Expr::str("John")),
+                        Expr::ends_with(Expr::prop("a", ["name"]), Expr::str("Doe"))
+                    ))
+                ),
+                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn parse_contains_not_starts_ends_with() {
+        let input =
+            "MATCH (a) WHERE a.name CoNTaINS 'John' AND NOT a.name ENDS WITH 'Doe' RETURN a";
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
+                    Some(Expr::and(
+                        Expr::contains(Expr::prop("a", ["name"]), Expr::str("John")),
+                        Expr::not(Expr::ends_with(Expr::prop("a", ["name"]), Expr::str("Doe")))
                     ))
                 ),
                 Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])

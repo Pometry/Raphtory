@@ -274,6 +274,25 @@ impl Expr {
         }
     }
 
+    pub fn contains(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::Contains, left, right)
+    }
+
+    pub fn starts_with(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::StartsWith, left, right)
+    }
+
+    pub fn ends_with(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::EndsWith, left, right)
+    }
+
+    pub fn not(expr: Expr) -> Self {
+        Expr::UnaryOp {
+            op: UnaryOpType::Not,
+            expr: Box::new(expr),
+        }
+    }
+
     pub fn eq(left: Expr, right: Expr) -> Self {
         Self::new(BinOpType::Eq, left, right)
     }
@@ -373,6 +392,9 @@ pub enum BinOpType {
     Or,
     Xor,
     In,
+    Contains,
+    StartsWith,
+    EndsWith,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

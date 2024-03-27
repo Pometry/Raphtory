@@ -187,6 +187,11 @@ fn parse_projection(query: &Query) -> Vec<sql_ast::SelectItem> {
                             expr,
                             alias: sql_ast::Ident::new(name),
                         }
+                    } else if let sql_ast::Expr::QualifiedWildcard(name) = expr {
+                        sql_ast::SelectItem::QualifiedWildcard(
+                            name,
+                            sql_ast::WildcardAdditionalOptions::default(),
+                        )
                     } else {
                         sql_ast::SelectItem::UnnamedExpr(expr)
                     }
@@ -282,6 +287,25 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
                 )
             }
         }
+        // contains
+        Expr::BinOp {
+            op: BinOpType::Contains,
+            left,
+            right,
+        } => str_op(right, left, |s| format!("%{}%", s)),
+        // starts_with
+        Expr::BinOp {
+            op: BinOpType::StartsWith,
+            left,
+            right,
+        } => str_op(right, left, |s| format!("{}%", s)),
+        // ends_with
+        Expr::BinOp {
+            op: BinOpType::EndsWith,
+            left,
+            right,
+        } => str_op(right, left, |s| format!("%{}", s)),
+        // in
         Expr::BinOp {
             op: BinOpType::In,
             left,
@@ -339,6 +363,27 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
     }
 }
 
+fn str_op(
+    right: &Box<Expr>,
+    left: &Box<Expr>,
+    pattern: impl Fn(&String) -> String,
+) -> sql_ast::Expr {
+    match right.as_ref() {
+        Expr::Literal(Literal::Str(s)) => sql_ast::Expr::Like {
+            negated: false,
+            expr: Box::new(cypher_to_sql_expr(left)),
+            pattern: Box::new(sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(
+                pattern(s),
+            ))),
+            escape_char: None,
+        },
+        pattern => unimplemented!(
+            "unexpected right hand side of CONTAINS operator {:?}",
+            pattern
+        ),
+    }
+}
+
 pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
     println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
@@ -348,7 +393,6 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
         ctx.register_table(layer, Arc::new(table))?;
     }
-
     let query = cypher_to_sql(&query);
     println!("SQL: {:?}", query.to_string());
     let plan = ctx
@@ -368,10 +412,13 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
 mod cyper_2_sql_tests {
 
     use super::*;
-    use arrow::util::pretty::{self, print_batches};
+    use arrow::util::pretty::print_batches;
     use arrow_array::{Array, ArrayRef, Float64Array, Int64Array, RecordBatch, UInt64Array};
-    use arrow_schema::{DataType, Field, Schema};
-    use datafusion::prelude::*;
+    use arrow_schema::{Field, Schema};
+    use raphtory::{
+        core::Prop,
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+    };
     use tempfile::tempdir;
 
     #[test]
@@ -410,6 +457,22 @@ mod cyper_2_sql_tests {
         check_cypher_to_sql(
             "MATCH ()-[e]-() where e.time > 10 RETURN e",
             "SELECT e.* FROM _default AS e WHERE e.time > 10L",
+        );
+    }
+
+    #[test]
+    fn select_where_str_contains() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() where e.name contains 'baa' RETURN e",
+            "SELECT e.* FROM _default AS e WHERE e.name LIKE '%baa%'",
+        );
+    }
+
+    #[test]
+    fn select_where_str_not_contains() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() where NOT e.name contains 'baa' RETURN e",
+            "SELECT e.* FROM _default AS e WHERE e.name NOT LIKE '%baa%'",
         );
     }
 
@@ -554,6 +617,50 @@ mod cyper_2_sql_tests {
 
         let df = run_cypher(
             "match ()-[e1]->()-[e2]->()-[e3]->()-[e4]->()-[e5]->() return *",
+            &graph,
+        )
+        .await
+        .unwrap();
+
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_contains() {
+        let graph_dir = tempdir().unwrap();
+        let edges = vec![
+            (0u64, 1u64, 1i64, 3., "baa".to_string()),
+            (0, 1, 2, 4., "buu".to_string()),
+            (1, 2, 2, 4., "xbaa".to_string()),
+            (1, 2, 3, 4., "beea".to_string()),
+            (2, 3, 5, 5., "baaz".to_string()),
+            (3, 4, 1, 6., "bxx".to_string()),
+            (3, 4, 3, 6., "mbaa".to_string()),
+            (3, 4, 7, 6., "baa".to_string()),
+            (4, 5, 9, 7., "bzz".to_string()),
+        ];
+        let graph = Graph::new();
+
+        for (src, dst, time, weight, name) in edges {
+            graph
+                .add_edge(
+                    time,
+                    src,
+                    dst,
+                    [
+                        ("weight", Prop::F64(weight)),
+                        ("name", Prop::Str(name.into())),
+                    ],
+                    None,
+                )
+                .unwrap();
+        }
+
+        let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
+
+        let df = run_cypher(
+            "match ()-[e]->() where e.name ends WITH 'z' RETURN e",
             &graph,
         )
         .await

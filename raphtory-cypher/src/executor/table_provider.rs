@@ -426,13 +426,59 @@ mod test {
 
         let state = ctx.state();
         let dialect = state.config_options().sql_parser.dialect.as_str();
-        // let plan = state.sql_to_statement("SELECT g1.*,g2.*,g3.* FROM graph as g1 join graph as g2 on g1.dst=g2.src join graph as g3 on g2.dst=g3.src", dialect);
-        let plan = state.sql_to_statement("select graph.a as b from graph", dialect);
-        println!("{:?}", plan);
-        let df = ctx
-            .sql("select e.src, e.weight from graph as e")
-            .await
-            .unwrap();
+        let plan = state.sql_to_statement("select e from graph as e", dialect);
+        println!("AST {:?}", plan);
+
+        // Query(Query {
+        //     with: None,
+        //     body: Select(Select {
+        //         distinct: None,
+        //         top: None,
+        //         projection: [UnnamedExpr(QualifiedWildcard(ObjectName([Ident {
+        //             value: "e",
+        //             quote_style: None,
+        //         }])))],
+        //         into: None,
+        //         from: [TableWithJoins {
+        //             relation: Table {
+        //                 name: ObjectName([Ident {
+        //                     value: "_default",
+        //                     quote_style: None,
+        //                 }]),
+        //                 alias: Some(TableAlias {
+        //                     name: Ident {
+        //                         value: "e",
+        //                         quote_style: None,
+        //                     },
+        //                     columns: [],
+        //                 }),
+        //                 args: None,
+        //                 with_hints: [],
+        //                 version: None,
+        //                 partitions: [],
+        //             },
+        //             joins: [],
+        //         }],
+        //         lateral_views: [],
+        //         selection: None,
+        //         group_by: Expressions([]),
+        //         cluster_by: [],
+        //         distribute_by: [],
+        //         sort_by: [],
+        //         having: None,
+        //         named_window: [],
+        //         qualify: None,
+        //     }),
+        //     order_by: [],
+        //     limit: None,
+        //     limit_by: [],
+        //     offset: None,
+        //     fetch: None,
+        //     locks: [],
+        //     for_clause: None,
+        // });
+
+        let df = ctx.sql("select e.* from graph as e").await.unwrap();
         let data = df.collect().await.unwrap();
 
         print_batches(&data).unwrap();
