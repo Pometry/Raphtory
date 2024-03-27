@@ -34,7 +34,7 @@ pub struct ParquetLayerCols<'a> {
     pub time_col: &'a str,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ArrowGraph {
     inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,

@@ -130,6 +130,7 @@ mod triangle_count_tests {
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     #[test]
     fn triangle_count_1() {
@@ -156,9 +157,16 @@ mod triangle_count_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let actual_tri_count = triangle_count(&graph, Some(2));
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        assert_eq!(actual_tri_count, 4)
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let actual_tri_count = triangle_count(graph, Some(2));
+
+            assert_eq!(actual_tri_count, 4)
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 
     #[test]

@@ -122,87 +122,104 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
 
 #[cfg(test)]
 mod test_layers {
-    use crate::prelude::*;
+    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
     use itertools::Itertools;
+    use tempfile::TempDir;
+
     #[test]
     fn test_layer_node() {
-        let g = Graph::new();
+        let graph = Graph::new();
 
-        g.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
-        g.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
-        g.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
-        let neighbours = g
-            .layers(vec!["layer1", "layer2"])
-            .unwrap()
-            .node(1)
-            .unwrap()
-            .neighbours()
-            .into_iter()
-            .collect_vec();
-        assert_eq!(
-            neighbours[0]
-                .layers("layer2")
+        graph.add_edge(0, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(3, 2, 4, NO_PROPS, Some("layer1")).unwrap();
+
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let neighbours = graph
+                .layers(vec!["layer1", "layer2"])
                 .unwrap()
-                .edges()
-                .id()
-                .collect_vec(),
-            vec![(2, 3)]
-        );
-        assert_eq!(
-            g.layers("layer2")
+                .node(1)
+                .unwrap()
+                .neighbours()
+                .into_iter()
+                .collect_vec();
+            assert_eq!(
+                neighbours[0]
+                    .layers("layer2")
+                    .unwrap()
+                    .edges()
+                    .id()
+                    .collect_vec(),
+                vec![(2, 3)]
+            );
+            assert_eq!(
+                graph
+                    .layers("layer2")
+                    .unwrap()
+                    .node(neighbours[0].name())
+                    .unwrap()
+                    .edges()
+                    .id()
+                    .collect_vec(),
+                vec![(2, 3)]
+            );
+            let mut edges = graph
+                .layers("layer1")
                 .unwrap()
                 .node(neighbours[0].name())
                 .unwrap()
                 .edges()
                 .id()
-                .collect_vec(),
-            vec![(2, 3)]
-        );
-        let mut edges = g
-            .layers("layer1")
-            .unwrap()
-            .node(neighbours[0].name())
-            .unwrap()
-            .edges()
-            .id()
-            .collect_vec();
-        edges.sort();
-        assert_eq!(edges, vec![(1, 2), (2, 4)]);
-        let mut edges = g.layers("layer1").unwrap().edges().id().collect_vec();
-        edges.sort();
-        assert_eq!(edges, vec![(1, 2), (2, 4)]);
-        let mut edges = g
-            .layers(vec!["layer1", "layer2"])
-            .unwrap()
-            .edges()
-            .id()
-            .collect_vec();
-        edges.sort();
-        assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (2, 4)]);
+            let mut edges = graph.layers("layer1").unwrap().edges().id().collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (2, 4)]);
+            let mut edges = graph
+                .layers(vec!["layer1", "layer2"])
+                .unwrap()
+                .edges()
+                .id()
+                .collect_vec();
+            edges.sort();
+            assert_eq!(edges, vec![(1, 2), (2, 3), (2, 4)]);
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 
     #[test]
     fn layering_tests() {
-        let g = Graph::new();
-        let e1 = g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
-        g.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
-        let e = g.edge(1, 2).unwrap();
-
+        let graph = Graph::new();
+        let e1 = graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
         // FIXME: this is weird, see issue #1458
         assert!(e1.has_layer("2"));
         assert!(e1.layers("2").unwrap().history().is_empty());
 
-        // layers with non-existing layers errors
-        assert!(e.layers(["1", "3"]).is_err());
-        // valid_layers ignores non-existing layers
-        assert_eq!(
-            e.valid_layers(["1", "3"]).layer_names().collect_vec(),
-            ["1"]
-        );
-        assert!(e.has_layer("1"));
-        assert!(e.has_layer("2"));
-        assert!(!e.has_layer("3"));
-        assert!(e.valid_layers("1").has_layer("1"));
-        assert!(!e.valid_layers("1").has_layer("2"));
+        graph.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let e = graph.edge(1, 2).unwrap();
+            // layers with non-existing layers errors
+            assert!(e.layers(["1", "3"]).is_err());
+            // valid_layers ignores non-existing layers
+            assert_eq!(
+                e.valid_layers(["1", "3"]).layer_names().collect_vec(),
+                ["1"]
+            );
+            assert!(e.has_layer("1"));
+            assert!(e.has_layer("2"));
+            assert!(!e.has_layer("3"));
+            assert!(e.valid_layers("1").has_layer("1"));
+            assert!(!e.valid_layers("1").has_layer("2"));
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 }

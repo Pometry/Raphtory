@@ -210,19 +210,32 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> GraphOps<'graph> for NodeSubgraph
 
 #[cfg(test)]
 mod subgraph_tests {
-    use crate::{algorithms::motifs::triangle_count::triangle_count, prelude::*};
+    use crate::{
+        algorithms::motifs::triangle_count::triangle_count, db::api::view::StaticGraphViewOps,
+        prelude::*,
+    };
     use itertools::Itertools;
+    use std::fmt::Debug;
+    use tempfile::TempDir;
 
     #[test]
     fn test_materialize_no_edges() {
-        let g = Graph::new();
+        let graph = Graph::new();
 
-        g.add_node(1, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 2, NO_PROPS, None).unwrap();
-        let sg = g.subgraph([1, 2]);
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
-        let actual = sg.materialize().unwrap().into_events().unwrap();
-        assert_eq!(actual, sg);
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
+            let sg = graph.subgraph([1, 2]);
+
+            let actual = sg.materialize().unwrap().into_events().unwrap();
+            assert_eq!(actual, sg);
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 
     #[test]
@@ -256,23 +269,37 @@ mod subgraph_tests {
         for (src, dst, ts) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let subgraph = graph.subgraph(graph.nodes().into_iter().filter(|v| v.degree() > 1));
-        let ts = triangle_count(&subgraph, None);
-        let tg = triangle_count(&graph, None);
-        assert_eq!(ts, tg)
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let subgraph = graph.subgraph(graph.nodes().into_iter().filter(|v| v.degree() > 1));
+            let ts = triangle_count(&subgraph, None);
+            let tg = triangle_count(graph, None);
+            assert_eq!(ts, tg)
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 
     #[test]
     fn layer_materialize() {
-        let g = Graph::new();
-        g.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
-        g.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
+        let graph = Graph::new();
+        graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
+        graph.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
 
-        let sg = g.subgraph([1, 2]);
-        let sgm = sg.materialize().unwrap();
-        assert_eq!(
-            sg.unique_layers().collect_vec(),
-            sgm.unique_layers().collect_vec()
-        );
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let sg = graph.subgraph([1, 2]);
+            let sgm = sg.materialize().unwrap();
+            assert_eq!(
+                sg.unique_layers().collect_vec(),
+                sgm.unique_layers().collect_vec()
+            );
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 }
