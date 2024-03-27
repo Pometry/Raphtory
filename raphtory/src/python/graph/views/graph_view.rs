@@ -9,7 +9,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+                internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
                 LayerOps, StaticGraphViewOps,
             },
         },

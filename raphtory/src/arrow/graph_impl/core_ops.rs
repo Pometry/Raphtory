@@ -194,16 +194,14 @@ impl CoreGraphOps for ArrowGraph {
 
     fn temporal_edge_prop_ids(
         &self,
-        _e: EdgeRef,
+        e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_id = match layer_ids {
+        let layer_id = match layer_ids.constrain_from_edge(e) {
             LayerIds::One(id) => id,
             _ => panic!("Only one layer is supported"),
         };
-
-        let fields = self.edges_data_type(layer_id);
-        Box::new(fields.into_iter().enumerate().map(|(i, _)| i))
+        Box::new(1..self.edges_data_type(layer_id).len())
     }
 
     fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {

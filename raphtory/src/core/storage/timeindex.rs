@@ -673,7 +673,6 @@ mod test {
             data.into_iter()
                 .map(|c| PrimitiveArray::from_vec(c))
                 .collect::<Vec<_>>(),
-            chunk_size,
         )
     }
 }

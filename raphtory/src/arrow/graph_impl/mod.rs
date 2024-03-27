@@ -65,47 +65,49 @@ impl Deref for ArrowGraph {
 }
 
 impl ArrowGraph {
-    // take the datatype from the struct array of the edge properties and fill in the edge_meta
-    fn init_meta(&mut self) {
-        let edge_props_fields = self.edges_data_type(0);
+    fn new(inner_graph: TemporalGraph) -> Self {
+        let node_meta = Meta::new();
+        let edge_meta = Meta::new();
+        let graph_meta = GraphMeta::new();
+
+        let edge_props_fields = inner_graph.edges_data_type(0);
 
         for field in edge_props_fields {
             let prop_name = &field.name;
             let data_type = field.data_type();
 
-            self.edge_meta
+            edge_meta
                 .resolve_prop_id(prop_name, data_type.into(), false)
                 .expect("Arrow data types should without failing");
         }
 
-        if let Some(props) = self.node_properties.as_ref() {
+        if let Some(props) = inner_graph.node_properties.as_ref() {
             let node_const_props_fields = props.const_props.prop_dtypes();
             for field in node_const_props_fields {
-                self.node_meta
+                node_meta
                     .resolve_prop_id(&field.name, field.data_type().into(), true)
                     .expect("Initial resolve should not fail");
             }
 
             let node_temporal_props_fields = props.temporal_props.prop_dtypes();
             for field in node_temporal_props_fields {
-                self.node_meta
+                node_meta
                     .resolve_prop_id(&field.name, field.data_type().into(), false)
                     .expect("Initial resolve should not fail");
             }
         }
+
+        Self {
+            inner: Arc::new(inner_graph),
+            node_meta: Arc::new(node_meta),
+            edge_meta: Arc::new(edge_meta),
+            graph_props: Arc::new(graph_meta),
+        }
     }
 
     pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
-        let edge_meta = graph.0.inner().edge_meta.clone();
-        let node_meta = graph.0.inner().node_meta.clone();
-        let graph_props = Arc::new(GraphMeta::new());
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir)?;
-        Ok(Self {
-            inner: Arc::new(inner_graph),
-            node_meta,
-            edge_meta,
-            graph_props,
-        })
+        Ok(Self::new(inner_graph))
     }
 
     pub fn load_from_edge_lists(
@@ -131,36 +133,12 @@ impl ArrowGraph {
             t_props_chunk_size,
             || edge_lists.iter(),
         )?;
-        let node_meta = Arc::new(Meta::new());
-        let edge_meta = Arc::new(Meta::new());
-
-        let mut graph = Self {
-            inner: Arc::new(inner),
-            node_meta,
-            edge_meta,
-            graph_props: Arc::new(GraphMeta::new()),
-        };
-
-        graph.init_meta();
-
-        Ok(graph)
+        Ok(Self::new(inner))
     }
 
     pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
         let inner = TemporalGraph::new(graph_dir)?;
-        let node_meta = Arc::new(Meta::new());
-        let edge_meta = Arc::new(Meta::new());
-
-        let mut graph = Self {
-            inner: Arc::new(inner),
-            node_meta,
-            edge_meta,
-            graph_props: Arc::new(GraphMeta::new()),
-        };
-
-        graph.init_meta();
-
-        Ok(graph)
+        Ok(Self::new(inner))
     }
 
     pub fn load_from_parquets(
@@ -207,17 +185,7 @@ impl ArrowGraph {
             graph_dir.as_ref(),
             layered_edge_list,
         )?;
-
-        let mut graph = Self {
-            inner: Arc::new(t_graph),
-            node_meta: Arc::new(Meta::new()),
-            edge_meta: Arc::new(Meta::new()),
-            graph_props: Arc::new(GraphMeta::new()),
-        };
-
-        graph.init_meta();
-
-        Ok(graph)
+        Ok(Self::new(t_graph))
     }
 
     pub fn filtered_layers_par<'a>(
@@ -248,20 +216,13 @@ impl ArrowGraph {
         let global_order = ArrowHashMap::from_sorted_dedup(global_ordering.clone())
             .expect("Failed to create global order");
 
-        let mut grapho = Self {
-            inner: Arc::new(TemporalGraph::new_from_layers(
-                global_ordering,
-                Arc::new(global_order),
-                vec![layer],
-                vec!["_default".to_string()],
-            )),
-            node_meta: Arc::new(Meta::new()),
-            edge_meta: Arc::new(Meta::new()),
-            graph_props: Arc::new(GraphMeta::new()),
-        };
-
-        grapho.init_meta();
-        grapho
+        let inner = TemporalGraph::new_from_layers(
+            global_ordering,
+            Arc::new(global_order),
+            vec![layer],
+            vec!["_default".to_string()],
+        );
+        Self::new(inner)
     }
 }
 

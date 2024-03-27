@@ -209,18 +209,15 @@ impl PyArrowGraph {
         concurrent_files: Option<usize>,
         num_threads: usize,
     ) -> Result<ArrowGraph, GraphError> {
-        let graph: Result<ArrowGraph, PyErr> = Python::with_gil(|py: Python<'_>| {
-            let graph = Self::from_parquets(
-                graph_dir,
-                layer_parquet_cols.0,
-                chunk_size,
-                t_props_chunk_size,
-                read_chunk_size,
-                concurrent_files,
-                num_threads,
-            )?;
-            Ok::<_, PyErr>(graph)
-        });
+        let graph = Self::from_parquets(
+            graph_dir,
+            layer_parquet_cols.0,
+            chunk_size,
+            t_props_chunk_size,
+            read_chunk_size,
+            concurrent_files,
+            num_threads,
+        );
         graph.map_err(|e| {
             GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
         })

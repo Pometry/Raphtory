@@ -43,7 +43,7 @@ impl VecState {
 }
 
 impl HopState for VecState {
-    fn hop_with_state(&self, node: Node, edge: Edge) -> Option<VecState> {
+    fn hop_with_state(&self, node: Node, _edge: Edge) -> Option<VecState> {
         let VecState(mut vec) = self.clone();
         vec.push(node.vid());
         Some(VecState(vec))
