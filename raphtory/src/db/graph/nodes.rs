@@ -171,7 +171,10 @@ where
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
+    fn map<
+        O: Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::ValueType<O> {

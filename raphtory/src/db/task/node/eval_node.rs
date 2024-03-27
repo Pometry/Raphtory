@@ -353,7 +353,7 @@ impl<
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<
-        O: 'graph,
+        O: Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
     >(
         &self,
@@ -501,7 +501,7 @@ impl<
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<
-        O: 'graph,
+        O: Send + Sync + 'graph,
         F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
     >(
         &self,

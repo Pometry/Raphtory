@@ -8,7 +8,7 @@ use rayon::{
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{
-        api::state::{node_state::NodeState, ord_ops},
+        api::state::{node_state::NodeState, ord_ops, Index},
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
@@ -108,7 +108,7 @@ pub trait NodeStateOps<'graph>:
                 self.base_graph().clone(),
                 self.graph().clone(),
                 values,
-                Some(keys),
+                Some(Index::from(keys)),
             )
         }
     }
@@ -146,7 +146,7 @@ pub trait NodeStateOps<'graph>:
             self.base_graph().clone(),
             self.graph().clone(),
             values,
-            Some(keys),
+            Some(Index::from(keys)),
         )
     }
 

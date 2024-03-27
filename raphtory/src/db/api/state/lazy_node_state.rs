@@ -2,7 +2,7 @@ use crate::{
     core::entities::{nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            state::NodeStateOps,
+            state::{NodeState, NodeStateOps},
             storage::locked::LockedGraph,
             view::{internal::NodeList, IntoDynBoxed},
         },
@@ -10,7 +10,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use rayon::prelude::ParallelIterator;
+use rayon::prelude::*;
 use std::{marker::PhantomData, sync::Arc};
 
 pub struct LazyNodeState<'graph, V, G, GH = G> {
@@ -21,7 +21,7 @@ pub struct LazyNodeState<'graph, V, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph>
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync + 'graph>
     LazyNodeState<'graph, V, G, GH>
 {
     pub(crate) fn new(
@@ -37,6 +37,74 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph>
             graph,
             nodes,
             _marker: Default::default(),
+        }
+    }
+
+    fn apply(&self, cg: &LockedGraph, g: &GH, vid: VID) -> V {
+        (self.op)(cg, g, vid)
+    }
+
+    pub fn compute(&self) -> NodeState<'graph, V, G, GH> {
+        let cg = self.graph.core_graph();
+        match &self.nodes {
+            NodeList::All { .. } => {
+                if self.graph.nodes_filtered() {
+                    let keys: Vec<_> = cg.nodes_par(&self.graph).collect();
+                    let mut values = Vec::with_capacity(keys.len());
+                    keys.par_iter()
+                        .map(|vid| self.apply(&cg, &self.graph, *vid))
+                        .collect_into_vec(&mut values);
+                    NodeState::new(
+                        self.base_graph.clone(),
+                        self.graph.clone(),
+                        values,
+                        Some(keys.into()),
+                    )
+                } else {
+                    let n = cg.nodes.len();
+                    let mut values = Vec::with_capacity(n);
+                    (0..n)
+                        .into_par_iter()
+                        .map(|i| self.apply(&cg, &self.graph, VID(i)))
+                        .collect_into_vec(&mut values);
+                    NodeState::new(self.base_graph.clone(), self.graph.clone(), values, None)
+                }
+            }
+            NodeList::List { nodes } => {
+                let cg = self.graph.core_graph();
+                if self.graph.nodes_filtered() {
+                    let keys: Vec<_> = nodes
+                        .par_iter()
+                        .filter(|&&v| {
+                            self.graph
+                                .filter_node(cg.nodes.get(v), self.graph.layer_ids())
+                        })
+                        .copied()
+                        .collect();
+                    let mut values = Vec::with_capacity(keys.len());
+                    keys.par_iter()
+                        .map(|vid| self.apply(&cg, &self.graph, *vid))
+                        .collect_into_vec(&mut values);
+                    NodeState::new(
+                        self.base_graph.clone(),
+                        self.graph.clone(),
+                        values,
+                        Some(keys.into()),
+                    )
+                } else {
+                    let mut values = Vec::with_capacity(nodes.len());
+                    nodes
+                        .par_iter()
+                        .map(|vid| self.apply(&cg, &self.graph, *vid))
+                        .collect_into_vec(&mut values);
+                    NodeState::new(
+                        self.base_graph.clone(),
+                        self.graph.clone(),
+                        values,
+                        Some(nodes.clone()),
+                    )
+                }
+            }
         }
     }
 }
@@ -194,7 +262,7 @@ impl<
                         return None;
                     }
                 }
-                NodeList::List { nodes } => *nodes.get(index)?,
+                NodeList::List { nodes } => nodes.key(index)?,
             };
             let cg = self.graph.core_graph();
             Some((

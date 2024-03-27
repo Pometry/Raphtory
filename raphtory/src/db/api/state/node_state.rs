@@ -1,4 +1,11 @@
-use std::{borrow::Borrow, collections::HashMap, fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{
+    borrow::Borrow,
+    collections::{hash_map::IntoIter, HashMap},
+    fmt::Debug,
+    hash::Hash,
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use rayon::{iter::Either, prelude::*};
 
@@ -11,15 +18,70 @@ use crate::{
     prelude::GraphViewOps,
 };
 
+#[derive(Clone, Debug)]
 pub struct Index<K> {
-    keys: Vec<K>,
-    map: HashMap<K, usize>,
+    keys: Arc<[K]>,
+    map: Arc<HashMap<K, usize>>,
 }
 
-impl<K: Copy + Hash + Eq> Index<K> {
-    pub fn new(keys: Vec<K>) -> Self {
-        let map = keys.iter().enumerate().map(|(i, k)| (*k, i)).collect();
-        Self { keys, map }
+impl<K: Copy + Hash + Eq> From<Vec<K>> for Index<K> {
+    fn from(keys: Vec<K>) -> Self {
+        let map = keys
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(i, k)| (k, i))
+            .collect();
+        Self {
+            keys: keys.into(),
+            map: Arc::new(map),
+        }
+    }
+}
+
+impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
+    pub fn iter(&self) -> impl Iterator<Item = &K> + '_ {
+        self.keys.iter()
+    }
+
+    pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = K> {
+        let keys = self.keys;
+        (0..keys.len()).into_par_iter().map(move |i| keys[i])
+    }
+
+    pub fn into_iter(self) -> impl Iterator<Item = K> {
+        let keys = self.keys;
+        (0..keys.len()).map(move |i| keys[i])
+    }
+
+    pub fn index<Q: ?Sized>(&self, key: &Q) -> Option<usize>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        self.map.get(key).copied()
+    }
+
+    pub fn key(&self, index: usize) -> Option<K> {
+        self.keys.get(index).copied()
+    }
+
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    pub fn contains<Q: ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        self.map.contains_key(key)
+    }
+}
+
+impl<K: Copy + Hash + Eq + Send + Sync> Index<K> {
+    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = &K> + '_ {
+        self.keys.par_iter()
     }
 }
 
@@ -32,8 +94,7 @@ pub struct NodeState<'graph, V, G, GH = G> {
 }
 
 impl<'graph, V, G, GH> NodeState<'graph, V, G, GH> {
-    pub(crate) fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Vec<VID>>) -> Self {
-        let keys = keys.map(Index::new);
+    pub(crate) fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
         Self {
             base_graph,
             graph,
@@ -55,7 +116,6 @@ impl<'graph, V: Send + Sync + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<
         let g = self.graph;
         match self.keys {
             Some(index) => index
-                .keys
                 .into_iter()
                 .zip(self.values.into_iter())
                 .map(move |(n, v)| (NodeView::new_one_hop_filtered(bg.clone(), g.clone(), n), v))
