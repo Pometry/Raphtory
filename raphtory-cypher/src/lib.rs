@@ -5,8 +5,9 @@ use datafusion::{
     execution::context::{SQLOptions, SessionContext},
 };
 use executor::{table_provider::EdgeListTableProvider, ExecError};
+use itertools::Itertools;
 use parser::ast::*;
-use raphtory::arrow::graph_impl::ArrowGraph;
+use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 use sqlparser::ast::{self as sql_ast, GroupByExpr, WildcardAdditionalOptions};
 
 mod executor;
@@ -99,13 +100,48 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 }
 
 fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
-    let PatternPart {
-        node, rel_chain, ..
-    } = first;
+    let PatternPart { rel_chain, .. } = first;
     let mut joins = vec![];
     let mut iter = rel_chain.into_iter().peekable();
 
-    let (rel, next_node) = iter.peek().unwrap(); // FIXME: it will breake for match (n)
+    let (rel, _) = iter.peek().unwrap(); // FIXME: it will breake for match (n)
+
+    for ((rel1, _), (rel2, _)) in iter.tuple_windows() {
+        let (from, to) = match rel1.direction {
+            Direction::OUT => ("dst", "src"),
+            Direction::IN => ("src", "dst"),
+            Direction::BOTH => unimplemented!("both direction not supported"),
+        };
+        let join_op =
+            sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(sql_ast::Expr::BinaryOp {
+                left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                    sql_ast::Ident::new(&rel1.name),
+                    sql_ast::Ident::new(from),
+                ])),
+                op: sql_ast::BinaryOperator::Eq,
+                right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                    sql_ast::Ident::new(&rel2.name),
+                    sql_ast::Ident::new(to),
+                ])),
+            }));
+
+        let join = sql_ast::Join {
+            relation: sql_ast::TableFactor::Table {
+                name: sql_ast::ObjectName(vec![sql_ast::Ident::new(rel_layer(rel2))]),
+                alias: Some(sql_ast::TableAlias {
+                    name: sql_ast::Ident::new(&rel2.name),
+                    columns: vec![],
+                }),
+                args: None,
+                with_hints: vec![],
+                version: None,
+                partitions: vec![],
+            },
+            join_operator: join_op,
+        };
+
+        joins.push(join)
+    }
 
     sql_ast::TableWithJoins {
         relation: sql_ast::TableFactor::Table {
@@ -314,6 +350,7 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     }
 
     let query = cypher_to_sql(&query);
+    println!("SQL: {:?}", query.to_string());
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -331,7 +368,10 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
 mod cyper_2_sql_tests {
 
     use super::*;
-    use arrow::util::pretty::print_batches;
+    use arrow::util::pretty::{self, print_batches};
+    use arrow_array::{Array, ArrayRef, Float64Array, Int64Array, RecordBatch, UInt64Array};
+    use arrow_schema::{DataType, Field, Schema};
+    use datafusion::prelude::*;
     use tempfile::tempdir;
 
     #[test]
@@ -397,6 +437,30 @@ mod cyper_2_sql_tests {
         );
     }
 
+    #[test]
+    fn hop_two_times_out() {
+        check_cypher_to_sql(
+            "MATCH ()-[e1]->()-[e2]->() RETURN e1, e2",
+            "SELECT e1.*, e2.* FROM _default AS e1 JOIN _default AS e2 ON e1.dst = e2.src",
+        );
+    }
+
+    #[test]
+    fn hop_3_times_out() {
+        check_cypher_to_sql(
+            "MATCH ()-[e1]->()-[e2]->()-[e3]->() RETURN e1, e2, e3",
+            "SELECT e1.*, e2.*, e3.* FROM _default AS e1 JOIN _default AS e2 ON e1.dst = e2.src JOIN _default AS e3 ON e2.dst = e3.src",
+        );
+    }
+
+    #[test]
+    fn hop_two_times_in() {
+        check_cypher_to_sql(
+            "MATCH ()<-[e1]-()<-[e2]-() RETURN e1, e2",
+            "SELECT e1.*, e2.* FROM _default AS e1 JOIN _default AS e2 ON e1.src = e2.dst",
+        );
+    }
+
     fn check_cypher_to_sql(query: &str, expected: &str) {
         let query = parser::parse_cypher(query).unwrap();
         // println!("{:?}", query);
@@ -404,10 +468,8 @@ mod cyper_2_sql_tests {
         assert_eq!(sql.to_string(), expected.to_string());
     }
 
-    #[tokio::test]
-    async fn select_table_filter_weight() {
-        let graph_dir = tempdir().unwrap();
-        let edges = vec![
+    lazy_static::lazy_static! {
+    static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
             (0, 1, 1, 3.),
             (0, 1, 2, 4.),
             (1, 2, 2, 4.),
@@ -418,7 +480,12 @@ mod cyper_2_sql_tests {
             (3, 4, 7, 6.),
             (4, 5, 9, 7.),
         ];
-        let graph = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+    }
+
+    #[tokio::test]
+    async fn select_table_filter_weight() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 10, 10);
 
         let df = run_cypher("match ()-[e {src: 0}]->() RETURN *", &graph)
             .await
@@ -426,7 +493,9 @@ mod cyper_2_sql_tests {
 
         let data = df.collect().await.unwrap();
 
-        print_batches(&data).unwrap();
+        let expected = make_record_batch(vec![0, 0], vec![1, 1], vec![1, 2], vec![3., 4.]);
+
+        assert_eq!(&data[0], &expected);
 
         let df = run_cypher(
             "match ()-[e]->() where e.time >2 and e.weight<7 RETURN *",
@@ -437,6 +506,92 @@ mod cyper_2_sql_tests {
 
         let data = df.collect().await.unwrap();
 
+        let expected = make_record_batch(
+            vec![1, 2, 3, 3],
+            vec![2, 3, 4, 4],
+            vec![3, 5, 3, 7],
+            vec![4., 5., 6., 6.],
+        );
+
+        assert_eq!(&data[0], &expected);
+    }
+
+    #[tokio::test]
+    async fn two_hops() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+
+        let df = run_cypher(
+            "match ()-[e1]->()-[e2]->() return e1.src as start, e1.dst as mid, e2.dst as end",
+            &graph,
+        )
+        .await
+        .unwrap();
+
+        let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
+
+        // TODO: figure out a way to test this
+    }
+
+    #[tokio::test]
+    async fn three_hops() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+
+        let df = run_cypher("match ()-[e1]->()-[e2]->()-[e3]->() return *", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn five_hops() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+
+        let df = run_cypher(
+            "match ()-[e1]->()-[e2]->()-[e3]->()-[e4]->()-[e5]->() return *",
+            &graph,
+        )
+        .await
+        .unwrap();
+
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    fn new_record_batch(arrays: Vec<(&str, ArrayRef)>) -> RecordBatch {
+        let fields: Vec<Field> = arrays
+            .iter()
+            .map(|(name, array)| Field::new(name.to_string(), array.data_type().clone(), false))
+            .collect();
+
+        let schema = Schema::new(fields);
+
+        let arrays = arrays.into_iter().map(|(_, array)| array).collect();
+
+        RecordBatch::try_new(Arc::new(schema), arrays).unwrap()
+    }
+
+    fn make_record_batch(
+        srcs: Vec<u64>,
+        dsts: Vec<u64>,
+        times: Vec<i64>,
+        weights: Vec<f64>,
+    ) -> RecordBatch {
+        let src_array = UInt64Array::from(srcs);
+        let dst_array = UInt64Array::from(dsts);
+        let time_array = Int64Array::from(times);
+        let weight_array = Float64Array::from(weights);
+
+        new_record_batch(vec![
+            ("src", Arc::new(src_array)),
+            ("dst", Arc::new(dst_array)),
+            ("time", Arc::new(time_array)),
+            ("weight", Arc::new(weight_array)),
+        ])
     }
 }
