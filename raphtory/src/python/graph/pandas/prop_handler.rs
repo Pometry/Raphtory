@@ -86,6 +86,7 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
         )))
     }
 }
+
 pub(crate) fn lift_layer<'a, S: AsRef<str>>(
     layer: Option<S>,
     layer_in_df: bool,
