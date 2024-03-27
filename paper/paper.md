@@ -122,3 +122,5 @@ Finally, Raphtory is built with a focus on ease of use and can be installed usin
 # Projects using Raphtory
 
 Raphtory has proved an invaluable resource in industrial and academic projects, for instance to characterise the time evolution of the fringe social network Gab [@arnold2021moving], transactions of users of a dark web marketplace Alphabay using temporal motifs [@paranjape2017motifs] or anomalous patterns of activity in NFT trades [@yousaf2023non]. The library has recently been significantly rewritten, and we expect that with its new functionalities, efficiency and ease of use, it will become an essential part of the network science community.
+
+# References
