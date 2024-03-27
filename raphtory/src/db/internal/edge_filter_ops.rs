@@ -1,10 +1,12 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::{api::view::internal::EdgeFilterOps, graph::graph::InternalGraph},
+    core::entities::{edges::edge_store::EdgeStore, graph::tgraph::InnerTemporalGraph, LayerIds},
+    db::{
+        api::view::internal::{EdgeFilter, EdgeFilterOps},
+        graph::graph::InternalGraph,
+    },
 };
 
-impl EdgeFilterOps for InternalGraph {
-    ///
+impl<const N: usize> EdgeFilterOps for InnerTemporalGraph<N> {
     fn edges_filtered(&self) -> bool {
         false
     }
