@@ -286,6 +286,57 @@ mod dijkstra_tests {
     }
 
     #[test]
+    fn test_dijkstra_multiple_targets_node_ids() {
+        let edges = vec![
+            (0, 1, 2, vec![("weight", 4u64)]),
+            (1, 1, 3, vec![("weight", 4u64)]),
+            (2, 2, 3, vec![("weight", 2u64)]),
+            (3, 3, 4, vec![("weight", 3u64)]),
+            (4, 3, 5, vec![("weight", 1u64)]),
+            (5, 3, 6, vec![("weight", 6u64)]),
+            (6, 4, 6, vec![("weight", 2u64)]),
+            (7, 5, 6, vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        let targets = vec![4, 6];
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            1,
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
+        let results = results.unwrap();
+        assert_eq!(results.get("4").unwrap().0, Prop::U64(7u64));
+        assert_eq!(results.get("4").unwrap().1, vec!["1", "3", "4"]);
+
+        assert_eq!(results.get("6").unwrap().0, Prop::U64(8u64));
+        assert_eq!(results.get("6").unwrap().1, vec!["1", "3", "5", "6"]);
+
+        let targets = vec![4, 5, 6];
+        let results = dijkstra_single_source_shortest_paths(
+            &graph,
+            2,
+            targets,
+            Some("weight".to_string()),
+            Direction::OUT,
+        );
+        let results = results.unwrap();
+        assert_eq!(results.get("4").unwrap().0, Prop::U64(5u64));
+        assert_eq!(results.get("5").unwrap().0, Prop::U64(3u64));
+        assert_eq!(results.get("6").unwrap().0, Prop::U64(6u64));
+        assert_eq!(results.get("4").unwrap().1, vec!["2", "3", "4"]);
+        assert_eq!(results.get("5").unwrap().1, vec!["2", "3", "5"]);
+        assert_eq!(results.get("6").unwrap().1, vec!["2", "3", "5", "6"]);
+    }
+
+    #[test]
     fn test_dijkstra_multiple_targets_u64() {
         let edges = vec![
             (0, "A", "B", vec![("weight", 4u64)]),
