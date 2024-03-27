@@ -5,7 +5,11 @@ use std::iter;
 use crate::{
     arrow::GID,
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
+        entities::{
+            edges::edge_ref::EdgeRef,
+            nodes::{input_node::InputNode, node_ref::NodeRef},
+            LayerIds, EID, VID,
+        },
         Direction,
     },
     db::api::view::{
@@ -29,7 +33,9 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
                 .find_node(&GID::U64(vid))
                 .or_else(|| self.find_node(&GID::I64(vid as i64))),
             //FIXME: when the original GID was string this will fail
-            NodeRef::ExternalStr(str) => self.find_node(&GID::Str(str.into())),
+            NodeRef::ExternalStr(str) => self.find_node(&GID::Str(str.into())).or_else(|| {
+                self.internal_node_ref(NodeRef::External(str.id()), _layer_ids, _filter)
+            }),
         }
     }
 
@@ -209,28 +215,40 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
         filter: Option<&EdgeFilter>,
     ) -> view::BoxedLIter<'graph, EdgeRef> {
         let layer_id = self.layer_from_ids(&layer);
-        match layer_id {
-            Some(layer_id) => {
-                let filter = filter.cloned();
-                let self_cloned = self.clone();
-                let iter = self
-                    .edges_cloned(src, d, layer_id)
-                    .map(move |(e_id, v)| match d {
-                        Direction::OUT => EdgeRef::new_outgoing(e_id, src, v).at_layer(layer_id),
-                        Direction::IN => EdgeRef::new_incoming(e_id, v, src).at_layer(layer_id),
-                        Direction::BOTH => todo!("BOTH"),
-                    });
+        if matches!(d, Direction::BOTH) {
+            Box::new(
+                self.node_edges(src, Direction::OUT, layer.clone(), filter)
+                    .merge_by(
+                        self.node_edges(src, Direction::IN, layer.clone(), filter),
+                        |e1, e2| e1.remote() <= e2.remote(),
+                    ),
+            )
+        } else {
+            match layer_id {
+                Some(layer_id) => {
+                    let filter = filter.cloned();
+                    let self_cloned = self.clone();
+                    let iter = self
+                        .edges_cloned(src, d, layer_id)
+                        .map(move |(e_id, v)| match d {
+                            Direction::OUT => {
+                                EdgeRef::new_outgoing(e_id, src, v).at_layer(layer_id)
+                            }
+                            Direction::IN => EdgeRef::new_incoming(e_id, v, src).at_layer(layer_id),
+                            Direction::BOTH => unreachable!(),
+                        });
 
-                if filter.is_some() {
-                    Box::new(iter.filter(move |e_ref| {
-                        let edge = self_cloned.edge(e_ref.pid(), layer_id);
-                        filter.as_ref().map(|f| f(&edge, &layer)).unwrap_or(true)
-                    }))
-                } else {
-                    Box::new(iter)
+                    if filter.is_some() {
+                        Box::new(iter.filter(move |e_ref| {
+                            let edge = self_cloned.edge(e_ref.pid(), layer_id);
+                            filter.as_ref().map(|f| f(&edge, &layer)).unwrap_or(true)
+                        }))
+                    } else {
+                        Box::new(iter)
+                    }
                 }
+                None => Box::new(iter::empty()),
             }
-            None => Box::new(iter::empty()),
         }
     }
 
