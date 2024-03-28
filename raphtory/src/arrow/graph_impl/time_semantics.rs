@@ -105,8 +105,14 @@ impl TimeSemantics for ArrowGraph {
         layer_ids: &LayerIds,
         _edge_filter: Option<&EdgeFilter>,
     ) -> bool {
-        self.filtered_layers_par(layer_ids)
-            .any(|layer| layer.node(v).timestamps().active(w.clone()))
+        self.filtered_layers_par(layer_ids).any(|layer| {
+            layer.node(v).timestamps().active(w.clone())
+                || self
+                    .node_properties
+                    .as_ref()
+                    .map(|props| props.temporal_props.timestamps(v).active(w.clone()))
+                    .unwrap_or(false)
+        })
     }
 
     /// check if edge `e` should be included in window `w`

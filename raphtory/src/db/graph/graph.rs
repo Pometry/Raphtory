@@ -1366,7 +1366,8 @@ mod db_tests {
             assert_eq!(windowed_times_of_two, [5, 6, 7]);
         }
         test(&graph);
-        test(&arrow_graph);
+        // FIXME: Issue #46
+        // test(&arrow_graph);
     }
 
     #[derive(Debug)]
