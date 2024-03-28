@@ -417,7 +417,7 @@ mod node_test {
             let v1_w = graph.window(0, 1).node(1).unwrap();
             assert_eq!(
                 v1.properties().as_map(),
-                [(ArcStr::from("test"), Prop::str("test)"))].into()
+                [(ArcStr::from("test"), Prop::str("test"))].into()
             );
             assert_eq!(v1_w.properties().as_map(), HashMap::default())
         }

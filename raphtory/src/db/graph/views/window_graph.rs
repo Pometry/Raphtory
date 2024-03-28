@@ -1270,10 +1270,10 @@ mod views_test {
     #[test]
     fn test_entity_history() {
         let graph = Graph::new();
-        graph.add_node(0, 1, NO_PROPS, None).unwrap();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(2, 1, NO_PROPS, None).unwrap();
-        graph.add_node(3, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(1, 0, NO_PROPS, None).unwrap();
+        graph.add_node(2, 0, NO_PROPS, None).unwrap();
+        graph.add_node(3, 0, NO_PROPS, None).unwrap();
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
@@ -1288,7 +1288,7 @@ mod views_test {
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
             let e = graph.edge(1, 2).unwrap();
-            let v = graph.node(1).unwrap();
+            let v = graph.node(0).unwrap();
             let full_history_1 = vec![0i64, 1, 2, 3];
 
             let full_history_2 = vec![4i64, 5, 6, 7];
@@ -1312,17 +1312,17 @@ mod views_test {
                     .history()
                     .map(|it| it.collect_vec())
                     .collect_vec(),
-                [vec![], vec![full_history_1], vec![full_history_2],]
+                [vec![], vec![], vec![full_history_1], vec![full_history_2],]
             );
 
             assert_eq!(
                 graph.nodes().earliest_time().flatten().collect_vec(),
-                [0, 0, 4,]
+                [0, 0, 0, 4,]
             );
 
             assert_eq!(
                 graph.nodes().latest_time().flatten().collect_vec(),
-                [7, 3, 7]
+                [3, 7, 3, 7]
             );
 
             assert_eq!(
@@ -1332,7 +1332,7 @@ mod views_test {
                     .latest_time()
                     .map(|it| it.flatten().collect_vec())
                     .collect_vec(),
-                [vec![3, 7], vec![7], vec![7],]
+                [vec![], vec![3, 7], vec![7], vec![7],]
             );
 
             assert_eq!(
@@ -1342,7 +1342,7 @@ mod views_test {
                     .earliest_time()
                     .map(|it| it.flatten().collect_vec())
                     .collect_vec(),
-                [vec![0, 4,], vec![0], vec![0],]
+                [vec![], vec![0, 4,], vec![0], vec![0],]
             );
         }
         test(&graph);
