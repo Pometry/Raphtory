@@ -103,7 +103,7 @@ impl ArrowGraph {
             1,
             2,
         )
-            .expect("failed to create graph")
+        .expect("failed to create graph")
     }
 
     fn new(inner_graph: TemporalGraph) -> Self {

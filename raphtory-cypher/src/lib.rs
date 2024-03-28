@@ -58,20 +58,24 @@ fn parse_order_by(query: &Query) -> Vec<sql_ast::OrderByExpr> {
 fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
     let mut order_by = vec![];
 
+    let from_tables = parse_tables(query);
+
+    let binds = rel_names(query);
+
     Box::new(sql_ast::SetExpr::Select(Box::new(sql_ast::Select {
         distinct: None,
         // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
         top: None,
         // projection expressions
-        projection: parse_projection(query),
+        projection: parse_projection(query, &binds),
         // INTO
         into: None,
         // FROM
-        from: parse_tables(query),
+        from: from_tables,
         // LATERAL VIEWs
         lateral_views: vec![],
         // WHERE
-        selection: parse_selection(query),
+        selection: parse_selection(query, &binds),
         // GROUP BY
         group_by: GroupByExpr::Expressions(vec![]),
         // CLUSTER BY (Hive)
@@ -87,6 +91,28 @@ fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
         // QUALIFY (Snowflake)
         qualify: None,
     })))
+}
+
+fn rel_names(query: &Query) -> Vec<String> {
+    let binds = query
+        .clauses()
+        .iter()
+        .flat_map(|clause| match clause {
+            Clause::Match(m) => m
+                .pattern
+                .0
+                .iter()
+                .flat_map(|part| {
+                    part.rel_chain
+                        .iter()
+                        .map(|(rel, _)| rel.name.clone())
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+            _ => vec![],
+        })
+        .collect::<Vec<_>>();
+    binds
 }
 
 fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
@@ -174,7 +200,7 @@ fn rel_layer(pat: &RelPattern) -> String {
         .unwrap_or("_default".to_string())
 }
 
-fn parse_projection(query: &Query) -> Vec<sql_ast::SelectItem> {
+fn parse_projection(query: &Query, binds: &[String]) -> Vec<sql_ast::SelectItem> {
     query
         .clauses()
         .iter()
@@ -188,7 +214,7 @@ fn parse_projection(query: &Query) -> Vec<sql_ast::SelectItem> {
             Clause::Return(Return { items, .. }) => items
                 .iter()
                 .map(|ret_i| {
-                    let expr = cypher_to_sql_expr(&ret_i.expr);
+                    let expr = cypher_to_sql_expr(&ret_i.expr, binds);
                     if let Some(name) = ret_i.as_name.as_ref() {
                         sql_ast::SelectItem::ExprWithAlias {
                             expr,
@@ -209,7 +235,7 @@ fn parse_projection(query: &Query) -> Vec<sql_ast::SelectItem> {
         .unwrap_or_default()
 }
 
-fn parse_selection(query: &Query) -> Option<sql_ast::Expr> {
+fn parse_selection(query: &Query, binds: &[String]) -> Option<sql_ast::Expr> {
     let rel_exprs = query
         .clauses()
         .into_iter()
@@ -234,12 +260,15 @@ fn parse_selection(query: &Query) -> Option<sql_ast::Expr> {
             }),
             _ => unreachable!(),
         })
-        .map(|expr| cypher_to_sql_expr(&expr));
+        .map(|expr| cypher_to_sql_expr(&expr, binds));
     let where_exprs = query
         .clauses()
         .into_iter()
         .filter_map(|clause| match clause {
-            Clause::Match(m) => m.where_clause.as_ref().map(|expr| cypher_to_sql_expr(expr)),
+            Clause::Match(m) => m
+                .where_clause
+                .as_ref()
+                .map(|expr| cypher_to_sql_expr(expr, binds)),
             _ => None,
         });
     where_exprs
@@ -279,7 +308,7 @@ fn cypher_binary_op_to_sql(op: &BinOpType) -> sql_ast::BinaryOperator {
     }
 }
 
-fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
+fn cypher_to_sql_expr(expr: &Expr, binds: &[String]) -> sql_ast::Expr {
     match expr {
         Expr::Var { var_name, attrs } => {
             if attrs.is_empty() {
@@ -299,19 +328,19 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
             op: BinOpType::Contains,
             left,
             right,
-        } => str_op(right, left, |s| format!("%{}%", s)),
+        } => str_op(right, left, |s| format!("%{}%", s), binds),
         // starts_with
         Expr::BinOp {
             op: BinOpType::StartsWith,
             left,
             right,
-        } => str_op(right, left, |s| format!("{}%", s)),
+        } => str_op(right, left, |s| format!("{}%", s), binds),
         // ends_with
         Expr::BinOp {
             op: BinOpType::EndsWith,
             left,
             right,
-        } => str_op(right, left, |s| format!("%{}", s)),
+        } => str_op(right, left, |s| format!("%{}", s), binds),
         // in
         Expr::BinOp {
             op: BinOpType::In,
@@ -321,29 +350,34 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
             let sql_list = match right.as_ref() {
                 Expr::Literal(Literal::List(exprs)) => exprs
                     .into_iter()
-                    .map(|lit| cypher_to_sql_expr(&Expr::Literal(lit.clone())))
+                    .map(|lit| cypher_to_sql_expr(&Expr::Literal(lit.clone()), binds))
                     .collect::<Vec<_>>(),
                 expr => unimplemented!("unexpected right hand side of IN operator {:?}", expr),
             };
             sql_ast::Expr::InList {
-                expr: Box::new(cypher_to_sql_expr(left)),
+                expr: Box::new(cypher_to_sql_expr(left, binds)),
                 list: sql_list,
                 negated: false,
             }
         }
         Expr::BinOp { op, left, right } => sql_ast::Expr::BinaryOp {
-            left: Box::new(cypher_to_sql_expr(left)),
+            left: Box::new(cypher_to_sql_expr(left, binds)),
             op: cypher_binary_op_to_sql(op),
-            right: Box::new(cypher_to_sql_expr(right)),
+            right: Box::new(cypher_to_sql_expr(right, binds)),
         },
         Expr::UnaryOp { op, expr } => sql_ast::Expr::UnaryOp {
             op: cypher_unary_op_to_sql(op),
-            expr: Box::new(cypher_to_sql_expr(expr)),
+            expr: Box::new(cypher_to_sql_expr(expr, binds)),
         },
         Expr::CountAll => sql_ast::Expr::Function(sql_ast::Function {
             name: sql_ast::ObjectName(vec![sql_ast::Ident::new("COUNT")]),
             args: vec![sql_ast::FunctionArg::Unnamed(
-                sql_ast::FunctionArgExpr::Wildcard,
+                sql_ast::FunctionArgExpr::Expr(sql_ast::Expr::CompoundIdentifier(
+                    vec![binds[0].clone(), "src".to_string()]
+                        .into_iter()
+                        .map(|s| sql_ast::Ident::new(s))
+                        .collect(),
+                )), // this is a hack because datafusion gets confused when there are no columns selected
             )],
             over: None,
             distinct: false,
@@ -377,7 +411,7 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
                 .iter()
                 .map(|arg| {
                     sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(
-                        cypher_to_sql_expr(arg),
+                        cypher_to_sql_expr(arg, binds),
                     ))
                 })
                 .collect(),
@@ -396,11 +430,12 @@ fn str_op(
     right: &Box<Expr>,
     left: &Box<Expr>,
     pattern: impl Fn(&String) -> String,
+    binds: &[String],
 ) -> sql_ast::Expr {
     match right.as_ref() {
         Expr::Literal(Literal::Str(s)) => sql_ast::Expr::Like {
             negated: false,
-            expr: Box::new(cypher_to_sql_expr(left)),
+            expr: Box::new(cypher_to_sql_expr(left, binds)),
             pattern: Box::new(sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(
                 pattern(s),
             ))),
@@ -423,7 +458,9 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         ctx.register_table(layer, Arc::new(table))?;
     }
     let query = cypher_to_sql(&query);
+
     println!("SQL: {:?}", query.to_string());
+    println!("SQL AST: {:?}", query);
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -750,6 +787,76 @@ mod cyper_2_sql_tests {
         .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_contains_count_star() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_str_col(graph_dir);
+
+        let df = run_cypher("match ()-[e]-() return count(*)", &graph)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+
+        // Query(Query {
+        //     with: None,
+        //     body: Select(Select {
+        //         distinct: None,
+        //         top: None,
+        //         projection: [UnnamedExpr(Function(Function {
+        //             name: ObjectName([Ident {
+        //                 value: "COUNT",
+        //                 quote_style: None,
+        //             }]),
+        //             args: [Unnamed(Wildcard)],
+        //             filter: None,
+        //             null_treatment: None,
+        //             over: None,
+        //             distinct: false,
+        //             special: false,
+        //             order_by: [],
+        //         }))],
+        //         into: None,
+        //         from: [TableWithJoins {
+        //             relation: Table {
+        //                 name: ObjectName([Ident {
+        //                     value: "_default",
+        //                     quote_style: None,
+        //                 }]),
+        //                 alias: Some(TableAlias {
+        //                     name: Ident {
+        //                         value: "e",
+        //                         quote_style: None,
+        //                     },
+        //                     columns: [],
+        //                 }),
+        //                 args: None,
+        //                 with_hints: [],
+        //                 version: None,
+        //                 partitions: [],
+        //             },
+        //             joins: [],
+        //         }],
+        //         lateral_views: [],
+        //         selection: None,
+        //         group_by: Expressions([]),
+        //         cluster_by: [],
+        //         distribute_by: [],
+        //         sort_by: [],
+        //         having: None,
+        //         named_window: [],
+        //         qualify: None,
+        //     }),
+        //     order_by: [],
+        //     limit: None,
+        //     limit_by: [],
+        //     offset: None,
+        //     fetch: None,
+        //     locks: [],
+        //     for_clause: None,
+        // });
     }
 
     #[tokio::test]
