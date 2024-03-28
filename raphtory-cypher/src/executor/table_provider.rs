@@ -426,7 +426,7 @@ mod test {
 
         let state = ctx.state();
         let dialect = state.config_options().sql_parser.dialect.as_str();
-        let plan = state.sql_to_statement("select e from graph as e", dialect);
+        let plan = state.sql_to_statement("SELECT * from _default AS e LIMIT 2", dialect);
         println!("AST {:?}", plan);
 
         // Query(Query {

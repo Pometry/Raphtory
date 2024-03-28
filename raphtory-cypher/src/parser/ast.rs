@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use raphtory::{
-    core::Direction,
-    db::{api::mutation::AdditionOps, graph::graph::Graph},
-    prelude::NO_PROPS,
-};
+use raphtory::core::Direction;
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Query {
@@ -22,30 +18,6 @@ impl Query {
         match self {
             Query::SingleQuery(q) => &q.clauses,
         }
-    }
-
-    fn path_graph(&self) -> Graph {
-        let g = Graph::new();
-
-        for clause in self.clauses() {
-            match clause {
-                Clause::Match(m) => {
-                    for part in &m.pattern.0 {
-                        if let Some(_name) = &part.var {}
-                    }
-                }
-                Clause::Return(ret) => {
-                    for r in &ret.items {
-                        for (node, _) in r.expr.bindings() {
-                            let _ = g.add_node(0, node, NO_PROPS, None);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        g
     }
 }
 
@@ -72,6 +44,7 @@ impl Clause {
         Clause::Return(Return {
             all,
             items: items.into_iter().collect(),
+            limit: None,
         })
     }
 }
@@ -201,6 +174,7 @@ impl RelPattern {
 pub struct Return {
     pub all: bool,
     pub items: Vec<ReturnItem>,
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -236,29 +210,15 @@ pub enum Expr {
         op: UnaryOpType,
         expr: Ex,
     },
-    Count(Ex),
+    FunctionInvocation {
+        name: String,
+        distinct: bool,
+        args: Vec<Expr>,
+    },
     CountAll,
 }
 
 impl Expr {
-    pub fn bindings(&self) -> Vec<(String, Vec<String>)> {
-        match self {
-            Expr::Var { var_name, attrs } => {
-                let bindings = vec![(var_name.clone(), attrs.clone())];
-                bindings
-            }
-            Expr::BinOp { left, right, .. } => {
-                let mut bindings = left.bindings();
-                bindings.extend(right.bindings());
-                bindings
-            }
-            Expr::UnaryOp { expr, .. } => expr.bindings(),
-            Expr::Count(expr) => expr.bindings(),
-            Expr::CountAll => vec![],
-            Expr::Literal(_) => vec![],
-        }
-    }
-
     pub fn var<S: AsRef<str>>(var: &str, attrs: impl IntoIterator<Item = S>) -> Self {
         Expr::Var {
             var_name: var.to_string(),

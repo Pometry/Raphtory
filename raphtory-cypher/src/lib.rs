@@ -39,9 +39,16 @@ pub fn cypher_to_sql(query: &Query) -> sql_ast::Statement {
     }))
 }
 
-fn parse_limit(_query: &Query) -> Option<sql_ast::Expr> {
-    // TODO: implement actual limit
-    None
+fn parse_limit(query: &Query) -> Option<sql_ast::Expr> {
+    query.clauses().iter().find_map(|clause| match clause {
+        Clause::Return(Return {
+            limit: Some(limit), ..
+        }) => Some(sql_ast::Expr::Value(sql_ast::Value::Number(
+            limit.to_string(),
+            true,
+        ))),
+        _ => None,
+    })
 }
 
 fn parse_order_by(query: &Query) -> Vec<sql_ast::OrderByExpr> {
@@ -359,7 +366,29 @@ fn cypher_to_sql_expr(expr: &Expr) -> sql_ast::Expr {
             sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(s.to_string()))
         }
 
-        _ => todo!(),
+        // functions
+        Expr::FunctionInvocation {
+            name,
+            distinct,
+            args,
+        } => sql_ast::Expr::Function(sql_ast::Function {
+            name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name)]),
+            args: args
+                .iter()
+                .map(|arg| {
+                    sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(
+                        cypher_to_sql_expr(arg),
+                    ))
+                })
+                .collect(),
+            over: None,
+            distinct: *distinct,
+            filter: None,
+            null_treatment: None,
+            special: false,
+            order_by: vec![],
+        }),
+        _ => unimplemented!("unsupported expression {:?}", expr),
     }
 }
 
@@ -411,6 +440,8 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
 #[cfg(test)]
 mod cyper_2_sql_tests {
 
+    use std::path::Path;
+
     use super::*;
     use arrow::util::pretty::print_batches;
     use arrow_array::{Array, ArrayRef, Float64Array, Int64Array, RecordBatch, UInt64Array};
@@ -449,6 +480,38 @@ mod cyper_2_sql_tests {
         check_cypher_to_sql(
             "MATCH ()-[e:KNOWS]-() RETURN e",
             "SELECT e.* FROM KNOWS AS e",
+        );
+    }
+
+    #[test]
+    fn select_wildcard_count_all() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN COUNT(*)",
+            "SELECT COUNT(*) FROM _default AS e",
+        );
+    }
+
+    #[test]
+    fn select_one_col_count_items() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN COUNT(e.name)",
+            "SELECT COUNT(e.name) FROM _default AS e",
+        );
+    }
+
+    #[test]
+    fn select_one_col_count_items_distinct() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN COUNT(distinct e.name)",
+            "SELECT COUNT(DISTINCT e.name) FROM _default AS e",
+        );
+    }
+
+    #[test]
+    fn select_with_limit() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN e LIMIT 2",
+            "SELECT e.* FROM _default AS e LIMIT 2L",
         );
     }
 
@@ -626,9 +689,7 @@ mod cyper_2_sql_tests {
         print_batches(&data).unwrap();
     }
 
-    #[tokio::test]
-    async fn select_contains() {
-        let graph_dir = tempdir().unwrap();
+    fn make_graph_with_str_col(graph_dir: impl AsRef<Path>) -> ArrowGraph {
         let edges = vec![
             (0u64, 1u64, 1i64, 3., "baa".to_string()),
             (0, 1, 2, 4., "buu".to_string()),
@@ -657,7 +718,13 @@ mod cyper_2_sql_tests {
                 .unwrap();
         }
 
-        let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
+        ArrowGraph::from_graph(&graph, graph_dir).unwrap()
+    }
+
+    #[tokio::test]
+    async fn select_contains() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_str_col(graph_dir);
 
         let df = run_cypher(
             "match ()-[e]->() where e.name ends WITH 'z' RETURN e",
@@ -666,6 +733,36 @@ mod cyper_2_sql_tests {
         .await
         .unwrap();
 
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_contains_count() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_str_col(graph_dir);
+
+        let df = run_cypher(
+            "match ()-[e]-() where e.name ends with 'z' return count(e.name)",
+            &graph,
+        )
+        .await
+        .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_contains_limit() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_str_col(graph_dir);
+
+        let df = run_cypher(
+            "match ()-[e]-() where e.name contains 'a' return e limit 2",
+            &graph,
+        )
+        .await
+        .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
     }

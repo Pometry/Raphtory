@@ -1,6 +1,7 @@
 pub mod ast;
 use std::str::ParseBoolError;
 
+use datafusion::physical_plan::limit;
 use pest::{
     error::Error,
     iterators::{Pair, Pairs},
@@ -149,6 +150,7 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
     let mut items = Vec::new();
     let mut all = false;
     let mut inner = pair.into_inner();
+    let mut limit = None;
     // skip return
     inner.next();
     for pair in inner {
@@ -171,6 +173,20 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
                                 }
                             }
                         }
+                        Rule::Limit => {
+                            let maybe_limit = pair
+                                .into_inner()
+                                .skip(1)
+                                .next()
+                                .map(|pair| parse_expr(pair.into_inner()));
+                            if let Some(Ok(Expr::Literal(Literal::Int(n)))) = maybe_limit {
+                                limit = Some(n as usize);
+                            } else {
+                                return Err(ParseError::SyntaxError(
+                                    "Limit must be an integer".to_string(),
+                                ));
+                            }
+                        }
                         rule => return unsupported("parse_return 2", &rule),
                     }
                 }
@@ -178,7 +194,7 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
             rule => return unsupported("parse_return 1", &rule),
         }
     }
-    Ok(Return { all, items })
+    Ok(Return { all, items, limit })
 }
 
 pub fn parse_return_item(pair: Pair<Rule>) -> Result<ReturnItem, ParseError> {
@@ -343,8 +359,37 @@ pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
             }),
             Rule::Literal => Ok(Expr::Literal(parse_literal(pair)?)),
             Rule::COUNT => Ok(Expr::CountAll),
+            Rule::FunctionInvocation => Ok(parse_funcion_invocation(pair)?),
             rule => unsupported("parse_atom", &rule),
         })
+}
+
+fn parse_funcion_invocation(pair: Pair<Rule>) -> Result<Expr, ParseError> {
+    let mut name = None;
+    let mut args = vec![];
+    let mut distinct = false;
+    for pair in pair.into_inner() {
+        match pair.as_rule() {
+            Rule::FunctionName => {
+                name = Some(pair.as_str().to_string());
+            }
+            Rule::DISTINCT => {
+                distinct = true;
+            }
+            Rule::Expression => {
+                args.push(parse_expr(pair.into_inner())?);
+            }
+            rule => return unsupported("parse_funcion_invocation", &rule),
+        }
+    }
+    let name = name.ok_or_else(|| {
+        ParseError::SyntaxError("Function invocation missing function name".to_string())
+    })?;
+    Ok(Expr::FunctionInvocation {
+        name,
+        distinct,
+        args,
+    })
 }
 
 pub fn parse_literal(pair: Pair<Rule>) -> Result<Literal, ParseError> {
@@ -707,6 +752,32 @@ mod test {
             return_clause,
             Ok(Return {
                 all: false,
+                limit: None,
+                items: vec![ReturnItem {
+                    expr: Expr::Var {
+                        var_name: "n".to_string(),
+                        attrs: Vec::with_capacity(0),
+                    },
+                    as_name: None
+                }]
+            })
+        );
+    }
+
+    #[test]
+    fn check_parse_return_limit() {
+        let input = "RETURN n LIMIT 10";
+
+        let pairs = CypherParser::parse(Rule::Return, input);
+        assert!(pairs.is_ok());
+
+        let return_clause = parse_return(pairs.unwrap().next().unwrap());
+
+        assert_eq!(
+            return_clause,
+            Ok(Return {
+                all: false,
+                limit: Some(10),
                 items: vec![ReturnItem {
                     expr: Expr::Var {
                         var_name: "n".to_string(),
@@ -731,6 +802,7 @@ mod test {
             return_clause,
             Ok(Return {
                 all: false,
+                limit: None,
                 items: vec![ReturnItem {
                     expr: Expr::Var {
                         var_name: "n".to_string(),
@@ -755,6 +827,7 @@ mod test {
             return_clause,
             Ok(Return {
                 all: false,
+                limit: None,
                 items: vec![
                     ReturnItem {
                         expr: Expr::Var {
