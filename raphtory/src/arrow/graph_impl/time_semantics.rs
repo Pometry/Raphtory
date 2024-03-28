@@ -14,7 +14,7 @@ use crate::{
         internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
-    prelude::{Prop, TimeIndexEntry},
+    prelude::{GraphViewOps, Prop, TimeIndexEntry},
 };
 
 use super::ArrowGraph;
@@ -49,12 +49,20 @@ impl TimeSemantics for ArrowGraph {
 
     #[doc = " Returns the timestamp for the earliest activity"]
     fn earliest_time_global(&self) -> Option<i64> {
-        Some(self.earliest())
+        if self.is_empty() {
+            None
+        } else {
+            Some(self.earliest())
+        }
     }
 
     #[doc = " Returns the timestamp for the latest activity"]
     fn latest_time_global(&self) -> Option<i64> {
-        Some(self.latest())
+        if self.is_empty() {
+            None
+        } else {
+            Some(self.latest())
+        }
     }
 
     #[doc = " Returns the timestamp for the earliest activity in the window"]
