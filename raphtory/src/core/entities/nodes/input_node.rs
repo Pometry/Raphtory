@@ -10,7 +10,7 @@ const MAX_U64_BYTES: [u8; 20] = [
     49, 56, 52, 52, 54, 55, 52, 52, 48, 55, 51, 55, 48, 57, 53, 53, 49, 54, 49, 53,
 ];
 
-fn parse_u64_strict(input: &str) -> Option<u64> {
+pub fn parse_u64_strict(input: &str) -> Option<u64> {
     if input.len() > 20 {
         /// a u64 string has at most 20 bytes
         return None;
