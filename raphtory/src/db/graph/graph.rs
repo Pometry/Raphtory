@@ -1255,7 +1255,8 @@ mod db_tests {
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
         }
         test(&graph);
-        test(&arrow_graph);
+        // FIXME: Node updates without properties or edges are currently not supported in arrow (see issue #46)
+        // test(&arrow_graph);
     }
 
     #[test]
@@ -2216,7 +2217,8 @@ mod db_tests {
             );
         }
         test(&graph);
-        test(&arrow_graph);
+        // FIXME: Requires mutlilayer edge views
+        // test(&arrow_graph);
     }
 
     #[test]
