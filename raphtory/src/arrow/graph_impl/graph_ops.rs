@@ -20,6 +20,7 @@ use crate::{
 };
 
 use super::ArrowGraph;
+use rayon::prelude::*;
 
 impl<'graph> GraphOps<'graph> for ArrowGraph {
     fn internal_node_ref(
@@ -63,32 +64,105 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
 
     fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         match &layers {
-            layer @ LayerIds::One(layer_id) => {
+            LayerIds::One(layer_id) => {
                 if let Some(ef) = filter {
                     self.all_edges_par(*layer_id)
-                        .filter(|edge| ef(edge, &layer))
+                        .filter(|edge| ef(edge, &layers))
                         .count()
                 } else {
                     self.num_edges(*layer_id)
                 }
             }
-            _ => todo!(),
+            LayerIds::None => 0,
+            LayerIds::All => {
+                if let Some(ef) = filter {
+                    self.layers
+                        .par_iter()
+                        .map(|layer| {
+                            layer
+                                .edges
+                                .par_iter()
+                                .filter(|edge| ef(edge, &layers))
+                                .count()
+                        })
+                        .sum()
+                } else {
+                    self.layers.par_iter().map(|layer| layer.num_edges()).sum()
+                }
+            }
+            LayerIds::Multiple(ids) => {
+                if let Some(ef) = filter {
+                    ids.par_iter()
+                        .map(|layer_id| {
+                            self.layer(*layer_id)
+                                .edges
+                                .par_iter()
+                                .filter(|edge| ef(edge, &layers))
+                                .count()
+                        })
+                        .sum()
+                } else {
+                    ids.par_iter()
+                        .map(|layer_id| self.layer(*layer_id).num_edges())
+                        .sum()
+                }
+            }
         }
     }
 
     fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
         match &layers {
-            layer @ LayerIds::One(layer_id) => {
+            LayerIds::None => 0,
+            LayerIds::All => {
                 if let Some(ef) = filter {
-                    self.all_edges_par(*layer_id)
-                        .filter(|edge| ef(edge, &layer))
-                        .map(|edge| edge.timestamp_slice().len())
-                        .sum::<usize>()
+                    self.layers
+                        .par_iter()
+                        .map(|layer| {
+                            layer
+                                .edges
+                                .par_iter()
+                                .filter(|edge| ef(edge, &layers))
+                                .map(|edge| edge.timestamp_slice().len())
+                                .sum::<usize>()
+                        })
+                        .sum()
                 } else {
-                    self.t_len(*layer_id)
+                    self.layers
+                        .par_iter()
+                        .map(|layer| layer.num_temporal_edges())
+                        .sum()
                 }
             }
-            _ => todo!(),
+            LayerIds::One(layer_id) => {
+                if let Some(ef) = filter {
+                    self.layer(*layer_id)
+                        .edges
+                        .par_iter()
+                        .filter(|edge| ef(edge, &layers))
+                        .map(|edge| edge.timestamp_slice().len())
+                        .sum()
+                } else {
+                    self.layer(*layer_id).num_temporal_edges()
+                }
+            }
+            LayerIds::Multiple(ids) => {
+                if let Some(ef) = filter {
+                    ids.par_iter()
+                        .map(|layer_id| {
+                            self.layer(*layer_id)
+                                .edges
+                                .par_iter()
+                                .filter(|edge| ef(edge, &layers))
+                                .map(|edge| edge.timestamp_slice().len())
+                                .sum::<usize>()
+                        })
+                        .sum()
+                } else {
+                    ids.par_iter()
+                        .map(|layer_id| self.layer(*layer_id).num_temporal_edges())
+                        .sum()
+                }
+            }
         }
     }
 
@@ -99,44 +173,44 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
         layers: &LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> usize {
-        let layer_id = match layers {
-            LayerIds::One(layer_id) => *layer_id,
-            _ => todo!(),
-        };
-        let nodes = self.layers[layer_id].nodes();
-        if let Some(ef) = filter {
-            match d {
-                Direction::OUT => nodes
-                    .out_edges_par(v)
-                    .filter(|eid| self.filter_edge(*eid, ef, layer_id))
-                    .count(),
-                Direction::IN => nodes
-                    .in_edges_par(v)
-                    .filter(|eid| self.filter_edge(*eid, ef, layer_id))
-                    .count(),
-                Direction::BOTH => nodes
-                    .out_adj_list(v)
-                    .merge_join_by(nodes.in_adj_list(v), |(_, v_l), (_, v_r)| v_l.cmp(v_r))
-                    .filter(|merged| match merged {
-                        EitherOrBoth::Both((e_l, _), (e_r, _)) => {
-                            self.filter_edge(*e_l, ef, layer_id)
-                                || self.filter_edge(*e_r, ef, layer_id)
-                        }
-                        EitherOrBoth::Left((eid, _)) => self.filter_edge(*eid, ef, layer_id),
-                        EitherOrBoth::Right((eid, _)) => self.filter_edge(*eid, ef, layer_id),
-                    })
-                    .count(),
+        if let Some(layer_id) = self.layer_from_ids(layers) {
+            let nodes = self.layers[layer_id].nodes();
+            if let Some(ef) = filter {
+                match d {
+                    Direction::OUT => nodes
+                        .out_edges_par(v)
+                        .filter(|eid| self.filter_edge(*eid, ef, layer_id))
+                        .count(),
+                    Direction::IN => nodes
+                        .in_edges_par(v)
+                        .filter(|eid| self.filter_edge(*eid, ef, layer_id))
+                        .count(),
+                    Direction::BOTH => nodes
+                        .out_adj_list(v)
+                        .merge_join_by(nodes.in_adj_list(v), |(_, v_l), (_, v_r)| v_l.cmp(v_r))
+                        .filter(|merged| match merged {
+                            EitherOrBoth::Both((e_l, _), (e_r, _)) => {
+                                self.filter_edge(*e_l, ef, layer_id)
+                                    || self.filter_edge(*e_r, ef, layer_id)
+                            }
+                            EitherOrBoth::Left((eid, _)) => self.filter_edge(*eid, ef, layer_id),
+                            EitherOrBoth::Right((eid, _)) => self.filter_edge(*eid, ef, layer_id),
+                        })
+                        .count(),
+                }
+            } else {
+                match d {
+                    Direction::OUT => nodes.out_degree(v),
+                    Direction::IN => nodes.in_degree(v),
+                    Direction::BOTH => nodes
+                        .out_neighbours_iter(v)
+                        .merge(nodes.in_neighbours_iter(v))
+                        .dedup()
+                        .count(),
+                }
             }
         } else {
-            match d {
-                Direction::OUT => nodes.out_degree(v),
-                Direction::IN => nodes.in_degree(v),
-                Direction::BOTH => nodes
-                    .out_neighbours_iter(v)
-                    .merge(nodes.in_neighbours_iter(v))
-                    .dedup()
-                    .count(),
-            }
+            0
         }
     }
 
@@ -256,28 +330,28 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
         layers: LayerIds,
         filter: Option<&EdgeFilter>,
     ) -> view::BoxedLIter<'graph, VID> {
-        let layer_id = match layers {
-            LayerIds::One(layer_id) => layer_id,
-            _ => todo!(),
-        };
-        let filter = filter.cloned();
-        let self_cloned = self.clone();
-        let iter = self.edges_cloned(src, d, layer_id);
+        if let Some(layer_id) = self.layer_from_ids(&layers) {
+            let filter = filter.cloned();
+            let self_cloned = self.clone();
+            let iter = self.edges_cloned(src, d, layer_id);
 
-        let iter = if filter.is_some() {
-            iter.filter(move |(e_id, _)| {
-                let edge = self_cloned.edge(*e_id, layer_id);
-                filter.as_ref().map(|f| f(&edge, &layers)).unwrap_or(true)
-            })
-            .map(|(_, v)| v)
-            .into_dyn_boxed()
+            let iter = if filter.is_some() {
+                iter.filter(move |(e_id, _)| {
+                    let edge = self_cloned.edge(*e_id, layer_id);
+                    filter.as_ref().map(|f| f(&edge, &layers)).unwrap_or(true)
+                })
+                .map(|(_, v)| v)
+                .into_dyn_boxed()
+            } else {
+                iter.map(|(_, v)| v).into_dyn_boxed()
+            };
+            if matches!(d, Direction::BOTH) {
+                Box::new(iter.dedup())
+            } else {
+                iter
+            }
         } else {
-            iter.map(|(_, v)| v).into_dyn_boxed()
-        };
-        if matches!(d, Direction::BOTH) {
-            Box::new(iter.dedup())
-        } else {
-            iter
+            Box::new(iter::empty())
         }
     }
 }

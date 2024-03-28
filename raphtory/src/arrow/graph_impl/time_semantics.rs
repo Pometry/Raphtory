@@ -8,7 +8,7 @@ use crate::{
     arrow::prelude::{ArrayOps, BaseArrayOps},
     core::{
         entities::{edges::edge_ref::EdgeRef, properties::tprop::TPropOps, LayerIds, VID},
-        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+        storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
         internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
@@ -495,10 +495,26 @@ impl TimeSemantics for ArrowGraph {
         id: usize,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, id, layer_ids)
-            .into_iter()
-            .map(|t_props| t_props.iter().collect::<Vec<_>>())
-            .next()
-            .unwrap_or_default()
+        match layer_ids.constrain_from_edge(e) {
+            LayerIds::None => {
+                vec![]
+            }
+            LayerIds::All => {
+                todo!("multilayer edge view not supported in arrow yet")
+            }
+            LayerIds::One(layer_id) => {
+                if let Some(t_prop) = self.layer(layer_id).edge(e.pid()).temporal_property(id) {
+                    match e.time() {
+                        Some(t) => t_prop.at(&t).map(|v| (t.t(), v)).into_iter().collect(),
+                        None => t_prop.iter().collect(),
+                    }
+                } else {
+                    vec![]
+                }
+            }
+            LayerIds::Multiple(_) => {
+                todo!("multilayer edge view not supported in arrow yet")
+            }
+        }
     }
 }

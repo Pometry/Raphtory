@@ -73,7 +73,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn get_all_node_types(&self) -> Vec<ArcStr> {
-        todo!()
+        todo!("Node types are not supported on arrow yet")
     }
 
     fn node_id(&self, v: VID) -> u64 {
@@ -93,7 +93,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn node_type(&self, _v: VID) -> Option<ArcStr> {
-        None
+        todo!("Node types are not supported on arrow yet")
     }
 
     fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
@@ -101,7 +101,7 @@ impl CoreGraphOps for ArrowGraph {
 
         let layer_id = match layer_ids {
             LayerIds::One(id) => id,
-            _ => panic!("Only one layer is supported"),
+            _ => todo!("Edge views with multiple layers are not supported on arrow yet"),
         };
 
         let edge = self.edge(eref.pid(), layer_id);

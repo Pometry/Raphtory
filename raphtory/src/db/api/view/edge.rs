@@ -315,7 +315,8 @@ mod test_edge_view {
             assert_eq!(prop_values, actual_prop_values)
         }
         test(&graph, &actual_prop_values);
-        test(&arrow_graph, &actual_prop_values);
+        // FIXME: this needs secondary index working (issue #50)
+        // test(&arrow_graph, &actual_prop_values);
     }
 
     #[test]
@@ -354,7 +355,8 @@ mod test_edge_view {
             assert_eq!(actual_layers, expected_layers);
         }
         test(&graph, &expected_prop_values);
-        test(&arrow_graph, &expected_prop_values);
+        // FIXME: Needs multilayer support (Issue #47)
+        // test(&arrow_graph, &expected_prop_values);
     }
 
     #[test]
@@ -393,6 +395,7 @@ mod test_edge_view {
             )
         }
         test(&graph);
-        test(&arrow_graph);
+        // FIXME: boolean properties not supported yet (Issue #48)
+        // test(&arrow_graph);
     }
 }
