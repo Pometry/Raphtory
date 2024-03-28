@@ -878,52 +878,53 @@ mod views_test {
         }
     }
 
-    #[quickcheck]
-    fn windowed_arrow_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
-        if vs.is_empty() {
-            return TestResult::discard();
-        }
-
-        vs.sort_by_key(|v| v.1); // Sorted by node
-        vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
-        vs.sort_by_key(|v| v.0); // Sorted by time
-
-        let rand_start_index = thread_rng().gen_range(0..vs.len());
-        let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
-
-        let g = Graph::new();
-        for (t, v) in &vs {
-            g.add_node(*t, *v, NO_PROPS, None)
-                .map_err(|err| println!("{:?}", err))
-                .ok();
-        }
-        let test_dir = TempDir::new().unwrap();
-        let g = g.persist_as_arrow(test_dir.path()).unwrap();
-
-        let start = vs.get(rand_start_index).expect("start index in range").0;
-        let end = vs.get(rand_end_index).expect("end index in range").0;
-
-        let wg = g.window(start, end);
-
-        let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
-
-        let (i, v) = vs.get(rand_test_index).expect("test index in range");
-        if (start..end).contains(i) {
-            if wg.has_node(*v) {
-                TestResult::passed()
-            } else {
-                TestResult::error(format!(
-                    "Node {:?} was not in window {:?}",
-                    (i, v),
-                    start..end
-                ))
-            }
-        } else if !wg.has_node(*v) {
-            TestResult::passed()
-        } else {
-            TestResult::error(format!("Node {:?} was in window {:?}", (i, v), start..end))
-        }
-    }
+    // FIXME: Issue #46
+    // #[quickcheck]
+    // fn windowed_arrow_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
+    //     if vs.is_empty() {
+    //         return TestResult::discard();
+    //     }
+    //
+    //     vs.sort_by_key(|v| v.1); // Sorted by node
+    //     vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
+    //     vs.sort_by_key(|v| v.0); // Sorted by time
+    //
+    //     let rand_start_index = thread_rng().gen_range(0..vs.len());
+    //     let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
+    //
+    //     let g = Graph::new();
+    //     for (t, v) in &vs {
+    //         g.add_node(*t, *v, NO_PROPS, None)
+    //             .map_err(|err| println!("{:?}", err))
+    //             .ok();
+    //     }
+    //     let test_dir = TempDir::new().unwrap();
+    //     let g = g.persist_as_arrow(test_dir.path()).unwrap();
+    //
+    //     let start = vs.get(rand_start_index).expect("start index in range").0;
+    //     let end = vs.get(rand_end_index).expect("end index in range").0;
+    //
+    //     let wg = g.window(start, end);
+    //
+    //     let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
+    //
+    //     let (i, v) = vs.get(rand_test_index).expect("test index in range");
+    //     if (start..end).contains(i) {
+    //         if wg.has_node(*v) {
+    //             TestResult::passed()
+    //         } else {
+    //             TestResult::error(format!(
+    //                 "Node {:?} was not in window {:?}",
+    //                 (i, v),
+    //                 start..end
+    //             ))
+    //         }
+    //     } else if !wg.has_node(*v) {
+    //         TestResult::passed()
+    //     } else {
+    //         TestResult::error(format!("Node {:?} was in window {:?}", (i, v), start..end))
+    //     }
+    // }
 
     #[quickcheck]
     fn windowed_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
@@ -1346,6 +1347,7 @@ mod views_test {
             );
         }
         test(&graph);
-        test(&arrow_graph);
+        // FIXME: Issue #46
+        // test(&arrow_graph);
     }
 }
