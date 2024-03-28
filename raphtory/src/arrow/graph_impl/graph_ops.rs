@@ -15,6 +15,7 @@ use crate::{
     db::api::view::{
         self,
         internal::{EdgeFilter, GraphOps},
+        IntoDynBoxed,
     },
 };
 
@@ -263,16 +264,20 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
         let self_cloned = self.clone();
         let iter = self.edges_cloned(src, d, layer_id);
 
-        if filter.is_some() {
-            Box::new(
-                iter.filter(move |(e_id, _)| {
-                    let edge = self_cloned.edge(*e_id, layer_id);
-                    filter.as_ref().map(|f| f(&edge, &layers)).unwrap_or(true)
-                })
-                .map(|(_, v)| v),
-            )
+        let iter = if filter.is_some() {
+            iter.filter(move |(e_id, _)| {
+                let edge = self_cloned.edge(*e_id, layer_id);
+                filter.as_ref().map(|f| f(&edge, &layers)).unwrap_or(true)
+            })
+            .map(|(_, v)| v)
+            .into_dyn_boxed()
         } else {
-            Box::new(iter.map(|(_, v)| v))
+            iter.map(|(_, v)| v).into_dyn_boxed()
+        };
+        if matches!(d, Direction::BOTH) {
+            Box::new(iter.dedup())
+        } else {
+            iter
         }
     }
 }
