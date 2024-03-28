@@ -219,7 +219,8 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
             Box::new(
                 self.node_edges(src, Direction::OUT, layer.clone(), filter)
                     .merge_by(
-                        self.node_edges(src, Direction::IN, layer.clone(), filter),
+                        self.node_edges(src, Direction::IN, layer.clone(), filter)
+                            .filter(|e| e.src() != e.dst()),
                         |e1, e2| e1.remote() <= e2.remote(),
                     ),
             )
