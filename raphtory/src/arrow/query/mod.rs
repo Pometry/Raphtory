@@ -25,15 +25,18 @@ pub enum NodeSource {
 impl NodeSource {
     fn into_iter(self, graph: &ArrowGraph) -> Box<dyn Iterator<Item = VID> + '_> {
         match self {
-            NodeSource::All => Box::new((0..graph.num_nodes()).into_iter().map(VID)),
+            NodeSource::All => Box::new((0..graph.inner.num_nodes()).into_iter().map(VID)),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
-            NodeSource::Filter(filter) => {
-                Box::new(graph.all_nodes().filter(move |node| filter(*node, graph)))
-            }
+            NodeSource::Filter(filter) => Box::new(
+                graph
+                    .inner
+                    .all_nodes()
+                    .filter(move |node| filter(*node, graph)),
+            ),
             NodeSource::ExternalIds(ext_ids) => Box::new(
                 ext_ids
                     .into_iter()
-                    .filter_map(move |gid| graph.find_node(&gid)),
+                    .filter_map(move |gid| graph.inner.find_node(&gid)),
             ),
         }
     }

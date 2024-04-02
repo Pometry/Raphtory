@@ -47,6 +47,15 @@ pub struct PyArrowGraph {
     pub graph: ArrowGraph,
 }
 
+impl<G> AsRef<G> for PyArrowGraph
+where
+    ArrowGraph: AsRef<G>,
+{
+    fn as_ref(&self) -> &G {
+        self.graph.as_ref()
+    }
+}
+
 impl From<ArrowGraph> for PyArrowGraph {
     fn from(value: ArrowGraph) -> Self {
         Self { graph: value }

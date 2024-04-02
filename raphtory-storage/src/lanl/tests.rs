@@ -9,9 +9,9 @@ mod tests {
             algorithms::connected_components::connected_components,
             graph_impl::{ArrowGraph, ParquetLayerCols},
         },
-        prelude::GraphViewOps,
+        prelude::{GraphViewOps, *},
     };
-    use std::{collections::HashMap, env, num::NonZeroUsize};
+    use std::{env, num::NonZeroUsize};
 
     #[test]
     fn test_query1() {
@@ -101,54 +101,79 @@ mod tests {
             }
         };
 
-        assert!(graph.count_nodes() == 1624);
-        assert!(graph.count_edges() == 5);
-        assert!(graph.earliest() == 7257601);
-        assert!(graph.latest() == 7343985);
+        assert_eq!(graph.count_nodes(), 1624);
+        assert_eq!(graph.valid_layers("netflow").count_edges(), 2018);
+        assert_eq!(graph.earliest_time(), Some(7257601));
+        assert_eq!(graph.latest_time(), Some(7343985));
 
-        assert!(measure_with_print_results("Query 1", || query1::run(&graph).unwrap()) == 0);
-        assert!(measure_with_print_results("Query 2", || query2::run(&graph).unwrap()) == 0);
-        assert!(measure_with_print_results("Query 3", || query3::run(&graph).unwrap()) == 0);
-        assert!(measure_with_print_results("Query 3b", || query3b::run(&graph).unwrap()) == 0);
+        assert_eq!(
+            measure_with_print_results("Query 1", || query1::run(graph.as_ref()).unwrap()),
+            0
+        );
+        assert_eq!(
+            measure_with_print_results("Query 2", || query2::run(graph.as_ref()).unwrap()),
+            0
+        );
+        assert_eq!(
+            measure_with_print_results("Query 3", || query3::run(graph.as_ref()).unwrap()),
+            0
+        );
+        assert_eq!(
+            measure_with_print_results("Query 3b", || query3b::run(graph.as_ref()).unwrap()),
+            0
+        );
         // assert!(measure_with_print_results("Query 3c", || query3c::run(&graph).unwrap()) == 0);
-        assert!(measure_with_print_results("Query 4", || query4::run2(&graph).unwrap()) == 0);
+        assert_eq!(
+            measure_with_print_results("Query 4", || query4::run2(graph.as_ref()).unwrap()),
+            0
+        );
 
-        assert!(
-            measure_without_print_results("CC", || connected_components(&graph.layer(0)))
+        assert_eq!(
+            measure_without_print_results("CC", || connected_components(graph.as_ref().layer(0)))
                 .into_iter()
                 .take(10)
-                .collect::<Vec<_>>()
-                == vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                .collect::<Vec<_>>(),
+            vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         );
 
         let actual = measure_without_print_results("Weakly CC", || {
-            weakly_connected_components(&graph, 20, None)
+            weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
         })
         .get_all_with_names()
         .len();
-        assert!(actual == 1624);
+        assert_eq!(actual, 1624);
 
         let actual = measure_without_print_results("Page Rank", || {
-            unweighted_page_rank(&graph, Some(100), None, None, true, None)
+            unweighted_page_rank(
+                &graph.valid_layers("netflow"),
+                Some(100),
+                None,
+                None,
+                true,
+                None,
+            )
         })
         .get_all_with_names()
         .len();
-        assert!(actual == 1624);
+        assert_eq!(actual, 1624);
 
-        assert!(
+        assert_eq!(
             measure_with_print_results("Exfilteration Query 1", || exfiltration::query1::run(
-                &graph
-            ),) == Some(0)
+                graph.as_ref()
+            ),),
+            Some(0)
         );
-        assert!(
+        assert_eq!(
             measure_with_print_results("Exfilteration Count Query Total", || {
-                exfiltration::count::query_total(&graph, 30)
-            },) == 0
+                exfiltration::count::query_total(graph.as_ref(), 30)
+            },),
+            0
         );
-        assert!(
+        assert_eq!(
             measure_with_print_results("Exfilteration List Query Count", || {
-                exfiltration::list::query_count(&graph, 30)
-            },) == 0
+                exfiltration::list::query_count(graph.as_ref(), 30)
+            },),
+            0
         );
     }
 }

@@ -51,7 +51,7 @@ pub fn execute<S: HopState + 'static>(
                 let hop = query.get_hop(0).expect("No hops");
                 let layer = lookup_layer(&hop.layer, graph);
                 for node in node_chunk {
-                    let node = graph.layer(layer).node(node);
+                    let node = graph.inner.layer(layer).node(node);
                     let state = (make_state)(node);
                     hop_arrow_graph(node, &query, 0, state, graph, s, tl);
                 }
@@ -103,7 +103,7 @@ fn node_view<'a, 'b, G: StaticGraphViewOps>(
 }
 
 fn lookup_layer(layer: &str, graph: &ArrowGraph) -> usize {
-    graph.find_layer_id(layer).expect("No layer")
+    graph.inner.find_layer_id(layer).expect("No layer")
 }
 
 fn get_writer<'a, S>(
@@ -146,7 +146,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
         let limit = limit.unwrap_or(usize::MAX);
         match dir {
             Direction::OUT => s.spawn(move |s| {
-                let layer = graph.layer(layer);
+                let layer = graph.inner.layer(layer);
                 layer
                     .nodes
                     .out_adj_list(vid)
@@ -162,7 +162,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
                     });
             }),
             Direction::IN => s.spawn(move |s| {
-                let layer = graph.layer(layer);
+                let layer = graph.inner.layer(layer);
                 layer
                     .nodes
                     .in_adj_list(vid)

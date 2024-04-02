@@ -17,6 +17,7 @@ impl InternalLayerOps for ArrowGraph {
             Layer::Default => Ok(LayerIds::One(0)),
             Layer::One(name) => {
                 let id = self
+                    .inner
                     .find_layer_id(&name)
                     .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))?;
                 Ok(LayerIds::One(id))
@@ -26,7 +27,8 @@ impl InternalLayerOps for ArrowGraph {
                 let ids = names
                     .iter()
                     .map(|name| {
-                        self.find_layer_id(name)
+                        self.inner
+                            .find_layer_id(name)
                             .ok_or_else(|| GraphError::InvalidLayer(name.to_string()))
                     })
                     .collect::<Result<Vec<_>, _>>()?;
@@ -40,7 +42,8 @@ impl InternalLayerOps for ArrowGraph {
             Layer::All | Layer::Default => LayerIds::One(0), // FIXME: need to handle all correctly
             Layer::One(name) => {
                 let name = name.as_ref();
-                self.layer_names()
+                self.inner
+                    .layer_names()
                     .iter()
                     .enumerate()
                     .find(move |(_, ref n)| n == &name)

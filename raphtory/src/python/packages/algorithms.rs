@@ -124,7 +124,7 @@ pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
-    connected_components_rs(&g.graph.layer(0))
+    connected_components_rs(&g.graph.inner.layer(0))
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.

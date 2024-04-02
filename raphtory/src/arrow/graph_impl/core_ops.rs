@@ -26,7 +26,7 @@ use super::tprops::read_tprop_column;
 
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
-        self.num_nodes()
+        self.inner.num_nodes()
     }
 
     fn node_meta(&self) -> &Meta {
@@ -42,20 +42,26 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        let name = &self.layer_names()[layer_id];
+        let name = &self.inner.layer_names()[layer_id];
         ArcStr::from(name.as_str())
     }
 
     fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.find_layer_id(name)
+        self.inner.find_layer_id(name)
     }
 
     fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
         match layer_ids {
             LayerIds::None => Box::new(std::iter::empty()),
-            LayerIds::All => Box::new(self.layer_names_vec().into_iter().map(|s| ArcStr::from(s))),
+            LayerIds::All => Box::new(
+                self.inner
+                    .layer_names_vec()
+                    .into_iter()
+                    .map(|s| ArcStr::from(s)),
+            ),
             LayerIds::One(id) => Box::new(
-                self.layer_names()
+                self.inner
+                    .layer_names()
                     .get(id)
                     .cloned()
                     .into_iter()
@@ -64,7 +70,7 @@ impl CoreGraphOps for ArrowGraph {
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
                     .copied()
-                    .filter_map(|id| self.layer_names().get(id).cloned())
+                    .filter_map(|id| self.inner.layer_names().get(id).cloned())
                     .collect_vec()
                     .into_iter()
                     .map(|s| ArcStr::from(s)),
@@ -77,7 +83,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn node_id(&self, v: VID) -> u64 {
-        match self.node_gid(v).unwrap() {
+        match self.inner.node_gid(v).unwrap() {
             GID::U64(n) => n,
             GID::I64(n) => n as u64,
             GID::Str(s) => s.id(),
@@ -85,7 +91,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn node_name(&self, v: VID) -> String {
-        match self.node_gid(v).unwrap() {
+        match self.inner.node_gid(v).unwrap() {
             GID::U64(n) => n.to_string(),
             GID::I64(n) => n.to_string(),
             GID::Str(s) => s,
@@ -104,20 +110,20 @@ impl CoreGraphOps for ArrowGraph {
             _ => todo!("Edge views with multiple layers are not supported on arrow yet"),
         };
 
-        let edge = self.edge(eref.pid(), layer_id);
+        let edge = self.inner.edge(eref.pid(), layer_id);
         EdgeUpdates::Col(edge.timestamps())
     }
 
     fn node_additions(&self, v: VID) -> NodeAdditions {
-        let node = self.internal_node(v, 0);
+        let node = self.inner.internal_node(v, 0);
         NodeAdditions::Col(node.timestamps())
     }
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(vid) => self.find_node(&GID::U64(vid)),
-            NodeRef::ExternalStr(string) => self.find_node(&GID::Str(string.into())),
+            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
+            NodeRef::ExternalStr(string) => self.inner.find_node(&GID::Str(string.into())),
         }
     }
 
@@ -134,14 +140,14 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
-        match &self.node_properties {
+        match &self.inner.node_properties {
             None => None,
             Some(props) => props.const_props.prop(v, id),
         }
     }
 
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        match &self.node_properties {
+        match &self.inner.node_properties {
             None => Box::new(std::iter::empty()),
             Some(props) => Box::new(
                 (0..props.const_props.num_props())
@@ -183,9 +189,9 @@ impl CoreGraphOps for ArrowGraph {
             _ => panic!("Only one layer is supported"),
         };
 
-        let edge = self.edge(e.pid(), layer_id);
+        let edge = self.inner.edge(e.pid(), layer_id);
 
-        let prop_field = &self.edges_data_type(layer_id)[id];
+        let prop_field = &self.inner.edges_data_type(layer_id)[id];
 
         let layered_t_prop = read_tprop_column(id, prop_field.clone(), edge)?;
 
@@ -201,7 +207,7 @@ impl CoreGraphOps for ArrowGraph {
             LayerIds::One(id) => id,
             _ => panic!("Only one layer is supported"),
         };
-        Box::new(1..self.edges_data_type(layer_id).len())
+        Box::new(1..self.inner.edges_data_type(layer_id).len())
     }
 
     fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
@@ -209,7 +215,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
-        CoreEdgeView::Arrow(self.edge(eid, 0))
+        CoreEdgeView::Arrow(self.inner.edge(eid, 0))
     }
 
     fn core_node(&self, _vid: VID) -> ArcEntry<NodeStore> {

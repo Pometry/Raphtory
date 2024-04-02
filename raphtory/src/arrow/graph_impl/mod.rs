@@ -36,10 +36,16 @@ pub struct ParquetLayerCols<'a> {
 
 #[derive(Clone, Debug)]
 pub struct ArrowGraph {
-    inner: Arc<TemporalGraph>,
+    pub(crate) inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
+}
+
+impl AsRef<TemporalGraph> for ArrowGraph {
+    fn as_ref(&self) -> &TemporalGraph {
+        &self.inner
+    }
 }
 
 impl Graph {
@@ -53,14 +59,6 @@ impl Immutable for ArrowGraph {}
 impl IntoDynamic for ArrowGraph {
     fn into_dynamic(self) -> DynamicGraph {
         DynamicGraph::new(self)
-    }
-}
-
-impl Deref for ArrowGraph {
-    type Target = TemporalGraph;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
     }
 }
 
@@ -203,7 +201,8 @@ impl ArrowGraph {
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
-        self.layers
+        self.inner
+            .layers
             .par_iter()
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
@@ -214,7 +213,8 @@ impl ArrowGraph {
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
-        self.layers
+        self.inner
+            .layers
             .iter()
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
