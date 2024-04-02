@@ -67,12 +67,8 @@ impl Deref for ArrowGraph {
 impl ArrowGraph {
     fn new(inner_graph: TemporalGraph) -> Self {
         let node_meta = Meta::new();
-        let edge_meta = Meta::new();
+        let mut edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
-
-        for l_name in inner_graph.layer_names() {
-            edge_meta.layer_meta().get_or_create_id(l_name);
-        }
 
         for layer in inner_graph.layers() {
             let edge_props_fields = layer.edges_data_type();
@@ -84,8 +80,16 @@ impl ArrowGraph {
                 let resolved_id = edge_meta
                     .resolve_prop_id(prop_name, data_type.into(), false)
                     .expect("Arrow data types should without failing");
-                assert_eq!(id, resolved_id, "Layers with different edge properties are not supported by the high-level apis on top of the arrow graph yet");
+                if id != resolved_id {
+                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the arrow graph yet, edge properties will not be available to high-level apis");
+                    edge_meta = Meta::new();
+                    break;
+                }
             }
+        }
+
+        for l_name in inner_graph.layer_names() {
+            edge_meta.layer_meta().get_or_create_id(l_name);
         }
 
         if let Some(props) = inner_graph.node_properties.as_ref() {
