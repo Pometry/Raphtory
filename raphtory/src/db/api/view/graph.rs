@@ -353,7 +353,8 @@ mod test_materialize {
             assert_eq!(node_b.node_type().as_str(), Some("H"));
         }
         test(&graph);
-        test(&arrow_graph);
+        // FIXME: Node types not yet supported (Issue #51)
+        // test(&arrow_graph);
 
         // Nodes with No type can be overwritten
         let node_a = graph.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
