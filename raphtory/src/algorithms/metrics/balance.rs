@@ -136,7 +136,6 @@ mod sum_weight_test {
             api::{mutation::AdditionOps, view::StaticGraphViewOps},
             graph::graph::Graph,
         },
-        prelude::*,
     };
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;

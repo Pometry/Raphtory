@@ -203,8 +203,8 @@ mod db_tests {
         },
         db::{
             api::view::{
-                internal::CoreGraphOps, time::internal::InternalTimeOps, EdgeViewOps, Layer,
-                LayerOps, NodeViewOps, StaticGraphViewOps, TimeOps,
+                time::internal::InternalTimeOps, EdgeViewOps, Layer, LayerOps, NodeViewOps,
+                StaticGraphViewOps, TimeOps,
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },

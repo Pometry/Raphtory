@@ -1,9 +1,4 @@
-use std::{iter, ops::Range, sync::Arc};
-
-use itertools::Itertools;
-use once_cell::sync::Lazy;
-use rayon::prelude::*;
-
+use super::ArrowGraph;
 use crate::{
     arrow::prelude::{ArrayOps, BaseArrayOps},
     core::{
@@ -14,10 +9,12 @@ use crate::{
         internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
-    prelude::{GraphViewOps, Prop, TimeIndexEntry},
+    prelude::*,
 };
-
-use super::ArrowGraph;
+use itertools::Itertools;
+use once_cell::sync::Lazy;
+use rayon::prelude::*;
+use std::{iter, ops::Range, sync::Arc};
 
 static WINDOW_FILTER: Lazy<EdgeWindowFilter> =
     Lazy::new(|| Arc::new(move |e, layer_ids, w| e.active(layer_ids, w)));

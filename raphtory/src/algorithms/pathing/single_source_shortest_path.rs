@@ -79,12 +79,9 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
 #[cfg(test)]
 mod sssp_tests {
     use super::*;
-    use crate::{
-        core::state::accumulator_id::accumulators::arr,
-        db::{
-            api::{mutation::AdditionOps, view::StaticGraphViewOps},
-            graph::graph::Graph,
-        },
+    use crate::db::{
+        api::{mutation::AdditionOps, view::StaticGraphViewOps},
+        graph::graph::Graph,
     };
     use tempfile::TempDir;
 
