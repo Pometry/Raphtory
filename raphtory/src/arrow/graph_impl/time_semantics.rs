@@ -49,19 +49,21 @@ impl TimeSemantics for ArrowGraph {
 
     #[doc = " Returns the timestamp for the earliest activity"]
     fn earliest_time_global(&self) -> Option<i64> {
-        if self.is_empty() {
+        let earliest = self.earliest();
+        if earliest == i64::MAX {
             None
         } else {
-            Some(self.earliest())
+            Some(earliest)
         }
     }
 
     #[doc = " Returns the timestamp for the latest activity"]
     fn latest_time_global(&self) -> Option<i64> {
-        if self.is_empty() {
+        let latest = self.latest();
+        if latest == i64::MIN {
             None
         } else {
-            Some(self.latest())
+            Some(latest)
         }
     }
 
