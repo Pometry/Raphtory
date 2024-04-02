@@ -1,15 +1,8 @@
-use itertools::{EitherOrBoth, Itertools};
-use rayon::iter::ParallelIterator;
-use std::iter;
-
+use super::ArrowGraph;
 use crate::{
     arrow::GID,
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef,
-            nodes::{input_node::InputNode, node_ref::NodeRef},
-            LayerIds, EID, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, LayerIds, EID, VID},
         Direction,
     },
     db::api::view::{
@@ -18,9 +11,9 @@ use crate::{
         IntoDynBoxed,
     },
 };
-
-use super::ArrowGraph;
-use rayon::prelude::*;
+use itertools::{EitherOrBoth, Itertools};
+use rayon::{iter::ParallelIterator, prelude::*};
+use std::iter;
 
 impl<'graph> GraphOps<'graph> for ArrowGraph {
     fn internal_node_ref(
@@ -63,48 +56,18 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
     }
 
     fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match &layers {
-            LayerIds::One(layer_id) => {
+        let layer_id = self.layer_from_ids(&layers);
+        match layer_id {
+            None => {
+                todo!("Multilayer edges not yet supported on arrow")
+            }
+            Some(layer_id) => {
                 if let Some(ef) = filter {
-                    self.all_edges_par(*layer_id)
+                    self.all_edges_par(layer_id)
                         .filter(|edge| ef(edge, &layers))
                         .count()
                 } else {
-                    self.num_edges(*layer_id)
-                }
-            }
-            LayerIds::None => 0,
-            LayerIds::All => {
-                if let Some(ef) = filter {
-                    self.layers
-                        .par_iter()
-                        .map(|layer| {
-                            layer
-                                .edges
-                                .par_iter()
-                                .filter(|edge| ef(edge, &layers))
-                                .count()
-                        })
-                        .sum()
-                } else {
-                    self.layers.par_iter().map(|layer| layer.num_edges()).sum()
-                }
-            }
-            LayerIds::Multiple(ids) => {
-                if let Some(ef) = filter {
-                    ids.par_iter()
-                        .map(|layer_id| {
-                            self.layer(*layer_id)
-                                .edges
-                                .par_iter()
-                                .filter(|edge| ef(edge, &layers))
-                                .count()
-                        })
-                        .sum()
-                } else {
-                    ids.par_iter()
-                        .map(|layer_id| self.layer(*layer_id).num_edges())
-                        .sum()
+                    self.num_edges(layer_id)
                 }
             }
         }
