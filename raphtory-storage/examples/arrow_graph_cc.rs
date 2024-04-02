@@ -71,7 +71,7 @@ fn main() {
         graph
     };
 
-    connected_components(&graph2.layer(0));
+    connected_components(graph2.as_ref().layer(0));
     hop_query(&graph2);
 }
 
