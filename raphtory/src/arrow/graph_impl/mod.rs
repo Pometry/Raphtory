@@ -70,15 +70,22 @@ impl ArrowGraph {
         let edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
 
-        let edge_props_fields = inner_graph.edges_data_type(0);
+        for l_name in inner_graph.layer_names() {
+            edge_meta.layer_meta().get_or_create_id(l_name);
+        }
 
-        for field in edge_props_fields {
-            let prop_name = &field.name;
-            let data_type = field.data_type();
+        for layer in inner_graph.layers() {
+            let edge_props_fields = layer.edges_data_type();
 
-            edge_meta
-                .resolve_prop_id(prop_name, data_type.into(), false)
-                .expect("Arrow data types should without failing");
+            for (id, field) in edge_props_fields.iter().enumerate() {
+                let prop_name = &field.name;
+                let data_type = field.data_type();
+
+                let resolved_id = edge_meta
+                    .resolve_prop_id(prop_name, data_type.into(), false)
+                    .expect("Arrow data types should without failing");
+                assert_eq!(id, resolved_id, "Layers with different edge properties are not supported by the high-level apis on top of the arrow graph yet");
+            }
         }
 
         if let Some(props) = inner_graph.node_properties.as_ref() {
