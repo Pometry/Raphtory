@@ -216,6 +216,7 @@ pub enum Expr {
         args: Vec<Expr>,
     },
     CountAll,
+    Nested(Ex),
 }
 
 impl Expr {
@@ -277,8 +278,16 @@ impl Expr {
         Self::new(BinOpType::Gte, left, right)
     }
 
+    pub fn nested(expr: Expr) -> Self {
+        Expr::Nested(Box::new(expr))
+    }
+
     pub fn and(left: Expr, right: Expr) -> Self {
         Self::new(BinOpType::And, left, right)
+    }
+
+    pub fn or(left: Expr, right: Expr) -> Self {
+        Self::new(BinOpType::Or, left, right)
     }
 
     pub fn sub(left: Expr, right: Expr) -> Self {

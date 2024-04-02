@@ -1,7 +1,6 @@
 pub mod ast;
 use std::str::ParseBoolError;
 
-use datafusion::physical_plan::limit;
 use pest::{
     error::Error,
     iterators::{Pair, Pairs},
@@ -360,6 +359,9 @@ pub fn parse_atom(pair: Pair<Rule>) -> Result<Expr, ParseError> {
             Rule::Literal => Ok(Expr::Literal(parse_literal(pair)?)),
             Rule::COUNT => Ok(Expr::CountAll),
             Rule::FunctionInvocation => Ok(parse_funcion_invocation(pair)?),
+            Rule::ParenthesizedExpression => {
+                parse_expr(pair.into_inner()).map(|ex| Expr::Nested(Box::new(ex)))
+            }
             rule => unsupported("parse_atom", &rule),
         })
 }
@@ -1110,6 +1112,26 @@ mod test {
             Ok(Expr::and(
                 Expr::eq(Expr::prop("a", ["name"]), Expr::str("John")),
                 Expr::lt(Expr::int(1), Expr::prop("a", ["age"]))
+            ))
+        );
+    }
+
+    #[test]
+    fn expression_with_parens_change_priority() {
+        let input = "a.name = 'John' or (1 < a.age and a.age < 10)";
+        let pairs = CypherParser::parse(Rule::Expression, input);
+        assert!(pairs.is_ok());
+
+        let expr = parse_expr(pairs.unwrap());
+
+        assert_eq!(
+            expr,
+            Ok(Expr::or(
+                Expr::eq(Expr::prop("a", ["name"]), Expr::str("John")),
+                Expr::nested(Expr::and(
+                    Expr::lt(Expr::int(1), Expr::prop("a", ["age"])),
+                    Expr::lt(Expr::prop("a", ["age"]), Expr::int(10))
+                ))
             ))
         );
     }

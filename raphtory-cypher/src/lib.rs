@@ -8,17 +8,46 @@ use executor::{table_provider::EdgeListTableProvider, ExecError};
 use itertools::Itertools;
 use parser::ast::*;
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
-use sqlparser::ast::{self as sql_ast, GroupByExpr, WildcardAdditionalOptions};
+use sqlparser::ast::{
+    self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
+};
 
-mod executor;
+pub mod executor;
 pub mod parser;
 
-pub fn cypher_to_sql(query: &Query) -> sql_ast::Statement {
+pub fn cypher_to_sql(query: &Query, graph: &ArrowGraph) -> sql_ast::Statement {
     sql_ast::Statement::Query(Box::new(sql_ast::Query {
         // WITH (common table expressions, or CTEs)
         with: None,
         // SELECT or UNION / EXCEPT / INTERSECT
-        body: parse_select_body(query),
+        body: parse_select_body(query, graph),
+        // ORDER BY
+        order_by: parse_order_by(query),
+        // `LIMIT { <N> | ALL }`
+        limit: parse_limit(query),
+
+        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
+        limit_by: vec![],
+        // `OFFSET <N> [ { ROW | ROWS } ]`
+        offset: None,
+        // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
+        fetch: None,
+        // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
+        locks: vec![],
+        // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
+        // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
+        // (MSSQL-specific)
+        for_clause: None,
+    }))
+}
+
+pub fn cypher_to_sql_with_ctes(query: &Query, graph: &ArrowGraph) -> sql_ast::Statement {
+    let with = parse_rels_to_ctes(query, graph);
+    sql_ast::Statement::Query(Box::new(sql_ast::Query {
+        // WITH (common table expressions, or CTEs)
+        with: Some(with),
+        // SELECT or UNION / EXCEPT / INTERSECT
+        body: parse_select_body(query, graph),
         // ORDER BY
         order_by: parse_order_by(query),
         // `LIMIT { <N> | ALL }`
@@ -51,12 +80,166 @@ fn parse_limit(query: &Query) -> Option<sql_ast::Expr> {
     })
 }
 
-fn parse_order_by(query: &Query) -> Vec<sql_ast::OrderByExpr> {
+fn parse_order_by(_query: &Query) -> Vec<sql_ast::OrderByExpr> {
     vec![]
 }
 
-fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
-    let mut order_by = vec![];
+fn sql_table(layer_names: &[impl AsRef<str>], name: &impl AsRef<str>) -> sql_ast::Cte {
+    if layer_names.len() > 1 {
+        let union_query = layer_names
+            .into_iter()
+            .map(|layer| select_scan_query(layer.as_ref()))
+            .reduce(|q1, q2| query_union(q1, q2))
+            .unwrap();
+        sql_ast::Cte {
+            alias: TableAlias {
+                name: sql_ast::Ident::new(name.as_ref()),
+                columns: vec![],
+            },
+            query: union_query,
+            from: None,
+        }
+    } else {
+        sql_ast::Cte {
+            alias: TableAlias {
+                name: sql_ast::Ident::new(name.as_ref()),
+                columns: vec![],
+            },
+            query: select_scan_query(layer_names.first().unwrap().as_ref()),
+            from: None,
+        }
+    }
+}
+
+fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast::Query> {
+    Box::new(sql_ast::Query {
+        // WITH (common table expressions, or CTEs)
+        with: None,
+        // SELECT or UNION / EXCEPT / INTERSECT
+        body: Box::new(SetExpr::SetOperation {
+            op: sql_ast::SetOperator::Union,
+            set_quantifier: sql_ast::SetQuantifier::All,
+            left: q1.body,
+            right: q2.body,
+        }),
+        // ORDER BY
+        order_by: vec![],
+        // `LIMIT { <N> | ALL }`
+        limit: None,
+        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
+        limit_by: vec![],
+        // `OFFSET <N> [ { ROW | ROWS } ]`
+        offset: None,
+        // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
+        fetch: None,
+        // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
+        locks: vec![],
+        // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
+        // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
+        // (MSSQL-specific)
+        for_clause: None,
+    })
+}
+
+fn select_scan_query(layer_name: &str) -> Box<sql_ast::Query> {
+    Box::new(sql_ast::Query {
+        // WITH (common table expressions, or CTEs)
+        with: None,
+        // SELECT or UNION / EXCEPT / INTERSECT
+        body: Box::new(SetExpr::Select(Box::new(sql_ast::Select {
+            distinct: None,
+            // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
+            top: None,
+            // projection expressions
+            projection: vec![sql_ast::SelectItem::Wildcard(
+                WildcardAdditionalOptions::default(),
+            )],
+            // INTO
+            into: None,
+            // FROM
+            from: vec![sql_ast::TableWithJoins {
+                relation: sql_ast::TableFactor::Table {
+                    name: sql_ast::ObjectName(vec![sql_ast::Ident::new(layer_name)]),
+                    alias: None,
+                    args: None,
+                    with_hints: vec![],
+                    version: None,
+                    partitions: vec![],
+                },
+                joins: vec![],
+            }],
+            // LATERAL VIEWs
+            lateral_views: vec![],
+            // WHERE
+            selection: None,
+            // GROUP BY
+            group_by: GroupByExpr::Expressions(vec![]),
+            // CLUSTER BY (Hive)
+            cluster_by: vec![],
+            // DISTRIBUTE BY (Hive)
+            distribute_by: vec![],
+            // SORT BY (Hive)
+            sort_by: vec![],
+            // HAVING
+            having: None,
+            // WINDOW AS
+            named_window: vec![],
+            // QUALIFY (Snowflake)
+            qualify: None,
+        }))),
+        // ORDER BY
+        order_by: vec![],
+        // `LIMIT { <N> | ALL }`
+        limit: None,
+        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
+        limit_by: vec![],
+        // `OFFSET <N> [ { ROW | ROWS } ]`
+        offset: None,
+        // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
+        fetch: None,
+        // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
+        locks: vec![],
+        // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
+        // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
+        // (MSSQL-specific)
+        for_clause: None,
+    })
+}
+
+fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
+    // each rel can become a CTE
+    // inside the cte
+    // if the pattern has no layers -[e]- and the graph has one layer then we just select * from the layer
+    // if the pattern has one layer -[e:A]- then we just select * from A
+    // if the pattern has no layers -[e]-> and the graph has multiple layers then we UNION ALL select * from each layer
+    // if the pattern has multiple layers -[e:A:B]-> then we select * from A UNION ALL select * from B
+    // we name these CTEs with the rel name
+    // in each CTE where we UNION ALL we must merge the schemas and add missing columns with NULLs if they don't match.
+
+    let mut cte_tables = vec![];
+
+    let graph_layers = graph.layers();
+    let layer_names = graph.layer_names();
+
+    for rel in all_rels(query) {
+        // rewrite the conditions in a nicer way
+        if rel.rel_types.is_empty() {
+            // select * from layer
+            cte_tables.push(sql_table(layer_names, &rel.name))
+        } else {
+            // UNION ALL for all the layers of the relation pattern
+            cte_tables.push(sql_table(&rel.rel_types, &rel.name))
+        }
+    }
+
+    With {
+        recursive: false,
+        cte_tables,
+    }
+}
+
+fn parse_select_body(query: &Query, graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
+    let order_by = vec![];
 
     let from_tables = parse_tables(query);
 
@@ -94,25 +277,25 @@ fn parse_select_body(query: &Query) -> Box<sql_ast::SetExpr> {
 }
 
 fn rel_names(query: &Query) -> Vec<String> {
-    let binds = query
+    all_rels(query).map(|rel| rel.name.clone()).collect()
+}
+
+fn all_rels(query: &Query) -> impl Iterator<Item = &RelPattern> + '_ {
+    query
         .clauses()
         .iter()
-        .flat_map(|clause| match clause {
-            Clause::Match(m) => m
-                .pattern
-                .0
-                .iter()
-                .flat_map(|part| {
-                    part.rel_chain
-                        .iter()
-                        .map(|(rel, _)| rel.name.clone())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>(),
-            _ => vec![],
+        .filter_map(|clause| match clause {
+            Clause::Match(m) => {
+                let iter = m
+                    .pattern
+                    .0
+                    .iter()
+                    .flat_map(|part: &PatternPart| part.rel_chain.iter().map(|(rel, _)| rel));
+                Some(iter)
+            }
+            _ => None,
         })
-        .collect::<Vec<_>>();
-    binds
+        .flatten()
 }
 
 fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
@@ -159,17 +342,7 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
             }));
 
         let join = sql_ast::Join {
-            relation: sql_ast::TableFactor::Table {
-                name: sql_ast::ObjectName(vec![sql_ast::Ident::new(rel_layer(rel2))]),
-                alias: Some(sql_ast::TableAlias {
-                    name: sql_ast::Ident::new(&rel2.name),
-                    columns: vec![],
-                }),
-                args: None,
-                with_hints: vec![],
-                version: None,
-                partitions: vec![],
-            },
+            relation: table_name(&rel2.name),
             join_operator: join_op,
         };
 
@@ -177,18 +350,19 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
     }
 
     sql_ast::TableWithJoins {
-        relation: sql_ast::TableFactor::Table {
-            name: sql_ast::ObjectName(vec![sql_ast::Ident::new(rel_layer(rel))]),
-            alias: Some(sql_ast::TableAlias {
-                name: sql_ast::Ident::new(&rel.name),
-                columns: vec![],
-            }),
-            args: None,
-            with_hints: vec![],
-            version: None,
-            partitions: vec![],
-        },
+        relation: table_name(&rel.name),
         joins,
+    }
+}
+
+fn table_name(name: &str) -> sql_ast::TableFactor {
+    sql_ast::TableFactor::Table {
+        name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name.to_string())]),
+        alias: None,
+        args: None,
+        with_hints: vec![],
+        version: None,
+        partitions: vec![],
     }
 }
 
@@ -422,6 +596,7 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String]) -> sql_ast::Expr {
             special: false,
             order_by: vec![],
         }),
+        Expr::Nested(expr) => sql_ast::Expr::Nested(Box::new(cypher_to_sql_expr(expr, binds))),
         _ => unimplemented!("unsupported expression {:?}", expr),
     }
 }
@@ -457,7 +632,7 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
         ctx.register_table(layer, Arc::new(table))?;
     }
-    let query = cypher_to_sql(&query);
+    let query = cypher_to_sql_with_ctes(&query, graph);
 
     println!("SQL: {:?}", query.to_string());
     println!("SQL AST: {:?}", query);
@@ -471,6 +646,18 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     opts.verify_plan(&plan)?;
     let df = ctx.execute_logical_plan(plan).await?;
 
+    Ok(df)
+}
+
+pub async fn run_sql(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
+    let ctx = SessionContext::new();
+
+    for layer in graph.layer_names() {
+        let table = EdgeListTableProvider::new(layer, graph.clone())?;
+        ctx.register_table(layer, Arc::new(table))?;
+    }
+
+    let df = ctx.sql(query).await?;
     Ok(df)
 }
 
@@ -624,10 +811,20 @@ mod cyper_2_sql_tests {
         );
     }
 
+    #[test]
+    fn respect_parens() {
+        check_cypher_to_sql(
+            "match ()-[a]->() where a.name = 'John' or (1 < a.age and a.age < 10) RETURN a",
+            "SELECT a.* FROM _default AS a WHERE a.name = 'John' OR (1L < a.age AND a.age < 10L)",
+        );
+    }
+
     fn check_cypher_to_sql(query: &str, expected: &str) {
         let query = parser::parse_cypher(query).unwrap();
-        // println!("{:?}", query);
-        let sql = cypher_to_sql(&query);
+        let graph_dir = tempdir().unwrap();
+        let g = Graph::new();
+        let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
+        let sql = cypher_to_sql_with_ctes(&query, &graph);
         assert_eq!(sql.to_string(), expected.to_string());
     }
 
@@ -642,6 +839,20 @@ mod cyper_2_sql_tests {
             (3, 4, 3, 6.),
             (3, 4, 7, 6.),
             (4, 5, 9, 7.),
+        ];
+
+    static ref EDGES2: Vec<(u64, u64, i64, f64, String)> = vec![
+            (0, 1, 1, 3., "baa".to_string()),
+            (0, 2, 2, 7., "buu".to_string()),
+            (2, 3, 1, 9., "xbaa".to_string()),
+            (2, 3, 2, 1., "xbaa".to_string()),
+            (3, 0, 3, 4., "beea".to_string()),
+            (3, 0, 3, 1., "beex".to_string()),
+            (4, 1, 5, 5., "baaz".to_string()),
+            (4, 5, 1, 6., "bxx".to_string()),
+            (5, 6, 3, 6., "mbaa".to_string()),
+            (6, 4, 7, 8., "baa".to_string()),
+            (6, 4, 9, 7., "bzz".to_string()),
         ];
     }
 
@@ -727,35 +938,36 @@ mod cyper_2_sql_tests {
     }
 
     fn make_graph_with_str_col(graph_dir: impl AsRef<Path>) -> ArrowGraph {
-        let edges = vec![
-            (0u64, 1u64, 1i64, 3., "baa".to_string()),
-            (0, 1, 2, 4., "buu".to_string()),
-            (1, 2, 2, 4., "xbaa".to_string()),
-            (1, 2, 3, 4., "beea".to_string()),
-            (2, 3, 5, 5., "baaz".to_string()),
-            (3, 4, 1, 6., "bxx".to_string()),
-            (3, 4, 3, 6., "mbaa".to_string()),
-            (3, 4, 7, 6., "baa".to_string()),
-            (4, 5, 9, 7., "bzz".to_string()),
-        ];
         let graph = Graph::new();
 
-        for (src, dst, time, weight, name) in edges {
+        load_edges_2(&graph, None);
+
+        ArrowGraph::from_graph(&graph, graph_dir).unwrap()
+    }
+
+    fn load_edges_2(graph: &Graph, layer: Option<&str>) {
+        for (src, dst, t, weight, name) in EDGES2.iter() {
             graph
                 .add_edge(
-                    time,
-                    src,
-                    dst,
+                    *t,
+                    *src,
+                    *dst,
                     [
-                        ("weight", Prop::F64(weight)),
-                        ("name", Prop::Str(name.into())),
+                        ("weight", Prop::F64(*weight)),
+                        ("name", Prop::Str(name.to_owned().into())),
                     ],
-                    None,
+                    layer,
                 )
                 .unwrap();
         }
+    }
 
-        ArrowGraph::from_graph(&graph, graph_dir).unwrap()
+    fn load_edges_1(graph: &Graph, layer: Option<&str>) {
+        for (src, dst, t, weight) in EDGES.iter() {
+            graph
+                .add_edge(*t, *src, *dst, [("weight", Prop::F64(*weight))], layer)
+                .unwrap();
+        }
     }
 
     #[tokio::test]
@@ -790,6 +1002,32 @@ mod cyper_2_sql_tests {
     }
 
     #[tokio::test]
+    async fn select_union_multiple_layers() {
+        let graph_dir = tempdir().unwrap();
+        let g = Graph::new();
+
+        load_edges_1(&g, Some("LAYER1"));
+        load_edges_2(&g, Some("LAYER2"));
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
+
+        // let df = run_sql(
+        //     "select a.*, NULL as name from LAYER1 as a UNION ALL select b.* from LAYER2 as b",
+        //     &graph,
+        // )
+        // .await
+        // .unwrap();
+
+        let df = run_cypher(
+            "match ()-[e:LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+            &graph,
+        ).await.unwrap();
+
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
     async fn select_contains_count_star() {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_str_col(graph_dir);
@@ -799,64 +1037,6 @@ mod cyper_2_sql_tests {
             .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
-
-        // Query(Query {
-        //     with: None,
-        //     body: Select(Select {
-        //         distinct: None,
-        //         top: None,
-        //         projection: [UnnamedExpr(Function(Function {
-        //             name: ObjectName([Ident {
-        //                 value: "COUNT",
-        //                 quote_style: None,
-        //             }]),
-        //             args: [Unnamed(Wildcard)],
-        //             filter: None,
-        //             null_treatment: None,
-        //             over: None,
-        //             distinct: false,
-        //             special: false,
-        //             order_by: [],
-        //         }))],
-        //         into: None,
-        //         from: [TableWithJoins {
-        //             relation: Table {
-        //                 name: ObjectName([Ident {
-        //                     value: "_default",
-        //                     quote_style: None,
-        //                 }]),
-        //                 alias: Some(TableAlias {
-        //                     name: Ident {
-        //                         value: "e",
-        //                         quote_style: None,
-        //                     },
-        //                     columns: [],
-        //                 }),
-        //                 args: None,
-        //                 with_hints: [],
-        //                 version: None,
-        //                 partitions: [],
-        //             },
-        //             joins: [],
-        //         }],
-        //         lateral_views: [],
-        //         selection: None,
-        //         group_by: Expressions([]),
-        //         cluster_by: [],
-        //         distribute_by: [],
-        //         sort_by: [],
-        //         having: None,
-        //         named_window: [],
-        //         qualify: None,
-        //     }),
-        //     order_by: [],
-        //     limit: None,
-        //     limit_by: [],
-        //     offset: None,
-        //     fetch: None,
-        //     locks: [],
-        //     for_clause: None,
-        // });
     }
 
     #[tokio::test]

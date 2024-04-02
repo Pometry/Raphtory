@@ -426,11 +426,14 @@ mod test {
 
         let state = ctx.state();
         let dialect = state.config_options().sql_parser.dialect.as_str();
-        let plan = state.sql_to_statement("select COUNT(e.src) from graph as e", dialect);
+        let plan = state.sql_to_statement(
+            "with a AS (select * from graph), b as (select * from graph2) select a.*,b.* from a,b where a.dst=b.src",
+            dialect,
+        );
         println!("AST {:?}", plan);
 
         let df = ctx
-            .sql("select COUNT(e.src) from graph as e")
+            .sql("WITH e AS (SELECT * FROM graph) SELECT e.* FROM e")
             .await
             .unwrap();
         let data = df.collect().await.unwrap();

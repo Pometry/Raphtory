@@ -1,9 +1,6 @@
 use arrow::datatypes::ArrowPrimitiveType;
 use arrow2::{array::Arrow2Arrow, types::NativeType};
 use arrow_array::{GenericStringArray, OffsetSizeTrait};
-use datafusion::execution::context::{SQLOptions, SessionContext};
-
-use sqlparser::ast::{self as sql_ast};
 
 pub(crate) mod table_provider;
 
@@ -23,18 +20,6 @@ pub enum ExecError {
 
     #[error("Failed to parse cypher {0}")]
     CypherParseError(#[from] super::parser::ParseError),
-}
-
-pub async fn run_with_datafusion(sql: sql_ast::Statement) -> Result<(), ExecError> {
-    let ctx = SessionContext::new();
-    let plan = ctx
-        .state()
-        .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(sql)))
-        .await?;
-    let opts = SQLOptions::new();
-    opts.verify_plan(&plan)?;
-    ctx.execute_logical_plan(plan).await?;
-    Ok(())
 }
 
 fn arrow2_to_arrow_buf<U: ArrowPrimitiveType>(
