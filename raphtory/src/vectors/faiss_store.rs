@@ -3,6 +3,11 @@ use faiss::{index::IndexImpl, index_factory, Idx, Index, MetricType};
 use itertools::Itertools;
 use std::collections::HashMap;
 
+
+trait ExternalVectorIndex {
+
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct DocumentPointer {
     pub(crate) entity: EntityId,
@@ -43,7 +48,7 @@ impl FaissStore {
         nodes: &HashMap<EntityId, Vec<DocumentRef>>,
         edges: &HashMap<EntityId, Vec<DocumentRef>>,
     ) -> Self {
-        // TODO: review, this doesnt froup if there are empty groups!
+        // TODO: review, this doesnt group if there are empty groups!
         let maybe_node_group = nodes.iter().next();
         let maybe_edge_group = edges.iter().next();
         let maybe_group = maybe_node_group.or(maybe_edge_group);
