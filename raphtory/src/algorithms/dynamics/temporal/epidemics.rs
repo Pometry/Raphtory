@@ -1,3 +1,12 @@
+use std::{
+    cmp::Reverse,
+    collections::{hash_map::Entry, BinaryHeap, HashMap},
+    fmt::Debug,
+};
+
+use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
+use rand_distr::{Distribution, Exp};
+
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
@@ -6,13 +15,6 @@ use crate::{
     },
     db::api::view::StaticGraphViewOps,
     prelude::*,
-};
-use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
-use rand_distr::{Distribution, Exp};
-use std::{
-    cmp::Reverse,
-    collections::{hash_map::Entry, BinaryHeap, HashMap},
-    fmt::Debug,
 };
 
 #[repr(transparent)]
@@ -244,8 +246,6 @@ where
 mod test {
     use crate::{
         algorithms::dynamics::temporal::epidemics::{temporal_SEIR, Number},
-        arrow::graph_impl::ArrowGraph,
-        db::api::view::StaticGraphViewOps,
         prelude::*,
     };
     use rand::{rngs::SmallRng, Rng, SeedableRng};
