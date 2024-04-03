@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
+use arrow_schema::{DataType, Schema};
 use datafusion::{
     dataframe::DataFrame,
-    execution::context::{SQLOptions, SessionContext},
+    execution::{
+        config::SessionConfig,
+        context::{SQLOptions, SessionContext},
+    },
+    physical_plan::projection,
 };
 use executor::{table_provider::EdgeListTableProvider, ExecError};
 use itertools::Itertools;
@@ -84,11 +89,37 @@ fn parse_order_by(_query: &Query) -> Vec<sql_ast::OrderByExpr> {
     vec![]
 }
 
-fn sql_table(layer_names: &[impl AsRef<str>], name: &impl AsRef<str>) -> sql_ast::Cte {
+fn sql_table(
+    layer_names: &[impl AsRef<str>],
+    name: &impl AsRef<str>,
+    graph: &ArrowGraph,
+) -> sql_ast::Cte {
+    // fetch and merge the schemas
+
+    let schemas = layer_names
+        .iter()
+        .filter_map(|layer| graph.find_layer_id(layer.as_ref()))
+        .map(|layer_id| {
+            let dt = graph.layer(layer_id).edges_arrow_data_type();
+            let arr_dt: arrow_schema::DataType = dt.clone().into();
+            arr_dt
+        })
+        .filter_map(|dt| match dt {
+            DataType::Struct(fields) => Some(Schema::new(fields)),
+            _ => None,
+        });
+
+    // this is the schema that all layers must match, any missing columns will be filled with NULLs
+    let schema = Schema::try_merge(schemas).expect("failed to merge schemas");
+
     if layer_names.len() > 1 {
         let union_query = layer_names
             .into_iter()
-            .map(|layer| select_scan_query(layer.as_ref()))
+            .map(|layer| select_scan_query(layer.as_ref(), graph, Some(&schema)))
+            // FIXME: there seems to be an issue in which DataFusion executes the query where it sometimes complains about the schema not matching
+            // this is an attempted workaround where we lift the most descriptive schema (the one with fewest nulls) to the top of the UNION ALL
+            .sorted_by(|(null_count1, _), (null_count2, _)| null_count1.cmp(null_count2))
+            .map(|(_, query)| query)
             .reduce(|q1, q2| query_union(q1, q2))
             .unwrap();
         sql_ast::Cte {
@@ -105,7 +136,7 @@ fn sql_table(layer_names: &[impl AsRef<str>], name: &impl AsRef<str>) -> sql_ast
                 name: sql_ast::Ident::new(name.as_ref()),
                 columns: vec![],
             },
-            query: select_scan_query(layer_names.first().unwrap().as_ref()),
+            query: select_scan_query(layer_names.first().unwrap().as_ref(), graph, None).1,
             from: None,
         }
     }
@@ -141,69 +172,124 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
     })
 }
 
-fn select_scan_query(layer_name: &str) -> Box<sql_ast::Query> {
-    Box::new(sql_ast::Query {
-        // WITH (common table expressions, or CTEs)
-        with: None,
-        // SELECT or UNION / EXCEPT / INTERSECT
-        body: Box::new(SetExpr::Select(Box::new(sql_ast::Select {
-            distinct: None,
-            // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
-            top: None,
-            // projection expressions
-            projection: vec![sql_ast::SelectItem::Wildcard(
-                WildcardAdditionalOptions::default(),
-            )],
-            // INTO
-            into: None,
-            // FROM
-            from: vec![sql_ast::TableWithJoins {
-                relation: sql_ast::TableFactor::Table {
-                    name: sql_ast::ObjectName(vec![sql_ast::Ident::new(layer_name)]),
-                    alias: None,
-                    args: None,
-                    with_hints: vec![],
-                    version: None,
-                    partitions: vec![],
-                },
-                joins: vec![],
-            }],
-            // LATERAL VIEWs
-            lateral_views: vec![],
-            // WHERE
-            selection: None,
-            // GROUP BY
-            group_by: GroupByExpr::Expressions(vec![]),
-            // CLUSTER BY (Hive)
-            cluster_by: vec![],
-            // DISTRIBUTE BY (Hive)
-            distribute_by: vec![],
-            // SORT BY (Hive)
-            sort_by: vec![],
-            // HAVING
-            having: None,
-            // WINDOW AS
-            named_window: vec![],
-            // QUALIFY (Snowflake)
-            qualify: None,
-        }))),
-        // ORDER BY
-        order_by: vec![],
-        // `LIMIT { <N> | ALL }`
-        limit: None,
-        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
-        limit_by: vec![],
-        // `OFFSET <N> [ { ROW | ROWS } ]`
-        offset: None,
-        // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
-        fetch: None,
-        // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
-        locks: vec![],
-        // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
-        // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
-        // (MSSQL-specific)
-        for_clause: None,
-    })
+fn dt_to_sql_dt(dt: &DataType) -> sqlparser::ast::DataType {
+    match dt {
+        DataType::Boolean => sqlparser::ast::DataType::Boolean,
+        DataType::Int8 => sqlparser::ast::DataType::TinyInt(None),
+        DataType::Int16 => sqlparser::ast::DataType::SmallInt(None),
+        DataType::Int32 => sqlparser::ast::DataType::Int(None),
+        DataType::Int64 => sqlparser::ast::DataType::BigInt(None),
+        DataType::UInt8 => sqlparser::ast::DataType::TinyInt(None),
+        DataType::UInt16 => sqlparser::ast::DataType::SmallInt(None),
+        DataType::UInt32 => sqlparser::ast::DataType::Int(None),
+        DataType::UInt64 => sqlparser::ast::DataType::BigInt(None),
+        DataType::Float32 => sqlparser::ast::DataType::Real,
+        DataType::Float64 => sqlparser::ast::DataType::Double,
+        DataType::Utf8 => sqlparser::ast::DataType::Text,
+        DataType::LargeUtf8 => sqlparser::ast::DataType::Text,
+
+        _ => unimplemented!("unsupported data type {:?}", dt),
+    }
+}
+
+fn select_scan_query(
+    layer_name: &str,
+    graph: &ArrowGraph,
+    total_schema: Option<&Schema>,
+) -> (usize, Box<sql_ast::Query>) {
+    let layer_id = graph.find_layer_id(layer_name).expect("layer not found");
+    let layer_schema = graph.layer(layer_id).edges_data_type();
+
+    let projection_with_priority = total_schema
+        .map(|schema| {
+            let mut select_items = vec![];
+            let mut null_count = 0usize;
+            for field in schema.fields().iter() {
+                if let Some(field) = layer_schema.into_iter().find(|f| &f.name == field.name()) {
+                    // if the field is present in the layer schema
+                    let item = sql_ast::SelectItem::UnnamedExpr(sql_ast::Expr::Identifier(
+                        sql_ast::Ident::new(field.name.clone()),
+                    ));
+                    select_items.push(item);
+                } else {
+                    // if the field is missing in the layer schema replace with NULL as field name
+                    let item = sql_ast::SelectItem::ExprWithAlias {
+                        expr: sql_ast::Expr::Value(sql_ast::Value::Null),
+                        alias: sql_ast::Ident::new(field.name()),
+                    };
+                    select_items.push(item);
+                    null_count += 1;
+                }
+            }
+            (select_items, null_count)
+        })
+        .unwrap_or_else(|| {
+            (
+                vec![sql_ast::SelectItem::Wildcard(
+                    WildcardAdditionalOptions::default(),
+                )],
+                0,
+            )
+        });
+
+    let (projection, null_count) = projection_with_priority;
+
+    (
+        null_count,
+        Box::new(sql_ast::Query {
+            // WITH (common table expressions, or CTEs)
+            with: None,
+            // SELECT or UNION / EXCEPT / INTERSECT
+            body: Box::new(SetExpr::Select(Box::new(sql_ast::Select {
+                distinct: None,
+                // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
+                top: None,
+                // projection expressions
+                projection,
+                // INTO
+                into: None,
+                // FROM
+                from: vec![sql_ast::TableWithJoins {
+                    relation: table_from_name(layer_name),
+                    joins: vec![],
+                }],
+                // LATERAL VIEWs
+                lateral_views: vec![],
+                // WHERE
+                selection: None,
+                // GROUP BY
+                group_by: GroupByExpr::Expressions(vec![]),
+                // CLUSTER BY (Hive)
+                cluster_by: vec![],
+                // DISTRIBUTE BY (Hive)
+                distribute_by: vec![],
+                // SORT BY (Hive)
+                sort_by: vec![],
+                // HAVING
+                having: None,
+                // WINDOW AS
+                named_window: vec![],
+                // QUALIFY (Snowflake)
+                qualify: None,
+            }))),
+            // ORDER BY
+            order_by: vec![],
+            // `LIMIT { <N> | ALL }`
+            limit: None,
+            // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
+            limit_by: vec![],
+            // `OFFSET <N> [ { ROW | ROWS } ]`
+            offset: None,
+            // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
+            fetch: None,
+            // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
+            locks: vec![],
+            // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
+            // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
+            // (MSSQL-specific)
+            for_clause: None,
+        }),
+    )
 }
 
 fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
@@ -218,17 +304,16 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 
     let mut cte_tables = vec![];
 
-    let graph_layers = graph.layers();
     let layer_names = graph.layer_names();
 
     for rel in all_rels(query) {
         // rewrite the conditions in a nicer way
         if rel.rel_types.is_empty() {
             // select * from layer
-            cte_tables.push(sql_table(layer_names, &rel.name))
+            cte_tables.push(sql_table(layer_names, &rel.name, graph))
         } else {
             // UNION ALL for all the layers of the relation pattern
-            cte_tables.push(sql_table(&rel.rel_types, &rel.name))
+            cte_tables.push(sql_table(&rel.rel_types, &rel.name, graph))
         }
     }
 
@@ -342,7 +427,7 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
             }));
 
         let join = sql_ast::Join {
-            relation: table_name(&rel2.name),
+            relation: table_from_name(&rel2.name),
             join_operator: join_op,
         };
 
@@ -350,12 +435,12 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
     }
 
     sql_ast::TableWithJoins {
-        relation: table_name(&rel.name),
+        relation: table_from_name(&rel.name),
         joins,
     }
 }
 
-fn table_name(name: &str) -> sql_ast::TableFactor {
+fn table_from_name(name: &str) -> sql_ast::TableFactor {
     sql_ast::TableFactor::Table {
         name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name.to_string())]),
         alias: None,
@@ -626,16 +711,21 @@ fn str_op(
 pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
     println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
-    let ctx = SessionContext::new();
+
+    let mut config = SessionConfig::from_env()?.with_information_schema(true);
+    // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
+
+    let ctx = SessionContext::new_with_config(config);
 
     for layer in graph.layer_names() {
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
         ctx.register_table(layer, Arc::new(table))?;
     }
+
+    ctx.refresh_catalogs().await?;
     let query = cypher_to_sql_with_ctes(&query, graph);
 
     println!("SQL: {:?}", query.to_string());
-    println!("SQL AST: {:?}", query);
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -644,8 +734,8 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         .await?;
     let opts = SQLOptions::new();
     opts.verify_plan(&plan)?;
-    let df = ctx.execute_logical_plan(plan).await?;
 
+    let df = ctx.execute_logical_plan(plan).await?;
     Ok(df)
 }
 
@@ -1011,15 +1101,8 @@ mod cyper_2_sql_tests {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
 
-        // let df = run_sql(
-        //     "select a.*, NULL as name from LAYER1 as a UNION ALL select b.* from LAYER2 as b",
-        //     &graph,
-        // )
-        // .await
-        // .unwrap();
-
         let df = run_cypher(
-            "match ()-[e:LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+            "match ()-[e:_default|LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
             &graph,
         ).await.unwrap();
 
