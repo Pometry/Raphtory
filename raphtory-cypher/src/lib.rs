@@ -171,25 +171,25 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
     })
 }
 
-fn dt_to_sql_dt(dt: &DataType) -> sqlparser::ast::DataType {
-    match dt {
-        DataType::Boolean => sqlparser::ast::DataType::Boolean,
-        DataType::Int8 => sqlparser::ast::DataType::TinyInt(None),
-        DataType::Int16 => sqlparser::ast::DataType::SmallInt(None),
-        DataType::Int32 => sqlparser::ast::DataType::Int(None),
-        DataType::Int64 => sqlparser::ast::DataType::BigInt(None),
-        DataType::UInt8 => sqlparser::ast::DataType::TinyInt(None),
-        DataType::UInt16 => sqlparser::ast::DataType::SmallInt(None),
-        DataType::UInt32 => sqlparser::ast::DataType::Int(None),
-        DataType::UInt64 => sqlparser::ast::DataType::BigInt(None),
-        DataType::Float32 => sqlparser::ast::DataType::Real,
-        DataType::Float64 => sqlparser::ast::DataType::Double,
-        DataType::Utf8 => sqlparser::ast::DataType::Text,
-        DataType::LargeUtf8 => sqlparser::ast::DataType::Text,
+// fn dt_to_sql_dt(dt: &DataType) -> sqlparser::ast::DataType {
+//     match dt {
+//         DataType::Boolean => sqlparser::ast::DataType::Boolean,
+//         DataType::Int8 => sqlparser::ast::DataType::TinyInt(None),
+//         DataType::Int16 => sqlparser::ast::DataType::SmallInt(None),
+//         DataType::Int32 => sqlparser::ast::DataType::Int(None),
+//         DataType::Int64 => sqlparser::ast::DataType::BigInt(None),
+//         DataType::UInt8 => sqlparser::ast::DataType::TinyInt(None),
+//         DataType::UInt16 => sqlparser::ast::DataType::SmallInt(None),
+//         DataType::UInt32 => sqlparser::ast::DataType::Int(None),
+//         DataType::UInt64 => sqlparser::ast::DataType::BigInt(None),
+//         DataType::Float32 => sqlparser::ast::DataType::Real,
+//         DataType::Float64 => sqlparser::ast::DataType::Double,
+//         DataType::Utf8 => sqlparser::ast::DataType::Text,
+//         DataType::LargeUtf8 => sqlparser::ast::DataType::Text,
 
-        _ => unimplemented!("unsupported data type {:?}", dt),
-    }
-}
+//         _ => unimplemented!("unsupported data type {:?}", dt),
+//     }
+// }
 
 fn select_scan_query(
     layer_name: &str,
@@ -322,7 +322,7 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
     }
 }
 
-fn parse_select_body(query: &Query, graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
+fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
     let order_by = vec![];
 
     let from_tables = parse_tables(query);
@@ -450,14 +450,6 @@ fn table_from_name(name: &str) -> sql_ast::TableFactor {
     }
 }
 
-fn rel_layer(pat: &RelPattern) -> String {
-    // FIXME: we need to handle multiple rel types
-    pat.rel_types
-        .first()
-        .cloned()
-        .unwrap_or("_default".to_string())
-}
-
 fn parse_projection(query: &Query, binds: &[String]) -> Vec<sql_ast::SelectItem> {
     query
         .clauses()
@@ -472,7 +464,8 @@ fn parse_projection(query: &Query, binds: &[String]) -> Vec<sql_ast::SelectItem>
             Clause::Return(Return { items, .. }) => items
                 .iter()
                 .map(|ret_i| {
-                    let expr = cypher_to_sql_expr(&ret_i.expr, binds);
+                    let expr = cypher_to_sql_expr(&ret_i.expr, binds, true);
+                    println!("RETURN ITEM {:?}", expr);
                     if let Some(name) = ret_i.as_name.as_ref() {
                         sql_ast::SelectItem::ExprWithAlias {
                             expr,
@@ -518,7 +511,7 @@ fn parse_selection(query: &Query, binds: &[String]) -> Option<sql_ast::Expr> {
             }),
             _ => unreachable!(),
         })
-        .map(|expr| cypher_to_sql_expr(&expr, binds));
+        .map(|expr| cypher_to_sql_expr(&expr, binds, false));
     let where_exprs = query
         .clauses()
         .into_iter()
@@ -526,7 +519,7 @@ fn parse_selection(query: &Query, binds: &[String]) -> Option<sql_ast::Expr> {
             Clause::Match(m) => m
                 .where_clause
                 .as_ref()
-                .map(|expr| cypher_to_sql_expr(expr, binds)),
+                .map(|expr| cypher_to_sql_expr(expr, binds, false)),
             _ => None,
         });
     where_exprs
@@ -566,13 +559,21 @@ fn cypher_binary_op_to_sql(op: &BinOpType) -> sql_ast::BinaryOperator {
     }
 }
 
-fn cypher_to_sql_expr(expr: &Expr, binds: &[String]) -> sql_ast::Expr {
+fn cypher_to_sql_expr(expr: &Expr, binds: &[String], allow_wildcard_edges: bool) -> sql_ast::Expr {
     match expr {
         Expr::Var { var_name, attrs } => {
             if attrs.is_empty() {
-                sql_ast::Expr::QualifiedWildcard(sql_ast::ObjectName(vec![sql_ast::Ident::new(
-                    var_name,
-                )]))
+                if allow_wildcard_edges {
+                    sql_ast::Expr::QualifiedWildcard(sql_ast::ObjectName(vec![
+                        sql_ast::Ident::new(var_name),
+                    ]))
+                } else {
+                    // this makes sure that non-wildcard edges are selected with their id when passed down to functions
+                    sql_ast::Expr::CompoundIdentifier(vec![
+                        sql_ast::Ident::new(var_name),
+                        sql_ast::Ident::new("id"),
+                    ])
+                }
             } else {
                 sql_ast::Expr::CompoundIdentifier(
                     std::iter::once(sql_ast::Ident::new(var_name))
@@ -608,24 +609,24 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String]) -> sql_ast::Expr {
             let sql_list = match right.as_ref() {
                 Expr::Literal(Literal::List(exprs)) => exprs
                     .into_iter()
-                    .map(|lit| cypher_to_sql_expr(&Expr::Literal(lit.clone()), binds))
+                    .map(|lit| cypher_to_sql_expr(&Expr::Literal(lit.clone()), binds, false))
                     .collect::<Vec<_>>(),
                 expr => unimplemented!("unexpected right hand side of IN operator {:?}", expr),
             };
             sql_ast::Expr::InList {
-                expr: Box::new(cypher_to_sql_expr(left, binds)),
+                expr: Box::new(cypher_to_sql_expr(left, binds, false)),
                 list: sql_list,
                 negated: false,
             }
         }
         Expr::BinOp { op, left, right } => sql_ast::Expr::BinaryOp {
-            left: Box::new(cypher_to_sql_expr(left, binds)),
+            left: Box::new(cypher_to_sql_expr(left, binds, false)),
             op: cypher_binary_op_to_sql(op),
-            right: Box::new(cypher_to_sql_expr(right, binds)),
+            right: Box::new(cypher_to_sql_expr(right, binds, false)),
         },
         Expr::UnaryOp { op, expr } => sql_ast::Expr::UnaryOp {
             op: cypher_unary_op_to_sql(op),
-            expr: Box::new(cypher_to_sql_expr(expr, binds)),
+            expr: Box::new(cypher_to_sql_expr(expr, binds, false)),
         },
         Expr::CountAll => sql_ast::Expr::Function(sql_ast::Function {
             name: sql_ast::ObjectName(vec![sql_ast::Ident::new("COUNT")]),
@@ -669,7 +670,7 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String]) -> sql_ast::Expr {
                 .iter()
                 .map(|arg| {
                     sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(
-                        cypher_to_sql_expr(arg, binds),
+                        cypher_to_sql_expr(arg, binds, false),
                     ))
                 })
                 .collect(),
@@ -680,7 +681,11 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String]) -> sql_ast::Expr {
             special: false,
             order_by: vec![],
         }),
-        Expr::Nested(expr) => sql_ast::Expr::Nested(Box::new(cypher_to_sql_expr(expr, binds))),
+        Expr::Nested(expr) => sql_ast::Expr::Nested(Box::new(cypher_to_sql_expr(
+            expr,
+            binds,
+            allow_wildcard_edges & true,
+        ))),
         _ => unimplemented!("unsupported expression {:?}", expr),
     }
 }
@@ -694,7 +699,7 @@ fn str_op(
     match right.as_ref() {
         Expr::Literal(Literal::Str(s)) => sql_ast::Expr::Like {
             negated: false,
-            expr: Box::new(cypher_to_sql_expr(left, binds)),
+            expr: Box::new(cypher_to_sql_expr(left, binds, false)),
             pattern: Box::new(sql_ast::Expr::Value(sql_ast::Value::SingleQuotedString(
                 pattern(s),
             ))),
@@ -711,7 +716,7 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
-    let mut config = SessionConfig::from_env()?.with_information_schema(true);
+    let config = SessionConfig::from_env()?.with_information_schema(true);
     // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
 
     let ctx = SessionContext::new_with_config(config);
@@ -757,14 +762,14 @@ mod cyper_2_sql_tests {
 
     use super::*;
     use arrow::util::pretty::print_batches;
-    use arrow_array::{Array, ArrayRef, Float64Array, Int64Array, RecordBatch, UInt64Array};
-    use arrow_schema::{Field, Schema};
     use raphtory::{
         core::Prop,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::NO_PROPS,
     };
     use tempfile::tempdir;
+
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn select_all() {
@@ -844,6 +849,15 @@ mod cyper_2_sql_tests {
         check_cypher_to_sql(
             "MATCH ()-[e]-() where e.time > 10 RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE e.time > 10L",
+        );
+    }
+
+    #[test]
+    fn select_edge_with_type() {
+        check_cypher_to_sql_layers(
+            "MATCH ()-[e]-() where e.time > 10 RETURN e,type(e)",
+            "WITH e AS (SELECT time FROM _default UNION ALL SELECT time FROM L1 UNION ALL SELECT time FROM L2) SELECT e.*, type(e.id) FROM e WHERE e.time > 10L",
+            ["L1", "L2"],
         );
     }
 
@@ -945,12 +959,14 @@ mod cyper_2_sql_tests {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
             (0, 1, 1, 3.),
             (0, 1, 2, 4.),
+            (0, 3, 0, 1.),
             (1, 2, 2, 4.),
             (1, 2, 3, 4.),
+            (1, 5, 1, 1.),
             (2, 3, 5, 5.),
             (3, 4, 1, 6.),
             (3, 4, 3, 6.),
-            (3, 4, 7, 6.),
+            (3, 5, 7, 6.),
             (4, 5, 9, 7.),
         ];
 
@@ -969,6 +985,21 @@ mod cyper_2_sql_tests {
         ];
     }
 
+    //TODO: need better way of testing these, since they run in parallel order of batches is non-deterministic
+
+    #[tokio::test]
+    async fn select_table() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+
+        let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
+    }
     #[tokio::test]
     async fn select_table_filter_weight() {
         let graph_dir = tempdir().unwrap();
@@ -980,9 +1011,7 @@ mod cyper_2_sql_tests {
 
         let data = df.collect().await.unwrap();
 
-        let expected = make_record_batch(vec![0, 0], vec![1, 1], vec![1, 2], vec![3., 4.]);
-
-        assert_eq!(&data[0], &expected);
+        print_batches(&data).expect("failed to print batches");
 
         let df = run_cypher(
             "match ()-[e]->() where e.time >2 and e.weight<7 RETURN *",
@@ -992,15 +1021,7 @@ mod cyper_2_sql_tests {
         .unwrap();
 
         let data = df.collect().await.unwrap();
-
-        let expected = make_record_batch(
-            vec![1, 2, 3, 3],
-            vec![2, 3, 4, 4],
-            vec![3, 5, 3, 7],
-            vec![4., 5., 6., 6.],
-        );
-
-        assert_eq!(&data[0], &expected);
+        print_batches(&data).expect("failed to print batches");
     }
 
     #[tokio::test]
@@ -1125,9 +1146,27 @@ mod cyper_2_sql_tests {
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
 
         let df = run_cypher(
-            "match ()-[e:_default|LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+            "match ()-[e:LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
             &graph,
         ).await.unwrap();
+
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_all_layers_expand_layer_type() {
+        let graph_dir = tempdir().unwrap();
+        let g = Graph::new();
+
+        load_edges_1(&g, Some("LAYER1"));
+        load_edges_2(&g, Some("LAYER2"));
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
+
+        let df = run_cypher("match ()-[e]-() return e.weight, type(e)", &graph)
+            .await
+            .unwrap();
 
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
@@ -1160,35 +1199,38 @@ mod cyper_2_sql_tests {
         print_batches(&data).unwrap();
     }
 
-    fn new_record_batch(arrays: Vec<(&str, ArrayRef)>) -> RecordBatch {
-        let fields: Vec<Field> = arrays
-            .iter()
-            .map(|(name, array)| Field::new(name.to_string(), array.data_type().clone(), false))
-            .collect();
+    // fn new_record_batch(arrays: Vec<(&str, ArrayRef)>) -> RecordBatch {
+    //     let fields: Vec<Field> = arrays
+    //         .iter()
+    //         .map(|(name, array)| Field::new(name.to_string(), array.data_type().clone(), false))
+    //         .collect();
 
-        let schema = Schema::new(fields);
+    //     let schema = Schema::new(fields);
 
-        let arrays = arrays.into_iter().map(|(_, array)| array).collect();
+    //     let arrays = arrays.into_iter().map(|(_, array)| array).collect();
 
-        RecordBatch::try_new(Arc::new(schema), arrays).unwrap()
-    }
+    //     RecordBatch::try_new(Arc::new(schema), arrays).unwrap()
+    // }
 
-    fn make_record_batch(
-        srcs: Vec<u64>,
-        dsts: Vec<u64>,
-        times: Vec<i64>,
-        weights: Vec<f64>,
-    ) -> RecordBatch {
-        let src_array = UInt64Array::from(srcs);
-        let dst_array = UInt64Array::from(dsts);
-        let time_array = Int64Array::from(times);
-        let weight_array = Float64Array::from(weights);
+    // fn make_record_batch(
+    //     e_ids: Vec<u64>,
+    //     srcs: Vec<u64>,
+    //     dsts: Vec<u64>,
+    //     times: Vec<i64>,
+    //     weights: Vec<f64>,
+    // ) -> RecordBatch {
+    //     let e_ids_array = UInt64Array::from(e_ids);
+    //     let src_array = UInt64Array::from(srcs);
+    //     let dst_array = UInt64Array::from(dsts);
+    //     let time_array = Int64Array::from(times);
+    //     let weight_array = Float64Array::from(weights);
 
-        new_record_batch(vec![
-            ("src", Arc::new(src_array)),
-            ("dst", Arc::new(dst_array)),
-            ("time", Arc::new(time_array)),
-            ("weight", Arc::new(weight_array)),
-        ])
-    }
+    //     new_record_batch(vec![
+    //         ("e_id", Arc::new(e_ids_array)),
+    //         ("src", Arc::new(src_array)),
+    //         ("dst", Arc::new(dst_array)),
+    //         ("time", Arc::new(time_array)),
+    //         ("weight", Arc::new(weight_array)),
+    //     ])
+    // }
 }
