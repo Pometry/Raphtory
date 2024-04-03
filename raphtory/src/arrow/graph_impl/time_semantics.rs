@@ -207,15 +207,10 @@ impl TimeSemantics for ArrowGraph {
             Some(layer) => {
                 if layer_ids.contains(layer) {
                     let layer_times = self.inner.layers[*layer]
-                        .edges
-                        .time_col
-                        .clone()
-                        .into_value(e.pid().0);
-                    Box::new(
-                        layer_times
-                            .into_iter()
-                            .map(move |t| e.at(TimeIndexEntry::start(t))),
-                    )
+                        .edge(e.pid())
+                        .timestamps()
+                        .into_iter();
+                    Box::new(layer_times.into_iter().map(move |t| e.at(t)))
                 } else {
                     Box::new(iter::empty())
                 }
@@ -252,19 +247,11 @@ impl TimeSemantics for ArrowGraph {
             Some(layer) => {
                 if layer_ids.contains(layer) {
                     let windowed_times = self.inner.layers[*layer]
-                        .edges
-                        .time_col
-                        .clone()
-                        .into_value(e.pid().0);
-                    let start = windowed_times.partition_point(|v| v < w.start);
-                    let windowed_times = windowed_times.sliced(start..);
-                    let end = windowed_times.partition_point(|v| v < w.end);
-                    let windowed_times = windowed_times.sliced(..end);
-                    Box::new(
-                        windowed_times
-                            .into_iter()
-                            .map(move |t| e.at(TimeIndexEntry::start(t))),
-                    )
+                        .edge(e.pid())
+                        .timestamps()
+                        .range(w)
+                        .into_iter();
+                    Box::new(windowed_times.map(move |t| e.at(t)))
                 } else {
                     Box::new(iter::empty())
                 }

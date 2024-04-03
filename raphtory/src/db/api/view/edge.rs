@@ -315,8 +315,44 @@ mod test_edge_view {
             assert_eq!(prop_values, actual_prop_values)
         }
         test(&graph, &actual_prop_values);
-        // FIXME: this needs secondary index working (issue #50)
-        // test(&arrow_graph, &actual_prop_values);
+        test(&arrow_graph, &actual_prop_values);
+    }
+
+    #[test]
+    fn test_exploded_edge_properties_window() {
+        let graph = Graph::new();
+        let actual_prop_values_0 = vec![0, 1, 2, 3];
+        for v in actual_prop_values_0.iter() {
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+        let actual_prop_values_1 = vec![4, 5, 6];
+        for v in actual_prop_values_1.iter() {
+            graph.add_edge(1, 1, 2, [("test", *v)], None).unwrap();
+        }
+
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G, actual_prop_values_0: &[i32], actual_prop_values_1: &[i32]) {
+            let prop_values: Vec<_> = graph.at(0)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_0);
+            let prop_values: Vec<_> = graph.at(1)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_1)
+        }
+        test(&graph, &actual_prop_values_0, &actual_prop_values_1);
+        test(&arrow_graph, &actual_prop_values_0, &actual_prop_values_1);
     }
 
     #[test]
