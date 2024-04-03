@@ -62,7 +62,7 @@ pyo3 = { workspace = true, optional = true }
 pyo3-asyncio = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
-arrow2 = { workspace = true, optional = true }
+arrow2 = { workspace = true, optional = true, features = ["compute"]}
 kdam = { workspace = true, optional = true }
 
 

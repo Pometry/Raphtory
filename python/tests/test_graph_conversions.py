@@ -35,6 +35,37 @@ def build_graph():
     )
 
 
+def build_graph_without_datetime_type():
+    edges_df = pd.read_csv(base_dir / "data/network_traffic_edges.csv")
+    edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
+
+    nodes_df = pd.read_csv(base_dir / "data/network_traffic_nodes.csv")
+    nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
+
+    return Graph.load_from_pandas(
+        edge_df=edges_df,
+        edge_src="source",
+        edge_dst="destination",
+        edge_time="timestamp",
+        edge_properties=["data_size_MB"],
+        edge_layer="transaction_type",
+        edge_const_properties=["is_encrypted"],
+        edge_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+        node_df=nodes_df,
+        node_id="server_id",
+        node_time="timestamp",
+        node_properties=["OS_version", "primary_function", "uptime_days"],
+        node_const_properties=["server_name", "hardware_type"],
+        node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
+    )
+    
+    
+def test_graph_build_from_pandas_without_datetime_type():
+    g = build_graph_without_datetime_type()
+    assert g.node("ServerA").name == "ServerA"
+    assert g.node("ServerA").earliest_time == 1693555200000
+    
+    
 def test_py_vis():
     g = build_graph()
     pyvis_g = g.to_pyvis(directed=True)

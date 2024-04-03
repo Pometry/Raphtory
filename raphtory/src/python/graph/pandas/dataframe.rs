@@ -1,6 +1,8 @@
 use crate::core::utils::errors::GraphError;
 use arrow2::{
     array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+    compute::cast::{self, CastOptions},
+    datatypes::{DataType, TimeUnit},
     ffi,
     offset::Offset,
     types::NativeType,
@@ -11,6 +13,7 @@ use pyo3::{
     PyResult, Python,
 };
 
+#[derive(Debug)]
 pub(crate) struct PretendDF {
     pub(crate) names: Vec<String>,
     pub(crate) arrays: Vec<Vec<Box<dyn Array>>>,
@@ -221,8 +224,22 @@ pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
     unsafe {
         let field = ffi::import_field_from_c(schema.as_ref())
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-        let array = ffi::import_array_from_c(*array, field.data_type)
+
+        let array = ffi::import_array_from_c(*array, field.data_type.clone())
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
+
+        if let DataType::Timestamp(unit, _) = &field.data_type {
+            if *unit == TimeUnit::Nanosecond {
+                let array = cast::cast(
+                    &*array,
+                    &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
+                    CastOptions::default(),
+                ).map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
+
+                return Ok(array);
+            }
+        }
+
         Ok(array)
     }
 }
