@@ -1,6 +1,6 @@
 use super::ArrowGraph;
 use crate::{
-    arrow::prelude::{ArrayOps, BaseArrayOps},
+    arrow::prelude::ArrayOps,
     core::{
         entities::{edges::edge_ref::EdgeRef, properties::tprop::TPropOps, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},

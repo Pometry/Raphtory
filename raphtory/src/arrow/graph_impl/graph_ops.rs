@@ -25,7 +25,6 @@ impl<'graph> GraphOps<'graph> for ArrowGraph {
         match v {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
-            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
             NodeRef::ExternalStr(str) => self.inner.find_node(&GID::Str(str.into())),
         }
     }

@@ -333,8 +333,13 @@ mod test_edge_view {
         let test_dir = TempDir::new().unwrap();
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        fn test<G: StaticGraphViewOps>(graph: &G, actual_prop_values_0: &[i32], actual_prop_values_1: &[i32]) {
-            let prop_values: Vec<_> = graph.at(0)
+        fn test<G: StaticGraphViewOps>(
+            graph: &G,
+            actual_prop_values_0: &[i32],
+            actual_prop_values_1: &[i32],
+        ) {
+            let prop_values: Vec<_> = graph
+                .at(0)
                 .edge(1, 2)
                 .unwrap()
                 .explode()
@@ -342,7 +347,8 @@ mod test_edge_view {
                 .flat_map(|p| p.get("test").into_i32())
                 .collect();
             assert_eq!(prop_values, actual_prop_values_0);
-            let prop_values: Vec<_> = graph.at(1)
+            let prop_values: Vec<_> = graph
+                .at(1)
                 .edge(1, 2)
                 .unwrap()
                 .explode()
