@@ -1,8 +1,7 @@
 use super::ArrowGraph;
 use crate::{
-    arrow::prelude::ArrayOps,
     core::{
-        entities::{edges::edge_ref::EdgeRef, properties::tprop::TPropOps, LayerIds, VID},
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
