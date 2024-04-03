@@ -6,7 +6,7 @@ use crate::{
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
-        internal::{CoreGraphOps, EdgeFilter, EdgeWindowFilter, TimeSemantics},
+        internal::{EdgeFilter, EdgeWindowFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::*,
@@ -479,11 +479,26 @@ impl TimeSemantics for ArrowGraph {
         end: i64,
         layer_ids: LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, id, layer_ids)
-            .into_iter()
-            .map(|t_props| t_props.iter_window(start..end).collect::<Vec<_>>())
-            .next()
-            .unwrap_or_default()
+        if let Some(layer_id) = self.inner.layer_from_ids(&layer_ids.constrain_from_edge(e)) {
+            if let Some(t_prop) = self
+                .inner
+                .layer(layer_id)
+                .edge(e.pid())
+                .temporal_property(id)
+            {
+                match e.time() {
+                    Some(t) => {
+                        debug_assert!((start..end).contains(&t.t()));
+                        t_prop.at(&t).map(|v| (t.t(), v)).into_iter().collect()
+                    }
+                    None => t_prop.iter_window(start..end).collect(),
+                }
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
     }
 
     fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
