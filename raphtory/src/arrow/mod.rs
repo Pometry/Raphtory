@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     num::TryFromIntError,
     ops::Range,
     path::{Path, PathBuf},
@@ -11,9 +12,13 @@ use arrow2::{
     datatypes::{DataType, Field, Schema},
 };
 use itertools::Itertools;
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::arrow::load::parquet_reader::{NumRows, TrySlice};
+use crate::{
+    arrow::load::parquet_reader::{NumRows, TrySlice},
+    core::entities::nodes::input_node::parse_u64_strict,
+};
 
 pub mod algorithms;
 pub mod arrow_hmap;
@@ -236,6 +241,30 @@ impl GID {
         match self {
             GID::U64(v) => Some(*v),
             _ => None,
+        }
+    }
+
+    pub fn to_str(&self) -> Cow<String> {
+        match self {
+            GID::U64(v) => Cow::Owned(v.to_string()),
+            GID::I64(v) => Cow::Owned(v.to_string()),
+            GID::Str(v) => Cow::Borrowed(v),
+        }
+    }
+
+    pub fn to_i64(&self) -> Option<i64> {
+        match self {
+            GID::U64(v) => v.to_i64(),
+            GID::I64(v) => Some(*v),
+            GID::Str(v) => parse_u64_strict(&v)?.to_i64(),
+        }
+    }
+
+    pub fn to_u64(&self) -> Option<u64> {
+        match self {
+            GID::U64(v) => Some(*v),
+            GID::I64(v) => v.to_u64(),
+            GID::Str(v) => parse_u64_strict(v),
         }
     }
 }

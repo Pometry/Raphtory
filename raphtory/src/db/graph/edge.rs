@@ -395,70 +395,91 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 mod test_edge {
     use crate::{
         core::{ArcStr, IntoPropMap},
+        db::api::view::StaticGraphViewOps,
         prelude::*,
     };
     use itertools::Itertools;
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn test_properties() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let props = [(ArcStr::from("test"), "test".into_prop())];
-        g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        g.add_edge(2, 1, 2, props.clone(), None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
-        let e1 = g.edge(1, 2).unwrap();
-        let e1_w = g.window(0, 1).edge(1, 2).unwrap();
-        assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
-        assert!(e1_w.properties().as_vec().is_empty())
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G, props: [(ArcStr, Prop); 1]) {
+            let e1 = graph.edge(1, 2).unwrap();
+            let e1_w = graph.window(0, 1).edge(1, 2).unwrap();
+            assert_eq!(HashMap::from_iter(e1.properties().as_vec()), props.into());
+            assert!(e1_w.properties().as_vec().is_empty())
+        }
+        test(&graph, props.clone());
+        test(&arrow_graph, props);
     }
 
     #[test]
     fn test_constant_properties() {
-        let g = Graph::new();
-        g.add_edge(1, 1, 2, NO_PROPS, Some("layer 1"))
+        let graph = Graph::new();
+        graph
+            .add_edge(1, 1, 2, NO_PROPS, Some("layer 1"))
             .unwrap()
             .add_constant_properties([("test_prop", "test_val")], Some("layer 1"))
             .unwrap();
-        g.add_edge(1, 2, 3, NO_PROPS, Some("layer 2"))
+        graph
+            .add_edge(1, 2, 3, NO_PROPS, Some("layer 2"))
             .unwrap()
             .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
             .unwrap();
 
-        assert_eq!(
-            g.edge(1, 2)
-                .unwrap()
-                .properties()
-                .constant()
-                .get("test_prop"),
-            Some([("layer 1", "test_val")].into_prop_map())
-        );
-        assert_eq!(
-            g.edge(2, 3)
-                .unwrap()
-                .properties()
-                .constant()
-                .get("test_prop"),
-            Some([("layer 2", "test_val")].into_prop_map())
-        );
-        for e in g.edges() {
-            for ee in e.explode() {
-                assert_eq!(
-                    ee.properties().constant().get("test_prop"),
-                    Some("test_val".into())
-                )
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            assert_eq!(
+                graph
+                    .edge(1, 2)
+                    .unwrap()
+                    .properties()
+                    .constant()
+                    .get("test_prop"),
+                Some([("layer 1", "test_val")].into_prop_map())
+            );
+            assert_eq!(
+                graph
+                    .edge(2, 3)
+                    .unwrap()
+                    .properties()
+                    .constant()
+                    .get("test_prop"),
+                Some([("layer 2", "test_val")].into_prop_map())
+            );
+            for e in graph.edges() {
+                for ee in e.explode() {
+                    assert_eq!(
+                        ee.properties().constant().get("test_prop"),
+                        Some("test_val".into())
+                    )
+                }
             }
         }
+        test(&graph);
+        // FIXME: multilayer edge views are not supported yet (Issue #47)
+        // test(&arrow_graph);
     }
 
     #[test]
     fn test_property_additions() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let props = [("test", "test")];
-        let e1 = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        let e1 = graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         e1.add_updates(2, props, None).unwrap(); // same layer works
         assert!(e1.add_updates(2, props, Some("test2")).is_err()); // different layer is error
-        let e = g.edge(1, 2).unwrap();
+        let e = graph.edge(1, 2).unwrap();
         e.add_updates(2, props, Some("test2")).unwrap(); // non-restricted edge view can create new layers
         let layered_views = e.explode_layers().into_iter().collect_vec();
         for ev in layered_views {
@@ -466,6 +487,7 @@ mod test_edge {
             assert!(ev.add_updates(1, props, Some("test")).is_err()); // restricted edge view cannot create updates in different layer
             ev.add_updates(1, [("test2", layer)], None).unwrap() // this will add an update to the same layer as the view (not the default layer)
         }
+
         let e1_w = e1.window(0, 1);
         assert_eq!(
             e1.properties().as_map(),

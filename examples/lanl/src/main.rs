@@ -6,7 +6,7 @@ use raphtory::{
         algorithms::connected_components,
         graph_impl::{ArrowGraph, ParquetLayerCols},
     },
-    prelude::GraphViewOps,
+    prelude::{LayerOps, *},
 };
 use raphtory_storage::lanl::{exfiltration, *};
 use std::{env, num::NonZeroUsize, vec};
@@ -108,32 +108,39 @@ fn main() {
 
     println!("Node count = {}", graph.count_nodes());
     println!("Edge count = {}", graph.count_edges());
-    println!("Earliest time = {}", graph.earliest());
-    println!("Latest time = {}", graph.latest());
+    println!("Earliest time = {}", graph.earliest_time().unwrap());
+    println!("Latest time = {}", graph.latest_time().unwrap());
 
-    measure_with_print_results("Query 1", || query1::run(&graph).unwrap());
-    measure_with_print_results("Query 2", || query2::run(&graph).unwrap());
-    measure_with_print_results("Query 3", || query3::run(&graph).unwrap());
-    measure_with_print_results("Query 3b", || query3b::run(&graph).unwrap());
-    // # measure_with_print_results("Query 3c", || query3c::run(&graph).unwrap());
-    measure_with_print_results("Query 4", || query4::run2(&graph).unwrap());
+    measure_with_print_results("Query 1", || query1::run(graph.as_ref()).unwrap());
+    measure_with_print_results("Query 2", || query2::run(graph.as_ref()).unwrap());
+    measure_with_print_results("Query 3", || query3::run(graph.as_ref()).unwrap());
+    measure_with_print_results("Query 3b", || query3b::run(graph.as_ref()).unwrap());
+    // # measure_with_print_results("Query 3c", || query3c::run(graph.as_ref()).unwrap());
+    measure_with_print_results("Query 4", || query4::run2(graph.as_ref()).unwrap());
 
     measure_without_print_results("CC", || {
-        connected_components::connected_components(&graph.layer(0))
+        connected_components::connected_components(graph.as_ref().layer(0))
     });
     measure_without_print_results("Weakly CC", || {
-        weakly_connected_components(&graph, 20, None)
+        weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
     });
     measure_without_print_results("Page Rank", || {
-        unweighted_page_rank(&graph, Some(100), Some(1), None, true, None)
+        unweighted_page_rank(
+            &graph.valid_layers("netflow"),
+            Some(100),
+            Some(1),
+            None,
+            true,
+            None,
+        )
     });
     measure_with_print_results("Exfilteration Query 1", || {
-        exfiltration::query1::run(&graph)
+        exfiltration::query1::run(graph.as_ref())
     });
     measure_with_print_results("Exfilteration Count Query Total", || {
-        exfiltration::count::query_total(&graph, 30)
+        exfiltration::count::query_total(graph.as_ref(), 30)
     });
     measure_with_print_results("Exfilteration List Query Count", || {
-        exfiltration::list::query_count(&graph, 30)
+        exfiltration::list::query_count(graph.as_ref(), 30)
     });
 }

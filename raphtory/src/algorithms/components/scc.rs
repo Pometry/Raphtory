@@ -178,8 +178,10 @@ where
 mod strongly_connected_components_tests {
     use crate::{
         algorithms::components::scc::strongly_connected_components,
+        db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
+    use tempfile::TempDir;
 
     #[test]
     fn scc_test() {
@@ -200,9 +202,15 @@ mod strongly_connected_components_tests {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let scc_nodes = strongly_connected_components(&graph, None);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let scc_nodes = strongly_connected_components(graph, None);
 
-        assert_eq!(scc_nodes, vec![vec![8, 7, 5, 2, 6]]);
+            assert_eq!(scc_nodes, vec![vec![8, 7, 5, 2, 6]]);
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 }

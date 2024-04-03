@@ -11,6 +11,7 @@ use crate::lanl::{thread_pool, NUM_THREADS};
 // Wall time: 243 ms
 
 pub fn run(g: &TemporalGraph) -> Option<usize> {
+    let g = g.as_ref();
     // layer
     let events_1v = g.find_layer_id("events_1v")?;
 

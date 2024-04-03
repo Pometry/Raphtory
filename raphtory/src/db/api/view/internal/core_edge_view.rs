@@ -74,7 +74,13 @@ impl CoreEdgeView<'_> {
                 what
             }),
             #[cfg(feature = "arrow")]
-            CoreEdgeView::Arrow(e) => e.temporal_property(layer_id, prop_id),
+            CoreEdgeView::Arrow(e) => {
+                if layer_id == e.layer_id() {
+                    e.temporal_property(prop_id)
+                } else {
+                    None
+                }
+            }
         }
     }
 

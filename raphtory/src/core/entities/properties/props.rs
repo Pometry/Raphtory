@@ -311,11 +311,10 @@ impl<T: Clone> Iterator for LockedIter<T> {
 impl DictMapper {
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> usize
     where
-        ArcStr: Borrow<Q>,
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = T>,
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
-        if let Some(existing_id) = self.map.get(name) {
+        if let Some(existing_id) = self.map.get(name.borrow()) {
             return *existing_id;
         }
 

@@ -79,7 +79,11 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
 #[cfg(test)]
 mod sssp_tests {
     use super::*;
-    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use crate::db::{
+        api::{mutation::AdditionOps, view::StaticGraphViewOps},
+        graph::graph::Graph,
+    };
+    use tempfile::TempDir;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -103,29 +107,36 @@ mod sssp_tests {
             (8, 5, 6),
         ]);
 
-        let binding = single_source_shortest_path(&graph, 1, Some(4));
-        let results = binding.get_all_with_names();
-        let expected: HashMap<String, Vec<String>> = HashMap::from([
-            ("1".to_string(), vec!["1".to_string()]),
-            ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
-            ("3".to_string(), vec!["1".to_string(), "3".to_string()]),
-            ("4".to_string(), vec!["1".to_string(), "4".to_string()]),
-            (
-                "5".to_string(),
-                vec!["1".to_string(), "4".to_string(), "5".to_string()],
-            ),
-            (
-                "6".to_string(),
-                vec![
-                    "1".to_string(),
-                    "4".to_string(),
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let binding = single_source_shortest_path(graph, 1, Some(4));
+            let results = binding.get_all_with_names();
+            let expected: HashMap<String, Vec<String>> = HashMap::from([
+                ("1".to_string(), vec!["1".to_string()]),
+                ("2".to_string(), vec!["1".to_string(), "2".to_string()]),
+                ("3".to_string(), vec!["1".to_string(), "3".to_string()]),
+                ("4".to_string(), vec!["1".to_string(), "4".to_string()]),
+                (
                     "5".to_string(),
+                    vec!["1".to_string(), "4".to_string(), "5".to_string()],
+                ),
+                (
                     "6".to_string(),
-                ],
-            ),
-        ]);
-        assert_eq!(results, expected);
-        let binding = single_source_shortest_path(&graph, 5, Some(4));
-        println!("{:?}", binding.get_all_with_names());
+                    vec![
+                        "1".to_string(),
+                        "4".to_string(),
+                        "5".to_string(),
+                        "6".to_string(),
+                    ],
+                ),
+            ]);
+            assert_eq!(results, expected);
+            let binding = single_source_shortest_path(graph, 5, Some(4));
+            println!("{:?}", binding.get_all_with_names());
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 }

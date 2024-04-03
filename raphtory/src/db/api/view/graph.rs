@@ -272,23 +272,36 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
 
 #[cfg(test)]
 mod test_exploded_edges {
-    use crate::prelude::*;
+    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
+    use tempfile::TempDir;
 
     #[test]
     fn test_exploded_edges() {
-        let g: Graph = Graph::new();
-        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
+        let graph: Graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(2, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
-        assert_eq!(g.count_temporal_edges(), 4)
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            assert_eq!(graph.count_temporal_edges(), 4)
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 }
 
 #[cfg(test)]
 mod test_materialize {
-    use crate::{core::OptionAsStr, db::api::view::internal::CoreGraphOps, prelude::*};
+    use crate::{
+        core::OptionAsStr,
+        db::api::view::{internal::CoreGraphOps, StaticGraphViewOps},
+        prelude::*,
+    };
+    use tempfile::TempDir;
 
     #[test]
     fn test_materialize() {
@@ -325,25 +338,34 @@ mod test_materialize {
 
     #[test]
     fn testing_node_types() {
-        let g = Graph::new();
-        let node_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
-        let node_b = g.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
-        let node_a_type = node_a.node_type();
-        let node_a_type_str = node_a_type.as_str();
+        let graph = Graph::new();
+        graph.add_node(0, "A", NO_PROPS, None).unwrap();
+        graph.add_node(1, "B", NO_PROPS, Some(&"H")).unwrap();
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let node_a = graph.node("A").unwrap();
+            let node_b = graph.node("B").unwrap();
+            let node_a_type = node_a.node_type();
+            let node_a_type_str = node_a_type.as_str();
 
-        assert_eq!(node_a_type_str, None);
-        assert_eq!(node_b.node_type().as_str(), Some("H"));
+            assert_eq!(node_a_type_str, None);
+            assert_eq!(node_b.node_type().as_str(), Some("H"));
+        }
+        test(&graph);
+        // FIXME: Node types not yet supported (Issue #51)
+        // test(&arrow_graph);
 
         // Nodes with No type can be overwritten
-        let node_a = g.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
+        let node_a = graph.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
         assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
 
         // Check that overwriting a node type returns an error
-        assert!(g.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
+        assert!(graph.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
         // Double check that the type did not actually change
-        assert_eq!(g.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
+        assert_eq!(graph.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
         // Check that the update is not added to the graph
-        let all_node_types = g.get_all_node_types();
+        let all_node_types = graph.get_all_node_types();
         assert_eq!(all_node_types.len(), 2);
     }
 

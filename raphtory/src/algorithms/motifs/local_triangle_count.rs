@@ -67,7 +67,6 @@ pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V
 
 #[cfg(test)]
 mod triangle_count_tests {
-
     use super::local_triangle_count;
     use crate::{
         db::{
@@ -76,23 +75,31 @@ mod triangle_count_tests {
         },
         prelude::NO_PROPS,
     };
+    use tempfile::TempDir;
 
     #[test]
     fn counts_triangles() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let vs = vec![(1, 1, 2), (2, 1, 3), (3, 2, 1), (4, 3, 2)];
 
         for (t, src, dst) in &vs {
-            g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
+            graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
 
-        let windowed_graph = g.window(0, 5);
-        let expected = vec![1, 1, 1];
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let actual = (1..=3)
-            .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
-            .collect::<Vec<_>>();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let windowed_graph = graph.window(0, 5);
+            let expected = vec![1, 1, 1];
 
-        assert_eq!(actual, expected);
+            let actual = (1..=3)
+                .map(|v| local_triangle_count(&windowed_graph, v).unwrap())
+                .collect::<Vec<_>>();
+
+            assert_eq!(actual, expected);
+        }
+        test(&graph);
+        test(&arrow_graph);
     }
 }

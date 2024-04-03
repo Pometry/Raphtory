@@ -6,7 +6,7 @@ use crate::{
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
-use std::{num::NonZeroUsize, ops::Deref, path::Path, sync::Arc};
+use std::{num::NonZeroUsize, path::Path, sync::Arc};
 
 use crate::{core::entities::properties::props::Meta, prelude::Graph};
 
@@ -34,12 +34,18 @@ pub struct ParquetLayerCols<'a> {
     pub time_col: &'a str,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ArrowGraph {
-    inner: Arc<TemporalGraph>,
+    pub(crate) inner: Arc<TemporalGraph>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
+}
+
+impl AsRef<TemporalGraph> for ArrowGraph {
+    fn as_ref(&self) -> &TemporalGraph {
+        &self.inner
+    }
 }
 
 impl Graph {
@@ -56,29 +62,32 @@ impl IntoDynamic for ArrowGraph {
     }
 }
 
-impl Deref for ArrowGraph {
-    type Target = TemporalGraph;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
 impl ArrowGraph {
     fn new(inner_graph: TemporalGraph) -> Self {
         let node_meta = Meta::new();
-        let edge_meta = Meta::new();
+        let mut edge_meta = Meta::new();
         let graph_meta = GraphMeta::new();
 
-        let edge_props_fields = inner_graph.edges_data_type(0);
+        for layer in inner_graph.layers() {
+            let edge_props_fields = layer.edges_data_type();
 
-        for field in edge_props_fields {
-            let prop_name = &field.name;
-            let data_type = field.data_type();
+            for (id, field) in edge_props_fields.iter().enumerate() {
+                let prop_name = &field.name;
+                let data_type = field.data_type();
 
-            edge_meta
-                .resolve_prop_id(prop_name, data_type.into(), false)
-                .expect("Arrow data types should without failing");
+                let resolved_id = edge_meta
+                    .resolve_prop_id(prop_name, data_type.into(), false)
+                    .expect("Arrow data types should without failing");
+                if id != resolved_id {
+                    println!("Warning: Layers with different edge properties are not supported by the high-level apis on top of the arrow graph yet, edge properties will not be available to high-level apis");
+                    edge_meta = Meta::new();
+                    break;
+                }
+            }
+        }
+
+        for l_name in inner_graph.layer_names() {
+            edge_meta.layer_meta().get_or_create_id(l_name);
         }
 
         if let Some(props) = inner_graph.node_properties.as_ref() {
@@ -192,7 +201,8 @@ impl ArrowGraph {
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
-        self.layers
+        self.inner
+            .layers
             .par_iter()
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
@@ -203,7 +213,8 @@ impl ArrowGraph {
         &'a self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
-        self.layers
+        self.inner
+            .layers
             .iter()
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))

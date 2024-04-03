@@ -363,60 +363,75 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
 
 #[cfg(test)]
 mod node_test {
-    use crate::prelude::*;
+    use crate::{core::ArcStr, db::api::view::StaticGraphViewOps, prelude::*};
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn test_earliest_time() {
-        let g = Graph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(1, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 1, NO_PROPS, None).unwrap();
-        let view = g.before(2);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+        let graph = Graph::new();
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 1, NO_PROPS, None).unwrap();
 
-        let view = g.before(3);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        let view = g.after(0);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let view = graph.before(2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
 
-        let view = g.after(2);
-        assert_eq!(view.node(1), None);
-        assert_eq!(view.node(1), None);
+            let view = graph.before(3);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
-        let view = g.at(1);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+            let view = graph.after(0);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+
+            let view = graph.after(2);
+            assert_eq!(view.node(1), None);
+            assert_eq!(view.node(1), None);
+
+            let view = graph.at(1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+        }
+        test(&graph);
+        // FIXME: Node add without properties not showing up (Issue #46)
+        // test(&arrow_graph);
     }
 
     #[test]
     fn test_properties() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let props = [("test", "test")];
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
-        g.add_node(2, 1, props, None).unwrap();
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(2, 1, props, None).unwrap();
 
-        let v1 = g.node(1).unwrap();
-        let v1_w = g.window(0, 1).node(1).unwrap();
-        assert_eq!(
-            v1.properties().as_map(),
-            props
-                .into_iter()
-                .map(|(k, v)| (k.into(), v.into_prop()))
-                .collect()
-        );
-        assert_eq!(v1_w.properties().as_map(), HashMap::default())
+        let test_dir = TempDir::new().unwrap();
+        let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
+
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let v1 = graph.node(1).unwrap();
+            let v1_w = graph.window(0, 1).node(1).unwrap();
+            assert_eq!(
+                v1.properties().as_map(),
+                [(ArcStr::from("test"), Prop::str("test"))].into()
+            );
+            assert_eq!(v1_w.properties().as_map(), HashMap::default())
+        }
+        test(&graph);
+        // FIXME: Node add without properties not showing up (Issue #46)
+        // test(&arrow_graph);
     }
 
     #[test]
     fn test_property_additions() {
-        let g = Graph::new();
+        let graph = Graph::new();
         let props = [("test", "test")];
-        let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
+        let v1 = graph.add_node(0, 1, NO_PROPS, None).unwrap();
         v1.add_updates(2, props).unwrap();
         let v1_w = v1.window(0, 1);
         assert_eq!(

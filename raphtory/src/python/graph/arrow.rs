@@ -28,6 +28,7 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, TimeOps},
     python::{
         graph::{edge::PyDirection, graph::PyGraph, views::graph_view::PyGraphView},
+        types::repr::StructReprBuilder,
         utils::errors::adapt_err_value,
     },
 };
@@ -44,6 +45,15 @@ impl From<Error> for PyErr {
 #[pyclass(name = "ArrowGraph", extends = PyGraphView)]
 pub struct PyArrowGraph {
     pub graph: ArrowGraph,
+}
+
+impl<G> AsRef<G> for PyArrowGraph
+where
+    ArrowGraph: AsRef<G>,
+{
+    fn as_ref(&self) -> &G {
+        self.graph.as_ref()
+    }
 }
 
 impl From<ArrowGraph> for PyArrowGraph {
@@ -221,6 +231,18 @@ impl PyArrowGraph {
         graph.map_err(|e| {
             GraphError::LoadFailure(format!("Failed to load graph {e:?} from parquet files"))
         })
+    }
+
+    fn __repr__(&self) -> String {
+        StructReprBuilder::new("ArrowGraph")
+            .add_field("number_of_nodes", self.graph.count_nodes())
+            .add_field(
+                "number_of_temporal_edges",
+                self.graph.count_temporal_edges(),
+            )
+            .add_field("earliest_time", self.graph.earliest_time())
+            .add_field("latest_time", self.graph.latest_time())
+            .finish()
     }
 }
 
