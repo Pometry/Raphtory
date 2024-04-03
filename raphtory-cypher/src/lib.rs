@@ -7,7 +7,6 @@ use datafusion::{
         config::SessionConfig,
         context::{SQLOptions, SessionContext},
     },
-    physical_plan::projection,
 };
 use executor::{table_provider::EdgeListTableProvider, ExecError};
 use itertools::Itertools;
@@ -763,37 +762,48 @@ mod cyper_2_sql_tests {
     use raphtory::{
         core::Prop,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
+        prelude::NO_PROPS,
     };
     use tempfile::tempdir;
 
     #[test]
     fn select_all() {
-        check_cypher_to_sql("MATCH ()-[e]-() RETURN e", "SELECT e.* FROM _default AS e");
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN e",
+            "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e",
+        );
     }
 
     #[test]
     fn select_unnamed() {
-        check_cypher_to_sql("MATCH ()-[]-() RETURN *", "SELECT * FROM _default AS r_1");
+        check_cypher_to_sql(
+            "MATCH ()-[]-() RETURN *",
+            "WITH r_1 AS (SELECT * FROM _default) SELECT * FROM r_1",
+        );
     }
 
     #[test]
     fn select_wildcard_name() {
-        check_cypher_to_sql("MATCH ()-[e]-() RETURN *", "SELECT * FROM _default AS e");
+        check_cypher_to_sql(
+            "MATCH ()-[e]-() RETURN *",
+            "WITH e AS (SELECT * FROM _default) SELECT * FROM e",
+        );
     }
 
     #[test]
     fn select_projection() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() RETURN e.src, e.weight",
-            "SELECT e.src, e.weight FROM _default AS e",
+            "WITH e AS (SELECT * FROM _default) SELECT e.src, e.weight FROM e",
         );
     }
 
     #[test]
     fn select_wildcard_from_layer() {
-        check_cypher_to_sql(
+        check_cypher_to_sql_layers(
             "MATCH ()-[e:KNOWS]-() RETURN e",
-            "SELECT e.* FROM KNOWS AS e",
+            "WITH e AS (SELECT * FROM KNOWS) SELECT e.* FROM e",
+            ["KNOWS"],
         );
     }
 
@@ -801,7 +811,7 @@ mod cyper_2_sql_tests {
     fn select_wildcard_count_all() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() RETURN COUNT(*)",
-            "SELECT COUNT(*) FROM _default AS e",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
         );
     }
 
@@ -809,7 +819,7 @@ mod cyper_2_sql_tests {
     fn select_one_col_count_items() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() RETURN COUNT(e.name)",
-            "SELECT COUNT(e.name) FROM _default AS e",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.name) FROM e",
         );
     }
 
@@ -817,7 +827,7 @@ mod cyper_2_sql_tests {
     fn select_one_col_count_items_distinct() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() RETURN COUNT(distinct e.name)",
-            "SELECT COUNT(DISTINCT e.name) FROM _default AS e",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(DISTINCT e.name) FROM e",
         );
     }
 
@@ -825,7 +835,7 @@ mod cyper_2_sql_tests {
     fn select_with_limit() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() RETURN e LIMIT 2",
-            "SELECT e.* FROM _default AS e LIMIT 2L",
+            "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e LIMIT 2L",
         );
     }
 
@@ -833,7 +843,7 @@ mod cyper_2_sql_tests {
     fn select_where_expr_1() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() where e.time > 10 RETURN e",
-            "SELECT e.* FROM _default AS e WHERE e.time > 10L",
+            "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE e.time > 10L",
         );
     }
 
@@ -841,7 +851,7 @@ mod cyper_2_sql_tests {
     fn select_where_str_contains() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() where e.name contains 'baa' RETURN e",
-            "SELECT e.* FROM _default AS e WHERE e.name LIKE '%baa%'",
+            "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE e.name LIKE '%baa%'",
         );
     }
 
@@ -849,7 +859,7 @@ mod cyper_2_sql_tests {
     fn select_where_str_not_contains() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() where NOT e.name contains 'baa' RETURN e",
-            "SELECT e.* FROM _default AS e WHERE e.name NOT LIKE '%baa%'",
+            "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE NOT e.name LIKE '%baa%'",
         );
     }
 
@@ -857,7 +867,7 @@ mod cyper_2_sql_tests {
     fn select_where_expr_2() {
         check_cypher_to_sql(
             "MATCH ()-[e {type: 'one'}]-() RETURN e.time, e.type",
-            "SELECT e.time, e.type FROM _default AS e WHERE e.type = 'one'",
+            "WITH e AS (SELECT * FROM _default) SELECT e.time, e.type FROM e WHERE e.type = 'one'",
         );
     }
 
@@ -865,15 +875,16 @@ mod cyper_2_sql_tests {
     fn select_where_expr_3() {
         check_cypher_to_sql(
             "MATCH ()-[e {type: 'one'}]-() where e.time < 5 RETURN e.time, e.type",
-            "SELECT e.time, e.type FROM _default AS e WHERE e.time < 5L AND e.type = 'one'",
+            "WITH e AS (SELECT * FROM _default) SELECT e.time, e.type FROM e WHERE e.time < 5L AND e.type = 'one'",
         );
     }
 
     #[test]
     fn select_where_expr_4_layer() {
-        check_cypher_to_sql(
+        check_cypher_to_sql_layers(
             "MATCH ()-[e :LAYER {time: 7}]-() where e.type = 'one' RETURN e.time, e.type",
-            "SELECT e.time, e.type FROM LAYER AS e WHERE e.type = 'one' AND e.time = 7L",
+            "WITH e AS (SELECT * FROM LAYER) SELECT e.time, e.type FROM e WHERE e.type = 'one' AND e.time = 7L",
+            ["LAYER"]
         );
     }
 
@@ -881,7 +892,7 @@ mod cyper_2_sql_tests {
     fn hop_two_times_out() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->() RETURN e1, e2",
-            "SELECT e1.*, e2.* FROM _default AS e1 JOIN _default AS e2 ON e1.dst = e2.src",
+            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.*, e2.* FROM e1 JOIN e2 ON e1.dst = e2.src",
         );
     }
 
@@ -889,7 +900,7 @@ mod cyper_2_sql_tests {
     fn hop_3_times_out() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->()-[e3]->() RETURN e1, e2, e3",
-            "SELECT e1.*, e2.*, e3.* FROM _default AS e1 JOIN _default AS e2 ON e1.dst = e2.src JOIN _default AS e3 ON e2.dst = e3.src",
+            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), e3 AS (SELECT * FROM _default) SELECT e1.*, e2.*, e3.* FROM e1 JOIN e2 ON e1.dst = e2.src JOIN e3 ON e2.dst = e3.src",
         );
     }
 
@@ -897,7 +908,7 @@ mod cyper_2_sql_tests {
     fn hop_two_times_in() {
         check_cypher_to_sql(
             "MATCH ()<-[e1]-()<-[e2]-() RETURN e1, e2",
-            "SELECT e1.*, e2.* FROM _default AS e1 JOIN _default AS e2 ON e1.src = e2.dst",
+            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.*, e2.* FROM e1 JOIN e2 ON e1.src = e2.dst",
         );
     }
 
@@ -905,17 +916,29 @@ mod cyper_2_sql_tests {
     fn respect_parens() {
         check_cypher_to_sql(
             "match ()-[a]->() where a.name = 'John' or (1 < a.age and a.age < 10) RETURN a",
-            "SELECT a.* FROM _default AS a WHERE a.name = 'John' OR (1L < a.age AND a.age < 10L)",
+            "WITH a AS (SELECT * FROM _default) SELECT a.* FROM a WHERE a.name = 'John' OR (1L < a.age AND a.age < 10L)",
         );
     }
 
-    fn check_cypher_to_sql(query: &str, expected: &str) {
+    fn check_cypher_to_sql_layers<LS: IntoIterator<Item = impl AsRef<str>>>(
+        query: &str,
+        expected: &str,
+        layers: LS,
+    ) {
         let query = parser::parse_cypher(query).unwrap();
         let graph_dir = tempdir().unwrap();
         let g = Graph::new();
+        for layer in layers {
+            g.add_edge(0, 0, 0, NO_PROPS, Some(layer.as_ref()))
+                .expect("failed to add edge");
+        }
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
         let sql = cypher_to_sql_with_ctes(&query, &graph);
         assert_eq!(sql.to_string(), expected.to_string());
+    }
+
+    fn check_cypher_to_sql(query: &str, expected: &str) {
+        check_cypher_to_sql_layers::<[String; 0]>(query, expected, [])
     }
 
     lazy_static::lazy_static! {
