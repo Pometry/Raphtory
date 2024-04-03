@@ -234,7 +234,8 @@ pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
                     &*array,
                     &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
                     CastOptions::default(),
-                ).map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
+                )
+                .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
 
                 return Ok(array);
             }
