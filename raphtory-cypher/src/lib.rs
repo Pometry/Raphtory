@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use arrow_schema::{DataType, Schema};
+use arrow_array::{builder, UInt64Array};
+use arrow_schema::{DataType, Fields, Schema};
 use datafusion::{
     dataframe::DataFrame,
+    error::DataFusionError,
     execution::{
         config::SessionConfig,
         context::{SQLOptions, SessionContext},
     },
+    logical_expr::{create_udf, ColumnarValue, Volatility},
 };
 use executor::{table_provider::EdgeListTableProvider, ExecError};
 use itertools::Itertools;
@@ -98,15 +101,8 @@ fn sql_table(
     let schemas = layer_names
         .iter()
         .filter_map(|layer| graph.find_layer_id(layer.as_ref()))
-        .map(|layer_id| {
-            let dt = graph.layer(layer_id).edges_arrow_data_type();
-            let arr_dt: arrow_schema::DataType = dt.clone().into();
-            arr_dt
-        })
-        .filter_map(|dt| match dt {
-            DataType::Struct(fields) => Some(Schema::new(fields)),
-            _ => None,
-        });
+        .filter_map(|layer_id| full_layer_fields(graph, layer_id))
+        .map(|fields| Schema::new(fields));
 
     // this is the schema that all layers must match, any missing columns will be filled with NULLs
     let schema = Schema::try_merge(schemas).expect("failed to merge schemas");
@@ -138,6 +134,36 @@ fn sql_table(
             query: select_scan_query(layer_names.first().unwrap().as_ref(), graph, None).1,
             from: None,
         }
+    }
+}
+
+fn full_layer_fields(graph: &ArrowGraph, layer_id: usize) -> Option<Fields> {
+    let dt = graph.layer(layer_id).edges_props_data_type();
+    let arr_dt: arrow_schema::DataType = dt.clone().into();
+    match arr_dt {
+        arrow_schema::DataType::Struct(fields) => {
+            let mut all_fields = vec![];
+            all_fields.push(Arc::new(arrow_schema::Field::new(
+                "layer_id",
+                arrow_schema::DataType::UInt64,
+                false,
+            )));
+            all_fields.push(Arc::new(arrow_schema::Field::new(
+                "src",
+                arrow_schema::DataType::UInt64,
+                false,
+            )));
+            all_fields.push(Arc::new(arrow_schema::Field::new(
+                "dst",
+                arrow_schema::DataType::UInt64,
+                false,
+            )));
+
+            all_fields.extend(fields.iter().cloned());
+
+            Some(all_fields.into())
+        }
+        _ => None,
     }
 }
 
@@ -197,17 +223,18 @@ fn select_scan_query(
     total_schema: Option<&Schema>,
 ) -> (usize, Box<sql_ast::Query>) {
     let layer_id = graph.find_layer_id(layer_name).expect("layer not found");
-    let layer_schema = graph.layer(layer_id).edges_data_type();
+    let layer_schema = full_layer_fields(graph, layer_id);
 
     let projection_with_priority = total_schema
-        .map(|schema| {
+        .zip(layer_schema)
+        .map(|(schema, layer_schema)| {
             let mut select_items = vec![];
             let mut null_count = 0usize;
             for field in schema.fields().iter() {
-                if let Some(field) = layer_schema.into_iter().find(|f| &f.name == field.name()) {
+                if let Some(field) = layer_schema.into_iter().find(|&f| f.name() == field.name()) {
                     // if the field is present in the layer schema
                     let item = sql_ast::SelectItem::UnnamedExpr(sql_ast::Expr::Identifier(
-                        sql_ast::Ident::new(field.name.clone()),
+                        sql_ast::Ident::new(field.name().clone()),
                     ));
                     select_items.push(item);
                 } else {
@@ -465,7 +492,6 @@ fn parse_projection(query: &Query, binds: &[String]) -> Vec<sql_ast::SelectItem>
                 .iter()
                 .map(|ret_i| {
                     let expr = cypher_to_sql_expr(&ret_i.expr, binds, true);
-                    println!("RETURN ITEM {:?}", expr);
                     if let Some(name) = ret_i.as_name.as_ref() {
                         sql_ast::SelectItem::ExprWithAlias {
                             expr,
@@ -664,23 +690,28 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String], allow_wildcard_edges: bool)
             name,
             distinct,
             args,
-        } => sql_ast::Expr::Function(sql_ast::Function {
-            name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name)]),
-            args: args
-                .iter()
-                .map(|arg| {
-                    sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(
-                        cypher_to_sql_expr(arg, binds, false),
-                    ))
-                })
-                .collect(),
-            over: None,
-            distinct: *distinct,
-            filter: None,
-            null_treatment: None,
-            special: false,
-            order_by: vec![],
-        }),
+        } => {
+            if name == "type" {
+                // turn this into type(e.layer_id)
+                let first_arg = args.first().expect(
+                    "type function must have one argument representing the bind of an edge",
+                );
+                match first_arg {
+                    Expr::Var { var_name, .. } => sql_function(
+                        name,
+                        &vec![Expr::var(var_name, vec!["layer_id"])],
+                        binds,
+                        distinct,
+                    ),
+                    expr => unimplemented!(
+                        "type function must have a variable as argument, found {:?}",
+                        expr
+                    ),
+                }
+            } else {
+                sql_function(name, args, binds, distinct)
+            }
+        }
         Expr::Nested(expr) => sql_ast::Expr::Nested(Box::new(cypher_to_sql_expr(
             expr,
             binds,
@@ -688,6 +719,31 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String], allow_wildcard_edges: bool)
         ))),
         _ => unimplemented!("unsupported expression {:?}", expr),
     }
+}
+
+fn sql_function(
+    name: &String,
+    args: &Vec<Expr>,
+    binds: &[String],
+    distinct: &bool,
+) -> sql_ast::Expr {
+    sql_ast::Expr::Function(sql_ast::Function {
+        name: sql_ast::ObjectName(vec![sql_ast::Ident::new(name)]),
+        args: args
+            .iter()
+            .map(|arg| {
+                sql_ast::FunctionArg::Unnamed(sql_ast::FunctionArgExpr::Expr(cypher_to_sql_expr(
+                    arg, binds, false,
+                )))
+            })
+            .collect(),
+        over: None,
+        distinct: *distinct,
+        filter: None,
+        null_treatment: None,
+        special: false,
+        order_by: vec![],
+    })
 }
 
 fn str_op(
@@ -725,7 +781,36 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
         ctx.register_table(layer, Arc::new(table))?;
     }
+    let layer_names = graph.layer_names().into_iter().cloned().collect::<Vec<_>>();
 
+    ctx.register_udf(create_udf(
+        "type",
+        vec![DataType::UInt64],
+        DataType::Utf8.into(),
+        Volatility::Immutable,
+        Arc::new(move |cols| {
+            let layer_id_col = match &cols[0] {
+                ColumnarValue::Array(a) => a.clone(),
+                ColumnarValue::Scalar(a) => a.to_array()?,
+            };
+
+            let layer_id_col = layer_id_col
+                .as_any()
+                .downcast_ref::<UInt64Array>()
+                .ok_or_else(|| {
+                    DataFusionError::Execution("Expected column of type u64".to_string())
+                })?;
+
+            let mut type_col = builder::StringBuilder::new();
+            for layer_id in layer_id_col.values() {
+                let layer_name = layer_names
+                    .get(*layer_id as usize)
+                    .ok_or_else(|| DataFusionError::Execution("Layer not found".to_string()))?;
+                type_col.append_value(layer_name);
+            }
+            Ok(ColumnarValue::Array(Arc::new(type_col.finish())))
+        }),
+    ));
     ctx.refresh_catalogs().await?;
     let query = cypher_to_sql_with_ctes(&query, graph);
 
@@ -856,7 +941,7 @@ mod cyper_2_sql_tests {
     fn select_edge_with_type() {
         check_cypher_to_sql_layers(
             "MATCH ()-[e]-() where e.time > 10 RETURN e,type(e)",
-            "WITH e AS (SELECT time FROM _default UNION ALL SELECT time FROM L1 UNION ALL SELECT time FROM L2) SELECT e.*, type(e.id) FROM e WHERE e.time > 10L",
+            "WITH e AS (SELECT time FROM _default UNION ALL SELECT time FROM L1 UNION ALL SELECT time FROM L2) SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
             ["L1", "L2"],
         );
     }
@@ -1146,12 +1231,31 @@ mod cyper_2_sql_tests {
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
 
         let df = run_cypher(
-            "match ()-[e:LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+            "match ()-[e:_default|LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
             &graph,
         ).await.unwrap();
 
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_all_multiple_layers() {
+        let graph_dir = tempdir().unwrap();
+        let g = Graph::new();
+
+        load_edges_1(&g, Some("LAYER1"));
+        load_edges_2(&g, Some("LAYER2"));
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
+
+        let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
     }
 
     #[tokio::test]
@@ -1163,8 +1267,7 @@ mod cyper_2_sql_tests {
         load_edges_2(&g, Some("LAYER2"));
 
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
-
-        let df = run_cypher("match ()-[e]-() return e.weight, type(e)", &graph)
+        let df = run_cypher("match ()-[e]-() return type(e), e", &graph)
             .await
             .unwrap();
 

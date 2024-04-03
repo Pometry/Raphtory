@@ -87,7 +87,7 @@ fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<S
     let schema = match a_dt {
         DataType::Struct(fields) => {
             let node_ids_and_edge_fields = Schema::new(vec![
-                Field::new("id", DataType::UInt64, false), // this is the edge id (eid)
+                Field::new("layer_id", DataType::UInt64, false), // this is the edge id (eid)
                 Field::new("src", DataType::UInt64, false),
                 Field::new("dst", DataType::UInt64, false),
                 Field::new("time", DataType::Int64, false),
@@ -173,6 +173,10 @@ async fn produce_record_batch(
 
     let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
 
+    if start == end {
+        return Ok(RecordBatch::new_empty(schema.clone()));
+    }
+
     let offsets: OffsetBuffer<i64> = OffsetBuffer::new(local_offsets.into());
 
     let srcs = edges.srcs().sliced(start..end);
@@ -180,7 +184,7 @@ async fn produce_record_batch(
 
     let mut srcs_builder = Vec::with_capacity(time_values.len());
     let mut dsts_builder = Vec::with_capacity(time_values.len());
-    let mut e_id_builder = Vec::with_capacity(time_values.len());
+    let mut layer_id_builder = Vec::with_capacity(time_values.len());
 
     // take every chunk here and surface the primitive arrays
     // convert from arrow2 to arrow-rs then to polars
@@ -188,19 +192,19 @@ async fn produce_record_batch(
         .iter_chunks()
         .zip(dsts.iter_chunks())
         .flat_map(|(srcs, dsts)| srcs.iter().zip(dsts.iter()))
-        .zip(start as u64..end as u64)
+        .zip(std::iter::repeat(layer_id as u64))
         .enumerate()
     {
         let length = (offsets[i + 1] - offsets[i]) as usize;
         for _ in 0..length {
             srcs_builder.push(*src);
             dsts_builder.push(*dst);
-            e_id_builder.push(e_id);
+            layer_id_builder.push(e_id);
         }
     }
 
-    let e_ids = Arc::new(PrimitiveArray::<UInt64Type>::new(
-        ScalarBuffer::from(e_id_builder),
+    let layer_ids = Arc::new(PrimitiveArray::<UInt64Type>::new(
+        ScalarBuffer::from(layer_id_builder),
         None,
     ));
 
@@ -214,7 +218,7 @@ async fn produce_record_batch(
     ));
     let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(time_values));
 
-    let mut columns = vec![e_ids, srcs, dsts, time];
+    let mut columns = vec![layer_ids, srcs, dsts, time];
 
     let temp_properties = &edges.data_type()[1..];
     for (col_id, field) in temp_properties.into_iter().enumerate() {
