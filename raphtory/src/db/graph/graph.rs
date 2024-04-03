@@ -1327,6 +1327,56 @@ mod db_tests {
             .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
     }
 
+    #[test]
+    fn test_graph_constant_props2() {
+        let g = Graph::new();
+
+        let as_props: Vec<(&str, Prop)> = vec![(
+            "mylist",
+            Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
+        )];
+
+        g.add_constant_properties(as_props.clone()).unwrap();
+
+        let props_names = as_props
+            .into_iter()
+            .map(|(name, _)| name.into())
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            g.properties()
+                .constant()
+                .keys()
+                .into_iter()
+                .collect::<HashSet<_>>(),
+            props_names
+        );
+
+        let data = vec![
+            ("key1".into(), Prop::I64(10)),
+            ("key2".into(), Prop::I64(20)),
+            ("key3".into(), Prop::I64(30)),
+        ];
+        let props_map = HashMap::from(data.into_iter().collect::<HashMap<_, _>>());
+        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::Map(Arc::from(props_map)))];
+
+        g.add_constant_properties(as_props.clone()).unwrap();
+
+        let props_names2: HashSet<ArcStr> = as_props
+            .into_iter()
+            .map(|(name, _)| name.into())
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            g.properties()
+                .constant()
+                .keys()
+                .into_iter()
+                .collect::<HashSet<_>>(),
+            props_names.union(&props_names2).cloned().collect()
+        );
+    }
+
     #[quickcheck]
     fn test_graph_constant_props_names(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
