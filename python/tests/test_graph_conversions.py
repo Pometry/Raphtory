@@ -2,6 +2,7 @@ from raphtory import Graph
 import pandas as pd
 import json
 from pathlib import Path
+import numpy as np
 
 base_dir = Path(__file__).parent
 
@@ -59,6 +60,40 @@ def build_graph_without_datetime_type():
         node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
     )
     
+def build_graph2():
+    # Example column of arrays
+    array_column = [
+        np.array([1, 2, 3]),
+        np.array([4, 5, 6]),
+        np.array([7, 8, 9])
+    ]
+
+    # Example columns of other data types
+    string_column = ['a', 'b', 'c']
+    bool_column = [True, False, True]
+    int_column = [10, 20, 30]
+
+    # Convert the columns into a DataFrame
+    df = pd.DataFrame({
+        'array_column': array_column,
+        'string_column': string_column,
+        'bool_column': bool_column,
+        'int_column': int_column
+    })
+
+    # Print the DataFrame
+    print(df)
+    
+    g = Graph()
+    g.load_nodes_from_pandas(df,time="int_column",id="string_column",properties=["array_column"])
+    
+    return g
+
+
+def test_graph_build2():
+    g = build_graph2()
+    print(g.node('a'))
+
     
 def test_graph_build_from_pandas_without_datetime_type():
     g = build_graph_without_datetime_type()
