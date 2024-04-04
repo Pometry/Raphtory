@@ -32,7 +32,7 @@ pub mod graph_fragment;
 pub mod graph_impl;
 pub mod load;
 pub(crate) mod nodes;
-mod properties;
+pub mod properties;
 pub mod query;
 pub(crate) mod timestamps;
 

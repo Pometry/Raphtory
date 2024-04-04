@@ -12,6 +12,9 @@ pub enum ExecError {
     #[error("Layer not found: {0}")]
     LayerNotFound(String),
 
+    #[error("Missing node properties : {0}")]
+    MissingNodeProperties(String),
+
     #[error("Failed to execute plan: {0}")]
     DataFusionError(#[from] datafusion::error::DataFusionError),
 

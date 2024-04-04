@@ -1,24 +1,18 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
-
-use arrow_array::{Array};
-
-
+use arrow::{array::ArrayBuilder, datatypes::Int64Type};
+use arrow_array::make_array;
+use arrow_schema::{DataType, Schema};
 use async_trait::async_trait;
+use arrow2::array::Arrow2Arrow;
 use datafusion::{
-    arrow::{
-        array::RecordBatch,
-        datatypes::{SchemaRef},
-    },
-    common::{Statistics},
+    arrow::{array::RecordBatch, datatypes::SchemaRef},
+    common::Statistics,
     config::ConfigOptions,
     datasource::{TableProvider, TableType},
     error::DataFusionError,
-    execution::{
-        context::{SessionState},
-        SendableRecordBatchStream, TaskContext,
-    },
-    logical_expr::{Expr},
+    execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
+    logical_expr::Expr,
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
@@ -26,17 +20,67 @@ use datafusion::{
     },
 };
 use futures::Stream;
-use raphtory::arrow::{
-    chunked_array::array_ops::{ArrayOps, BaseArrayOps},
-    graph_impl::ArrowGraph,
+use raphtory::{
+    arrow::{chunked_array::array_ops::Chunked, graph_impl::ArrowGraph, properties::Properties},
+    core::entities::VID, db::graph::node,
 };
 
-
+use crate::executor::ExecError;
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,
     schema: SchemaRef,
     num_partitions: usize,
+}
+
+impl NodeTableProvider {
+    pub fn new(graph: ArrowGraph) -> Result<Self, ExecError> {
+        let properties = graph.node_properties().ok_or_else(|| {
+            ExecError::MissingNodeProperties("Failed to find node properties".to_string())
+        })?;
+
+        let num_partitions = properties.temporal_props.timestamps().values().num_chunks();
+
+        let schema = lift_arrow_schema(properties)?;
+
+        Ok(Self {
+            graph,
+            schema,
+            num_partitions,
+        })
+    }
+}
+
+fn lift_arrow_schema(properties: &Properties<VID>) -> Result<SchemaRef, ExecError> {
+    let mut fields = vec![];
+
+    fields.push(arrow2::datatypes::Field::new(
+        "id",
+        arrow2::datatypes::DataType::UInt64,
+        false,
+    ));
+
+    fields.push(arrow2::datatypes::Field::new(
+        "time",
+        arrow2::datatypes::DataType::Int64,
+        false,
+    ));
+
+    let dt_temporal = properties.temporal_props.prop_dtypes();
+
+    fields.extend_from_slice(dt_temporal);
+
+    let dt_const = properties.const_props.prop_dtypes();
+
+    fields.extend_from_slice(dt_const);
+
+    let dt: DataType = arrow2::datatypes::DataType::Struct(fields).into();
+
+    if let DataType::Struct(fields) = dt {
+        Ok(Arc::new(Schema::new(fields)))
+    } else {
+        unreachable!("we make the struct type above, so this should never happen")
+    }
 }
 
 #[async_trait]
@@ -75,10 +119,43 @@ impl TableProvider for NodeTableProvider {
 }
 
 async fn produce_record_batch(
-    _graph: ArrowGraph,
-    _schema: SchemaRef,
-    _chunk_id: usize,
+    graph: ArrowGraph,
+    schema: SchemaRef,
+    chunk_id: usize,
 ) -> Result<RecordBatch, DataFusionError> {
+    let arrow_data = arrow2::array::to_data(graph.global_ordering().as_ref());
+    let nodes = make_array(arrow_data);
+
+    let properties = graph.node_properties().ok_or_else(|| {
+        DataFusionError::Execution("Failed to find node properties".to_string())
+    })?;
+
+    let chunked_lists_ts = properties.temporal_props.timestamps();
+    
+    let offsets = chunked_lists_ts.offsets();
+    let values = chunked_lists_ts.values();
+    let chunk_size = values.chunk_size();
+
+    let time_values = values.chunk(chunk_id);
+    let start_offset = chunk_id * chunk_size;
+    let end_offset = (chunk_id + 1) * chunk_size;
+
+    let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
+
+    if start == end {
+        return Ok(RecordBatch::new_empty(schema.clone()));
+    }
+
+    match nodes.data_type() {
+        DataType::Int64 => {
+            let nodes = nodes.as_any().downcast_ref::<arrow_array::PrimitiveArray<Int64Type>>().expect("Failed to downcast nodes to Int64");
+        }
+        _ => {
+            panic!("Nodes should be of type Int64, UInt64, or String");
+        }
+    }
+    let mut ids = Vec::with_capacity(time_values.len());
+
     todo!()
 }
 

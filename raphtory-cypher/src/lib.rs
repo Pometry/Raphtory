@@ -20,7 +20,7 @@ use sqlparser::ast::{
     self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
 };
 
-use crate::hop::rule::HopRule;
+use crate::{executor::table_provider::node::NodeTableProvider, hop::rule::HopRule};
 
 pub mod executor;
 pub mod hop;
@@ -544,16 +544,13 @@ fn parse_selection(query: &Query, binds: &[String]) -> Option<sql_ast::Expr> {
             _ => unreachable!(),
         })
         .map(|expr| cypher_to_sql_expr(&expr, binds, false));
-    let where_exprs = query
-        .clauses()
-        .iter()
-        .filter_map(|clause| match clause {
-            Clause::Match(m) => m
-                .where_clause
-                .as_ref()
-                .map(|expr| cypher_to_sql_expr(expr, binds, false)),
-            _ => None,
-        });
+    let where_exprs = query.clauses().iter().filter_map(|clause| match clause {
+        Clause::Match(m) => m
+            .where_clause
+            .as_ref()
+            .map(|expr| cypher_to_sql_expr(expr, binds, false)),
+        _ => None,
+    });
     where_exprs
         .chain(rel_exprs)
         .reduce(|a, b| sql_ast::Expr::BinaryOp {
@@ -789,9 +786,12 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     let ctx = SessionContext::new_with_state(state);
 
     for layer in graph.layer_names() {
-        let table = EdgeListTableProvider::new(layer, graph.clone())?;
-        ctx.register_table(layer, Arc::new(table))?;
+        let edge_list_table = EdgeListTableProvider::new(layer, graph.clone())?;
+        ctx.register_table(layer, Arc::new(edge_list_table))?;
     }
+
+    let node_table_provider = NodeTableProvider::new(graph.clone())?;
+    ctx.register_table("nodes", Arc::new(node_table_provider))?;
     let layer_names = graph.layer_names().to_vec();
 
     ctx.register_udf(create_udf(
