@@ -201,26 +201,6 @@ fn query_union(q1: Box<sql_ast::Query>, q2: Box<sql_ast::Query>) -> Box<sql_ast:
     })
 }
 
-// fn dt_to_sql_dt(dt: &DataType) -> sqlparser::ast::DataType {
-//     match dt {
-//         DataType::Boolean => sqlparser::ast::DataType::Boolean,
-//         DataType::Int8 => sqlparser::ast::DataType::TinyInt(None),
-//         DataType::Int16 => sqlparser::ast::DataType::SmallInt(None),
-//         DataType::Int32 => sqlparser::ast::DataType::Int(None),
-//         DataType::Int64 => sqlparser::ast::DataType::BigInt(None),
-//         DataType::UInt8 => sqlparser::ast::DataType::TinyInt(None),
-//         DataType::UInt16 => sqlparser::ast::DataType::SmallInt(None),
-//         DataType::UInt32 => sqlparser::ast::DataType::Int(None),
-//         DataType::UInt64 => sqlparser::ast::DataType::BigInt(None),
-//         DataType::Float32 => sqlparser::ast::DataType::Real,
-//         DataType::Float64 => sqlparser::ast::DataType::Double,
-//         DataType::Utf8 => sqlparser::ast::DataType::Text,
-//         DataType::LargeUtf8 => sqlparser::ast::DataType::Text,
-
-//         _ => unimplemented!("unsupported data type {:?}", dt),
-//     }
-// }
-
 fn select_scan_query(
     layer_name: &str,
     graph: &ArrowGraph,
@@ -266,60 +246,67 @@ fn select_scan_query(
 
     (
         null_count,
-        Box::new(sql_ast::Query {
-            // WITH (common table expressions, or CTEs)
-            with: None,
-            // SELECT or UNION / EXCEPT / INTERSECT
-            body: Box::new(SetExpr::Select(Box::new(sql_ast::Select {
-                distinct: None,
-                // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
-                top: None,
-                // projection expressions
-                projection,
-                // INTO
-                into: None,
-                // FROM
-                from: vec![sql_ast::TableWithJoins {
-                    relation: table_from_name(layer_name),
-                    joins: vec![],
-                }],
-                // LATERAL VIEWs
-                lateral_views: vec![],
-                // WHERE
-                selection: None,
-                // GROUP BY
-                group_by: GroupByExpr::Expressions(vec![]),
-                // CLUSTER BY (Hive)
-                cluster_by: vec![],
-                // DISTRIBUTE BY (Hive)
-                distribute_by: vec![],
-                // SORT BY (Hive)
-                sort_by: vec![],
-                // HAVING
-                having: None,
-                // WINDOW AS
-                named_window: vec![],
-                // QUALIFY (Snowflake)
-                qualify: None,
-            }))),
-            // ORDER BY
-            order_by: vec![],
-            // `LIMIT { <N> | ALL }`
-            limit: None,
-            // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
-            limit_by: vec![],
-            // `OFFSET <N> [ { ROW | ROWS } ]`
-            offset: None,
-            // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
-            fetch: None,
-            // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
-            locks: vec![],
-            // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
-            // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
-            // (MSSQL-specific)
-            for_clause: None,
-        }),
+        select_query_with_projection(projection, layer_name),
     )
+}
+
+fn select_query_with_projection(
+    projection: Vec<sql_ast::SelectItem>,
+    from_name: &str,
+) -> Box<sql_ast::Query> {
+    Box::new(sql_ast::Query {
+        // WITH (common table expressions, or CTEs)
+        with: None,
+        // SELECT or UNION / EXCEPT / INTERSECT
+        body: Box::new(SetExpr::Select(Box::new(sql_ast::Select {
+            distinct: None,
+            // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
+            top: None,
+            // projection expressions
+            projection,
+            // INTO
+            into: None,
+            // FROM
+            from: vec![sql_ast::TableWithJoins {
+                relation: table_from_name(from_name),
+                joins: vec![],
+            }],
+            // LATERAL VIEWs
+            lateral_views: vec![],
+            // WHERE
+            selection: None,
+            // GROUP BY
+            group_by: GroupByExpr::Expressions(vec![]),
+            // CLUSTER BY (Hive)
+            cluster_by: vec![],
+            // DISTRIBUTE BY (Hive)
+            distribute_by: vec![],
+            // SORT BY (Hive)
+            sort_by: vec![],
+            // HAVING
+            having: None,
+            // WINDOW AS
+            named_window: vec![],
+            // QUALIFY (Snowflake)
+            qualify: None,
+        }))),
+        // ORDER BY
+        order_by: vec![],
+        // `LIMIT { <N> | ALL }`
+        limit: None,
+        // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
+        limit_by: vec![],
+        // `OFFSET <N> [ { ROW | ROWS } ]`
+        offset: None,
+        // `FETCH { FIRST | NEXT } <N> [ PERCENT ] { ROW | ROWS } | { ONLY | WITH TIES }`
+        fetch: None,
+        // `FOR { UPDATE | SHARE } [ OF table_name ] [ SKIP LOCKED | NOWAIT ]`
+        locks: vec![],
+        // `FOR XML { RAW | AUTO | EXPLICIT | PATH } [ , ELEMENTS ]`
+        // `FOR JSON { AUTO | PATH } [ , INCLUDE_NULL_VALUES ]`
+        // (MSSQL-specific)
+        for_clause: None,
+    })
 }
 
 fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
@@ -345,6 +332,23 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
             // UNION ALL for all the layers of the relation pattern
             cte_tables.push(sql_table(&rel.rel_types, &rel.name, graph))
         }
+    }
+
+    for node in all_bound_nodes(query) {
+        let cte = sql_ast::Cte {
+            alias: TableAlias {
+                name: sql_ast::Ident::new(&node.name),
+                columns: vec![],
+            },
+            query: select_query_with_projection(
+                vec![sql_ast::SelectItem::Wildcard(
+                    WildcardAdditionalOptions::default(),
+                )],
+                "nodes",
+            ),
+            from: None,
+        };
+        cte_tables.push(cte)
     }
 
     With {
@@ -413,6 +417,24 @@ fn all_rels(query: &Query) -> impl Iterator<Item = &RelPattern> + '_ {
         .flatten()
 }
 
+fn all_bound_nodes(query: &Query) -> impl Iterator<Item = &NodePattern> + '_ {
+    query
+        .clauses()
+        .iter()
+        .filter_map(|clause| match clause {
+            Clause::Match(m) => {
+                let iter = m.pattern.0.iter().map(|part: &PatternPart| {
+                    std::iter::once(&part.node).chain(part.rel_chain.iter().map(|(_, node)| node))
+                });
+                Some(iter)
+            }
+            _ => None,
+        })
+        .flatten()
+        .flatten()
+        .filter(|&node_pat| !node_pat.name.starts_with("n_"))
+}
+
 fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     let m = query
         .clauses()
@@ -431,44 +453,53 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 }
 
 fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
-    let PatternPart { rel_chain, .. } = first;
+    let PatternPart {
+        rel_chain, node, ..
+    } = first;
     let mut joins = vec![];
     let mut iter = rel_chain.iter().peekable();
 
-    let (rel, _) = iter.peek().unwrap(); // FIXME: it will breake for match (n)
+    if let Some((rel, _)) = iter.peek() {
+        for ((rel1, _), (rel2, _)) in iter.tuple_windows() {
+            let (from, to) = match (rel1.direction, rel2.direction) {
+                (Direction::OUT, Direction::OUT) => ("dst", "src"),
+                (Direction::OUT, Direction::IN) => ("dst", "dst"),
+                (Direction::IN, Direction::OUT) => ("src", "src"),
+                (Direction::IN, Direction::IN) => ("src", "dst"),
+                _ => unimplemented!("both direction not supported"),
+            };
+            let join_op = sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
+                sql_ast::Expr::BinaryOp {
+                    left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                        sql_ast::Ident::new(&rel1.name),
+                        sql_ast::Ident::new(from),
+                    ])),
+                    op: sql_ast::BinaryOperator::Eq,
+                    right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                        sql_ast::Ident::new(&rel2.name),
+                        sql_ast::Ident::new(to),
+                    ])),
+                },
+            ));
 
-    for ((rel1, _), (rel2, _)) in iter.tuple_windows() {
-        let (from, to) = match (rel1.direction, rel2.direction) {
-            (Direction::OUT, Direction::OUT) => ("dst", "src"),
-            (Direction::OUT, Direction::IN) => ("dst", "dst"),
-            (Direction::IN, Direction::OUT) => ("src", "src"),
-            (Direction::IN, Direction::IN) => ("src", "dst"),
-            _ => unimplemented!("both direction not supported"),
-        };
-        let join_op =
-            sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(sql_ast::Expr::BinaryOp {
-                left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
-                    sql_ast::Ident::new(&rel1.name),
-                    sql_ast::Ident::new(from),
-                ])),
-                op: sql_ast::BinaryOperator::Eq,
-                right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
-                    sql_ast::Ident::new(&rel2.name),
-                    sql_ast::Ident::new(to),
-                ])),
-            }));
+            let join = sql_ast::Join {
+                relation: table_from_name(&rel2.name),
+                join_operator: join_op,
+            };
 
-        let join = sql_ast::Join {
-            relation: table_from_name(&rel2.name),
-            join_operator: join_op,
-        };
+            joins.push(join)
+        }
 
-        joins.push(join)
-    }
-
-    sql_ast::TableWithJoins {
-        relation: table_from_name(&rel.name),
-        joins,
+        sql_ast::TableWithJoins {
+            relation: table_from_name(&rel.name),
+            joins,
+        }
+    } else {
+        // matching only one node
+        sql_ast::TableWithJoins {
+            relation: table_from_name(&node.name),
+            joins,
+        }
     }
 }
 
@@ -1044,7 +1075,7 @@ mod cyper_2_sql_tests {
     fn scan_nodes_properties() {
         check_cypher_to_sql(
             "MATCH (n) RETURN n",
-            "WITH n AS (SELECT * FROM nodes__default) SELECT n.* FROM n",
+            "WITH n AS (SELECT * FROM nodes) SELECT n.* FROM n",
         );
     }
 
@@ -1264,6 +1295,16 @@ mod cyper_2_sql_tests {
         )
         .await
         .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_all_nodes() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_str_col(graph_dir);
+
+        let df = run_cypher("match (n) return n", &graph).await.unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
     }
