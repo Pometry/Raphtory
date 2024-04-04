@@ -174,9 +174,7 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
                         }
                         Rule::Limit => {
                             let maybe_limit = pair
-                                .into_inner()
-                                .skip(1)
-                                .next()
+                                .into_inner().nth(1)
                                 .map(|pair| parse_expr(pair.into_inner()));
                             if let Some(Ok(Expr::Literal(Literal::Int(n)))) = maybe_limit {
                                 limit = Some(n as usize);

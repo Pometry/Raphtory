@@ -1,39 +1,37 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
-use arrow::datatypes::*;
-use arrow_array::{Array, PrimitiveArray};
-use arrow_buffer::{OffsetBuffer, ScalarBuffer};
-use arrow_schema::Field;
+
+use arrow_array::{Array};
+
+
 use async_trait::async_trait;
 use datafusion::{
     arrow::{
         array::RecordBatch,
-        datatypes::{Schema, SchemaRef},
+        datatypes::{SchemaRef},
     },
-    common::{DFSchema, Statistics},
+    common::{Statistics},
     config::ConfigOptions,
     datasource::{TableProvider, TableType},
     error::DataFusionError,
     execution::{
-        context::{ExecutionProps, SessionState},
+        context::{SessionState},
         SendableRecordBatchStream, TaskContext,
     },
-    logical_expr::{col, expr, Expr},
+    logical_expr::{Expr},
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
         ExecutionPlan, Partitioning,
     },
-    physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
 use raphtory::arrow::{
-    chunked_array::array_ops::{ArrayOps, BaseArrayOps, Chunked},
-    graph_fragment::TempColGraphFragment,
+    chunked_array::array_ops::{ArrayOps, BaseArrayOps},
     graph_impl::ArrowGraph,
 };
 
-use crate::executor::{arrow2_to_arrow, arrow2_to_arrow_buf, utf8_arrow2_to_arrow, ExecError};
+
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,
@@ -65,7 +63,7 @@ impl TableProvider for NodeTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         let schema = projection
             .as_ref()
-            .map(|proj| Arc::new(self.schema().project(&proj).expect("failed projection")))
+            .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
         Ok(Arc::new(NodeScanExecPlan {
@@ -77,9 +75,9 @@ impl TableProvider for NodeTableProvider {
 }
 
 async fn produce_record_batch(
-    graph: ArrowGraph,
-    schema: SchemaRef,
-    chunk_id: usize,
+    _graph: ArrowGraph,
+    _schema: SchemaRef,
+    _chunk_id: usize,
 ) -> Result<RecordBatch, DataFusionError> {
     todo!()
 }

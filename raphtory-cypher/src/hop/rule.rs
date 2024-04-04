@@ -22,10 +22,10 @@ impl OptimizerRule for HopRule {
     ) -> Result<Option<LogicalPlan>, DataFusionError> {
         if let LogicalPlan::Join(join) = plan {
             let Join {
-                left,
+                
                 right,
                 on,
-                schema,
+                
                 ..
             } = join;
 
@@ -38,7 +38,7 @@ impl OptimizerRule for HopRule {
             // (Direction::IN, Direction::OUT) => ("src", "src"),
             // (Direction::IN, Direction::IN) => ("src", "dst"),
 
-            let (hop_from_col, hop_to_col, direction) = if let (
+            let (_hop_from_col, _hop_to_col, _direction) = if let (
                 Expr::Column(Column {
                     name: hop_from_col, ..
                 }),

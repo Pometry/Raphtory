@@ -106,20 +106,20 @@ fn sql_table(
         .iter()
         .filter_map(|layer| graph.find_layer_id(layer.as_ref()))
         .filter_map(|layer_id| full_layer_fields(graph, layer_id))
-        .map(|fields| Schema::new(fields));
+        .map(Schema::new);
 
     // this is the schema that all layers must match, any missing columns will be filled with NULLs
     let schema = Schema::try_merge(schemas).expect("failed to merge schemas");
 
     if layer_names.len() > 1 {
         let union_query = layer_names
-            .into_iter()
+            .iter()
             .map(|layer| select_scan_query(layer.as_ref(), graph, Some(&schema)))
             // FIXME: there seems to be an issue in which DataFusion executes the query where it sometimes complains about the schema not matching
             // this is an attempted workaround where we lift the most descriptive schema (the one with fewest nulls) to the top of the UNION ALL
             .sorted_by(|(null_count1, _), (null_count2, _)| null_count1.cmp(null_count2))
             .map(|(_, query)| query)
-            .reduce(|q1, q2| query_union(q1, q2))
+            .reduce(query_union)
             .unwrap();
         sql_ast::Cte {
             alias: TableAlias {
@@ -416,7 +416,7 @@ fn all_rels(query: &Query) -> impl Iterator<Item = &RelPattern> + '_ {
 fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     let m = query
         .clauses()
-        .into_iter()
+        .iter()
         .find(|clause| matches!(clause, Clause::Match(_)));
     if let Some(Clause::Match(m)) = m {
         let mut tables = vec![];
@@ -433,7 +433,7 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
     let PatternPart { rel_chain, .. } = first;
     let mut joins = vec![];
-    let mut iter = rel_chain.into_iter().peekable();
+    let mut iter = rel_chain.iter().peekable();
 
     let (rel, _) = iter.peek().unwrap(); // FIXME: it will breake for match (n)
 
@@ -521,16 +521,16 @@ fn parse_projection(query: &Query, binds: &[String]) -> Vec<sql_ast::SelectItem>
 fn parse_selection(query: &Query, binds: &[String]) -> Option<sql_ast::Expr> {
     let rel_exprs = query
         .clauses()
-        .into_iter()
+        .iter()
         .filter(|clause| matches!(clause, Clause::Match(_)))
         .flat_map(|clause| match clause {
             Clause::Match(Match {
                 pattern: Pattern(pat_parts),
                 ..
-            }) => pat_parts.into_iter().flat_map(|part| {
+            }) => pat_parts.iter().flat_map(|part| {
                 part.rel_chain.iter().flat_map(|(rel, _)| {
                     rel.props.iter().flat_map(|props| {
-                        props.into_iter().map(|(prop, expr)| Expr::BinOp {
+                        props.iter().map(|(prop, expr)| Expr::BinOp {
                             op: BinOpType::Eq,
                             left: Box::new(Expr::Var {
                                 var_name: rel.name.clone(),
@@ -546,7 +546,7 @@ fn parse_selection(query: &Query, binds: &[String]) -> Option<sql_ast::Expr> {
         .map(|expr| cypher_to_sql_expr(&expr, binds, false));
     let where_exprs = query
         .clauses()
-        .into_iter()
+        .iter()
         .filter_map(|clause| match clause {
             Clause::Match(m) => m
                 .where_clause
@@ -609,7 +609,7 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String], allow_wildcard_edges: bool)
             } else {
                 sql_ast::Expr::CompoundIdentifier(
                     std::iter::once(sql_ast::Ident::new(var_name))
-                        .chain(attrs.iter().map(|attr| sql_ast::Ident::new(attr)))
+                        .chain(attrs.iter().map(sql_ast::Ident::new))
                         .collect(),
                 )
             }
@@ -640,7 +640,7 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String], allow_wildcard_edges: bool)
         } => {
             let sql_list = match right.as_ref() {
                 Expr::Literal(Literal::List(exprs)) => exprs
-                    .into_iter()
+                    .iter()
                     .map(|lit| cypher_to_sql_expr(&Expr::Literal(lit.clone()), binds, false))
                     .collect::<Vec<_>>(),
                 expr => unimplemented!("unexpected right hand side of IN operator {:?}", expr),
@@ -666,7 +666,7 @@ fn cypher_to_sql_expr(expr: &Expr, binds: &[String], allow_wildcard_edges: bool)
                 sql_ast::FunctionArgExpr::Expr(sql_ast::Expr::CompoundIdentifier(
                     vec![binds[0].clone(), "src".to_string()]
                         .into_iter()
-                        .map(|s| sql_ast::Ident::new(s))
+                        .map(sql_ast::Ident::new)
                         .collect(),
                 )), // this is a hack because datafusion gets confused when there are no columns selected
             )],
@@ -792,7 +792,7 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
         ctx.register_table(layer, Arc::new(table))?;
     }
-    let layer_names = graph.layer_names().into_iter().cloned().collect::<Vec<_>>();
+    let layer_names = graph.layer_names().to_vec();
 
     ctx.register_udf(create_udf(
         "type",

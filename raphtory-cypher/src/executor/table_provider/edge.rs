@@ -127,7 +127,7 @@ impl TableProvider for EdgeListTableProvider {
     ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
         let schema = projection
             .as_ref()
-            .map(|proj| Arc::new(self.schema().project(&proj).expect("failed projection")))
+            .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
         Ok(Arc::new(EdgeListExecPlan {
@@ -221,7 +221,7 @@ async fn produce_record_batch(
     let mut columns = vec![layer_ids, srcs, dsts, time];
 
     let temp_properties = &edges.data_type()[1..];
-    for (col_id, field) in temp_properties.into_iter().enumerate() {
+    for (col_id, field) in temp_properties.iter().enumerate() {
         // we always skip the time column
         let col_id = col_id + 1; // we skip the time column
 
