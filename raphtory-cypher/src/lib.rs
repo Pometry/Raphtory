@@ -1040,13 +1040,13 @@ mod cyper_2_sql_tests {
         );
     }
 
-    // #[test]
-    // fn scan_nodes_properties() {
-    //     check_cypher_to_sql(
-    //         "MATCH (n) RETURN n.name",
-    //         "WITH n AS (SELECT * FROM nodes__default) SELECT n.name FROM n",
-    //     );
-    // }
+    #[test]
+    fn scan_nodes_properties() {
+        check_cypher_to_sql(
+            "MATCH (n) RETURN n",
+            "WITH n AS (SELECT * FROM nodes__default) SELECT n.* FROM n",
+        );
+    }
 
     // #[test]
     // fn scan_edge_with_node_properties(){

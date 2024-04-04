@@ -1,7 +1,7 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
 use arrow::datatypes::*;
-use arrow_array::{Array, PrimitiveArray};
+use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::{OffsetBuffer, ScalarBuffer};
 use arrow_schema::Field;
 use async_trait::async_trait;
@@ -33,7 +33,7 @@ use raphtory::arrow::{
     graph_impl::ArrowGraph,
 };
 
-use crate::executor::{arrow2_to_arrow, arrow2_to_arrow_buf, utf8_arrow2_to_arrow, ExecError};
+use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
 pub struct EdgeListTableProvider {
     layer_id: usize,
@@ -221,11 +221,11 @@ async fn produce_record_batch(
     let mut columns = vec![layer_ids, srcs, dsts, time];
 
     let temp_properties = &edges.data_type()[1..];
-    for (col_id, field) in temp_properties.iter().enumerate() {
+    for (col_id, _) in temp_properties.iter().enumerate() {
         // we always skip the time column
         let col_id = col_id + 1; // we skip the time column
 
-        let arr = property_to_arrow_column(layer, col_id, chunk_id, field);
+        let arr = property_to_arrow_column(layer, col_id, chunk_id);
         columns.push(arr);
     }
 
@@ -248,74 +248,16 @@ fn property_to_arrow_column(
     layer: &TempColGraphFragment,
     col_id: usize,
     chunk_id: usize,
-    field: &arrow2::datatypes::Field,
 ) -> Arc<dyn Array> {
     let edges = layer.edges_storage();
-    let data_type = field.data_type();
 
-    match data_type {
-        arrow2::datatypes::DataType::Int8 => {
-            let col = edges.t_prop_col_at_chunk::<i8>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<Int8Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::Int16 => {
-            let col = edges.t_prop_col_at_chunk::<i16>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<Int16Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::Int32 => {
-            let col = edges.t_prop_col_at_chunk::<i32>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<Int32Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::Int64 => {
-            let col = edges.t_prop_col_at_chunk::<i64>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<Int64Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::UInt8 => {
-            let col = edges.t_prop_col_at_chunk::<u8>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<UInt8Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::UInt16 => {
-            let col = edges.t_prop_col_at_chunk::<u16>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<UInt16Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::UInt32 => {
-            let col = edges.t_prop_col_at_chunk::<u32>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<UInt32Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::UInt64 => {
-            let col = edges.t_prop_col_at_chunk::<u64>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<UInt64Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::Float32 => {
-            let col = edges.t_prop_col_at_chunk::<f32>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<Float32Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::Float64 => {
-            let col = edges.t_prop_col_at_chunk::<f64>(col_id, chunk_id);
-            let prop = arrow2_to_arrow::<Float64Type>(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::Utf8 => {
-            let col = edges.utf8_t_prop_col_at_chunk::<i32>(col_id, chunk_id);
-            let prop = utf8_arrow2_to_arrow(col);
-            Arc::new(prop)
-        }
-        arrow2::datatypes::DataType::LargeUtf8 => {
-            let col = edges.utf8_t_prop_col_at_chunk::<i64>(col_id, chunk_id);
-            let prop = utf8_arrow2_to_arrow(col);
-            Arc::new(prop)
-        }
-        _ => todo!(),
-    }
+    let temporal_props = edges.temporal_props().values().chunk(chunk_id);
+
+    let arr = temporal_props.values()[col_id].as_ref();
+    let arrow_data = arrow2::array::to_data(arr);
+    let col_array = make_array(arrow_data);
+
+    col_array
 }
 
 impl EdgeListExecPlan {

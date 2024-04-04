@@ -1,6 +1,5 @@
 use arrow::datatypes::ArrowPrimitiveType;
 use arrow2::{array::Arrow2Arrow, types::NativeType};
-use arrow_array::{GenericStringArray, OffsetSizeTrait};
 
 pub(crate) mod table_provider;
 
@@ -34,22 +33,4 @@ where
     let dt = arrow2::datatypes::DataType::from(<U::Native as arrow2::types::NativeType>::PRIMITIVE);
     let prim_array = arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
     prim_array.to_data().into()
-}
-
-fn arrow2_to_arrow<U: ArrowPrimitiveType>(
-    array: &arrow2::array::PrimitiveArray<U::Native>,
-) -> arrow::array::PrimitiveArray<U>
-where
-    U::Native: NativeType,
-{
-    array.to_data().into()
-}
-
-fn utf8_arrow2_to_arrow<I: arrow2::offset::Offset + OffsetSizeTrait>(
-    array: &arrow2::array::Utf8Array<I>,
-) -> GenericStringArray<I>
-where
-    I: arrow2::offset::Offset,
-{
-    array.to_data().into()
 }

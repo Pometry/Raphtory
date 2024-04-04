@@ -1,2 +1,2 @@
-pub mod rule;
 pub mod operator;
+pub mod rule;

@@ -21,13 +21,7 @@ impl OptimizerRule for HopRule {
         _config: &dyn OptimizerConfig,
     ) -> Result<Option<LogicalPlan>, DataFusionError> {
         if let LogicalPlan::Join(join) = plan {
-            let Join {
-                
-                right,
-                on,
-                
-                ..
-            } = join;
+            let Join { right, on, .. } = join;
 
             if on.len() != 1 {
                 return Ok(None);
