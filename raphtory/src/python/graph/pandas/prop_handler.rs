@@ -144,15 +144,9 @@ fn validate_data_types(dt: &DataType) -> Result<(), GraphError> {
         arrow2::datatypes::DataType::Float64 => {}
         arrow2::datatypes::DataType::Utf8 => {}
         arrow2::datatypes::DataType::LargeUtf8 => {}
-        arrow2::datatypes::DataType::List(v) => {
-            validate_data_types(v.data_type())?
-        }
-        arrow2::datatypes::DataType::FixedSizeList(v, _) => {
-            validate_data_types(v.data_type())?
-        }
-        arrow2::datatypes::DataType::LargeList(v) => {
-            validate_data_types(v.data_type())?
-        }
+        arrow2::datatypes::DataType::List(v) => validate_data_types(v.data_type())?,
+        arrow2::datatypes::DataType::FixedSizeList(v, _) => validate_data_types(v.data_type())?,
+        arrow2::datatypes::DataType::LargeList(v) => validate_data_types(v.data_type())?,
         _ => Err(GraphError::UnsupportedDataType)?,
     }
     Ok(())
@@ -162,12 +156,15 @@ pub(crate) fn lift_property<'a: 'b, 'b>(
     name: &'a str,
     df: &'b PretendDF,
 ) -> Result<Box<dyn Iterator<Item = Vec<(&'b str, Prop)>> + 'b>, GraphError> {
-    
     let idx = df
         .names
         .iter()
         .position(|n| n == name)
         .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))?;
+
+    if let Some(first_chunk) = df.arrays.get(0) {
+        validate_data_types(first_chunk[idx].data_type())?;
+    }
 
     let r = df.arrays.iter().flat_map(move |arr| {
         let arr: &Box<dyn Array> = &arr[idx];
@@ -258,7 +255,7 @@ pub(crate) fn lift_layer<'a, S: AsRef<str>>(
     }
 }
 
-fn iter_as_prop<'a, T: Into<Prop> + Copy + 'static, I: Iterator<Item = Option<T>> + 'a>(
+fn iter_as_prop<'a, T: Into<Prop> + 'a, I: Iterator<Item = Option<T>> + 'a>(
     name: &'a str,
     is: I,
 ) -> Box<dyn Iterator<Item = Vec<(&'a str, Prop)>> + 'a> {
