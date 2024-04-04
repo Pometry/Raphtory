@@ -33,7 +33,7 @@ use raphtory::arrow::{
     graph_impl::ArrowGraph,
 };
 
-use super::{arrow2_to_arrow, arrow2_to_arrow_buf, utf8_arrow2_to_arrow, ExecError};
+use crate::executor::{arrow2_to_arrow, arrow2_to_arrow_buf, utf8_arrow2_to_arrow, ExecError};
 
 pub struct EdgeListTableProvider {
     layer_id: usize,

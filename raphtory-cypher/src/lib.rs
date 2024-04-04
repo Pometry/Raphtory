@@ -12,7 +12,7 @@ use datafusion::{
     },
     logical_expr::{create_udf, ColumnarValue, Volatility},
 };
-use executor::{table_provider::EdgeListTableProvider, ExecError};
+use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
 use itertools::Itertools;
 use parser::ast::*;
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
