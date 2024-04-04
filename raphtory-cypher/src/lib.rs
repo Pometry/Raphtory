@@ -7,7 +7,8 @@ use datafusion::{
     error::DataFusionError,
     execution::{
         config::SessionConfig,
-        context::{SQLOptions, SessionContext},
+        context::{SQLOptions, SessionContext, SessionState},
+        runtime_env::RuntimeEnv,
     },
     logical_expr::{create_udf, ColumnarValue, Volatility},
 };
@@ -19,7 +20,10 @@ use sqlparser::ast::{
     self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
 };
 
+use crate::hop::rule::HopRule;
+
 pub mod executor;
+pub mod hop;
 pub mod parser;
 
 pub fn cypher_to_sql(query: &Query, graph: &ArrowGraph) -> sql_ast::Statement {
@@ -434,10 +438,12 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
     let (rel, _) = iter.peek().unwrap(); // FIXME: it will breake for match (n)
 
     for ((rel1, _), (rel2, _)) in iter.tuple_windows() {
-        let (from, to) = match rel1.direction {
-            Direction::OUT => ("dst", "src"),
-            Direction::IN => ("src", "dst"),
-            Direction::BOTH => unimplemented!("both direction not supported"),
+        let (from, to) = match (rel1.direction, rel2.direction) {
+            (Direction::OUT, Direction::OUT) => ("dst", "src"),
+            (Direction::OUT, Direction::IN) => ("dst", "dst"),
+            (Direction::IN, Direction::OUT) => ("src", "src"),
+            (Direction::IN, Direction::IN) => ("src", "dst"),
+            _ => unimplemented!("both direction not supported"),
         };
         let join_op =
             sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(sql_ast::Expr::BinaryOp {
@@ -775,7 +781,12 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     let config = SessionConfig::from_env()?.with_information_schema(true);
     // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
 
-    let ctx = SessionContext::new_with_config(config);
+    let runtime = Arc::new(RuntimeEnv::default());
+    let state =
+        SessionState::new_with_config_rt(config, runtime).add_optimizer_rule(Arc::new(HopRule {
+            graph: graph.clone(),
+        }));
+    let ctx = SessionContext::new_with_state(state);
 
     for layer in graph.layer_names() {
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
@@ -824,6 +835,8 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     let opts = SQLOptions::new();
     opts.verify_plan(&plan)?;
 
+    let plan = ctx.state().optimize(&plan)?;
+    println!("PLAN! {:?}", plan);
     let df = ctx.execute_logical_plan(plan).await?;
     Ok(df)
 }
@@ -1012,12 +1025,44 @@ mod cyper_2_sql_tests {
     }
 
     #[test]
+    fn hop_out_in() {
+        check_cypher_to_sql(
+            "MATCH ()-[e1]->()<-[e2]-() RETURN e1, e2",
+            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.*, e2.* FROM e1 JOIN e2 ON e1.dst = e2.dst",
+        );
+    }
+
+    #[test]
     fn respect_parens() {
         check_cypher_to_sql(
             "match ()-[a]->() where a.name = 'John' or (1 < a.age and a.age < 10) RETURN a",
             "WITH a AS (SELECT * FROM _default) SELECT a.* FROM a WHERE a.name = 'John' OR (1L < a.age AND a.age < 10L)",
         );
     }
+
+    // #[test]
+    // fn scan_nodes_properties() {
+    //     check_cypher_to_sql(
+    //         "MATCH (n) RETURN n.name",
+    //         "WITH n AS (SELECT * FROM nodes__default) SELECT n.name FROM n",
+    //     );
+    // }
+
+    // #[test]
+    // fn scan_edge_with_node_properties(){
+    //     check_cypher_to_sql(
+    //         "MATCH (n)-[e]->() RETURN n.name, e.src",
+    //         "WITH e AS (SELECT * FROM _default) SELECT e.src_props.name, e.src FROM e",
+    //     );
+    // }
+
+    // #[test]
+    // fn scan_2_hop_with_nodes(){
+    //     check_cypher_to_sql(
+    //         "MATCH (u)-[e1]->(v)-[e2]->(w) RETURN u.name, e1.src, e2.src, w.name",
+    //         "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.src_props.name, e1.src, e2.src, e2.dst_props.name FROM e1 JOIN e2 ON e1.dst = e2.src",
+    //     );
+    // }
 
     fn check_cypher_to_sql_layers<LS: IntoIterator<Item = impl AsRef<str>>>(
         query: &str,
@@ -1132,9 +1177,12 @@ mod cyper_2_sql_tests {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
-        let df = run_cypher("match ()-[e1]->()-[e2]->()-[e3]->() return *", &graph)
-            .await
-            .unwrap();
+        let df = run_cypher(
+            "match ()-[e1]->()-[e2]->()<-[e3]-() where e2.weight > 5 return *",
+            &graph,
+        )
+        .await
+        .unwrap();
 
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
