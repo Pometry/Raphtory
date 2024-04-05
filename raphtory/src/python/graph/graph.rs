@@ -3,43 +3,27 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
+use super::utils;
 use crate::{
-    core::utils::errors::GraphError,
-    db::api::view::internal::MaterializedGraph,
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
+    db::{
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::*,
     python::{
-        graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
+        graph::{
+            edge::PyEdge, graph_with_deletions::PyGraphWithDeletions, node::PyNode,
+            views::graph_view::PyGraphView,
+        },
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::prelude::*;
-
-use crate::{
-    core::{entities::nodes::node_ref::NodeRef, ArcStr},
-    db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    python::graph::{
-        edge::PyEdge,
-        node::PyNode,
-        pandas::{
-            dataframe::{process_pandas_py_df, GraphLoadException},
-            loaders::{load_edges_props_from_df, load_node_props_from_df},
-        },
-    },
-};
-use pyo3::types::{IntoPyDict, PyBytes};
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
-    sync::Arc,
-};
-
-use super::{
-    pandas::loaders::{load_edges_from_df, load_nodes_from_df},
-    utils,
 };
 
 /// A temporal graph.

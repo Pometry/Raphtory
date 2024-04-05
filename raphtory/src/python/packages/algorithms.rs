@@ -110,7 +110,9 @@ pub fn weakly_connected_components(
 ///     Vec<Vec<u64>> : List of strongly connected nodes identified by ids
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
+pub fn strongly_connected_components(
+    g: &PyGraphView,
+) -> AlgorithmResult<DynamicGraph, usize, usize> {
     components::strongly_connected_components(&g.graph, None)
 }
 

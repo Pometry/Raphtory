@@ -271,7 +271,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(*time, src, dst, layer.as_deref())?;
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -291,7 +291,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(*time, src, dst, layer.as_deref())?;
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -308,7 +308,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(*time, src, dst, layer.as_deref())?;
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
@@ -325,7 +325,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(*time, src, dst, layer.as_deref())?;
             }
         }
     } else {
