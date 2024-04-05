@@ -82,6 +82,34 @@ impl PretendDF {
 
         Some(iter)
     }
+
+    pub fn time_iter_col(&self, name: &str) -> Option<impl Iterator<Item = Option<i64>> + '_> {
+        let idx = self.names.iter().position(|n| n == name)?;
+
+        let _ = (&self.arrays[0])[idx]
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i64>>()?;
+
+        let iter = self.arrays.iter().flat_map(move |arr| {
+            let arr = &arr[idx];
+            let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
+                let array = cast::cast(
+                    &*arr.clone(),
+                    &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
+                    CastOptions::default(),
+                )
+                .unwrap();
+                array
+            } else {
+                arr.clone()
+            };
+
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
+            arr.clone().into_iter()
+        });
+
+        Some(iter)
+    }
 }
 
 fn is_jupyter(py: Python) {
@@ -227,19 +255,6 @@ pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
 
         let array = ffi::import_array_from_c(*array, field.data_type.clone())
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-
-        if let DataType::Timestamp(unit, _) = &field.data_type {
-            if *unit == TimeUnit::Nanosecond {
-                let array = cast::cast(
-                    &*array,
-                    &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
-                    CastOptions::default(),
-                )
-                .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-
-                return Ok(array);
-            }
-        }
 
         Ok(array)
     }

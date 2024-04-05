@@ -45,7 +45,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
         None => Box::new(iter::repeat(None)),
     };
 
-    if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id), df.iter_col::<i64>(time)) {
+    if let (Some(node_id), Some(time)) = (df.iter_col::<u64>(node_id), df.time_iter_col(time)) {
         let iter = node_id
             .map(|i| i.copied())
             .zip(time)
@@ -60,7 +60,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
             shared_const_properties,
         )?;
     } else if let (Some(node_id), Some(time)) =
-        (df.iter_col::<i64>(node_id), df.iter_col::<i64>(time))
+        (df.iter_col::<i64>(node_id), df.time_iter_col(time))
     {
         let iter = node_id.map(i64_opt_into_u64_opt).zip(time);
         let iter = iter
@@ -75,7 +75,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
             const_prop_iter,
             shared_const_properties,
         )?;
-    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.iter_col::<i64>(time))
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.time_iter_col(time))
     {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
@@ -91,14 +91,14 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
         ) {
             if let (Some(node_id), Some(time), n_t) = (node_id, time, n_t) {
                 let actual_type = extract_out_default_type(n_t);
-                let v = graph.add_node(*time, node_id, props, actual_type)?;
+                let v = graph.add_node(time, node_id, props, actual_type)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props.iter())?;
                 }
             }
         }
-    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.iter_col::<i64>(time))
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.time_iter_col(time))
     {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
@@ -114,7 +114,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
         ) {
             let actual_type = extract_out_default_type(n_t);
             if let (Some(node_id), Some(time), n_t) = (node_id, time, actual_type) {
-                let v = graph.add_node(*time, node_id, props, n_t)?;
+                let v = graph.add_node(time, node_id, props, n_t)?;
                 v.add_constant_properties(const_props)?;
                 if let Some(shared_const_props) = &shared_const_properties {
                     v.add_constant_properties(shared_const_props)?;
@@ -157,7 +157,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<u64>(src),
         df.iter_col::<u64>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src
             .map(|i| i.copied())
@@ -175,7 +175,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src
             .map(i64_opt_into_u64_opt)
@@ -193,7 +193,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i32>(src),
         df.utf8::<i32>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
 
@@ -205,7 +205,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                let e = graph.add_edge(*time, src, dst, props, layer.as_deref())?;
+                let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
@@ -215,7 +215,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i64>(src),
         df.utf8::<i64>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
         for (((((src, dst), time), props), const_props), layer) in tqdm!(
@@ -226,7 +226,7 @@ pub(crate) fn load_edges_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                let e = graph.add_edge(*time, src, dst, props, layer.as_deref())?;
+                let e = graph.add_edge(time, src, dst, props, layer.as_deref())?;
                 e.add_constant_properties(const_props, layer.as_deref())?;
                 if let Some(shared_const_props) = &shared_const_properties {
                     e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
@@ -257,7 +257,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
     if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<u64>(src),
         df.iter_col::<u64>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src
             .map(|i| i.copied())
@@ -271,13 +271,13 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(time, src, dst, layer.as_deref());
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.iter_col::<i64>(src),
         df.iter_col::<i64>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src
             .map(i64_opt_into_u64_opt)
@@ -291,13 +291,13 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(time, src, dst, layer.as_deref());
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i32>(src),
         df.utf8::<i32>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
         for (((src, dst), time), layer) in tqdm!(
@@ -308,13 +308,13 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(time, src, dst, layer.as_deref());
             }
         }
     } else if let (Some(src), Some(dst), Some(time)) = (
         df.utf8::<i64>(src),
         df.utf8::<i64>(dst),
-        df.iter_col::<i64>(time),
+        df.time_iter_col(time),
     ) {
         let triplets = src.into_iter().zip(dst.into_iter()).zip(time.into_iter());
         for (((src, dst), time), layer) in tqdm!(
@@ -325,7 +325,7 @@ pub(crate) fn load_edges_deletions_from_df<'a, const N: usize, S: AsRef<str>>(
             unit_scale = true
         ) {
             if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-                graph.delete_edge(*time, src, dst, layer.as_deref());
+                graph.delete_edge(time, src, dst, layer.as_deref());
             }
         }
     } else {
@@ -547,7 +547,7 @@ fn load_edges_from_num_iter<
     'a,
     const N: usize,
     S: AsRef<str>,
-    I: Iterator<Item = ((Option<u64>, Option<u64>), Option<&'a i64>)>,
+    I: Iterator<Item = ((Option<u64>, Option<u64>), Option<i64>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
     IL: Iterator<Item = Option<String>>,
 >(
@@ -567,7 +567,7 @@ fn load_edges_from_num_iter<
         unit_scale = true
     ) {
         if let (Some(src), Some(dst), Some(time)) = (src, dst, time) {
-            let e = graph.add_edge(*time, src, dst, edge_props, layer.as_deref())?;
+            let e = graph.add_edge(time, src, dst, edge_props, layer.as_deref())?;
             e.add_constant_properties(const_props, layer.as_deref())?;
             if let Some(shared_const_props) = &shared_const_properties {
                 e.add_constant_properties(shared_const_props.iter(), layer.as_deref())?;
@@ -581,7 +581,7 @@ fn load_nodes_from_num_iter<
     'a,
     const N: usize,
     S: AsRef<str>,
-    I: Iterator<Item = (Option<u64>, Option<&'a i64>, Option<&'a str>)>,
+    I: Iterator<Item = (Option<u64>, Option<i64>, Option<&'a str>)>,
     PI: Iterator<Item = Vec<(S, Prop)>>,
 >(
     graph: &InnerTemporalGraph<N>,
@@ -602,7 +602,7 @@ fn load_nodes_from_num_iter<
             (node, time, node_type, props, const_props)
         {
             let actual_node_type = extract_out_default_type(n_t);
-            let v = graph.add_node(*t, v, props, actual_node_type)?;
+            let v = graph.add_node(t, v, props, actual_node_type)?;
             v.add_constant_properties(const_props)?;
 
             if let Some(shared_const_props) = &shared_const_properties {
