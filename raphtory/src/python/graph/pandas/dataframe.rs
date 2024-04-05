@@ -1,6 +1,6 @@
-use crate::core::utils::errors::GraphError;
+use crate::{core::utils::errors::GraphError, prelude::Prop};
 use arrow2::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+    array::{Array, BooleanArray, Int64Array, ListArray, PrimitiveArray, Utf8Array},
     compute::cast::{self, CastOptions},
     datatypes::{DataType, TimeUnit},
     ffi,
@@ -78,6 +78,34 @@ impl PretendDF {
             let arr = &arr[idx];
             let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
             arr.iter()
+        });
+
+        Some(iter)
+    }
+
+    pub fn time_iter_col(&self, name: &str) -> Option<impl Iterator<Item = Option<i64>> + '_> {
+        let idx = self.names.iter().position(|n| n == name)?;
+
+        let _ = (&self.arrays[0])[idx]
+            .as_any()
+            .downcast_ref::<PrimitiveArray<i64>>()?;
+
+        let iter = self.arrays.iter().flat_map(move |arr| {
+            let arr = &arr[idx];
+            let arr = if let DataType::Timestamp(_, _) = arr.data_type() {
+                let array = cast::cast(
+                    &*arr.clone(),
+                    &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
+                    CastOptions::default(),
+                )
+                .unwrap();
+                array
+            } else {
+                arr.clone()
+            };
+
+            let arr = arr.as_any().downcast_ref::<PrimitiveArray<i64>>().unwrap();
+            arr.clone().into_iter()
         });
 
         Some(iter)
@@ -225,21 +253,8 @@ pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
         let field = ffi::import_field_from_c(schema.as_ref())
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
 
-        let array = ffi::import_array_from_c(*array, field.data_type.clone())
+        let array = ffi::import_array_from_c(*array, field.data_type)
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-
-        if let DataType::Timestamp(unit, _) = &field.data_type {
-            if *unit == TimeUnit::Nanosecond {
-                let array = cast::cast(
-                    &*array,
-                    &DataType::Timestamp(TimeUnit::Millisecond, Some("UTC".to_string())),
-                    CastOptions::default(),
-                )
-                .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
-
-                return Ok(array);
-            }
-        }
 
         Ok(array)
     }

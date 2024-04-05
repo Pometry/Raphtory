@@ -339,7 +339,7 @@ def test_graph_properties():
 
     sp = g.properties.constant.keys()
     sp.sort()
-    assert sp == ["prop 1", "prop 2", "prop 3", "prop 4"]
+    assert sp == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5"]
     assert g.properties["prop 1"] == 1
     assert g.properties["prop 4"] == [1, 2]
     assert g.properties["prop 5"] == {"x": 1, "y": "ok"}

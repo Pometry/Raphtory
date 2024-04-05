@@ -2,8 +2,13 @@ from raphtory import Graph
 import pandas as pd
 import json
 from pathlib import Path
+import numpy as np
+from datetime import datetime, timezone
+import pytz
 
 base_dir = Path(__file__).parent
+
+utc = timezone.utc
 
 
 def build_graph():
@@ -58,6 +63,53 @@ def build_graph_without_datetime_type():
         node_const_properties=["server_name", "hardware_type"],
         node_shared_const_properties={"datasource": "data/network_traffic_edges.csv"},
     )
+    
+    
+def test_graph_timestamp_list_properties():
+    array_column = [
+        np.array([1, 2, 3]),
+        np.array([4, 5, 6]),
+        np.array([7, 8, 9])
+    ]
+
+    string_column = ['a', 'b', 'c']
+    bool_column = [True, False, True]
+    int_column = [10, 20, 30]
+    date_column = [datetime.now(), datetime.now(), datetime.now()]
+
+    df = pd.DataFrame({
+        'array_column': array_column,
+        'string_column': string_column,
+        'bool_column': bool_column,
+        'int_column': int_column,
+        'date_column': date_column
+    })
+    
+    df['date_column_ms'] = df['date_column'].astype("datetime64[ms]")
+    df['date_column_us'] = df['date_column'].astype("datetime64[us]")
+    df['date_column_ns'] = df['date_column'].astype("datetime64[ns]")
+
+    g = Graph()
+    g.load_nodes_from_pandas(
+        df,
+        time="date_column",
+        id="string_column",
+        properties=[
+            "array_column",
+            "date_column", 
+            "date_column_ms",
+            "date_column_us",
+            "date_column_ns"
+        ]
+    )
+    
+    assert g.node('a')['array_column'] == [1, 2, 3]
+
+    assert g.node('a')['date_column_ms'] == df['date_column_ms'][0]
+    assert g.node('a')['date_column_us'] == df['date_column_us'][0]
+    
+    assert g.node('a')['date_column'] == date_column[0]
+    assert g.node('a')['date_column_ns'] == df['date_column_ns'][0]
     
     
 def test_graph_build_from_pandas_without_datetime_type():
