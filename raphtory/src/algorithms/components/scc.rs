@@ -207,13 +207,25 @@ mod strongly_connected_components_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
 
-        let mut scc_nodes = strongly_connected_components(&graph, None)
+        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
             .group_by()
             .into_values()
-            .collect_vec();
+            .map(|mut v| {
+                v.sort();
+                v
+            })
+            .collect();
 
-        scc_nodes[0].sort();
-        assert_eq!(scc_nodes, [["2", "5", "6", "7", "8"]]);
+        let expected: HashSet<Vec<String>> = [
+            vec!["2", "5", "6", "7", "8"],
+            vec!["1"],
+            vec!["3"],
+            vec!["4"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+        .collect();
+        assert_eq!(scc_nodes, expected);
     }
 
     #[test]
