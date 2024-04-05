@@ -13,7 +13,7 @@ use datafusion::{
     logical_expr::{create_udf, ColumnarValue, Volatility},
 };
 use executor::{
-    table_provider::{edge::EdgeListTableProvider, node},
+    table_provider::edge::EdgeListTableProvider,
     ExecError,
 };
 use itertools::Itertools;
@@ -23,7 +23,7 @@ use sqlparser::ast::{
     self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
 };
 
-use crate::{executor::table_provider::node::NodeTableProvider, hop::rule::HopRule};
+use crate::executor::table_provider::node::NodeTableProvider;
 
 pub mod executor;
 pub mod hop;
@@ -425,7 +425,7 @@ fn all_rels(query: &Query) -> impl Iterator<Item = &RelPattern> + '_ {
 }
 
 fn all_bound_nodes(query: &Query) -> impl Iterator<Item = &NodePattern> + '_ {
-    all_node_patterns(query).filter(|&node_pat| !node_pat.name.starts_with("n_"))
+    all_node_patterns(query).filter(|&node_pat| is_bound(node_pat))
 }
 
 fn all_node_patterns(query: &Query) -> impl Iterator<Item = &NodePattern> + '_ {
@@ -462,6 +462,10 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     }
 }
 
+fn is_bound(node: &NodePattern) -> bool {
+    !node.name.starts_with("n_")
+}
+
 fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
     let PatternPart {
         rel_chain, node, ..
@@ -470,7 +474,15 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
     let mut iter = rel_chain.iter().peekable();
 
     if let Some((rel, _)) = iter.peek() {
-        for ((rel1, _), (rel2, _)) in iter.tuple_windows() {
+        if is_bound(node) {
+            match rel.direction {
+                Direction::OUT => joins.push(make_sql_join(&rel.name, "src", &node.name, "id")),
+                Direction::IN => joins.push(make_sql_join(&rel.name, "dst", &node.name, "id")),
+                Direction::BOTH => todo!(),
+            }
+        }
+
+        for ((rel1, node), (rel2, _)) in iter.tuple_windows() {
             let (from, to) = match (rel1.direction, rel2.direction) {
                 (Direction::OUT, Direction::OUT) => ("dst", "src"),
                 (Direction::OUT, Direction::IN) => ("dst", "dst"),
@@ -478,26 +490,55 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
                 (Direction::IN, Direction::IN) => ("src", "dst"),
                 _ => unimplemented!("both direction not supported"),
             };
-            let join_op = sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
-                sql_ast::Expr::BinaryOp {
-                    left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
-                        sql_ast::Ident::new(&rel1.name),
-                        sql_ast::Ident::new(from),
-                    ])),
-                    op: sql_ast::BinaryOperator::Eq,
-                    right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
-                        sql_ast::Ident::new(&rel2.name),
-                        sql_ast::Ident::new(to),
-                    ])),
-                },
-            ));
 
-            let join = sql_ast::Join {
-                relation: table_from_name(&rel2.name),
-                join_operator: join_op,
-            };
+            if is_bound(node) {
+                match rel1.direction {
+                    Direction::OUT => {
+                        joins.push(make_sql_join(&rel1.name, "dst", &node.name, "id"))
+                    }
+                    Direction::IN => joins.push(make_sql_join(&rel1.name, "src", &node.name, "id")),
+                    Direction::BOTH => todo!(),
+                }
+                match rel2.direction {
+                    Direction::OUT => {
+                        joins.push(make_sql_join(&node.name, "id", &rel2.name, "src"))
+                    }
+                    Direction::IN => joins.push(make_sql_join(&node.name, "id", &rel2.name, "dst")),
+                    Direction::BOTH => todo!(),
+                }
+            } else {
+                let join_op = sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
+                    sql_ast::Expr::BinaryOp {
+                        left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                            sql_ast::Ident::new(&rel1.name),
+                            sql_ast::Ident::new(from),
+                        ])),
+                        op: sql_ast::BinaryOperator::Eq,
+                        right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                            sql_ast::Ident::new(&rel2.name),
+                            sql_ast::Ident::new(to),
+                        ])),
+                    },
+                ));
 
-            joins.push(join)
+                let join = sql_ast::Join {
+                    relation: table_from_name(&rel2.name),
+                    join_operator: join_op,
+                };
+
+                joins.push(join)
+            }
+        }
+
+        // deal with the last node pattern
+        if let Some((rel, node)) = rel_chain.last() {
+            if is_bound(node) {
+                match rel.direction {
+                    Direction::OUT => joins.push(make_sql_join(&rel.name, "dst", &node.name, "id")),
+                    Direction::IN => joins.push(make_sql_join(&rel.name, "src", &node.name, "id")),
+                    Direction::BOTH => todo!(),
+                }
+            }
         }
 
         sql_ast::TableWithJoins {
@@ -510,6 +551,30 @@ fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
             relation: table_from_name(&node.name),
             joins,
         }
+    }
+}
+
+fn make_sql_join(
+    left_table: &str,
+    left_id: &str,
+    right_table: &str,
+    right_id: &str,
+) -> sql_ast::Join {
+    sql_ast::Join {
+        relation: table_from_name(right_table),
+        join_operator: sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
+            sql_ast::Expr::BinaryOp {
+                left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                    sql_ast::Ident::new(left_table),
+                    sql_ast::Ident::new(left_id),
+                ])),
+                op: sql_ast::BinaryOperator::Eq,
+                right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
+                    sql_ast::Ident::new(right_table),
+                    sql_ast::Ident::new(right_id),
+                ])),
+            },
+        )),
     }
 }
 
@@ -856,10 +921,7 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
 
     let runtime = Arc::new(RuntimeEnv::default());
-    let state =
-        SessionState::new_with_config_rt(config, runtime).add_optimizer_rule(Arc::new(HopRule {
-            graph: graph.clone(),
-        }));
+    let state = SessionState::new_with_config_rt(config, runtime);
     let ctx = SessionContext::new_with_state(state);
 
     for layer in graph.layer_names() {
@@ -1089,6 +1151,44 @@ mod cyper_2_sql_tests {
     }
 
     #[test]
+    fn hop_once_bound_node() {
+        // outbound
+        check_cypher_to_sql(
+            "MATCH (n)-[e]->() RETURN n.name, e",
+            "WITH e AS (SELECT * FROM _default), n AS (SELECT * FROM nodes) SELECT n.name, e.* FROM e JOIN n ON e.src = n.id",
+        );
+
+        // inbound
+        check_cypher_to_sql(
+            "MATCH (n)<-[e]-() RETURN n.name, e",
+            "WITH e AS (SELECT * FROM _default), n AS (SELECT * FROM nodes) SELECT n.name, e.* FROM e JOIN n ON e.dst = n.id",
+        );
+    }
+
+    #[test]
+    fn two_hops_out_with_nodes() {
+        check_cypher_to_sql(
+            "MATCH (n1)-[e1]->(n2)-[e2]->(n3) RETURN n1.name, n2.name, n3.name",
+            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), n1 AS (SELECT * FROM nodes), n2 AS (SELECT * FROM nodes), n3 AS (SELECT * FROM nodes) SELECT n1.name, n2.name, n3.name FROM e1 JOIN n1 ON e1.src = n1.id JOIN n2 ON e1.dst = n2.id JOIN e2 ON n2.id = e2.src JOIN n3 ON e2.dst = n3.id",
+        );
+    }
+
+    #[test]
+    fn hop_once_bind_both_nodes() {
+        check_cypher_to_sql(
+            "MATCH (n1)-[e]->(n2) RETURN n1.name, e, n2.name",
+            "WITH e AS (SELECT * FROM _default), n1 AS (SELECT * FROM nodes), n2 AS (SELECT * FROM nodes) SELECT n1.name, e.*, n2.name FROM e JOIN n1 ON e.src = n1.id JOIN n2 ON e.dst = n2.id",
+        );
+    }
+
+    #[test]
+    fn hop_twice_with_conditions_and_nodes() {
+        check_cypher_to_sql(
+            "MATCH (a)-[r1]->(b)-[r2]->(c) WHERE a.name CONTAINS 'aa' AND b.name CONTAINS 'bb' AND c.name CONTAINS 'cc' AND r1.eprop2flt <= r2.eprop2flt AND r1.eprop2flt >= (r2.eprop2flt - 40) return a.name,type(r1),b.name,type(r2),c.name,r1.eprop2flt,r2.eprop2flt",
+        "WITH r1 AS (SELECT * FROM _default), r2 AS (SELECT * FROM _default), a AS (SELECT * FROM nodes), b AS (SELECT * FROM nodes), c AS (SELECT * FROM nodes) SELECT a.name, type(r1.layer_id), b.name, type(r2.layer_id), c.name, r1.eprop2flt, r2.eprop2flt FROM r1 JOIN a ON r1.src = a.id JOIN b ON r1.dst = b.id JOIN r2 ON b.id = r2.src JOIN c ON r2.dst = c.id WHERE a.name LIKE '%aa%' AND b.name LIKE '%bb%' AND c.name LIKE '%cc%' AND r1.eprop2flt <= r2.eprop2flt AND r1.eprop2flt >= (r2.eprop2flt - 40L)");
+    }
+
+    #[test]
     fn hop_3_times_out() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->()-[e3]->() RETURN e1, e2, e3",
@@ -1127,22 +1227,6 @@ mod cyper_2_sql_tests {
             "WITH n AS (SELECT * FROM nodes) SELECT n.* FROM n",
         );
     }
-
-    // #[test]
-    // fn scan_edge_with_node_properties(){
-    //     check_cypher_to_sql(
-    //         "MATCH (n)-[e]->() RETURN n.name, e.src",
-    //         "WITH e AS (SELECT * FROM _default) SELECT e.src_props.name, e.src FROM e",
-    //     );
-    // }
-
-    // #[test]
-    // fn scan_2_hop_with_nodes(){
-    //     check_cypher_to_sql(
-    //         "MATCH (u)-[e1]->(v)-[e2]->(w) RETURN u.name, e1.src, e2.src, w.name",
-    //         "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.src_props.name, e1.src, e2.src, e2.dst_props.name FROM e1 JOIN e2 ON e1.dst = e2.src",
-    //     );
-    // }
 
     fn check_cypher_to_sql_layers<LS: IntoIterator<Item = impl AsRef<str>>>(
         query: &str,
@@ -1261,8 +1345,6 @@ mod cyper_2_sql_tests {
 
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
-
-        // TODO: figure out a way to test this
     }
 
     #[tokio::test]
@@ -1391,6 +1473,33 @@ mod cyper_2_sql_tests {
         let graph = make_graph_with_node_props(graph_dir);
 
         let df = run_cypher("match (n) return n", &graph).await.unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_node_names_from_edges() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_node_props(graph_dir);
+
+        let df = run_cypher("match (a)-[e]->(b) return a.name, e, b.name", &graph)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn select_node_names_2_hops() {
+        let graph_dir = tempdir().unwrap();
+        let graph = make_graph_with_node_props(graph_dir);
+
+        let df = run_cypher(
+            "match (a)-[e1]->(b)-[e2]->(c) return a.name, b.name, c.name",
+            &graph,
+        )
+        .await
+        .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
     }
