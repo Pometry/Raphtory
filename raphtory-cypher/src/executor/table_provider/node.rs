@@ -1,11 +1,9 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
-use arrow::{
-    array::GenericStringBuilder,
-    datatypes::{ArrowPrimitiveType, Int64Type, UInt64Type},
-};
-use arrow_array::{make_array, Array, OffsetSizeTrait, PrimitiveArray};
-use arrow_buffer::{OffsetBuffer, ScalarBuffer};
+use arrow::datatypes::UInt64Type;
+use arrow2::array::to_data;
+use arrow_array::{make_array, Array, PrimitiveArray};
+use arrow_buffer::ScalarBuffer;
 use arrow_schema::{DataType, Schema};
 use async_trait::async_trait;
 use datafusion::{
@@ -24,20 +22,17 @@ use datafusion::{
 };
 use futures::Stream;
 use raphtory::{
-    arrow::{
-        chunked_array::array_ops::Chunked,
-        graph_impl::ArrowGraph,
-        properties::{Properties, TemporalProps},
-    },
+    arrow::{chunked_array::array_ops::Chunked, graph_impl::ArrowGraph, properties::Properties},
     core::entities::VID,
 };
 
-use crate::executor::{arrow2_to_arrow_buf, ExecError};
+use crate::executor::ExecError;
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,
     schema: SchemaRef,
     num_partitions: usize,
+    chunk_size: usize,
 }
 
 impl NodeTableProvider {
@@ -46,7 +41,10 @@ impl NodeTableProvider {
             ExecError::MissingNodeProperties("Failed to find node properties".to_string())
         })?;
 
-        let num_partitions = properties.temporal_props.timestamps().values().num_chunks();
+        let const_props = properties.const_props.props();
+
+        let num_partitions = const_props.num_chunks();
+        let chunk_size = const_props.chunk_size();
 
         let name_dt = graph.global_ordering().data_type();
         let schema = lift_arrow_schema(name_dt.clone(), properties)?;
@@ -55,12 +53,13 @@ impl NodeTableProvider {
             graph,
             schema,
             num_partitions,
+            chunk_size,
         })
     }
 }
 
 fn lift_arrow_schema(
-    name_dt: arrow2::datatypes::DataType,
+    gid_dt: arrow2::datatypes::DataType,
     properties: &Properties<VID>,
 ) -> Result<SchemaRef, ExecError> {
     let mut fields = vec![];
@@ -71,21 +70,8 @@ fn lift_arrow_schema(
         false,
     ));
 
-    fields.push(arrow2::datatypes::Field::new("name", name_dt, false));
-
-    fields.push(arrow2::datatypes::Field::new(
-        "time",
-        arrow2::datatypes::DataType::Int64,
-        false,
-    ));
-
-    let dt_temporal = properties.temporal_props.prop_dtypes();
-
-    fields.extend_from_slice(dt_temporal);
-
-    // TODO: const props
-    // let dt_const = properties.const_props.prop_dtypes();
-    // fields.extend_from_slice(dt_const);
+    fields.push(arrow2::datatypes::Field::new("gid", gid_dt, false));
+    fields.extend_from_slice(properties.const_props.prop_dtypes());
 
     let dt: DataType = arrow2::datatypes::DataType::Struct(fields).into();
 
@@ -127,6 +113,7 @@ impl TableProvider for NodeTableProvider {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
+            chunk_size: self.chunk_size,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -136,92 +123,35 @@ async fn produce_record_batch(
     graph: ArrowGraph,
     schema: SchemaRef,
     chunk_id: usize,
+    chunk_size: usize,
     projection: Option<Arc<[usize]>>,
 ) -> Result<RecordBatch, DataFusionError> {
-    let arr = graph.global_ordering().as_ref();
-    let arrow_data = arrow2::array::to_data(arr);
-    let nodes = make_array(arrow_data);
-
     let properties = graph
         .node_properties()
         .ok_or_else(|| DataFusionError::Execution("Failed to find node properties".to_string()))?;
 
-    let chunked_lists_ts = properties.temporal_props.timestamps();
+    let const_props = properties.const_props.props();
 
-    let offsets = chunked_lists_ts.offsets();
-    let values = chunked_lists_ts.values();
-    let chunk_size = values.chunk_size();
+    let chunk = const_props.chunk(chunk_id);
 
-    let time_values = values.chunk(chunk_id);
-    let start_offset = chunk_id * chunk_size;
-    let end_offset = (chunk_id + 1) * chunk_size;
+    let start = chunk_id * chunk_size;
+    let end = (chunk_id + 1) * chunk_size;
 
-    let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
+    let id = Arc::new(PrimitiveArray::<UInt64Type>::new(
+        ScalarBuffer::from_iter((start as u64..end as u64).take(chunk.values()[0].len())),
+        None,
+    ));
 
-    if start == end {
-        return Ok(RecordBatch::new_empty(schema.clone()));
-    }
+    let arr_gid = graph.global_ordering().sliced(start, end - start);
+    let gid_data = to_data(arr_gid.as_ref());
+    let gid = make_array(gid_data);
 
-    let offsets: OffsetBuffer<i64> = OffsetBuffer::new(local_offsets.into());
+    let mut columns: Vec<Arc<dyn Array>> = vec![id, gid];
 
-    let mut columns = vec![];
-
-    match nodes.data_type() {
-        DataType::Int64 => {
-            process_record_batch_columns::<Int64Type>(
-                time_values,
-                nodes,
-                start,
-                end,
-                offsets,
-                &mut columns,
-                properties,
-                chunk_id,
-            );
-        }
-        DataType::UInt64 => {
-            process_record_batch_columns::<UInt64Type>(
-                time_values,
-                nodes,
-                start,
-                end,
-                offsets,
-                &mut columns,
-                properties,
-                chunk_id,
-            );
-        }
-        DataType::Utf8 => {
-            process_record_batch_columns_utf8::<i32>(
-                time_values,
-                nodes,
-                start,
-                end,
-                offsets,
-                &mut columns,
-                properties,
-                chunk_id,
-            );
-        }
-        DataType::LargeUtf8 => {
-            process_record_batch_columns_utf8::<i64>(
-                time_values,
-                nodes,
-                start,
-                end,
-                offsets,
-                &mut columns,
-                properties,
-                chunk_id,
-            );
-        }
-        d_type => {
-            return Err(DataFusionError::Execution(format!(
-                "Unsupported data type for nodes: {:?}",
-                d_type
-            )));
-        }
-    }
+    columns.extend(chunk.values().iter().map(|col| {
+        let arrow_data = arrow2::array::to_data(col.as_ref());
+        make_array(arrow_data)
+    }));
 
     if let Some(projection) = projection {
         // FIXME: this is not an actual projection we could avoid doing some work before we get here
@@ -238,119 +168,11 @@ async fn produce_record_batch(
     }
 }
 
-fn process_record_batch_columns_utf8<I: OffsetSizeTrait>(
-    time_values: &arrow2::buffer::Buffer<i64>,
-    nodes: Arc<dyn Array>,
-    start: usize,
-    end: usize,
-    offsets: OffsetBuffer<i64>,
-    columns: &mut Vec<Arc<dyn Array>>,
-    properties: &Properties<VID>,
-    chunk_id: usize,
-) {
-    let mut ids = Vec::with_capacity(time_values.len());
-    let mut names = GenericStringBuilder::<I>::new();
-
-    let nodes = nodes
-        .as_any()
-        .downcast_ref::<arrow_array::GenericStringArray<I>>()
-        .expect("Failed to downcast nodes to Int64")
-        .slice(start, end - start);
-
-    for (i, (id, name)) in (start..end).zip(nodes.into_iter()).enumerate() {
-        let length = (offsets[i + 1] - offsets[i]) as usize;
-        for _ in 0..length {
-            ids.push(id as u64);
-            names.append_value(name.unwrap());
-        }
-    }
-
-    let ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
-        ScalarBuffer::from(ids),
-        None,
-    ));
-
-    let names: Arc<dyn Array> = Arc::new(names.finish());
-
-    let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(time_values));
-
-    columns.push(ids);
-    columns.push(names);
-    columns.push(time);
-
-    for (col_id, _) in properties.temporal_props.prop_dtypes().iter().enumerate() {
-        let arr = t_prop_at_chunk(&properties.temporal_props, col_id, chunk_id);
-        columns.push(arr);
-    }
-}
-
-fn process_record_batch_columns<T: ArrowPrimitiveType>(
-    time_values: &arrow2::buffer::Buffer<i64>,
-    nodes: Arc<dyn Array>,
-    start: usize,
-    end: usize,
-    offsets: OffsetBuffer<i64>,
-    columns: &mut Vec<Arc<dyn Array>>,
-    properties: &Properties<VID>,
-    chunk_id: usize,
-) {
-    let mut ids = Vec::with_capacity(time_values.len());
-    let mut names = Vec::with_capacity(time_values.len());
-
-    let nodes = nodes
-        .as_any()
-        .downcast_ref::<arrow_array::PrimitiveArray<T>>()
-        .expect("Failed to downcast nodes to Int64")
-        .slice(start, end - start);
-
-    for (i, (id, name)) in (start..end).zip(nodes.values().into_iter()).enumerate() {
-        let length = (offsets[i + 1] - offsets[i]) as usize;
-        for _ in 0..length {
-            ids.push(id as u64);
-            names.push(*name);
-        }
-    }
-
-    let ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
-        ScalarBuffer::from(ids),
-        None,
-    ));
-
-    let names: Arc<dyn Array> = Arc::new(arrow_array::PrimitiveArray::<T>::new(
-        ScalarBuffer::from(names),
-        None,
-    ));
-
-    let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(time_values));
-
-    columns.push(ids);
-    columns.push(names);
-    columns.push(time);
-
-    for (col_id, _) in properties.temporal_props.prop_dtypes().iter().enumerate() {
-        let arr = t_prop_at_chunk(&properties.temporal_props, col_id, chunk_id);
-        columns.push(arr);
-    }
-}
-
-fn t_prop_at_chunk(
-    temporal_props: &TemporalProps<VID>,
-    col_id: usize,
-    chunk_id: usize,
-) -> Arc<dyn Array> {
-    let temporal_props = temporal_props.temporal_props().values().chunk(chunk_id);
-
-    let arr = temporal_props.values()[col_id].as_ref();
-    let arrow_data = arrow2::array::to_data(arr);
-    let col_array = make_array(arrow_data);
-
-    col_array
-}
-
 struct NodeScanExecPlan {
     graph: ArrowGraph,
     schema: SchemaRef,
     num_partitions: usize,
+    chunk_size: usize,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -363,6 +185,7 @@ impl NodeScanExecPlan {
             self.graph.clone(),
             self.schema.clone(),
             chunk_id,
+            self.chunk_size,
             self.projection.clone(),
         ))
     }
