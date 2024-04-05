@@ -255,9 +255,8 @@ fn property_to_arrow_column(
 
     let arr = temporal_props.values()[col_id].as_ref();
     let arrow_data = arrow2::array::to_data(arr);
-    let col_array = make_array(arrow_data);
 
-    col_array
+    (make_array(arrow_data)) as _
 }
 
 impl EdgeListExecPlan {

@@ -37,17 +37,20 @@ pub struct NodeTableProvider {
 
 impl NodeTableProvider {
     pub fn new(graph: ArrowGraph) -> Result<Self, ExecError> {
-        let properties = graph.node_properties().ok_or_else(|| {
-            ExecError::MissingNodeProperties("Failed to find node properties".to_string())
-        })?;
-
-        let const_props = properties.const_props.props();
-
-        let num_partitions = const_props.num_chunks();
-        let chunk_size = const_props.chunk_size();
+        let (num_partitions, chunk_size) = graph
+            .node_properties()
+            .map(|properties| {
+                let num_partitions = properties.const_props.props().num_chunks();
+                let chunk_size = properties.const_props.props().chunk_size();
+                (num_partitions, chunk_size)
+            })
+            .unwrap_or_else(|| {
+                let chunk_size = graph.global_ordering().len().min(1_000_000);
+                (graph.global_ordering().len() / chunk_size, chunk_size)
+            });
 
         let name_dt = graph.global_ordering().data_type();
-        let schema = lift_arrow_schema(name_dt.clone(), properties)?;
+        let schema = lift_arrow_schema(name_dt.clone(), graph.node_properties())?;
 
         Ok(Self {
             graph,
@@ -60,7 +63,7 @@ impl NodeTableProvider {
 
 fn lift_arrow_schema(
     gid_dt: arrow2::datatypes::DataType,
-    properties: &Properties<VID>,
+    properties: Option<&Properties<VID>>,
 ) -> Result<SchemaRef, ExecError> {
     let mut fields = vec![];
 
@@ -71,7 +74,9 @@ fn lift_arrow_schema(
     ));
 
     fields.push(arrow2::datatypes::Field::new("gid", gid_dt, false));
-    fields.extend_from_slice(properties.const_props.prop_dtypes());
+    if let Some(properties) = properties {
+        fields.extend_from_slice(properties.const_props.prop_dtypes());
+    }
 
     let dt: DataType = arrow2::datatypes::DataType::Struct(fields).into();
 

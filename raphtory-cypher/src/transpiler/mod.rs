@@ -1,19 +1,9 @@
 use std::sync::Arc;
 
-use crate::executor::{table_provider::edge::EdgeListTableProvider, ExecError};
 use crate::parser::ast::*;
-use arrow_array::{builder, UInt64Array};
-use arrow_schema::{DataType, Fields, Schema};
-use datafusion::{
-    dataframe::DataFrame,
-    error::DataFusionError,
-    execution::{
-        config::SessionConfig,
-        context::{SQLOptions, SessionContext, SessionState},
-        runtime_env::RuntimeEnv,
-    },
-    logical_expr::{create_udf, ColumnarValue, Volatility},
-};
+
+use arrow_schema::{Fields, Schema};
+
 use itertools::Itertools;
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 use sqlparser::ast::{
@@ -919,7 +909,7 @@ mod test {
     fn select_edge_with_type() {
         check_cypher_to_sql_layers(
             "MATCH ()-[e]-() where e.time > 10 RETURN e,type(e)",
-            "WITH e AS (SELECT time FROM _default UNION ALL SELECT time FROM L1 UNION ALL SELECT time FROM L2) SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
+            "WITH e AS (SELECT layer_id, src, dst, time FROM _default UNION ALL SELECT layer_id, src, dst, time FROM L1 UNION ALL SELECT layer_id, src, dst, time FROM L2) SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
             ["L1", "L2"],
         );
     }

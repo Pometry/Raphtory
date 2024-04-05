@@ -37,8 +37,7 @@ impl Query {
     }
 
     pub fn node_patterns(&self) -> impl Iterator<Item = &NodePattern> + '_ {
-        self
-            .clauses()
+        self.clauses()
             .iter()
             .filter_map(|clause| match clause {
                 Clause::Match(m) => {

@@ -1,6 +1,4 @@
-use sqlparser::ast::{
-    self as sql_ast
-};
+use sqlparser::ast::{self as sql_ast};
 
 use crate::{Clause, Query, Return};
 

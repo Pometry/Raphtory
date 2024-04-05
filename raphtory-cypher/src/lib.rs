@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use arrow_array::{builder, UInt64Array};
-use arrow_schema::{DataType, Fields, Schema};
+use arrow_schema::DataType;
 use datafusion::{
     dataframe::DataFrame,
     error::DataFusionError,
@@ -13,12 +13,8 @@ use datafusion::{
     logical_expr::{create_udf, ColumnarValue, Volatility},
 };
 use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
-use itertools::Itertools;
 use parser::ast::*;
-use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
-use sqlparser::ast::{
-    self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
-};
+use raphtory::arrow::graph_impl::ArrowGraph;
 
 use crate::executor::table_provider::node::NodeTableProvider;
 
