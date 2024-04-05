@@ -19,6 +19,40 @@ impl Query {
             Query::SingleQuery(q) => &q.clauses,
         }
     }
+
+    pub fn rel_patterns(&self) -> impl Iterator<Item = &RelPattern> + '_ {
+        self.clauses()
+            .iter()
+            .filter_map(|clause| match clause {
+                Clause::Match(m) => {
+                    let iter =
+                        m.pattern.0.iter().flat_map(|part: &PatternPart| {
+                            part.rel_chain.iter().map(|(rel, _)| rel)
+                        });
+                    Some(iter)
+                }
+                _ => None,
+            })
+            .flatten()
+    }
+
+    pub fn node_patterns(&self) -> impl Iterator<Item = &NodePattern> + '_ {
+        self
+            .clauses()
+            .iter()
+            .filter_map(|clause| match clause {
+                Clause::Match(m) => {
+                    let iter = m.pattern.0.iter().map(|part: &PatternPart| {
+                        std::iter::once(&part.node)
+                            .chain(part.rel_chain.iter().map(|(_, node)| node))
+                    });
+                    Some(iter)
+                }
+                _ => None,
+            })
+            .flatten()
+            .flatten()
+    }
 }
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]

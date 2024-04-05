@@ -9,9 +9,8 @@ async fn main() {
 
     let graph = ArrowGraph::load_from_dir(graph_dir).expect("Failed to load graph");
 
-    let df = run_cypher(&cypher_query, &graph).await.unwrap();
-
     let now = std::time::Instant::now();
+    let df = run_cypher(&cypher_query, &graph).await.unwrap();
     let batches = df.collect().await.unwrap();
     println!("Query execution: {:?}", now.elapsed());
 
