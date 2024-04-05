@@ -75,8 +75,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
             const_prop_iter,
             shared_const_properties,
         )?;
-    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.time_iter_col(time))
-    {
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i32>(node_id), df.time_iter_col(time)) {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
             .zip(node_type)
@@ -98,8 +97,7 @@ pub(crate) fn load_nodes_from_df<'a, const N: usize>(
                 }
             }
         }
-    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.time_iter_col(time))
-    {
+    } else if let (Some(node_id), Some(time)) = (df.utf8::<i64>(node_id), df.time_iter_col(time)) {
         let iter = node_id.into_iter().zip(time);
         let iter = iter
             .zip(node_type)
