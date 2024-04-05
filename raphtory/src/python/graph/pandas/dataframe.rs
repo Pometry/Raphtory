@@ -253,7 +253,7 @@ pub fn array_to_rust(obj: &PyAny) -> PyResult<ArrayRef> {
         let field = ffi::import_field_from_c(schema.as_ref())
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
 
-        let array = ffi::import_array_from_c(*array, field.data_type.clone())
+        let array = ffi::import_array_from_c(*array, field.data_type)
             .map_err(|e| ArrowErrorException::new_err(format!("{:?}", e)))?;
 
         Ok(array)
