@@ -1,3 +1,10 @@
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+};
+
+use itertools::Itertools;
+
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{entities::VID, state::compute_state::ComputeStateVec},
@@ -12,11 +19,6 @@ use crate::{
         },
     },
     prelude::*,
-};
-use itertools::Itertools;
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Debug,
 };
 
 fn tarjan<'graph, G>(
@@ -134,32 +136,40 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let sub_graph = runner.run(
+    let local = runner.run(
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<SCCNode>| {
-            graph.subgraph(
-                local
-                    .into_iter()
-                    .enumerate()
-                    .filter(|(_, state)| state.is_scc_node)
-                    .map(|(vid, _)| VID(vid)),
-            )
-        },
+        |_, _, _, local: Vec<SCCNode>| local,
         threads,
         1,
         None,
         None,
     );
+    let sub_graph = graph.subgraph(
+        local
+            .iter()
+            .enumerate()
+            .filter(|(_, state)| state.is_scc_node)
+            .map(|(vid, _)| VID(vid)),
+    );
     let results_type = std::any::type_name::<usize>();
     let groups = tarjan_scc(&sub_graph);
+
+    let mut id = groups.len();
     let mut res = HashMap::new();
     for (id, group) in groups.into_iter().enumerate() {
         for VID(node) in group {
             res.insert(node, id);
         }
     }
+    for (node, state) in local.into_iter().enumerate() {
+        if !state.is_scc_node {
+            res.insert(node, id);
+            id += 1;
+        }
+    }
+
     AlgorithmResult::new(
         graph.clone(),
         "Strongly-connected Components",
@@ -175,6 +185,7 @@ mod strongly_connected_components_tests {
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
     use itertools::Itertools;
+    use std::collections::HashSet;
 
     #[test]
     fn scc_test() {
@@ -203,5 +214,108 @@ mod strongly_connected_components_tests {
 
         scc_nodes[0].sort();
         assert_eq!(scc_nodes, [["2", "5", "6", "7", "8"]]);
+    }
+
+    #[test]
+    fn scc_test_multiple_components() {
+        let graph = Graph::new();
+        let edges = [
+            (1, 2),
+            (2, 3),
+            (2, 8),
+            (3, 4),
+            (3, 7),
+            (4, 5),
+            (5, 3),
+            (5, 6),
+            (7, 4),
+            (7, 6),
+            (8, 1),
+            (8, 7),
+        ];
+        for (src, dst) in edges {
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+        }
+
+        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            .group_by()
+            .into_values()
+            .map(|mut v| {
+                v.sort();
+                v
+            })
+            .collect();
+
+        let expected: HashSet<Vec<String>> =
+            [vec!["3", "4", "5", "7"], vec!["1", "2", "8"], vec!["6"]]
+                .into_iter()
+                .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+                .collect();
+        assert_eq!(scc_nodes, expected);
+    }
+
+    #[test]
+    fn scc_test_multiple_components_2() {
+        let graph = Graph::new();
+        let edges = [(1, 2), (1, 3), (1, 4), (4, 2), (3, 4), (2, 3)];
+        for (src, dst) in edges {
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+        }
+
+        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            .group_by()
+            .into_values()
+            .map(|mut v| {
+                v.sort();
+                v
+            })
+            .collect();
+
+        let expected: HashSet<Vec<String>> = [vec!["2", "3", "4"], vec!["1"]]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+            .collect();
+        assert_eq!(scc_nodes, expected);
+    }
+
+    #[test]
+    fn scc_test_all_singletons() {
+        let graph = Graph::new();
+        let edges = [
+            (0, 1),
+            (1, 2),
+            (1, 3),
+            (2, 4),
+            (2, 5),
+            (3, 4),
+            (3, 5),
+            (4, 6),
+        ];
+        for (src, dst) in edges {
+            graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+        }
+
+        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            .group_by()
+            .into_values()
+            .map(|mut v| {
+                v.sort();
+                v
+            })
+            .collect();
+
+        let expected: HashSet<Vec<String>> = [
+            vec!["0"],
+            vec!["1"],
+            vec!["2"],
+            vec!["3"],
+            vec!["4"],
+            vec!["5"],
+            vec!["6"],
+        ]
+        .into_iter()
+        .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+        .collect();
+        assert_eq!(scc_nodes, expected);
     }
 }
