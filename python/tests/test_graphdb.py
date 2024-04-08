@@ -1611,6 +1611,10 @@ def test_subgraph():
     x.sort()
     assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
 
+def test_exclude_nodes():
+    g = create_graph()
+    exclude_nodes = g.exclude_nodes([1])
+    assert exclude_nodes.nodes.id.collect() == [2, 3]
 
 def test_materialize_graph():
     g = Graph()

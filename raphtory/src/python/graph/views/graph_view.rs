@@ -256,6 +256,17 @@ impl PyGraphView {
         self.graph.subgraph(nodes)
     }
 
+    /// Returns a subgraph given a set of nodes that are excluded from the subgraph
+    ///
+    /// Arguments:
+    ///   * `nodes`: set of nodes
+    ///
+    /// Returns:
+    ///    GraphView - Returns the subgraph
+    fn exclude_nodes(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
+        self.graph.exclude_nodes(nodes)
+    }
+
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
     ///
     /// Returns:
