@@ -1,13 +1,12 @@
 use crate::{
     core::{utils::errors::GraphError, ArcStr},
     db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
+        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
+    prelude::GraphViewOps,
 };
 use std::sync::Arc;
-use crate::db::api::view::internal::CoreGraphOps;
-use crate::prelude::GraphViewOps;
 
 /// Trait defining layer operations
 pub trait LayerOps<'graph> {
@@ -23,7 +22,10 @@ pub trait LayerOps<'graph> {
     fn layers<L: Into<Layer>>(&self, names: L) -> Result<Self::LayeredViewType, GraphError>;
 
     /// Return a graph containing the excluded layers in `names`. Errors if one or more of the layers do not exists.
-    fn exclude_layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError>;
+    fn exclude_layers<L: Into<Layer>>(
+        &self,
+        layers: L,
+    ) -> Result<Self::LayeredViewType, GraphError>;
 
     /// Check if `name` is a valid layer name
     fn has_layer(&self, name: &str) -> bool;
@@ -45,12 +47,18 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         Ok(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids)))
     }
 
-    fn exclude_layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
+    fn exclude_layers<L: Into<Layer>>(
+        &self,
+        layers: L,
+    ) -> Result<Self::LayeredViewType, GraphError> {
         let all_layer_ids = self.current_filter().layer_ids();
         let excluded_ids = self.current_filter().layer_ids_from_names(layers.into())?;
         let included_ids = all_layer_ids.diff(self.current_filter().clone(), &excluded_ids);
 
-        Ok(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), included_ids)))
+        Ok(self.one_hop_filtered(LayeredGraph::new(
+            self.current_filter().clone(),
+            included_ids,
+        )))
     }
 
     fn has_layer(&self, name: &str) -> bool {
@@ -98,7 +106,7 @@ impl SingleLayer for String {
     }
 }
 
-impl<'a, T: ToOwned<Owned=String> + ?Sized> SingleLayer for &'a T {
+impl<'a, T: ToOwned<Owned = String> + ?Sized> SingleLayer for &'a T {
     fn name(self) -> ArcStr {
         self.to_owned().into()
     }

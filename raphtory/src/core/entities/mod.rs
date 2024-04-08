@@ -18,7 +18,7 @@ pub mod properties;
 // the only reason this is public is because the physical ids of the nodes don't move
 #[repr(transparent)]
 #[derive(
-Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
 pub struct VID(pub usize);
 
@@ -48,7 +48,7 @@ impl From<VID> for usize {
 
 #[repr(transparent)]
 #[derive(
-Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]
 pub struct EID(pub usize);
 
@@ -156,7 +156,11 @@ impl LayerIds {
         }
     }
 
-    pub fn diff<'a>(&self, graph: impl crate::prelude::GraphViewOps<'a>, other: &LayerIds) -> LayerIds {
+    pub fn diff<'a>(
+        &self,
+        graph: impl crate::prelude::GraphViewOps<'a>,
+        other: &LayerIds,
+    ) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
             (this, LayerIds::None) => this.clone(),
@@ -183,9 +187,7 @@ impl LayerIds {
             (LayerIds::All, other) => {
                 let all_layer_ids: Vec<usize> = graph
                     .unique_layers()
-                    .map(|name| {
-                        graph.get_layer_id(name.as_ref()).unwrap()
-                    })
+                    .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
                     .into_iter()
                     .filter(|id| !other.contains(id))
                     .collect();
