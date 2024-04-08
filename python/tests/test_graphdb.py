@@ -1359,11 +1359,16 @@ def test_layer():
 
     g.add_edge(0, 1, 2)
     g.add_edge(0, 1, 3, layer="layer1")
+    g.add_edge(0, 1, 5, layer="layer1")
+    g.add_edge(0, 1, 6, layer="layer1")
     g.add_edge(0, 1, 4, layer="layer2")
 
     assert g.default_layer().count_edges() == 1
-    assert g.layers(["layer1"]).count_edges() == 1
+    assert g.layers(["layer1"]).count_edges() == 3
     assert g.layers(["layer2"]).count_edges() == 1
+
+    assert g.exclude_layers(["layer1"]).count_edges() == 2
+    assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
 
 
 def test_layer_node():
