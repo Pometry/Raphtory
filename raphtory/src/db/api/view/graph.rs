@@ -45,8 +45,12 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Returns:
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I)
-        -> NodeSubgraph<Self>;
+
+    fn subgraph<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I)
+                                                           -> NodeSubgraph<Self>;
+
+    fn exclude_nodes<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<Self>;
+
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
@@ -178,13 +182,33 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
         Ok(self.new_base_graph(g))
     }
-    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
+
+    fn subgraph<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
         let _layer_ids = self.layer_ids();
         let nodes: FxHashSet<VID> = nodes
             .into_iter()
             .flat_map(|v| (&self).node(v).map(|v| v.node))
             .collect();
         NodeSubgraph::new(self.clone(), nodes)
+    }
+
+    fn exclude_nodes<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
+        let _layer_ids = self.layer_ids();
+
+        let nodes_to_exclude: FxHashSet<VID> = nodes
+            .into_iter()
+            .flat_map(|v| (&self).node(v).map(|v| v.node))
+            .collect();
+
+        let nodes_to_include = self.nodes()
+            .into_iter()
+            .filter(|node| {
+                !nodes_to_exclude.contains(&node.node)
+            })
+            .map(|node| node.node)
+            .collect();
+
+        NodeSubgraph::new(self.clone(), nodes_to_include)
     }
 
     /// Return all the layer ids in the graph
@@ -410,6 +434,32 @@ mod test_materialize {
             .properties()
             .temporal()
             .contains("layer1"));
+    }
+
+    #[test]
+    fn test_subgraph() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(0, 2, NO_PROPS, None).unwrap();
+        g.add_node(0, 3, NO_PROPS, None).unwrap();
+        g.add_node(0, 4, NO_PROPS, None).unwrap();
+        g.add_node(0, 5, NO_PROPS, None).unwrap();
+
+        let nodes_subgraph = g.subgraph(vec![4, 5]);
+        assert_eq!(nodes_subgraph.nodes().name().collect::<Vec<String>>(), vec!["4", "5"]);
+    }
+
+    #[test]
+    fn test_exclude_nodes() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(0, 2, NO_PROPS, None).unwrap();
+        g.add_node(0, 3, NO_PROPS, None).unwrap();
+        g.add_node(0, 4, NO_PROPS, None).unwrap();
+        g.add_node(0, 5, NO_PROPS, None).unwrap();
+
+        let exclude_nodes_subgraph = g.exclude_nodes(vec![4, 5]);
+        assert_eq!(exclude_nodes_subgraph.nodes().name().collect::<Vec<String>>(), vec!["1", "2", "3"]);
     }
 
     #[test]
