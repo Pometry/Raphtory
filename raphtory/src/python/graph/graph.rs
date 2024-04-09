@@ -36,6 +36,8 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use crate::algorithms::components::LargestConnectedComponent;
+use crate::db::graph::views::node_subgraph::NodeSubgraph;
 
 use super::{
     pandas::loaders::{load_edges_from_df, load_nodes_from_df},
@@ -380,6 +382,18 @@ impl PyGraph {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Gives the large connected component of a graph.
+    ///
+    /// # Example Usage:
+    /// g.largest_connected_component()
+    ///
+    /// # Returns:
+    /// A raphtory graph, which essentially is a sub-graph of the graph `g`
+    ///
+    pub fn largest_connected_component(&self) -> NodeSubgraph<Graph>{
+        self.graph.largest_connected_component()
     }
 
     /// Load a graph from a Pandas DataFrame.
