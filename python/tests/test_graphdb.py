@@ -1616,6 +1616,12 @@ def test_exclude_nodes():
     exclude_nodes = g.exclude_nodes([1])
     assert exclude_nodes.nodes.id.collect() == [2, 3]
 
+def test_nbr():
+    g = create_graph()
+    r = [e.nbr.name for e in g.edges]
+    r.sort()
+    assert r == ['1', '1', '2', '2', '3']
+
 def test_materialize_graph():
     g = Graph()
 
