@@ -3,45 +3,27 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
+use super::utils;
 use crate::{
-    core::utils::errors::GraphError,
-    db::api::view::internal::MaterializedGraph,
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
+    db::{
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::*,
     python::{
-        graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
+        graph::{
+            edge::PyEdge, graph_with_deletions::PyGraphWithDeletions, node::PyNode,
+            views::graph_view::PyGraphView,
+        },
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::prelude::*;
-
-use crate::{
-    core::{entities::nodes::node_ref::NodeRef, ArcStr},
-    db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    python::graph::{
-        edge::PyEdge,
-        node::PyNode,
-        pandas::{
-            dataframe::{process_pandas_py_df, GraphLoadException},
-            loaders::{load_edges_props_from_df, load_node_props_from_df},
-        },
-    },
-};
-use pyo3::types::{IntoPyDict, PyBytes};
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
-    sync::Arc,
-};
-use crate::algorithms::components::LargestConnectedComponent;
-use crate::db::graph::views::node_subgraph::NodeSubgraph;
-
-use super::{
-    pandas::loaders::{load_edges_from_df, load_nodes_from_df},
-    utils,
 };
 
 /// A temporal graph.
@@ -382,18 +364,6 @@ impl PyGraph {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
-    }
-
-    /// Gives the large connected component of a graph.
-    ///
-    /// # Example Usage:
-    /// g.largest_connected_component()
-    ///
-    /// # Returns:
-    /// A raphtory graph, which essentially is a sub-graph of the graph `g`
-    ///
-    pub fn largest_connected_component(&self) -> NodeSubgraph<Graph>{
-        self.graph.largest_connected_component()
     }
 
     /// Load a graph from a Pandas DataFrame.
