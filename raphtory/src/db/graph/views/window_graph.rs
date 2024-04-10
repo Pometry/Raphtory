@@ -96,7 +96,7 @@ impl<'graph, G: Debug + 'graph> Debug for WindowedGraph<G> {
 }
 
 impl<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>> PartialEq<G2>
-    for WindowedGraph<G1>
+for WindowedGraph<G1>
 {
     fn eq(&self, other: &G2) -> bool {
         graph_equal(self, other)
@@ -140,7 +140,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
 
     #[inline]
     fn nodes_filtered(&self) -> bool {
-        self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
+        self.graph.nodes_filtered()
+            || self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
             || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
     }
 
@@ -148,8 +149,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids)
             && self
-                .graph
-                .include_node_window(node, self.start_bound()..self.end_bound(), layer_ids)
+            .graph
+            .include_node_window(node, self.start_bound()..self.end_bound(), layer_ids)
     }
 }
 
@@ -187,7 +188,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G>
         self.graph.get_temporal_prop_name(id)
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item=usize> + '_> {
         Box::new(
             self.graph
                 .temporal_prop_ids()
@@ -485,8 +486,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self
-                .graph
-                .include_edge_window(edge, self.start_bound()..self.end_bound(), layer_ids)
+            .graph
+            .include_edge_window(edge, self.start_bound()..self.end_bound(), layer_ids)
     }
 }
 
@@ -850,8 +851,8 @@ mod views_test {
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
             None,
         )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+            .map_err(|err| println!("{:?}", err))
+            .ok();
 
         g.add_node(
             -1,
@@ -859,8 +860,8 @@ mod views_test {
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
             None,
         )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+            .map_err(|err| println!("{:?}", err))
+            .ok();
 
         g.add_node(
             6,
@@ -868,8 +869,8 @@ mod views_test {
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
             None,
         )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+            .map_err(|err| println!("{:?}", err))
+            .ok();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, [("eprop", "commons")], None)
@@ -893,8 +894,8 @@ mod views_test {
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
             None,
         )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+            .map_err(|err| println!("{:?}", err))
+            .ok();
 
         g.add_node(
             -1,
@@ -902,8 +903,8 @@ mod views_test {
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
             None,
         )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+            .map_err(|err| println!("{:?}", err))
+            .ok();
 
         g.add_node(
             6,
@@ -911,8 +912,8 @@ mod views_test {
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
             None,
         )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+            .map_err(|err| println!("{:?}", err))
+            .ok();
 
         for (t, src, dst) in &vs {
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
@@ -1010,12 +1011,12 @@ mod views_test {
                 .history()
                 .map(|it| it.collect_vec())
                 .collect_vec(),
-            [vec![], vec![full_history_1], vec![full_history_2],]
+            [vec![], vec![full_history_1], vec![full_history_2], ]
         );
 
         assert_eq!(
             g.nodes().earliest_time().flatten().collect_vec(),
-            [0, 0, 4,]
+            [0, 0, 4, ]
         );
 
         assert_eq!(g.nodes().latest_time().flatten().collect_vec(), [7, 3, 7]);
@@ -1026,7 +1027,7 @@ mod views_test {
                 .latest_time()
                 .map(|it| it.flatten().collect_vec())
                 .collect_vec(),
-            [vec![3, 7], vec![7], vec![7],]
+            [vec![3, 7], vec![7], vec![7], ]
         );
 
         assert_eq!(
@@ -1035,7 +1036,7 @@ mod views_test {
                 .earliest_time()
                 .map(|it| it.flatten().collect_vec())
                 .collect_vec(),
-            [vec![0, 4,], vec![0], vec![0],]
+            [vec![0, 4], vec![0], vec![0], ]
         );
     }
 }

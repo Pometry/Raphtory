@@ -1,10 +1,9 @@
 use crate::{
     core::{utils::errors::GraphError, ArcStr},
     db::{
-        api::view::internal::{CoreGraphOps, InternalLayerOps, OneHopFilter},
+        api::view::internal::{InternalLayerOps, OneHopFilter},
         graph::views::layer_graph::LayeredGraph,
     },
-    prelude::GraphViewOps,
 };
 use std::sync::Arc;
 

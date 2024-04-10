@@ -5,7 +5,7 @@ use crate::{
             properties::Properties,
             view::{
                 internal::{OneHopFilter, Static},
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic, NodeTypesFilter,
             },
         },
         graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
@@ -16,6 +16,7 @@ use crate::{
 use crate::db::api::storage::locked::LockedGraph;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
+use itertools::Itertools;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -25,10 +26,10 @@ pub struct Nodes<'graph, G, GH = G> {
 }
 
 impl<
-        'graph,
-        G: GraphViewOps<'graph> + IntoDynamic,
-        GH: GraphViewOps<'graph> + IntoDynamic + Static,
-    > From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
+    'graph,
+    G: GraphViewOps<'graph> + IntoDynamic,
+    GH: GraphViewOps<'graph> + IntoDynamic + Static,
+> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
 {
     fn from(value: Nodes<'graph, G, GH>) -> Self {
         Nodes::new_filtered(value.base_graph.into_dynamic(), value.graph.into_dynamic())
@@ -56,10 +57,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
     }
 
     #[inline]
-    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
+    fn iter_refs(&self) -> impl Iterator<Item=VID> + 'graph {
         let g = self.graph.core_graph();
         g.into_nodes_iter(self.graph.clone())
     }
+
     pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
@@ -68,7 +70,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
             .into_dyn_boxed()
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G, &GH>> + '_ {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item=NodeView<&G, &GH>> + '_ {
         let cg = self.graph.core_graph();
         cg.into_nodes_par(&self.graph)
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
@@ -96,10 +98,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
         self.iter().collect()
     }
+
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph>
-    BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
+BaseNodeViewOps<'graph> for Nodes<'graph, G, GH>
 {
     type BaseGraph = G;
     type Graph = GH;
@@ -122,7 +125,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
     }
 
     fn map_edges<
-        I: Iterator<Item = EdgeRef> + Send + 'graph,
+        I: Iterator<Item=EdgeRef> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -146,7 +149,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
     }
 
     fn hop<
-        I: Iterator<Item = VID> + Send + 'graph,
+        I: Iterator<Item=VID> + Send + 'graph,
         F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
@@ -163,7 +166,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-    for Nodes<'graph, G, GH>
+for Nodes<'graph, G, GH>
 {
     type BaseGraph = G;
     type FilteredGraph = GH;
@@ -190,8 +193,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeTypesFilter<'graph>
+for Nodes<'graph, G, GH>
+{}
+
 impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph> IntoIterator
-    for Nodes<'graph, G, GH>
+for Nodes<'graph, G, GH>
 {
     type Item = NodeView<G, GH>;
     type IntoIter = BoxedLIter<'graph, Self::Item>;
