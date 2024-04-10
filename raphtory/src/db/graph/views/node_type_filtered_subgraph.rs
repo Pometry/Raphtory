@@ -1,16 +1,15 @@
-use std::sync::Arc;
 use crate::{
     core::entities::{nodes::node_store::NodeStore, LayerIds},
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Base, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
+            Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use crate::db::api::view::internal::InheritEdgeFilterOps;
+use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct TypeFilteredSubgraph<G> {

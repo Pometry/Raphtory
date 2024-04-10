@@ -53,7 +53,7 @@ pub struct PyNode {
 impl_nodeviewops!(PyNode, node, NodeView<DynamicGraph>, "Node");
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-From<NodeView<G, GH>> for PyNode
+    From<NodeView<G, GH>> for PyNode
 {
     fn from(value: NodeView<G, GH>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
@@ -290,7 +290,7 @@ impl From<NodeView<MaterializedGraph, MaterializedGraph>> for PyMutableNode {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Immutable>
-IntoPy<PyObject> for NodeView<G, GH>
+    IntoPy<PyObject> for NodeView<G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyNode::from(self).into_py(py)
@@ -423,7 +423,7 @@ impl_iterable_mixin!(
 );
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-From<Nodes<'static, G, GH>> for PyNodes
+    From<Nodes<'static, G, GH>> for PyNodes
 {
     fn from(value: Nodes<'static, G, GH>) -> Self {
         let graph = value.graph.into_dynamic();
@@ -435,7 +435,7 @@ From<Nodes<'static, G, GH>> for PyNodes
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-for Nodes<'static, G, GH>
+    for Nodes<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyNodes::from(self).into_py(py)
@@ -647,7 +647,7 @@ impl PyNodes {
             let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names.clone())?;
             let pandas = PyModule::import(py, "pandas")?;
-            let df_data = pandas.call_method("DataFrame", (node_tuples, ), Some(kwargs))?;
+            let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
             Ok(df_data.to_object(py))
         })
     }
@@ -766,7 +766,7 @@ impl PyPathFromGraph {
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
-for PathFromGraph<'graph, G, GH>
+    for PathFromGraph<'graph, G, GH>
 {
     fn repr(&self) -> String {
         format!("PathFromGraph({})", iterator_repr(self.iter()))
@@ -774,7 +774,7 @@ for PathFromGraph<'graph, G, GH>
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-From<PathFromGraph<'static, G, GH>> for PyPathFromGraph
+    From<PathFromGraph<'static, G, GH>> for PyPathFromGraph
 {
     fn from(value: PathFromGraph<'static, G, GH>) -> Self {
         Self {
@@ -789,7 +789,7 @@ From<PathFromGraph<'static, G, GH>> for PyPathFromGraph
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-for PathFromGraph<'static, G, GH>
+    for PathFromGraph<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyPathFromGraph::from(self).into_py(py)
@@ -823,7 +823,7 @@ impl_iterable_mixin!(
 );
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-From<PathFromNode<'static, G, GH>> for PyPathFromNode
+    From<PathFromNode<'static, G, GH>> for PyPathFromNode
 {
     fn from(value: PathFromNode<'static, G, GH>) -> Self {
         Self {
@@ -837,7 +837,7 @@ From<PathFromNode<'static, G, GH>> for PyPathFromNode
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject>
-for PathFromNode<'static, G, GH>
+    for PathFromNode<'static, G, GH>
 {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyPathFromNode::from(self).into_py(py)
@@ -899,7 +899,7 @@ impl PyPathFromNode {
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
-for PathFromNode<'graph, G, GH>
+    for PathFromNode<'graph, G, GH>
 {
     fn repr(&self) -> String {
         format!("PathFromNode({})", iterator_repr(self.iter()))

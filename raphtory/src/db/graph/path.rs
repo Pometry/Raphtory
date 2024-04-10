@@ -4,7 +4,7 @@ use crate::{
         api::{
             properties::Properties,
             storage::locked::LockedGraph,
-            view::{internal::{OneHopFilter}, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
             edges::{Edges, NestedEdges},
@@ -376,12 +376,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeTypesFilter<'graph>
-for PathFromGraph<'graph, G, GH>
-{}
+    for PathFromGraph<'graph, G, GH>
+{
+}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeTypesFilter<'graph>
-for PathFromNode<'graph, G, GH>
-{}
+    for PathFromNode<'graph, G, GH>
+{
+}
 
 #[cfg(test)]
 mod test {

@@ -16,7 +16,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph
+                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph,
             },
         },
     },

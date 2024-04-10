@@ -108,7 +108,10 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
-                view::{EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps, NodeTypesFilter},
+                view::{
+                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeTypesFilter, NodeViewOps,
+                    TimeOps,
+                },
             },
             graph::graph::Graph,
         },

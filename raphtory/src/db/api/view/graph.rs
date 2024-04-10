@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use crate::{
     core::{
         entities::{
@@ -16,18 +15,22 @@ use crate::{
             view::{internal::*, *},
         },
         graph::{
-            edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes,
-            views::node_subgraph::NodeSubgraph,
+            edge::EdgeView,
+            edges::Edges,
+            node::NodeView,
+            nodes::Nodes,
+            views::{
+                node_subgraph::NodeSubgraph, node_type_filtered_subgraph::TypeFilteredSubgraph,
+            },
         },
     },
     prelude::{DeletionOps, NO_PROPS},
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::sync::Arc;
-use itertools::Itertools;
-use crate::db::graph::views::node_type_filtered_subgraph::TypeFilteredSubgraph;
+use std::{borrow::Borrow, sync::Arc};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -49,13 +52,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 
-    fn subgraph<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I)
-                                                           -> NodeSubgraph<Self>;
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I)
+        -> NodeSubgraph<Self>;
 
-    fn subgraph_node_types<I: IntoIterator<Item=V>, V: Borrow<str>>(&self, nodes_types: I)
-                                                                    -> TypeFilteredSubgraph<Self>;
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+        &self,
+        nodes_types: I,
+    ) -> TypeFilteredSubgraph<Self>;
 
-    fn exclude_nodes<I: IntoIterator<Item=V>, V: Into<NodeRef>>(
+    fn exclude_nodes<I: IntoIterator<Item = V>, V: Into<NodeRef>>(
         &self,
         nodes: I,
     ) -> NodeSubgraph<Self>;
@@ -192,7 +197,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         Ok(self.new_base_graph(g))
     }
 
-    fn subgraph<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
         let _layer_ids = self.layer_ids();
         let nodes: FxHashSet<VID> = nodes
             .into_iter()
@@ -201,16 +206,19 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         NodeSubgraph::new(self.clone(), nodes)
     }
 
-    fn subgraph_node_types<I: IntoIterator<Item=V>, V: Borrow<str>>(&self, nodes_types: I)
-                                                                    -> TypeFilteredSubgraph<Self> {
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
+        &self,
+        nodes_types: I,
+    ) -> TypeFilteredSubgraph<Self> {
         let meta = self.node_meta().node_type_meta();
-        let r = nodes_types.into_iter().flat_map(|nt| {
-            meta.get_id(nt.borrow())
-        }).collect_vec();
+        let r = nodes_types
+            .into_iter()
+            .flat_map(|nt| meta.get_id(nt.borrow()))
+            .collect_vec();
         TypeFilteredSubgraph::new(self.clone(), r)
     }
 
-    fn exclude_nodes<I: IntoIterator<Item=V>, V: Into<NodeRef>>(
+    fn exclude_nodes<I: IntoIterator<Item = V>, V: Into<NodeRef>>(
         &self,
         nodes: I,
     ) -> NodeSubgraph<G> {
