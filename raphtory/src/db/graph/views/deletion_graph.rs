@@ -179,6 +179,10 @@ impl PersistentGraph {
         let g = MaterializedGraph::load_from_file(path, force)?;
         g.into_persistent().ok_or(GraphError::GraphLoadError)
     }
+
+    pub fn event_graph(&self) -> Graph {
+        Graph::from_internal_graph(self.0.clone())
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
@@ -726,12 +730,16 @@ mod test_deletions {
     fn test_edge_deletions() {
         let g = PersistentGraph::new();
 
-        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None).unwrap();
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
+            .unwrap();
         g.delete_edge(10, 0, 1, None).unwrap();
 
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
 
-        assert_eq!(g.window(1, 2).edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+        assert_eq!(
+            g.window(1, 2).edges().id().collect::<Vec<_>>(),
+            vec![(0, 1)]
+        );
 
         assert_eq!(g.window(1, 2).count_edges(), 1);
 
@@ -1204,5 +1212,17 @@ mod test_deletions {
 
         println!("at nodes = {:?}", nodes);
         // assert_eq!(g.window(1, 2).node(0).unwrap().out_degree(), 1)
+    }
+
+    #[test]
+    fn test_event_graph() {
+        let pg = PersistentGraph::new();
+        pg.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
+            .unwrap();
+        pg.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(pg.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+
+        let g = pg.event_graph();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
     }
 }

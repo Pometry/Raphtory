@@ -159,8 +159,8 @@ impl Graph {
         Self(Arc::new(InternalGraph::default()))
     }
 
-    pub(crate) fn new_from_inner(inner: Arc<InternalGraph>) -> Self {
-        Self(inner)
+    pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
+        Self(internal_graph)
     }
 
     /// Load a graph from a directory
@@ -2023,7 +2023,8 @@ mod db_tests {
     #[test]
     fn test_persistent_graph() {
         let g = Graph::new();
-        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None).unwrap();
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
+            .unwrap();
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
 
         let pg = g.persistant_graph();
