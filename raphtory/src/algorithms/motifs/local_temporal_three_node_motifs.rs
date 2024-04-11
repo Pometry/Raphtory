@@ -21,11 +21,10 @@ use crate::{
     },
 };
 
-use crate::core::entities::nodes::node_ref::NodeRef;
 use itertools::{enumerate, Itertools};
 use num_traits::Zero;
 use rustc_hash::FxHashSet;
-use std::{cmp::Ordering, collections::HashMap, ops::Add, slice::Iter};
+use std::{cmp::Ordering, collections::HashMap, mem, ops::Add, slice::Iter};
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -45,9 +44,9 @@ impl MotifCounter {
     ) -> Self {
         let _ = size;
         Self {
-            two_nodes: two_nodes,
-            star_nodes: star_nodes,
-            triangle: triangle,
+            two_nodes,
+            star_nodes,
+            triangle,
         }
     }
 }
@@ -210,8 +209,8 @@ where
 
     let step2 = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, MotifCounter>| {
         let uu = u.get_mut();
-        if uu.triangle.len() == 0 {
-            uu.triangle = vec![[0 as usize; 8]; delta_len];
+        if uu.triangle.is_empty() {
+            uu.triangle = vec![[0usize; 8]; delta_len];
         }
         for v in u.neighbours() {
             // Find triangles on the UV edge
@@ -236,7 +235,7 @@ where
                     .sorted()
                     .permutations(2)
                     .flat_map(|e| {
-                        g.edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
+                        g.edge(*e.first().unwrap(), *e.get(1).unwrap())
                             .iter()
                             .flat_map(|edge| edge.explode())
                             .collect::<Vec<_>>()
@@ -245,7 +244,7 @@ where
                     .map(|e| {
                         let (src_id, dst_id) = (e.src().id(), e.dst().id());
                         let (uid, _vid) = (u.id(), v.id());
-                        if src_id == w.clone() {
+                        if src_id == *w {
                             new_triangle_edge(
                                 false,
                                 if dst_id == uid { 0 } else { 1 },
@@ -253,7 +252,7 @@ where
                                 0,
                                 e.time().unwrap(),
                             )
-                        } else if dst_id == w.clone() {
+                        } else if dst_id == *w {
                             new_triangle_edge(
                                 false,
                                 if src_id == uid { 0 } else { 1 },
@@ -299,18 +298,15 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _els, local| {
+        |_, _, _els, mut local| {
             let mut tri_motifs = HashMap::new();
-            let layers = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            for (vref, mc) in enumerate(local) {
-                if graph.has_node_ref(NodeRef::Internal(vref.into()), &layers, edge_filter) {
-                    let v_gid = graph.node_name(vref.into());
-                    if mc.triangle.is_empty() {
-                        tri_motifs.insert(v_gid.clone(), vec![[0; 8]; delta_len]);
-                    } else {
-                        tri_motifs.insert(v_gid.clone(), mc.triangle);
-                    }
+            for node in graph.nodes() {
+                let v_gid = node.name();
+                let triangle = mem::take(&mut local[node.node.0].triangle);
+                if triangle.is_empty() {
+                    tri_motifs.insert(v_gid.clone(), vec![[0; 8]; delta_len]);
+                } else {
+                    tri_motifs.insert(v_gid.clone(), triangle);
                 }
             }
             tri_motifs
@@ -357,7 +353,7 @@ where
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
 
-    let out2 = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![],
         None,
@@ -367,8 +363,8 @@ where
                 let v_gid = g.node_name(vref.into());
                 let triangles = out1
                     .get(&v_gid)
-                    .map(|v| v.clone())
-                    .unwrap_or_else(|| vec![[0 as usize; 8]; delta_len]);
+                    .cloned()
+                    .unwrap_or_else(|| vec![[0usize; 8]; delta_len]);
                 let run_counts = (0..delta_len)
                     .map(|i| {
                         let two_nodes = mc.two_nodes[i].to_vec();
@@ -393,8 +389,7 @@ where
         1,
         None,
         None,
-    );
-    out2
+    )
 }
 
 #[cfg(test)]

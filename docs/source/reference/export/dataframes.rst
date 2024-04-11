@@ -1,6 +1,6 @@
 Dataframes
 ***********
 
-.. autofunction:: raphtory.export.to_edge_df
+.. autofunction:: raphtory.graph.nodes.to_df
 
-.. autofunction:: raphtory.export.to_node_df
+.. autofunction:: raphtory.graph.edges.to_df

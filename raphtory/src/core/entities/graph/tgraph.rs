@@ -7,7 +7,7 @@ use crate::{
                 edge_store::{EdgeLayer, EdgeStore},
             },
             graph::{
-                tgraph_storage::{GraphStorage, LockedIter},
+                tgraph_storage::{GraphStorage, LockedGraphStorage, LockedIter},
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
             nodes::{
@@ -17,7 +17,7 @@ use crate::{
                 node_store::NodeStore,
             },
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::{ArcReadLockedVec, Meta},
                 tprop::TProp,
             },
@@ -35,7 +35,10 @@ use crate::{
         },
         ArcStr, Direction, Prop, PropUnwrap,
     },
-    db::api::view::{internal::EdgeFilter, BoxedIter, Layer},
+    db::api::{
+        storage::locked::LockedGraph,
+        view::{internal::EdgeFilter, BoxedIter, Layer},
+    },
     prelude::DeletionOps,
 };
 use dashmap::{DashMap, DashSet};
@@ -68,6 +71,12 @@ impl<const N: usize> InnerTemporalGraph<N> {
     pub(crate) fn inner(&self) -> &TemporalGraph<N> {
         &self.0
     }
+
+    pub(crate) fn lock(&self) -> LockedGraph {
+        let nodes = Arc::new(self.inner().storage.nodes.read_lock());
+        let edges = Arc::new(self.inner().storage.edges.read_lock());
+        LockedGraph { nodes, edges }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -93,7 +102,7 @@ pub struct TemporalGraph<const N: usize> {
     pub(crate) edge_meta: Arc<Meta>,
 
     // graph properties
-    pub(crate) graph_props: GraphProps,
+    pub(crate) graph_meta: GraphMeta,
 }
 
 impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
@@ -118,7 +127,7 @@ impl<const N: usize> Default for InnerTemporalGraph<N> {
             latest_time: MaxCounter::new(),
             node_meta: Arc::new(Meta::new()),
             edge_meta: Arc::new(Meta::new()),
-            graph_props: GraphProps::new(),
+            graph_meta: GraphMeta::new(),
         };
 
         Self(Arc::new(tg))
@@ -130,7 +139,8 @@ impl<const N: usize> TemporalGraph<N> {
         self.edge_meta.layer_meta().len()
     }
 
-    pub(crate) fn layer_names(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    pub(crate) fn layer_names(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
+        let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(self.edge_meta.layer_meta().get_keys().into_iter()),
@@ -251,21 +261,6 @@ impl<const N: usize> TemporalGraph<N> {
         Some(self.latest_time.get()).filter(|t| *t != i64::MIN)
     }
 
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<bincode::ErrorKind>> {
-        let f = std::fs::File::open(path)?;
-        let mut reader = std::io::BufReader::new(f);
-        bincode::deserialize_from(&mut reader)
-    }
-
-    pub(crate) fn save_to_file<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<(), Box<bincode::ErrorKind>> {
-        let f = std::fs::File::create(path)?;
-        let mut writer = std::io::BufWriter::new(f);
-        bincode::serialize_into(&mut writer, self)
-    }
-
     #[inline]
     pub(crate) fn global_node_id(&self, v: VID) -> u64 {
         let node = self.storage.get_node(v);
@@ -289,8 +284,8 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore, N> {
-        self.storage.get_node(v.into())
+    pub(crate) fn node_entry(&self, v: VID) -> Entry<'_, NodeStore> {
+        self.storage.get_node(v)
     }
 
     pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
@@ -298,8 +293,8 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     #[inline]
-    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore, N> {
-        self.storage.get_edge(e.into())
+    pub(crate) fn edge_entry(&self, e: EID) -> Entry<'_, EdgeStore> {
+        self.storage.get_edge(e)
     }
 }
 
@@ -339,7 +334,7 @@ impl<const N: usize> TemporalGraph<N> {
                 let edges_locked = self.storage.edges.read_lock();
                 node_store
                     .edge_tuples(layers, dir)
-                    .filter(|e| filter(edges_locked.get(e.pid().into()), layers))
+                    .filter(|e| filter(edges_locked.get(e.pid()), layers))
                     .dedup_by(|e1, e2| e1.remote() == e2.remote())
                     .count()
             }
@@ -348,7 +343,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     #[inline]
     fn update_time(&self, time: TimeIndexEntry) {
-        let t = *time.t();
+        let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
     }
@@ -367,8 +362,9 @@ impl<const N: usize> TemporalGraph<N> {
         v_id: VID,
         node_type: Option<&str>,
     ) -> Result<usize, GraphError> {
+        let mut node = self.storage.get_node_mut(v_id);
         match node_type {
-            None => Ok(self.node_meta.get_default_node_type_id()),
+            None => Ok(node.node_type),
             Some(node_type) => {
                 if node_type == "_default" {
                     return Err(GraphError::NodeTypeError(
@@ -377,7 +373,6 @@ impl<const N: usize> TemporalGraph<N> {
                             .unwrap(),
                     ));
                 }
-                let mut node = self.storage.get_node_mut(v_id);
                 match node.node_type {
                     0 => {
                         let node_type_id = self.node_meta.get_or_create_node_type_id(node_type);
@@ -435,7 +430,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
         layer: usize,
     ) -> Result<(), IllegalMutate> {
-        let mut edge = self.storage.get_edge_mut(edge_id.into());
+        let mut edge = self.storage.get_edge_mut(edge_id);
 
         let mut layer = edge.layer_mut(layer);
         for (prop_id, prop) in props {
@@ -451,7 +446,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         for (id, prop) in props {
-            self.graph_props.add_constant_prop(id, prop)?;
+            self.graph_meta.add_constant_prop(id, prop)?;
         }
         Ok(())
     }
@@ -461,7 +456,7 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         for (id, prop) in props {
-            self.graph_props.update_constant_prop(id, prop)?;
+            self.graph_meta.update_constant_prop(id, prop)?;
         }
         Ok(())
     }
@@ -472,25 +467,25 @@ impl<const N: usize> TemporalGraph<N> {
         props: Vec<(usize, Prop)>,
     ) -> Result<(), GraphError> {
         for (prop_id, prop) in props {
-            self.graph_props.add_prop(t, prop_id, prop)?;
+            self.graph_meta.add_prop(t, prop_id, prop)?;
         }
         Ok(())
     }
 
     pub(crate) fn get_constant_prop(&self, id: usize) -> Option<Prop> {
-        self.graph_props.get_constant(id)
+        self.graph_meta.get_constant(id)
     }
 
     pub(crate) fn get_temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
-        self.graph_props.get_temporal_prop(id)
+        self.graph_meta.get_temporal_prop(id)
     }
 
     pub(crate) fn const_prop_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph_props.constant_names()
+        self.graph_meta.constant_names()
     }
 
     pub(crate) fn temporal_property_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.graph_props.temporal_names()
+        self.graph_meta.temporal_names()
     }
 
     pub(crate) fn delete_edge(
@@ -521,7 +516,7 @@ impl<const N: usize> TemporalGraph<N> {
         layer: usize,
         edge_fn: F,
     ) -> Result<EID, GraphError> {
-        let mut node_pair = self.storage.pair_node_mut(src_id.into(), dst_id.into());
+        let mut node_pair = self.storage.pair_node_mut(src_id, dst_id);
         self.update_time(t);
         let src = node_pair.get_mut_i();
 
@@ -575,7 +570,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 
     pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: &LayerIds) -> Option<EID> {
-        let node = self.storage.get_node(src.into());
+        let node = self.storage.get_node(src);
         node.find_edge(dst, layer_id)
     }
 
@@ -584,29 +579,29 @@ impl<const N: usize> TemporalGraph<N> {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(gid) => {
                 let v_id = self.logical_to_physical.get(&gid)?;
-                Some((*v_id).into())
+                Some((*v_id))
             }
         }
     }
 
     pub(crate) fn node(&self, v: VID) -> Node<N> {
-        let node = self.storage.get_node(v.into());
+        let node = self.storage.get_node(v);
         Node::from_entry(node, self)
     }
 
     pub(crate) fn node_arc(&self, v: VID) -> ArcNode {
-        let node = self.storage.get_node_arc(v.into());
+        let node = self.storage.get_node_arc(v);
         ArcNode::from_entry(node, self.node_meta.clone())
     }
 
     pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge {
-        let edge = self.storage.get_edge_arc(e.into());
+        let edge = self.storage.get_edge_arc(e);
         ArcEdge::from_entry(edge, self.edge_meta.clone())
     }
 
     #[inline]
     pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
-        let edge = self.storage.get_edge(e.into());
+        let edge = self.storage.get_edge(e);
         EdgeView::from_entry(edge, self)
     }
 

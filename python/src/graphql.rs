@@ -2,11 +2,11 @@ use async_graphql::{
     dynamic::{Field, FieldFuture, FieldValue, InputValue, Object, TypeRef, ValueAccessor},
     Value as GraphqlValue,
 };
-use crossbeam_channel::Sender;
+
+use crossbeam_channel::Sender as CrossbeamSender;
 use dynamic_graphql::internal::{Registry, TypeName};
 use itertools::intersperse;
 use pyo3::{
-    exceptions,
     exceptions::{PyAttributeError, PyException, PyTypeError, PyValueError},
     prelude::*,
     types::{IntoPyDict, PyDict, PyFunction, PyList},
@@ -15,9 +15,10 @@ use raphtory_core::{
     db::api::view::MaterializedGraph,
     python::{
         packages::vectors::{
-            compute_embedding, into_py_document, translate_py_window, PyDocument,
-            PyDocumentTemplate, PyQuery, PyVectorisedGraph, PyWindow,
+            compute_embedding, into_py_document, translate_py_window, PyDocumentTemplate, PyQuery,
+            PyVectorisedGraph, PyWindow,
         },
+        types::wrappers::document::PyDocument,
         utils::{errors::adapt_err_value, execute_async_task},
     },
     vectors::{
@@ -121,7 +122,7 @@ impl PyRaphtoryServer {
 
     fn with_vectorised_generic_embedding<F: EmbeddingFunction + Clone + 'static>(
         slf: PyRefMut<Self>,
-        graph_names: Vec<String>,
+        graph_names: Option<Vec<String>>,
         embedding: F,
         cache: String,
         graph_document: Option<String>,
@@ -219,6 +220,7 @@ impl PyRaphtoryServer {
 #[pymethods]
 impl PyRaphtoryServer {
     #[new]
+    #[pyo3(signature = (graphs=None, graph_dir=None))]
     fn py_new(
         graphs: Option<HashMap<String, MaterializedGraph>>,
         graph_dir: Option<&str>,
@@ -243,7 +245,7 @@ impl PyRaphtoryServer {
     ///   appropriately
     ///
     /// Arguments:
-    ///   * `graph_names`: the names of the graphs to vectorise.
+    ///   * `graph_names`: the names of the graphs to vectorise. All by default.
     ///   * `cache`: the directory to use as cache for the embeddings.
     ///   * `embedding`: the embedding function to translate documents to embeddings.
     ///   * `node_document`: the property name to use as the source for the documents on nodes.
@@ -253,8 +255,8 @@ impl PyRaphtoryServer {
     ///    A new server object containing the vectorised graphs.
     fn with_vectorised(
         slf: PyRefMut<Self>,
-        graph_names: Vec<String>,
         cache: String,
+        graph_names: Option<Vec<String>>,
         // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
         embedding: Option<&PyFunction>,
         graph_document: Option<String>,
@@ -341,8 +343,12 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736))]
-    pub fn start(slf: PyRefMut<Self>, port: u16) -> PyResult<PyRunningRaphtoryServer> {
+    #[pyo3(signature = (port = 1736, log_level="INFO".to_string()))]
+    pub fn start(
+        slf: PyRefMut<Self>,
+        port: u16,
+        log_level: String,
+    ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
 
@@ -354,7 +360,7 @@ impl PyRaphtoryServer {
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    let handler = server.start_with_port(port);
+                    let handler = server.start_with_port(port, &log_level);
                     let tokio_sender = handler._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
                         match receiver.recv().expect("Failed to wait for cancellation") {
@@ -377,9 +383,9 @@ impl PyRaphtoryServer {
     ///
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
-    #[pyo3(signature = (port = 1736))]
-    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16) -> PyResult<()> {
-        let mut server = Self::start(slf, port)?.0;
+    #[pyo3(signature = (port = 1736, log_level="INFO".to_string()))]
+    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16, log_level: String) -> PyResult<()> {
+        let mut server = Self::start(slf, port, log_level)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }
@@ -426,7 +432,9 @@ const RUNNING_SERVER_CONSUMED_MSG: &str =
 
 /// A Raphtory server handler that also enables querying the server
 #[pyclass(name = "RunningRaphtoryServer")]
-pub(crate) struct PyRunningRaphtoryServer(Option<ServerHandler>);
+pub(crate) struct PyRunningRaphtoryServer {
+    server_handler: Option<ServerHandler>,
+}
 
 enum BridgeCommand {
     StopServer,
@@ -435,29 +443,31 @@ enum BridgeCommand {
 
 struct ServerHandler {
     join_handle: JoinHandle<IoResult<()>>,
-    sender: Sender<BridgeCommand>,
+    sender: CrossbeamSender<BridgeCommand>,
     client: PyRaphtoryClient,
 }
 
 impl PyRunningRaphtoryServer {
     fn new(
         join_handle: JoinHandle<IoResult<()>>,
-        sender: Sender<BridgeCommand>,
+        sender: CrossbeamSender<BridgeCommand>,
         port: u16,
     ) -> Self {
         let url = format!("http://localhost:{port}");
-        Self(Some(ServerHandler {
+        let server_handler = Some(ServerHandler {
             join_handle,
             sender,
             client: PyRaphtoryClient::new(url),
-        }))
+        });
+
+        PyRunningRaphtoryServer { server_handler }
     }
 
     fn apply_if_alive<O, F>(&self, function: F) -> PyResult<O>
     where
         F: FnOnce(&ServerHandler) -> PyResult<O>,
     {
-        match &self.0 {
+        match &self.server_handler {
             Some(handler) => function(handler),
             None => Err(PyException::new_err(RUNNING_SERVER_CONSUMED_MSG)),
         }
@@ -479,7 +489,7 @@ impl PyRunningRaphtoryServer {
 
     /// Wait until server completion.
     pub(crate) fn wait(mut slf: PyRefMut<Self>, py: Python) -> PyResult<()> {
-        let server = &mut slf.0;
+        let server = &mut slf.server_handler;
         py.allow_threads(|| wait_server(server))
     }
 
@@ -665,9 +675,10 @@ impl PyRaphtoryClient {
         if online {
             Ok(())
         } else {
-            Err(PyException::new_err(
-                "Failed to connect to the server after {millis} milliseconds",
-            ))
+            Err(PyException::new_err(format!(
+                "Failed to connect to the server after {} milliseconds",
+                millis
+            )))
         }
     }
 
@@ -836,9 +847,6 @@ fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
     match result {
         Ok(s) => Ok(s),
-        Err(e) => Err(exceptions::PyValueError::new_err(format!(
-            "Error encoding: {:?}",
-            e
-        ))),
+        Err(e) => Err(PyValueError::new_err(format!("Error encoding: {:?}", e))),
     }
 }

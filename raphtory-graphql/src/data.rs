@@ -61,7 +61,7 @@ impl Data {
             })
             .collect()
     }
-
+    #[allow(dead_code)]
     // TODO: use this for loading both regular and vectorised graphs
     #[allow(dead_code)]
     pub fn generic_load_from_file<T, F>(path: &str, loader: F) -> impl Iterator<Item = T>
@@ -98,7 +98,8 @@ impl Data {
             let path = entry.path();
             let path_string = path.display().to_string();
             println!("loading graph from {path_string}");
-            let graph = MaterializedGraph::load_from_file(path).expect("Unable to load from graph");
+            let graph =
+                MaterializedGraph::load_from_file(path, false).expect("Unable to load from graph");
             let graph_name = graph
                 .properties()
                 .get("name")

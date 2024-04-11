@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, Prop, PropUnwrap},
+    core::{ArcStr, DocumentInput, Prop, PropUnwrap},
     db::api::properties::internal::PropertiesOps,
     prelude::Graph,
 };
@@ -77,7 +77,7 @@ impl<P: PropertiesOps + Clone> IntoIterator for TemporalProperties<P> {
     type IntoIter = Zip<std::vec::IntoIter<ArcStr>, std::vec::IntoIter<TemporalPropertyView<P>>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let keys: Vec<_> = self.keys().map(|k| k.clone()).collect();
+        let keys: Vec<_> = self.keys().collect();
         let values: Vec<_> = self.values().collect();
         keys.into_iter().zip(values)
     }
@@ -177,11 +177,15 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_map()
     }
 
-    fn into_dtime(self) -> Option<NaiveDateTime> {
-        self.latest().into_dtime()
+    fn into_ndtime(self) -> Option<NaiveDateTime> {
+        self.latest().into_ndtime()
     }
 
     fn into_graph(self) -> Option<Graph> {
         self.latest().into_graph()
+    }
+
+    fn into_document(self) -> Option<DocumentInput> {
+        self.latest().into_document()
     }
 }

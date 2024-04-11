@@ -181,7 +181,7 @@ where
                         .sorted()
                         .permutations(2)
                         .flat_map(|e| {
-                            g.edge(e.get(0).unwrap().clone(), e.get(1).unwrap().clone())
+                            g.edge(*e.first().unwrap(), *e.get(1).unwrap())
                                 .iter()
                                 .flat_map(|edge| edge.explode())
                                 .collect::<Vec<_>>()
@@ -190,7 +190,7 @@ where
                         .map(|e| {
                             let (src_id, dst_id) = (e.src().id(), e.dst().id());
                             let uid = u.id();
-                            if src_id == w.clone() {
+                            if src_id == *w {
                                 new_triangle_edge(
                                     false,
                                     if dst_id == uid { 0 } else { 1 },
@@ -198,7 +198,7 @@ where
                                     0,
                                     e.time().unwrap(),
                                 )
-                            } else if dst_id == w.clone() {
+                            } else if dst_id == *w {
                                 new_triangle_edge(
                                     false,
                                     if src_id == uid { 0 } else { 1 },
@@ -233,7 +233,7 @@ where
         vec![Job::new(step2)],
         None,
         |egs, _, _, _| {
-            tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(&mc)).collect_vec()
+            tri_mc.iter().map(|mc| egs.finalize::<[usize; 8], [usize;8], [usize; 8], ArrConst<usize,SumDef<usize>,8>>(mc)).collect_vec()
         },
         threads,
         2,
@@ -255,7 +255,7 @@ where
     let mut ctx: Context<G, ComputeStateVec> = g.into();
     let star_mc = deltas
         .iter()
-        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1 as i64) as u32))
+        .map(|d| accumulators::arr::<usize, SumDef<usize>, 32>((2 * d + 1i64) as u32))
         .collect_vec();
 
     let star_clone = star_mc.clone();
@@ -283,8 +283,7 @@ where
         |egs, _ , _ , _ | {
             out1.iter().enumerate().map(|(i,tri)| {
                 let mut tmp = egs.finalize::<[usize; 32], [usize;32], [usize; 32], ArrConst<usize,SumDef<usize>,32>>(&star_clone[i])
-                .iter()
-                .map(|x| *x)
+                .iter().copied()
                 .collect_vec();
                 tmp.extend(tri.iter());
                 let motifs : [usize;40] = tmp
@@ -306,7 +305,7 @@ pub fn global_temporal_three_node_motif<G: StaticGraphViewOps>(
     threads: Option<usize>,
 ) -> [usize; 40] {
     let counts = temporal_three_node_motif_multi(graph, vec![delta], threads);
-    counts[0].clone()
+    counts[0]
 }
 
 #[cfg(test)]

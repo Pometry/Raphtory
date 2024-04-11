@@ -29,3 +29,10 @@ install-python:
 
 run-graphql:
 	cargo run --release -p raphtory-graphql
+
+rust-test-all:
+	cargo test --all --no-default-features
+	cargo check -p raphtory --no-default-features --features "io"
+	cargo check -p raphtory --no-default-features --features "python"
+	cargo check -p raphtory --no-default-features --features "search"
+	cargo check -p raphtory --no-default-features --features "vectors"

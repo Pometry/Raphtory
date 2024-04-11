@@ -111,7 +111,9 @@ pub fn weakly_connected_components(
 ///     Vec<Vec<u64>> : List of strongly connected nodes identified by ids
 #[pyfunction]
 #[pyo3(signature = (g))]
-pub fn strongly_connected_components(g: &PyGraphView) -> Vec<Vec<u64>> {
+pub fn strongly_connected_components(
+    g: &PyGraphView,
+) -> AlgorithmResult<DynamicGraph, usize, usize> {
     components::strongly_connected_components(&g.graph, None)
 }
 
@@ -156,13 +158,22 @@ pub fn out_components(g: &PyGraphView) -> AlgorithmResult<DynamicGraph, Vec<u64>
 /// Returns:
 ///     AlgorithmResult : AlgorithmResult with string keys and float values mapping node names to their pagerank value.
 #[pyfunction]
-#[pyo3(signature = (g, iter_count=20, max_diff=None))]
+#[pyo3(signature = (g, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
 pub fn pagerank(
     g: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
+    use_l2_norm: bool,
+    damping_factor: Option<f64>,
 ) -> AlgorithmResult<DynamicGraph, f64, OrderedFloat<f64>> {
-    unweighted_page_rank(&g.graph, iter_count, None, max_diff, true)
+    unweighted_page_rank(
+        &g.graph,
+        Some(iter_count),
+        None,
+        max_diff,
+        use_l2_norm,
+        damping_factor,
+    )
 }
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
@@ -570,20 +581,28 @@ pub fn single_source_shortest_path(
 ///     g (Raphtory Graph): The graph to search in.
 ///     source (InputNode): The source node.
 ///     targets (List(InputNodes)): A list of target nodes.
+///     direction (PyDirection, Optional): The direction of the edges to be considered for the shortest path. Defaults to "BOTH". Options are "OUT", "IN", and "BOTH".
 ///     weight (String, Optional): The name of the weight property for the edges ("weight" is default).
 ///
 /// Returns:
 ///     Returns a `Dict` where the key is the target node and the value is a tuple containing the total cost and a vector of nodes representing the shortest path.
 ///
 #[pyfunction]
-#[pyo3[signature = (g, source, targets, weight="weight".to_string())]]
+#[pyo3[signature = (g, source, targets, direction=PyDirection::new("BOTH"), weight="weight".to_string())]]
 pub fn dijkstra_single_source_shortest_paths(
     g: &PyGraphView,
     source: PyInputNode,
     targets: Vec<PyInputNode>,
+    direction: PyDirection,
     weight: Option<String>,
 ) -> PyResult<HashMap<String, (Prop, Vec<String>)>> {
-    match dijkstra_single_source_shortest_paths_rs(&g.graph, source, targets, weight) {
+    match dijkstra_single_source_shortest_paths_rs(
+        &g.graph,
+        source,
+        targets,
+        weight,
+        direction.into(),
+    ) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }

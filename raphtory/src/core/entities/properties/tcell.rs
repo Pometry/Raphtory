@@ -75,7 +75,7 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (&i64, &A)> + '_> {
+    pub fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, &A)> + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => Box::new(std::iter::once((t.t(), value))),
@@ -102,11 +102,11 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (&i64, &A)> + '_> {
+    pub fn iter_window_t(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, &A)> + '_> {
         match self {
             TCell::Empty => Box::new(std::iter::empty()),
             TCell::TCell1(t, value) => {
-                if r.contains(t.t()) {
+                if r.contains(&t.t()) {
                     Box::new(std::iter::once((t.t(), value)))
                 } else {
                     Box::new(std::iter::empty())
@@ -123,10 +123,10 @@ impl<A: Clone + Debug + PartialEq> TCell<A> {
         }
     }
 
-    pub fn last_before(&self, t: i64) -> Option<(&i64, &A)> {
+    pub fn last_before(&self, t: i64) -> Option<(i64, &A)> {
         match self {
             TCell::Empty => None,
-            TCell::TCell1(t2, v) => (t2.t() < &t).then_some((t2.t(), v)),
+            TCell::TCell1(t2, v) => (t2.t() < t).then_some((t2.t(), v)),
             TCell::TCellCap(map) => map
                 .range(TimeIndexEntry::range(i64::MIN..t))
                 .last()
@@ -162,7 +162,7 @@ mod tcell_tests {
 
         assert_eq!(
             tcell.iter_t().collect::<Vec<_>>(),
-            vec![(&1, &"Pometry"), (&2, &"Pometry Inc."),]
+            vec![(1, &"Pometry"), (2, &"Pometry Inc."),]
         );
     }
 
@@ -171,7 +171,7 @@ mod tcell_tests {
         let mut tcell = TCell::new(TimeIndexEntry::start(1), "Pometry");
         tcell.set(TimeIndexEntry::start(1), "Pometry Inc.");
 
-        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(&1, &"Pometry")]);
+        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(1, &"Pometry")]);
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod tcell_tests {
 
         assert_eq!(tcell.iter().collect::<Vec<_>>(), vec![&"Pometry"]);
 
-        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(&3, &"Pometry")]);
+        assert_eq!(tcell.iter_t().collect::<Vec<_>>(), vec![(3, &"Pometry")]);
 
         let mut tcell = TCell::new(TimeIndexEntry::start(2), "Pometry");
         tcell.set(TimeIndexEntry::start(1), "Inc. Pometry");
@@ -196,7 +196,7 @@ mod tcell_tests {
         assert_eq!(
             // Results are ordered by time
             tcell.iter_t().collect::<Vec<_>>(),
-            vec![(&1, &"Inc. Pometry"), (&2, &"Pometry"),]
+            vec![(1, &"Inc. Pometry"), (2, &"Pometry"),]
         );
 
         assert_eq!(
@@ -241,7 +241,7 @@ mod tcell_tests {
 
         assert_eq!(
             tcell.iter_window_t(3..4).collect::<Vec<_>>(),
-            vec![(&3, &"Pometry")]
+            vec![(3, &"Pometry")]
         );
 
         let mut tcell = TCell::new(TimeIndexEntry::start(3), "Pometry");
@@ -254,7 +254,7 @@ mod tcell_tests {
 
         assert_eq!(
             tcell.iter_window_t(2..3).collect::<Vec<_>>(),
-            vec![(&2, &"Raphtory")]
+            vec![(2, &"Raphtory")]
         );
 
         let expected = vec![];

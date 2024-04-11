@@ -101,7 +101,6 @@ impl<CS: ComputeState + Send + Sync> ShuffleComputeState<CS> {
             total_len % morcel_size
         };
         let mut parts: Vec<MorcelComputeState<CS>> = (0..n_parts - 1)
-            .into_iter()
             .map(|_| MorcelComputeState::new(morcel_size))
             .collect();
 

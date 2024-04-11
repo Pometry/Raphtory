@@ -18,14 +18,14 @@ use std::{
 };
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct GraphProps {
+pub struct GraphMeta {
     constant_mapper: DictMapper,
     temporal_mapper: DictMapper,
     constant: FxDashMap<usize, Option<Prop>>,
     temporal: FxDashMap<usize, TProp>,
 }
 
-impl GraphProps {
+impl GraphMeta {
     pub(crate) fn new() -> Self {
         Self {
             constant_mapper: DictMapper::default(),
@@ -93,7 +93,7 @@ impl GraphProps {
         prop_id: usize,
         prop: Prop,
     ) -> Result<(), GraphError> {
-        let mut prop_entry = self.temporal.entry(prop_id).or_insert(TProp::default());
+        let mut prop_entry = self.temporal.entry(prop_id).or_default();
         (*prop_entry).set(t, prop)
     }
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=0.13,<0.14"]
+requires = ["maturin>=1.4.0"]
 build-backend = "maturin"
 
 [project]
@@ -16,7 +16,8 @@ dependencies = [
     "pandas >= 2.0.3",
     "pyarrow >= 12.0.1",
     "requests >= 2.31.0",
-    "gql[all] == 3.4.1"
+    "gql[all] == 3.5.0",
+    "matplotlib >= 3.4.3",
 ]
 
 
@@ -29,8 +30,8 @@ slack = "https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJ
 youtube = "https://www.youtube.com/@pometry8546/videos"
 
 [project.optional-dependencies]
-export = ["pyvis >= 0.3.2", "networkx >= 2.6.3", "matplotlib >= 3.4.3", "seaborn >= 0.11.2"]
+export = ["seaborn >= 0.11.2"]
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["pyo3/extension-module", "pyo3/auto-initialize"]
 python-source = "python"

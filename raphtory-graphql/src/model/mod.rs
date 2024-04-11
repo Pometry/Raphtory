@@ -16,7 +16,7 @@ use itertools::Itertools;
 use raphtory::{
     core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::MaterializedGraph,
-    prelude::{GraphViewOps, NodeViewOps, PropertyAdditionOps},
+    prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use serde_json::Value;
@@ -24,7 +24,7 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::{Display, Formatter},
-    io::BufReader,
+    io::Read,
     path::Path,
 };
 use uuid::Uuid;
@@ -210,6 +210,7 @@ impl Mut {
     ) -> Result<bool> {
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
 
+        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
         let subgraph = data.get(&graph_name).ok_or("Graph not found")?;
 
         let path = match data.get(&new_graph_name) {
@@ -235,16 +236,36 @@ impl Mut {
         };
         println!("Saving graph to path {path}");
 
-        let parent_graph = data.get(&parent_graph_name).ok_or("Graph not found")?;
-
         let deserialized_node_map: Value = serde_json::from_str(graph_nodes.as_str())?;
         let node_map = deserialized_node_map
             .as_object()
             .ok_or("graph_nodes not object")?;
-        let node_ids = node_map.keys().map(|key| key.as_str());
-        let new_subgraph = parent_graph.subgraph(node_ids).materialize()?;
+        let node_ids = node_map.keys().map(|key| key.as_str()).collect_vec();
 
-        new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
+        let _new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
+        _new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
+
+        let new_subgraph = &_new_subgraph.clone().into_persistent().unwrap();
+        let new_subgraph_data = subgraph.subgraph(node_ids).materialize()?;
+
+        // Copy nodes over
+        let new_subgraph_nodes: Vec<_> = new_subgraph_data
+            .clone()
+            .into_persistent()
+            .unwrap()
+            .nodes()
+            .collect();
+        let nodeviews = new_subgraph_nodes.iter().map(|node| node).collect();
+        new_subgraph.import_nodes(nodeviews, true)?;
+
+        // Copy edges over
+        let new_subgraph_edges: Vec<_> = new_subgraph_data
+            .into_persistent()
+            .unwrap()
+            .edges()
+            .collect();
+        let edgeviews = new_subgraph_edges.iter().map(|edge| edge).collect();
+        new_subgraph.import_edges(edgeviews, true)?;
 
         // parent_graph_name == graph_name, means its a graph created from UI
         if parent_graph_name.ne(&graph_name) {
@@ -280,32 +301,10 @@ impl Mut {
         new_subgraph.update_constant_properties([("path", Prop::Str(path.clone().into()))])?;
         new_subgraph.update_constant_properties([("isArchive", Prop::U8(is_archive))])?;
 
-        // Temporary hack to allow adding of arbitrary maps of data to nodes
-        for node in new_subgraph.nodes() {
-            if !node_map.contains_key(&node.name().to_string()) {
-                println!("Could not find key! {} {:?}", node.name(), node_map);
-                panic!()
-            }
-            let node_props = node_map
-                .get(node.name().to_string().as_str())
-                .ok_or(format!(
-                    "Could not find node {} in provided map",
-                    node.name()
-                ))?;
-            let node_props_as_obj = node_props
-                .as_object()
-                .ok_or("node_props must be an object")?
-                .to_owned();
-            let values = node_props_as_obj
-                .into_iter()
-                .map(|(key, value)| Ok((key, value.try_into()?)))
-                .collect::<Result<Vec<(String, Prop)>>>()?;
-            node.update_constant_properties(values)?;
-        }
-
         new_subgraph.save_to_file(path)?;
 
-        let gi: IndexedGraph<MaterializedGraph> = new_subgraph.into();
+        let m_g = new_subgraph.materialize()?;
+        let gi: IndexedGraph<MaterializedGraph> = m_g.into();
 
         data.insert(new_graph_name, gi);
 
@@ -332,8 +331,10 @@ impl Mut {
     /// Returns::
     ///    name of the new graph
     async fn upload_graph<'a>(ctx: &Context<'a>, name: String, graph: Upload) -> Result<String> {
-        let g: MaterializedGraph =
-            bincode::deserialize_from(BufReader::new(graph.value(ctx)?.content))?;
+        let mut buffer = Vec::new();
+        let mut buff_read = graph.value(ctx)?.content;
+        buff_read.read_to_end(&mut buffer)?;
+        let g: MaterializedGraph = MaterializedGraph::from_bincode(&buffer)?;
         let gi: IndexedGraph<MaterializedGraph> = g.into();
         let mut data = ctx.data_unchecked::<Data>().graphs.write();
         data.insert(name.clone(), gi);

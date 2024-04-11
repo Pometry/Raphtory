@@ -11,7 +11,6 @@ def test_graphql():
     g1.add_edge(3, "ben", "haaroon")
 
     g2 = Graph()
-    g2 = Graph()
     g2.add_edge(1, "Naomi", "Shivam")
     g2.add_edge(2, "Shivam", "Pedro")
     g2.add_edge(3, "Pedro", "Rachel")
@@ -32,8 +31,8 @@ def test_graphql():
     g3.save_to_file(temp_dir + "/g3")
     g4.save_to_file(temp_dir + "/g4")
 
-    map_server = RaphtoryServer(graphs=graphs).start(port=1737)
-    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1738)
+    map_server = RaphtoryServer(graphs=graphs).start(port=1751)
+    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1750)
     map_dir_server = RaphtoryServer(graphs=graphs, graph_dir=temp_dir).start(port=1739)
 
     map_server.wait_for_online()
@@ -149,21 +148,23 @@ def test_graphqlclient():
     g1.add_edge(3, "ben", "haaroon")
     g1.save_to_file(temp_dir + "/g1.bincode")
 
-    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1737)
-    raphtory_client = RaphtoryClient("http://localhost:1737")
+    dir_server = RaphtoryServer(graph_dir=temp_dir).start(port=1740)
+    raphtory_client = RaphtoryClient("http://localhost:1740")
     generic_client_test(raphtory_client, temp_dir)
     dir_server.stop()
     dir_server.wait()
 
-    raphtory_client = RaphtoryServer(graph_dir=temp_dir).start(port=1737)
-    generic_client_test(raphtory_client, temp_dir)
-    raphtory_client.stop()
-    raphtory_client.wait()
+    dir_server2 = RaphtoryServer(graph_dir=temp_dir).start(port=1741)
+    raphtory_client2 = RaphtoryClient("http://localhost:1741")
+    generic_client_test(raphtory_client2, temp_dir)
+    dir_server2.stop()
+    dir_server2.wait()
 
-    raphtory_client = RaphtoryServer(graph_dir=temp_dir).start(port=1738)
-    generic_client_test(raphtory_client, temp_dir)
-    raphtory_client.stop()
-    raphtory_client.wait()
+    dir_server3 = RaphtoryServer(graph_dir=temp_dir).start(port=1742)
+    raphtory_client3 = RaphtoryClient("http://localhost:1742")
+    generic_client_test(raphtory_client3, temp_dir)
+    dir_server3.stop()
+    dir_server3.wait()
 
 
 def generic_client_test(raphtory_client, temp_dir):

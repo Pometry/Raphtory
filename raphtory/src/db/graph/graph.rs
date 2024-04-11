@@ -32,6 +32,7 @@ use std::{
 };
 
 const SEG: usize = 16;
+
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
@@ -95,7 +96,7 @@ pub fn assert_graph_equal<
         // all exploded edges exist in other
         let e2 = g2
             .edge(e.src().id(), e.dst().id())
-            .expect(&format!("missing edge {:?}", e.id()));
+            .unwrap_or_else(|| panic!("missing edge {:?}", e.id()));
         assert!(
             e2.active(e.time().unwrap()),
             "exploded edge {:?} not active as expected at time {}",
@@ -136,6 +137,7 @@ impl Base for Graph {
 }
 
 impl InheritMutationOps for Graph {}
+
 impl InheritViewOps for Graph {}
 
 impl Graph {
@@ -173,10 +175,10 @@ impl Graph {
     ///
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_file("path/to/graph");
+    /// let g = Graph::load_from_file("path/to/graph", false);
     /// ```
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
-        let g = MaterializedGraph::load_from_file(path)?;
+    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
+        let g = MaterializedGraph::load_from_file(path, force)?;
         g.into_events().ok_or(GraphError::GraphLoadError)
     }
 
@@ -197,11 +199,18 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         core::{
             utils::time::{error::ParseTimeError, TryIntoTime},
-            ArcStr, Prop,
+            ArcStr, OptionAsStr, Prop,
         },
         db::{
-            api::view::{EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps},
-            graph::{edges::Edges, path::PathFromNode},
+            api::{
+                properties::internal::ConstPropertiesOps,
+                view::{
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    time::internal::InternalTimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                },
+            },
+            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -214,6 +223,58 @@ mod db_tests {
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempdir::TempDir;
+
+    #[test]
+    fn test_empty_graph() {
+        let g = Graph::new();
+        assert!(!g.has_edge(1, 2));
+
+        let test_time = 42;
+        let result = g.at(test_time);
+        assert!(result.start.is_some());
+        assert!(result.end.is_some());
+
+        let result = g.after(test_time);
+        assert!(result.start.is_some());
+        assert!(result.end.is_none());
+
+        let result = g.before(test_time);
+        assert!(result.start.is_none());
+        assert!(result.end.is_some());
+
+        assert_eq!(
+            g.const_prop_keys().collect::<Vec<_>>(),
+            Vec::<ArcStr>::new()
+        );
+        assert_eq!(g.const_prop_ids().collect::<Vec<_>>(), Vec::<usize>::new());
+        assert_eq!(g.const_prop_values(), Vec::<Prop>::new());
+        assert!(g.constant_prop(1).is_none());
+        assert!(g.get_const_prop_id("1").is_none());
+        assert!(g.get_const_prop(1).is_none());
+        assert_eq!(g.count_nodes(), 0);
+        assert_eq!(g.count_edges(), 0);
+        assert_eq!(g.count_temporal_edges(), 0);
+
+        assert!(g.start().is_none());
+        assert!(g.end().is_none());
+        assert!(g.earliest_date_time().is_none());
+        assert!(g.earliest_time().is_none());
+        assert!(g.end_date_time().is_none());
+        assert!(g.timeline_end().is_none());
+
+        assert!(g.is_empty());
+
+        assert_eq!(g.nodes().collect(), Vec::<NodeView<Graph, Graph>>::new());
+        assert_eq!(g.edges().collect(), Vec::<EdgeView<Graph, Graph>>::new());
+        assert!(!g.edges_filtered());
+        assert!(g.edge(1, 2).is_none());
+        assert!(g.latest_time_global().is_none());
+        assert!(g.latest_time_window(1, 2).is_none());
+        assert!(g.latest_time().is_none());
+        assert!(g.latest_date_time().is_none());
+        assert!(g.latest_time_global().is_none());
+        assert!(g.earliest_time_global().is_none());
+    }
 
     #[quickcheck]
     fn test_multithreaded_add_edge(edges: Vec<(u64, u64)>) -> bool {
@@ -380,10 +441,10 @@ mod db_tests {
             .unwrap();
         let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
-        let res = gg.import_node(&g_a, None).unwrap();
+        let res = gg.import_node(&g_a, false).unwrap();
         assert_eq!(res.name(), "A");
         assert_eq!(res.history(), vec![0]);
-        let res = gg.import_node(&g_b, None).unwrap();
+        let res = gg.import_node(&g_b, false).unwrap();
         assert_eq!(res.name(), "B");
         assert_eq!(res.history(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
@@ -393,12 +454,12 @@ mod db_tests {
         );
 
         let gg = Graph::new();
-        let res = gg.import_nodes(vec![&g_a, &g_b], None).unwrap();
+        let res = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
         assert_eq!(res.len(), 2);
         assert_eq!(res.iter().map(|n| n.name()).collect_vec(), vec!["A", "B"]);
 
         let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
-        let res = gg.import_edge(&e_a_b, None).unwrap();
+        let res = gg.import_edge(&e_a_b, false).unwrap();
         assert_eq!(
             (res.src().name(), res.dst().name()),
             (e_a_b.src().name(), e_a_b.dst().name())
@@ -414,12 +475,12 @@ mod db_tests {
             .unwrap();
         let gg = Graph::new();
         let _ = gg.add_node(0, "B", NO_PROPS, None);
-        let res = gg.import_edge(&e_a_b_p, None).expect("Failed to add edge");
+        let res = gg.import_edge(&e_a_b_p, false).expect("Failed to add edge");
         assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
 
         let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
         let gg = Graph::new();
-        let res = gg.import_edges(vec![&e_a_b, &e_c_d], None).unwrap();
+        let res = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
         assert_eq!(res.len(), 2);
     }
 
@@ -461,7 +522,7 @@ mod db_tests {
         g.save_to_file(&graph_path).expect("Failed to save graph");
 
         // Load from files
-        let g2 = Graph::load_from_file(&graph_path).expect("Failed to load graph");
+        let g2 = Graph::load_from_file(&graph_path, false).expect("Failed to load graph");
 
         assert_eq!(g, g2);
 
@@ -837,6 +898,10 @@ mod db_tests {
         assert!(g.layers(Layer::Default).unwrap().edge(11, 44).is_none());
         assert!(g.layers("layer2").unwrap().edge(11, 22).is_none());
         assert!(g.layers("layer2").unwrap().edge(11, 44).is_some());
+
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 44).is_none());
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 33).is_some());
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 22).is_some());
 
         let dft_layer = g.default_layer();
         let layer1 = g.layers("layer1").expect("layer1");
@@ -1517,7 +1582,7 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2),]);
+        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
     }
 
     #[test]
@@ -1542,7 +1607,7 @@ mod db_tests {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2),]);
+        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2)]);
     }
 
     #[test]
@@ -1570,7 +1635,7 @@ mod db_tests {
 
         assert_eq!(
             layer_exploded,
-            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+            vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
         );
     }
 
@@ -1600,7 +1665,7 @@ mod db_tests {
 
         assert_eq!(
             layer_exploded,
-            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2),]
+            vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
         );
     }
 
@@ -1909,6 +1974,26 @@ mod db_tests {
             weakly_connected_components(&wl, 10, None).get_all_values(),
             [1, 1, 1, 1]
         );
+    }
+
+    #[test]
+    fn save_load_serial() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("abcd11");
+        g.save_to_file(&file_path).unwrap();
+    }
+
+    #[test]
+    fn test_node_type_changes() {
+        let g = Graph::new();
+        g.add_node(0, "A", NO_PROPS, Some("typeA")).unwrap();
+        g.add_node(1, "A", NO_PROPS, None).unwrap();
+        let node_a = g.node("A").unwrap();
+        assert_eq!(node_a.node_type().as_str(), Some("typeA"));
+        let result = g.add_node(2, "A", NO_PROPS, Some("typeB"));
+        assert!(result.is_err());
     }
 
     #[test]

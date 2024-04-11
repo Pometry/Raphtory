@@ -1,5 +1,7 @@
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::time::IntoTime, Prop},
+    core::{
+        entities::nodes::node_ref::NodeRef, utils::time::IntoTime, DocumentInput, Lifespan, Prop,
+    },
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
@@ -10,19 +12,22 @@ use crate::{
     prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        types::wrappers::document::PyDocument,
         utils::{execute_async_task, PyTime},
     },
     vectors::{
         document_template::{DefaultTemplate, DocumentTemplate},
+        graph_entity::GraphEntity,
         vectorisable::Vectorisable,
         vectorised_graph::DynamicVectorisedGraph,
-        Document, DocumentInput, Embedding, EmbeddingFunction, Lifespan,
+        Document, Embedding, EmbeddingFunction,
     },
 };
+use chrono::NaiveDateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{
-    exceptions::{PyException, PyTypeError},
+    exceptions::{PyAttributeError, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList},
 };
@@ -62,63 +67,70 @@ impl<'source> FromPyObject<'source> for PyQuery {
     }
 }
 
-#[derive(Clone)]
-#[pyclass(name = "GraphDocument", frozen, get_all)]
-pub struct PyDocument {
-    content: String,
-    entity: PyObject,
-}
-
-impl PyDocument {
-    pub fn extract_rust_document(&self, py: Python) -> PyResult<Document> {
-        let node = self.entity.extract::<PyNode>(py);
-        let edge = self.entity.extract::<PyEdge>(py);
-        let graph = self.entity.extract::<PyGraphView>(py);
-        if let Ok(node) = node {
-            Ok(Document::Node {
-                name: node.name(),
-                content: self.content.clone(),
-            })
-        } else if let Ok(edge) = edge {
-            Ok(Document::Edge {
-                src: edge.edge.src().name(),
-                dst: edge.edge.dst().name(),
-                content: self.content.clone(),
-            })
-        } else if let Ok(graph) = graph {
-            Ok(Document::Graph {
-                name: graph.graph.properties().get("name").unwrap().to_string(),
-                content: self.content.clone(),
-            })
-        } else {
-            Err(PyException::new_err(
-                "document entity is not a node nor an edge nor a graph",
-            ))
+fn format_time(millis: i64) -> String {
+    if millis == 0 {
+        "unknown time".to_owned()
+    } else {
+        match NaiveDateTime::from_timestamp_millis(millis) {
+            Some(time) => time.format("%Y-%m-%d %H:%M:%S").to_string(),
+            None => "unknown time".to_owned(),
         }
     }
 }
 
-#[pymethods]
-impl PyDocument {
-    #[new]
-    fn new(content: String, entity: PyObject) -> Self {
-        Self { content, entity }
-    }
+#[pyfunction(signature = (entity, filter_out = vec![], force_static = vec![]))]
+pub fn generate_property_list(
+    entity: &PyAny,
+    // TODO: add time_format parameter with options: None (number) or str, to set some format like "%Y-%m-%d %H:%M:%S"
+    filter_out: Vec<&str>,
+    force_static: Vec<&str>,
+) -> PyResult<String> {
+    let node = entity.extract::<PyNode>().map(|node| node.node);
+    let edge = entity.extract::<PyEdge>().map(|edge| edge.edge);
 
-    fn __repr__(&self, py: Python) -> String {
-        let entity_repr = match self.entity.call_method0(py, "__repr__") {
-            Ok(repr) => repr.extract::<String>(py).unwrap_or("None".to_owned()),
-            Err(_) => "None".to_owned(),
-        };
-        let py_content = self.content.clone().into_py(py);
-        let content_repr = match py_content.call_method0(py, "__repr__") {
-            Ok(repr) => repr.extract::<String>(py).unwrap_or("''".to_owned()),
-            Err(_) => "''".to_owned(),
-        };
-        format!(
-            "GraphDocument(content={}, entity={})",
-            content_repr, entity_repr
-        )
+    if let Ok(node) = node {
+        Ok(node.generate_property_list(&format_time, filter_out, force_static))
+    } else if let Ok(edge) = edge {
+        Ok(edge.generate_property_list(&format_time, filter_out, force_static))
+    } else {
+        Err(PyAttributeError::new_err(
+            "First argument 'entity' has to be of type Node or Edge",
+        ))
+    }
+}
+
+impl PyDocument {
+    pub fn extract_rust_document(&self, py: Python) -> Result<Document, String> {
+        match &self.entity {
+            None => Err("Document entity cannot be None".to_owned()),
+            Some(entity) => {
+                let node = entity.extract::<PyNode>(py);
+                let edge = entity.extract::<PyEdge>(py);
+                let graph = entity.extract::<PyGraphView>(py);
+                if let Ok(node) = node {
+                    Ok(Document::Node {
+                        name: node.name(),
+                        content: self.content.clone(),
+                        life: self.life,
+                    })
+                } else if let Ok(edge) = edge {
+                    Ok(Document::Edge {
+                        src: edge.edge.src().name(),
+                        dst: edge.edge.dst().name(),
+                        content: self.content.clone(),
+                        life: self.life,
+                    })
+                } else if let Ok(graph) = graph {
+                    Ok(Document::Graph {
+                        name: graph.graph.properties().get("name").unwrap().to_string(),
+                        content: self.content.clone(),
+                        life: self.life,
+                    })
+                } else {
+                    Err("document entity is not a node nor an edge nor a graph".to_owned())
+                }
+            }
+        }
     }
 }
 
@@ -128,31 +140,44 @@ pub fn into_py_document(
     py: Python,
 ) -> PyDocument {
     match document {
-        Document::Graph { content, .. } => PyDocument {
+        Document::Graph { content, life, .. } => PyDocument {
             content,
-            entity: graph.source_graph.clone().into_py(py),
+            entity: Some(graph.source_graph.clone().into_py(py)),
+            life,
         },
-        Document::Node { name, content } => {
+        Document::Node {
+            name,
+            content,
+            life,
+        } => {
             let node = graph.source_graph.node(name).unwrap();
 
             PyDocument {
                 content,
-                entity: node.into_py(py),
+                entity: Some(node.into_py(py)),
+                life,
             }
         }
-        Document::Edge { src, dst, content } => {
+        Document::Edge {
+            src,
+            dst,
+            content,
+            life,
+        } => {
             let edge = graph.source_graph.edge(src, dst).unwrap();
 
             PyDocument {
                 content,
-                entity: edge.into_py(py),
+                entity: Some(edge.into_py(py)),
+                life,
             }
         }
     }
 }
 
 #[allow(dead_code)]
-#[cfg(feature = "python")]
+#[cfg(feature = "python")] // we dont need this, we already have the flag for the full module
+#[allow(dead_code)]
 pub struct PyDocumentTemplate {
     graph_document: Option<String>,
     node_document: Option<String>,
@@ -179,48 +204,85 @@ impl<G: StaticGraphViewOps> DocumentTemplate<G> for PyDocumentTemplate {
     // TODO: review, how can we let the users use the default template from graphql??
     fn graph(&self, graph: &G) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.graph_document {
-            Some(graph_document) => get_documents_from_prop(graph.properties(), graph_document),
+            Some(graph_document) => get_documents_from_props(graph.properties(), graph_document),
             None => Box::new(std::iter::empty()), // self.default_template.graph(graph),
         }
     }
 
     fn node(&self, node: &NodeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.node_document {
-            Some(node_document) => get_documents_from_prop(node.properties(), node_document),
+            Some(node_document) => get_documents_from_props(node.properties(), node_document),
             None => Box::new(std::iter::empty()), // self.default_template.node(node),
         }
     }
 
     fn edge(&self, edge: &EdgeView<G, G>) -> Box<dyn Iterator<Item = DocumentInput>> {
         match &self.edge_document {
-            Some(edge_document) => get_documents_from_prop(edge.properties(), edge_document),
+            Some(edge_document) => get_documents_from_props(edge.properties(), edge_document),
             None => Box::new(std::iter::empty()), // self.default_template.edge(edge),
         }
     }
 }
 
-fn get_documents_from_prop<P: PropertiesOps + Clone + 'static>(
+/// This funtions ignores the time history of temporal props if their type is Document and they have a life different than Lifespan::Inherited
+fn get_documents_from_props<P: PropertiesOps + Clone + 'static>(
     properties: Properties<P>,
     name: &str,
 ) -> Box<dyn Iterator<Item = DocumentInput>> {
-    let prop = properties.temporal().iter().find(|(key, _)| *key == name);
+    let prop = properties.temporal().get(name);
 
     match prop {
-        Some((_, prop)) => {
-            let iter = prop.iter().map(|(time, prop)| DocumentInput {
-                content: prop.to_string(),
-                life: Lifespan::Event { time },
-            });
-            Box::new(iter)
+        Some(prop) => {
+            let props = prop.iter();
+            let docs = props
+                .map(|(time, prop)| prop_to_docs(&prop, Lifespan::event(time)).collect_vec())
+                .flatten();
+            Box::new(docs)
         }
         None => match properties.get(name) {
-            Some(Prop::List(props)) => {
-                let doc_list = props.iter().map(|doc| doc.to_string().into()).collect_vec();
-                Box::new(doc_list.into_iter())
-            }
-            Some(prop) => Box::new(std::iter::once(prop.to_string().into())),
+            Some(prop) => Box::new(
+                prop_to_docs(&prop, Lifespan::Inherited)
+                    .collect_vec()
+                    .into_iter(),
+            ),
             _ => Box::new(std::iter::empty()),
         },
+    }
+}
+
+impl Lifespan {
+    fn overwrite_inherited(&self, default_lifespan: Lifespan) -> Self {
+        match self {
+            Lifespan::Inherited => default_lifespan,
+            other => other.clone(),
+        }
+    }
+}
+
+fn prop_to_docs(
+    prop: &Prop,
+    default_lifespan: Lifespan,
+) -> Box<dyn Iterator<Item = DocumentInput> + '_> {
+    match prop {
+        Prop::List(docs) => Box::new(
+            docs.iter()
+                .map(move |prop| prop_to_docs(prop, default_lifespan))
+                .flatten(),
+        ),
+        Prop::Map(doc_map) => Box::new(
+            doc_map
+                .values()
+                .map(move |prop| prop_to_docs(prop, default_lifespan))
+                .flatten(),
+        ),
+        Prop::Document(document) => Box::new(std::iter::once(DocumentInput {
+            life: document.life.overwrite_inherited(default_lifespan),
+            ..document.clone()
+        })),
+        prop => Box::new(std::iter::once(DocumentInput {
+            content: prop.to_string(),
+            life: default_lifespan,
+        })),
     }
 }
 
@@ -486,7 +548,7 @@ impl PyVectorisedGraph {
     ///
     /// Args:
     ///   query (str or list): the text or the embedding to score against
-    ///   limit (int): the maximum number of new documents to add  
+    ///   limit (int): the maximum number of new documents to add
     ///   window ((int | str, int | str)): the window where documents need to belong to in order to be considered
     ///
     /// Returns:

@@ -4,7 +4,7 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
-                graph_props::GraphProps,
+                graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
@@ -13,10 +13,10 @@ use crate::{
         storage::{
             locked_view::LockedView,
             timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry,
+            ArcEntry, Entry, ReadLockedStorage,
         },
         utils::errors::GraphError,
-        ArcStr, Direction, PropType,
+        ArcStr, PropType,
     },
     db::{
         api::{
@@ -24,24 +24,27 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::*, BoxedIter, BoxedLIter},
+            storage::locked::LockedGraph,
+            view::{internal::*, BoxedIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
             views::deletion_graph::GraphWithDeletions,
         },
     },
-    prelude::{Layer, Prop},
+    prelude::*,
+    BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
-
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
+#[enum_dispatch(ListOps)]
 #[enum_dispatch(TimeSemantics)]
 #[enum_dispatch(EdgeFilterOps)]
+#[enum_dispatch(NodeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
@@ -54,124 +57,28 @@ pub enum MaterializedGraph {
     PersistentGraph(GraphWithDeletions),
 }
 
-impl Static for MaterializedGraph {}
-
-impl<'graph> GraphOps<'graph> for MaterializedGraph {
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.internal_node_ref(v, layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.internal_node_ref(v, layer_ids, filter),
-        }
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
-        }
-    }
-
-    fn nodes_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.nodes_len(layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.nodes_len(layer_ids, filter),
-        }
-    }
-
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edges_len(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edges_len(layers, filter),
-        }
-    }
-
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.temporal_edges_len(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.temporal_edges_len(layers, filter),
-        }
-    }
-
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.degree(v, d, layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.degree(v, d, layers, filter),
-        }
-    }
-
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_ref(src, dst, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edge_ref(src, dst, layer, filter),
-        }
-    }
-
-    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.node_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.node_refs(layers, filter),
-        }
-    }
-
-    fn edge_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edge_refs(layers, filter),
-        }
-    }
-
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.node_edges(v, d, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.node_edges(v, d, layer, filter),
-        }
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.neighbours(v, d, layers, filter),
-        }
-    }
+fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if version != BINCODE_VERSION {
+        return Err(D::Error::custom(GraphError::BincodeVersionError(
+            version,
+            BINCODE_VERSION,
+        )));
+    };
+    Ok(version)
 }
+
+#[derive(Serialize, Deserialize)]
+struct VersionedGraph<T> {
+    #[serde(deserialize_with = "version_deserialize")]
+    version: u32,
+    graph: T,
+}
+
+impl Static for MaterializedGraph {}
 
 impl MaterializedGraph {
     pub fn into_events(self) -> Option<Graph> {
@@ -187,26 +94,49 @@ impl MaterializedGraph {
         }
     }
 
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, GraphError> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P, force: bool) -> Result<Self, GraphError> {
         let f = std::fs::File::open(path)?;
         let mut reader = std::io::BufReader::new(f);
-        Ok(bincode::deserialize_from(&mut reader)?)
+        if force {
+            let _: String = bincode::deserialize_from(&mut reader)?;
+            let data: Self = bincode::deserialize_from(&mut reader)?;
+            Ok(data)
+        } else {
+            let version: u32 = bincode::deserialize_from(&mut reader)?;
+            if version != BINCODE_VERSION {
+                return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
+            }
+            let data: Self = bincode::deserialize_from(&mut reader)?;
+            Ok(data)
+        }
     }
 
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), GraphError> {
         let f = std::fs::File::create(path)?;
         let mut writer = std::io::BufWriter::new(f);
-        Ok(bincode::serialize_into(&mut writer, self)?)
+        let versioned_data = VersionedGraph {
+            version: BINCODE_VERSION,
+            graph: self.clone(),
+        };
+        Ok(bincode::serialize_into(&mut writer, &versioned_data)?)
     }
 
     pub fn bincode(&self) -> Result<Vec<u8>, GraphError> {
-        let encoded = bincode::serialize(self)?;
+        let versioned_data = VersionedGraph {
+            version: BINCODE_VERSION,
+            graph: self.clone(),
+        };
+        let encoded = bincode::serialize(&versioned_data)?;
         Ok(encoded)
     }
 
     pub fn from_bincode(b: &[u8]) -> Result<Self, GraphError> {
-        let g = bincode::deserialize(b)?;
-        Ok(g)
+        let version: u32 = bincode::deserialize(b)?;
+        if version != BINCODE_VERSION {
+            return Err(GraphError::BincodeVersionError(version, BINCODE_VERSION));
+        }
+        let g: VersionedGraph<MaterializedGraph> = bincode::deserialize(b)?;
+        Ok(g.graph)
     }
 }
 
@@ -237,8 +167,8 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, InternalMaterialize,
-            MaterializedGraph, TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, InternalLayerOps, InternalMaterialize, MaterializedGraph,
+            TimeSemantics,
         },
         prelude::*,
     };
@@ -252,12 +182,12 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_graph_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.nodes_len(mg.layer_ids(), mg.edge_filter()), 0);
+        assert_eq!(mg.count_nodes(), 0);
     }
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert!(mg.edge_filter().is_none());
+        assert!(!mg.edges_filtered());
     }
 
     #[test]

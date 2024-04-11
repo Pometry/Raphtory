@@ -1,15 +1,16 @@
 [workspace]
 members = [
-	"raphtory",
-	"raphtory-benchmark",
-	"examples/rust",
-	"examples/netflow",
-	"python",
-	"js-raphtory",
-	"raphtory-graphql",
-	"comparison-benchmark/rust/raphtory-rust-benchmark"
-]
+    "raphtory",
+    "raphtory-benchmark",
+    "examples/rust",
+    "examples/netflow",
+    "python",
+    "js-raphtory",
+    "raphtory-graphql",
+    "comparison-benchmark/rust/raphtory-rust-benchmark"
+    , "comparison-benchmark/graphql-benchmark/run_server"]
 default-members = ["raphtory"]
+resolver = "2"
 
 [workspace.package]
 version = "0.7.0"
@@ -20,9 +21,87 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.67.1"
+rust-version = "1.75"
 edition = "2021"
 
 [profile.release-with-debug]
 inherits = "release"
 debug = true
+
+[workspace.dependencies]
+async-graphql = { version = "6.0.11", features = ["dynamic-schema"] }
+async-graphql-poem = "6.0.11"
+dynamic-graphql = "0.8.1"
+reqwest = { version = "0.11.22", default-features = false, features = ["rustls-tls"] }
+serde = { version = "1.0.197", features = ["derive", "rc"] }
+serde_json = "1.0.114"
+pyo3 = { version = "0.20.0", features = ["multiple-pymethods", "chrono"] }
+pyo3-asyncio = { version = "0.20.0", features = ["tokio-runtime"] }
+pyo3-build-config = "0.20.0"
+itertools = "0.12.1"
+rand = "0.8.5"
+rayon = "1.8.1"
+sorted_vector_map = "0.1.0"
+tokio = { version = "1.36.0", features = ["full"] }
+once_cell = "1.19.0"
+parking_lot = { version = "0.12.1", features = ["serde", "arc_lock", "send_guard"] }
+ordered-float = "4.2.0"
+chrono = { version = "0.4", features = ["serde"] }
+tempfile = "3.10.0"
+futures-util = "0.3.30"
+thiserror = "1.0.57"
+bincode = "1.3.3"
+dotenv = "0.15.0"
+csv = "1.3.0"
+flate2 = "1.0.28"
+regex = "1.10.3"
+genawaiter = "0.99.1"
+num-traits = "0.2.18"
+rand_distr = "0.4.3"
+rustc-hash = "1.1.0"
+twox-hash = "1.6.3"
+lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
+dashmap = { version = "5.5.3", features = ["serde"] }
+enum_dispatch = "0.3.12"
+glam = "0.25.0"
+quad-rand = "0.2.1"
+zip = "0.6.6"
+neo4rs = "0.6.2"
+bzip2 = "0.4.4"
+tantivy = "0.21.1"
+async-trait = "0.1.77"
+async-openai = "0.17.1"
+num = "0.4.1"
+display-error-chain = "0.2.0"
+arrow2 = "0.18.0"
+kdam = { version = "0.5.1", features = ["notebook"] }
+pretty_assertions = "1.4.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
+tempdir = "0.3.7"
+streaming-stats = "0.2.3"
+proptest = "1.4.0"
+criterion = "0.5.1"
+crossbeam-channel = "0.5.11"
+base64 = "0.21.7"
+poem = "1.3.59"
+async-stream = "0.3.5"
+opentelemetry = "0.21.0"
+opentelemetry_sdk = { version = "0.21.0", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.20.0", features = ["rt-tokio"] }
+tracing = "0.1.37"
+tracing-opentelemetry = "0.22.0"
+tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }
+walkdir = "2"
+uuid = "1.7.0"
+config = "0.14.0"
+toml = "0.8.10"
+clap = { version = "4.3.11", features = ["derive"] }
+tar = "0.4.38"
+wasm-bindgen = "0.2.91"
+serde-wasm-bindgen = "0.6.4"
+js-sys = "0.3.68"
+console_error_panic_hook = "0.1.7"
+wee_alloc = "0.4.5"
+wasm-bindgen-test = "0.3.41"
+ouroboros = "0.18.3"

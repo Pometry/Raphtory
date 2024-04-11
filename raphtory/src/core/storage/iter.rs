@@ -1,16 +1,18 @@
-use super::RawStorage;
+use super::{ArcEntry, ArcRwLockReadGuard, RawStorage};
+use crate::core::entities::{nodes::node_store::NodeStore, EID, VID};
+use ouroboros::self_referencing;
 use std::{ops::Deref, sync::Arc};
 
-pub struct Iter<'a, T: Default, const N: usize> {
-    raw: &'a RawStorage<T, N>,
+pub struct Iter<'a, T: Default, const N: usize, Index> {
+    raw: &'a RawStorage<T, N, Index>,
     segment: usize,
     offset: usize,
     current: Option<GuardIter<'a, T>>,
 }
 
 // impl new for Iter
-impl<'a, T: Default, const N: usize> Iter<'a, T, N> {
-    pub fn new(raw: &'a RawStorage<T, N>) -> Self {
+impl<'a, T: Default, const N: usize, Index> Iter<'a, T, N, Index> {
+    pub fn new(raw: &'a RawStorage<T, N, Index>) -> Self {
         Iter {
             raw,
             segment: 0,
@@ -64,11 +66,11 @@ impl<'a, T, const N: usize> RefT<'a, T, N> {
 ///
 /// Requires that you ensure the reference does not become invalid.
 /// The object has to outlive the reference.
-pub unsafe fn change_lifetime_const<'a, 'b, T>(x: &'a T) -> &'b T {
+pub unsafe fn change_lifetime_const<'b, T>(x: &T) -> &'b T {
     &*(x as *const T)
 }
 
-impl<'a, T: std::fmt::Debug + Default, const N: usize> Iterator for Iter<'a, T, N> {
+impl<'a, T: std::fmt::Debug + Default, const N: usize, Index> Iterator for Iter<'a, T, N, Index> {
     type Item = RefT<'a, T, N>;
 
     fn next(&mut self) -> Option<Self::Item> {

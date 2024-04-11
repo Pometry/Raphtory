@@ -1,8 +1,12 @@
 use crate::{
-    algorithms::layout::{fruchterman_reingold::fruchterman_reingold_unbounded, NodeVectors},
+    algorithms::{
+        components::weakly_connected_components,
+        layout::{fruchterman_reingold::fruchterman_reingold_unbounded, NodeVectors},
+    },
+    db::{api::view::MaterializedGraph, graph::node::NodeView},
     prelude::{AdditionOps, GraphViewOps, NodeViewOps, NO_PROPS},
 };
-use itertools::Itertools;
+use std::collections::HashMap;
 
 /// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
 pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
@@ -15,34 +19,42 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
 ) -> NodeVectors {
     let virtual_graph = graph.materialize().unwrap();
 
-    let isolated_nodes = virtual_graph
-        .nodes()
-        .iter()
-        .filter(|node| node.degree() == 0)
-        .collect_vec();
+    let transform_map = |input_map: HashMap<String, u64>| -> HashMap<u64, Vec<NodeView<MaterializedGraph, MaterializedGraph>>> {
+        let mut output_map: HashMap<u64, Vec<NodeView<MaterializedGraph, MaterializedGraph>>> = HashMap::new();
 
-    if isolated_nodes.len() > 0 {
-        let bridge_node = isolated_nodes.get(0).unwrap();
-        let isolated_nodes = &isolated_nodes[1..];
-
-        // if let Some(bridge_node) = index_dict.get(&bridge_node.name()) {
-        for node in isolated_nodes {
-            virtual_graph
-                .add_edge(0, bridge_node.id(), node.id(), NO_PROPS, None)
-                .unwrap();
+        for (key, value) in input_map.iter() {
+            output_map
+                .entry(*value)
+                .or_default()
+                .push(virtual_graph.node(key.clone()).unwrap());
         }
 
-        let connection_to_main = virtual_graph
+        output_map
+    };
+
+    let connected_components = transform_map(
+        weakly_connected_components(&virtual_graph, usize::MAX, None).get_all_with_names(),
+    );
+
+    if connected_components.len() > 1 {
+        let max_degree = virtual_graph
             .nodes()
             .iter()
-            .filter(|node| node.degree() > 0)
-            .map(|node| (node.degree(), node))
-            .sorted_by(|(d1, _), (d2, _)| d1.cmp(d2))
-            .next();
+            .map(|node| node.degree())
+            .max()
+            .unwrap_or(0); // Default to 0 if there are no nodes
 
-        if let Some((_, connection_to_main)) = connection_to_main {
+        let nodes_with_max_degree: Vec<_> = virtual_graph
+            .nodes()
+            .iter()
+            .filter(|node| node.degree() == max_degree)
+            .collect();
+
+        let bridge_node = &nodes_with_max_degree[0];
+
+        for (_, isolated_nodes) in connected_components.iter() {
             virtual_graph
-                .add_edge(0, connection_to_main.id(), bridge_node.id(), NO_PROPS, None)
+                .add_edge(0, bridge_node.id(), isolated_nodes[0].id(), NO_PROPS, None)
                 .unwrap();
         }
     }

@@ -3,44 +3,32 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
+use super::utils;
 use crate::{
-    core::utils::errors::GraphError,
-    db::api::view::internal::MaterializedGraph,
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
+    db::{
+        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     prelude::*,
     python::{
-        graph::{graph_with_deletions::PyGraphWithDeletions, views::graph_view::PyGraphView},
+        graph::{
+            edge::PyEdge, graph_with_deletions::PyGraphWithDeletions, node::PyNode,
+            views::graph_view::PyGraphView,
+        },
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::prelude::*;
-
-use crate::{
-    core::{entities::nodes::node_ref::NodeRef, ArcStr},
-    db::{
-        api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic},
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    python::graph::{
-        edge::PyEdge,
-        node::PyNode,
-        pandas::{
-            dataframe::{process_pandas_py_df, GraphLoadException},
-            loaders::{load_edges_props_from_df, load_node_props_from_df},
-        },
-    },
-};
-use pyo3::types::{IntoPyDict, PyBytes};
+use pyo3::{prelude::*, types::PyBytes};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
 
-use super::pandas::loaders::{load_edges_from_df, load_nodes_from_df};
-
 /// A temporal graph.
 #[derive(Clone)]
-#[pyclass(name="Graph", extends=PyGraphView)]
+#[pyclass(name = "Graph", extends = PyGraphView)]
 pub struct PyGraph {
     pub graph: Graph,
 }
@@ -88,9 +76,9 @@ impl<'source> FromPyObject<'source> for MaterializedGraph {
         } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
             Ok(graph.graph.clone().into())
         } else {
-            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
-                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions"
-            )))
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions".to_string(),
+            ))
         }
     }
 }
@@ -144,7 +132,7 @@ impl PyGraph {
     ///    node_type (str): The optional string which will be used as a node type
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
@@ -211,7 +199,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, src, dst, properties=None, layer=None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
         timestamp: PyTime,
@@ -235,11 +223,11 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
-    #[pyo3(signature = (node, force=false))]
+    #[pyo3(signature = (node, force = false))]
     pub fn import_node(
         &self,
         node: PyNode,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<NodeView<Graph, Graph>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
@@ -256,11 +244,11 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
-    #[pyo3(signature = (nodes, force=false))]
+    #[pyo3(signature = (nodes, force = false))]
     pub fn import_nodes(
         &self,
         nodes: Vec<PyNode>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<NodeView<Graph, Graph>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
@@ -278,11 +266,11 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
-    #[pyo3(signature = (edge, force=false))]
+    #[pyo3(signature = (edge, force = false))]
     pub fn import_edge(
         &self,
         edge: PyEdge,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<EdgeView<Graph, Graph>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
@@ -299,11 +287,11 @@ impl PyGraph {
     ///
     /// Returns:
     ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
-    #[pyo3(signature = (edges, force=false))]
+    #[pyo3(signature = (edges, force = false))]
     pub fn import_edges(
         &self,
         edges: Vec<PyEdge>,
-        force: Option<bool>,
+        force: bool,
     ) -> Result<Vec<EdgeView<Graph, Graph>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)
@@ -347,9 +335,10 @@ impl PyGraph {
     /// Returns:
     ///  Graph: The loaded graph.
     #[staticmethod]
-    pub fn load_from_file(path: &str) -> Result<Graph, GraphError> {
+    #[pyo3(signature = (path, force = false))]
+    pub fn load_from_file(path: &str, force: bool) -> Result<Graph, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        Graph::load_from_file(file_path)
+        Graph::load_from_file(file_path, force)
     }
 
     /// Saves the graph to the given path.
@@ -384,67 +373,71 @@ impl PyGraph {
     ///     edge_src (str): The column name for the source node ids.
     ///     edge_dst (str): The column name for the destination node ids.
     ///     edge_time (str): The column name for the timestamps.
-    ///     edge_props (list): The column names for the temporal properties (optional) Defaults to None.
-    ///     edge_const_props (list): The column names for the constant properties (optional) Defaults to None.
-    ///     edge_shared_const_props (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
+    ///     edge_properties (list): The column names for the temporal properties (optional) Defaults to None.
+    ///     edge_const_properties (list): The column names for the constant properties (optional) Defaults to None.
+    ///     edge_shared_const_properties (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
     ///     edge_layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///     node_df (pandas.DataFrame): The DataFrame containing the nodes (optional) Defaults to None.
     ///     node_id (str): The column name for the node ids (optional) Defaults to None.
     ///     node_time (str): The column name for the node timestamps (optional) Defaults to None.
-    ///     node_props (list): The column names for the node temporal properties (optional) Defaults to None.
-    ///     node_const_props (list): The column names for the node constant properties (optional) Defaults to None.
-    ///     node_shared_const_props (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
+    ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
+    ///     node_const_properties (list): The column names for the node constant properties (optional) Defaults to None.
+    ///     node_shared_const_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
     ///
     /// Returns:
     ///      Graph: The loaded Graph object.
     #[staticmethod]
-    #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_props = None, edge_const_props=None, edge_shared_const_props=None,
-    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_props = None,
-    node_const_props = None, node_shared_const_props = None, node_type = None))]
+    #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
+    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
+    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
     fn load_from_pandas(
         edge_df: &PyAny,
         edge_src: &str,
         edge_dst: &str,
         edge_time: &str,
-        edge_props: Option<Vec<&str>>,
-        edge_const_props: Option<Vec<&str>>,
-        edge_shared_const_props: Option<HashMap<String, Prop>>,
+        edge_properties: Option<Vec<&str>>,
+        edge_const_properties: Option<Vec<&str>>,
+        edge_shared_const_properties: Option<HashMap<String, Prop>>,
         edge_layer: Option<&str>,
         layer_in_df: Option<bool>,
         node_df: Option<&PyAny>,
         node_id: Option<&str>,
         node_time: Option<&str>,
-        node_props: Option<Vec<&str>>,
-        node_const_props: Option<Vec<&str>>,
-        node_shared_const_props: Option<HashMap<String, Prop>>,
+        node_properties: Option<Vec<&str>>,
+        node_const_properties: Option<Vec<&str>>,
+        node_shared_const_properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
     ) -> Result<Graph, GraphError> {
         let graph = PyGraph {
             graph: Graph::new(),
         };
-        graph.load_edges_from_pandas(
-            edge_df,
-            edge_src,
-            edge_dst,
-            edge_time,
-            edge_props,
-            edge_const_props,
-            edge_shared_const_props,
-            edge_layer,
-            layer_in_df,
-        )?;
         if let (Some(node_df), Some(node_id), Some(node_time)) = (node_df, node_id, node_time) {
             graph.load_nodes_from_pandas(
                 node_df,
                 node_id,
                 node_time,
                 node_type,
-                node_props,
-                node_const_props,
-                node_shared_const_props,
+                node_type_in_df,
+                node_properties,
+                node_const_properties,
+                node_shared_const_properties,
             )?;
         }
+        graph.load_edges_from_pandas(
+            edge_df,
+            edge_src,
+            edge_dst,
+            edge_time,
+            edge_properties,
+            edge_const_properties,
+            edge_shared_const_properties,
+            edge_layer,
+            layer_in_df,
+        )?;
         Ok(graph.graph)
     }
 
@@ -454,59 +447,36 @@ impl PyGraph {
     ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
     ///     id (str): The column name for the node IDs.
     ///     time (str): The column name for the timestamps.
-    ///     props (List<str>): List of node property column names. Defaults to None. (optional)
-    ///     const_props (List<str>): List of constant node property column names. Defaults to None.  (optional)
-    ///     shared_const_props (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
+    ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id, time, node_type = None, props = None, const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
         time: &str,
         node_type: Option<&str>,
-        props: Option<Vec<&str>>,
-        const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String, Prop>>,
+        node_type_in_df: Option<bool>,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
-        Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-
-            let mut cols_to_check = vec![id, time];
-            if let Some(node_type) = node_type {
-                cols_to_check.push(node_type);
-            }
-            cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
-            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-
-            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
-            df.check_cols_exist(&cols_to_check)?;
-
-            load_nodes_from_df(
-                &df,
-                size,
-                id,
-                time,
-                props,
-                const_props,
-                shared_const_props,
-                node_type,
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-            Ok::<(), PyErr>(())
-        })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(())
+        utils::load_nodes_from_pandas(
+            &self.graph.0,
+            df,
+            id,
+            time,
+            node_type,
+            node_type_in_df,
+            properties,
+            const_properties,
+            shared_const_properties,
+        )
     }
 
     /// Load edges from a Pandas DataFrame into the graph.
@@ -516,68 +486,39 @@ impl PyGraph {
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
     ///     time (str): The column name for the update timestamps.
-    ///     props (List<str>): List of edge property column names. Defaults to None. (optional)
-    ///     const_props (List<str>): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_const_props (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
-    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     layer (str): The edge layer name (optional) Defaults to None.
     ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, src, dst, time, props = None, const_props=None,shared_const_props=None,layer=None,layer_in_df=true))]
+    #[pyo3(signature = (df, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
     fn load_edges_from_pandas(
         &self,
         df: &PyAny,
         src: &str,
         dst: &str,
         time: &str,
-        props: Option<Vec<&str>>,
-        const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String, Prop>>,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
-        Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-
-            let mut cols_to_check = vec![src, dst, time];
-            cols_to_check.extend(props.as_ref().unwrap_or(&Vec::new()));
-            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-            if layer_in_df.unwrap_or(false) {
-                if let Some(ref layer) = layer {
-                    cols_to_check.push(layer.as_ref());
-                }
-            }
-
-            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
-
-            df.check_cols_exist(&cols_to_check)?;
-            load_edges_from_df(
-                &df,
-                size,
-                src,
-                dst,
-                time,
-                props,
-                const_props,
-                shared_const_props,
-                layer,
-                layer_in_df.unwrap_or(true),
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
-            Ok::<(), PyErr>(())
-        })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(())
+        utils::load_edges_from_pandas(
+            &self.graph.0,
+            df,
+            src,
+            dst,
+            time,
+            properties,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
     }
 
     /// Load node properties from a Pandas DataFrame.
@@ -585,40 +526,26 @@ impl PyGraph {
     /// Arguments:
     ///     df (Dataframe): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     const_props (List<str>): List of constant node property column names. Defaults to None. (optional)
-    ///     shared_const_props (<HashMap<String, Prop>>):  A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None. (optional)
+    ///     shared_const_properties (<HashMap<String, Prop>>):  A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, id , const_props = None, shared_const_props = None))]
+    #[pyo3(signature = (df, id, const_properties = None, shared_const_properties = None))]
     fn load_node_props_from_pandas(
         &self,
         df: &PyAny,
         id: &str,
-        const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String, Prop>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
-        Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-            let mut cols_to_check = vec![id];
-            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
-            df.check_cols_exist(&cols_to_check)?;
-
-            load_node_props_from_df(&df, size, id, const_props, shared_const_props, graph)
-                .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-
-            Ok::<(), PyErr>(())
-        })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(())
+        utils::load_node_props_from_pandas(
+            &self.graph.0,
+            df,
+            id,
+            const_properties,
+            shared_const_properties,
+        )
     }
 
     /// Load edge properties from a Pandas DataFrame.
@@ -627,58 +554,33 @@ impl PyGraph {
     ///     df (Dataframe): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     const_props (List<str>): List of constant edge property column names. Defaults to None. (optional)
-    ///     shared_const_props (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
     ///     layer (str): Layer name. Defaults to None.  (optional)
     ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the data frame or if it should be used directly as the layer for all edges (optional) defaults to True.
     ///
     /// Returns:
     ///     Result<(), GraphError>: Result of the operation.
-    #[pyo3(signature = (df, src, dst, const_props=None,shared_const_props=None,layer=None,layer_in_df=true))]
+    #[pyo3(signature = (df, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
     fn load_edge_props_from_pandas(
         &self,
         df: &PyAny,
         src: &str,
         dst: &str,
-        const_props: Option<Vec<&str>>,
-        shared_const_props: Option<HashMap<String, Prop>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_in_df: Option<bool>,
     ) -> Result<(), GraphError> {
-        let graph = &self.graph;
-        Python::with_gil(|py| {
-            let size: usize = py
-                .eval(
-                    "index.__len__()",
-                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
-                    None,
-                )?
-                .extract()?;
-            let mut cols_to_check = vec![src, dst];
-            if layer_in_df.unwrap_or(false) {
-                if let Some(ref layer) = layer {
-                    cols_to_check.push(layer.as_ref());
-                }
-            }
-            cols_to_check.extend(const_props.as_ref().unwrap_or(&Vec::new()));
-            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
-            df.check_cols_exist(&cols_to_check)?;
-            load_edges_props_from_df(
-                &df,
-                size,
-                src,
-                dst,
-                const_props,
-                shared_const_props,
-                layer,
-                layer_in_df.unwrap_or(true),
-                graph,
-            )
-            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
-            df.check_cols_exist(&cols_to_check)?;
-            Ok::<(), PyErr>(())
-        })
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
-        Ok(())
+        utils::load_edge_props_from_pandas(
+            &self.graph.0,
+            df,
+            src,
+            dst,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
     }
 }

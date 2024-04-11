@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{nodes::node_ref::NodeRef, EID, VID},
+    entities::{edges::edge_store::EdgeStore, nodes::node_ref::NodeRef, EID, VID},
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use std::cmp::Ordering;
@@ -87,7 +87,7 @@ impl EdgeRef {
 
     #[inline(always)]
     pub fn time_t(&self) -> Option<i64> {
-        self.time.map(|t| *t.t())
+        self.time.map(|t| t.t())
     }
 
     #[inline]

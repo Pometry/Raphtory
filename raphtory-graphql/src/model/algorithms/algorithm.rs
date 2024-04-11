@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::model::algorithms::{
     algorithm_entry_point::AlgorithmEntryPoint, graph_algorithms::GraphAlgorithms,
 };
@@ -17,12 +15,9 @@ use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank,
-        pathing::{
-            dijkstra::dijkstra_single_source_shortest_paths,
-            single_source_shortest_path::single_source_shortest_path,
-        },
+        pathing::dijkstra::dijkstra_single_source_shortest_paths,
     },
-    db::api::view::LayerOps,
+    core::Direction,
 };
 
 pub trait Algorithm<'a, A: AlgorithmEntryPoint<'a> + 'static> {
@@ -120,7 +115,19 @@ fn apply_pagerank<'b>(
     let threads = ctx.args.get("threads").map(|v| v.u64()).transpose()?;
     let threads = threads.map(|v| v as usize);
     let tol = ctx.args.get("tol").map(|v| v.f64()).transpose()?;
-    let binding = unweighted_page_rank(&entry_point.graph, iter_count, threads, tol, true);
+    let damping_factor = ctx
+        .args
+        .get("damping_factor")
+        .map(|v| v.f64())
+        .transpose()?;
+    let binding = unweighted_page_rank(
+        &entry_point.graph,
+        Some(iter_count),
+        threads,
+        tol,
+        true,
+        damping_factor,
+    );
     let result = binding
         .get_all_with_names()
         .into_iter()
@@ -152,6 +159,7 @@ impl<'a> Algorithm<'a, GraphAlgorithms> for ShortestPath {
         vec![
             ("source", TypeRef::named_nn(TypeRef::STRING)), // _nn stands for not null
             ("targets", TypeRef::named_nn_list_nn(TypeRef::STRING)),
+            ("direction", TypeRef::named(TypeRef::STRING)),
         ]
     }
     fn apply_algo<'b>(
@@ -169,11 +177,18 @@ fn apply_shortest_path<'b>(
 ) -> FieldResult<Option<FieldValue<'b>>> {
     let source = ctx.args.try_get("source")?.string()?;
     let targets = ctx.args.try_get("targets")?.list()?;
+    let direction = match ctx.args.try_get("direction")?.string()? {
+        "out" => Direction::OUT,
+        "in" => Direction::IN,
+        "both" => Direction::BOTH,
+        _ => return Err("Invalid direction".into()),
+    };
     let targets = targets
         .iter()
         .map(|v| v.string())
         .collect::<Result<Vec<&str>, _>>()?;
-    let binding = dijkstra_single_source_shortest_paths(&entry_point.graph, source, targets, None);
+    let binding =
+        dijkstra_single_source_shortest_paths(&entry_point.graph, source, targets, None, direction);
     let result: Vec<FieldValue> = binding
         .into_iter()
         .flat_map(|pair| {

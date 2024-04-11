@@ -6,7 +6,7 @@ use itertools::Merge;
 use std::sync::Arc;
 
 pub struct Paged<'a, const N: usize> {
-    guard: Arc<VRef<'a, N>>,
+    guard: Arc<VRef<'a>>,
     data: Vec<(VID, EID)>,
     i: usize,
     size: usize,
@@ -18,7 +18,7 @@ pub struct Paged<'a, const N: usize> {
 
 impl<'a, const N: usize> Paged<'a, N> {
     pub(crate) fn new(
-        guard: Arc<VRef<'a, N>>,
+        guard: Arc<VRef<'a>>,
         dir: Direction,
         layer_id: usize,
         src: VID,
@@ -59,19 +59,19 @@ impl<'a, const N: usize> Iterator for Paged<'a, N> {
                 .edges_from_last(self.layer_id, self.dir, None, self.size)
         }
 
-        if self.data.is_empty() {
-            return None;
+        return if self.data.is_empty() {
+            None
         } else {
             self.i = 1;
             let e_id = self.guard.edge_ref(self.data[0].1, self.graph);
-            return Some(EdgeView::from_edge_ids(
+            Some(EdgeView::from_edge_ids(
                 self.src,
                 self.data[0].0,
                 e_id,
                 self.dir,
                 self.graph,
-            ));
-        }
+            ))
+        };
     }
 }
 

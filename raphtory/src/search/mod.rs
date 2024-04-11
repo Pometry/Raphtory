@@ -13,7 +13,7 @@ use tantivy::{
 
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, EID, VID},
+        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
         ArcStr, OptionAsStr, PropType,
@@ -33,7 +33,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct IndexedGraph<G> {
-    pub(crate) graph: G,
+    pub graph: G,
     pub(crate) node_index: Arc<Index>,
     pub(crate) edge_index: Arc<Index>,
     pub(crate) reader: IndexReader,
@@ -136,7 +136,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 Prop::Str(_) => {
                     schema.add_text_field(prop_name.as_ref(), TEXT);
                 }
-                Prop::DTime(_) => {
+                Prop::NDTime(_) => {
                     schema.add_date_field(prop_name.as_ref(), INDEXED);
                 }
                 _ => todo!(),
@@ -151,7 +151,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             Prop::Str(_) => {
                 schema.add_text_field(prop, TEXT);
             }
-            Prop::DTime(_) => {
+            Prop::NDTime(_) => {
                 schema.add_date_field(prop, INDEXED);
             }
             Prop::U8(_) => {
@@ -295,7 +295,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 // add the property to the document
                 document.add_text(prop_field, prop_text);
             }
-            Prop::DTime(prop_time) => {
+            Prop::NDTime(prop_time) => {
                 let time = tantivy::DateTime::from_timestamp_nanos(
                     prop_time.and_utc().timestamp_nanos_opt().unwrap(),
                 );
@@ -359,11 +359,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 }
             }
 
-            let mut writer_guard = writer_lock.write();
-            writer_guard.commit()?;
             Ok::<(), TantivyError>(())
         })?;
 
+        let mut writer_guard = writer.write();
+        writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }
@@ -412,6 +412,11 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         for (prop_name, prop_value) in node.properties().constant() {
             let prop_field = schema.get_field(&prop_name)?;
             Self::index_prop_value(&mut document, prop_field, prop_value);
+        }
+
+        match node.node_type() {
+            None => {}
+            Some(str) => document.add_text(schema.get_field("node_type")?, (*str).to_string()),
         }
 
         writer.add_document(document)?;
@@ -474,35 +479,28 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
         let writer = Arc::new(parking_lot::RwLock::new(index.writer(100_000_000)?));
 
-        let e_ids = (0..g.count_edges()).collect::<Vec<_>>();
-        let edge_filter = g.edge_filter();
-        e_ids.par_chunks(128).try_for_each(|e_ids| {
+        let locked_g = g.core_graph();
+
+        locked_g.edges_par(&g).try_for_each(|e_ref| {
             let writer_lock = writer.clone();
             {
                 let writer_guard = writer_lock.read();
-                for e_id in e_ids {
-                    if let Some(e_ref) =
-                        g.find_edge_id((*e_id).into(), &g.layer_ids(), edge_filter.as_deref())
-                    {
-                        let e_view = EdgeView::new(g.clone(), e_ref);
-                        Self::index_edge_view(
-                            e_view,
-                            &schema,
-                            &writer_guard,
-                            time_field,
-                            source_field,
-                            destination_field,
-                            edge_id_field,
-                        )?;
-                    }
-                }
+                let e_view = EdgeView::new(g.clone(), e_ref);
+                Self::index_edge_view(
+                    e_view,
+                    &schema,
+                    &writer_guard,
+                    time_field,
+                    source_field,
+                    destination_field,
+                    edge_id_field,
+                )?;
             }
-
-            let mut writer_guard = writer_lock.write();
-            writer_guard.commit()?;
             Ok::<(), TantivyError>(())
         })?;
 
+        let mut writer_guard = writer.write();
+        writer_guard.commit()?;
         reader.reload()?;
         Ok((index, reader))
     }
@@ -583,12 +581,23 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let e_ref = self.graph.find_edge_id(
-            edge_id.into(),
-            &self.graph.layer_ids(),
-            self.graph.edge_filter().as_deref(),
-        )?;
-        let e_view = EdgeView::new(self.graph.clone(), e_ref);
+        let core_edge = self.graph.core_edge_arc(EID(edge_id));
+        let layer_ids = self.graph.layer_ids();
+        if !self.graph.filter_edge(&core_edge, layer_ids) {
+            return None;
+        }
+        if self.graph.nodes_filtered() {
+            if !self
+                .graph
+                .filter_node(&self.graph.core_node_arc(core_edge.src), layer_ids)
+                || !self
+                    .graph
+                    .filter_node(&self.graph.core_node_arc(core_edge.dst), layer_ids)
+            {
+                return None;
+            }
+        }
+        let e_view = EdgeView::new(self.graph.clone(), EdgeRef::from(core_edge));
         Some(e_view)
     }
 
@@ -794,7 +803,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         let mut document = Document::new();
         // add time to the document
         let time = self.node_index.schema().get_field(fields::TIME)?;
-        document.add_i64(time, *t.t());
+        document.add_i64(time, t.t());
         // add name to the document
 
         let name = self.node_index.schema().get_field(fields::NAME)?;
@@ -886,7 +895,7 @@ mod test {
     #[test]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        let graph = Graph::load_from_file("/tmp/graphs/jira").expect("failed to load graph");
+        let graph = Graph::load_from_file("/tmp/graphs/jira", false).expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();

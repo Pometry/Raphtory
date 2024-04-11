@@ -27,7 +27,10 @@ use crate::{
     prelude::*,
 };
 
-use crate::{core::storage::timeindex::AsTime, db::graph::edges::Edges};
+use crate::{
+    core::storage::timeindex::AsTime,
+    db::{api::storage::locked::LockedGraph, graph::edges::Edges},
+};
 use chrono::{DateTime, Utc};
 use std::{
     fmt,
@@ -269,11 +272,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O>(
+    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        op(&self.graph, self.node)
+        let cg = self.graph.core_graph();
+        op(&cg, &self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -282,14 +286,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Edges {
         let graph = self.graph.clone();
         let node = self.node;
-        let edges = Arc::new(move || op(&graph, node).into_dyn_boxed());
+        let edges = Arc::new(move || {
+            let cg = graph.core_graph();
+            op(&cg, &graph, node).into_dyn_boxed()
+        });
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
         Edges {
@@ -301,7 +308,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -309,7 +316,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let graph = self.graph.clone();
         let node = self.node;
         PathFromNode::new(self.base_graph.clone(), move || {
-            op(&graph, node).into_dyn_boxed()
+            let cg = graph.core_graph();
+            op(&cg, &graph, node).into_dyn_boxed()
         })
     }
 }
@@ -325,6 +333,15 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         )?;
         self.graph
             .internal_add_constant_node_properties(self.node, properties)
+    }
+
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        let res = self.graph.resolve_node_type(self.node, Some(new_type));
+        if res.is_ok() {
+            Ok(())
+        } else {
+            Err(res.err().unwrap())
+        }
     }
 
     pub fn update_constant_properties<C: CollectProperties>(
@@ -349,7 +366,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let node_internal_type_id = self.graph.core_node(self.node).node_type;
+        let node_internal_type_id = self.graph.core_node_arc(self.node).node_type;
         self.graph
             .internal_add_node(t, self.node, properties, node_internal_type_id)
     }
