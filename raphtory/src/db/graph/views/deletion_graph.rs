@@ -180,6 +180,7 @@ impl PersistentGraph {
         g.into_persistent().ok_or(GraphError::GraphLoadError)
     }
 
+    /// Get event graph
     pub fn event_graph(&self) -> Graph {
         Graph::from_internal_graph(self.0.clone())
     }

@@ -2027,6 +2027,16 @@ def test_node_types_change():
     assert a.node_type == "YO"
 
 
+def test_persistent_event_graphs():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 2, 3)
+    g.add_edge(3, 1, 3)
+    pg = g.persistent_graph()
+    pg.delete_edge(4, 1, 3)
+    deleted_edge = g.edge(1, 3)
+
+
 def test_is_self_loop():
     g = Graph()
     g.add_node(0, "A", None, None)

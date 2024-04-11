@@ -31,11 +31,10 @@ use std::{
 };
 
 use super::{
-    pandas::{
+    graph::PyGraph, pandas::{
         dataframe::{process_pandas_py_df, GraphLoadException},
         loaders::load_edges_deletions_from_df,
-    },
-    utils,
+    }, utils
 };
 
 /// A temporal graph that allows edges and nodes to be deleted.
@@ -365,6 +364,11 @@ impl PyPersistentGraph {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Get event graph
+    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+        PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
     /// Load a graph from a Pandas DataFrame.

@@ -193,7 +193,8 @@ impl Graph {
         self.0.clone()
     }
 
-    pub fn persistant_graph(&self) -> PersistentGraph {
+    /// Get persistent graph
+    pub fn persistent_graph(&self) -> PersistentGraph {
         PersistentGraph::from_internal_graph(self.0.clone())
     }
 }

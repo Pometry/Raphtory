@@ -366,6 +366,11 @@ impl PyGraph {
         Ok(PyBytes::new(py, &bytes))
     }
 
+    /// Get persistent graph
+    pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
+        PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
+    }
+
     /// Load a graph from a Pandas DataFrame.
     ///
     /// Args:
