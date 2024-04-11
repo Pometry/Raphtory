@@ -10,10 +10,7 @@ use crate::{
     db::{
         api::{
             mutation::AdditionOps,
-            view::{
-                internal::{DynamicGraph, GraphOps},
-                *,
-            },
+            view::{internal, *},
         },
         graph::graph::Graph,
     },
