@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import pandas.core.frame
-from raphtory import Graph, GraphWithDeletions, PyDirection
+from raphtory import Graph, PersistentGraph, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 

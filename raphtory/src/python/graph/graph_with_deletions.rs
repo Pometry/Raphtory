@@ -1,5 +1,5 @@
-//! Defines the `GraphWithDeletions` class, which represents a raphtory graph in memory.
-//! Unlike in the `Graph` which has event semantics, `GraphWithDeletions` has edges that persist until explicitly deleted.
+//! Defines the `PersistentGraph` class, which represents a raphtory graph in memory.
+//! Unlike in the `Graph` which has event semantics, `PersistentGraph` has edges that persist until explicitly deleted.
 //!
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
@@ -40,18 +40,18 @@ use super::{
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
-#[pyclass(name = "GraphWithDeletions", extends = PyGraphView)]
-pub struct PyGraphWithDeletions {
+#[pyclass(name = "PersistentGraph", extends = PyGraphView)]
+pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
 }
 
-impl Debug for PyGraphWithDeletions {
+impl Debug for PyPersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.graph)
     }
 }
 
-impl From<PersistentGraph> for PyGraphWithDeletions {
+impl From<PersistentGraph> for PyPersistentGraph {
     fn from(value: PersistentGraph) -> Self {
         Self { graph: value }
     }
@@ -62,7 +62,7 @@ impl IntoPy<PyObject> for PersistentGraph {
         Py::new(
             py,
             (
-                PyGraphWithDeletions::from(self.clone()),
+                PyPersistentGraph::from(self.clone()),
                 PyGraphView::from(self),
             ),
         )
@@ -71,13 +71,13 @@ impl IntoPy<PyObject> for PersistentGraph {
     }
 }
 
-impl PyGraphWithDeletions {
-    pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyGraphWithDeletions>> {
+impl PyPersistentGraph {
+    pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
         Python::with_gil(|py| {
             Py::new(
                 py,
                 (
-                    PyGraphWithDeletions::from(db_graph.clone()),
+                    PyPersistentGraph::from(db_graph.clone()),
                     PyGraphView::from(db_graph),
                 ),
             )
@@ -87,7 +87,7 @@ impl PyGraphWithDeletions {
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[pymethods]
-impl PyGraphWithDeletions {
+impl PyPersistentGraph {
     #[new]
     pub fn py_new() -> (Self, PyGraphView) {
         let graph = PersistentGraph::new();
@@ -413,7 +413,7 @@ impl PyGraphWithDeletions {
         node_type: Option<&str>,
         node_type_in_df: Option<bool>,
     ) -> Result<PersistentGraph, GraphError> {
-        let graph = PyGraphWithDeletions {
+        let graph = PyPersistentGraph {
             graph: PersistentGraph::new(),
         };
         graph.load_edges_from_pandas(

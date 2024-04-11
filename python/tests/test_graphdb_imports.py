@@ -1,5 +1,5 @@
 import pytest
-from raphtory import Graph, GraphWithDeletions
+from raphtory import Graph, PersistentGraph
 
 
 def test_import_into_graph():

@@ -5,7 +5,7 @@ import random
 import pandas as pd
 import pandas.core.frame
 import pytest
-from raphtory import Graph, GraphWithDeletions, PyDirection
+from raphtory import Graph, PersistentGraph, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
@@ -36,7 +36,7 @@ def create_graph():
 
 
 def create_graph_with_deletions():
-    g = GraphWithDeletions()
+    g = PersistentGraph()
 
     g.add_node(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_node(-1, 2, {"type": "wallet", "cost": 10.0})
