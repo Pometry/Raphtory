@@ -132,6 +132,10 @@ impl PersistentGraph {
         Self(Arc::new(InternalGraph::default()))
     }
 
+    pub fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
+        Self(internal_graph)
+    }
+
     /// Save a graph to a directory
     ///
     /// # Arguments
@@ -722,16 +726,12 @@ mod test_deletions {
     fn test_edge_deletions() {
         let g = PersistentGraph::new();
 
-        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
-            .unwrap();
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None).unwrap();
         g.delete_edge(10, 0, 1, None).unwrap();
 
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
 
-        assert_eq!(
-            g.window(1, 2).edges().id().collect::<Vec<_>>(),
-            vec![(0, 1)]
-        );
+        assert_eq!(g.window(1, 2).edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
 
         assert_eq!(g.window(1, 2).count_edges(), 1);
 

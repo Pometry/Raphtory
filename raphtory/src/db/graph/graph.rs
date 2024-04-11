@@ -31,6 +31,8 @@ use std::{
     sync::Arc,
 };
 
+use super::views::deletion_graph::PersistentGraph;
+
 const SEG: usize = 16;
 
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
@@ -189,6 +191,10 @@ impl Graph {
 
     pub fn as_arc(&self) -> Arc<InternalGraph> {
         self.0.clone()
+    }
+
+    pub fn persistant_graph(&self) -> PersistentGraph {
+        PersistentGraph::from_internal_graph(self.0.clone())
     }
 }
 
@@ -2012,6 +2018,17 @@ mod db_tests {
             g.edge(0, 2).unwrap().layer_names().collect_vec(),
             ["awesome layer"]
         );
+    }
+
+    #[test]
+    fn test_persistent_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None).unwrap();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+
+        let pg = g.persistant_graph();
+        pg.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
     }
 
     // non overlaping time intervals
