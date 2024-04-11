@@ -2028,7 +2028,7 @@ mod db_tests {
             .unwrap();
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
 
-        let pg = g.persistant_graph();
+        let pg = g.persistent_graph();
         pg.delete_edge(10, 0, 1, None).unwrap();
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
     }
