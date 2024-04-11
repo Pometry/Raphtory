@@ -31,10 +31,12 @@ use std::{
 };
 
 use super::{
-    graph::PyGraph, pandas::{
+    graph::PyGraph,
+    pandas::{
         dataframe::{process_pandas_py_df, GraphLoadException},
         loaders::load_edges_deletions_from_df,
-    }, utils
+    },
+    utils,
 };
 
 /// A temporal graph that allows edges and nodes to be deleted.
