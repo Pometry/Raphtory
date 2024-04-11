@@ -40,7 +40,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
-        db::{api::view::IntoDynamic, graph::views::deletion_graph::GraphWithDeletions},
+        db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
     };
     use serde_json::json;
@@ -49,7 +49,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
-        let graph = GraphWithDeletions::new();
+        let graph = PersistentGraph::new();
         graph
             .add_node(
                 0,
@@ -100,7 +100,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn basic_query() {
-        let graph = GraphWithDeletions::new();
+        let graph = PersistentGraph::new();
         graph
             .add_node(0, 11, NO_PROPS, None)
             .expect("Could not add node!");
@@ -143,7 +143,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter() {
-        let graph = GraphWithDeletions::new();
+        let graph = PersistentGraph::new();
         if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
             panic!("Could not add node! {:?}", err);
         }
@@ -221,7 +221,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_properties() {
-        let graph = GraphWithDeletions::new();
+        let graph = PersistentGraph::new();
         if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
             panic!("Could not add node! {:?}", err);
         }
@@ -308,16 +308,16 @@ mod graphql_test {
     #[tokio::test]
     async fn test_mutation() {
         let test_dir = tempdir().unwrap();
-        let g0 = GraphWithDeletions::new();
+        let g0 = PersistentGraph::new();
         let test_dir_path = test_dir.path().to_str().unwrap().replace(r#"\"#, r#"\\"#);
         let f0 = &test_dir.path().join("g0");
         let f1 = &test_dir.path().join("g1");
         g0.save_to_file(f0).unwrap();
 
-        let g1 = GraphWithDeletions::new();
+        let g1 = PersistentGraph::new();
         g1.add_node(0, 1, [("name", "1")], None).unwrap();
 
-        let g2 = GraphWithDeletions::new();
+        let g2 = PersistentGraph::new();
         g2.add_node(0, 2, [("name", "2")], None).unwrap();
 
         let data = Data::default();
@@ -478,7 +478,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_graph_injection() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
         let tmp_file = tempfile::NamedTempFile::new().unwrap();
         let path = tmp_file.path();
@@ -532,7 +532,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_graph_send_receive_base64() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
 
         let graph_str = url_encode_graph(g.clone()).unwrap();
