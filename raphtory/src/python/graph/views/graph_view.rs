@@ -16,7 +16,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
+                layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
+                node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph,
             },
         },
     },
@@ -90,6 +91,12 @@ impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for LayeredGraph<G> {
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for NodeSubgraph<G> {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        PyGraphView::from(self).into_py(py)
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> IntoPy<PyObject> for TypeFilteredSubgraph<G> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         PyGraphView::from(self).into_py(py)
     }
@@ -254,6 +261,28 @@ impl PyGraphView {
     ///    GraphView - Returns the subgraph
     fn subgraph(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
+    }
+
+    /// Returns a subgraph filtered by node types given a set of node types
+    ///
+    /// Arguments:
+    ///   * `node_types`: set of node types
+    ///
+    /// Returns:
+    ///    GraphView - Returns the subgraph
+    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> TypeFilteredSubgraph<DynamicGraph> {
+        self.graph.subgraph_node_types(node_types)
+    }
+
+    /// Returns a subgraph given a set of nodes that are excluded from the subgraph
+    ///
+    /// Arguments:
+    ///   * `nodes`: set of nodes
+    ///
+    /// Returns:
+    ///    GraphView - Returns the subgraph
+    fn exclude_nodes(&self, nodes: Vec<NodeRef>) -> NodeSubgraph<DynamicGraph> {
+        self.graph.exclude_nodes(nodes)
     }
 
     /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph

@@ -1359,11 +1359,16 @@ def test_layer():
 
     g.add_edge(0, 1, 2)
     g.add_edge(0, 1, 3, layer="layer1")
+    g.add_edge(0, 1, 5, layer="layer1")
+    g.add_edge(0, 1, 6, layer="layer1")
     g.add_edge(0, 1, 4, layer="layer2")
 
     assert g.default_layer().count_edges() == 1
-    assert g.layers(["layer1"]).count_edges() == 1
+    assert g.layers(["layer1"]).count_edges() == 3
     assert g.layers(["layer2"]).count_edges() == 1
+
+    assert g.exclude_layers(["layer1"]).count_edges() == 2
+    assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
 
 
 def test_layer_node():
@@ -1606,6 +1611,16 @@ def test_subgraph():
     x.sort()
     assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
 
+def test_exclude_nodes():
+    g = create_graph()
+    exclude_nodes = g.exclude_nodes([1])
+    assert exclude_nodes.nodes.id.collect() == [2, 3]
+
+def test_nbr():
+    g = create_graph()
+    r = [e.nbr.name for e in g.edges]
+    r.sort()
+    assert r == ['1', '1', '2', '2', '3']
 
 def test_materialize_graph():
     g = Graph()
@@ -1927,6 +1942,17 @@ def test_one_hop_filter_reset():
     # graph level filter is preserved
     out_out_2 = g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
     assert len(out_out_2) == 0
+
+
+def test_node_types():
+    g = Graph()
+    g.add_node(1, 1, node_type="wallet")
+    g.add_node(1, 2, node_type="timer")
+    g.add_node(1, 3, node_type="timer")
+    g.add_node(1, 4, node_type="wallet")
+    
+    assert g.nodes.type_filter(["wallet"]).node_type.collect() == ['1', '4']
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
 
 
 def test_time_exploded_edges():

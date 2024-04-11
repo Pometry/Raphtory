@@ -52,6 +52,21 @@ macro_rules! impl_layerops {
                 self.$field.layers(names)
             }
 
+            #[doc = concat!(" Return a view of ", $name, " containing all layers except the excluded `names`")]
+            /// Errors if any of the layers do not exist.
+            ///
+            /// Arguments:
+            ///     names (list[str]): list of layer names that are excluded for the new view
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $name, ": The layered view")]
+            fn exclude_layers(
+                &self,
+                names: Vec<String>,
+            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
+                self.$field.exclude_layers(names)
+            }
+
             #[doc = concat!(" Return a view of ", $name, " containing all layers `names`")]
             /// Any layers that do not exist are ignored
             ///

@@ -6,6 +6,7 @@ use crate::{
             view::{
                 internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                NodeTypesFilter,
             },
         },
         graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
@@ -14,6 +15,7 @@ use crate::{
 };
 
 use crate::db::api::storage::locked::LockedGraph;
+use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
@@ -60,6 +62,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
         let g = self.graph.core_graph();
         g.into_nodes_iter(self.graph.clone())
     }
+
     pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
@@ -188,6 +191,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
             _marker: PhantomData,
         }
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeTypesFilter<'graph>
+    for Nodes<'graph, G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph> IntoIterator

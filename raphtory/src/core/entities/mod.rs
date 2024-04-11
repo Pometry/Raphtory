@@ -65,7 +65,8 @@ impl From<usize> for EID {
 }
 
 pub(crate) enum VRef<'a> {
-    Entry(Entry<'a, NodeStore>),        // returned from graph.node
+    Entry(Entry<'a, NodeStore>),
+    // returned from graph.node
     LockedEntry(GraphEntry<NodeStore>), // returned from locked_nodes
 }
 
@@ -150,6 +151,50 @@ impl LayerIds {
                     0 => LayerIds::None,
                     1 => LayerIds::One(ids[0]),
                     _ => LayerIds::Multiple(ids.into()),
+                }
+            }
+        }
+    }
+
+    pub fn diff<'a>(
+        &self,
+        graph: impl crate::prelude::GraphViewOps<'a>,
+        other: &LayerIds,
+    ) -> LayerIds {
+        match (self, other) {
+            (LayerIds::None, _) => LayerIds::None,
+            (this, LayerIds::None) => this.clone(),
+            (this, LayerIds::All) => LayerIds::None,
+            (LayerIds::One(id), other) => {
+                if other.contains(id) {
+                    LayerIds::None
+                } else {
+                    LayerIds::One(*id)
+                }
+            }
+            (LayerIds::Multiple(ids), other) => {
+                let ids: Vec<usize> = ids
+                    .iter()
+                    .filter(|id| !other.contains(id))
+                    .copied()
+                    .collect();
+                match ids.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(ids[0]),
+                    _ => LayerIds::Multiple(ids.into()),
+                }
+            }
+            (LayerIds::All, other) => {
+                let all_layer_ids: Vec<usize> = graph
+                    .unique_layers()
+                    .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
+                    .into_iter()
+                    .filter(|id| !other.contains(id))
+                    .collect();
+                match all_layer_ids.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(all_layer_ids[0]),
+                    _ => LayerIds::Multiple(all_layer_ids.into()),
                 }
             }
         }

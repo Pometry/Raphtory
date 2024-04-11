@@ -272,7 +272,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
     }
 }
 
-#[pyclass(name = "MutableNode", extends=PyNode)]
+#[pyclass(name = "MutableNode", extends = PyNode)]
 pub struct PyMutableNode {
     node: NodeView<MaterializedGraph, MaterializedGraph>,
 }
@@ -400,6 +400,13 @@ impl PyMutableNode {
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodetypesfilter!(
+    PyNodes,
+    nodes,
+    Nodes<'static, DynamicGraph, DynamicGraph>,
+    "Nodes"
+);
 
 impl_nodeviewops!(
     PyNodes,
@@ -586,7 +593,7 @@ impl PyNodes {
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_property_history=false, convert_datetime=false))]
+    #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
     pub fn to_df(
         &self,
         include_property_history: bool,
@@ -656,6 +663,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'
 pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodetypesfilter!(
+    PyPathFromGraph,
+    path,
+    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    "PathFromGraph"
+);
 
 impl_nodeviewops!(
     PyPathFromGraph,
@@ -786,6 +800,13 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodetypesfilter!(
+    PyPathFromNode,
+    path,
+    PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    "PathFromNode"
+);
 
 impl_nodeviewops!(
     PyPathFromNode,

@@ -140,7 +140,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
 
     #[inline]
     fn nodes_filtered(&self) -> bool {
-        self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
+        self.graph.nodes_filtered()
+            || self.start_bound() > self.graph.earliest_time().unwrap_or(i64::MAX)
             || self.end_bound() <= self.graph.latest_time().unwrap_or(i64::MIN)
     }
 
@@ -1035,7 +1036,7 @@ mod views_test {
                 .earliest_time()
                 .map(|it| it.flatten().collect_vec())
                 .collect_vec(),
-            [vec![0, 4,], vec![0], vec![0],]
+            [vec![0, 4], vec![0], vec![0],]
         );
     }
 }

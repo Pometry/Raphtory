@@ -899,6 +899,10 @@ mod db_tests {
         assert!(g.layers("layer2").unwrap().edge(11, 22).is_none());
         assert!(g.layers("layer2").unwrap().edge(11, 44).is_some());
 
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 44).is_none());
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 33).is_some());
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 22).is_some());
+
         let dft_layer = g.default_layer();
         let layer1 = g.layers("layer1").expect("layer1");
         let layer2 = g.layers("layer2").expect("layer2");
