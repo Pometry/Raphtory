@@ -1368,7 +1368,9 @@ def test_layer():
     assert g.layers(["layer2"]).count_edges() == 1
 
     assert g.exclude_layers(["layer1"]).count_edges() == 2
+    assert g.exclude_layer("layer1").count_edges() == 2
     assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
+    assert g.exclude_layer("layer2").count_edges() == 4
 
 
 def test_layer_node():
@@ -2034,7 +2036,6 @@ def test_persistent_event_graphs():
     g.add_edge(3, 1, 3)
     pg = g.persistent_graph()
     pg.delete_edge(4, 1, 3)
-    deleted_edge = g.edge(1, 3)
 
 
 def test_is_self_loop():
