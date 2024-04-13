@@ -6,7 +6,6 @@ use crate::{
     },
     prelude::Graph,
 };
-use std::collections::HashMap;
 
 /// Gives the large connected component of a graph.
 /// The large connected component is the largest (i.e., with the highest number of nodes)
@@ -31,34 +30,29 @@ impl LargestConnectedComponent for Graph {
         where
             Self: StaticGraphViewOps,
     {
-        let connected_components_map = weakly_connected_components(self, usize::MAX, None).get_all_with_names();
-        let mut lcc_id: (u64, usize) = (0, 0);
-        let mut component_sizes: HashMap<u64, usize> = HashMap::new();
-        let mut is_tie: bool = false;
+        let mut connected_components_map = weakly_connected_components(self, usize::MAX, None).group_by();
+        let mut lcc_key = 0;
+        let mut key_length = 0;
+        let mut is_tie = false;
 
-        for &component_id in connected_components_map.values() {
-            let count = component_sizes.entry(component_id).or_insert(0);
-            *count += 1;
-            if *count > lcc_id.1 {
-                lcc_id = (component_id, *count);
+        for (key, value) in &connected_components_map {
+            let length = value.len();
+            if length > key_length {
+                key_length = length;
+                lcc_key = *key;
                 is_tie = false;
-            } else if *count == lcc_id.1 && component_id != lcc_id.0 {
-                is_tie = true;
+            }else if length == key_length{
+                is_tie = true
             }
         }
-
         if is_tie{
             println!("Warning: The graph has two or more connected components that are both the largest. \
             The returned component has been picked arbitrarily.");
         }
-
-        let lcc_nodes: Vec<String> = connected_components_map
-            .iter()
-            .filter(|&(_, &cc_id)| cc_id == lcc_id.0)
-            .map(|(node, _)| node.clone())
-            .collect();
-
-        self.subgraph(lcc_nodes)
+        return match connected_components_map.remove(&lcc_key) {
+            Some(nodes) => self.subgraph(nodes),
+            None => self.subgraph(self.nodes())
+        }
     }
 }
 
@@ -109,9 +103,7 @@ mod largest_connected_component_test {
 
             (2, 20, 21),
 
-            (3, 30, 31),
-
-            (4, 40, 41)
+            (3, 30, 31)
         ];
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
@@ -131,6 +123,8 @@ mod largest_connected_component_test {
             (1, 1, 2),
             (1, 2, 1),
             (1, 3, 1),
+
+            (1, 5, 6),
 
             (1, 11, 12),
             (1, 12, 11),
