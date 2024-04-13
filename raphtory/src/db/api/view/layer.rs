@@ -20,6 +20,12 @@ pub trait LayerOps<'graph> {
     /// Return a graph containing the layers in `names`. Errors if one or more of the layers do not exists.
     fn layers<L: Into<Layer>>(&self, names: L) -> Result<Self::LayeredViewType, GraphError>;
 
+    /// Return a graph containing the excluded layers in `names`. Errors if one or more of the layers do not exists.
+    fn exclude_layers<L: Into<Layer>>(
+        &self,
+        layers: L,
+    ) -> Result<Self::LayeredViewType, GraphError>;
+
     /// Check if `name` is a valid layer name
     fn has_layer(&self, name: &str) -> bool;
 
@@ -38,6 +44,20 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         let layers = layers.into();
         let ids = self.current_filter().layer_ids_from_names(layers)?;
         Ok(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids)))
+    }
+
+    fn exclude_layers<L: Into<Layer>>(
+        &self,
+        layers: L,
+    ) -> Result<Self::LayeredViewType, GraphError> {
+        let all_layer_ids = self.current_filter().layer_ids();
+        let excluded_ids = self.current_filter().layer_ids_from_names(layers.into())?;
+        let included_ids = all_layer_ids.diff(self.current_filter().clone(), &excluded_ids);
+
+        Ok(self.one_hop_filtered(LayeredGraph::new(
+            self.current_filter().clone(),
+            included_ids,
+        )))
     }
 
     fn has_layer(&self, name: &str) -> bool {
