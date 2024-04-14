@@ -839,6 +839,45 @@ def test_none_columns_edges():
     ):
         PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
 
+def test_loading_list_as_properties():
+    df = pd.DataFrame(
+        {
+            "src": [1, 2, 3, 4, 5],
+            "dst": [2, 3, 4, 5, 6],
+            "time": [1, 2, 3, 4, 5],
+            "weight": [1.0, "2.0", 3.0, 4.0, 5.0],
+            "marbles": [["red"], ["blue"], ["green"], ["yellow"], ["purple"]],
+        }
+    )
+            
+    g = Graph.load_from_pandas(
+        df,
+        edge_src="src",
+        edge_dst="dst",
+        edge_time="time",
+        edge_properties=["marbles"],
+    )
+    
+    assert g.edge(1, 2).properties["marbles"] == ['red']
+    
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "time": [1, 2, 3, 4, 5],
+            "marbles": [["red"], ["blue"], ["green"], ["yellow"], ["purple"]],
+        }
+    )
+    
+    g = Graph()
+    g.load_nodes_from_pandas(
+        df = df,
+        id="id",
+        time="time",
+        properties=["marbles"],
+    )
+    
+    assert g.node(2).properties["marbles"] == ['blue']
+
 
 def test_unparsable_props():
     edges_df = pd.DataFrame(
@@ -877,34 +916,6 @@ def test_unparsable_props():
             edge_time="time",
             edge_properties=["weight"],
         )
-
-    with pytest.raises(
-        Exception,
-        match=re.escape(
-            "Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values."
-        ),
-    ):
-        Graph.load_from_pandas(
-            edges_df,
-            edge_src="src",
-            edge_dst="dst",
-            edge_time="time",
-            edge_properties=["marbles"],
-        )
-    with pytest.raises(
-        Exception,
-        match=re.escape(
-            "Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values."
-        ),
-    ):
-        PersistentGraph.load_from_pandas(
-            edges_df,
-            edge_src="src",
-            edge_dst="dst",
-            edge_time="time",
-            edge_properties=["marbles"],
-        )
-
 
 def test_load_node_from_pandas_with_node_types():
     nodes_df = pd.DataFrame(
