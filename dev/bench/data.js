@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1713111868718,
+  "lastUpdate": 1713116742356,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "Rust Benchmark": [
@@ -48415,6 +48415,204 @@ window.BENCHMARK_DATA = {
             "name": "lotr_graph_window_10/max_degree",
             "value": 113511,
             "range": "± 116",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106534376+D4rkisek@users.noreply.github.com",
+            "name": "D4rkisek",
+            "username": "D4rkisek"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "22d0a1dd21625babcd0c851f29c380145ee230aa",
+          "message": "Add largest connected component method (#1562)\n\n* Add largest connected component method\r\n\r\n* Expose lcc to python\r\n\r\n* Expose lcc to python\r\n\r\n* optimise the function\r\n\r\n* run cargo +nightly fmt\r\n\r\n* Missed a bracket on the merge\r\n\r\n* run cargo +nightly fmt\r\n\r\n---------\r\n\r\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2024-04-14T18:39:47+01:00",
+          "tree_id": "6a124fe360baff2ade1218d7848d3b10c386c15a",
+          "url": "https://github.com/Pometry/Raphtory/commit/22d0a1dd21625babcd0c851f29c380145ee230aa"
+        },
+        "date": 1713116741015,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "large/1k fixed edge updates with varying time",
+            "value": 263806,
+            "range": "± 3317",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and numeric string input",
+            "value": 264289,
+            "range": "± 3018",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k fixed edge updates with varying time and string input",
+            "value": 332941,
+            "range": "± 1316",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions",
+            "value": 522150,
+            "range": "± 60153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "large/1k random edge additions with numeric string input",
+            "value": 700297,
+            "range": "± 59306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_edges",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_existing",
+            "value": 27,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_edge_nonexisting",
+            "value": 24,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/num_nodes",
+            "value": 0,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_existing",
+            "value": 6,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/has_node_nonexisting",
+            "value": 6,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_id",
+            "value": 4586,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph/max_degree",
+            "value": 30756,
+            "range": "± 234",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_edges",
+            "value": 24293,
+            "range": "± 528",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_existing",
+            "value": 62,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_edge_nonexisting",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/num_nodes",
+            "value": 4,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_existing",
+            "value": 31,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/has_node_nonexisting",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_id",
+            "value": 4604,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_100/max_degree",
+            "value": 161484,
+            "range": "± 703",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_edges",
+            "value": 24296,
+            "range": "± 627",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_existing",
+            "value": 48,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_edge_nonexisting",
+            "value": 27,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/num_nodes",
+            "value": 17659,
+            "range": "± 1085",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_existing",
+            "value": 37,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/has_node_nonexisting",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_id",
+            "value": 5214,
+            "range": "± 115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "lotr_graph_window_10/max_degree",
+            "value": 114956,
+            "range": "± 227",
             "unit": "ns/iter"
           }
         ]
