@@ -14,7 +14,7 @@ use crate::{
                 StaticGraphViewOps,
             },
         },
-        graph::{edge::EdgeView, views::deletion_graph::GraphWithDeletions},
+        graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
     python::{types::repr::Repr, utils::PyTime},
@@ -107,7 +107,7 @@ impl IntoPy<PyObject> for EdgeView<Graph, Graph> {
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<GraphWithDeletions, GraphWithDeletions> {
+impl IntoPy<PyObject> for EdgeView<PersistentGraph, PersistentGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph: MaterializedGraph = self.base_graph.into();

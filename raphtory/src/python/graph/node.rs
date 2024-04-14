@@ -15,7 +15,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::deletion_graph::GraphWithDeletions,
+            views::deletion_graph::PersistentGraph,
         },
     },
     prelude::Graph,
@@ -311,7 +311,7 @@ impl IntoPy<PyObject> for NodeView<Graph, Graph> {
     }
 }
 
-impl IntoPy<PyObject> for NodeView<GraphWithDeletions, GraphWithDeletions> {
+impl IntoPy<PyObject> for NodeView<PersistentGraph, PersistentGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph = graph.clone();

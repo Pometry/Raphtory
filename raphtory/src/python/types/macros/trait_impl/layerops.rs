@@ -29,6 +29,21 @@ macro_rules! impl_layerops {
                 self.$field.layers(name)
             }
 
+            #[doc = concat!(" Return a view of ", $name, " containing all layers except the excluded `name`")]
+            /// Errors if any of the layers do not exist.
+            ///
+            /// Arguments:
+            ///     name (str): layer name that is excluded for the new view
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $name, ": The layered view")]
+            fn exclude_layer(
+                &self,
+                name: &str,
+            ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
+                self.$field.exclude_layers(name)
+            }
+
             #[doc = concat!(" Check if ", $name, r#" has the layer `"name"`"#)]
             fn has_layer(
                 &self,

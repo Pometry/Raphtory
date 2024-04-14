@@ -37,17 +37,17 @@ use std::{
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
 /// it is considered active at any point in the window.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GraphWithDeletions(pub Arc<InternalGraph>);
+pub struct PersistentGraph(pub Arc<InternalGraph>);
 
-impl Static for GraphWithDeletions {}
+impl Static for PersistentGraph {}
 
-impl From<InternalGraph> for GraphWithDeletions {
+impl From<InternalGraph> for PersistentGraph {
     fn from(value: InternalGraph) -> Self {
         Self(Arc::new(value))
     }
 }
 
-impl Display for GraphWithDeletions {
+impl Display for PersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.0, f)
     }
@@ -121,15 +121,19 @@ fn edge_alive_at_start(e: &dyn EdgeLike, t: i64, layer_ids: &LayerIds) -> bool {
     alive
 }
 
-impl Default for GraphWithDeletions {
+impl Default for PersistentGraph {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GraphWithDeletions {
+impl PersistentGraph {
     pub fn new() -> Self {
         Self(Arc::new(InternalGraph::default()))
+    }
+
+    pub fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
+        Self(internal_graph)
     }
 
     /// Save a graph to a directory
@@ -175,15 +179,20 @@ impl GraphWithDeletions {
         let g = MaterializedGraph::load_from_file(path, force)?;
         g.into_persistent().ok_or(GraphError::GraphLoadError)
     }
+
+    /// Get event graph
+    pub fn event_graph(&self) -> Graph {
+        Graph::from_internal_graph(self.0.clone())
+    }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for GraphWithDeletions {
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
     fn eq(&self, other: &G) -> bool {
         graph_equal(self, other)
     }
 }
 
-impl Base for GraphWithDeletions {
+impl Base for PersistentGraph {
     type Base = InternalGraph;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -191,9 +200,9 @@ impl Base for GraphWithDeletions {
     }
 }
 
-impl InternalMaterialize for GraphWithDeletions {
+impl InternalMaterialize for PersistentGraph {
     fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
-        MaterializedGraph::PersistentGraph(GraphWithDeletions(Arc::new(graph)))
+        MaterializedGraph::PersistentGraph(PersistentGraph(Arc::new(graph)))
     }
 
     fn include_deletions(&self) -> bool {
@@ -201,25 +210,25 @@ impl InternalMaterialize for GraphWithDeletions {
     }
 }
 
-impl DeletionOps for GraphWithDeletions {}
+impl DeletionOps for PersistentGraph {}
 
-impl InheritMutationOps for GraphWithDeletions {}
+impl InheritMutationOps for PersistentGraph {}
 
-impl InheritListOps for GraphWithDeletions {}
+impl InheritListOps for PersistentGraph {}
 
-impl InheritCoreOps for GraphWithDeletions {}
+impl InheritCoreOps for PersistentGraph {}
 
-impl InheritCoreDeletionOps for GraphWithDeletions {}
+impl InheritCoreDeletionOps for PersistentGraph {}
 
-impl InheritPropertiesOps for GraphWithDeletions {}
+impl InheritPropertiesOps for PersistentGraph {}
 
-impl InheritLayerOps for GraphWithDeletions {}
+impl InheritLayerOps for PersistentGraph {}
 
-impl InheritEdgeFilterOps for GraphWithDeletions {}
+impl InheritEdgeFilterOps for PersistentGraph {}
 
-impl InheritNodeFilterOps for GraphWithDeletions {}
+impl InheritNodeFilterOps for PersistentGraph {}
 
-impl TimeSemantics for GraphWithDeletions {
+impl TimeSemantics for PersistentGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.0.node_earliest_time(v)
     }
@@ -669,8 +678,7 @@ mod test_deletions {
         db::{
             api::view::time::internal::InternalTimeOps,
             graph::{
-                edge::EdgeView, graph::assert_graph_equal,
-                views::deletion_graph::GraphWithDeletions,
+                edge::EdgeView, graph::assert_graph_equal, views::deletion_graph::PersistentGraph,
             },
         },
         prelude::*,
@@ -679,7 +687,7 @@ mod test_deletions {
 
     #[test]
     fn test_nodes() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
 
         g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
             .unwrap();
@@ -721,7 +729,7 @@ mod test_deletions {
 
     #[test]
     fn test_edge_deletions() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
 
         g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
             .unwrap();
@@ -768,7 +776,7 @@ mod test_deletions {
 
     #[test]
     fn test_window_semantics() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
 
@@ -788,7 +796,7 @@ mod test_deletions {
 
     #[test]
     fn test_timestamps() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
         assert_eq!(e.earliest_time().unwrap(), 1);
         assert_eq!(e.latest_time(), Some(i64::MAX));
@@ -806,7 +814,7 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_only_deletion() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         g.delete_edge(1, 1, 2, None).unwrap();
         g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(5, 1, 2, None).unwrap();
@@ -820,7 +828,7 @@ mod test_deletions {
 
     #[test]
     fn test_materialize_window() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
 
@@ -835,7 +843,7 @@ mod test_deletions {
 
     #[test]
     fn test_exploded_latest_time() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
         assert_eq!(e.latest_time(), Some(10));
@@ -844,7 +852,7 @@ mod test_deletions {
 
     #[test]
     fn test_exploded_window() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         for t in [5, 10, 15] {
             e.add_updates(t, NO_PROPS, None).unwrap();
@@ -857,7 +865,7 @@ mod test_deletions {
 
     #[test]
     fn test_edge_properties() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, [("test", "test")], None).unwrap();
         assert_eq!(e.properties().get("test").unwrap_str(), "test");
         e.delete(10, None).unwrap();
@@ -882,7 +890,7 @@ mod test_deletions {
 
     #[test]
     fn test_edge_history() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         e.delete(5, None).unwrap();
         e.add_updates(10, NO_PROPS, None).unwrap();
@@ -903,7 +911,7 @@ mod test_deletions {
 
     #[test]
     fn test_ordering_of_addition_and_deletion() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
 
         //deletion before addition (edge exists from (-inf,1) and (1, inf)
         g.delete_edge(1, 1, 2, None).unwrap();
@@ -938,7 +946,7 @@ mod test_deletions {
             (7, 3, 2),
             (1, 1, 1),
         ];
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         for (t, s, d) in edges.iter() {
             g.add_edge(*t, *s, *d, NO_PROPS, None).unwrap();
         }
@@ -963,7 +971,7 @@ mod test_deletions {
 
     #[test]
     fn test_deletion_multiple_layers() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
 
         g.add_edge(1, 1, 2, NO_PROPS, Some("1")).unwrap();
         g.delete_edge(2, 1, 2, Some("2")).unwrap();
@@ -1007,7 +1015,7 @@ mod test_deletions {
 
     #[test]
     fn test_edge_is_valid() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
 
         g.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
         let e = g.edge(1, 2).unwrap();
@@ -1039,7 +1047,7 @@ mod test_deletions {
 
     #[test]
     fn test_explode_multiple_layers() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         g.delete_edge(1, 1, 2, Some("1")).unwrap();
         g.delete_edge(2, 1, 2, Some("2")).unwrap();
         g.delete_edge(3, 1, 2, Some("3")).unwrap();
@@ -1052,7 +1060,7 @@ mod test_deletions {
 
     #[test]
     fn test_edge_latest_time() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         e.delete(2, None).unwrap();
         assert_eq!(e.at(2).earliest_time(), None);
@@ -1067,7 +1075,7 @@ mod test_deletions {
 
     #[test]
     fn test_view_start_end() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         assert_eq!(g.start(), None);
         assert_eq!(g.timeline_start(), Some(0));
@@ -1091,7 +1099,7 @@ mod test_deletions {
 
     #[test]
     fn test_node_property_semantics() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
         let _v = g
             .add_node(1, 1, [("test_prop", "test value")], None)
             .unwrap();
@@ -1145,7 +1153,7 @@ mod test_deletions {
 
     #[test]
     fn test_jira() {
-        let g = GraphWithDeletions::new();
+        let g = PersistentGraph::new();
 
         g.add_edge(0, 1, 2, [("added", Prop::I64(0))], Some("assigned"))
             .unwrap();
@@ -1205,5 +1213,17 @@ mod test_deletions {
 
         println!("at nodes = {:?}", nodes);
         // assert_eq!(g.window(1, 2).node(0).unwrap().out_degree(), 1)
+    }
+
+    #[test]
+    fn test_event_graph() {
+        let pg = PersistentGraph::new();
+        pg.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
+            .unwrap();
+        pg.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(pg.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+
+        let g = pg.event_graph();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
     }
 }
