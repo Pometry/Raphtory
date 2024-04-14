@@ -377,7 +377,8 @@ impl PyGraph {
     ///
     pub fn largest_connected_component(&self) -> NodeSubgraph<Graph> {
         self.graph.largest_connected_component()
-
+    }
+    
     /// Get persistent graph
     pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
