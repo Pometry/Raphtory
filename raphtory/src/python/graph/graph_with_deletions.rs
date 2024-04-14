@@ -1,5 +1,5 @@
-//! Defines the `GraphWithDeletions` class, which represents a raphtory graph in memory.
-//! Unlike in the `Graph` which has event semantics, `GraphWithDeletions` has edges that persist until explicitly deleted.
+//! Defines the `PersistentGraph` class, which represents a raphtory graph in memory.
+//! Unlike in the `Graph` which has event semantics, `PersistentGraph` has edges that persist until explicitly deleted.
 //!
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
@@ -12,7 +12,7 @@ use crate::{
             mutation::{AdditionOps, PropertyAdditionOps},
             view::internal::{CoreGraphOps, MaterializedGraph},
         },
-        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::GraphWithDeletions},
+        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
@@ -31,6 +31,7 @@ use std::{
 };
 
 use super::{
+    graph::PyGraph,
     pandas::{
         dataframe::{process_pandas_py_df, GraphLoadException},
         loaders::load_edges_deletions_from_df,
@@ -40,29 +41,29 @@ use super::{
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
-#[pyclass(name = "GraphWithDeletions", extends = PyGraphView)]
-pub struct PyGraphWithDeletions {
-    pub(crate) graph: GraphWithDeletions,
+#[pyclass(name = "PersistentGraph", extends = PyGraphView)]
+pub struct PyPersistentGraph {
+    pub(crate) graph: PersistentGraph,
 }
 
-impl Debug for PyGraphWithDeletions {
+impl Debug for PyPersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.graph)
     }
 }
 
-impl From<GraphWithDeletions> for PyGraphWithDeletions {
-    fn from(value: GraphWithDeletions) -> Self {
+impl From<PersistentGraph> for PyPersistentGraph {
+    fn from(value: PersistentGraph) -> Self {
         Self { graph: value }
     }
 }
 
-impl IntoPy<PyObject> for GraphWithDeletions {
+impl IntoPy<PyObject> for PersistentGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(
             py,
             (
-                PyGraphWithDeletions::from(self.clone()),
+                PyPersistentGraph::from(self.clone()),
                 PyGraphView::from(self),
             ),
         )
@@ -71,13 +72,13 @@ impl IntoPy<PyObject> for GraphWithDeletions {
     }
 }
 
-impl PyGraphWithDeletions {
-    pub fn py_from_db_graph(db_graph: GraphWithDeletions) -> PyResult<Py<PyGraphWithDeletions>> {
+impl PyPersistentGraph {
+    pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
         Python::with_gil(|py| {
             Py::new(
                 py,
                 (
-                    PyGraphWithDeletions::from(db_graph.clone()),
+                    PyPersistentGraph::from(db_graph.clone()),
                     PyGraphView::from(db_graph),
                 ),
             )
@@ -87,10 +88,10 @@ impl PyGraphWithDeletions {
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[pymethods]
-impl PyGraphWithDeletions {
+impl PyPersistentGraph {
     #[new]
     pub fn py_new() -> (Self, PyGraphView) {
-        let graph = GraphWithDeletions::new();
+        let graph = PersistentGraph::new();
         (
             Self {
                 graph: graph.clone(),
@@ -116,7 +117,7 @@ impl PyGraphWithDeletions {
         id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-    ) -> Result<NodeView<GraphWithDeletions>, GraphError> {
+    ) -> Result<NodeView<PersistentGraph>, GraphError> {
         self.graph
             .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
@@ -184,7 +185,7 @@ impl PyGraphWithDeletions {
         dst: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
@@ -217,7 +218,7 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///   the node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: NodeRef) -> Option<NodeView<GraphWithDeletions>> {
+    pub fn node(&self, id: NodeRef) -> Option<NodeView<PersistentGraph>> {
         self.graph.node(id)
     }
 
@@ -235,7 +236,7 @@ impl PyGraphWithDeletions {
         &self,
         src: NodeRef,
         dst: NodeRef,
-    ) -> Option<EdgeView<GraphWithDeletions, GraphWithDeletions>> {
+    ) -> Option<EdgeView<PersistentGraph, PersistentGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -255,7 +256,7 @@ impl PyGraphWithDeletions {
         &self,
         node: PyNode,
         force: bool,
-    ) -> Result<NodeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+    ) -> Result<NodeView<PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
 
@@ -276,7 +277,7 @@ impl PyGraphWithDeletions {
         &self,
         nodes: Vec<PyNode>,
         force: bool,
-    ) -> Result<Vec<NodeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+    ) -> Result<Vec<NodeView<PersistentGraph, PersistentGraph>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
     }
@@ -298,7 +299,7 @@ impl PyGraphWithDeletions {
         &self,
         edge: PyEdge,
         force: bool,
-    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
 
@@ -319,7 +320,7 @@ impl PyGraphWithDeletions {
         &self,
         edges: Vec<PyEdge>,
         force: bool,
-    ) -> Result<Vec<EdgeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+    ) -> Result<Vec<EdgeView<PersistentGraph, PersistentGraph>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)
     }
@@ -337,9 +338,9 @@ impl PyGraphWithDeletions {
     ///  Graph: The loaded graph.
     #[staticmethod]
     #[pyo3(signature = (path, force = false))]
-    pub fn load_from_file(path: &str, force: bool) -> Result<GraphWithDeletions, GraphError> {
+    pub fn load_from_file(path: &str, force: bool) -> Result<PersistentGraph, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        GraphWithDeletions::load_from_file(file_path, force)
+        PersistentGraph::load_from_file(file_path, force)
     }
 
     /// Saves the graph to the given path.
@@ -365,6 +366,11 @@ impl PyGraphWithDeletions {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Get event graph
+    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+        PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
     /// Load a graph from a Pandas DataFrame.
@@ -412,9 +418,9 @@ impl PyGraphWithDeletions {
         node_shared_const_properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         node_type_in_df: Option<bool>,
-    ) -> Result<GraphWithDeletions, GraphError> {
-        let graph = PyGraphWithDeletions {
-            graph: GraphWithDeletions::new(),
+    ) -> Result<PersistentGraph, GraphError> {
+        let graph = PyPersistentGraph {
+            graph: PersistentGraph::new(),
         };
         graph.load_edges_from_pandas(
             edge_df,

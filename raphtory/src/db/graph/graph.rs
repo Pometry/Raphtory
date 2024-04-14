@@ -31,6 +31,8 @@ use std::{
     sync::Arc,
 };
 
+use super::views::deletion_graph::PersistentGraph;
+
 const SEG: usize = 16;
 
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
@@ -157,8 +159,8 @@ impl Graph {
         Self(Arc::new(InternalGraph::default()))
     }
 
-    pub(crate) fn new_from_inner(inner: Arc<InternalGraph>) -> Self {
-        Self(inner)
+    pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
+        Self(internal_graph)
     }
 
     /// Load a graph from a directory
@@ -189,6 +191,11 @@ impl Graph {
 
     pub fn as_arc(&self) -> Arc<InternalGraph> {
         self.0.clone()
+    }
+
+    /// Get persistent graph
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        PersistentGraph::from_internal_graph(self.0.clone())
     }
 }
 
@@ -898,6 +905,10 @@ mod db_tests {
         assert!(g.layers(Layer::Default).unwrap().edge(11, 44).is_none());
         assert!(g.layers("layer2").unwrap().edge(11, 22).is_none());
         assert!(g.layers("layer2").unwrap().edge(11, 44).is_some());
+
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 44).is_none());
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 33).is_some());
+        assert!(g.exclude_layers("layer2").unwrap().edge(11, 22).is_some());
 
         let dft_layer = g.default_layer();
         let layer1 = g.layers("layer1").expect("layer1");
@@ -2058,6 +2069,18 @@ mod db_tests {
             g.edge(0, 2).unwrap().layer_names().collect_vec(),
             ["awesome layer"]
         );
+    }
+
+    #[test]
+    fn test_persistent_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
+            .unwrap();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+
+        let pg = g.persistent_graph();
+        pg.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
     }
 
     // non overlaping time intervals

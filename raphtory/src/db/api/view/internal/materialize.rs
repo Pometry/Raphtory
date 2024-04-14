@@ -29,7 +29,7 @@ use crate::{
         },
         graph::{
             graph::{Graph, InternalGraph},
-            views::deletion_graph::GraphWithDeletions,
+            views::deletion_graph::PersistentGraph,
         },
     },
     prelude::*,
@@ -54,7 +54,7 @@ use std::path::Path;
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
-    PersistentGraph(GraphWithDeletions),
+    PersistentGraph(PersistentGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -87,7 +87,7 @@ impl MaterializedGraph {
             MaterializedGraph::PersistentGraph(_) => None,
         }
     }
-    pub fn into_persistent(self) -> Option<GraphWithDeletions> {
+    pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),

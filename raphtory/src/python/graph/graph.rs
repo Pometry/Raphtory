@@ -13,7 +13,7 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyGraphWithDeletions, node::PyNode,
+            edge::PyEdge, graph_with_deletions::PyPersistentGraph, node::PyNode,
             views::graph_view::PyGraphView,
         },
         utils::{PyInputNode, PyTime},
@@ -51,8 +51,8 @@ impl From<PyGraph> for MaterializedGraph {
     }
 }
 
-impl From<PyGraphWithDeletions> for MaterializedGraph {
-    fn from(value: PyGraphWithDeletions) -> Self {
+impl From<PyPersistentGraph> for MaterializedGraph {
+    fn from(value: PyPersistentGraph) -> Self {
         value.graph.into()
     }
 }
@@ -73,11 +73,11 @@ impl<'source> FromPyObject<'source> for MaterializedGraph {
     fn extract(graph: &'source PyAny) -> PyResult<Self> {
         if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
             Ok(graph.graph.clone().into())
-        } else if let Ok(graph) = graph.extract::<PyRef<PyGraphWithDeletions>>() {
+        } else if let Ok(graph) = graph.extract::<PyRef<PyPersistentGraph>>() {
             Ok(graph.graph.clone().into())
         } else {
             Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                "Incorrect type, object is not a PyGraph or PyGraphWithDeletions".to_string(),
+                "Incorrect type, object is not a PyGraph or PyPersistentGraph".to_string(),
             ))
         }
     }
@@ -364,6 +364,11 @@ impl PyGraph {
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Get persistent graph
+    pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
+        PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
     /// Load a graph from a Pandas DataFrame.

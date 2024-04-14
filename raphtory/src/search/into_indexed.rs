@@ -6,7 +6,8 @@ use crate::{
             StaticGraphViewOps,
         },
         graph::views::{
-            layer_graph::LayeredGraph, node_subgraph::NodeSubgraph, window_graph::WindowedGraph,
+            layer_graph::LayeredGraph, node_subgraph::NodeSubgraph,
+            node_type_filtered_subgraph::TypeFilteredSubgraph, window_graph::WindowedGraph,
         },
     },
     prelude::GraphViewOps,
@@ -49,6 +50,21 @@ impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for LayeredGraph<I
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph for NodeSubgraph<IndexedGraph<G>> {
+    fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
+        let g = self.graph.graph.subgraph(self.nodes());
+        IndexedGraph {
+            graph: g.into_dynamic(),
+            node_index: self.graph.node_index,
+            edge_index: self.graph.edge_index,
+            reader: self.graph.reader,
+            edge_reader: self.graph.edge_reader,
+        }
+    }
+}
+
+impl<G: StaticGraphViewOps + IntoDynamic> DynamicIndexedGraph
+    for TypeFilteredSubgraph<IndexedGraph<G>>
+{
     fn into_dynamic_indexed(self) -> IndexedGraph<DynamicGraph> {
         let g = self.graph.graph.subgraph(self.nodes());
         IndexedGraph {

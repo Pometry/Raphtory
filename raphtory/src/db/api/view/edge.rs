@@ -84,6 +84,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
 
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
+
     /// Returns the source node of the edge.
     fn src(&self) -> Self::Nodes;
 
@@ -108,12 +109,15 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Self::ValueType<Option<i64>>;
+
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer

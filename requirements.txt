@@ -87,7 +87,7 @@ huggingface-hub==0.20.3
     #   transformers
 hyperlink==21.0.0
     # via twisted
-idna==3.4
+idna==3.7
     # via
     #   anyio
     #   hyperlink
@@ -372,7 +372,7 @@ traitlets==5.9.0
     # via
     #   ipython
     #   matplotlib-inline
-transformers==4.37.2
+transformers==4.38.0
     # via sentence-transformers
 triton==2.1.0
     # via torch

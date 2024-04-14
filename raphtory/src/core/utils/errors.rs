@@ -77,7 +77,7 @@ pub enum GraphError {
         source: Box<bincode::ErrorKind>,
     },
 
-    #[error("The loaded graph is of the wrong type. Did you mean Graph / GraphWithDeletions?")]
+    #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
     #[error("IO operation failed")]
