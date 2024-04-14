@@ -5,7 +5,7 @@ import random
 import pandas as pd
 import pandas.core.frame
 import pytest
-from raphtory import Graph, GraphWithDeletions, PyDirection
+from raphtory import Graph, PersistentGraph, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
@@ -36,7 +36,7 @@ def create_graph():
 
 
 def create_graph_with_deletions():
-    g = GraphWithDeletions()
+    g = PersistentGraph()
 
     g.add_node(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_node(-1, 2, {"type": "wallet", "cost": 10.0})
@@ -1368,7 +1368,9 @@ def test_layer():
     assert g.layers(["layer2"]).count_edges() == 1
 
     assert g.exclude_layers(["layer1"]).count_edges() == 2
+    assert g.exclude_layer("layer1").count_edges() == 2
     assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
+    assert g.exclude_layer("layer2").count_edges() == 4
 
 
 def test_layer_node():
@@ -2025,6 +2027,15 @@ def test_node_types_change():
     assert a.node_type == None
     a.set_node_type("YO")
     assert a.node_type == "YO"
+
+
+def test_persistent_event_graphs():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 2, 3)
+    g.add_edge(3, 1, 3)
+    pg = g.persistent_graph()
+    pg.delete_edge(4, 1, 3)
 
 
 def test_is_self_loop():

@@ -6,7 +6,7 @@ import numpy
 import pandas as pd
 import pandas.core.frame
 import pytest
-from raphtory import Graph, GraphWithDeletions, PyDirection
+from raphtory import Graph, PersistentGraph, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
@@ -49,7 +49,7 @@ def test_load_from_pandas():
     g = Graph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
     
-    g = GraphWithDeletions.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
+    g = PersistentGraph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
 
 def test_load_from_pandas_with_invalid_data():
@@ -78,7 +78,7 @@ def test_load_from_pandas_with_invalid_data():
     assertions(exc_info)
     
     with pytest.raises(Exception) as exc_info:
-        g = GraphWithDeletions.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
+        g = PersistentGraph.load_from_pandas(df, "src", "dst", "time", ["weight", "marbles"])
     assertions(exc_info)
 
     # Optionally, you can check the exception message or type
@@ -147,7 +147,7 @@ def test_load_from_pandas_into_existing_graph():
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", "node_type", properties=["name"])
     g.load_edges_from_pandas(edges_df, "src", "dst", "time", ["weight", "marbles"])
     assertions(g)
@@ -219,7 +219,7 @@ def test_load_from_pandas_nodes():
     )
     assertions(g)
     
-    g = GraphWithDeletions.load_from_pandas(
+    g = PersistentGraph.load_from_pandas(
         edges_df,
         edge_src="src",
         edge_dst="dst",
@@ -298,7 +298,7 @@ def test_load_from_pandas_with_types():
     )
     assertions1(g)
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(
         nodes_df,
         "id",
@@ -325,7 +325,7 @@ def test_load_from_pandas_with_types():
     )
     assertions2(g)
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(
         nodes_df, "id", "time", "node_type", properties=["name"], const_properties=["type"]
     )
@@ -370,7 +370,7 @@ def test_load_from_pandas_with_types():
     )
     assertions3(g)
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df,
         "src",
@@ -405,7 +405,7 @@ def test_load_from_pandas_with_types():
     )
     assertions4(g)
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df, "src", "dst", "time", ["weight", "marbles"], layer="layers"
     )
@@ -437,7 +437,7 @@ def test_load_from_pandas_with_types():
     )
     assertions5(g)
     
-    g = GraphWithDeletions.load_from_pandas(
+    g = PersistentGraph.load_from_pandas(
         edges_df,
         "src",
         "dst",
@@ -488,7 +488,7 @@ def test_load_from_pandas_with_types():
     )
     assertions6(g)
     
-    g = GraphWithDeletions.load_from_pandas(
+    g = PersistentGraph.load_from_pandas(
         edges_df,
         "src",
         "dst",
@@ -559,7 +559,7 @@ def test_load_from_pandas_with_types():
     )
     assertions8(g)
     
-    g = GraphWithDeletions.load_from_pandas(
+    g = PersistentGraph.load_from_pandas(
         edges_df,
         edge_src="src",
         edge_dst="dst",
@@ -612,7 +612,7 @@ def test_load_from_pandas_with_types():
     )
     assertions_layers_in_df(g)
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_edges_from_pandas(
         edges_df,
         "src",
@@ -665,7 +665,7 @@ def test_missing_columns():
             "columns are not present within the dataframe: not_src, not_dst, not_time"
         ),
     ):
-        g = GraphWithDeletions.load_from_pandas(
+        g = PersistentGraph.load_from_pandas(
             edges_df,
             edge_src="not_src",
             edge_dst="not_dst",
@@ -697,7 +697,7 @@ def test_missing_columns():
             "columns are not present within the dataframe: not_weight, bleep_bloop"
         ),
     ):
-        g = GraphWithDeletions.load_from_pandas(
+        g = PersistentGraph.load_from_pandas(
             edges_df,
             edge_src="src",
             edge_dst="dst",
@@ -734,7 +734,7 @@ def test_missing_columns():
             "columns are not present within the dataframe: not_id, not_time, not_name"
         ),
     ):
-        g = GraphWithDeletions.load_from_pandas(
+        g = PersistentGraph.load_from_pandas(
             edges_df,
             edge_src="src",
             edge_dst="dst",
@@ -766,7 +766,7 @@ def test_missing_columns():
             "columns are not present within the dataframe: sauce, dist, wait, marples"
         ),
     ):
-        g = GraphWithDeletions()
+        g = PersistentGraph()
         g.load_edge_props_from_pandas(
             edges_df,
             src="sauce",
@@ -793,7 +793,7 @@ def test_missing_columns():
             "columns are not present within the dataframe: sauce, wait, marples"
         ),
     ):
-        g = GraphWithDeletions()
+        g = PersistentGraph()
         g.load_node_props_from_pandas(
             nodes_df,
             id="sauce",
@@ -813,7 +813,7 @@ def test_none_columns_edges():
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        GraphWithDeletions.load_from_pandas(edges_df, "src", "dst", "time")
+        PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
 
     edges_df = pd.DataFrame(
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, None, 6], "time": [1, 2, 3, 4, 5]}
@@ -825,7 +825,7 @@ def test_none_columns_edges():
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        GraphWithDeletions.load_from_pandas(edges_df, "src", "dst", "time")
+        PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
 
     edges_df = pd.DataFrame(
         {"src": [1, 2, 3, 4, 5], "dst": [2, 3, 4, 5, 6], "time": [1, 2, None, 4, 5]}
@@ -837,7 +837,7 @@ def test_none_columns_edges():
     with pytest.raises(
         Exception, match=re.escape("Ensure these contain no NaN, Null or None values.")
     ):
-        GraphWithDeletions.load_from_pandas(edges_df, "src", "dst", "time")
+        PersistentGraph.load_from_pandas(edges_df, "src", "dst", "time")
 
 
 def test_unparsable_props():
@@ -870,7 +870,7 @@ def test_unparsable_props():
             """"Could not convert '2.0' with type str: tried to convert to double", 'Conversion failed for column weight with type object'"""
         ),
     ):
-        GraphWithDeletions.load_from_pandas(
+        PersistentGraph.load_from_pandas(
             edges_df,
             edge_src="src",
             edge_dst="dst",
@@ -897,7 +897,7 @@ def test_unparsable_props():
             "Column marbles could not be parsed -  must be either u64, i64, f64, f32, bool or string. Ensure it contains no NaN, Null or None values."
         ),
     ):
-        GraphWithDeletions.load_from_pandas(
+        PersistentGraph.load_from_pandas(
             edges_df,
             edge_src="src",
             edge_dst="dst",
@@ -949,28 +949,28 @@ def test_load_node_from_pandas_with_node_types():
     g = Graph()
     g.load_nodes_from_pandas(nodes_df, "id", "time")
     nodes_assertions(g)
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df, "id", "time")
     nodes_assertions(g)
     
     g = Graph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
     
     g = Graph()
     g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=False)
     nodes_assertions2(g)
     
     g = Graph()
     g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True)
     nodes_assertions3(g)
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_nodes_from_pandas(nodes_df2, "id", "time", node_type="node_type", node_type_in_df=True)
     nodes_assertions3(g)
     
@@ -996,7 +996,7 @@ def test_load_edge_deletions_from_pandas():
         }
     )
     
-    g = GraphWithDeletions()
+    g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "src", "dst", "time")
     assert g.window(10, 12).edges.src.id.collect() == [1, 2, 3, 4, 5]
     g.load_edges_deletions_from_pandas(edge_dels_df, "src", "dst", "time")
