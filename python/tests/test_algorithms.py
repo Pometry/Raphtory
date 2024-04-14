@@ -31,6 +31,14 @@ def test_connected_components():
     assert actual.get("1") == 1
 
 
+def test_largest_connected_component():
+    g = gen_graph()
+    actual = g.largest_connected_component()
+    expected = ["1", "2", "3", "4", "5", "6", "7", "8"]
+    for node in expected:
+        assert actual.has_node(node)
+
+
 def test_in_components():
     g = gen_graph()
     actual = algorithms.in_components(g).get_all_with_names()
