@@ -329,18 +329,20 @@ def test_entity_history_date_time():
         [datetime(1970, 1, 1, tzinfo=utc)],
         [datetime(1970, 1, 1, tzinfo=utc)],
     ]
-
+    
 
 def test_graph_properties():
     g = create_graph()
 
-    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
+    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": [1, 2], "prop 5": {"x": 1, "y": "ok"}}
     g.add_constant_properties(props)
 
     sp = g.properties.constant.keys()
     sp.sort()
-    assert sp == ["prop 1", "prop 2", "prop 3"]
+    assert sp == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5"]
     assert g.properties["prop 1"] == 1
+    assert g.properties["prop 4"] == [1, 2]
+    assert g.properties["prop 5"] == {"x": 1, "y": "ok"}
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
     g.add_property(1, props)
