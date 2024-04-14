@@ -5,10 +5,11 @@
 //! In Python, this class wraps around the rust graph.
 use super::utils;
 use crate::{
+    algorithms::components::LargestConnectedComponent,
     core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr},
     db::{
         api::view::internal::{CoreGraphOps, DynamicGraph, IntoDynamic, MaterializedGraph},
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     prelude::*,
     python::{
@@ -25,8 +26,6 @@ use std::{
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
-use crate::algorithms::components::LargestConnectedComponent;
-use crate::db::graph::views::node_subgraph::NodeSubgraph;
 
 /// A temporal graph.
 #[derive(Clone)]
@@ -376,7 +375,7 @@ impl PyGraph {
     /// # Returns:
     /// A raphtory graph, which essentially is a sub-graph of the graph `g`
     ///
-    pub fn largest_connected_component(&self) -> NodeSubgraph<Graph>{
+    pub fn largest_connected_component(&self) -> NodeSubgraph<Graph> {
         self.graph.largest_connected_component()
     }
 

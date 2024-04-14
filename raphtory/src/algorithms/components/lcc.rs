@@ -1,7 +1,7 @@
 use crate::{
-    algorithms::{components::connected_components::weakly_connected_components},
+    algorithms::components::connected_components::weakly_connected_components,
     db::{
-        api::view::{StaticGraphViewOps, GraphViewOps},
+        api::view::{GraphViewOps, StaticGraphViewOps},
         graph::views::node_subgraph::NodeSubgraph,
     },
     prelude::Graph,
@@ -21,16 +21,17 @@ use crate::{
 ///
 pub trait LargestConnectedComponent {
     fn largest_connected_component(&self) -> NodeSubgraph<Self>
-        where
-            Self: StaticGraphViewOps;
+    where
+        Self: StaticGraphViewOps;
 }
 
 impl LargestConnectedComponent for Graph {
     fn largest_connected_component(&self) -> NodeSubgraph<Self>
-        where
-            Self: StaticGraphViewOps,
+    where
+        Self: StaticGraphViewOps,
     {
-        let mut connected_components_map = weakly_connected_components(self, usize::MAX, None).group_by();
+        let mut connected_components_map =
+            weakly_connected_components(self, usize::MAX, None).group_by();
         let mut lcc_key = 0;
         let mut key_length = 0;
         let mut is_tie = false;
@@ -41,18 +42,18 @@ impl LargestConnectedComponent for Graph {
                 key_length = length;
                 lcc_key = *key;
                 is_tie = false;
-            }else if length == key_length{
+            } else if length == key_length {
                 is_tie = true
             }
         }
-        if is_tie{
+        if is_tie {
             println!("Warning: The graph has two or more connected components that are both the largest. \
             The returned component has been picked arbitrarily.");
         }
         return match connected_components_map.remove(&lcc_key) {
             Some(nodes) => self.subgraph(nodes),
-            None => self.subgraph(self.nodes())
-        }
+            None => self.subgraph(self.nodes()),
+        };
     }
 }
 
@@ -60,25 +61,24 @@ impl LargestConnectedComponent for Graph {
 mod largest_connected_component_test {
     use super::*;
     use crate::{
+        db::api::view::GraphViewOps,
         prelude::{AdditionOps, Graph, NO_PROPS},
-        db::api::view::{GraphViewOps}
     };
 
     #[test]
     fn test_empty_graph() {
         let graph = Graph::new();
         let subgraph = graph.largest_connected_component();
-        assert!(subgraph.is_empty(), "The subgraph of an empty graph should be empty");
+        assert!(
+            subgraph.is_empty(),
+            "The subgraph of an empty graph should be empty"
+        );
     }
 
     #[test]
     fn test_single_connected_component() {
         let graph = Graph::new();
-        let edges = vec![
-            (1, 1, 2),
-            (2, 2, 1),
-            (3, 3, 1),
-        ];
+        let edges = vec![(1, 1, 2), (2, 2, 1), (3, 3, 1)];
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
@@ -86,7 +86,12 @@ mod largest_connected_component_test {
 
         let expected_nodes = vec![1, 2, 3];
         for node in expected_nodes {
-            assert_eq!(subgraph.has_node(node), true, "Node {} should be in the largest connected component.", node);
+            assert_eq!(
+                subgraph.has_node(node),
+                true,
+                "Node {} should be in the largest connected component.",
+                node
+            );
         }
         assert_eq!(subgraph.count_nodes(), 3);
     }
@@ -98,12 +103,9 @@ mod largest_connected_component_test {
             (1, 1, 2),
             (2, 2, 1),
             (3, 3, 1),
-
             (1, 10, 11),
-
             (2, 20, 21),
-
-            (3, 30, 31)
+            (3, 30, 31),
         ];
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
@@ -111,7 +113,12 @@ mod largest_connected_component_test {
         let subgraph = graph.largest_connected_component();
         let expected_nodes = vec![1, 2, 3];
         for node in expected_nodes {
-            assert_eq!(subgraph.has_node(node), true, "Node {} should be in the largest connected component.", node);
+            assert_eq!(
+                subgraph.has_node(node),
+                true,
+                "Node {} should be in the largest connected component.",
+                node
+            );
         }
         assert_eq!(subgraph.count_nodes(), 3);
     }
@@ -123,13 +130,10 @@ mod largest_connected_component_test {
             (1, 1, 2),
             (1, 2, 1),
             (1, 3, 1),
-
             (1, 5, 6),
-
             (1, 11, 12),
             (1, 12, 11),
             (1, 13, 11),
-
         ];
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
@@ -137,5 +141,3 @@ mod largest_connected_component_test {
         let _subgraph = graph.largest_connected_component();
     }
 }
-
-
