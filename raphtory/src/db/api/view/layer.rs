@@ -26,10 +26,7 @@ pub trait LayerOps<'graph> {
         layers: L,
     ) -> Result<Self::LayeredViewType, GraphError>;
 
-    fn exclude_valid_layers<L: Into<Layer>>(
-        &self,
-        layers: L,
-    ) -> Self::LayeredViewType;
+    fn exclude_valid_layers<L: Into<Layer>>(&self, layers: L) -> Self::LayeredViewType;
 
     /// Check if `name` is a valid layer name
     fn has_layer(&self, name: &str) -> bool;
@@ -65,12 +62,11 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         )))
     }
 
-    fn exclude_valid_layers<L: Into<Layer>>(
-        &self,
-        layers: L,
-    ) -> Self::LayeredViewType {
+    fn exclude_valid_layers<L: Into<Layer>>(&self, layers: L) -> Self::LayeredViewType {
         let all_layer_ids = self.current_filter().layer_ids();
-        let excluded_ids = self.current_filter().valid_layer_ids_from_names(layers.into());
+        let excluded_ids = self
+            .current_filter()
+            .valid_layer_ids_from_names(layers.into());
         let included_ids = all_layer_ids.diff(self.current_filter().clone(), &excluded_ids);
 
         self.one_hop_filtered(LayeredGraph::new(
