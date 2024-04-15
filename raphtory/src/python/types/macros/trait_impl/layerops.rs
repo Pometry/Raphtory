@@ -44,6 +44,21 @@ macro_rules! impl_layerops {
                 self.$field.exclude_layers(name)
             }
 
+            #[doc = concat!(" Return a view of ", $name, " containing all layers except the excluded `name`")]
+            /// Errors if any of the layers do not exist.
+            ///
+            /// Arguments:
+            ///     name (str): layer name that is excluded for the new view
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $name, ": The layered view")]
+            fn exclude_valid_layer(
+                &self,
+                name: &str,
+            ) -> <$base_type as LayerOps<'static>>::LayeredViewType {
+                self.$field.exclude_valid_layers(name)
+            }
+
             #[doc = concat!(" Check if ", $name, r#" has the layer `"name"`"#)]
             fn has_layer(
                 &self,
@@ -80,6 +95,21 @@ macro_rules! impl_layerops {
                 names: Vec<String>,
             ) -> Result<<$base_type as LayerOps<'static>>::LayeredViewType, $crate::core::utils::errors::GraphError> {
                 self.$field.exclude_layers(names)
+            }
+
+            #[doc = concat!(" Return a view of ", $name, " containing all layers except the excluded `names`")]
+            /// Errors if any of the layers do not exist.
+            ///
+            /// Arguments:
+            ///     names (list[str]): list of layer names that are excluded for the new view
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $name, ": The layered view")]
+            fn exclude_valid_layers(
+                &self,
+                names: Vec<String>,
+            ) -> <$base_type as LayerOps<'static>>::LayeredViewType {
+                self.$field.exclude_valid_layers(names)
             }
 
             #[doc = concat!(" Return a view of ", $name, " containing all layers `names`")]

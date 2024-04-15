@@ -62,7 +62,7 @@ impl GqlGraph {
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
         let name = self.name.clone();
-        GqlGraph::new(name, self.graph.exclude_layers(names).unwrap())
+        GqlGraph::new(name, self.graph.exclude_valid_layers(names))
     }
 
     async fn layer(&self, name: String) -> GqlGraph {
@@ -70,7 +70,7 @@ impl GqlGraph {
     }
 
     async fn exclude_layer(&self, name: String) -> GqlGraph {
-        GqlGraph::new(self.name.clone(), self.graph.exclude_layers(name).unwrap())
+        GqlGraph::new(self.name.clone(), self.graph.exclude_valid_layers(name))
     }
 
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
