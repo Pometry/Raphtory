@@ -45,8 +45,6 @@ macro_rules! impl_layerops {
             }
 
             #[doc = concat!(" Return a view of ", $name, " containing all layers except the excluded `name`")]
-            /// Errors if any of the layers do not exist.
-            ///
             /// Arguments:
             ///     name (str): layer name that is excluded for the new view
             ///
@@ -98,8 +96,6 @@ macro_rules! impl_layerops {
             }
 
             #[doc = concat!(" Return a view of ", $name, " containing all layers except the excluded `names`")]
-            /// Errors if any of the layers do not exist.
-            ///
             /// Arguments:
             ///     names (list[str]): list of layer names that are excluded for the new view
             ///

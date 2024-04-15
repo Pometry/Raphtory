@@ -138,7 +138,7 @@ pub(crate) fn get_column_names_from_props(
         .for_each(|name| {
             column_names.push(name.to_string());
         });
-    column_names.push("update_histories".parse().unwrap());
+    column_names.push("update_history".parse().unwrap());
     is_prop_both_temp_and_const
 }
 
