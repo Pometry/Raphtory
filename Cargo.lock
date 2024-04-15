@@ -3882,6 +3882,7 @@ dependencies = [
  "arrow-schema",
  "arrow2",
  "async-trait",
+ "clap",
  "datafusion",
  "futures",
  "itertools 0.12.1",

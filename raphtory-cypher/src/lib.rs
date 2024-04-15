@@ -11,6 +11,7 @@ use datafusion::{
         runtime_env::RuntimeEnv,
     },
     logical_expr::{create_udf, ColumnarValue, Volatility},
+    physical_plan::SendableRecordBatchStream,
 };
 use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
 use parser::ast::*;
@@ -85,9 +86,18 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     opts.verify_plan(&plan)?;
 
     let plan = ctx.state().optimize(&plan)?;
-    println!("PLAN! {:?}", plan);
+    // println!("PLAN! {:?}", plan);
     let df = ctx.execute_logical_plan(plan).await?;
     Ok(df)
+}
+
+pub async fn run_cypher_to_streams(
+    query: &str,
+    graph: &ArrowGraph,
+) -> Result<Vec<SendableRecordBatchStream>, ExecError> {
+    let df = run_cypher(query, graph).await?;
+    let stream = df.execute_stream_partitioned().await?;
+    Ok(stream)
 }
 
 pub async fn run_sql(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
