@@ -1,10 +1,14 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::parser::ast::*;
 
 use arrow_schema::{Fields, Schema};
 
-use itertools::Itertools;
+use itertools::{Itertools, TupleWindows};
+use raphtory::core::entities::VID;
+use raphtory::db::api::properties::internal::ConstPropertiesOps;
+use raphtory::prelude::*;
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 use sqlparser::ast::{
     self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
@@ -363,8 +367,207 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     }
 }
 
+fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
+    let mut joins = vec![];
+    let graph = query_to_graph(query);
+    let first = query
+        .node_patterns()
+        .next()
+        .expect("unexpected! no node patterns");
+    // walk the graph in depth first fashion and add the nodes as joins
+    if graph.count_edges() > 0 {
+        let first_edge = query
+            .rel_patterns()
+            .next()
+            .expect("unexpected! no edge patterns");
+
+        // deal with the first node separately
+        if is_bound(first) {
+            match first_edge.direction {
+                Direction::OUT => {
+                    joins.push(make_sql_join(&first_edge.name, "src", &first.name, "id"))
+                }
+                Direction::IN => {
+                    joins.push(make_sql_join(&first_edge.name, "dst", &first.name, "id"))
+                }
+                Direction::BOTH => todo!(),
+            }
+        }
+
+        let mut seen: HashSet<VID> = [graph.node(&first.name).unwrap().node]
+            .into_iter()
+            .collect();
+
+        let mut stack = vec![graph
+            .node(first_edge.name.as_str())
+            .expect("edge not found")];
+
+        // let mut last_edge = graph
+        //     .node(first_edge.name.as_str())
+        //     .expect("edge not found");
+
+        let mut last_edge_dir = first_edge.direction;
+
+        while !stack.is_empty() {
+            let node = stack.pop().unwrap();
+            for n in node.neighbours().iter().filter(|n| !seen.contains(&n.node)) {
+                if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
+                    // this is an edge
+                    last_edge_dir = if out { Direction::OUT } else { Direction::IN };
+
+                    if let Some(Prop::Bool(out)) = node.get_const_prop(0) {
+                        // parent node was an edge
+                        let parent_edge_dir = if out { Direction::OUT } else { Direction::IN };
+
+                        let (from, to) = match (parent_edge_dir, last_edge_dir) {
+                            (Direction::OUT, Direction::OUT) => ("dst", "src"),
+                            (Direction::OUT, Direction::IN) => ("dst", "dst"),
+                            (Direction::IN, Direction::OUT) => ("src", "src"),
+                            (Direction::IN, Direction::IN) => ("src", "dst"),
+                            _ => unimplemented!("both direction not supported"),
+                        };
+
+                        joins.push(make_sql_join(&node.name(), from, &n.name(), to));
+                    } else {
+                        match last_edge_dir {
+                            Direction::OUT => {
+                                joins.push(make_sql_join(&node.name(), "id", &n.name(), "src"))
+                            }
+                            Direction::IN => {
+                                joins.push(make_sql_join(&node.name(), "id", &n.name(), "dst"))
+                            }
+                            Direction::BOTH => todo!(),
+                        }
+                    }
+                } else {
+                    // this is a node, parent is an edge
+                    if is_bound_str(&n.name()) {
+                        match last_edge_dir {
+                            Direction::OUT => {
+                                joins.push(make_sql_join(&node.name(), "dst", &n.name(), "id"))
+                            }
+                            Direction::IN => {
+                                joins.push(make_sql_join(&node.name(), "src", &n.name(), "id"))
+                            }
+                            Direction::BOTH => todo!(),
+                        }
+                    }
+                }
+
+                stack.push(n);
+            }
+            seen.insert(node.node);
+        }
+
+        let table = sql_ast::TableWithJoins {
+            relation: table_from_name(&first_edge.name),
+            joins,
+        };
+        vec![table]
+    } else {
+        // matching only one node
+        let node_table = sql_ast::TableWithJoins {
+            relation: table_from_name(&first.name),
+            joins,
+        };
+        vec![node_table]
+    }
+}
+
+/// walk the path parts of the query and build a graph
+fn query_to_graph(query: &Query) -> Graph {
+    let node_pats = query.node_patterns().map(Ok);
+    let rel_pats = query.rel_patterns().map(Err);
+    let pats = node_pats.interleave(rel_pats);
+
+    let graph = Graph::new();
+
+    let it: TupleWindows<_, (_, _, _)> = pats.tuple_windows();
+    for triple in it {
+        if let (
+            Ok(NodePattern { name: u, .. }),
+            Err(RelPattern {
+                name: edge,
+                direction,
+                ..
+            }),
+            Ok(NodePattern { name: v, .. }),
+        ) = triple
+        {
+            assert!(
+                direction != &Direction::BOTH,
+                "BOTH direction not supported"
+            );
+
+            let direction_flag = direction == &Direction::OUT;
+
+            graph
+                .add_edge(0, u.as_str(), edge.as_str(), NO_PROPS, None)
+                .expect("failed to add edge");
+
+            graph
+                .add_edge(0, edge.as_str(), v.as_str(), NO_PROPS, None)
+                .expect("failed to add edge");
+
+            let edge_node = graph.node(edge.as_str()).expect("edge not found");
+            edge_node
+                .add_constant_properties([("direction", Prop::Bool(direction_flag))])
+                .expect("failed to add properties");
+        }
+
+        // Rel, Node, Rel
+
+        if let (
+            Err(RelPattern {
+                name: edge1,
+                direction: dir1,
+                ..
+            }),
+            Ok(node),
+            Err(RelPattern {
+                name: edge2,
+                direction: dir2,
+                ..
+            }),
+        ) = triple
+        {
+            // we just link the edges together if the node is not bound
+            if !is_bound(node) {
+                assert!(
+                    dir1 != &Direction::BOTH && dir2 != &Direction::BOTH,
+                    "BOTH direction not supported"
+                );
+
+                let dir1_flag = dir1 == &Direction::OUT;
+
+                graph
+                    .add_edge(0, edge1.as_str(), edge2.as_str(), NO_PROPS, None)
+                    .expect("failed to add edge");
+
+                let edge_node = graph.node(edge1.as_str()).expect("edge not found");
+                edge_node
+                    .add_constant_properties([("direction", Prop::Bool(dir1_flag))])
+                    .expect("failed to add properties");
+
+                let dir2_flag = dir2 == &Direction::OUT;
+
+                let edge_node = graph.node(edge2.as_str()).expect("edge not found");
+                edge_node
+                    .add_constant_properties([("direction", Prop::Bool(dir2_flag))])
+                    .expect("failed to add properties");
+            }
+        }
+    }
+
+    graph
+}
+
 fn is_bound(node: &NodePattern) -> bool {
-    !node.name.starts_with("n_")
+    is_bound_str(&node.name)
+}
+
+fn is_bound_str(node: &str) -> bool {
+    !node.starts_with("n_")
 }
 
 fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
@@ -827,7 +1030,7 @@ mod test {
     #[test]
     fn select_all() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN e",
+            "MATCH ()-[e]->() RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e",
         );
     }
@@ -982,7 +1185,60 @@ mod test {
     fn two_hops_out_with_nodes() {
         check_cypher_to_sql(
             "MATCH (n1)-[e1]->(n2)-[e2]->(n3) RETURN n1.name, n2.name, n3.name",
-            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), n1 AS (SELECT * FROM nodes), n2 AS (SELECT * FROM nodes), n3 AS (SELECT * FROM nodes) SELECT n1.name, n2.name, n3.name FROM e1 JOIN n1 ON e1.src = n1.id JOIN n2 ON e1.dst = n2.id JOIN e2 ON n2.id = e2.src JOIN n3 ON e2.dst = n3.id",
+            "WITH \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default), \
+             n1 AS (SELECT * FROM nodes), \
+             n2 AS (SELECT * FROM nodes), \
+             n3 AS (SELECT * FROM nodes) \
+             SELECT n1.name, n2.name, n3.name \
+             FROM e1 \
+             JOIN n1 ON e1.src = n1.id \
+             JOIN n2 ON e1.dst = n2.id \
+             JOIN e2 ON n2.id = e2.src \
+             JOIN n3 ON e2.dst = n3.id",
+        );
+    }
+
+    #[test]
+    fn two_hops_on_separate_parts() {
+        check_cypher_to_sql(
+            "MATCH (n1)-[e1]->(n2), (n2)-[e2]->(n3) RETURN n1.name, n2.name, n3.name",
+            "WITH \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default), \
+             n1 AS (SELECT * FROM nodes), \
+             n2 AS (SELECT * FROM nodes), \
+             n3 AS (SELECT * FROM nodes) \
+             SELECT n1.name, n2.name, n3.name \
+             FROM e1 \
+             JOIN n1 ON e1.src = n1.id \
+             JOIN n2 ON e1.dst = n2.id \
+             JOIN e2 ON n2.id = e2.src \
+             JOIN n3 ON e2.dst = n3.id",
+        );
+    }
+
+    #[test]
+    fn two_hops_with_self_loop() {
+        check_cypher_to_sql_layers(
+            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.NAME",
+            "WITH \
+             nf1 AS (SELECT * FROM Netflow), \
+             login1 AS (SELECT * FROM Events2v), \
+             prog1 AS (SELECT * FROM Events1v), \
+             E AS (SELECT * FROM nodes), \
+             B AS (SELECT * FROM nodes), \
+             A AS (SELECT * FROM nodes) \
+             SELECT E.name, B.name, A.NAME \
+             FROM nf1 \
+             JOIN E ON nf1.src = E.id \
+             JOIN B ON nf1.dst = B.id \
+             JOIN login1 ON B.id = login1.src \
+             JOIN A ON login1.dst = A.id \
+             JOIN prog1 ON B.id = prog1.src \
+             JOIN B AS B_1 ON prog1.dst = B_1.id" ,
+            ["Netflow", "Events2v", "Events1v"]
         );
     }
 
@@ -998,7 +1254,24 @@ mod test {
     fn hop_twice_with_conditions_and_nodes() {
         check_cypher_to_sql(
             "MATCH (a)-[r1]->(b)-[r2]->(c) WHERE a.name CONTAINS 'aa' AND b.name CONTAINS 'bb' AND c.name CONTAINS 'cc' AND r1.eprop2flt <= r2.eprop2flt AND r1.eprop2flt >= (r2.eprop2flt - 40) return a.name,type(r1),b.name,type(r2),c.name,r1.eprop2flt,r2.eprop2flt",
-        "WITH r1 AS (SELECT * FROM _default), r2 AS (SELECT * FROM _default), a AS (SELECT * FROM nodes), b AS (SELECT * FROM nodes), c AS (SELECT * FROM nodes) SELECT a.name, type(r1.layer_id), b.name, type(r2.layer_id), c.name, r1.eprop2flt, r2.eprop2flt FROM r1 JOIN a ON r1.src = a.id JOIN b ON r1.dst = b.id JOIN r2 ON b.id = r2.src JOIN c ON r2.dst = c.id WHERE a.name LIKE '%aa%' AND b.name LIKE '%bb%' AND c.name LIKE '%cc%' AND r1.eprop2flt <= r2.eprop2flt AND r1.eprop2flt >= (r2.eprop2flt - 40L)");
+        "WITH \
+         r1 AS (SELECT * FROM _default), \
+         r2 AS (SELECT * FROM _default), \
+         a AS (SELECT * FROM nodes), \
+         b AS (SELECT * FROM nodes), \
+         c AS (SELECT * FROM nodes) \
+         SELECT a.name, type(r1.layer_id), b.name, type(r2.layer_id), c.name, r1.eprop2flt, r2.eprop2flt \
+         FROM r1 \
+         JOIN a ON r1.src = a.id \
+         JOIN b ON r1.dst = b.id \
+         JOIN r2 ON b.id = r2.src \
+         JOIN c ON r2.dst = c.id \
+         WHERE \
+         a.name LIKE '%aa%' \
+         AND b.name LIKE '%bb%' \
+         AND c.name LIKE '%cc%' \
+         AND r1.eprop2flt <= r2.eprop2flt \
+         AND r1.eprop2flt >= (r2.eprop2flt - 40L)");
     }
 
     #[test]

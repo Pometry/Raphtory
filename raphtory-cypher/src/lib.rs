@@ -184,6 +184,132 @@ mod test {
 
         print_batches(&data).expect("failed to print batches");
     }
+
+    mod arrow2_load {
+        use std::{num::NonZeroUsize, path::PathBuf};
+
+        use arrow2::{
+            array::{PrimitiveArray, StructArray},
+            datatypes::*,
+        };
+        use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
+        use tempfile::tempdir;
+
+        use crate::run_cypher;
+        use arrow::util::pretty::print_batches;
+
+        fn schema() -> Schema {
+            let srcs = Field::new("srcs", DataType::UInt64, false);
+            let dsts = Field::new("dsts", DataType::UInt64, false);
+            let time = Field::new("bla_time", DataType::Int64, false);
+            let weight = Field::new("weight", DataType::Float64, true);
+            Schema::from(vec![srcs, dsts, time, weight])
+        }
+
+        #[tokio::test]
+        async fn select_table_time_column_different_name() {
+            let graph_dir = tempdir().unwrap();
+
+            let srcs = PrimitiveArray::from_vec(vec![1u64, 2u64, 2u64, 2u64]).boxed();
+            let dsts = PrimitiveArray::from_vec(vec![3u64, 3u64, 4u64, 4u64]).boxed();
+            let time = PrimitiveArray::from_vec(vec![2i64, 3i64, 4i64, 5i64]).boxed();
+            let weight = PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
+
+            let chunk = StructArray::new(
+                DataType::Struct(schema().fields),
+                vec![srcs, dsts, time, weight],
+                None,
+            );
+
+            // let node_gids = PrimitiveArray::from_vec((1u64..=4u64).collect()).boxed();
+
+            let edge_lists = vec![chunk];
+
+            let graph = ArrowGraph::load_from_edge_lists(
+                &edge_lists,
+                NonZeroUsize::new(1).unwrap(),
+                20,
+                20,
+                graph_dir,
+                0,
+                1,
+                2,
+            )
+            .unwrap();
+
+            let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+                .await
+                .unwrap();
+
+            let data = df.collect().await.unwrap();
+
+            print_batches(&data).expect("failed to print batches");
+        }
+
+        #[tokio::test]
+        async fn select_table_parquet_column_different_name() {
+            let graph_dir = tempdir().unwrap();
+            // relative to current dir back to parent dir then ./resource/netflowsorted
+            let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .map(|p| p.join("resource/netflowsorted/nft_sorted"))
+                .unwrap();
+
+            let v1_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .map(|p| p.join("resource/netflowsorted/v1_sorted"))
+                .unwrap();
+
+            let layer_parquet_cols = vec![
+                ParquetLayerCols {
+                    parquet_dir: netflow_layer_path.to_str().unwrap(),
+                    layer: "netflow",
+                    src_col: "src",
+                    src_hash_col: "src_hash",
+                    dst_col: "dst",
+                    dst_hash_col: "dst_hash",
+                    time_col: "epoch_time",
+                },
+                ParquetLayerCols {
+                    parquet_dir: v1_layer_path.to_str().unwrap(),
+                    layer: "v1",
+                    src_col: "src",
+                    src_hash_col: "src_hash",
+                    dst_col: "dst",
+                    dst_hash_col: "dst_hash",
+                    time_col: "epoch_time",
+                },
+            ];
+
+            let graph = ArrowGraph::load_from_parquets(
+                graph_dir,
+                layer_parquet_cols,
+                100,
+                100,
+                None,
+                None,
+                1,
+            )
+            .unwrap();
+
+            let df = run_cypher("match ()-[e:netflow]->() RETURN * LIMIT 5", &graph)
+                .await
+                .unwrap();
+
+            let data = df.collect().await.unwrap();
+
+            print_batches(&data).expect("failed to print batches");
+
+            let df = run_cypher("match ()-[e:v1]->() RETURN * LIMIT 5", &graph)
+                .await
+                .unwrap();
+
+            let data = df.collect().await.unwrap();
+
+            print_batches(&data).expect("failed to print batches");
+        }
+    }
+
     #[tokio::test]
     async fn select_table_filter_weight() {
         let graph_dir = tempdir().unwrap();
