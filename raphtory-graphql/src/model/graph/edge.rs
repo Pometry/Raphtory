@@ -39,7 +39,7 @@ impl Edge {
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Edge {
-        self.ee.exclude_layers(names).unwrap().into()
+        self.ee.exclude_valid_layers(names).into()
     }
 
     async fn layer(&self, name: String) -> Edge {
@@ -47,7 +47,7 @@ impl Edge {
     }
 
     async fn exclude_layer(&self, name: String) -> Edge {
-        self.ee.exclude_layers(name).unwrap().into()
+        self.ee.exclude_valid_layers(name).into()
     }
 
     async fn window(&self, start: i64, end: i64) -> Edge {

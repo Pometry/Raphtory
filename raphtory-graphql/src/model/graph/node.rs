@@ -47,7 +47,7 @@ impl Node {
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Node {
-        self.vv.exclude_layers(names).unwrap().into()
+        self.vv.exclude_valid_layers(names).into()
     }
 
     async fn layer(&self, name: String) -> Node {
@@ -55,7 +55,7 @@ impl Node {
     }
 
     async fn exclude_layer(&self, name: String) -> Node {
-        self.vv.exclude_layers(name).unwrap().into()
+        self.vv.exclude_valid_layers(name).into()
     }
 
     async fn window(&self, start: i64, end: i64) -> Node {
