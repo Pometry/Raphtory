@@ -33,5 +33,5 @@ youtube = "https://www.youtube.com/@pometry8546/videos"
 export = ["seaborn >= 0.11.2"]
 
 [tool.maturin]
-features = ["pyo3/extension-module", "pyo3/auto-initialize"]
+features = ["pyo3/extension-module"]
 python-source = "python"
