@@ -51,7 +51,7 @@ impl GqlNodes {
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
-        self.update(self.nn.exclude_layers(names).unwrap())
+        self.update(self.nn.exclude_valid_layers(names))
     }
 
     async fn layer(&self, name: String) -> Self {
@@ -59,7 +59,7 @@ impl GqlNodes {
     }
 
     async fn exclude_layer(&self, name: String) -> Self {
-        self.update(self.nn.exclude_layers(name).unwrap())
+        self.update(self.nn.exclude_valid_layers(name))
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
