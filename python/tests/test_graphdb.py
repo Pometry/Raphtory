@@ -16,7 +16,8 @@ from pathlib import Path
 from pytest import fixture
 import os
 import shutil
-
+import numpy as np
+    
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
 utc = timezone.utc
@@ -2048,6 +2049,21 @@ def test_is_self_loop():
     g.add_node(0, "B", None, None)
     ee = g.add_edge(0, "A", "B", None, None)
     assert not ee.is_self_loop()
+
+def test_NaN_NaT_as_properties():
+    now = datetime.now()
+    data = {
+        'floats': [np.NaN, None, 2.4, None, None, None],
+        'time': [10, 20, 30, 40, 50, 60],
+        'id': [101, 102, 103, 104, 105, 106],
+        'datetime': [now, now, np.datetime64('NaT'), now, now, now]  # Hardcoded datetime
+    }
+
+    df = pd.DataFrame(data)
+    g = Graph()
+    g.load_nodes_from_pandas(time='time', id = 'id', df=df, properties=['floats'])
+    assert g.node(103).properties.temporal.get('floats').items() == [(30, 2.4)]
+    assert g.node(101).properties.temporal.get('floats') == None
 
 
 def test_fuzzy_search():

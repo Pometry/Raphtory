@@ -34,7 +34,7 @@ impl PyGraphView {
     ///
     ///     Returns:
     ///         A pyvis network
-    #[pyo3(signature = (explode_edges=false, edge_color="#000000", shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=false, notebook=true, **kwargs))]
+    #[pyo3(signature = (explode_edges=false, edge_color="#000000", shape=None, node_image=None, edge_weight=None, edge_label=None, colour_nodes_by_type=false, notebook=false, **kwargs))]
     pub fn to_pyvis(
         &self,
         explode_edges: Option<bool>,
