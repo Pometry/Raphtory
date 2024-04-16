@@ -265,18 +265,14 @@ mod test {
                     parquet_dir: netflow_layer_path.to_str().unwrap(),
                     layer: "netflow",
                     src_col: "src",
-                    src_hash_col: "src_hash",
                     dst_col: "dst",
-                    dst_hash_col: "dst_hash",
                     time_col: "epoch_time",
                 },
                 ParquetLayerCols {
                     parquet_dir: v1_layer_path.to_str().unwrap(),
                     layer: "v1",
                     src_col: "src",
-                    src_hash_col: "src_hash",
                     dst_col: "dst",
-                    dst_hash_col: "dst_hash",
                     time_col: "epoch_time",
                 },
             ];
@@ -284,6 +280,7 @@ mod test {
             let graph = ArrowGraph::load_from_parquets(
                 graph_dir,
                 layer_parquet_cols,
+                None,
                 100,
                 100,
                 None,

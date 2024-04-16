@@ -31,9 +31,7 @@ pub struct ParquetLayerCols<'a> {
     pub parquet_dir: &'a str,
     pub layer: &'a str,
     pub src_col: &'a str,
-    pub src_hash_col: &'a str,
     pub dst_col: &'a str,
-    pub dst_hash_col: &'a str,
     pub time_col: &'a str,
 }
 
@@ -193,9 +191,10 @@ impl ArrowGraph {
         Ok(Self::new(inner))
     }
 
-    pub fn load_from_parquets(
-        graph_dir: impl AsRef<Path>,
+    pub fn load_from_parquets<P: AsRef<Path>>(
+        graph_dir: P,
         layer_parquet_cols: Vec<ParquetLayerCols>,
+        node_properties: Option<P>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
@@ -209,18 +208,14 @@ impl ArrowGraph {
                      parquet_dir,
                      layer,
                      src_col,
-                     src_hash_col,
                      dst_col,
-                     dst_hash_col,
                      time_col,
                  }| {
                     ExternalEdgeList::new(
                         *layer,
                         parquet_dir.as_ref(),
                         *src_col,
-                        *src_hash_col,
                         *dst_col,
-                        *dst_hash_col,
                         *time_col,
                     )
                     .expect("Failed to load events")
@@ -236,6 +231,7 @@ impl ArrowGraph {
             concurrent_files,
             graph_dir.as_ref(),
             layered_edge_list,
+            node_properties.as_ref().map(|p| p.as_ref()),
         )?;
         Ok(Self::new(t_graph))
     }

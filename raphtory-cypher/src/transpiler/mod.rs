@@ -1,15 +1,16 @@
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use crate::parser::ast::*;
 
 use arrow_schema::{Fields, Schema};
 
 use itertools::{Itertools, TupleWindows};
-use raphtory::core::entities::VID;
-use raphtory::db::api::properties::internal::ConstPropertiesOps;
-use raphtory::prelude::*;
-use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
+use raphtory::{
+    arrow::graph_impl::ArrowGraph,
+    core::{entities::VID, Direction},
+    db::api::properties::internal::ConstPropertiesOps,
+    prelude::*,
+};
 use sqlparser::ast::{
     self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
 };
