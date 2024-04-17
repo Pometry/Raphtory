@@ -280,21 +280,26 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
         }
     }
 
+    let mut seen: HashSet<String> = HashSet::new();
+
     for node in all_bound_nodes(query) {
-        let cte = sql_ast::Cte {
-            alias: TableAlias {
-                name: sql_ast::Ident::new(&node.name),
-                columns: vec![],
-            },
-            query: select_query_with_projection(
-                vec![sql_ast::SelectItem::Wildcard(
-                    WildcardAdditionalOptions::default(),
-                )],
-                "nodes",
-            ),
-            from: None,
-        };
-        cte_tables.push(cte)
+        if !seen.contains(&node.name) {
+            let cte = sql_ast::Cte {
+                alias: TableAlias {
+                    name: sql_ast::Ident::new(&node.name),
+                    columns: vec![],
+                },
+                query: select_query_with_projection(
+                    vec![sql_ast::SelectItem::Wildcard(
+                        WildcardAdditionalOptions::default(),
+                    )],
+                    "nodes",
+                ),
+                from: None,
+            };
+            seen.insert(node.name.clone());
+            cte_tables.push(cte)
+        }
     }
 
     With {
@@ -408,17 +413,9 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
         let mut last_edge_dir = first_edge.direction;
 
-        seen.iter()
-            .map(|vid| graph.node(*vid).unwrap().name())
-            .for_each(|n| {
-                println!("seen: {:?}", n);
-            });
-
         while !stack.is_empty() {
             let node = stack.pop().unwrap();
-            println!("node: {:?}", node.name());
             for n in node.neighbours().iter().filter(|n| !seen.contains(&n.node)) {
-                println!("neighbour: {:?}", n.name());
                 if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
                     // this is an edge
                     last_edge_dir = if out { Direction::OUT } else { Direction::IN };
@@ -552,10 +549,6 @@ fn query_to_graph(query: &Query) -> Graph {
             last_node = np;
         }
     }
-
-    graph.edges().into_iter().for_each(|edge| {
-        println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
-    });
 
     graph
 }
