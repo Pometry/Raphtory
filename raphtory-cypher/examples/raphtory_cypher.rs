@@ -92,7 +92,7 @@ async fn main() {
             ];
             let node_properties = "/mnt/work/pometry/gov/case6/sorted_nodes.parquet";
             ArrowGraph::load_from_parquets(
-                &args.graph_dir,
+                args.graph_dir.as_str(),
                 layer_parquet_cols,
                 Some(node_properties),
                 1_000_000,

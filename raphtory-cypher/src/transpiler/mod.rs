@@ -1078,6 +1078,15 @@ mod test {
     }
 
     #[test]
+    fn select_count_edges(){
+        check_cypher_to_sql_layers(
+            "MATCH (v)-[e]->(u) RETURN COUNT(e)",
+            "WITH e AS (SELECT * FROM _default UNION ALL SELECT * FROM L1 UNION ALL SELECT * FROM L2) SELECT COUNT(e.src) FROM e",
+            ["L1", "L2"]
+        )
+    }
+
+    #[test]
     fn select_one_col_count_items() {
         check_cypher_to_sql(
             "MATCH ()-[e]-() RETURN COUNT(e.name)",

@@ -252,25 +252,25 @@ mod test {
             // relative to current dir back to parent dir then ./resource/netflowsorted
             let netflow_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()
-                .map(|p| p.join("resource/netflowsorted/nft_sorted"))
+                .map(|p| p.join("raphtory/resources/test/netflow2.parquet"))
                 .unwrap();
 
             let v1_layer_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .parent()
-                .map(|p| p.join("resource/netflowsorted/v1_sorted"))
+                .map(|p| p.join("raphtory/resources/test/wls2.parquet"))
                 .unwrap();
 
             let layer_parquet_cols = vec![
                 ParquetLayerCols {
                     parquet_dir: netflow_layer_path.to_str().unwrap(),
                     layer: "netflow",
-                    src_col: "src",
-                    dst_col: "dst",
-                    time_col: "epoch_time",
+                    src_col: "source",
+                    dst_col: "destination",
+                    time_col: "time",
                 },
                 ParquetLayerCols {
                     parquet_dir: v1_layer_path.to_str().unwrap(),
-                    layer: "v1",
+                    layer: "wls",
                     src_col: "src",
                     dst_col: "dst",
                     time_col: "epoch_time",
@@ -289,7 +289,7 @@ mod test {
             )
             .unwrap();
 
-            let df = run_cypher("match ()-[e:netflow]->() RETURN * LIMIT 5", &graph)
+            let df = run_cypher("match ()-[e:netflow|wls]->() RETURN * LIMIT 5", &graph)
                 .await
                 .unwrap();
 
@@ -297,13 +297,6 @@ mod test {
 
             print_batches(&data).expect("failed to print batches");
 
-            let df = run_cypher("match ()-[e:v1]->() RETURN * LIMIT 5", &graph)
-                .await
-                .unwrap();
-
-            let data = df.collect().await.unwrap();
-
-            print_batches(&data).expect("failed to print batches");
         }
     }
 

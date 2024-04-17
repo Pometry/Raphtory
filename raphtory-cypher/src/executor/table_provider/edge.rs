@@ -65,7 +65,9 @@ impl EdgeListTableProvider {
         let sort_by_dst = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         //time
-        let expr = Expr::Sort(expr::Sort::new(Box::new(col("time")), true, true));
+        let time_field_name = graph.layer(layer_id).edges_data_type().first().map(|f|f.name.clone()).unwrap();
+
+        let expr = Expr::Sort(expr::Sort::new(Box::new(col(time_field_name)), true, true));
         let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
         let sort_by_time = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
@@ -90,10 +92,9 @@ fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<S
                 Field::new("layer_id", DataType::UInt64, false), // this is the edge id (eid)
                 Field::new("src", DataType::UInt64, false),
                 Field::new("dst", DataType::UInt64, false),
-                Field::new("time", DataType::Int64, false),
             ]);
 
-            let props_fields = Schema::new(&fields[1..]);
+            let props_fields = Schema::new(&fields[..]);
             let schema = Schema::try_merge([node_ids_and_edge_fields, props_fields])?;
 
             SchemaRef::new(schema)
