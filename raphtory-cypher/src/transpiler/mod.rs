@@ -4,7 +4,7 @@ use crate::parser::ast::*;
 
 use arrow_schema::{Fields, Schema};
 
-use itertools::{Itertools, TupleWindows};
+use itertools::Itertools;
 use raphtory::{
     arrow::graph_impl::ArrowGraph,
     core::{entities::VID, Direction},
@@ -149,7 +149,10 @@ fn select_scan_query(
     graph: &ArrowGraph,
     total_schema: Option<&Schema>,
 ) -> (usize, Box<sql_ast::Query>) {
-    let layer_id = graph.as_ref().find_layer_id(layer_name).expect("layer not found");
+    let layer_id = graph
+        .as_ref()
+        .find_layer_id(layer_name)
+        .expect("layer not found");
     let layer_schema = full_layer_fields(graph, layer_id);
 
     let projection_with_priority = total_schema
@@ -303,7 +306,7 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
     let order_by = vec![];
 
-    let from_tables = parse_tables(query);
+    let from_tables = parse_tables_2(query);
 
     let rel_binds = rel_names(query);
 
@@ -403,15 +406,19 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
             .node(first_edge.name.as_str())
             .expect("edge not found")];
 
-        // let mut last_edge = graph
-        //     .node(first_edge.name.as_str())
-        //     .expect("edge not found");
-
         let mut last_edge_dir = first_edge.direction;
+
+        seen.iter()
+            .map(|vid| graph.node(*vid).unwrap().name())
+            .for_each(|n| {
+                println!("seen: {:?}", n);
+            });
 
         while !stack.is_empty() {
             let node = stack.pop().unwrap();
+            println!("node: {:?}", node.name());
             for n in node.neighbours().iter().filter(|n| !seen.contains(&n.node)) {
+                println!("neighbour: {:?}", n.name());
                 if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
                     // this is an edge
                     last_edge_dir = if out { Direction::OUT } else { Direction::IN };
@@ -477,88 +484,78 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
 /// walk the path parts of the query and build a graph
 fn query_to_graph(query: &Query) -> Graph {
-    let node_pats = query.node_patterns().map(Ok);
-    let rel_pats = query.rel_patterns().map(Err);
-    let pats = node_pats.interleave(rel_pats);
+    let pattern_parts = query
+        .clauses()
+        .iter()
+        .filter_map(|clause| match clause {
+            Clause::Match(ma) => Some(ma),
+            _ => None,
+        })
+        .flat_map(|clause| clause.pattern.0.iter());
 
     let graph = Graph::new();
 
-    let it: TupleWindows<_, (_, _, _)> = pats.tuple_windows();
-    for triple in it {
-        if let (
-            Ok(NodePattern { name: u, .. }),
-            Err(RelPattern {
+    for PatternPart {
+        node, rel_chain, ..
+    } in pattern_parts
+    {
+        let mut last_edge: Option<&RelPattern> = None;
+
+        if is_bound(node) {
+            graph
+                .add_node(0, node.name.as_str(), NO_PROPS, None)
+                .expect("failed to add node");
+        }
+        let mut last_node = node;
+
+        for (
+            rp @ RelPattern {
                 name: edge,
                 direction,
                 ..
-            }),
-            Ok(NodePattern { name: v, .. }),
-        ) = triple
+            },
+            np @ NodePattern { name: u, .. },
+        ) in rel_chain
         {
+            if is_bound(last_node) {
+                graph
+                    .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
+                    .expect("failed to add edge");
+            } else if let Some(last_edge) = last_edge {
+                graph
+                    .add_edge(0, last_edge.name.as_str(), edge.as_str(), NO_PROPS, None)
+                    .expect("failed to add edge");
+            } else {
+                graph
+                    .add_node(0, edge.as_str(), NO_PROPS, None)
+                    .expect("failed to add edge");
+            }
+
+            if is_bound(np) {
+                graph
+                    .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
+                    .expect("failed to add node");
+            }
+
             assert!(
                 direction != &Direction::BOTH,
                 "BOTH direction not supported"
             );
-
             let direction_flag = direction == &Direction::OUT;
-
-            graph
-                .add_edge(0, u.as_str(), edge.as_str(), NO_PROPS, None)
-                .expect("failed to add edge");
-
-            graph
-                .add_edge(0, edge.as_str(), v.as_str(), NO_PROPS, None)
-                .expect("failed to add edge");
 
             let edge_node = graph.node(edge.as_str()).expect("edge not found");
             edge_node
                 .add_constant_properties([("direction", Prop::Bool(direction_flag))])
                 .expect("failed to add properties");
-        }
 
-        // Rel, Node, Rel
-
-        if let (
-            Err(RelPattern {
-                name: edge1,
-                direction: dir1,
-                ..
-            }),
-            Ok(node),
-            Err(RelPattern {
-                name: edge2,
-                direction: dir2,
-                ..
-            }),
-        ) = triple
-        {
-            // we just link the edges together if the node is not bound
-            if !is_bound(node) {
-                assert!(
-                    dir1 != &Direction::BOTH && dir2 != &Direction::BOTH,
-                    "BOTH direction not supported"
-                );
-
-                let dir1_flag = dir1 == &Direction::OUT;
-
-                graph
-                    .add_edge(0, edge1.as_str(), edge2.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-
-                let edge_node = graph.node(edge1.as_str()).expect("edge not found");
-                edge_node
-                    .add_constant_properties([("direction", Prop::Bool(dir1_flag))])
-                    .expect("failed to add properties");
-
-                let dir2_flag = dir2 == &Direction::OUT;
-
-                let edge_node = graph.node(edge2.as_str()).expect("edge not found");
-                edge_node
-                    .add_constant_properties([("direction", Prop::Bool(dir2_flag))])
-                    .expect("failed to add properties");
-            }
+            last_edge = Some(rp);
+            last_node = np;
         }
     }
+
+    graph.edges().into_iter().for_each(|edge| {
+        println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+    });
 
     graph
 }
@@ -1039,7 +1036,7 @@ mod test {
     #[test]
     fn select_unnamed() {
         check_cypher_to_sql(
-            "MATCH ()-[]-() RETURN *",
+            "MATCH ()-[]->() RETURN *",
             "WITH r_1 AS (SELECT * FROM _default) SELECT * FROM r_1",
         );
     }
@@ -1047,7 +1044,7 @@ mod test {
     #[test]
     fn select_wildcard_name() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN *",
+            "MATCH ()-[e]->() RETURN *",
             "WITH e AS (SELECT * FROM _default) SELECT * FROM e",
         );
     }
@@ -1055,7 +1052,7 @@ mod test {
     #[test]
     fn select_projection() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN e.src, e.weight",
+            "MATCH ()-[e]->() RETURN e.src, e.weight",
             "WITH e AS (SELECT * FROM _default) SELECT e.src, e.weight FROM e",
         );
     }
@@ -1063,7 +1060,7 @@ mod test {
     #[test]
     fn select_wildcard_from_layer() {
         check_cypher_to_sql_layers(
-            "MATCH ()-[e:KNOWS]-() RETURN e",
+            "MATCH ()-[e:KNOWS]->() RETURN e",
             "WITH e AS (SELECT * FROM KNOWS) SELECT e.* FROM e",
             ["KNOWS"],
         );
@@ -1072,13 +1069,13 @@ mod test {
     #[test]
     fn select_wildcard_count_all() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN COUNT(*)",
+            "MATCH ()-[e]->() RETURN COUNT(*)",
             "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
         );
     }
 
     #[test]
-    fn select_count_edges(){
+    fn select_count_edges() {
         check_cypher_to_sql_layers(
             "MATCH (v)-[e]->(u) RETURN COUNT(e)",
             "WITH \
@@ -1096,7 +1093,7 @@ mod test {
     #[test]
     fn select_one_col_count_items() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN COUNT(e.name)",
+            "MATCH ()-[e]->() RETURN COUNT(e.name)",
             "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.name) FROM e",
         );
     }
@@ -1104,7 +1101,7 @@ mod test {
     #[test]
     fn select_one_col_count_items_distinct() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN COUNT(distinct e.name)",
+            "MATCH ()-[e]->() RETURN COUNT(distinct e.name)",
             "WITH e AS (SELECT * FROM _default) SELECT COUNT(DISTINCT e.name) FROM e",
         );
     }
@@ -1112,7 +1109,7 @@ mod test {
     #[test]
     fn select_with_limit() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() RETURN e LIMIT 2",
+            "MATCH ()-[e]->() RETURN e LIMIT 2",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e LIMIT 2L",
         );
     }
@@ -1120,7 +1117,7 @@ mod test {
     #[test]
     fn select_where_expr_1() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() where e.time > 10 RETURN e",
+            "MATCH ()-[e]->() where e.time > 10 RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE e.time > 10L",
         );
     }
@@ -1128,7 +1125,7 @@ mod test {
     #[test]
     fn select_edge_with_type() {
         check_cypher_to_sql_layers(
-            "MATCH ()-[e]-() where e.time > 10 RETURN e,type(e)",
+            "MATCH ()-[e]->() where e.time > 10 RETURN e,type(e)",
             "WITH e AS (SELECT layer_id, src, dst, time FROM _default UNION ALL SELECT layer_id, src, dst, time FROM L1 UNION ALL SELECT layer_id, src, dst, time FROM L2) SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
             ["L1", "L2"],
         );
@@ -1137,7 +1134,7 @@ mod test {
     #[test]
     fn select_where_str_contains() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() where e.name contains 'baa' RETURN e",
+            "MATCH ()-[e]->() where e.name contains 'baa' RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE e.name LIKE '%baa%'",
         );
     }
@@ -1145,7 +1142,7 @@ mod test {
     #[test]
     fn select_where_str_not_contains() {
         check_cypher_to_sql(
-            "MATCH ()-[e]-() where NOT e.name contains 'baa' RETURN e",
+            "MATCH ()-[e]->() where NOT e.name contains 'baa' RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e WHERE NOT e.name LIKE '%baa%'",
         );
     }
@@ -1153,7 +1150,7 @@ mod test {
     #[test]
     fn select_where_expr_2() {
         check_cypher_to_sql(
-            "MATCH ()-[e {type: 'one'}]-() RETURN e.time, e.type",
+            "MATCH ()-[e {type: 'one'}]->() RETURN e.time, e.type",
             "WITH e AS (SELECT * FROM _default) SELECT e.time, e.type FROM e WHERE e.type = 'one'",
         );
     }
@@ -1161,7 +1158,7 @@ mod test {
     #[test]
     fn select_where_expr_3() {
         check_cypher_to_sql(
-            "MATCH ()-[e {type: 'one'}]-() where e.time < 5 RETURN e.time, e.type",
+            "MATCH ()-[e {type: 'one'}]->() where e.time < 5 RETURN e.time, e.type",
             "WITH e AS (SELECT * FROM _default) SELECT e.time, e.type FROM e WHERE e.time < 5L AND e.type = 'one'",
         );
     }
@@ -1169,7 +1166,7 @@ mod test {
     #[test]
     fn select_where_expr_4_layer() {
         check_cypher_to_sql_layers(
-            "MATCH ()-[e :LAYER {time: 7}]-() where e.type = 'one' RETURN e.time, e.type",
+            "MATCH ()-[e :LAYER {time: 7}]->() where e.type = 'one' RETURN e.time, e.type",
             "WITH e AS (SELECT * FROM LAYER) SELECT e.time, e.type FROM e WHERE e.type = 'one' AND e.time = 7L",
             ["LAYER"]
         );
