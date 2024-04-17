@@ -36,7 +36,8 @@ pub struct NodeTableProvider {
 }
 
 impl NodeTableProvider {
-    pub fn new(graph: ArrowGraph) -> Result<Self, ExecError> {
+    pub fn new(g: ArrowGraph) -> Result<Self, ExecError> {
+        let graph = g.as_ref();
         let (num_partitions, chunk_size) = graph
             .node_properties()
             .map(|properties| {
@@ -53,7 +54,7 @@ impl NodeTableProvider {
         let schema = lift_arrow_schema(name_dt.clone(), graph.node_properties())?;
 
         Ok(Self {
-            graph,
+            graph: g,
             schema,
             num_partitions,
             chunk_size,
@@ -125,12 +126,13 @@ impl TableProvider for NodeTableProvider {
 }
 
 async fn produce_record_batch(
-    graph: ArrowGraph,
+    g: ArrowGraph,
     schema: SchemaRef,
     chunk_id: usize,
     chunk_size: usize,
     projection: Option<Arc<[usize]>>,
 ) -> Result<RecordBatch, DataFusionError> {
+    let graph = g.as_ref();
     let properties = graph
         .node_properties()
         .ok_or_else(|| DataFusionError::Execution("Failed to find node properties".to_string()))?;

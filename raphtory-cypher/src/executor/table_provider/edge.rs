@@ -45,12 +45,13 @@ pub struct EdgeListTableProvider {
 }
 
 impl EdgeListTableProvider {
-    pub fn new(layer_name: &str, graph: ArrowGraph) -> Result<Self, ExecError> {
+    pub fn new(layer_name: &str, g: ArrowGraph) -> Result<Self, ExecError> {
+        let graph = g.as_ref();
         let layer_id = graph
             .find_layer_id(layer_name)
             .ok_or_else(|| ExecError::LayerNotFound(layer_name.to_string()))?;
 
-        let schema = lift_nested_arrow_schema(&graph, layer_id)?;
+        let schema = lift_nested_arrow_schema(&g, layer_id)?;
 
         let num_partitions = graph.layer(layer_id).edges_storage().t_props_num_chunks();
 
@@ -74,7 +75,7 @@ impl EdgeListTableProvider {
         Ok(Self {
             layer_id,
             layer_name: layer_name.to_string(),
-            graph,
+            graph: g,
             nested_schema: schema,
             num_partitions,
             sorted_by: vec![sort_by_src, sort_by_dst, sort_by_time],
@@ -83,7 +84,7 @@ impl EdgeListTableProvider {
 }
 
 fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
-    let arrow2_fields = graph.layer(layer_id).edges_data_type();
+    let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
     let a2_dt = arrow2::datatypes::DataType::Struct(arrow2_fields.clone());
     let a_dt: DataType = a2_dt.into();
     let schema = match a_dt {
@@ -160,7 +161,7 @@ async fn produce_record_batch(
     chunk_id: usize,
     projection: Option<Arc<[usize]>>,
 ) -> Result<RecordBatch, DataFusionError> {
-    let layer = graph.layer(layer_id);
+    let layer = graph.as_ref().layer(layer_id);
     let edges = layer.edges_storage();
     let chunk_size = edges.time().values().chunk_size();
 

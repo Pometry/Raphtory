@@ -57,7 +57,7 @@ fn scan_edges_as_sql_cte(
 
     let schemas = layer_names
         .iter()
-        .filter_map(|layer| graph.find_layer_id(layer.as_ref()))
+        .filter_map(|layer| graph.as_ref().find_layer_id(layer.as_ref()))
         .filter_map(|layer_id| full_layer_fields(graph, layer_id))
         .map(Schema::new);
 
@@ -96,7 +96,7 @@ fn scan_edges_as_sql_cte(
 
 // TODO: this needs to match the schema from EdgeListTableProvider
 fn full_layer_fields(graph: &ArrowGraph, layer_id: usize) -> Option<Fields> {
-    let dt = graph.layer(layer_id).edges_props_data_type();
+    let dt = graph.as_ref().layer(layer_id).edges_props_data_type();
     let arr_dt: arrow_schema::DataType = dt.clone().into();
     match arr_dt {
         arrow_schema::DataType::Struct(fields) => {
@@ -149,7 +149,7 @@ fn select_scan_query(
     graph: &ArrowGraph,
     total_schema: Option<&Schema>,
 ) -> (usize, Box<sql_ast::Query>) {
-    let layer_id = graph.find_layer_id(layer_name).expect("layer not found");
+    let layer_id = graph.as_ref().find_layer_id(layer_name).expect("layer not found");
     let layer_schema = full_layer_fields(graph, layer_id);
 
     let projection_with_priority = total_schema
@@ -264,7 +264,7 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 
     let mut cte_tables = vec![];
 
-    let layer_names = graph.layer_names();
+    let layer_names = graph.as_ref().layer_names();
 
     for rel in query.rel_patterns() {
         // rewrite the conditions in a nicer way
@@ -1081,7 +1081,14 @@ mod test {
     fn select_count_edges(){
         check_cypher_to_sql_layers(
             "MATCH (v)-[e]->(u) RETURN COUNT(e)",
-            "WITH e AS (SELECT * FROM _default UNION ALL SELECT * FROM L1 UNION ALL SELECT * FROM L2) SELECT COUNT(e.src) FROM e",
+            "WITH \
+            e AS (SELECT layer_id, src, dst, time FROM _default UNION ALL SELECT layer_id, src, dst, time FROM L1 UNION ALL SELECT layer_id, src, dst, time FROM L2), \
+            v AS (SELECT * FROM nodes), \
+            u AS (SELECT * FROM nodes) \
+            SELECT COUNT(e.id) \
+            FROM e \
+            JOIN v ON e.src = v.id \
+            JOIN u ON e.dst = u.id",
             ["L1", "L2"]
         )
     }

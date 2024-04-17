@@ -69,28 +69,28 @@ async fn main() {
         Args::Load(args) => {
             let layer_parquet_cols = vec![
                 ParquetLayerCols {
-                    parquet_dir: "/mnt/work/pometry/gov/case6/poststo.parquet",
+                    parquet_dir: "/mnt/work/pometry/gov/case6/data/poststo.parquet",
                     layer: "POSTSTO",
                     src_col: "src_id",
                     dst_col: "dst_id",
                     time_col: "time",
                 },
                 ParquetLayerCols {
-                    parquet_dir: "/mnt/work/pometry/gov/case6/livesin.parquet",
+                    parquet_dir: "/mnt/work/pometry/gov/case6/data/livesin.parquet",
                     layer: "LIVESIN",
                     src_col: "src_id",
                     dst_col: "dst_id",
                     time_col: "time",
                 },
                 ParquetLayerCols {
-                    parquet_dir: "/mnt/work/pometry/gov/case6/worksfor.parquet",
+                    parquet_dir: "/mnt/work/pometry/gov/case6/data/worksfor.parquet",
                     layer: "WORKSFOR",
                     src_col: "src_id",
                     dst_col: "dst_id",
                     time_col: "time",
                 },
             ];
-            let node_properties = "/mnt/work/pometry/gov/case6/sorted_nodes.parquet";
+            let node_properties = "/mnt/work/pometry/gov/case6/data/sorted_nodes.parquet";
             ArrowGraph::load_from_parquets(
                 args.graph_dir.as_str(),
                 layer_parquet_cols,

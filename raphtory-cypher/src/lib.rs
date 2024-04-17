@@ -24,7 +24,7 @@ pub mod hop;
 pub mod parser;
 pub mod transpiler;
 
-pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
+pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
     println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
@@ -35,12 +35,13 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
     let state = SessionState::new_with_config_rt(config, runtime);
     let ctx = SessionContext::new_with_state(state);
 
+    let graph = g.as_ref();
     for layer in graph.layer_names() {
-        let edge_list_table = EdgeListTableProvider::new(layer, graph.clone())?;
+        let edge_list_table = EdgeListTableProvider::new(layer, g.clone())?;
         ctx.register_table(layer, Arc::new(edge_list_table))?;
     }
 
-    let node_table_provider = NodeTableProvider::new(graph.clone())?;
+    let node_table_provider = NodeTableProvider::new(g.clone())?;
     ctx.register_table("nodes", Arc::new(node_table_provider))?;
     let layer_names = graph.layer_names().to_vec();
 
@@ -73,7 +74,7 @@ pub async fn run_cypher(query: &str, graph: &ArrowGraph) -> Result<DataFrame, Ex
         }),
     ));
     ctx.refresh_catalogs().await?;
-    let query = transpiler::to_sql(&query, graph);
+    let query = transpiler::to_sql(&query, g);
 
     println!("SQL: {:?}", query.to_string());
     let plan = ctx
@@ -103,7 +104,7 @@ pub async fn run_cypher_to_streams(
 pub async fn run_sql(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecError> {
     let ctx = SessionContext::new();
 
-    for layer in graph.layer_names() {
+    for layer in graph.as_ref().layer_names() {
         let table = EdgeListTableProvider::new(layer, graph.clone())?;
         ctx.register_table(layer, Arc::new(table))?;
     }
@@ -314,7 +315,7 @@ mod test {
         print_batches(&data).expect("failed to print batches");
 
         let df = run_cypher(
-            "match ()-[e]->() where e.time >2 and e.weight<7 RETURN *",
+            "match ()-[e]->() where e.rap_time >2 and e.weight<7 RETURN *",
             &graph,
         )
         .await
