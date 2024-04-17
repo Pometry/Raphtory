@@ -1,14 +1,3 @@
-use std::{
-    borrow::Borrow,
-    collections::{hash_map::IntoIter, HashMap},
-    fmt::Debug,
-    hash::Hash,
-    marker::PhantomData,
-    sync::Arc,
-};
-
-use rayon::{iter::Either, prelude::*};
-
 use crate::{
     core::entities::{nodes::node_ref::NodeRef, VID},
     db::{
@@ -16,6 +5,10 @@ use crate::{
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
+};
+use rayon::{iter::Either, prelude::*};
+use std::{
+    borrow::Borrow, collections::HashMap, fmt::Debug, hash::Hash, marker::PhantomData, sync::Arc,
 };
 
 #[derive(Clone, Debug)]

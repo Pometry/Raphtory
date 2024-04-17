@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            state::LazyNodeState,
             storage::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},

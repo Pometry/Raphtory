@@ -106,14 +106,15 @@ pub mod vectors;
 
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
-    use crate::db::api::state;
     pub use crate::{
         core::{IntoProp, Prop, PropUnwrap},
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 state::{AsOrderedNodeStateOps, NodeStateOps, OrderedNodeStateOps},
-                view::{EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, TimeOps, ResetFilter},
+                view::{
+                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps, ResetFilter, TimeOps,
+                },
             },
             graph::graph::Graph,
         },

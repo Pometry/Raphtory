@@ -991,7 +991,7 @@ mod views_test {
         test_storage!(&graph, |graph| {
             let wg = graph.window(-2, 0);
 
-        let actual = wg.nodes().id().values().collect::<Vec<_>>();
+            let actual = wg.nodes().id().values().collect::<Vec<_>>();
 
             let expected = vec![1, 2];
 
@@ -1101,7 +1101,12 @@ mod views_test {
             );
 
             assert_eq!(
-                graph.nodes().earliest_time().values().flatten().collect_vec(),
+                graph
+                    .nodes()
+                    .earliest_time()
+                    .values()
+                    .flatten()
+                    .collect_vec(),
                 [0, 0, 0, 4,]
             );
 

@@ -532,7 +532,11 @@ mod test_materialize {
 
         let nodes_subgraph = g.subgraph(vec![4, 5]);
         assert_eq!(
-            nodes_subgraph.nodes().name().collect::<Vec<String>>(),
+            nodes_subgraph
+                .nodes()
+                .name()
+                .values()
+                .collect::<Vec<String>>(),
             vec!["4", "5"]
         );
     }
@@ -551,6 +555,7 @@ mod test_materialize {
             exclude_nodes_subgraph
                 .nodes()
                 .name()
+                .values()
                 .collect::<Vec<String>>(),
             vec!["1", "2", "3"]
         );

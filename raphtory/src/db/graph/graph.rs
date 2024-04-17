@@ -224,7 +224,6 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use quickcheck_macros::quickcheck;
-    use rayon::prelude::*;
     use serde_json::Value;
     use std::collections::{HashMap, HashSet};
     use tempfile::TempDir;
