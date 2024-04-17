@@ -290,7 +290,7 @@ mod test {
             )
             .unwrap();
 
-            let df = run_cypher("match ()-[e:netflow|wls]->() RETURN * LIMIT 5", &graph)
+            let df = run_cypher("match ()-[e]->() RETURN *", &graph)
                 .await
                 .unwrap();
 
