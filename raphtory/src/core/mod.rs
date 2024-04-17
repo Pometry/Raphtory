@@ -37,6 +37,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
+use thiserror::Error;
 
 #[cfg(test)]
 extern crate core;
@@ -281,6 +282,22 @@ impl Prop {
             (Prop::Str(a), Prop::Str(b)) => Some(Prop::Str((a.to_string() + &b).into())),
             _ => None,
         }
+    }
+
+    pub fn min(self, other: Prop) -> Option<Prop> {
+        self.partial_cmp(&other).map(|ord| match ord {
+            Ordering::Less => self,
+            Ordering::Equal => self,
+            Ordering::Greater => other,
+        })
+    }
+
+    pub fn max(self, other: Prop) -> Option<Prop> {
+        self.partial_cmp(&other).map(|ord| match ord {
+            Ordering::Less => other,
+            Ordering::Equal => self,
+            Ordering::Greater => self,
+        })
     }
 
     pub fn divide(self, other: Prop) -> Option<Prop> {
@@ -786,7 +803,7 @@ mod serde_value_into_prop {
 
 #[cfg(test)]
 mod test_arc_str {
-    use crate::core::{ArcStr, OptionAsStr};
+    use crate::core::{ArcStr, OptionAsStr, Prop};
     use std::sync::Arc;
 
     #[test]
@@ -813,5 +830,13 @@ mod test_arc_str {
         assert_eq!(opt_str, Some("test"));
         assert_eq!(opt_str_2, Some("test"));
         assert_eq!(opt_str3, Some("test"));
+    }
+
+    #[test]
+    fn test_prop_min_max() {
+        let v1 = Prop::I64(4);
+        let v2 = Prop::I64(2);
+        assert_eq!(v1.clone().max(v2.clone()), Some(Prop::I64(4)));
+        assert_eq!((v1.min(v2)), Some(Prop::I64(2)));
     }
 }
