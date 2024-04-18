@@ -531,7 +531,7 @@ mod test {
         let graph = make_graph_with_str_col(graph_dir);
 
         let df = run_cypher(
-            "match ()-[e]-() where e.name ends with 'z' return count(e.name)",
+            "match ()-[e]->() where e.name ends with 'z' return count(e.name)",
             &graph,
         )
         .await
@@ -606,7 +606,7 @@ mod test {
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
 
         let df = run_cypher(
-            "match ()-[e:_default|LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+            "match ()-[e:_default|LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
             &graph,
         ).await.unwrap();
 
@@ -642,7 +642,7 @@ mod test {
         load_edges_with_str_props(&g, Some("LAYER2"));
 
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
-        let df = run_cypher("match ()-[e]-() return type(e), e", &graph)
+        let df = run_cypher("match ()-[e]->() return type(e), e", &graph)
             .await
             .unwrap();
 
@@ -655,7 +655,7 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_str_col(graph_dir);
 
-        let df = run_cypher("match ()-[e]-() return count(*)", &graph)
+        let df = run_cypher("match ()-[e]->() return count(*)", &graph)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
@@ -668,7 +668,7 @@ mod test {
         let graph = make_graph_with_str_col(graph_dir);
 
         let df = run_cypher(
-            "match ()-[e]-() where e.name contains 'a' return e limit 2",
+            "match ()-[e]->() where e.name contains 'a' return e limit 2",
             &graph,
         )
         .await

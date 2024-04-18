@@ -427,12 +427,12 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
 fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     let mut joins = vec![];
-    println!("{:?}", query);
+    // println!("{:?}", query);
     let graph = query_to_graph(query);
 
-    graph.edges().into_iter().for_each(|edge| {
-        println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
-    });
+    // graph.edges().into_iter().for_each(|edge| {
+    //     println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+    // });
 
     let first = query
         .node_patterns()
@@ -445,7 +445,7 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
         .filter(|node| node.get_const_prop(0).is_some())
         .count();
 
-    println!("edge counts: {}", edge_counts);
+    // println!("edge counts: {}", edge_counts);
 
     if edge_counts > 0 {
         let first_edge = query
@@ -492,7 +492,7 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
                     let current_edge_dir = if out { Direction::OUT } else { Direction::IN };
                     if !is_bound_str(&parent.name()) {
-                        if let Some(last_edge) = last_edge {
+                        if let Some(ref last_edge) = last_edge {
                             let (from, to) = match (last_edge_dir, current_edge_dir) {
                                 (Direction::OUT, Direction::OUT) => ("dst", "src"),
                                 (Direction::OUT, Direction::IN) => ("dst", "dst"),
@@ -503,8 +503,6 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
                             joins.push(make_sql_join(&last_edge.name(), from, &n.name(), to));
                         }
-                        last_edge_dir = current_edge_dir;
-                        last_edge = Some(n.clone());
                     } else {
                         match last_edge_dir {
                             Direction::OUT => {
@@ -516,6 +514,7 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
                             Direction::BOTH => todo!(),
                         }
                     }
+                    last_edge_dir = current_edge_dir;
                 } else {
                     // this is a node, parent is an edge
                     if is_bound_str(&n.name()) {
@@ -532,6 +531,10 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
                 }
 
                 stack.push(n);
+            }
+
+            if parent.get_const_prop(0).is_some(){
+                last_edge = Some(parent.clone());
             }
             seen.insert(parent.node);
         }
@@ -1364,7 +1367,14 @@ mod test {
     fn hop_3_times_out() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->()-[e3]->() RETURN e1, e2, e3",
-            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), e3 AS (SELECT * FROM _default) SELECT e1.*, e2.*, e3.* FROM e1 JOIN e2 ON e1.dst = e2.src JOIN e3 ON e2.dst = e3.src",
+            "WITH \
+            e1 AS (SELECT * FROM _default), \
+            e2 AS (SELECT * FROM _default), \
+            e3 AS (SELECT * FROM _default) \
+            SELECT e1.*, e2.*, e3.* \
+            FROM e1 \
+            JOIN e2 ON e1.dst = e2.src \
+            JOIN e3 ON e2.dst = e3.src",
         );
     }
 
