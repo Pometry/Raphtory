@@ -17,17 +17,19 @@ use sqlparser::ast::{
 
 mod exprs;
 
-pub fn to_sql(query: &Query, graph: &ArrowGraph) -> sql_ast::Statement {
-    let with = parse_rels_to_ctes(query, graph);
+pub fn to_sql(query: Query, graph: &ArrowGraph) -> sql_ast::Statement {
+    let query = unbind_unused_bounds(query);
+
+    let with = parse_rels_to_ctes(&query, graph);
     sql_ast::Statement::Query(Box::new(sql_ast::Query {
         // WITH (common table expressions, or CTEs)
         with: Some(with),
         // SELECT or UNION / EXCEPT / INTERSECT
-        body: parse_select_body(query, graph),
+        body: parse_select_body(&query, graph),
         // ORDER BY
-        order_by: parse_order_by(query),
+        order_by: parse_order_by(&query),
         // `LIMIT { <N> | ALL }`
-        limit: exprs::parse_limit(query),
+        limit: exprs::parse_limit(&query),
 
         // `LIMIT { <N> } BY { <expr>,<expr>,... } }`
         limit_by: vec![],
@@ -42,6 +44,53 @@ pub fn to_sql(query: &Query, graph: &ArrowGraph) -> sql_ast::Statement {
         // (MSSQL-specific)
         for_clause: None,
     }))
+}
+
+fn unbind_unused_bounds(mut query: Query) -> Query {
+    // find the max bound N from all nodes named n_<N>
+    let max_n = query
+        .node_patterns()
+        .map(|node_pat| {
+            if let Some(n) = node_pat.name.strip_prefix("n_") {
+                n.parse::<u64>().ok()
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .max()
+        .unwrap_or(0);
+
+    let node_bounds = query
+        .node_patterns()
+        .map(|node_pat| node_pat.name.clone())
+        .filter(|name| is_bound_str(name))
+        .collect::<HashSet<_>>();
+
+    let nodes_in_return = query
+        .clauses()
+        .iter()
+        .flat_map(|clause| match clause {
+            Clause::Return(Return { items, .. }) => items
+                .iter()
+                .flat_map(|item| item.expr.binds())
+                .filter(|return_bound| node_bounds.contains(return_bound))
+                .collect::<Vec<_>>(),
+            _ => vec![],
+        })
+        .collect::<HashSet<_>>();
+
+    // unbind all nodes not in return
+    query.node_patterns_mut().fold(max_n, |c, node_pattern| {
+        if is_bound_str(&node_pattern.name) && !nodes_in_return.contains(&node_pattern.name) {
+            node_pattern.name = format!("n_{}", c + 1);
+            c + 1
+        } else {
+            c
+        }
+    });
+
+    query
 }
 
 fn parse_order_by(_query: &Query) -> Vec<sql_ast::OrderByExpr> {
@@ -311,7 +360,7 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
     let order_by = vec![];
 
-    let from_tables = parse_tables_2(query);
+    let from_tables = parse_tables(query);
 
     let rel_binds = rel_names(query);
 
@@ -808,10 +857,19 @@ fn cypher_to_sql_expr(
                     ]))
                 } else {
                     // this makes sure that non-wildcard edges are selected with their id when passed down to functions
-                    sql_ast::Expr::CompoundIdentifier(vec![
-                        sql_ast::Ident::new(var_name),
-                        sql_ast::Ident::new("id"),
-                    ])
+                    if rel_binds.contains(&var_name) {
+                        sql_ast::Expr::CompoundIdentifier(vec![
+                            sql_ast::Ident::new(var_name),
+                            sql_ast::Ident::new("src"),
+                        ])
+                    } else if node_binds.contains(&var_name) {
+                        sql_ast::Expr::CompoundIdentifier(vec![
+                            sql_ast::Ident::new(var_name),
+                            sql_ast::Ident::new("id"),
+                        ])
+                    } else {
+                        sql_ast::Expr::CompoundIdentifier(vec![sql_ast::Ident::new(var_name)])
+                    }
                 }
             } else {
                 sql_ast::Expr::CompoundIdentifier(
@@ -1027,6 +1085,22 @@ mod test {
     }
 
     #[test]
+    fn select_unused_node_bounds() {
+        check_cypher_to_sql(
+            "MATCH (n)-[e]->(m) RETURN COUNT(e)",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
+        );
+    }
+
+    #[test]
+    fn select_edges_count(){
+        check_cypher_to_sql(
+            "MATCH ()-[e]->() RETURN COUNT(e)",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
+        );
+    }
+
+    #[test]
     fn select_unnamed() {
         check_cypher_to_sql(
             "MATCH ()-[]->() RETURN *",
@@ -1068,17 +1142,17 @@ mod test {
     }
 
     #[test]
-    fn select_count_edges() {
+    fn select_count_edges_ignore_unbound_with() {
         check_cypher_to_sql_layers(
             "MATCH (v)-[e]->(u) RETURN COUNT(e)",
             "WITH \
-            e AS (SELECT layer_id, src, dst, time FROM _default UNION ALL SELECT layer_id, src, dst, time FROM L1 UNION ALL SELECT layer_id, src, dst, time FROM L2), \
-            v AS (SELECT * FROM nodes), \
-            u AS (SELECT * FROM nodes) \
-            SELECT COUNT(e.id) \
-            FROM e \
-            JOIN v ON e.src = v.id \
-            JOIN u ON e.dst = u.id",
+             e AS (\
+             SELECT layer_id, src, dst, time FROM _default \
+             UNION ALL \
+             SELECT layer_id, src, dst, time FROM L1 \
+             UNION ALL \
+             SELECT layer_id, src, dst, time FROM L2) \
+             SELECT COUNT(e.src) FROM e",
             ["L1", "L2"]
         )
     }
@@ -1334,7 +1408,7 @@ mod test {
                 .expect("failed to add edge");
         }
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
-        let sql = transpiler::to_sql(&query, &graph);
+        let sql = transpiler::to_sql(query, &graph);
         assert_eq!(sql.to_string(), expected.to_string());
     }
 

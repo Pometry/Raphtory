@@ -20,6 +20,12 @@ impl Query {
         }
     }
 
+    pub fn clauses_mut(&mut self) -> &mut [Clause] {
+        match self {
+            Query::SingleQuery(q) => &mut q.clauses,
+        }
+    }
+
     pub fn rel_patterns(&self) -> impl Iterator<Item = &RelPattern> + '_ {
         self.clauses()
             .iter()
@@ -44,6 +50,23 @@ impl Query {
                     let iter = m.pattern.0.iter().map(|part: &PatternPart| {
                         std::iter::once(&part.node)
                             .chain(part.rel_chain.iter().map(|(_, node)| node))
+                    });
+                    Some(iter)
+                }
+                _ => None,
+            })
+            .flatten()
+            .flatten()
+    }
+
+    pub fn node_patterns_mut(&mut self) -> impl Iterator<Item = &mut NodePattern> + '_ {
+        self.clauses_mut()
+            .iter_mut()
+            .filter_map(|clause| match clause {
+                Clause::Match(m) => {
+                    let iter = m.pattern.0.iter_mut().map(|part: &mut PatternPart| {
+                        std::iter::once(&mut part.node)
+                            .chain(part.rel_chain.iter_mut().map(|(_, node)| node))
                     });
                     Some(iter)
                 }
@@ -253,6 +276,25 @@ pub enum Expr {
 }
 
 impl Expr {
+
+    pub fn binds(&self) -> Vec<String> {
+        match self {
+            Expr::Var { var_name, .. } => {
+                vec![var_name.clone()]
+            }
+            Expr::Literal(_) => vec![],
+            Expr::BinOp { left, right, .. } => {
+                let mut res = left.binds();
+                res.extend(right.binds());
+                res
+            }
+            Expr::UnaryOp { expr, .. } => expr.binds(),
+            Expr::FunctionInvocation { args, .. } => args.iter().flat_map(|e| e.binds()).collect(),
+            Expr::CountAll => vec![],
+            Expr::Nested(expr) => expr.binds(),
+        }
+    }
+
     pub fn var<S: AsRef<str>>(var: &str, attrs: impl IntoIterator<Item = S>) -> Self {
         Expr::Var {
             var_name: var.to_string(),

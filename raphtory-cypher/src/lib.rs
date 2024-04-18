@@ -74,7 +74,7 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
         }),
     ));
     ctx.refresh_catalogs().await?;
-    let query = transpiler::to_sql(&query, g);
+    let query = transpiler::to_sql(query, g);
 
     println!("SQL: {:?}", query.to_string());
     let plan = ctx
