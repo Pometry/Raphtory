@@ -156,6 +156,15 @@ mod test {
             (6, 4, 9, 7., "bzz".to_string()),
         ];
 
+        // a star graph with 5 nodes an 4 edges
+    static ref EDGES3: Vec<(u64, u64, i64, f64)> = vec![
+            (0, 2, 2, 7.),
+            (0, 3, 3, 9.),
+            (0, 4, 4, 1.),
+            (1, 0, 1, 3.),
+        ];
+
+
     // (id, name, age, city)
     static ref NODES: Vec<(u64, String, i64, Option<String>)> = vec![
             (0, "Alice", 30, None),
@@ -297,8 +306,70 @@ mod test {
             let data = df.collect().await.unwrap();
 
             print_batches(&data).expect("failed to print batches");
-
         }
+    }
+
+    #[tokio::test]
+    async fn fork_path_on_star_graph() {
+
+        let graph_dir = tempdir().unwrap();
+
+        let graph = Graph::new();
+        load_nodes(&graph);
+        load_star_edges(&graph);
+
+        let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
+
+        // WITH
+        // e1 AS (SELECT * FROM _default),
+        // e2 AS (SELECT * FROM _default),
+        // e3 AS (SELECT * FROM _default),
+        // a AS (SELECT * FROM nodes),
+        // b AS (SELECT * FROM nodes),
+        // c AS (SELECT * FROM nodes),
+        // d AS (SELECT * FROM nodes)
+        // SELECT a.id, b.id, c.id, d.id
+        // FROM e1
+        // JOIN a ON e1.src = a.id
+        // JOIN b ON e1.dst = b.id
+        // JOIN e2 ON b.id = e2.src
+        // JOIN e3 ON b.id = e3.src
+        // JOIN d ON e3.dst = d.id
+        // JOIN c ON e2.dst = c.id
+
+        // FIXME: match (b)-[e3]->(d), (a)-[e1]->(b)-[e2]->(c) RETURN a.id, b.id, c.id, d.id
+        // WITH
+        // e3 AS (SELECT * FROM _default),
+        // e1 AS (SELECT * FROM _default),
+        // e2 AS (SELECT * FROM _default),
+        // b AS (SELECT * FROM nodes),
+        // d AS (SELECT * FROM nodes),
+        // a AS (SELECT * FROM nodes),
+        // c AS (SELECT * FROM nodes)
+        // SELECT a.id, b.id, c.id, d.id
+        // FROM e3
+        // JOIN b ON e3.src = b.id
+        // JOIN d ON e3.dst = d.id
+        //
+        // match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, b.id, e2.dst, e3.dst
+        // WITH
+        // e1 AS (SELECT * FROM _default),
+        // e2 AS (SELECT * FROM _default),
+        // e3 AS (SELECT * FROM _default),
+        // b AS (SELECT * FROM nodes)
+        // SELECT e1.src, b.id, e2.dst, e3.dst
+        // FROM e1
+        // JOIN b ON e1.dst = b.id
+        // JOIN e2 ON b.id = e2.src
+        // JOIN e3 ON b.id = e3.src
+
+        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, b.id, e2.dst, e3.dst", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
     }
 
     #[tokio::test]
@@ -426,6 +497,14 @@ mod test {
         for (src, dst, t, weight) in EDGES.iter() {
             graph
                 .add_edge(*t, *src, *dst, [("weight", Prop::F64(*weight))], layer)
+                .unwrap();
+        }
+    }
+
+    fn load_star_edges(graph: &Graph) {
+        for (src, dst, t, weight) in EDGES3.iter() {
+            graph
+                .add_edge(*t, *src, *dst, [("weight", Prop::F64(*weight))], None)
                 .unwrap();
         }
     }
