@@ -1320,7 +1320,7 @@ mod test {
     #[test]
     fn two_hops_with_self_loop() {
         check_cypher_to_sql_layers(
-            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.NAME",
+            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.name",
             "WITH \
              nf1 AS (SELECT * FROM Netflow), \
              login1 AS (SELECT * FROM Events2v), \
@@ -1328,14 +1328,13 @@ mod test {
              E AS (SELECT * FROM nodes), \
              B AS (SELECT * FROM nodes), \
              A AS (SELECT * FROM nodes) \
-             SELECT E.name, B.name, A.NAME \
+             SELECT E.name, B.name, A.name \
              FROM nf1 \
-             JOIN E ON nf1.src = E.id \
-             JOIN B ON nf1.dst = B.id \
-             JOIN login1 ON B.id = login1.src \
-             JOIN A ON login1.dst = A.id \
-             JOIN prog1 ON B.id = prog1.src \
-             JOIN B AS B_1 ON prog1.dst = B_1.id" ,
+             JOIN E ON nf1.dst = E.id \
+             JOIN B ON nf1.src = B.id \
+             JOIN login1 ON B.id = login1.dst \
+             JOIN prog1 ON B.id = prog1.dst \
+             JOIN A ON login1.src = A.id",
             ["Netflow", "Events2v", "Events1v"]
         );
     }
