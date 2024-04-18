@@ -360,7 +360,7 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
     let order_by = vec![];
 
-    let from_tables = parse_tables(query);
+    let from_tables = parse_tables_2(query);
 
     let rel_binds = rel_names(query);
 
@@ -427,13 +427,27 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
 fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     let mut joins = vec![];
+    println!("{:?}", query);
     let graph = query_to_graph(query);
+
+    graph.edges().into_iter().for_each(|edge| {
+        println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+    });
+
     let first = query
         .node_patterns()
         .next()
         .expect("unexpected! no node patterns");
     // walk the graph in depth first fashion and add the nodes as joins
-    if graph.count_edges() > 0 {
+    let edge_counts = graph
+        .nodes()
+        .into_iter()
+        .filter(|node| node.get_const_prop(0).is_some())
+        .count();
+
+    println!("edge counts: {}", edge_counts);
+
+    if edge_counts > 0 {
         let first_edge = query
             .rel_patterns()
             .next()
@@ -452,7 +466,10 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
             }
         }
 
-        let mut seen: HashSet<VID> = [graph.node(&first.name).unwrap().node]
+        let mut seen: HashSet<VID> = graph
+            .node(&first.name)
+            .map(|node| vec![node.node])
+            .unwrap_or_default()
             .into_iter()
             .collect();
 
@@ -1077,7 +1094,7 @@ mod test {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn select_all() {
+    fn select_all_edges() {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e",
@@ -1093,7 +1110,7 @@ mod test {
     }
 
     #[test]
-    fn select_edges_count(){
+    fn select_edges_count() {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN COUNT(e)",
             "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
@@ -1153,7 +1170,7 @@ mod test {
              UNION ALL \
              SELECT layer_id, src, dst, time FROM L2) \
              SELECT COUNT(e.src) FROM e",
-            ["L1", "L2"]
+            ["L1", "L2"],
         )
     }
 
