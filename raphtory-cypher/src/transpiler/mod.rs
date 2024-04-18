@@ -8,7 +8,7 @@ use itertools::Itertools;
 use raphtory::{
     arrow::graph_impl::ArrowGraph,
     core::{entities::VID, Direction},
-    db::api::properties::internal::ConstPropertiesOps,
+    db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
     prelude::*,
 };
 use sqlparser::ast::{
@@ -478,34 +478,40 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
             .expect("edge not found")];
 
         let mut last_edge_dir = first_edge.direction;
+        let mut last_edge: Option<NodeView<Graph>> = None;
 
         while !stack.is_empty() {
-            let node = stack.pop().unwrap();
-            for n in node.neighbours().iter().filter(|n| !seen.contains(&n.node)) {
+            let parent = stack.pop().unwrap();
+            for n in parent
+                .neighbours()
+                .iter()
+                .filter(|n| !seen.contains(&n.node))
+            {
                 if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
                     // this is an edge
-                    last_edge_dir = if out { Direction::OUT } else { Direction::IN };
 
-                    if let Some(Prop::Bool(out)) = node.get_const_prop(0) {
-                        // parent node was an edge
-                        let parent_edge_dir = if out { Direction::OUT } else { Direction::IN };
+                    let current_edge_dir = if out { Direction::OUT } else { Direction::IN };
+                    if !is_bound_str(&parent.name()) {
+                        if let Some(last_edge) = last_edge {
+                            let (from, to) = match (last_edge_dir, current_edge_dir) {
+                                (Direction::OUT, Direction::OUT) => ("dst", "src"),
+                                (Direction::OUT, Direction::IN) => ("dst", "dst"),
+                                (Direction::IN, Direction::OUT) => ("src", "src"),
+                                (Direction::IN, Direction::IN) => ("src", "dst"),
+                                _ => unimplemented!("both direction not supported"),
+                            };
 
-                        let (from, to) = match (parent_edge_dir, last_edge_dir) {
-                            (Direction::OUT, Direction::OUT) => ("dst", "src"),
-                            (Direction::OUT, Direction::IN) => ("dst", "dst"),
-                            (Direction::IN, Direction::OUT) => ("src", "src"),
-                            (Direction::IN, Direction::IN) => ("src", "dst"),
-                            _ => unimplemented!("both direction not supported"),
-                        };
-
-                        joins.push(make_sql_join(&node.name(), from, &n.name(), to));
+                            joins.push(make_sql_join(&last_edge.name(), from, &n.name(), to));
+                        }
+                        last_edge_dir = current_edge_dir;
+                        last_edge = Some(n.clone());
                     } else {
                         match last_edge_dir {
                             Direction::OUT => {
-                                joins.push(make_sql_join(&node.name(), "id", &n.name(), "src"))
+                                joins.push(make_sql_join(&parent.name(), "id", &n.name(), "src"))
                             }
                             Direction::IN => {
-                                joins.push(make_sql_join(&node.name(), "id", &n.name(), "dst"))
+                                joins.push(make_sql_join(&parent.name(), "id", &n.name(), "dst"))
                             }
                             Direction::BOTH => todo!(),
                         }
@@ -515,10 +521,10 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
                     if is_bound_str(&n.name()) {
                         match last_edge_dir {
                             Direction::OUT => {
-                                joins.push(make_sql_join(&node.name(), "dst", &n.name(), "id"))
+                                joins.push(make_sql_join(&parent.name(), "dst", &n.name(), "id"))
                             }
                             Direction::IN => {
-                                joins.push(make_sql_join(&node.name(), "src", &n.name(), "id"))
+                                joins.push(make_sql_join(&parent.name(), "src", &n.name(), "id"))
                             }
                             Direction::BOTH => todo!(),
                         }
@@ -527,7 +533,7 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
 
                 stack.push(n);
             }
-            seen.insert(node.node);
+            seen.insert(parent.node);
         }
 
         let table = sql_ast::TableWithJoins {
@@ -545,7 +551,7 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     }
 }
 
-/// walk the path parts of the query and build a graph
+/// walk the path parts of the query and build a graph from every node pattern and edge pattern
 fn query_to_graph(query: &Query) -> Graph {
     let pattern_parts = query
         .clauses()
@@ -562,17 +568,13 @@ fn query_to_graph(query: &Query) -> Graph {
         node, rel_chain, ..
     } in pattern_parts
     {
-        let mut last_edge: Option<&RelPattern> = None;
-
-        if is_bound(node) {
-            graph
-                .add_node(0, node.name.as_str(), NO_PROPS, None)
-                .expect("failed to add node");
-        }
+        graph
+            .add_node(0, node.name.as_str(), NO_PROPS, None)
+            .expect("failed to add node");
         let mut last_node = node;
 
         for (
-            rp @ RelPattern {
+            RelPattern {
                 name: edge,
                 direction,
                 ..
@@ -580,25 +582,13 @@ fn query_to_graph(query: &Query) -> Graph {
             np @ NodePattern { name: u, .. },
         ) in rel_chain
         {
-            if is_bound(last_node) {
-                graph
-                    .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-            } else if let Some(last_edge) = last_edge {
-                graph
-                    .add_edge(0, last_edge.name.as_str(), edge.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-            } else {
-                graph
-                    .add_node(0, edge.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-            }
+            graph
+                .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
+                .expect("failed to add edge");
 
-            if is_bound(np) {
-                graph
-                    .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
-                    .expect("failed to add node");
-            }
+            graph
+                .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
+                .expect("failed to add node");
 
             assert!(
                 direction != &Direction::BOTH,
@@ -611,7 +601,6 @@ fn query_to_graph(query: &Query) -> Graph {
                 .add_constant_properties([("direction", Prop::Bool(direction_flag))])
                 .expect("failed to add properties");
 
-            last_edge = Some(rp);
             last_node = np;
         }
     }

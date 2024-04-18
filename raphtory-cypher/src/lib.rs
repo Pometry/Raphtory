@@ -363,7 +363,7 @@ mod test {
         // JOIN e2 ON b.id = e2.src
         // JOIN e3 ON b.id = e3.src
 
-        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, b.id, e2.dst, e3.dst", &graph)
+        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() where e2.dst <> e3.dst RETURN e1.src, b.id, e2.dst, e3.dst", &graph)
             .await
             .unwrap();
 
