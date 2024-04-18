@@ -8,7 +8,7 @@ use enum_dispatch::enum_dispatch;
 #[enum_dispatch]
 pub trait InternalLayerOps {
     /// get the layer ids for the graph view
-    fn layer_ids(&self) -> LayerIds;
+    fn layer_ids(&self) -> &LayerIds;
 
     /// Get the layer id for the given layer name
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError>;
@@ -39,7 +39,7 @@ pub trait DelegateLayerOps {
 
 impl<G: DelegateLayerOps> InternalLayerOps for G {
     #[inline]
-    fn layer_ids(&self) -> LayerIds {
+    fn layer_ids(&self) -> &LayerIds {
         self.graph().layer_ids()
     }
 

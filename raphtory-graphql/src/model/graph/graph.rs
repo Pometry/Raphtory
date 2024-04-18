@@ -58,12 +58,34 @@ impl GqlGraph {
         let name = self.name.clone();
         GqlGraph::new(name, self.graph.valid_layers(names))
     }
+
+    async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
+        let name = self.name.clone();
+        GqlGraph::new(name, self.graph.exclude_valid_layers(names))
+    }
+
     async fn layer(&self, name: String) -> GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.valid_layers(name))
     }
 
+    async fn exclude_layer(&self, name: String) -> GqlGraph {
+        GqlGraph::new(self.name.clone(), self.graph.exclude_valid_layers(name))
+    }
+
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
+    }
+
+    async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
+        GqlGraph::new(
+            self.name.clone(),
+            self.graph.subgraph_node_types(node_types),
+        )
+    }
+
+    async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
+        GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
     }
 
     async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
@@ -74,6 +96,7 @@ impl GqlGraph {
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.window(start, end))
     }
+
     async fn at(&self, time: i64) -> GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.at(time))
     }
@@ -101,6 +124,7 @@ impl GqlGraph {
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////
+
     async fn earliest_time(&self) -> Option<i64> {
         self.graph.earliest_time()
     }
@@ -227,6 +251,7 @@ impl GqlGraph {
     ////////////////////////
     //////// GETTERS ///////
     ////////////////////////
+
     async fn node(&self, name: String) -> Option<Node> {
         self.graph.node(name).map(|v| v.into())
     }
@@ -282,6 +307,7 @@ impl GqlGraph {
             .map(|vv| vv.into())
             .collect()
     }
+
     async fn fuzzy_search_edges(
         &self,
         query: String,
@@ -301,9 +327,11 @@ impl GqlGraph {
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
+
     async fn properties(&self) -> GqlProperties {
         Into::<DynProperties>::into(self.graph.properties()).into()
     }
+
     ////////////////////////
     // GRAPHQL SPECIFIC ////
     ////////////////////////
@@ -311,9 +339,11 @@ impl GqlGraph {
     async fn name(&self) -> String {
         self.name.clone()
     }
+
     async fn schema(&self) -> GraphSchema {
         GraphSchema::new(self.graph.graph())
     }
+
     async fn algorithms(&self) -> GraphAlgorithms {
         self.graph.graph().clone().into()
     }
@@ -325,6 +355,7 @@ impl GqlGraph {
             .map(|v| v.name())
             .collect_vec()
     }
+
     async fn expanded_edges(
         &self,
         nodes_to_expand: Vec<String>,

@@ -31,6 +31,8 @@ use std::{
     sync::Arc,
 };
 
+use super::views::deletion_graph::PersistentGraph;
+
 const SEG: usize = 16;
 
 pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
@@ -157,8 +159,8 @@ impl Graph {
         Self(Arc::new(InternalGraph::default()))
     }
 
-    pub(crate) fn new_from_inner(inner: Arc<InternalGraph>) -> Self {
-        Self(inner)
+    pub(crate) fn from_internal_graph(internal_graph: Arc<InternalGraph>) -> Self {
+        Self(internal_graph)
     }
 
     /// Load a graph from a directory
@@ -189,6 +191,11 @@ impl Graph {
 
     pub fn as_arc(&self) -> Arc<InternalGraph> {
         self.0.clone()
+    }
+
+    /// Get persistent graph
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        PersistentGraph::from_internal_graph(self.0.clone())
     }
 }
 
@@ -276,7 +283,7 @@ mod db_tests {
                 graph.edges().collect(),
                 Vec::<EdgeView<Graph, Graph>>::new()
             );
-            assert!(graph.edge_filter().is_none());
+            assert!(!graph.edges_filtered());
             assert!(graph.edge(1, 2).is_none());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.latest_time_window(1, 2).is_none());
@@ -974,6 +981,10 @@ mod db_tests {
             assert!(graph.layers("layer2").unwrap().edge(11, 22).is_none());
             assert!(graph.layers("layer2").unwrap().edge(11, 44).is_some());
 
+                    assert!(graph.exclude_layers("layer2").unwrap().edge(11, 44).is_none());
+        assert!(graph.exclude_layers("layer2").unwrap().edge(11, 33).is_some());
+        assert!(graph.exclude_layers("layer2").unwrap().edge(11, 22).is_some());
+
             let dft_layer = graph.default_layer();
             let layer1 = graph.layers("layer1").expect("layer1");
             let layer2 = graph.layers("layer2").expect("layer2");
@@ -1457,6 +1468,56 @@ mod db_tests {
         props_map
             .into_iter()
             .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
+    }
+
+    #[test]
+    fn test_graph_constant_props2() {
+        let g = Graph::new();
+
+        let as_props: Vec<(&str, Prop)> = vec![(
+            "mylist",
+            Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
+        )];
+
+        g.add_constant_properties(as_props.clone()).unwrap();
+
+        let props_names = as_props
+            .into_iter()
+            .map(|(name, _)| name.into())
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            g.properties()
+                .constant()
+                .keys()
+                .into_iter()
+                .collect::<HashSet<_>>(),
+            props_names
+        );
+
+        let data = vec![
+            ("key1".into(), Prop::I64(10)),
+            ("key2".into(), Prop::I64(20)),
+            ("key3".into(), Prop::I64(30)),
+        ];
+        let props_map = HashMap::from(data.into_iter().collect::<HashMap<_, _>>());
+        let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::Map(Arc::from(props_map)))];
+
+        g.add_constant_properties(as_props.clone()).unwrap();
+
+        let props_names2: HashSet<ArcStr> = as_props
+            .into_iter()
+            .map(|(name, _)| name.into())
+            .collect::<HashSet<_>>();
+
+        assert_eq!(
+            g.properties()
+                .constant()
+                .keys()
+                .into_iter()
+                .collect::<HashSet<_>>(),
+            props_names.union(&props_names2).cloned().collect()
+        );
     }
 
     #[quickcheck]
@@ -2286,6 +2347,18 @@ mod db_tests {
         test(&graph);
         // FIXME: Needs multilayer support (Issue #47)
         // test(&arrow_graph);
+    }
+
+    #[test]
+    fn test_persistent_graph() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, [("added", Prop::I64(0))], None)
+            .unwrap();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+
+        let pg = g.persistent_graph();
+        pg.delete_edge(10, 0, 1, None).unwrap();
+        assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
     }
 
     // non overlaping time intervals

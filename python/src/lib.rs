@@ -10,7 +10,7 @@ use raphtory_core::python::{
         edge::{PyDirection, PyEdge, PyMutableEdge},
         edges::PyEdges,
         graph::PyGraph,
-        graph_with_deletions::PyGraphWithDeletions,
+        graph_with_deletions::PyPersistentGraph,
         index::GraphIndex,
         node::{PyMutableNode, PyNode, PyNodes},
         properties::{PyConstProperties, PyProperties, PyTemporalProp, PyTemporalProperties},
@@ -50,7 +50,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
     add_classes!(
         m,
         PyGraph,
-        PyGraphWithDeletions,
+        PyPersistentGraph,
         PyNode,
         PyNodes,
         PyMutableNode,

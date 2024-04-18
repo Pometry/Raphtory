@@ -11,4 +11,5 @@ pub mod index;
 pub mod node;
 pub mod pandas;
 pub mod properties;
+pub mod utils;
 pub mod views;

@@ -25,7 +25,7 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
         for (key, value) in input_map.iter() {
             output_map
                 .entry(*value)
-                .or_insert(Vec::new())
+                .or_default()
                 .push(virtual_graph.node(key.clone()).unwrap());
         }
 

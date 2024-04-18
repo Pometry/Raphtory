@@ -8,6 +8,8 @@ use tantivy::query::QueryParserError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
+    #[error("Graph error occurred")]
+    UnsupportedDataType,
     #[error("Graph already exists by name = {name}")]
     GraphNameAlreadyExists { name: String },
     #[error("Immutable graph reference already exists. You can access mutable graph apis only exclusively.")]
@@ -75,7 +77,7 @@ pub enum GraphError {
         source: Box<bincode::ErrorKind>,
     },
 
-    #[error("The loaded graph is of the wrong type. Did you mean Graph / GraphWithDeletions?")]
+    #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
     #[error("IO operation failed")]

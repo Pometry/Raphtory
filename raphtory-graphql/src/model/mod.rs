@@ -14,9 +14,9 @@ use dynamic_graphql::{
 };
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, ArcStr, OptionAsStr, Prop},
+    core::{utils::errors::GraphError, ArcStr, Prop},
     db::api::view::MaterializedGraph,
-    prelude::{EdgeViewOps, GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
+    prelude::{GraphViewOps, ImportOps, NodeViewOps, PropertyAdditionOps},
     search::IndexedGraph,
 };
 use serde_json::Value;
@@ -245,7 +245,7 @@ impl Mut {
         let _new_subgraph = parent_graph.subgraph(node_ids.clone()).materialize()?;
         _new_subgraph.update_constant_properties([("name", Prop::str(new_graph_name.clone()))])?;
 
-        let mut new_subgraph = &_new_subgraph.clone().into_persistent().unwrap();
+        let new_subgraph = &_new_subgraph.clone().into_persistent().unwrap();
         let new_subgraph_data = subgraph.subgraph(node_ids).materialize()?;
 
         // Copy nodes over

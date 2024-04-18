@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, StaticGraphViewOps},
         graph::views::node_subgraph::NodeSubgraph,
@@ -81,21 +78,12 @@ where
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local| {
-            let layers = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            local
+            graph
+                .nodes()
                 .iter()
-                .enumerate()
-                .filter(|(v_ref, state)| {
-                    state.alive
-                        && graph.has_node_ref(
-                            NodeRef::Internal((*v_ref).into()),
-                            &layers,
-                            edge_filter,
-                        )
-                })
-                .map(|(v_ref, _)| v_ref.into())
-                .collect::<HashSet<VID>>()
+                .filter(|node| local[node.node.0].alive)
+                .map(|node| node.node)
+                .collect()
         },
         threads,
         iter_count,

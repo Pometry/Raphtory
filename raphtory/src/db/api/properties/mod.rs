@@ -1,6 +1,6 @@
 mod constant_props;
 pub mod dyn_props;
-pub mod internal;
+pub(crate) mod internal;
 mod props;
 mod temporal_props;
 

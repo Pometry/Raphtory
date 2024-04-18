@@ -11,7 +11,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
+                internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
             },
         },
@@ -19,7 +19,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::deletion_graph::GraphWithDeletions,
+            views::deletion_graph::PersistentGraph,
         },
     },
     prelude::Graph,
@@ -36,9 +36,15 @@ use pyo3::{
     prelude::*,
     pyclass,
     pyclass::CompareOp,
-    pymethods, PyAny, PyObject, PyRef, PyResult, Python,
+    pymethods,
+    types::PyDict,
+    PyAny, PyObject, PyRef, PyResult, Python,
 };
-use python::types::repr::{iterator_repr, Repr};
+use python::{
+    types::repr::{iterator_repr, Repr},
+    utils::export::{create_row, extract_properties, get_column_names_from_props},
+};
+use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
 /// A node (or node) in the graph.
@@ -270,7 +276,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
     }
 }
 
-#[pyclass(name = "MutableNode", extends=PyNode)]
+#[pyclass(name = "MutableNode", extends = PyNode)]
 pub struct PyMutableNode {
     node: NodeView<MaterializedGraph, MaterializedGraph>,
 }
@@ -309,7 +315,7 @@ impl IntoPy<PyObject> for NodeView<Graph, Graph> {
     }
 }
 
-impl IntoPy<PyObject> for NodeView<GraphWithDeletions, GraphWithDeletions> {
+impl IntoPy<PyObject> for NodeView<PersistentGraph, PersistentGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph = graph.clone();
@@ -398,6 +404,13 @@ impl PyMutableNode {
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodetypesfilter!(
+    PyNodes,
+    nodes,
+    Nodes<'static, DynamicGraph, DynamicGraph>,
+    "Nodes"
+);
 
 impl_nodeviewops!(
     PyNodes,
@@ -570,9 +583,81 @@ impl PyNodes {
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
     }
+
+    /// Converts the graph's nodes into a Pandas DataFrame.
+    ///
+    /// This method will create a DataFrame with the following columns:
+    /// - "name": The name of the node.
+    /// - "properties": The properties of the node.
+    /// - "update_history": The update history of the node.
+    ///
+    /// Args:
+    ///     include_property_history (bool): A boolean, if set to `true`, the history of each property is included, if `false`, only the latest value is shown.
+    ///     convert_datetime (bool): A boolean, if set to `true` will convert the timestamp to python datetimes, defaults to `false`
+    ///
+    /// Returns:
+    ///     If successful, this PyObject will be a Pandas DataFrame.
+    #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
+    pub fn to_df(
+        &self,
+        include_property_history: bool,
+        convert_datetime: bool,
+    ) -> PyResult<PyObject> {
+        let mut column_names = vec![String::from("name"), String::from("type")];
+        let meta = self.nodes.graph.node_meta();
+        let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
+
+        let node_tuples: Vec<_> = self
+            .nodes
+            .collect()
+            .into_par_iter()
+            .flat_map(|item| {
+                let mut properties_map: HashMap<String, Prop> = HashMap::new();
+                let mut prop_time_dict: HashMap<i64, HashMap<String, Prop>> = HashMap::new();
+                extract_properties(
+                    include_property_history,
+                    convert_datetime,
+                    false,
+                    &column_names,
+                    &is_prop_both_temp_and_const,
+                    &item.properties(),
+                    &mut properties_map,
+                    &mut prop_time_dict,
+                    item.start().unwrap_or(0),
+                );
+
+                let row_header: Vec<Prop> = vec![
+                    Prop::from(item.name()),
+                    Prop::from(item.node_type().unwrap_or_else(|| ArcStr::from(""))),
+                ];
+
+                let start_point = 2;
+                let history = item.history();
+
+                create_row(
+                    convert_datetime,
+                    false,
+                    &column_names,
+                    properties_map,
+                    prop_time_dict,
+                    row_header,
+                    start_point,
+                    history,
+                )
+            })
+            .collect();
+
+        Python::with_gil(|py| {
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("columns", column_names.clone())?;
+            let pandas = PyModule::import(py, "pandas")?;
+            let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
+            Ok(df_data.to_object(py))
+        })
+    }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'static, G, GH> {
     fn repr(&self) -> String {
         format!("Nodes({})", iterator_repr(self.iter()))
     }
@@ -582,6 +667,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'
 pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodetypesfilter!(
+    PyPathFromGraph,
+    path,
+    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    "PathFromGraph"
+);
 
 impl_nodeviewops!(
     PyPathFromGraph,
@@ -712,6 +804,13 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
+
+impl_nodetypesfilter!(
+    PyPathFromNode,
+    path,
+    PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    "PathFromNode"
+);
 
 impl_nodeviewops!(
     PyPathFromNode,

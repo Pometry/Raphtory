@@ -1,7 +1,7 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
     core::{
-        entities::nodes::node_ref::NodeRef,
+        entities::VID,
         state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     },
     db::{
@@ -64,7 +64,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
-    let tol: f64 = tol.unwrap_or_else(|| 0.000001f64);
+    let tol: f64 = tol.unwrap_or(0.000001f64);
     let damp = damping_factor.unwrap_or(0.85);
     let iter_count = iter_count.unwrap_or(20);
     let teleport_prob = (1f64 - damp) / n as f64;
@@ -164,16 +164,13 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
         |_, _, _, local| {
-            let layers = g.layer_ids();
-            let edge_filter = g.edge_filter();
-            local
+            g.nodes()
                 .iter()
-                .enumerate()
-                .filter_map(|(v_ref, score)| {
-                    g.has_node_ref(NodeRef::Internal(v_ref.into()), &layers, edge_filter)
-                        .then_some((v_ref, score.score))
+                .map(|node| {
+                    let VID(i) = node.node;
+                    (i, local[i].score)
                 })
-                .collect::<HashMap<usize, f64>>()
+                .collect()
         },
         threads,
         iter_count,

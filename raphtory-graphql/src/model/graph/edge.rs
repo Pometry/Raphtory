@@ -37,12 +37,23 @@ impl Edge {
     async fn layers(&self, names: Vec<String>) -> Edge {
         self.ee.valid_layers(names).into()
     }
+
+    async fn exclude_layers(&self, names: Vec<String>) -> Edge {
+        self.ee.exclude_valid_layers(names).into()
+    }
+
     async fn layer(&self, name: String) -> Edge {
         self.ee.valid_layers(name).into()
     }
+
+    async fn exclude_layer(&self, name: String) -> Edge {
+        self.ee.exclude_valid_layers(name).into()
+    }
+
     async fn window(&self, start: i64, end: i64) -> Edge {
         self.ee.window(start, end).into()
     }
+
     async fn at(&self, time: i64) -> Edge {
         self.ee.at(time).into()
     }
@@ -50,6 +61,7 @@ impl Edge {
     async fn before(&self, time: i64) -> Edge {
         self.ee.before(time).into()
     }
+
     async fn after(&self, time: i64) -> Edge {
         self.ee.after(time).into()
     }
@@ -69,6 +81,7 @@ impl Edge {
     async fn earliest_time(&self) -> Option<i64> {
         self.ee.earliest_time()
     }
+
     async fn first_update(&self) -> Option<i64> {
         self.ee.history().first().cloned()
     }
@@ -76,6 +89,7 @@ impl Edge {
     async fn latest_time(&self) -> Option<i64> {
         self.ee.latest_time()
     }
+
     async fn last_update(&self) -> Option<i64> {
         self.ee.history().last().cloned()
     }
@@ -107,6 +121,7 @@ impl Edge {
     async fn layer_names(&self) -> Vec<String> {
         self.ee.layer_names().map(|x| x.into()).collect()
     }
+
     async fn layer_name(&self) -> Option<String> {
         self.ee.layer_name().map(|x| x.into())
     }
@@ -145,5 +160,9 @@ impl Edge {
 
     async fn is_self_loop(&self) -> bool {
         self.ee.is_self_loop()
+    }
+
+    async fn nbr(&self) -> Node {
+        self.ee.nbr().into()
     }
 }

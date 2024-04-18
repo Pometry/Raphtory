@@ -43,6 +43,16 @@ impl From<JsProp> for JsValue {
                 0,
             )
             .into(),
+            Prop::NDTime(v) => js_sys::Date::new_with_year_month_day_hr_min_sec_milli(
+                v.year() as u32,
+                v.month() as i32,
+                v.day() as i32,
+                v.hour() as i32,
+                v.minute() as i32,
+                v.second() as i32,
+                0,
+            )
+            .into(),
             Prop::Graph(v) => Graph(UnderGraph::TGraph(Arc::new(v))).into(),
             Prop::List(v) => {
                 let v: Array = v.iter().map(|v| JsValue::from(JsProp(v.clone()))).collect();

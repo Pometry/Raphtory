@@ -10,7 +10,6 @@ methods.
 
    core/index
    algorithms/index
-   export/index
    nullmodels/index
    graphql/index
    graphgen/index
