@@ -90,7 +90,8 @@ fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<S
     let schema = match a_dt {
         DataType::Struct(fields) => {
             let node_ids_and_edge_fields = Schema::new(vec![
-                Field::new("layer_id", DataType::UInt64, false), // this is the edge id (eid)
+                Field::new("id", DataType::UInt64, false),
+                Field::new("layer_id", DataType::UInt64, false),
                 Field::new("src", DataType::UInt64, false),
                 Field::new("dst", DataType::UInt64, false),
             ]);
@@ -184,24 +185,27 @@ async fn produce_record_batch(
     let srcs = edges.srcs().sliced(start..end);
     let dsts = edges.dsts().sliced(start..end);
 
+    let mut ids_builder = Vec::with_capacity(time_values.len());
     let mut srcs_builder = Vec::with_capacity(time_values.len());
     let mut dsts_builder = Vec::with_capacity(time_values.len());
     let mut layer_id_builder = Vec::with_capacity(time_values.len());
 
     // take every chunk here and surface the primitive arrays
     // convert from arrow2 to arrow-rs then to polars
-    for (i, ((src, dst), e_id)) in srcs
+    for (i, ( ((src, dst), layer_id), e_id )) in srcs
         .iter_chunks()
         .zip(dsts.iter_chunks())
         .flat_map(|(srcs, dsts)| srcs.iter().zip(dsts.iter()))
         .zip(std::iter::repeat(layer_id as u64))
+        .zip(start .. end)
         .enumerate()
     {
         let length = (offsets[i + 1] - offsets[i]) as usize;
         for _ in 0..length {
+            ids_builder.push(e_id as u64);
             srcs_builder.push(*src);
             dsts_builder.push(*dst);
-            layer_id_builder.push(e_id);
+            layer_id_builder.push(layer_id);
         }
     }
 
@@ -218,15 +222,18 @@ async fn produce_record_batch(
         ScalarBuffer::from(dsts_builder),
         None,
     ));
+
+    let e_ids:Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
+        ScalarBuffer::from(ids_builder),
+        None,
+    ));
+
     let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(time_values));
 
-    let mut columns = vec![layer_ids, srcs, dsts, time];
+    let mut columns = vec![e_ids, layer_ids, srcs, dsts, time];
 
-    let temp_properties = &edges.data_type()[1..];
-    for (col_id, _) in temp_properties.iter().enumerate() {
-        // we always skip the time column
-        let col_id = col_id + 1; // we skip the time column
-
+    let temp_properties = edges.data_type();
+    for (col_id, _) in temp_properties.iter().enumerate().skip(1) {
         let arr = property_to_arrow_column(layer, col_id, chunk_id);
         columns.push(arr);
     }

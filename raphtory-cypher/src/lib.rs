@@ -320,23 +320,6 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
 
-        // WITH
-        // e1 AS (SELECT * FROM _default),
-        // e2 AS (SELECT * FROM _default),
-        // e3 AS (SELECT * FROM _default),
-        // a AS (SELECT * FROM nodes),
-        // b AS (SELECT * FROM nodes),
-        // c AS (SELECT * FROM nodes),
-        // d AS (SELECT * FROM nodes)
-        // SELECT a.id, b.id, c.id, d.id
-        // FROM e1
-        // JOIN a ON e1.src = a.id
-        // JOIN b ON e1.dst = b.id
-        // JOIN e2 ON b.id = e2.src
-        // JOIN e3 ON b.id = e3.src
-        // JOIN d ON e3.dst = d.id
-        // JOIN c ON e2.dst = c.id
-
         // FIXME: match (b)-[e3]->(d), (a)-[e1]->(b)-[e2]->(c) RETURN a.id, b.id, c.id, d.id
         // WITH
         // e3 AS (SELECT * FROM _default),
@@ -351,7 +334,6 @@ mod test {
         // JOIN b ON e3.src = b.id
         // JOIN d ON e3.dst = d.id
         //
-        // match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, b.id, e2.dst, e3.dst
         // WITH
         // e1 AS (SELECT * FROM _default),
         // e2 AS (SELECT * FROM _default),
@@ -362,8 +344,9 @@ mod test {
         // JOIN b ON e1.dst = b.id
         // JOIN e2 ON b.id = e2.src
         // JOIN e3 ON b.id = e3.src
+        // WHERE e1.id <> e2.id AND e1.id <> e3.id
 
-        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() where e2.dst <> e3.dst RETURN e1.src, b.id, e2.dst, e3.dst", &graph)
+        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
             .await
             .unwrap();
 
