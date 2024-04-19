@@ -173,6 +173,46 @@ pub enum PropType {
     DTime,
 }
 
+impl PropType {
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self,
+            PropType::U8
+                | PropType::U16
+                | PropType::U32
+                | PropType::U64
+                | PropType::I32
+                | PropType::I64
+                | PropType::F32
+                | PropType::F64
+        )
+    }
+
+    pub fn is_str(&self) -> bool {
+        matches!(self, PropType::Str)
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self, PropType::Bool)
+    }
+
+    pub fn is_date(&self) -> bool {
+        matches!(self, PropType::DTime | PropType::NDTime)
+    }
+
+    pub fn has_add(&self) -> bool {
+        self.is_numeric() || self.is_str()
+    }
+
+    pub fn has_divide(&self) -> bool {
+        self.is_numeric()
+    }
+
+    pub fn has_cmp(&self) -> bool {
+        self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
+    }
+}
+
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Prop {
@@ -208,6 +248,7 @@ impl PartialOrd for Prop {
             (Prop::F64(a), Prop::F64(b)) => a.partial_cmp(b),
             (Prop::Bool(a), Prop::Bool(b)) => a.partial_cmp(b),
             (Prop::NDTime(a), Prop::NDTime(b)) => a.partial_cmp(b),
+            (Prop::DTime(a), Prop::DTime(b)) => a.partial_cmp(b),
             _ => None,
         }
     }
@@ -310,6 +351,20 @@ impl Prop {
             (Prop::U64(a), Prop::U64(b)) if b != 0 => Some(Prop::U64(a / b)),
             (Prop::F32(a), Prop::F32(b)) if b != 0.0 => Some(Prop::F32(a / b)),
             (Prop::F64(a), Prop::F64(b)) if b != 0.0 => Some(Prop::F64(a / b)),
+            _ => None,
+        }
+    }
+
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            Prop::U8(v) => Some(*v as f64),
+            Prop::U16(v) => Some(*v as f64),
+            Prop::I32(v) => Some(*v as f64),
+            Prop::I64(v) => Some(*v as f64),
+            Prop::U32(v) => Some(*v as f64),
+            Prop::U64(v) => Some(*v as f64),
+            Prop::F32(v) => Some(*v as f64),
+            Prop::F64(v) => Some(*v as f64),
             _ => None,
         }
     }

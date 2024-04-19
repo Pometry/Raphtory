@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, ArcStr, Prop},
+    core::{utils::time::IntoTime, ArcStr, Prop, PropType},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -263,9 +263,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     Prop: The sum of all property values.
     pub fn sum(&self) -> Option<Prop> {
-        let mut it_iter = self.prop.iter();
-        let first = it_iter.next().map(|(_, v)| v);
-        it_iter.fold(first, |acc, elem| acc.and_then(|acc| acc.add(elem.1)))
+        compute_generalised_sum(self.prop.values(), |a, b| a.add(b), |d| d.dtype().has_add())
     }
 
     /// Find the minimum property value and its associated time.
@@ -273,18 +271,17 @@ impl PyTemporalProp {
     /// Returns:
     ///     (i64, Prop): A tuple containing the time and the minimum property value.
     pub fn min(&self) -> Option<(i64, Prop)> {
-        let mut it_iter = self.prop.iter();
-        let first = it_iter.next();
-        it_iter.fold(first, |acc, elem| {
-            acc.and_then(|acc| {
-                let cmp = acc.1.partial_cmp(&elem.1)?;
-                if cmp.is_le() {
-                    Some(acc)
+        compute_generalised_sum(
+            self.prop.iter(),
+            |a, b| {
+                if a.1.partial_cmp(&b.1)?.is_le() {
+                    Some(a)
                 } else {
-                    Some(elem)
+                    Some(b)
                 }
-            })
-        })
+            },
+            |d| d.1.dtype().has_cmp(),
+        )
     }
 
     /// Find the maximum property value and its associated time.
@@ -292,18 +289,17 @@ impl PyTemporalProp {
     /// Returns:
     ///     (i64, Prop): A tuple containing the time and the maximum property value.
     pub fn max(&self) -> Option<(i64, Prop)> {
-        let mut it_iter = self.prop.iter();
-        let first = it_iter.next();
-        it_iter.fold(first, |acc, elem| {
-            acc.and_then(|acc| {
-                let cmp = acc.1.partial_cmp(&elem.1)?;
-                if cmp.is_ge() {
-                    Some(acc)
+        compute_generalised_sum(
+            self.prop.iter(),
+            |a, b| {
+                if a.1.partial_cmp(&b.1)?.is_ge() {
+                    Some(a)
                 } else {
-                    Some(elem)
+                    Some(b)
                 }
-            })
-        })
+            },
+            |d| d.1.dtype().has_cmp(),
+        )
     }
 
     /// Count the number of properties.
@@ -327,22 +323,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     Prop: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> Option<Prop> {
-        let sum: Prop = self.sum()?;
-        let count: usize = self.count();
-        if count == 0 {
-            return None;
-        }
-        match sum {
-            Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
-            Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
-            Prop::U32(s) => Some(Prop::F32(s as f32 / count as f32)),
-            Prop::U8(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
-            Prop::U16(s) => Some(Prop::F64(s as f64 / count as f64)), // needs a test
-            Prop::U64(s) => Some(Prop::F64(s as f64 / count as f64)),
-            Prop::F32(s) => Some(Prop::F32(s / count as f32)),
-            Prop::F64(s) => Some(Prop::F64(s / count as f64)),
-            _ => None,
-        }
+        compute_mean(self.prop.values())
     }
 
     /// Compute the median of all property values.
@@ -350,16 +331,11 @@ impl PyTemporalProp {
     /// Returns:
     ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
     pub fn median(&self) -> Option<(i64, Prop)> {
-        let it_iter = self.prop.iter();
-        let mut sorted: Vec<(i64, Prop)> = it_iter.collect_vec();
-        let mut is_sorted = true;
-        for w in sorted.windows(2) {
-            let cmp = w[0].1.partial_cmp(&w[1].1)?;
-            is_sorted = is_sorted && cmp.is_le();
+        let mut sorted: Vec<(i64, Prop)> = self.prop.iter().collect();
+        if !sorted.get(0)?.1.dtype().has_cmp() {
+            return None;
         }
-        if !is_sorted {
-            sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-        }
+        sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         let len = sorted.len();
         if len == 0 {
             None
@@ -836,24 +812,27 @@ impl PyPropHistValueListList {
 
     pub fn median(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
+        (move || builder().map(|it| it.map(|data| compute_median(data)))).into()
+    }
+
+    pub fn max(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                it.map(|mut sorted| {
-                    let mut is_sorted = true;
-                    for w in sorted.windows(2) {
-                        let cmp = w[0].partial_cmp(&w[1])?;
-                        is_sorted = is_sorted && cmp.is_le();
-                    }
-                    if !is_sorted {
-                        sorted
-                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                    }
-                    let len = sorted.len();
-                    if len == 0 {
-                        None
-                    } else {
-                        Some(sorted[(len - 1) / 2].clone())
-                    }
+                it.map(|data| {
+                    compute_generalised_sum(data, |a, b| a.max(b), |d| d.dtype().has_cmp())
+                })
+            })
+        })
+        .into()
+    }
+
+    pub fn min(&self) -> PyPropValueListList {
+        let builder = self.builder.clone();
+        (move || {
+            builder().map(|it| {
+                it.map(|data| {
+                    compute_generalised_sum(data, |a, b| a.min(b), |d| d.dtype().has_cmp())
                 })
             })
         })
@@ -864,13 +843,8 @@ impl PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                it.map(|itit| {
-                    let mut itit_iter = itit.into_iter();
-                    let first = itit_iter.next();
-                    itit_iter.clone().fold(first, |acc, elem| match acc {
-                        Some(a) => a.add(elem),
-                        _ => None,
-                    })
+                it.map(|data| {
+                    compute_generalised_sum(data, |a, b| a.add(b), |d| d.dtype().has_add())
                 })
             })
         })
@@ -879,58 +853,18 @@ impl PyPropHistValueListList {
 
     pub fn mean(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
-        (move || {
-            builder().map(|it| {
-                it.map(|itit| {
-                    let count = itit.len();
-                    let mut itit_iter = itit.into_iter();
-                    let first = itit_iter.next();
-                    let sum = itit_iter.fold(first, |acc, elem| acc.and_then(|acc| acc.add(elem)));
-                    if count == 0 {
-                        return None;
-                    }
-                    match sum {
-                        Some(Prop::U8(s)) => Some(Prop::U8(s / count as u8)),
-                        Some(Prop::U16(s)) => Some(Prop::U16(s / count as u16)),
-                        Some(Prop::I32(s)) => Some(Prop::I32(s / count as i32)),
-                        Some(Prop::I64(s)) => Some(Prop::I64(s / count as i64)),
-                        Some(Prop::U32(s)) => Some(Prop::U32(s / count as u32)),
-                        Some(Prop::U64(s)) => Some(Prop::U64(s / count as u64)),
-                        Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
-                        Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
-                        _ => None,
-                    }
-                })
-            })
-        })
-        .into()
+        (move || builder().map(|it| it.map(|data| compute_mean(data)))).into()
     }
 }
 
 #[pymethods]
 impl PropIterable {
     pub fn sum(&self) -> PropValue {
-        let mut it_iter = self.iter();
-        let first = it_iter.next();
-        it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
+        compute_generalised_sum(self.iter(), |a, b| a.add(b), |d| d.dtype().has_add())
     }
 
     pub fn median(&self) -> PropValue {
-        let mut sorted: Vec<Prop> = self.iter().collect();
-        let mut is_sorted = true;
-        for w in sorted.windows(2) {
-            let cmp = w[0].partial_cmp(&w[1])?;
-            is_sorted = is_sorted && cmp.is_le();
-        }
-        if !is_sorted {
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        }
-        let len = sorted.len();
-        if len == 0 {
-            None
-        } else {
-            Some(sorted[(len - 1) / 2].clone())
-        }
+        compute_median(self.iter().collect())
     }
 
     pub fn count(&self) -> usize {
@@ -938,29 +872,11 @@ impl PropIterable {
     }
 
     pub fn min(&self) -> PropValue {
-        let mut sorted: Vec<Prop> = self.iter().collect();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let len = sorted.len();
-        match len {
-            0 => None,
-            _ => {
-                let a = &sorted[0];
-                Some(a.clone())
-            }
-        }
+        compute_generalised_sum(self.iter(), |a, b| a.min(b), |d| d.dtype().has_cmp())
     }
 
     pub fn max(&self) -> PropValue {
-        let mut sorted: Vec<Prop> = self.iter().collect();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let len = sorted.len();
-        match len {
-            0 => None,
-            _ => {
-                let a = &sorted[len - 1];
-                Some(a.clone())
-            }
-        }
+        compute_generalised_sum(self.iter(), |a, b| a.max(b), |d| d.dtype().has_cmp())
     }
 
     pub fn average(&self) -> PropValue {
@@ -968,22 +884,7 @@ impl PropIterable {
     }
 
     pub fn mean(&self) -> PropValue {
-        let sum: PropValue = self.sum();
-        let count: usize = self.iter().count();
-        if count == 0 {
-            return None;
-        }
-        match sum {
-            Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
-            Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
-            Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
-            Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
-            Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
-            Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
-            Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
-            Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
-            _ => None,
-        }
+        compute_mean(self.iter())
     }
 }
 
@@ -992,11 +893,8 @@ impl PyPropHistValueList {
     pub fn sum(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| {
-                let mut it_iter = it.into_iter();
-                let first = it_iter.next();
-                it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)))
-            })
+            builder()
+                .map(|data| compute_generalised_sum(data, |a, b| a.add(b), |d| d.dtype().has_add()))
         })
         .into()
     }
@@ -1004,16 +902,8 @@ impl PyPropHistValueList {
     pub fn min(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| {
-                let mut it_iter = it.into_iter();
-                let first = it_iter.next();
-                it_iter.fold(first, |a, b| {
-                    match PartialOrd::partial_cmp(&a, &Some(b.clone())) {
-                        Some(std::cmp::Ordering::Less) => a,
-                        _ => Some(b),
-                    }
-                })
-            })
+            builder()
+                .map(|data| compute_generalised_sum(data, |a, b| a.min(b), |d| d.dtype().has_cmp()))
         })
         .into()
     }
@@ -1021,41 +911,15 @@ impl PyPropHistValueList {
     pub fn max(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| {
-                let mut it_iter = it.into_iter();
-                let first = it_iter.next();
-                it_iter.fold(first, |a, b| {
-                    match PartialOrd::partial_cmp(&a, &Some(b.clone())) {
-                        Some(std::cmp::Ordering::Greater) => a,
-                        _ => Some(b),
-                    }
-                })
-            })
+            builder()
+                .map(|data| compute_generalised_sum(data, |a, b| a.max(b), |d| d.dtype().has_cmp()))
         })
         .into()
     }
 
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
-        (move || {
-            builder().map(|mut sorted| {
-                let mut is_sorted = true;
-                for w in sorted.windows(2) {
-                    let cmp = w[0].partial_cmp(&w[1])?;
-                    is_sorted = is_sorted && cmp.is_le();
-                }
-                if !is_sorted {
-                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                }
-                let len = sorted.len();
-                if len == 0 {
-                    None
-                } else {
-                    Some(sorted[(len - 1) / 2].clone())
-                }
-            })
-        })
-        .into()
+        (move || builder().map(|data| compute_median(data))).into()
     }
 
     pub fn average(&self) -> PyPropValueList {
@@ -1064,29 +928,7 @@ impl PyPropHistValueList {
 
     pub fn mean(&self) -> PyPropValueList {
         let builder = self.builder.clone();
-        (move || {
-            builder().map(|it| {
-                let count = it.len();
-                let mut it_iter = it.into_iter();
-                let first = it_iter.next();
-                let sum = it_iter.fold(first, |acc, elem| acc.and_then(|val| val.add(elem)));
-                if count == 0 {
-                    return None;
-                }
-                match sum {
-                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
-                    Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
-                    Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
-                    Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
-                    _ => None,
-                }
-            })
-        })
-        .into()
+        (move || builder().map(|data| compute_mean(data))).into()
     }
 
     pub fn count(&self) -> UsizeIterable {
@@ -1103,9 +945,11 @@ impl PyPropHistValueList {
 #[pymethods]
 impl PyPropValueList {
     pub fn sum(&self) -> Option<Prop> {
-        let mut it = self.iter().flatten();
-        let first = it.next();
-        it.fold(first, |acc, elem| acc.and_then(|acc| acc.add(elem)))
+        compute_generalised_sum(
+            self.iter().flatten(),
+            |a, b| a.add(b),
+            |d| d.dtype().has_add(),
+        )
     }
 
     pub fn count(&self) -> usize {
@@ -1113,15 +957,19 @@ impl PyPropValueList {
     }
 
     pub fn min(&self) -> PropValue {
-        let mut it = self.iter().flatten();
-        let first = it.next();
-        it.fold(first, |acc, elem| acc.and_then(|acc| acc.min(elem)))
+        compute_generalised_sum(
+            self.iter().flatten(),
+            |a, b| a.min(b),
+            |d| d.dtype().has_cmp(),
+        )
     }
 
     pub fn max(&self) -> PropValue {
-        let mut it = self.iter().flatten();
-        let first = it.next();
-        it.fold(first, |acc, elem| acc.and_then(|acc| acc.max(elem)))
+        compute_generalised_sum(
+            self.iter().flatten(),
+            |a, b| a.max(b),
+            |d| d.dtype().has_cmp(),
+        )
     }
 
     pub fn drop_none(&self) -> PyPropValueList {
@@ -1130,40 +978,11 @@ impl PyPropValueList {
     }
 
     pub fn median(&self) -> PropValue {
-        let mut sorted: Vec<Prop> = self.iter().flatten().collect();
-        let mut is_sorted = true;
-        for w in sorted.windows(2) {
-            let cmp = w[0].partial_cmp(&w[1])?;
-            is_sorted = is_sorted && cmp.is_le();
-        }
-        if !is_sorted {
-            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        }
-        let len = sorted.len();
-        if len == 0 {
-            None
-        } else {
-            Some(sorted[(len - 1) / 2].clone())
-        }
+        compute_median(self.iter().flatten().collect())
     }
 
     pub fn mean(&self) -> PropValue {
-        let sum: Prop = self.sum()?;
-        let count: usize = self.iter().flatten().count();
-        if count == 0 {
-            return None;
-        }
-        match sum {
-            Prop::U8(s) => Some(Prop::F64(s as f64 / count as f64)),
-            Prop::U16(s) => Some(Prop::F64(s as f64 / count as f64)),
-            Prop::I32(s) => Some(Prop::F32(s as f32 / count as f32)),
-            Prop::I64(s) => Some(Prop::F64(s as f64 / count as f64)),
-            Prop::U32(s) => Some(Prop::F32(s as f32 / count as f32)),
-            Prop::U64(s) => Some(Prop::F64(s as f64 / count as f64)),
-            Prop::F32(s) => Some(Prop::F32(s / count as f32)),
-            Prop::F64(s) => Some(Prop::F64(s / count as f64)),
-            _ => None,
-        }
+        compute_mean(self.iter().flatten())
     }
 
     pub fn average(&self) -> PropValue {
@@ -1177,9 +996,7 @@ impl PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                let mut it_iter = it.flatten();
-                let first = it_iter.next();
-                it_iter.fold(first, |acc, elem| acc.and_then(|acc| acc.add(elem)))
+                compute_generalised_sum(it.flatten(), |a, b| a.add(b), |d| d.dtype().has_add())
             })
         })
         .into()
@@ -1189,9 +1006,7 @@ impl PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                let mut it_iter = it.flatten();
-                let first = it_iter.next();
-                it_iter.fold(first, |a, b| a.and_then(|a| a.min(b)))
+                compute_generalised_sum(it.flatten(), |a, b| a.min(b), |d| d.dtype().has_cmp())
             })
         })
         .into()
@@ -1201,9 +1016,7 @@ impl PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|it| {
-                let mut it_iter = it.flatten();
-                let first = it_iter.next();
-                it_iter.fold(first, |a, b| a.and_then(|a| a.max(b)))
+                compute_generalised_sum(it.flatten(), |a, b| a.max(b), |d| d.dtype().has_cmp())
             })
         })
         .into()
@@ -1215,58 +1028,13 @@ impl PyPropValueListList {
 
     pub fn mean(&self) -> PyPropValueList {
         let builder = self.builder.clone();
-        (move || {
-            builder().map(|it| {
-                let mut it = it.flatten();
-                let mut count: usize = 1;
-                let first = it.next();
-                let sum = it.fold(first, |acc, elem| {
-                    acc.and_then(|acc| {
-                        count += 1;
-                        acc.add(elem)
-                    })
-                });
-                if count == 0 {
-                    return None;
-                }
-                match sum {
-                    Some(Prop::U8(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::U16(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::I32(s)) => Some(Prop::F32(s as f32 / count as f32)),
-                    Some(Prop::I64(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::U32(s)) => Some(Prop::F32(s as f32 / count as f32)),
-                    Some(Prop::U64(s)) => Some(Prop::F64(s as f64 / count as f64)),
-                    Some(Prop::F32(s)) => Some(Prop::F32(s / count as f32)),
-                    Some(Prop::F64(s)) => Some(Prop::F64(s / count as f64)),
-                    _ => None,
-                }
-            })
-        })
-        .into()
+        (move || builder().map(|it| compute_mean(it.flatten()))).into()
     }
 
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
-        (move || {
-            builder().map(|it| {
-                let mut sorted: Vec<Prop> = it.flatten().collect();
-                let mut is_sorted = true;
-                for w in sorted.windows(2) {
-                    let cmp = w[0].partial_cmp(&w[1])?;
-                    is_sorted = is_sorted && cmp.is_le();
-                }
-                if !is_sorted {
-                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                }
-                let len = sorted.len();
-                if len == 0 {
-                    None
-                } else {
-                    Some(sorted[(len - 1) / 2].clone())
-                }
-            })
-        })
-        .into()
+
+        (move || builder().map(|it| compute_median(it.flatten().collect()))).into()
     }
 
     pub fn flatten(&self) -> PyPropValueList {
@@ -1302,3 +1070,36 @@ py_iterable_comp!(
     PyPropHistItemsListCmp,
     PyPropHistItemsListListCmp
 );
+
+fn compute_median(mut data: Vec<Prop>) -> Option<Prop> {
+    if data.is_empty() || !data[0].dtype().has_cmp() {
+        return None;
+    }
+    data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    Some(data[(data.len() - 1) / 2].clone())
+}
+
+fn compute_mean(data: impl IntoIterator<Item = Prop>) -> Option<Prop> {
+    let mut iter = data.into_iter();
+    let first_value = iter.next()?;
+    let mut sum = first_value.as_f64()?;
+    let mut count = 1usize;
+    for value in iter {
+        sum += value.as_f64()?;
+        count += 1;
+    }
+    Some(Prop::F64(sum / count as f64))
+}
+
+fn compute_generalised_sum<V>(
+    data: impl IntoIterator<Item = V>,
+    op: impl Fn(V, V) -> Option<V>,
+    check: impl Fn(&V) -> bool,
+) -> Option<V> {
+    let mut iter = data.into_iter();
+    let first_value = iter.next()?;
+    if !check(&first_value) {
+        return None;
+    }
+    iter.try_fold(first_value, |acc, v| op(acc, v))
+}
