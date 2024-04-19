@@ -333,20 +333,16 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 
     for node in all_bound_nodes(query) {
         if !seen.contains(&node.name) {
-            let cte = sql_ast::Cte {
-                alias: TableAlias {
-                    name: sql_ast::Ident::new(&node.name),
-                    columns: vec![],
-                },
-                query: select_query_with_projection(
-                    vec![sql_ast::SelectItem::Wildcard(
-                        WildcardAdditionalOptions::default(),
-                    )],
-                    "nodes",
-                ),
-                from: None,
-            };
+            let cte = node_scan_cte(node);
             seen.insert(node.name.clone());
+            cte_tables.push(cte)
+        }
+    }
+
+    if cte_tables.is_empty() {
+        // there are no edges and no bound nodes, this is probably a match (n) return(*) or match () statement
+        if let Some(node) = query.node_patterns().next() {
+            let cte = node_scan_cte(node);
             cte_tables.push(cte)
         }
     }
@@ -354,6 +350,22 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
     With {
         recursive: false,
         cte_tables,
+    }
+}
+
+fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
+    sql_ast::Cte {
+        alias: TableAlias {
+            name: sql_ast::Ident::new(&node.name),
+            columns: vec![],
+        },
+        query: select_query_with_projection(
+            vec![sql_ast::SelectItem::Wildcard(
+                WildcardAdditionalOptions::default(),
+            )],
+            "nodes",
+        ),
+        from: None,
     }
 }
 
@@ -533,7 +545,7 @@ fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
                 stack.push(n);
             }
 
-            if parent.get_const_prop(0).is_some(){
+            if parent.get_const_prop(0).is_some() {
                 last_edge = Some(parent.clone());
             }
             seen.insert(parent.node);
@@ -1084,6 +1096,19 @@ mod test {
     use tempfile::tempdir;
 
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn count_all_nodes() {
+        check_cypher_to_sql(
+            "MATCH (n) RETURN COUNT(n)",
+            "WITH n AS (SELECT * FROM nodes) SELECT COUNT(n.id) FROM n",
+        );
+
+        check_cypher_to_sql(
+            "MATCH () RETURN COUNT(*)",
+            "WITH n_0 AS (SELECT * FROM nodes) SELECT COUNT(n_0.id) FROM n_0",
+        );
+    }
 
     #[test]
     fn select_all_edges() {
