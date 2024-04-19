@@ -27,7 +27,6 @@ struct LoadGraph {
     /// Graph path on disk
     #[arg(short, long)]
     graph_dir: String,
-
     // /// parquet files to load as layers
     // #[arg(last = true)]
     // layers: Vec<String>,

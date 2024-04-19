@@ -7,7 +7,10 @@ use arrow_schema::{Fields, Schema};
 use itertools::Itertools;
 use raphtory::{
     arrow::graph_impl::ArrowGraph,
-    core::{entities::VID, Direction},
+    core::{
+        entities::{edges::edge_ref::Dir, VID},
+        Direction,
+    },
     db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
     prelude::*,
 };
@@ -443,7 +446,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
     let graph = query_to_graph(query);
 
     // graph.edges().into_iter().for_each(|edge| {
-    //     println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+    //     println!("{:?} - {:?} dir: {:?}", edge.src().name(), edge.dst().name(), edge.edge.dir());
     // });
 
     let first = query
@@ -465,25 +468,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
             .next()
             .expect("unexpected! no edge patterns");
 
-        // deal with the first node separately
-        if is_bound(first) {
-            match first_edge.direction {
-                Direction::OUT => {
-                    joins.push(make_sql_join(&first_edge.name, "src", &first.name, "id"))
-                }
-                Direction::IN => {
-                    joins.push(make_sql_join(&first_edge.name, "dst", &first.name, "id"))
-                }
-                Direction::BOTH => todo!(),
-            }
-        }
-
-        let mut seen: HashSet<VID> = graph
-            .node(&first.name)
-            .map(|node| vec![node.node])
-            .unwrap_or_default()
-            .into_iter()
-            .collect();
+        let mut seen: HashSet<VID> = HashSet::new();
 
         let mut stack = vec![graph
             .node(first_edge.name.as_str())
@@ -504,6 +489,22 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
                 .iter()
                 .filter(|n| !seen.contains(&n.node))
             {
+                let edge = graph
+                    .edge(&parent.name(), &n.name())
+                    .or_else(|| graph.edge(&n.name(), &parent.name()))
+                    .expect("surprisingly edge not found!");
+
+                // println!("parent: {:?}, child: {:?}, dir: {:?}", parent.name(), n.name(), edge.edge.dir());
+                let dir = if (edge.src().name(), edge.dst().name()) == (parent.name(), n.name()) {
+                    // println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+                    Dir::Out
+                } else if (edge.src().name(), edge.dst().name()) == (n.name(), parent.name()) {
+                    // println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+                    Dir::Into
+                } else {
+                    panic!("unexpected edge direction");
+                };
+
                 if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
                     // this is an edge
 
@@ -521,14 +522,14 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
                             joins.push(make_sql_join(&last_edge.name(), from, &n.name(), to));
                         }
                     } else {
-                        match last_edge_dir {
-                            Direction::OUT => {
+                        // parent is node
+                        match dir {
+                            Dir::Out => {
                                 joins.push(make_sql_join(&parent.name(), "id", &n.name(), "src"))
                             }
-                            Direction::IN => {
+                            Dir::Into => {
                                 joins.push(make_sql_join(&parent.name(), "id", &n.name(), "dst"))
                             }
-                            Direction::BOTH => todo!(),
                         }
                     }
 
@@ -541,16 +542,15 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
                     child_edges.push(n.name());
                     last_edge_dir = current_edge_dir;
                 } else {
-                    // this is a node, parent is an edge
+                    // node with edge parent
                     if is_bound_str(&n.name()) {
-                        match last_edge_dir {
-                            Direction::OUT => {
+                        match dir {
+                            Dir::Out => {
                                 joins.push(make_sql_join(&parent.name(), "dst", &n.name(), "id"))
                             }
-                            Direction::IN => {
+                            Dir::Into => {
                                 joins.push(make_sql_join(&parent.name(), "src", &n.name(), "id"))
                             }
-                            Direction::BOTH => todo!(),
                         }
                     }
                 }
@@ -617,13 +617,28 @@ fn query_to_graph(query: &Query) -> Graph {
             np @ NodePattern { name: u, .. },
         ) in rel_chain
         {
-            graph
-                .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
-                .expect("failed to add edge");
+            match direction {
+                Direction::OUT => {
+                    graph
+                        .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
+                        .expect("failed to add edge");
 
-            graph
-                .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
-                .expect("failed to add node");
+                    graph
+                        .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
+                        .expect("failed to add node");
+                }
+
+                Direction::IN => {
+                    graph
+                        .add_edge(0, u.as_str(), edge.as_str(), NO_PROPS, None)
+                        .expect("failed to add edge");
+
+                    graph
+                        .add_edge(0, edge.as_str(), last_node.name.as_str(), NO_PROPS, None)
+                        .expect("failed to add node");
+                }
+                Direction::BOTH => unimplemented!("BOTH direction not supported"),
+            }
 
             assert!(
                 direction != &Direction::BOTH,
@@ -1371,6 +1386,24 @@ mod test {
     }
 
     #[test]
+    fn test_fork_in_path() {
+        check_cypher_to_sql(
+            "match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst",
+            "WITH \
+             e3 AS (SELECT * FROM _default), \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default), \
+             b AS (SELECT * FROM nodes) \
+             SELECT e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst \
+             FROM e3 \
+             JOIN b ON e3.src = b.id \
+             JOIN e1 ON b.id = e1.dst \
+             JOIN e2 ON b.id = e2.src \
+             WHERE e3.id <> e1.id AND e3.id <> e2.id AND e1.id <> e2.id",
+        )
+    }
+
+    #[test]
     fn two_hops_with_self_loop() {
         check_cypher_to_sql_layers(
             "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.name",
@@ -1386,7 +1419,7 @@ mod test {
              JOIN E ON nf1.dst = E.id \
              JOIN B ON nf1.src = B.id \
              JOIN login1 ON B.id = login1.dst \
-             JOIN prog1 ON B.id = prog1.dst \
+             JOIN prog1 ON B.id = prog1.src \
              JOIN A ON login1.src = A.id \
              WHERE nf1.id <> login1.id AND nf1.id <> prog1.id AND login1.id <> prog1.id",
             ["Netflow", "Events2v", "Events1v"]

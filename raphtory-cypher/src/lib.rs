@@ -311,7 +311,6 @@ mod test {
 
     #[tokio::test]
     async fn fork_path_on_star_graph() {
-
         let graph_dir = tempdir().unwrap();
 
         let graph = Graph::new();
@@ -320,38 +319,16 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
 
-        // FIXME: match (b)-[e3]->(d), (a)-[e1]->(b)-[e2]->(c) RETURN a.id, b.id, c.id, d.id
-        // WITH
-        // e3 AS (SELECT * FROM _default),
-        // e1 AS (SELECT * FROM _default),
-        // e2 AS (SELECT * FROM _default),
-        // b AS (SELECT * FROM nodes),
-        // d AS (SELECT * FROM nodes),
-        // a AS (SELECT * FROM nodes),
-        // c AS (SELECT * FROM nodes)
-        // SELECT a.id, b.id, c.id, d.id
-        // FROM e3
-        // JOIN b ON e3.src = b.id
-        // JOIN d ON e3.dst = d.id
-        //
-        // WITH
-        // e1 AS (SELECT * FROM _default),
-        // e2 AS (SELECT * FROM _default),
-        // e3 AS (SELECT * FROM _default),
-        // b AS (SELECT * FROM nodes)
-        // SELECT e1.src, b.id, e2.dst, e3.dst
-        // FROM e1
-        // JOIN b ON e1.dst = b.id
-        // JOIN e2 ON b.id = e2.src
-        // JOIN e3 ON b.id = e3.src
-        // WHERE e1.id <> e2.id AND e1.id <> e3.id
-
         let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
             .await
             .unwrap();
-
         let data = df.collect().await.unwrap();
+        print_batches(&data).expect("failed to print batches");
 
+        let df = run_cypher("match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
         print_batches(&data).expect("failed to print batches");
     }
 

@@ -66,7 +66,12 @@ impl EdgeListTableProvider {
         let sort_by_dst = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         //time
-        let time_field_name = graph.layer(layer_id).edges_data_type().first().map(|f|f.name.clone()).unwrap();
+        let time_field_name = graph
+            .layer(layer_id)
+            .edges_data_type()
+            .first()
+            .map(|f| f.name.clone())
+            .unwrap();
 
         let expr = Expr::Sort(expr::Sort::new(Box::new(col(time_field_name)), true, true));
         let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
@@ -192,12 +197,12 @@ async fn produce_record_batch(
 
     // take every chunk here and surface the primitive arrays
     // convert from arrow2 to arrow-rs then to polars
-    for (i, ( ((src, dst), layer_id), e_id )) in srcs
+    for (i, (((src, dst), layer_id), e_id)) in srcs
         .iter_chunks()
         .zip(dsts.iter_chunks())
         .flat_map(|(srcs, dsts)| srcs.iter().zip(dsts.iter()))
         .zip(std::iter::repeat(layer_id as u64))
-        .zip(start .. end)
+        .zip(start..end)
         .enumerate()
     {
         let length = (offsets[i + 1] - offsets[i]) as usize;
@@ -223,7 +228,7 @@ async fn produce_record_batch(
         None,
     ));
 
-    let e_ids:Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
+    let e_ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
         ScalarBuffer::from(ids_builder),
         None,
     ));
