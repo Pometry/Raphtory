@@ -10,11 +10,7 @@ use crate::{
             },
             LayerIds, EID, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, Entry, ReadLockedStorage,
-        },
+        storage::locked_view::LockedView,
         utils::errors::GraphError,
         ArcStr, PropType,
     },
@@ -24,7 +20,13 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::locked::LockedGraph,
+            storage::{
+                edges::{
+                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                },
+                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+                storage_ops::GraphStorage,
+            },
             view::{internal::*, BoxedIter},
         },
         graph::{
@@ -39,6 +41,7 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use std::path::Path;
+
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
 #[enum_dispatch(ListOps)]

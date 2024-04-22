@@ -185,9 +185,9 @@ mod strongly_connected_components_tests {
         db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
-    use tempfile::TempDir;
     use itertools::Itertools;
     use std::collections::HashSet;
+    use tempfile::TempDir;
 
     #[test]
     fn scc_test() {
@@ -211,26 +211,26 @@ mod strongly_connected_components_tests {
         let test_dir = TempDir::new().unwrap();
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
-        fn test<G; StaticGraphViewOps>(graph: &G) {
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
+        fn test<G: StaticGraphViewOps>(graph: &G) {
+            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
+                .collect();
 
-        let expected: HashSet<Vec<String>> = [
-            vec!["2", "5", "6", "7", "8"],
-            vec!["1"],
-            vec!["3"],
-            vec!["4"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
-        .collect();
-        assert_eq!(scc_nodes, expected);
+            let expected: HashSet<Vec<String>> = [
+                vec!["2", "5", "6", "7", "8"],
+                vec!["1"],
+                vec!["3"],
+                vec!["4"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+            .collect();
+            assert_eq!(scc_nodes, expected);
         }
         test(&graph);
         test(&arrow_graph);
@@ -257,27 +257,27 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-           let test_dir = TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
-
-        let expected: HashSet<Vec<String>> =
-            [vec!["3", "4", "5", "7"], vec!["1", "2", "8"], vec!["6"]]
-                .into_iter()
-                .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
                 .collect();
-        assert_eq!(scc_nodes, expected);
+
+            let expected: HashSet<Vec<String>> =
+                [vec!["3", "4", "5", "7"], vec!["1", "2", "8"], vec!["6"]]
+                    .into_iter()
+                    .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+                    .collect();
+            assert_eq!(scc_nodes, expected);
         }
-                test(&graph);
+        test(&graph);
         test(&arrow_graph);
     }
 
@@ -289,25 +289,25 @@ mod strongly_connected_components_tests {
             graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
         }
 
-      let test_dir = TempDir::new().unwrap();
+        let test_dir = TempDir::new().unwrap();
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
+            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
+                .collect();
 
-        let expected: HashSet<Vec<String>> = [vec!["2", "3", "4"], vec!["1"]]
-            .into_iter()
-            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
-            .collect();
-        assert_eq!(scc_nodes, expected);
-                }
+            let expected: HashSet<Vec<String>> = [vec!["2", "3", "4"], vec!["1"]]
+                .into_iter()
+                .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+                .collect();
+            assert_eq!(scc_nodes, expected);
+        }
         test(&graph);
         test(&arrow_graph);
     }
@@ -333,29 +333,29 @@ mod strongly_connected_components_tests {
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-        let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
-            .group_by()
-            .into_values()
-            .map(|mut v| {
-                v.sort();
-                v
-            })
-            .collect();
+            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+                .group_by()
+                .into_values()
+                .map(|mut v| {
+                    v.sort();
+                    v
+                })
+                .collect();
 
-        let expected: HashSet<Vec<String>> = [
-            vec!["0"],
-            vec!["1"],
-            vec!["2"],
-            vec!["3"],
-            vec!["4"],
-            vec!["5"],
-            vec!["6"],
-        ]
-        .into_iter()
-        .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
-        .collect();
-        assert_eq!(scc_nodes, expected);
-                }
+            let expected: HashSet<Vec<String>> = [
+                vec!["0"],
+                vec!["1"],
+                vec!["2"],
+                vec!["3"],
+                vec!["4"],
+                vec!["5"],
+                vec!["6"],
+            ]
+            .into_iter()
+            .map(|v| v.into_iter().map(|s| s.to_owned()).collect())
+            .collect();
+            assert_eq!(scc_nodes, expected);
+        }
         test(&graph);
         test(&arrow_graph);
     }

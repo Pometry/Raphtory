@@ -13,6 +13,7 @@ use crate::{
         api::{
             mutation::internal::InheritMutationOps,
             properties::internal::InheritPropertiesOps,
+            storage::nodes::node_ref::NodeStorageRef,
             view::{internal::*, BoxedIter, IntoDynBoxed},
         },
         graph::graph::{graph_equal, InternalGraph},
@@ -262,7 +263,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
-        let v = self.core_node_arc(v);
+        let v = self.core_node(v);
         if v.timestamps().first_t()? <= start {
             Some(v.timestamps().range(start..end).first_t().unwrap_or(start))
         } else {
@@ -271,7 +272,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn node_latest_time_window(&self, v: VID, _start: i64, end: i64) -> Option<i64> {
-        let v = self.core_node_arc(v);
+        let v = self.core_node(v);
         if v.timestamps().first_t()? < end {
             Some(end - 1)
         } else {
@@ -279,7 +280,12 @@ impl TimeSemantics for PersistentGraph {
         }
     }
 
-    fn include_node_window(&self, node: &NodeStore, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
+    fn include_node_window(
+        &self,
+        node: NodeStorageRef,
+        w: Range<i64>,
+        _layer_ids: &LayerIds,
+    ) -> bool {
         node.timestamps()
             .first_t()
             .filter(|&t| t <= w.end)
@@ -361,7 +367,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let edge = self.0.core_edge_arc(e.pid());
+        let edge = self.0.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
             .updates_iter(layer_ids)
@@ -393,7 +399,7 @@ impl TimeSemantics for PersistentGraph {
         if w.end <= w.start {
             return Box::new(iter::empty());
         }
-        let edge = self.0.core_edge_arc(e.pid());
+        let edge = self.0.core_edge(e.pid());
 
         let alive_layers: Vec<_> = edge
             .updates_iter(layer_ids)
@@ -415,7 +421,7 @@ impl TimeSemantics for PersistentGraph {
         layer_ids: &LayerIds,
     ) -> BoxedIter<EdgeRef> {
         let g = self.clone();
-        let edge = self.core_edge_arc(e.pid());
+        let edge = self.core_edge(e.pid());
         Box::new(g.edge_layers(e, layer_ids).filter(move |&e| {
             g.include_edge_window(&edge, w.clone(), &LayerIds::One(*e.layer().unwrap()))
         }))
@@ -423,7 +429,7 @@ impl TimeSemantics for PersistentGraph {
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
         e.time().map(|ti| ti.t()).or_else(|| {
-            let entry = self.core_edge_arc(e.pid());
+            let entry = self.core_edge(e.pid());
             if edge_alive_at_start(entry.deref(), i64::MIN, layer_ids) {
                 Some(i64::MIN)
             } else {
@@ -440,7 +446,7 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
-        let entry = self.core_edge_arc(e.pid());
+        let entry = self.core_edge(e.pid());
         if edge_alive_at_start(entry.deref(), w.start, layer_ids) {
             Some(w.start)
         } else {
@@ -461,7 +467,7 @@ impl TimeSemantics for PersistentGraph {
                     .unwrap_or(i64::MAX),
             )),
             None => {
-                let entry = self.core_edge_arc(e.pid());
+                let entry = self.core_edge(e.pid());
                 if edge_alive_at_end(entry.deref(), i64::MAX, layer_ids) {
                     Some(i64::MAX)
                 } else {
@@ -489,7 +495,7 @@ impl TimeSemantics for PersistentGraph {
                     .unwrap_or(w.end - 1),
             )),
             None => {
-                let entry = self.core_edge_arc(e.pid());
+                let entry = self.core_edge(e.pid());
                 if edge_alive_at_end(entry.deref(), w.end, layer_ids) {
                     return Some(w.end - 1);
                 }
@@ -525,7 +531,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_is_valid(&self, e: EdgeRef, layer_ids: &LayerIds) -> bool {
-        let edge = self.0.core_edge_arc(e.pid());
+        let edge = self.0.core_edge(e.pid());
         let res = edge
             .updates_iter(layer_ids)
             .any(|(_, additions, deletions)| additions.last() > deletions.last());
@@ -533,7 +539,7 @@ impl TimeSemantics for PersistentGraph {
     }
 
     fn edge_is_valid_at_end(&self, e: EdgeRef, layer_ids: &LayerIds, end: i64) -> bool {
-        let edge = self.0.core_edge_arc(e.pid());
+        let edge = self.0.core_edge(e.pid());
         edge_alive_at_end(edge.deref(), end, &layer_ids)
     }
 
@@ -595,7 +601,7 @@ impl TimeSemantics for PersistentGraph {
         w: Range<i64>,
         layer_ids: LayerIds,
     ) -> bool {
-        let entry = self.core_edge_arc(e.pid());
+        let entry = self.core_edge(e.pid());
 
         if entry.has_temporal_prop(&layer_ids, prop_id) {
             // if property was added at any point since the last deletion, it is still there,
@@ -655,7 +661,7 @@ impl TimeSemantics for PersistentGraph {
         let prop = self.temporal_edge_prop(e, prop_id, layer_ids.clone());
         match prop {
             Some(p) => {
-                let entry = self.core_edge_arc(e.pid());
+                let entry = self.core_edge(e.pid());
                 if edge_alive_at_start(entry.deref(), start, &layer_ids) {
                     p.last_before(start.saturating_add(1))
                         .into_iter()

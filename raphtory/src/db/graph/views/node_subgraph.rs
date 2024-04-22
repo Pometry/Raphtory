@@ -2,6 +2,7 @@ use crate::{
     core::entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
         view::internal::{
             Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,
@@ -74,10 +75,10 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
-            && self.nodes.contains(&edge.src)
-            && self.nodes.contains(&edge.dst)
+            && self.nodes.contains(&edge.src())
+            && self.nodes.contains(&edge.dst())
     }
 }
 
@@ -90,8 +91,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
         false
     }
 
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid)
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
     }
 }
 

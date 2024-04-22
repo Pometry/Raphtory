@@ -59,6 +59,7 @@ use crate::{
             properties::internal::{
                 InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
+            storage::nodes::node_ref::NodeStorageRef,
             view::{
                 internal::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
@@ -146,7 +147,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_node(&self, node: &NodeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_node(node, layer_ids)
             && self
                 .graph
@@ -535,7 +536,8 @@ mod views_test {
 
     use crate::{
         algorithms::centrality::degree_centrality::degree_centrality,
-        db::graph::graph::assert_graph_equal, prelude::*,
+        db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
+        prelude::*,
     };
 
     use super::*;

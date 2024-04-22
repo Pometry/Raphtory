@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
             nodes::{node_ref::NodeRef, node_store::NodeStore},
             properties::{
@@ -19,8 +19,16 @@ use crate::{
         ArcStr,
     },
     db::api::{
-        storage::locked::LockedGraph,
-        view::{internal::CoreGraphOps, BoxedIter},
+        storage::{
+            edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
+            locked::LockedGraph,
+            nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+            storage_ops::GraphStorage,
+        },
+        view::{
+            internal::{CoreGraphOps, EdgeUpdates, NodeAdditions},
+            BoxedIter,
+        },
     },
     prelude::Prop,
 };
@@ -37,8 +45,8 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().num_layers()
     }
 
-    fn core_graph(&self) -> LockedGraph {
-        self.lock()
+    fn core_graph(&self) -> GraphStorage {
+        GraphStorage::Mem(self.lock())
     }
     #[inline]
     fn node_meta(&self) -> &Meta {
@@ -282,33 +290,23 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edges(&self) -> ReadLockedStorage<EdgeStore, EID> {
-        self.inner().storage.edges.read_lock()
+    fn core_edges(&self) -> EdgesStorage {
+        EdgesStorage::Mem(self.inner().storage.edges.read_lock())
     }
 
     #[inline]
-    fn core_edge_arc(&self, eid: EID) -> ArcEntry<EdgeStore> {
-        self.inner().storage.edges.entry_arc(eid.into())
+    fn core_nodes(&self) -> NodesStorage {
+        NodesStorage::Mem(self.inner().storage.nodes.read_lock())
     }
 
     #[inline]
-    fn core_nodes(&self) -> ReadLockedStorage<NodeStore, VID> {
-        self.inner().storage.nodes.read_lock()
+    fn core_edge(&self, eid: EID) -> EdgeStorageEntry {
+        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid))
     }
 
     #[inline]
-    fn core_node_arc(&self, vid: VID) -> ArcEntry<NodeStore> {
-        self.inner().storage.nodes.entry_arc(vid.into())
-    }
-
-    #[inline]
-    fn core_edge_ref(&self, eid: EID) -> Entry<EdgeStore> {
-        self.inner().storage.edges.entry(eid)
-    }
-
-    #[inline]
-    fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
-        self.inner().storage.nodes.entry(vid)
+    fn core_node(&self, vid: VID) -> NodeStorageEntry {
+        NodeStorageEntry::Mem(self.inner().storage.nodes.entry(vid))
     }
 }
 

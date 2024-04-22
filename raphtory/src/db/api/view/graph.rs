@@ -1,8 +1,8 @@
 use crate::{
     core::{
         entities::{
-            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph, nodes::node_ref::AsNodeRef,
-            LayerIds, VID,
+            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
+            nodes::node_ref::AsNodeRef, LayerIds, VID,
         },
         storage::timeindex::AsTime,
         utils::errors::GraphError,
@@ -52,8 +52,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 
-    fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I)
-        -> NodeSubgraph<Self>;
+    fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<Self>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
         &self,
@@ -218,10 +217,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         TypeFilteredSubgraph::new(self.clone(), r)
     }
 
-    fn exclude_nodes<I: IntoIterator<Item = V>, V: Into<NodeRef>>(
-        &self,
-        nodes: I,
-    ) -> NodeSubgraph<G> {
+    fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
         let _layer_ids = self.layer_ids();
 
         let nodes_to_exclude: FxHashSet<VID> = nodes
@@ -307,7 +303,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
             if self.nodes_filtered() {
-                let node = self.core_node_ref(node_id);
+                let node = self.core_node(node_id);
                 self.filter_node(&node, self.layer_ids())
             } else {
                 true
@@ -326,7 +322,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.nodes_filtered() {
-            let core_node = self.core_node_ref(vid);
+            let core_node = self.core_node(vid);
             if !self.filter_node(&core_node, self.layer_ids()) {
                 return None;
             }
@@ -338,7 +334,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
-        let src_node = self.core_node_ref(src);
+        let src_node = self.core_node(src);
         match self.filter_state() {
             FilterState::Neither => {
                 let eid = src_node.find_edge(dst, layer_ids)?;
@@ -350,10 +346,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     return None;
                 }
                 let eid = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(&self.core_edge_ref(eid), layer_ids) {
+                if !self.filter_edge(&self.core_edge(eid), layer_ids) {
                     return None;
                 }
-                if !self.filter_node(&self.core_node_ref(dst), layer_ids) {
+                if !self.filter_node(&self.core_node(dst), layer_ids) {
                     return None;
                 }
                 let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
@@ -364,7 +360,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     return None;
                 }
                 let eid = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(&self.core_node_ref(dst), layer_ids) {
+                if !self.filter_node(&self.core_node(dst), layer_ids) {
                     return None;
                 }
                 let edge_ref = EdgeRef::new_outgoing(eid, src, dst);
@@ -372,7 +368,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             FilterState::Edges | FilterState::BothIndependent => {
                 let eid = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(&self.core_edge_ref(eid), layer_ids) {
+                if !self.filter_edge(&self.core_edge(eid), layer_ids) {
                     return None;
                 }
                 let edge_ref = EdgeRef::new_outgoing(eid, src, dst);

@@ -9,6 +9,7 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
+        storage::edges::edge_ref::EdgeStorageRef,
         view::{
             internal::{
                 Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,
@@ -78,7 +79,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids) && edge.has_layer(&self.layers)
     }
 }

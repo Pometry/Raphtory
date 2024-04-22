@@ -12,6 +12,7 @@ use std::{ops::Range, sync::Arc};
 
 #[cfg(feature = "arrow")]
 use crate::arrow::timestamps::TimeStamps;
+use crate::db::api::storage::edges::edge_ref::EdgeStorageRef;
 
 pub enum TimeIndexLike<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
@@ -84,6 +85,8 @@ impl<'a> TimeIndexOps for TimeIndexLike<'a> {
         match self {
             TimeIndexLike::Ref(ts) => ts.len(),
             TimeIndexLike::Range(ts) => ts.len(),
+            #[cfg(feature = "arrow")]
+            TimeIndexLike::External(ref t) => t.len(),
         }
     }
 }
@@ -184,7 +187,7 @@ pub trait EdgeFilterOps {
     /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
     fn edge_filter_includes_node_filter(&self) -> bool;
 
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool;
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool;
 }
 
 pub trait InheritEdgeFilterOps: Base {}
@@ -224,7 +227,7 @@ impl<G: DelegateEdgeFilterOps> EdgeFilterOps for G {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph().filter_edge(edge, layer_ids)
     }
 }

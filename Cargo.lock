@@ -63,6 +63,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "aliasable"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
+
+[[package]]
 name = "alloc-no-stdlib"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -434,11 +440,17 @@ dependencies = [
  "hash_hasher",
  "hashbrown 0.14.3",
  "itertools 0.10.5",
+ "lexical-core",
+ "memchr",
+ "multiversion",
  "num-traits",
  "parquet2",
+ "regex",
+ "regex-syntax 0.7.5",
  "rustc_version",
  "simdutf8",
  "streaming-iterator",
+ "strength_reduce",
 ]
 
 [[package]]
@@ -873,9 +885,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chrono"
-version = "0.4.35"
+version = "0.4.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eaf5903dcbc0a39312feb77df2ff4c76387d591b9fc7b04a238dcf8bb62639a"
+checksum = "a21f936df1771bf62b77f047b726c4625ff2e8aa607c01ec06e5a05bd8463401"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
@@ -1763,7 +1775,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "itertools 0.12.1",
@@ -2423,7 +2435,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2469,7 +2481,7 @@ dependencies = [
 
 [[package]]
 name = "lanl"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "pyo3",
  "raphtory",
@@ -2785,6 +2797,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "multiversion"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4851161a11d3ad0bf9402d90ffc3967bf231768bfd7aeb61755ad06dbf1a142"
+dependencies = [
+ "multiversion-macros",
+ "target-features",
+]
+
+[[package]]
+name = "multiversion-macros"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79a74ddee9e0c27d2578323c13905793e91622148f138ba29738f9dddb835e90"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "target-features",
+]
+
+[[package]]
 name = "murmurhash32"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2823,7 +2857,7 @@ dependencies = [
 
 [[package]]
 name = "netflow_algorithm"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -3099,6 +3133,31 @@ checksum = "4ed8acf08e98e744e5384c8bc63ceb0364e68a6854187221c18df61c4797690e"
 dependencies = [
  "dlv-list",
  "hashbrown 0.13.2",
+]
+
+[[package]]
+name = "ouroboros"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97b7be5a8a3462b752f4be3ff2b2bf2f7f1d00834902e46be2a4d68b87b0573c"
+dependencies = [
+ "aliasable",
+ "ouroboros_macro",
+ "static_assertions",
+]
+
+[[package]]
+name = "ouroboros_macro"
+version = "0.18.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b645dcde5f119c2c454a92d0dfa271a2a3b205da92e4292a68ead4bdbfde1f33"
+dependencies = [
+ "heck 0.4.1",
+ "itertools 0.12.1",
+ "proc-macro2",
+ "proc-macro2-diagnostics",
+ "quote",
+ "syn 2.0.53",
 ]
 
 [[package]]
@@ -3464,7 +3523,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af7cee1a6c8a5b9208b3cb1061f10c0cb689087b3d8ce85fb9d2dd7a29b6ba66"
 dependencies = [
  "diff",
- "yansi",
+ "yansi 0.5.1",
 ]
 
 [[package]]
@@ -3525,6 +3584,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e835ff2298f5721608eb1a980ecaee1aef2c132bf95ecc026a11b7bf3c01c02e"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "proc-macro2-diagnostics"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.53",
+ "version_check",
+ "yansi 1.0.1",
 ]
 
 [[package]]
@@ -3800,7 +3872,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "ahash",
  "arrow2",
@@ -3828,6 +3900,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "ordered-float 4.2.0",
+ "ouroboros",
  "parking_lot",
  "pretty_assertions",
  "proptest",
@@ -3861,7 +3934,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arrow2",
  "criterion",
@@ -3873,7 +3946,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -3904,7 +3977,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -3940,7 +4013,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "async-graphql",
  "crossbeam-channel",
@@ -3959,7 +4032,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-rust-benchmark"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "clap",
@@ -3973,7 +4046,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "ahash",
  "arrow2",
@@ -4069,6 +4142,12 @@ name = "regex-syntax"
 version = "0.6.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
+
+[[package]]
+name = "regex-syntax"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da"
 
 [[package]]
 name = "regex-syntax"
@@ -4215,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "run_server"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "raphtory-graphql",
  "tokio",
@@ -4693,6 +4772,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "strength_reduce"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe895eb47f22e2ddd4dabc02bce419d2e643c8e3b585c78158b349195bc24d82"
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4964,6 +5049,12 @@ dependencies = [
  "libc",
  "xattr",
 ]
+
+[[package]]
+name = "target-features"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1bbb9f3c5c463a01705937a24fdabc5047929ac764b2d5b9cf681c1f5041ed5"
 
 [[package]]
 name = "target-lexicon"
@@ -5971,6 +6062,12 @@ name = "yansi"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
+
+[[package]]
+name = "yansi"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "zerocopy"

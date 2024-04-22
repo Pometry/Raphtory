@@ -1,10 +1,24 @@
-use crate::db::api::view::internal::{EdgeFilter, EdgeFilterOps};
+use crate::{
+    core::entities::{edges::edge_store::EdgeStore, LayerIds},
+    db::api::view::internal::{EdgeFilter, EdgeFilterOps},
+};
 
 use super::ArrowGraph;
 
 impl EdgeFilterOps for ArrowGraph {
-    #[doc = " Return the optional edge filter for the graph"]
-    fn edge_filter(&self) -> Option<&EdgeFilter> {
-        None
+    fn edges_filtered(&self) -> bool {
+        false
+    }
+
+    fn edge_list_trusted(&self) -> bool {
+        true
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        true
+    }
+
+    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+        true
     }
 }

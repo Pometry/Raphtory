@@ -213,12 +213,4 @@ impl CoreGraphOps for ArrowGraph {
     fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
         todo!()
     }
-
-    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
-        CoreEdgeView::Arrow(self.inner.edge(eid, 0))
-    }
-
-    fn core_node(&self, _vid: VID) -> ArcEntry<NodeStore> {
-        todo!()
-    }
 }

@@ -28,7 +28,7 @@ use crate::{
 };
 
 use crate::{
-    core::storage::timeindex::AsTime,
+    core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
     db::{api::storage::locked::LockedGraph, graph::edges::Edges},
 };
 use chrono::{DateTime, Utc};
@@ -360,7 +360,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let node_internal_type_id = self.graph.core_node_arc(self.node).node_type;
+        let node_internal_type_id = self.graph.core_node(self.node).as_ref().node_type_id();
         self.graph
             .internal_add_node(t, self.node, properties, node_internal_type_id)
     }

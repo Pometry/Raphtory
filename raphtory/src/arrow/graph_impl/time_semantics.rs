@@ -1,11 +1,14 @@
 use super::ArrowGraph;
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            LayerIds, VID,
+        },
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::view::{
-        internal::{EdgeFilter, EdgeWindowFilter, TimeSemantics},
+        internal::{EdgeFilter, TimeSemantics},
         BoxedIter,
     },
     prelude::*,
@@ -14,9 +17,6 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use std::{iter, ops::Range, sync::Arc};
-
-static WINDOW_FILTER: Lazy<EdgeWindowFilter> =
-    Lazy::new(|| Arc::new(move |e, layer_ids, w| e.active(layer_ids, w)));
 
 impl TimeSemantics for ArrowGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
@@ -129,8 +129,8 @@ impl TimeSemantics for ArrowGraph {
     }
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window(&self) -> &EdgeWindowFilter {
-        &WINDOW_FILTER
+    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+        todo!()
     }
 
     fn node_history(&self, v: VID) -> Vec<i64> {
