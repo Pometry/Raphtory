@@ -154,6 +154,11 @@ fn full_layer_fields(graph: &ArrowGraph, layer_id: usize) -> Option<Fields> {
         arrow_schema::DataType::Struct(fields) => {
             let mut all_fields = vec![];
             all_fields.push(Arc::new(arrow_schema::Field::new(
+                "id",
+                arrow_schema::DataType::UInt64,
+                false,
+            )));
+            all_fields.push(Arc::new(arrow_schema::Field::new(
                 "layer_id",
                 arrow_schema::DataType::UInt64,
                 false,
