@@ -1229,11 +1229,11 @@ mod test {
             "MATCH (v)-[e]->(u) RETURN COUNT(e)",
             "WITH \
              e AS (\
-             SELECT layer_id, src, dst, time FROM _default \
+             SELECT id, layer_id, src, dst, time FROM _default \
              UNION ALL \
-             SELECT layer_id, src, dst, time FROM L1 \
+             SELECT id, layer_id, src, dst, time FROM L1 \
              UNION ALL \
-             SELECT layer_id, src, dst, time FROM L2) \
+             SELECT id, layer_id, src, dst, time FROM L2) \
              SELECT COUNT(e.id) FROM e",
             ["L1", "L2"],
         )
@@ -1275,7 +1275,13 @@ mod test {
     fn select_edge_with_type() {
         check_cypher_to_sql_layers(
             "MATCH ()-[e]->() where e.time > 10 RETURN e,type(e)",
-            "WITH e AS (SELECT layer_id, src, dst, time FROM _default UNION ALL SELECT layer_id, src, dst, time FROM L1 UNION ALL SELECT layer_id, src, dst, time FROM L2) SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
+            "WITH \
+             e AS (\
+             SELECT id, layer_id, src, dst, time FROM _default \
+             UNION ALL \
+             SELECT id, layer_id, src, dst, time FROM L1 \
+             UNION ALL SELECT id, layer_id, src, dst, time FROM L2) \
+             SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
             ["L1", "L2"],
         );
     }

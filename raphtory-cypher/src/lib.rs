@@ -184,7 +184,7 @@ mod test {
     #[tokio::test]
     async fn select_table() {
         let graph_dir = tempdir().unwrap();
-        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
 
         let df = run_cypher("match ()-[e]->() RETURN *", &graph)
             .await

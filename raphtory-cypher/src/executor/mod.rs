@@ -22,6 +22,9 @@ pub enum ExecError {
 
     #[error("Failed to parse cypher {0}")]
     CypherParseError(#[from] super::parser::ParseError),
+
+    #[error("IO Failure {0}")]
+    IOError(#[from] std::io::Error),
 }
 
 fn arrow2_to_arrow_buf<U: ArrowPrimitiveType>(
