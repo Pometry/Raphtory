@@ -53,8 +53,16 @@ impl EdgeListTableProvider {
 
         let schema = lift_nested_arrow_schema(&g, layer_id)?;
 
-        let layer_num_chunks = graph.as_ref().layer(layer_id).edges_storage().time().values().num_chunks();
-        let num_partitions = std::thread::available_parallelism()?.get().min(layer_num_chunks);
+        let layer_num_chunks = graph
+            .as_ref()
+            .layer(layer_id)
+            .edges_storage()
+            .time()
+            .values()
+            .num_chunks();
+        let num_partitions = std::thread::available_parallelism()?
+            .get()
+            .min(layer_num_chunks);
         let row_count = graph
             .as_ref()
             .layer(layer_id)
@@ -179,7 +187,6 @@ fn produce_record_batch(
     end_offset: usize,
     projection: Option<Arc<[usize]>>,
 ) -> Box<dyn Iterator<Item = Result<RecordBatch, DataFusionError>> + Send> {
-
     if start_offset >= end_offset {
         return Box::new(std::iter::empty());
     }

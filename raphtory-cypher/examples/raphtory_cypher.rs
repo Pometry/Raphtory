@@ -105,7 +105,9 @@ async fn main() {
                     run_cypher(&args.query, &graph).await.unwrap()
                 };
 
+                let now = std::time::Instant::now();
                 let batches = df.collect().await.unwrap();
+                println!("Query execution time: {:?}", now.elapsed());
                 print_batches(&batches).expect("Failed to print batches");
             } else {
                 let streams = run_cypher_to_streams(&args.query, &graph).await.unwrap();
@@ -120,30 +122,6 @@ async fn main() {
         }
 
         Args::Load(args) => {
-            let layer_parquet_cols = vec![
-                ParquetLayerCols {
-                    parquet_dir: "/mnt/work/pometry/gov/case6/data/poststo.parquet",
-                    layer: "POSTSTO",
-                    src_col: "src_id",
-                    dst_col: "dst_id",
-                    time_col: "time",
-                },
-                ParquetLayerCols {
-                    parquet_dir: "/mnt/work/pometry/gov/case6/data/livesin.parquet",
-                    layer: "LIVESIN",
-                    src_col: "src_id",
-                    dst_col: "dst_id",
-                    time_col: "time",
-                },
-                ParquetLayerCols {
-                    parquet_dir: "/mnt/work/pometry/gov/case6/data/worksfor.parquet",
-                    layer: "WORKSFOR",
-                    src_col: "src_id",
-                    dst_col: "dst_id",
-                    time_col: "time",
-                },
-            ];
-
             let layers = args.layers;
             let layer_parquet_cols = (0..layers.len())
                 .map(|layer_id| {

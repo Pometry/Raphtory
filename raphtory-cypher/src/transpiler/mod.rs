@@ -1,4 +1,7 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use crate::parser::ast::*;
 
@@ -21,7 +24,8 @@ use sqlparser::ast::{
 mod exprs;
 
 pub fn to_sql(query: Query, graph: &ArrowGraph) -> sql_ast::Statement {
-    let query = unbind_unused_bounds(query);
+    let query = bind_unbound_pattern_filters(query);
+    let query = unbind_unused_binds(query);
 
     let with = parse_rels_to_ctes(&query, graph);
     sql_ast::Statement::Query(Box::new(sql_ast::Query {
@@ -49,22 +53,23 @@ pub fn to_sql(query: Query, graph: &ArrowGraph) -> sql_ast::Statement {
     }))
 }
 
-fn unbind_unused_bounds(mut query: Query) -> Query {
-    // find the max bound N from all nodes named n_<N>
-    let max_n = query
-        .node_patterns()
-        .map(|node_pat| {
-            if let Some(n) = node_pat.name.strip_prefix("n_") {
-                n.parse::<u64>().ok()
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .max()
-        .unwrap_or(0);
+fn bind_unbound_pattern_filters(mut query: Query) -> Query {
+    let mut c = max_bind_count(&query);
 
-    let node_bounds = query
+    for node_pat in query.node_patterns_mut() {
+        c += 1;
+        if node_pat.props.is_some() {
+            node_pat.name = format!("a_{}", c);
+        }
+    }
+    query
+}
+
+fn unbind_unused_binds(mut query: Query) -> Query {
+    // find the max bound N from all nodes named n_<N>
+    let max_n = max_bind_count(&query);
+
+    let node_binds = query
         .node_patterns()
         .map(|node_pat| node_pat.name.clone())
         .filter(|name| is_bound_str(name))
@@ -77,23 +82,73 @@ fn unbind_unused_bounds(mut query: Query) -> Query {
             Clause::Return(Return { items, .. }) => items
                 .iter()
                 .flat_map(|item| item.expr.binds())
-                .filter(|return_bound| node_bounds.contains(return_bound))
+                .filter(|return_bound| node_binds.contains(return_bound))
                 .collect::<Vec<_>>(),
             _ => vec![],
         })
         .collect::<HashSet<_>>();
 
+    let nodes_in_where = query
+        .clauses()
+        .iter()
+        .filter_map(|clause| match clause {
+            Clause::Match(m) => m.where_clause.as_ref(),
+            _ => None,
+        })
+        .flat_map(|expr| expr.binds())
+        .filter(|where_bound| node_binds.contains(where_bound))
+        .collect::<HashSet<_>>();
+
+    let nodes_with_pattern_props = query
+        .node_patterns()
+        .filter(|node_pat| node_pat.props.is_some())
+        .map(|node_pat| node_pat.name.clone())
+        .collect::<HashSet<_>>();
+
     // unbind all nodes not in return
-    query.node_patterns_mut().fold(max_n, |c, node_pattern| {
-        if is_bound_str(&node_pattern.name) && !nodes_in_return.contains(&node_pattern.name) {
-            node_pattern.name = format!("n_{}", c + 1);
-            c + 1
-        } else {
-            c
-        }
-    });
+    query.node_patterns_mut().fold(
+        (max_n, HashMap::new()),
+        |(c, mut bind_table), node_pattern| {
+            if is_bound_str(&node_pattern.name)
+                && !nodes_in_return.contains(&node_pattern.name)
+                && !nodes_in_where.contains(&node_pattern.name)
+                && !nodes_with_pattern_props.contains(&node_pattern.name)
+            {
+                match bind_table.entry(node_pattern.name.clone()) {
+                    std::collections::hash_map::Entry::Vacant(entry) => {
+                        let new_name = format!("n_{}", c + 1);
+                        entry.insert(new_name.clone());
+
+                        node_pattern.name = new_name;
+                        (c + 1, bind_table)
+                    }
+                    std::collections::hash_map::Entry::Occupied(entry) => {
+                        node_pattern.name = entry.get().clone();
+                        (c, bind_table)
+                    }
+                }
+            } else {
+                (c, bind_table)
+            }
+        },
+    );
 
     query
+}
+
+fn max_bind_count(query: &Query) -> usize {
+    query
+        .node_patterns()
+        .map(|node_pat| {
+            if let Some(n) = node_pat.name.strip_prefix("n_") {
+                n.parse::<usize>().ok()
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .max()
+        .unwrap_or(0)
 }
 
 fn parse_order_by(_query: &Query) -> Vec<sql_ast::OrderByExpr> {
@@ -870,6 +925,23 @@ fn where_expr(
         })
         .map(|expr| cypher_to_sql_expr(&expr, rel_binds, node_binds, false));
 
+    let node_exprs = query
+        .node_patterns()
+        .flat_map(|node_pat| {
+            node_pat.props.iter().flat_map(|props| {
+                props.iter().map(|(prop, expr)| {
+                    Expr::eq(
+                        Expr::Var {
+                            var_name: node_pat.name.clone(),
+                            attrs: vec![prop.clone()],
+                        },
+                        expr.clone(),
+                    )
+                })
+            })
+        })
+        .map(|expr| cypher_to_sql_expr(&expr, rel_binds, node_binds, false));
+
     let where_exprs = query.clauses().iter().filter_map(|clause| match clause {
         Clause::Match(m) => m
             .where_clause
@@ -881,6 +953,7 @@ fn where_expr(
     where_exprs
         .chain(rel_exprs)
         .chain(rel_uniqueness_filters)
+        .chain(node_exprs)
         .reduce(|a, b| sql_ast::Expr::BinaryOp {
             left: Box::new(a),
             op: sql_ast::BinaryOperator::And,
@@ -1167,11 +1240,27 @@ mod test {
     }
 
     #[test]
-    fn select_unused_node_bounds() {
+    fn select_unused_node_binds() {
         check_cypher_to_sql(
             "MATCH (n)-[e]->(m) RETURN COUNT(e)",
             "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.id) FROM e",
         );
+    }
+
+    #[test]
+    fn call_id_on_node_binds() {
+        check_cypher_to_sql(
+            "MATCH (n)-[e]->(m) WHERE n <> m RETURN COUNT(e)",
+            "WITH \
+             e AS (SELECT * FROM _default), \
+             n AS (SELECT * FROM nodes), \
+             m AS (SELECT * FROM nodes) \
+             SELECT COUNT(e.id) \
+             FROM e \
+             JOIN n ON e.src = n.id \
+             JOIN m ON e.dst = m.id \
+             WHERE n.id <> m.id",
+        )
     }
 
     #[test]
@@ -1435,6 +1524,41 @@ mod test {
              WHERE nf1.id <> login1.id AND nf1.id <> prog1.id AND login1.id <> prog1.id",
             ["Netflow", "Events2v", "Events1v"]
         );
+    }
+
+    #[test]
+    fn two_hops_with_self_loop_ignore_nodes() {
+        check_cypher_to_sql_layers(
+            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) WHERE A <> B RETURN count(*)",
+            "WITH \
+             nf1 AS (SELECT * FROM Netflow), \
+             login1 AS (SELECT * FROM Events2v), \
+             prog1 AS (SELECT * FROM Events1v), \
+             B AS (SELECT * FROM nodes), \
+             A AS (SELECT * FROM nodes) \
+             SELECT COUNT(nf1.id) \
+             FROM nf1 \
+             JOIN B ON nf1.src = B.id \
+             JOIN login1 ON B.id = login1.dst \
+             JOIN prog1 ON B.id = prog1.src \
+             JOIN A ON login1.src = A.id \
+             WHERE \
+             A.id <> B.id AND \
+             nf1.id <> login1.id AND \
+             nf1.id <> prog1.id AND \
+             login1.id <> prog1.id",
+           ["Netflow", "Events2v", "Events1v"])
+    }
+
+    #[test]
+    fn filter_edges_by_nodes_not_bound() {
+        check_cypher_to_sql(
+            "MATCH ({name: 'bla'})-[e]->() RETURN e",
+            "WITH \
+            e AS (SELECT * FROM _default), \
+            a_2 AS (SELECT * FROM nodes) \
+            SELECT e.* FROM e JOIN a_2 ON e.src = a_2.id WHERE a_2.name = 'bla'",
+        )
     }
 
     #[test]
