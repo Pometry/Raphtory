@@ -24,6 +24,8 @@ jobs:
     #            cargo-args: --target-dir=C:\target
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
+        name: Xcode version
+        if: "contains(matrix.os, 'macOS')"
         with:
           xcode-version: latest-stable
       - uses: actions/checkout@v3
