@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use raphtory::{arrow::graph_impl::ArrowGraph, python::graph::arrow::PyArrowGraph};
+use raphtory::python::graph::arrow::PyArrowGraph;
 
 use crate::lanl;
 
