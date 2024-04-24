@@ -12,7 +12,7 @@ use crate::{
     prelude::TimeIndexEntry,
 };
 use rayon::prelude::*;
-use std::ops::{Deref, Range};
+use std::ops::Range;
 
 pub enum TimeIndexLike<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),

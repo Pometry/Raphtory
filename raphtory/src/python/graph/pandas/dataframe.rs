@@ -1,6 +1,6 @@
-use crate::{core::utils::errors::GraphError, prelude::Prop};
+use crate::core::utils::errors::GraphError;
 use arrow2::{
-    array::{Array, BooleanArray, Int64Array, ListArray, PrimitiveArray, Utf8Array},
+    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
     compute::cast::{self, CastOptions},
     datatypes::{DataType, TimeUnit},
     ffi,

@@ -185,7 +185,6 @@ mod strongly_connected_components_tests {
         db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
-    use itertools::Itertools;
     use std::collections::HashSet;
     use tempfile::TempDir;
 

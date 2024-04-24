@@ -1,12 +1,8 @@
-use crate::{
-    core::entities::{edges::edge_store::EdgeStore, LayerIds},
-    db::api::{
-        storage::edges::edge_ref::EdgeStorageRef,
-        view::internal::{EdgeFilter, EdgeFilterOps},
-    },
-};
-
 use super::ArrowGraph;
+use crate::{
+    core::entities::LayerIds,
+    db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
+};
 
 impl EdgeFilterOps for ArrowGraph {
     fn edges_filtered(&self) -> bool {
@@ -21,7 +17,7 @@ impl EdgeFilterOps for ArrowGraph {
         true
     }
 
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 }

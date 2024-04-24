@@ -1,19 +1,18 @@
-use itertools::Itertools;
-
+use super::tprops::read_tprop_column;
 use crate::{
     arrow::{graph_impl::ArrowGraph, GID},
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::{input_node::InputNode, node_ref::NodeRef, node_store::NodeStore},
+            nodes::{input_node::InputNode, node_ref::NodeRef},
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, ELID, VID,
         },
-        storage::{locked_view::LockedView, ArcEntry},
+        storage::locked_view::LockedView,
         ArcStr, Prop,
     },
     db::api::{
@@ -31,13 +30,12 @@ use crate::{
             storage_ops::GraphStorage,
         },
         view::{
-            internal::{CoreGraphOps, EdgeUpdates, NodeAdditions},
+            internal::{CoreGraphOps, EdgeUpdates},
             BoxedIter,
         },
     },
 };
-
-use super::tprops::read_tprop_column;
+use itertools::Itertools;
 
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
@@ -232,8 +230,8 @@ impl CoreGraphOps for ArrowGraph {
         GraphStorage::Arrow(self.inner.clone())
     }
 
-    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
-        let layer_id = *eid
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
+        let layer_id = eid
             .layer()
             .expect("EdgeRefs in arrow should always have layer");
         EdgeStorageEntry::Arrow(self.inner.layer(layer_id).edge(eid.pid()))
@@ -251,7 +249,7 @@ impl CoreGraphOps for ArrowGraph {
         NodeOwnedEntry::Arrow(ArrowOwnedNode::new(&self.inner, vid))
     }
 
-    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry {
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         EdgeOwnedEntry::Arrow(ArrowOwnedEdge::new(&self.inner, eid))
     }
 }

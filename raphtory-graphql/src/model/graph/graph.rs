@@ -10,6 +10,7 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -84,7 +85,7 @@ impl GqlGraph {
     }
 
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
-        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_str().into()).collect();
+        let nodes: Vec<NodeRef> = nodes.iter().map(|v| v.as_node_ref()).collect();
         GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
     }
 

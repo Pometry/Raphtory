@@ -1,9 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
-            nodes::node_ref::AsNodeRef, LayerIds, VID,
-        },
+        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
         ArcStr, OptionAsStr,
@@ -399,7 +396,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref).as_ref(), layer_ids) {
+                if !self.filter_edge(self.core_edge(edge_ref.into()).as_ref(), layer_ids) {
                     return None;
                 }
                 if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
@@ -419,7 +416,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
             }
             FilterState::Edges | FilterState::BothIndependent => {
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref).as_ref(), layer_ids) {
+                if !self.filter_edge(self.core_edge(edge_ref.into()).as_ref(), layer_ids) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))

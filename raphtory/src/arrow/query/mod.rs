@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    core::entities::{nodes::node_ref::NodeRef, LayerIds, VID},
+    core::entities::{nodes::node_ref::NodeRef, VID},
     db::api::view::StaticGraphViewOps,
 };
 

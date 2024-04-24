@@ -1,8 +1,3 @@
-use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
-
-use itertools::Itertools;
-use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
-
 use crate::{
     arrow::{
         graph_impl::ArrowGraph,
@@ -14,16 +9,13 @@ use crate::{
         },
         Error,
     },
-    core::{
-        entities::{LayerIds, VID},
-        Direction,
-    },
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, node::NodeView},
-    },
+    core::{entities::VID, Direction},
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     prelude::*,
 };
+use itertools::Itertools;
+use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
+use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
 
 pub fn execute<S: HopState + 'static>(
     query: Query<S>,

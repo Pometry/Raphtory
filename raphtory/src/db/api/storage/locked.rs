@@ -1,9 +1,6 @@
-use crate::{
-    core::{
-        entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
-        storage::ReadLockedStorage,
-    },
-    prelude::GraphViewOps,
+use crate::core::{
+    entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
+    storage::ReadLockedStorage,
 };
 use std::sync::Arc;
 

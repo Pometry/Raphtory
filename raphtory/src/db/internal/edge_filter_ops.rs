@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{edges::edge_store::EdgeStore, graph::tgraph::InnerTemporalGraph, LayerIds},
+    core::entities::{graph::tgraph::InnerTemporalGraph, LayerIds},
     db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
 };
 

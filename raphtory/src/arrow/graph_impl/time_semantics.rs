@@ -1,10 +1,7 @@
 use super::ArrowGraph;
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::{
@@ -12,17 +9,13 @@ use crate::{
             edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef,
             node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef,
         },
-        view::{
-            internal::{EdgeFilter, TimeSemantics},
-            BoxedIter,
-        },
+        view::{internal::TimeSemantics, BoxedIter},
     },
     prelude::*,
 };
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use rayon::prelude::*;
-use std::{iter, ops::Range, sync::Arc};
+use std::{iter, ops::Range};
 
 impl TimeSemantics for ArrowGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {

@@ -13,7 +13,7 @@ use tantivy::{
 
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, EID, VID},
+        entities::{nodes::node_ref::NodeRef, EID, ELID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
         ArcStr, OptionAsStr, PropType,
@@ -21,6 +21,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
+            storage::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 Base, MaterializedGraph, StaticGraphViewOps,
@@ -581,23 +582,23 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
             .and_then(|value| value.as_u64())?
             .try_into()
             .ok()?;
-        let core_edge = self.graph.core_edge(EID(edge_id));
+        let core_edge = self.graph.core_edge(ELID::new(EID(edge_id), None));
         let layer_ids = self.graph.layer_ids();
-        if !self.graph.filter_edge(&core_edge, layer_ids) {
+        if !self.graph.filter_edge(core_edge.as_ref(), layer_ids) {
             return None;
         }
         if self.graph.nodes_filtered() {
-            if !self
-                .graph
-                .filter_node(&self.graph.core_node_entry(core_edge.src), layer_ids)
-                || !self
-                    .graph
-                    .filter_node(&self.graph.core_node_entry(core_edge.dst), layer_ids)
-            {
+            if !self.graph.filter_node(
+                self.graph.core_node_entry(core_edge.src()).as_ref(),
+                layer_ids,
+            ) || !self.graph.filter_node(
+                self.graph.core_node_entry(core_edge.dst()).as_ref(),
+                layer_ids,
+            ) {
                 return None;
             }
         }
-        let e_view = EdgeView::new(self.graph.clone(), EdgeRef::from(core_edge));
+        let e_view = EdgeView::new(self.graph.clone(), core_edge.out_ref());
         Some(e_view)
     }
 

@@ -37,20 +37,9 @@
 //!  assert_eq!(wg.edge(1, 2).unwrap().src().id(), 1);
 //! ```
 
-use std::{
-    fmt::{Debug, Formatter},
-    ops::Range,
-};
-
-use chrono::{DateTime, Utc};
-
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::node_store::NodeStore,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         ArcStr, Prop,
     },
@@ -71,6 +60,11 @@ use crate::{
         graph::graph::graph_equal,
     },
     prelude::GraphViewOps,
+};
+use chrono::{DateTime, Utc};
+use std::{
+    fmt::{Debug, Formatter},
+    ops::Range,
 };
 
 /// A struct that represents a windowed view of a `Graph`.

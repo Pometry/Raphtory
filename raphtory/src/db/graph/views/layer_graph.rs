@@ -3,10 +3,7 @@ use std::fmt::{Debug, Formatter};
 use itertools::Itertools;
 
 use crate::{
-    core::{
-        entities::{edges::edge_store::EdgeStore, LayerIds},
-        utils::errors::GraphError,
-    },
+    core::{entities::LayerIds, utils::errors::GraphError},
     db::api::{
         properties::internal::InheritPropertiesOps,
         storage::{edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef},

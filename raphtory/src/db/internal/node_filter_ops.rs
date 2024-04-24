@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{graph::tgraph::InnerTemporalGraph, nodes::node_store::NodeStore, LayerIds},
+    core::entities::{graph::tgraph::InnerTemporalGraph, LayerIds},
     db::api::{storage::nodes::node_ref::NodeStorageRef, view::internal::NodeFilterOps},
 };
 

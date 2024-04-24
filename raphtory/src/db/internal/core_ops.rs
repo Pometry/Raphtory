@@ -1,21 +1,17 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            edges::edge_ref::EdgeRef,
             graph::tgraph::InnerTemporalGraph,
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, ELID, VID,
         },
-        storage::{
-            locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry},
-            ArcEntry, Entry, ReadLockedStorage,
-        },
+        storage::locked_view::LockedView,
         ArcStr,
     },
     db::api::{
@@ -23,21 +19,20 @@ use crate::{
             edges::{
                 edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
             },
-            locked::LockedGraph,
             nodes::{
                 node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
             },
             storage_ops::GraphStorage,
         },
         view::{
-            internal::{CoreGraphOps, EdgeUpdates, NodeAdditions},
+            internal::{CoreGraphOps, EdgeUpdates},
             BoxedIter,
         },
     },
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter, marker::PhantomData, sync::Arc};
+use std::{collections::HashMap, iter, sync::Arc};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
@@ -298,7 +293,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
         EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid.pid()))
     }
 
@@ -311,18 +306,19 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         NodeOwnedEntry::Mem(self.inner().storage.nodes.entry_arc(vid))
     }
 
-    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry {
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         EdgeOwnedEntry::Mem(self.inner().storage.edges.entry_arc(eid.pid()))
     }
 }
 
 #[cfg(test)]
 mod test_edges {
+    use std::collections::HashMap;
+
     use crate::{
         core::{ArcStr, IntoPropMap},
         prelude::*,
     };
-    use std::collections::HashMap;
 
     #[test]
     fn test_edge_properties_for_layers() {

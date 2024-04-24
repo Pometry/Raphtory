@@ -8,7 +8,7 @@ use crate::{
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, EID, ELID, VID,
         },
         storage::locked_view::LockedView,
         utils::errors::GraphError,

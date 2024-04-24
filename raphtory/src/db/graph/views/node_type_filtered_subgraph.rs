@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{nodes::node_store::NodeStore, LayerIds},
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
         storage::{node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef},

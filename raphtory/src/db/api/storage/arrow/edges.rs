@@ -1,6 +1,6 @@
 use crate::{
     arrow::{edge::Edge, edges::Edges, graph::TemporalGraph, graph_fragment::TempColGraphFragment},
-    core::entities::{edges::edge_ref::EdgeRef, LayerIds, EID},
+    core::entities::{LayerIds, EID, ELID},
     db::api::storage::layer_variants::LayerVariants,
 };
 use rayon::prelude::*;
@@ -168,12 +168,12 @@ pub struct ArrowOwnedEdge {
 }
 
 impl ArrowOwnedEdge {
-    pub(crate) fn new(graph: &TemporalGraph, eid: EdgeRef) -> Self {
+    pub(crate) fn new(graph: &TemporalGraph, eid: ELID) -> Self {
         let layer = eid
             .layer()
             .expect("arrow EdgeRefs should have layer always defined");
         Self {
-            edges: graph.layers[*layer].edges.clone(),
+            edges: graph.layers[layer].edges.clone(),
             eid: eid.pid(),
         }
     }

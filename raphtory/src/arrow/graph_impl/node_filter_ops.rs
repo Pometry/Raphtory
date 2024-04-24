@@ -13,7 +13,7 @@ impl NodeFilterOps for ArrowGraph {
         true
     }
 
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn filter_node(&self, _node: NodeStorageRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 }

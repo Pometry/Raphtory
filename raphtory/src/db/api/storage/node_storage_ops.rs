@@ -7,7 +7,6 @@ use crate::{
     db::api::view::internal::NodeAdditions,
 };
 use itertools::Itertools;
-use std::ops::Deref;
 
 pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;

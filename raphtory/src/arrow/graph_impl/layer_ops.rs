@@ -1,7 +1,7 @@
 use crate::{
     core::{entities::LayerIds, utils::errors::GraphError},
     db::api::view::internal::InternalLayerOps,
-    prelude::{Layer, LayerOps},
+    prelude::Layer,
 };
 
 use super::ArrowGraph;

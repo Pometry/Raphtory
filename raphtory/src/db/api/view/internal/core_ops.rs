@@ -10,7 +10,7 @@ use crate::{
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, VID,
+            LayerIds, ELID, VID,
         },
         storage::{
             locked_view::LockedView,
@@ -49,9 +49,9 @@ pub trait CoreGraphOps {
     fn core_graph(&self) -> GraphStorage;
 
     fn core_edges(&self) -> EdgesStorage;
-    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry;
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry;
 
-    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry;
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry;
     fn core_nodes(&self) -> NodesStorage;
 
     fn core_node_entry(&self, vid: VID) -> NodeStorageEntry;
@@ -398,12 +398,12 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
         self.graph().core_edge(eid)
     }
 
     #[inline]
-    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry {
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         self.graph().core_edge_arc(eid)
     }
 

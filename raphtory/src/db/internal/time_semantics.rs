@@ -1,11 +1,8 @@
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            graph::tgraph::InnerTemporalGraph,
-            nodes::node_store::NodeStore,
-            properties::tprop::TPropOps,
-            LayerIds, VID,
+            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
+            properties::tprop::TPropOps, LayerIds, VID,
         },
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
@@ -120,7 +117,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        let core_edge = self.core_edge(e);
+        let core_edge = self.core_edge(e.into());
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
@@ -131,7 +128,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        let core_edge = self.core_edge(e);
+        let core_edge = self.core_edge(e.into());
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)

@@ -13,7 +13,7 @@ use crate::{
         edges::edge_ref::EdgeStorageRef,
     },
 };
-use rayon::{iter::Either, prelude::*};
+use rayon::prelude::*;
 use std::ops::Range;
 
 #[derive(Debug)]
@@ -21,35 +21,6 @@ pub enum EdgeStorageEntry<'a> {
     Mem(Entry<'a, EdgeStore>),
     #[cfg(feature = "arrow")]
     Arrow(ArrowEdge<'a>),
-}
-
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            EdgeStorageEntry::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            EdgeStorageEntry::Arrow($pattern) => $result,
-        }
-    };
-}
-
-#[cfg(feature = "arrow")]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            EdgeStorageEntry::Mem($pattern) => Either::Left($result),
-            EdgeStorageEntry::Arrow($pattern) => Either::Right($result),
-        }
-    };
-}
-
-#[cfg(not(feature = "arrow"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            EdgeStorageEntry::Mem($pattern) => $result,
-        }
-    };
 }
 
 impl<'a> EdgeStorageEntry<'a> {
