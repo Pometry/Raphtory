@@ -2,12 +2,18 @@ use datafusion::{
     common::Column,
     error::DataFusionError,
     logical_expr::{Expr, Join, LogicalPlan},
-    optimizer::{optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
+    optimizer::{optimize_children, optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
 };
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 
 pub struct HopRule {
     pub graph: ArrowGraph,
+}
+
+impl HopRule {
+    pub fn new(graph: ArrowGraph) -> Self {
+        Self { graph }
+    }
 }
 
 impl OptimizerRule for HopRule {
@@ -18,13 +24,18 @@ impl OptimizerRule for HopRule {
     fn try_optimize(
         &self,
         plan: &LogicalPlan,
-        _config: &dyn OptimizerConfig,
+        config: &dyn OptimizerConfig,
     ) -> Result<Option<LogicalPlan>, DataFusionError> {
         if let LogicalPlan::Join(join) = plan {
-            let Join { right, on, .. } = join;
+            let Join {
+                right, on, left, ..
+            } = join;
+
+            println!("right: {right:?}");
+            println!("left: {left:?}");
 
             if on.len() != 1 {
-                return Ok(None);
+                return optimize_children(self, plan, config);
             }
 
             // (Direction::OUT, Direction::OUT) => ("dst", "src"),
@@ -55,16 +66,48 @@ impl OptimizerRule for HopRule {
                 };
                 (hop_from_col, hop_to_col, direction)
             } else {
-                return Ok(None);
+                return optimize_children(self, plan, config);
             };
 
             // find the column we're hopping from on the left plan
             println!("HopRule::try_optimize on plan right: {right:?}");
         }
-        Ok(None)
+        optimize_children(self, plan, config)
     }
 
     fn name(&self) -> &str {
         "hop"
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use raphtory::arrow::graph_impl::ArrowGraph;
+    use tempfile::tempdir;
+
+    use crate::prepare_plan;
+
+    #[tokio::test]
+    async fn double_hop_edge_to_edge() {
+        let graph_dir = tempdir().unwrap();
+        let edges = vec![(0u64, 1u64, 0i64, 2.)];
+        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g)
+            .await
+            .unwrap();
+
+        println!("PLAN {plan:?}");
+    }
+
+    #[tokio::test]
+    async fn double_hop_edge_to_edge_with_pushdown_filter() {
+        let graph_dir = tempdir().unwrap();
+        let edges = vec![(0u64, 1u64, 0i64, 2.)];
+        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() WHERE e2.weight > 5 RETURN *", &g)
+            .await
+            .unwrap();
+
+        println!("PLAN {plan:?}");
     }
 }

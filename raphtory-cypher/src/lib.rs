@@ -10,14 +10,17 @@ use datafusion::{
         context::{SQLOptions, SessionContext, SessionState},
         runtime_env::RuntimeEnv,
     },
-    logical_expr::{create_udf, ColumnarValue, Volatility},
+    logical_expr::{create_udf, ColumnarValue, LogicalPlan, Volatility},
     physical_plan::SendableRecordBatchStream,
 };
 use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
 use parser::ast::*;
 use raphtory::arrow::graph_impl::ArrowGraph;
 
-use crate::executor::table_provider::node::NodeTableProvider;
+use crate::{
+    executor::table_provider::node::NodeTableProvider,
+    hop::{operator::HopPlan, rule::HopRule},
+};
 
 pub mod executor;
 pub mod hop;
@@ -25,6 +28,15 @@ pub mod parser;
 pub mod transpiler;
 
 pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
+    let (ctx, plan) = prepare_plan(query, g).await?;
+    let df = ctx.execute_logical_plan(plan).await?;
+    Ok(df)
+}
+
+pub async fn prepare_plan(
+    query: &str,
+    g: &ArrowGraph,
+) -> Result<(SessionContext, LogicalPlan), ExecError> {
     println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
@@ -32,7 +44,8 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
     // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
 
     let runtime = Arc::new(RuntimeEnv::default());
-    let state = SessionState::new_with_config_rt(config, runtime);
+    let state = SessionState::new_with_config_rt(config, runtime)
+        .with_optimizer_rules(vec![Arc::new(HopRule::new(g.clone()))]);
     let ctx = SessionContext::new_with_state(state);
 
     let graph = g.as_ref();
@@ -88,8 +101,7 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
 
     let plan = ctx.state().optimize(&plan)?;
     // println!("PLAN! {:?}", plan);
-    let df = ctx.execute_logical_plan(plan).await?;
-    Ok(df)
+    Ok((ctx, plan))
 }
 
 pub async fn run_cypher_to_streams(
