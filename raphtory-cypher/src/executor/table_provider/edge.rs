@@ -29,7 +29,6 @@ use datafusion::{
 use futures::Stream;
 use raphtory::arrow::{
     chunked_array::array_ops::{ArrayOps, BaseArrayOps, Chunked},
-    graph_fragment::TempColGraphFragment,
     graph_impl::ArrowGraph,
 };
 
@@ -41,6 +40,7 @@ pub struct EdgeListTableProvider {
     graph: ArrowGraph,
     nested_schema: SchemaRef,
     num_partitions: usize,
+    row_count: usize,
     sorted_by: Vec<PhysicalSortExpr>,
 }
 
@@ -53,7 +53,23 @@ impl EdgeListTableProvider {
 
         let schema = lift_nested_arrow_schema(&g, layer_id)?;
 
-        let num_partitions = graph.layer(layer_id).edges_storage().t_props_num_chunks();
+        let layer_num_chunks = graph
+            .as_ref()
+            .layer(layer_id)
+            .edges_storage()
+            .time()
+            .values()
+            .num_chunks();
+        let num_partitions = std::thread::available_parallelism()?
+            .get()
+            .min(layer_num_chunks);
+        let row_count = graph
+            .as_ref()
+            .layer(layer_id)
+            .edges_storage()
+            .time()
+            .values()
+            .len();
 
         //src
         let expr = Expr::Sort(expr::Sort::new(Box::new(col("src")), true, true));
@@ -83,6 +99,7 @@ impl EdgeListTableProvider {
             graph: g,
             nested_schema: schema,
             num_partitions,
+            row_count,
             sorted_by: vec![sort_by_src, sort_by_dst, sort_by_time],
         })
     }
@@ -95,7 +112,8 @@ fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<S
     let schema = match a_dt {
         DataType::Struct(fields) => {
             let node_ids_and_edge_fields = Schema::new(vec![
-                Field::new("layer_id", DataType::UInt64, false), // this is the edge id (eid)
+                Field::new("id", DataType::UInt64, false),
+                Field::new("layer_id", DataType::UInt64, false),
                 Field::new("src", DataType::UInt64, false),
                 Field::new("dst", DataType::UInt64, false),
             ]);
@@ -143,6 +161,7 @@ impl TableProvider for EdgeListTableProvider {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
+            row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
@@ -155,33 +174,47 @@ struct EdgeListExecPlan {
     graph: ArrowGraph,
     schema: SchemaRef,
     num_partitions: usize,
+    row_count: usize,
     sorted_by: Vec<PhysicalSortExpr>,
     projection: Option<Arc<[usize]>>,
 }
 
-async fn produce_record_batch(
+fn produce_record_batch(
     graph: ArrowGraph,
     schema: SchemaRef,
     layer_id: usize,
-    chunk_id: usize,
+    start_offset: usize,
+    end_offset: usize,
     projection: Option<Arc<[usize]>>,
-) -> Result<RecordBatch, DataFusionError> {
+) -> Box<dyn Iterator<Item = Result<RecordBatch, DataFusionError>> + Send> {
+    if start_offset >= end_offset {
+        return Box::new(std::iter::empty());
+    }
+
     let layer = graph.as_ref().layer(layer_id);
     let edges = layer.edges_storage();
-    let chunk_size = edges.time().values().chunk_size();
 
     let chunked_lists_ts = edges.time();
     let offsets = chunked_lists_ts.offsets();
-    let values = chunked_lists_ts.values();
-
-    let time_values = values.chunk(chunk_id);
-    let start_offset = chunk_id * chunk_size;
-    let end_offset = (chunk_id + 1) * chunk_size;
+    // FIXME: potentially implement into_iter_chunks() for chunked arrays to avoid having to collect these chunks, if it turns out to be a problem
+    let time_values_chunks = chunked_lists_ts
+        .values()
+        .slice(start_offset..end_offset)
+        .iter_chunks()
+        .map(|c| c.clone())
+        .collect::<Vec<_>>();
+    let temporal_props_chunks = edges
+        .temporal_props()
+        .values()
+        .sliced(start_offset..end_offset)
+        .iter_chunks()
+        .map(|c| c.clone())
+        .collect::<Vec<_>>();
 
     let (start, end, local_offsets) = offsets.make_local_offsets(start_offset, end_offset);
 
     if start == end {
-        return Ok(RecordBatch::new_empty(schema.clone()));
+        return Box::new(std::iter::empty());
     }
 
     let offsets: OffsetBuffer<i64> = OffsetBuffer::new(local_offsets.into());
@@ -189,13 +222,14 @@ async fn produce_record_batch(
     let srcs = edges.srcs().sliced(start..end);
     let dsts = edges.dsts().sliced(start..end);
 
-    let mut srcs_builder = Vec::with_capacity(time_values.len());
-    let mut dsts_builder = Vec::with_capacity(time_values.len());
-    let mut layer_id_builder = Vec::with_capacity(time_values.len());
+    let ids_builder: Vec<u64> = (start_offset as u64..end_offset as u64).collect();
+    let mut srcs_builder = Vec::with_capacity(time_values_chunks.len());
+    let mut dsts_builder = Vec::with_capacity(time_values_chunks.len());
+    let mut layer_id_builder = Vec::with_capacity(time_values_chunks.len());
 
     // take every chunk here and surface the primitive arrays
     // convert from arrow2 to arrow-rs then to polars
-    for (i, ((src, dst), e_id)) in srcs
+    for (i, ((src, dst), layer_id)) in srcs
         .iter_chunks()
         .zip(dsts.iter_chunks())
         .flat_map(|(srcs, dsts)| srcs.iter().zip(dsts.iter()))
@@ -206,11 +240,11 @@ async fn produce_record_batch(
         for _ in 0..length {
             srcs_builder.push(*src);
             dsts_builder.push(*dst);
-            layer_id_builder.push(e_id);
+            layer_id_builder.push(layer_id);
         }
     }
 
-    let layer_ids = Arc::new(PrimitiveArray::<UInt64Type>::new(
+    let layer_ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
         ScalarBuffer::from(layer_id_builder),
         None,
     ));
@@ -223,43 +257,63 @@ async fn produce_record_batch(
         ScalarBuffer::from(dsts_builder),
         None,
     ));
-    let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(time_values));
 
-    let mut columns = vec![layer_ids, srcs, dsts, time];
+    let e_ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
+        ScalarBuffer::from(ids_builder),
+        None,
+    ));
 
-    let temp_properties = &edges.data_type()[1..];
-    for (col_id, _) in temp_properties.iter().enumerate() {
-        // we always skip the time column
-        let col_id = col_id + 1; // we skip the time column
+    let column_ids = edges
+        .data_type()
+        .iter()
+        .enumerate()
+        .skip(1) // first one is supposed to be time
+        .map(|(col_id, _)| col_id)
+        .collect::<Vec<_>>();
 
-        let arr = property_to_arrow_column(layer, col_id, chunk_id);
-        columns.push(arr);
-    }
+    let iter = time_values_chunks
+        .into_iter()
+        .zip(temporal_props_chunks)
+        .scan(0, move |from, (time_values, time_props)| {
+            let len = time_values.len();
+            let e_ids = e_ids.slice(*from, len);
+            let layer_ids = layer_ids.slice(*from, len);
+            let srcs = srcs.slice(*from, len);
+            let dsts = dsts.slice(*from, len);
+            let time: Arc<dyn Array> = Arc::new(arrow2_to_arrow_buf::<Int64Type>(&time_values));
+            let mut columns = vec![e_ids, layer_ids, srcs, dsts, time];
 
-    if let Some(projection) = projection {
-        // FIXME: this is not an actual projection we could avoid doing some work before we get here
-        let columns = projection
-            .iter()
-            .map(|&i| columns[i].clone())
-            .collect::<Vec<_>>();
+            for col_id in &column_ids {
+                let arr = property_to_arrow_column(&time_props, *col_id);
+                columns.push(arr);
+            }
 
-        RecordBatch::try_new(schema.clone(), columns)
-            .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
-    } else {
-        RecordBatch::try_new(schema.clone(), columns)
-            .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
-    }
+            *from += len;
+            Some(columns)
+        })
+        .map(move |columns| {
+            if let Some(projection) = &projection {
+                // FIXME: this is not an actual projection we could avoid doing some work before we get here
+                let columns = projection
+                    .iter()
+                    .map(|&i| columns[i].clone())
+                    .collect::<Vec<_>>();
+
+                RecordBatch::try_new(schema.clone(), columns)
+                    .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+            } else {
+                RecordBatch::try_new(schema.clone(), columns)
+                    .map_err(|arrow_err| DataFusionError::ArrowError(arrow_err, None))
+            }
+        });
+
+    Box::new(iter)
 }
 
 fn property_to_arrow_column(
-    layer: &TempColGraphFragment,
+    temporal_props: &arrow2::array::StructArray,
     col_id: usize,
-    chunk_id: usize,
 ) -> Arc<dyn Array> {
-    let edges = layer.edges_storage();
-
-    let temporal_props = edges.temporal_props().values().chunk(chunk_id);
-
     let arr = temporal_props.values()[col_id].as_ref();
     let arrow_data = arrow2::array::to_data(arr);
 
@@ -269,13 +323,15 @@ fn property_to_arrow_column(
 impl EdgeListExecPlan {
     fn stream_record_batches(
         &self,
-        chunk_id: usize,
+        start_offset: usize,
+        end_offset: usize,
     ) -> impl Stream<Item = Result<RecordBatch, DataFusionError>> {
-        futures::stream::once(produce_record_batch(
+        futures::stream::iter(produce_record_batch(
             self.graph.clone(),
             self.schema.clone(),
             self.layer_id,
-            chunk_id,
+            start_offset,
+            end_offset,
             self.projection.clone(),
         ))
     }
@@ -329,10 +385,19 @@ impl ExecutionPlan for EdgeListExecPlan {
 
     fn repartitioned(
         &self,
-        _target_partitions: usize,
+        target_partitions: usize,
         _config: &ConfigOptions,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
-        Ok(None)
+        Ok(Some(Arc::new(EdgeListExecPlan {
+            layer_id: self.layer_id,
+            layer_name: self.layer_name.clone(),
+            graph: self.graph.clone(),
+            schema: self.schema.clone(),
+            num_partitions: target_partitions,
+            row_count: self.row_count,
+            sorted_by: self.sorted_by.clone(),
+            projection: self.projection.clone(),
+        })))
     }
 
     fn execute(
@@ -340,7 +405,9 @@ impl ExecutionPlan for EdgeListExecPlan {
         partition: usize,
         _context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream, DataFusionError> {
-        let stream = self.stream_record_batches(partition);
+        let start_offset = partition * self.row_count / self.num_partitions;
+        let end_offset = (partition + 1) * self.row_count / self.num_partitions;
+        let stream = self.stream_record_batches(start_offset, end_offset.min(self.row_count));
         Ok(Box::pin(RecordBatchStreamAdapter::new(
             self.schema.clone(),
             stream,

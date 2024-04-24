@@ -4,7 +4,7 @@ use crate::{
             array_ops::{ArrayOps, BaseArrayOps},
             chunked_array::ChunkedArray,
             col::ChunkedPrimitiveCol,
-            utf8_col::GenericChunkedUtf8Col,
+            utf8_col::StringCol,
             ChunkedArraySlice,
         },
         edge::Edge,
@@ -38,7 +38,7 @@ pub fn new_str_tprop_column<'a, I: Offset>(
     timestamps: TimeStamps<'a, TimeIndexEntry>,
     props: ChunkedArraySlice<'a, &'a ChunkedArray<StructArray>>,
     col_idx: usize,
-) -> Option<TPropColumn<'a, GenericChunkedUtf8Col<'a, I>>> {
+) -> Option<TPropColumn<'a, StringCol<'a, I>>> {
     let props = props.into_utf8_col(col_idx)?;
     Some(TPropColumn { props, timestamps })
 }
@@ -92,7 +92,7 @@ impl<T: NativeType + Into<Prop>> TPropOps for TPropColumn<'_, ChunkedPrimitiveCo
     }
 }
 
-impl<I: Offset> TPropOps for TPropColumn<'_, GenericChunkedUtf8Col<'_, I>> {
+impl<I: Offset> TPropOps for TPropColumn<'_, StringCol<'_, I>> {
     fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
         let (t, t_index) = self.timestamps.last_before(t)?;
         let v = self.props.get(t_index)?;

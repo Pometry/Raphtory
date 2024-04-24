@@ -1,4 +1,7 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use crate::parser::ast::*;
 
@@ -7,8 +10,11 @@ use arrow_schema::{Fields, Schema};
 use itertools::Itertools;
 use raphtory::{
     arrow::graph_impl::ArrowGraph,
-    core::{entities::VID, Direction},
-    db::api::properties::internal::ConstPropertiesOps,
+    core::{
+        entities::{edges::edge_ref::Dir, VID},
+        Direction,
+    },
+    db::{api::properties::internal::ConstPropertiesOps, graph::node::NodeView},
     prelude::*,
 };
 use sqlparser::ast::{
@@ -18,7 +24,8 @@ use sqlparser::ast::{
 mod exprs;
 
 pub fn to_sql(query: Query, graph: &ArrowGraph) -> sql_ast::Statement {
-    let query = unbind_unused_bounds(query);
+    let query = bind_unbound_pattern_filters(query);
+    let query = unbind_unused_binds(query);
 
     let with = parse_rels_to_ctes(&query, graph);
     sql_ast::Statement::Query(Box::new(sql_ast::Query {
@@ -46,22 +53,23 @@ pub fn to_sql(query: Query, graph: &ArrowGraph) -> sql_ast::Statement {
     }))
 }
 
-fn unbind_unused_bounds(mut query: Query) -> Query {
-    // find the max bound N from all nodes named n_<N>
-    let max_n = query
-        .node_patterns()
-        .map(|node_pat| {
-            if let Some(n) = node_pat.name.strip_prefix("n_") {
-                n.parse::<u64>().ok()
-            } else {
-                None
-            }
-        })
-        .flatten()
-        .max()
-        .unwrap_or(0);
+fn bind_unbound_pattern_filters(mut query: Query) -> Query {
+    let mut c = max_bind_count(&query);
 
-    let node_bounds = query
+    for node_pat in query.node_patterns_mut() {
+        c += 1;
+        if node_pat.props.is_some() {
+            node_pat.name = format!("a_{}", c);
+        }
+    }
+    query
+}
+
+fn unbind_unused_binds(mut query: Query) -> Query {
+    // find the max bound N from all nodes named n_<N>
+    let max_n = max_bind_count(&query);
+
+    let node_binds = query
         .node_patterns()
         .map(|node_pat| node_pat.name.clone())
         .filter(|name| is_bound_str(name))
@@ -74,23 +82,73 @@ fn unbind_unused_bounds(mut query: Query) -> Query {
             Clause::Return(Return { items, .. }) => items
                 .iter()
                 .flat_map(|item| item.expr.binds())
-                .filter(|return_bound| node_bounds.contains(return_bound))
+                .filter(|return_bound| node_binds.contains(return_bound))
                 .collect::<Vec<_>>(),
             _ => vec![],
         })
         .collect::<HashSet<_>>();
 
+    let nodes_in_where = query
+        .clauses()
+        .iter()
+        .filter_map(|clause| match clause {
+            Clause::Match(m) => m.where_clause.as_ref(),
+            _ => None,
+        })
+        .flat_map(|expr| expr.binds())
+        .filter(|where_bound| node_binds.contains(where_bound))
+        .collect::<HashSet<_>>();
+
+    let nodes_with_pattern_props = query
+        .node_patterns()
+        .filter(|node_pat| node_pat.props.is_some())
+        .map(|node_pat| node_pat.name.clone())
+        .collect::<HashSet<_>>();
+
     // unbind all nodes not in return
-    query.node_patterns_mut().fold(max_n, |c, node_pattern| {
-        if is_bound_str(&node_pattern.name) && !nodes_in_return.contains(&node_pattern.name) {
-            node_pattern.name = format!("n_{}", c + 1);
-            c + 1
-        } else {
-            c
-        }
-    });
+    query.node_patterns_mut().fold(
+        (max_n, HashMap::new()),
+        |(c, mut bind_table), node_pattern| {
+            if is_bound_str(&node_pattern.name)
+                && !nodes_in_return.contains(&node_pattern.name)
+                && !nodes_in_where.contains(&node_pattern.name)
+                && !nodes_with_pattern_props.contains(&node_pattern.name)
+            {
+                match bind_table.entry(node_pattern.name.clone()) {
+                    std::collections::hash_map::Entry::Vacant(entry) => {
+                        let new_name = format!("n_{}", c + 1);
+                        entry.insert(new_name.clone());
+
+                        node_pattern.name = new_name;
+                        (c + 1, bind_table)
+                    }
+                    std::collections::hash_map::Entry::Occupied(entry) => {
+                        node_pattern.name = entry.get().clone();
+                        (c, bind_table)
+                    }
+                }
+            } else {
+                (c, bind_table)
+            }
+        },
+    );
 
     query
+}
+
+fn max_bind_count(query: &Query) -> usize {
+    query
+        .node_patterns()
+        .map(|node_pat| {
+            if let Some(n) = node_pat.name.strip_prefix("n_") {
+                n.parse::<usize>().ok()
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .max()
+        .unwrap_or(0)
 }
 
 fn parse_order_by(_query: &Query) -> Vec<sql_ast::OrderByExpr> {
@@ -150,6 +208,11 @@ fn full_layer_fields(graph: &ArrowGraph, layer_id: usize) -> Option<Fields> {
     match arr_dt {
         arrow_schema::DataType::Struct(fields) => {
             let mut all_fields = vec![];
+            all_fields.push(Arc::new(arrow_schema::Field::new(
+                "id",
+                arrow_schema::DataType::UInt64,
+                false,
+            )));
             all_fields.push(Arc::new(arrow_schema::Field::new(
                 "layer_id",
                 arrow_schema::DataType::UInt64,
@@ -333,20 +396,16 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
 
     for node in all_bound_nodes(query) {
         if !seen.contains(&node.name) {
-            let cte = sql_ast::Cte {
-                alias: TableAlias {
-                    name: sql_ast::Ident::new(&node.name),
-                    columns: vec![],
-                },
-                query: select_query_with_projection(
-                    vec![sql_ast::SelectItem::Wildcard(
-                        WildcardAdditionalOptions::default(),
-                    )],
-                    "nodes",
-                ),
-                from: None,
-            };
+            let cte = node_scan_cte(node);
             seen.insert(node.name.clone());
+            cte_tables.push(cte)
+        }
+    }
+
+    if cte_tables.is_empty() {
+        // there are no edges and no bound nodes, this is probably a match (n) return(*) or match () statement
+        if let Some(node) = query.node_patterns().next() {
+            let cte = node_scan_cte(node);
             cte_tables.push(cte)
         }
     }
@@ -357,10 +416,26 @@ fn parse_rels_to_ctes(query: &Query, graph: &ArrowGraph) -> With {
     }
 }
 
+fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
+    sql_ast::Cte {
+        alias: TableAlias {
+            name: sql_ast::Ident::new(&node.name),
+            columns: vec![],
+        },
+        query: select_query_with_projection(
+            vec![sql_ast::SelectItem::Wildcard(
+                WildcardAdditionalOptions::default(),
+            )],
+            "nodes",
+        ),
+        from: None,
+    }
+}
+
 fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
     let order_by = vec![];
 
-    let from_tables = parse_tables(query);
+    let (from_tables, rel_uniqueness_filters) = parse_tables_2(query);
 
     let rel_binds = rel_names(query);
 
@@ -382,7 +457,7 @@ fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr
         // LATERAL VIEWs
         lateral_views: vec![],
         // WHERE
-        selection: where_expr(query, &rel_binds, &node_binds),
+        selection: where_expr(query, rel_uniqueness_filters, &rel_binds, &node_binds),
         // GROUP BY
         group_by: GroupByExpr::Expressions(vec![]),
         // CLUSTER BY (Hive)
@@ -425,110 +500,153 @@ fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
     }
 }
 
-fn parse_tables_2(query: &Query) -> Vec<sql_ast::TableWithJoins> {
+fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
     let mut joins = vec![];
+    // println!("{:?}", query);
     let graph = query_to_graph(query);
+
+    // graph.edges().into_iter().for_each(|edge| {
+    //     println!("{:?} - {:?} dir: {:?}", edge.src().name(), edge.dst().name(), edge.edge.dir());
+    // });
+
     let first = query
         .node_patterns()
         .next()
         .expect("unexpected! no node patterns");
     // walk the graph in depth first fashion and add the nodes as joins
-    if graph.count_edges() > 0 {
+    let edge_counts = graph
+        .nodes()
+        .into_iter()
+        .filter(|node| node.get_const_prop(0).is_some())
+        .count();
+
+    // println!("edge counts: {}", edge_counts);
+
+    if edge_counts > 0 {
         let first_edge = query
             .rel_patterns()
             .next()
             .expect("unexpected! no edge patterns");
 
-        // deal with the first node separately
-        if is_bound(first) {
-            match first_edge.direction {
-                Direction::OUT => {
-                    joins.push(make_sql_join(&first_edge.name, "src", &first.name, "id"))
-                }
-                Direction::IN => {
-                    joins.push(make_sql_join(&first_edge.name, "dst", &first.name, "id"))
-                }
-                Direction::BOTH => todo!(),
-            }
-        }
-
-        let mut seen: HashSet<VID> = [graph.node(&first.name).unwrap().node]
-            .into_iter()
-            .collect();
+        let mut seen: HashSet<VID> = HashSet::new();
 
         let mut stack = vec![graph
             .node(first_edge.name.as_str())
             .expect("edge not found")];
 
         let mut last_edge_dir = first_edge.direction;
+        let mut last_edge: Option<NodeView<Graph>> = None;
+
+        let mut additional_filters = vec![];
 
         while !stack.is_empty() {
-            let node = stack.pop().unwrap();
-            for n in node.neighbours().iter().filter(|n| !seen.contains(&n.node)) {
+            let parent = stack.pop().unwrap();
+
+            let mut child_edges = vec![];
+
+            for n in parent
+                .neighbours()
+                .iter()
+                .filter(|n| !seen.contains(&n.node))
+            {
+                let edge = graph
+                    .edge(&parent.name(), &n.name())
+                    .or_else(|| graph.edge(&n.name(), &parent.name()))
+                    .expect("surprisingly edge not found!");
+
+                // println!("parent: {:?}, child: {:?}, dir: {:?}", parent.name(), n.name(), edge.edge.dir());
+                let dir = if (edge.src().name(), edge.dst().name()) == (parent.name(), n.name()) {
+                    // println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+                    Dir::Out
+                } else if (edge.src().name(), edge.dst().name()) == (n.name(), parent.name()) {
+                    // println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
+                    Dir::Into
+                } else {
+                    panic!("unexpected edge direction");
+                };
+
                 if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
                     // this is an edge
-                    last_edge_dir = if out { Direction::OUT } else { Direction::IN };
 
-                    if let Some(Prop::Bool(out)) = node.get_const_prop(0) {
-                        // parent node was an edge
-                        let parent_edge_dir = if out { Direction::OUT } else { Direction::IN };
+                    let current_edge_dir = if out { Direction::OUT } else { Direction::IN };
+                    if !is_bound_str(&parent.name()) {
+                        if let Some(ref last_edge) = last_edge {
+                            let (from, to) = match (last_edge_dir, current_edge_dir) {
+                                (Direction::OUT, Direction::OUT) => ("dst", "src"),
+                                (Direction::OUT, Direction::IN) => ("dst", "dst"),
+                                (Direction::IN, Direction::OUT) => ("src", "src"),
+                                (Direction::IN, Direction::IN) => ("src", "dst"),
+                                _ => unimplemented!("both direction not supported"),
+                            };
 
-                        let (from, to) = match (parent_edge_dir, last_edge_dir) {
-                            (Direction::OUT, Direction::OUT) => ("dst", "src"),
-                            (Direction::OUT, Direction::IN) => ("dst", "dst"),
-                            (Direction::IN, Direction::OUT) => ("src", "src"),
-                            (Direction::IN, Direction::IN) => ("src", "dst"),
-                            _ => unimplemented!("both direction not supported"),
-                        };
-
-                        joins.push(make_sql_join(&node.name(), from, &n.name(), to));
+                            joins.push(make_sql_join(&last_edge.name(), from, &n.name(), to));
+                        }
                     } else {
-                        match last_edge_dir {
-                            Direction::OUT => {
-                                joins.push(make_sql_join(&node.name(), "id", &n.name(), "src"))
+                        // parent is node
+                        match dir {
+                            Dir::Out => {
+                                joins.push(make_sql_join(&parent.name(), "id", &n.name(), "src"))
                             }
-                            Direction::IN => {
-                                joins.push(make_sql_join(&node.name(), "id", &n.name(), "dst"))
+                            Dir::Into => {
+                                joins.push(make_sql_join(&parent.name(), "id", &n.name(), "dst"))
                             }
-                            Direction::BOTH => todo!(),
                         }
                     }
+
+                    if let Some(ref last_edge) = last_edge {
+                        additional_filters.push(Expr::neq(
+                            Expr::var(&last_edge.name(), ["id"]),
+                            Expr::var(&n.name(), ["id"]),
+                        ));
+                    }
+                    child_edges.push(n.name());
+                    last_edge_dir = current_edge_dir;
                 } else {
-                    // this is a node, parent is an edge
+                    // node with edge parent
                     if is_bound_str(&n.name()) {
-                        match last_edge_dir {
-                            Direction::OUT => {
-                                joins.push(make_sql_join(&node.name(), "dst", &n.name(), "id"))
+                        match dir {
+                            Dir::Out => {
+                                joins.push(make_sql_join(&parent.name(), "dst", &n.name(), "id"))
                             }
-                            Direction::IN => {
-                                joins.push(make_sql_join(&node.name(), "src", &n.name(), "id"))
+                            Dir::Into => {
+                                joins.push(make_sql_join(&parent.name(), "src", &n.name(), "id"))
                             }
-                            Direction::BOTH => todo!(),
                         }
                     }
                 }
 
                 stack.push(n);
             }
-            seen.insert(node.node);
+
+            let unique_edges = child_edges.iter().combinations(2).map(|perm_vec| {
+                let (a, b) = (perm_vec[0], perm_vec[1]);
+                Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"]))
+            });
+
+            additional_filters.extend(unique_edges);
+
+            if parent.get_const_prop(0).is_some() {
+                last_edge = Some(parent.clone());
+            }
+            seen.insert(parent.node);
         }
 
         let table = sql_ast::TableWithJoins {
             relation: table_from_name(&first_edge.name),
             joins,
         };
-        vec![table]
+        (vec![table], additional_filters)
     } else {
         // matching only one node
         let node_table = sql_ast::TableWithJoins {
             relation: table_from_name(&first.name),
             joins,
         };
-        vec![node_table]
+        (vec![node_table], vec![])
     }
 }
 
-/// walk the path parts of the query and build a graph
+/// walk the path parts of the query and build a graph from every node pattern and edge pattern
 fn query_to_graph(query: &Query) -> Graph {
     let pattern_parts = query
         .clauses()
@@ -545,17 +663,13 @@ fn query_to_graph(query: &Query) -> Graph {
         node, rel_chain, ..
     } in pattern_parts
     {
-        let mut last_edge: Option<&RelPattern> = None;
-
-        if is_bound(node) {
-            graph
-                .add_node(0, node.name.as_str(), NO_PROPS, None)
-                .expect("failed to add node");
-        }
+        graph
+            .add_node(0, node.name.as_str(), NO_PROPS, None)
+            .expect("failed to add node");
         let mut last_node = node;
 
         for (
-            rp @ RelPattern {
+            RelPattern {
                 name: edge,
                 direction,
                 ..
@@ -563,24 +677,27 @@ fn query_to_graph(query: &Query) -> Graph {
             np @ NodePattern { name: u, .. },
         ) in rel_chain
         {
-            if is_bound(last_node) {
-                graph
-                    .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-            } else if let Some(last_edge) = last_edge {
-                graph
-                    .add_edge(0, last_edge.name.as_str(), edge.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-            } else {
-                graph
-                    .add_node(0, edge.as_str(), NO_PROPS, None)
-                    .expect("failed to add edge");
-            }
+            match direction {
+                Direction::OUT => {
+                    graph
+                        .add_edge(0, last_node.name.as_str(), edge.as_str(), NO_PROPS, None)
+                        .expect("failed to add edge");
 
-            if is_bound(np) {
-                graph
-                    .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
-                    .expect("failed to add node");
+                    graph
+                        .add_edge(0, edge.as_str(), u.as_str(), NO_PROPS, None)
+                        .expect("failed to add node");
+                }
+
+                Direction::IN => {
+                    graph
+                        .add_edge(0, u.as_str(), edge.as_str(), NO_PROPS, None)
+                        .expect("failed to add edge");
+
+                    graph
+                        .add_edge(0, edge.as_str(), last_node.name.as_str(), NO_PROPS, None)
+                        .expect("failed to add node");
+                }
+                Direction::BOTH => unimplemented!("BOTH direction not supported"),
             }
 
             assert!(
@@ -594,7 +711,6 @@ fn query_to_graph(query: &Query) -> Graph {
                 .add_constant_properties([("direction", Prop::Bool(direction_flag))])
                 .expect("failed to add properties");
 
-            last_edge = Some(rp);
             last_node = np;
         }
     }
@@ -772,7 +888,16 @@ fn sql_projection(
         .unwrap_or_default()
 }
 
-fn where_expr(query: &Query, rel_binds: &[String], node_binds: &[String]) -> Option<sql_ast::Expr> {
+fn where_expr(
+    query: &Query,
+    rel_uniqueness_filters: Vec<Expr>,
+    rel_binds: &[String],
+    node_binds: &[String],
+) -> Option<sql_ast::Expr> {
+    let rel_uniqueness_filters = rel_uniqueness_filters
+        .iter()
+        .map(|expr| cypher_to_sql_expr(expr, rel_binds, node_binds, false));
+
     let rel_exprs = query
         .clauses()
         .iter()
@@ -784,13 +909,14 @@ fn where_expr(query: &Query, rel_binds: &[String], node_binds: &[String]) -> Opt
             }) => pat_parts.iter().flat_map(|part| {
                 part.rel_chain.iter().flat_map(|(rel, _)| {
                     rel.props.iter().flat_map(|props| {
-                        props.iter().map(|(prop, expr)| Expr::BinOp {
-                            op: BinOpType::Eq,
-                            left: Box::new(Expr::Var {
-                                var_name: rel.name.clone(),
-                                attrs: vec![prop.clone()],
-                            }),
-                            right: Box::new(expr.clone()),
+                        props.iter().map(|(prop, expr)| {
+                            Expr::eq(
+                                Expr::Var {
+                                    var_name: rel.name.clone(),
+                                    attrs: vec![prop.clone()],
+                                },
+                                expr.clone(),
+                            )
                         })
                     })
                 })
@@ -798,6 +924,24 @@ fn where_expr(query: &Query, rel_binds: &[String], node_binds: &[String]) -> Opt
             _ => unreachable!(),
         })
         .map(|expr| cypher_to_sql_expr(&expr, rel_binds, node_binds, false));
+
+    let node_exprs = query
+        .node_patterns()
+        .flat_map(|node_pat| {
+            node_pat.props.iter().flat_map(|props| {
+                props.iter().map(|(prop, expr)| {
+                    Expr::eq(
+                        Expr::Var {
+                            var_name: node_pat.name.clone(),
+                            attrs: vec![prop.clone()],
+                        },
+                        expr.clone(),
+                    )
+                })
+            })
+        })
+        .map(|expr| cypher_to_sql_expr(&expr, rel_binds, node_binds, false));
+
     let where_exprs = query.clauses().iter().filter_map(|clause| match clause {
         Clause::Match(m) => m
             .where_clause
@@ -805,8 +949,11 @@ fn where_expr(query: &Query, rel_binds: &[String], node_binds: &[String]) -> Opt
             .map(|expr| cypher_to_sql_expr(expr, rel_binds, node_binds, false)),
         _ => None,
     });
+
     where_exprs
         .chain(rel_exprs)
+        .chain(rel_uniqueness_filters)
+        .chain(node_exprs)
         .reduce(|a, b| sql_ast::Expr::BinaryOp {
             left: Box::new(a),
             op: sql_ast::BinaryOperator::And,
@@ -857,12 +1004,7 @@ fn cypher_to_sql_expr(
                     ]))
                 } else {
                     // this makes sure that non-wildcard edges are selected with their id when passed down to functions
-                    if rel_binds.contains(&var_name) {
-                        sql_ast::Expr::CompoundIdentifier(vec![
-                            sql_ast::Ident::new(var_name),
-                            sql_ast::Ident::new("src"),
-                        ])
-                    } else if node_binds.contains(&var_name) {
+                    if rel_binds.contains(&var_name) || node_binds.contains(&var_name) {
                         sql_ast::Expr::CompoundIdentifier(vec![
                             sql_ast::Ident::new(var_name),
                             sql_ast::Ident::new("id"),
@@ -934,7 +1076,7 @@ fn cypher_to_sql_expr(
         },
         Expr::CountAll => {
             if let Some(bind) = rel_binds.first() {
-                sql_count_all(bind, "src")
+                sql_count_all(bind, "id")
             } else if let Some(bind) = node_binds.first() {
                 sql_count_all(bind, "id")
             } else {
@@ -1077,7 +1219,20 @@ mod test {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn select_all() {
+    fn count_all_nodes() {
+        check_cypher_to_sql(
+            "MATCH (n) RETURN COUNT(n)",
+            "WITH n AS (SELECT * FROM nodes) SELECT COUNT(n.id) FROM n",
+        );
+
+        check_cypher_to_sql(
+            "MATCH () RETURN COUNT(*)",
+            "WITH n_0 AS (SELECT * FROM nodes) SELECT COUNT(n_0.id) FROM n_0",
+        );
+    }
+
+    #[test]
+    fn select_all_edges() {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e",
@@ -1085,18 +1240,34 @@ mod test {
     }
 
     #[test]
-    fn select_unused_node_bounds() {
+    fn select_unused_node_binds() {
         check_cypher_to_sql(
             "MATCH (n)-[e]->(m) RETURN COUNT(e)",
-            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.id) FROM e",
         );
+    }
+
+    #[test]
+    fn call_id_on_node_binds() {
+        check_cypher_to_sql(
+            "MATCH (n)-[e]->(m) WHERE n <> m RETURN COUNT(e)",
+            "WITH \
+             e AS (SELECT * FROM _default), \
+             n AS (SELECT * FROM nodes), \
+             m AS (SELECT * FROM nodes) \
+             SELECT COUNT(e.id) \
+             FROM e \
+             JOIN n ON e.src = n.id \
+             JOIN m ON e.dst = m.id \
+             WHERE n.id <> m.id",
+        )
     }
 
     #[test]
     fn select_edges_count() {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN COUNT(e)",
-            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.id) FROM e",
         );
     }
 
@@ -1137,7 +1308,7 @@ mod test {
     fn select_wildcard_count_all() {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN COUNT(*)",
-            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
+            "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.id) FROM e",
         );
     }
 
@@ -1147,12 +1318,12 @@ mod test {
             "MATCH (v)-[e]->(u) RETURN COUNT(e)",
             "WITH \
              e AS (\
-             SELECT layer_id, src, dst, time FROM _default \
+             SELECT id, layer_id, src, dst, time FROM _default \
              UNION ALL \
-             SELECT layer_id, src, dst, time FROM L1 \
+             SELECT id, layer_id, src, dst, time FROM L1 \
              UNION ALL \
-             SELECT layer_id, src, dst, time FROM L2) \
-             SELECT COUNT(e.src) FROM e",
+             SELECT id, layer_id, src, dst, time FROM L2) \
+             SELECT COUNT(e.id) FROM e",
             ["L1", "L2"],
         )
     }
@@ -1193,7 +1364,13 @@ mod test {
     fn select_edge_with_type() {
         check_cypher_to_sql_layers(
             "MATCH ()-[e]->() where e.time > 10 RETURN e,type(e)",
-            "WITH e AS (SELECT layer_id, src, dst, time FROM _default UNION ALL SELECT layer_id, src, dst, time FROM L1 UNION ALL SELECT layer_id, src, dst, time FROM L2) SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
+            "WITH \
+             e AS (\
+             SELECT id, layer_id, src, dst, time FROM _default \
+             UNION ALL \
+             SELECT id, layer_id, src, dst, time FROM L1 \
+             UNION ALL SELECT id, layer_id, src, dst, time FROM L2) \
+             SELECT e.*, type(e.layer_id) FROM e WHERE e.time > 10L",
             ["L1", "L2"],
         );
     }
@@ -1243,7 +1420,13 @@ mod test {
     fn hop_two_times_out() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->() RETURN e1, e2",
-            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.*, e2.* FROM e1 JOIN e2 ON e1.dst = e2.src",
+            "WITH \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default) \
+             SELECT e1.*, e2.* \
+             FROM e1 \
+             JOIN e2 ON e1.dst = e2.src \
+             WHERE e1.id <> e2.id",
         );
     }
 
@@ -1277,7 +1460,8 @@ mod test {
              JOIN n1 ON e1.src = n1.id \
              JOIN n2 ON e1.dst = n2.id \
              JOIN e2 ON n2.id = e2.src \
-             JOIN n3 ON e2.dst = n3.id",
+             JOIN n3 ON e2.dst = n3.id \
+             WHERE e1.id <> e2.id",
         );
     }
 
@@ -1296,14 +1480,33 @@ mod test {
              JOIN n1 ON e1.src = n1.id \
              JOIN n2 ON e1.dst = n2.id \
              JOIN e2 ON n2.id = e2.src \
-             JOIN n3 ON e2.dst = n3.id",
+             JOIN n3 ON e2.dst = n3.id \
+             WHERE e1.id <> e2.id",
         );
+    }
+
+    #[test]
+    fn test_fork_in_path() {
+        check_cypher_to_sql(
+            "match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst",
+            "WITH \
+             e3 AS (SELECT * FROM _default), \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default), \
+             b AS (SELECT * FROM nodes) \
+             SELECT e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst \
+             FROM e3 \
+             JOIN b ON e3.src = b.id \
+             JOIN e1 ON b.id = e1.dst \
+             JOIN e2 ON b.id = e2.src \
+             WHERE e3.id <> e1.id AND e3.id <> e2.id AND e1.id <> e2.id",
+        )
     }
 
     #[test]
     fn two_hops_with_self_loop() {
         check_cypher_to_sql_layers(
-            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.NAME",
+            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.name",
             "WITH \
              nf1 AS (SELECT * FROM Netflow), \
              login1 AS (SELECT * FROM Events2v), \
@@ -1311,16 +1514,51 @@ mod test {
              E AS (SELECT * FROM nodes), \
              B AS (SELECT * FROM nodes), \
              A AS (SELECT * FROM nodes) \
-             SELECT E.name, B.name, A.NAME \
+             SELECT E.name, B.name, A.name \
              FROM nf1 \
-             JOIN E ON nf1.src = E.id \
-             JOIN B ON nf1.dst = B.id \
-             JOIN login1 ON B.id = login1.src \
-             JOIN A ON login1.dst = A.id \
+             JOIN E ON nf1.dst = E.id \
+             JOIN B ON nf1.src = B.id \
+             JOIN login1 ON B.id = login1.dst \
              JOIN prog1 ON B.id = prog1.src \
-             JOIN B AS B_1 ON prog1.dst = B_1.id" ,
+             JOIN A ON login1.src = A.id \
+             WHERE nf1.id <> login1.id AND nf1.id <> prog1.id AND login1.id <> prog1.id",
             ["Netflow", "Events2v", "Events1v"]
         );
+    }
+
+    #[test]
+    fn two_hops_with_self_loop_ignore_nodes() {
+        check_cypher_to_sql_layers(
+            "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) WHERE A <> B RETURN count(*)",
+            "WITH \
+             nf1 AS (SELECT * FROM Netflow), \
+             login1 AS (SELECT * FROM Events2v), \
+             prog1 AS (SELECT * FROM Events1v), \
+             B AS (SELECT * FROM nodes), \
+             A AS (SELECT * FROM nodes) \
+             SELECT COUNT(nf1.id) \
+             FROM nf1 \
+             JOIN B ON nf1.src = B.id \
+             JOIN login1 ON B.id = login1.dst \
+             JOIN prog1 ON B.id = prog1.src \
+             JOIN A ON login1.src = A.id \
+             WHERE \
+             A.id <> B.id AND \
+             nf1.id <> login1.id AND \
+             nf1.id <> prog1.id AND \
+             login1.id <> prog1.id",
+           ["Netflow", "Events2v", "Events1v"])
+    }
+
+    #[test]
+    fn filter_edges_by_nodes_not_bound() {
+        check_cypher_to_sql(
+            "MATCH ({name: 'bla'})-[e]->() RETURN e",
+            "WITH \
+            e AS (SELECT * FROM _default), \
+            a_2 AS (SELECT * FROM nodes) \
+            SELECT e.* FROM e JOIN a_2 ON e.src = a_2.id WHERE a_2.name = 'bla'",
+        )
     }
 
     #[test]
@@ -1335,31 +1573,41 @@ mod test {
     fn hop_twice_with_conditions_and_nodes() {
         check_cypher_to_sql(
             "MATCH (a)-[r1]->(b)-[r2]->(c) WHERE a.name CONTAINS 'aa' AND b.name CONTAINS 'bb' AND c.name CONTAINS 'cc' AND r1.eprop2flt <= r2.eprop2flt AND r1.eprop2flt >= (r2.eprop2flt - 40) return a.name,type(r1),b.name,type(r2),c.name,r1.eprop2flt,r2.eprop2flt",
-        "WITH \
-         r1 AS (SELECT * FROM _default), \
-         r2 AS (SELECT * FROM _default), \
-         a AS (SELECT * FROM nodes), \
-         b AS (SELECT * FROM nodes), \
-         c AS (SELECT * FROM nodes) \
-         SELECT a.name, type(r1.layer_id), b.name, type(r2.layer_id), c.name, r1.eprop2flt, r2.eprop2flt \
-         FROM r1 \
-         JOIN a ON r1.src = a.id \
-         JOIN b ON r1.dst = b.id \
-         JOIN r2 ON b.id = r2.src \
-         JOIN c ON r2.dst = c.id \
-         WHERE \
-         a.name LIKE '%aa%' \
-         AND b.name LIKE '%bb%' \
-         AND c.name LIKE '%cc%' \
-         AND r1.eprop2flt <= r2.eprop2flt \
-         AND r1.eprop2flt >= (r2.eprop2flt - 40L)");
+            "WITH \
+             r1 AS (SELECT * FROM _default), \
+             r2 AS (SELECT * FROM _default), \
+             a AS (SELECT * FROM nodes), \
+             b AS (SELECT * FROM nodes), \
+             c AS (SELECT * FROM nodes) \
+             SELECT a.name, type(r1.layer_id), b.name, type(r2.layer_id), c.name, r1.eprop2flt, r2.eprop2flt \
+             FROM r1 \
+             JOIN a ON r1.src = a.id \
+             JOIN b ON r1.dst = b.id \
+             JOIN r2 ON b.id = r2.src \
+             JOIN c ON r2.dst = c.id \
+             WHERE \
+             a.name LIKE '%aa%' \
+             AND b.name LIKE '%bb%' \
+             AND c.name LIKE '%cc%' \
+             AND r1.eprop2flt <= r2.eprop2flt \
+             AND r1.eprop2flt >= (r2.eprop2flt - 40L) \
+             AND r1.id <> r2.id",
+        );
     }
 
     #[test]
     fn hop_3_times_out() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->()-[e3]->() RETURN e1, e2, e3",
-            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), e3 AS (SELECT * FROM _default) SELECT e1.*, e2.*, e3.* FROM e1 JOIN e2 ON e1.dst = e2.src JOIN e3 ON e2.dst = e3.src",
+            "WITH \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default), \
+             e3 AS (SELECT * FROM _default) \
+             SELECT e1.*, e2.*, e3.* \
+             FROM e1 \
+             JOIN e2 ON e1.dst = e2.src \
+             JOIN e3 ON e2.dst = e3.src \
+             WHERE e1.id <> e2.id AND e2.id <> e3.id",
         );
     }
 
@@ -1367,7 +1615,13 @@ mod test {
     fn hop_two_times_in() {
         check_cypher_to_sql(
             "MATCH ()<-[e1]-()<-[e2]-() RETURN e1, e2",
-            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.*, e2.* FROM e1 JOIN e2 ON e1.src = e2.dst",
+            "WITH \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default) \
+             SELECT e1.*, e2.* \
+             FROM e1 \
+             JOIN e2 ON e1.src = e2.dst \
+             WHERE e1.id <> e2.id",
         );
     }
 
@@ -1375,7 +1629,13 @@ mod test {
     fn hop_out_in() {
         check_cypher_to_sql(
             "MATCH ()-[e1]->()<-[e2]-() RETURN e1, e2",
-            "WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default) SELECT e1.*, e2.* FROM e1 JOIN e2 ON e1.dst = e2.dst",
+            "WITH \
+             e1 AS (SELECT * FROM _default), \
+             e2 AS (SELECT * FROM _default) \
+             SELECT e1.*, e2.* \
+             FROM e1 \
+             JOIN e2 ON e1.dst = e2.dst \
+             WHERE e1.id <> e2.id",
         );
     }
 

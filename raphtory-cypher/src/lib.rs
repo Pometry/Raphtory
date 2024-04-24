@@ -156,6 +156,15 @@ mod test {
             (6, 4, 9, 7., "bzz".to_string()),
         ];
 
+        // a star graph with 5 nodes an 4 edges
+    static ref EDGES3: Vec<(u64, u64, i64, f64)> = vec![
+            (0, 2, 2, 7.),
+            (0, 3, 3, 9.),
+            (0, 4, 4, 1.),
+            (1, 0, 1, 3.),
+        ];
+
+
     // (id, name, age, city)
     static ref NODES: Vec<(u64, String, i64, Option<String>)> = vec![
             (0, "Alice", 30, None),
@@ -175,7 +184,7 @@ mod test {
     #[tokio::test]
     async fn select_table() {
         let graph_dir = tempdir().unwrap();
-        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
 
         let df = run_cypher("match ()-[e]->() RETURN *", &graph)
             .await
@@ -298,6 +307,29 @@ mod test {
 
             print_batches(&data).expect("failed to print batches");
         }
+    }
+
+    #[tokio::test]
+    async fn fork_path_on_star_graph() {
+        let graph_dir = tempdir().unwrap();
+
+        let graph = Graph::new();
+        load_nodes(&graph);
+        load_star_edges(&graph);
+
+        let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
+
+        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).expect("failed to print batches");
+
+        let df = run_cypher("match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).expect("failed to print batches");
     }
 
     #[tokio::test]
@@ -429,6 +461,14 @@ mod test {
         }
     }
 
+    fn load_star_edges(graph: &Graph) {
+        for (src, dst, t, weight) in EDGES3.iter() {
+            graph
+                .add_edge(*t, *src, *dst, [("weight", Prop::F64(*weight))], None)
+                .unwrap();
+        }
+    }
+
     #[tokio::test]
     async fn select_contains() {
         let graph_dir = tempdir().unwrap();
@@ -451,7 +491,7 @@ mod test {
         let graph = make_graph_with_str_col(graph_dir);
 
         let df = run_cypher(
-            "match ()-[e]-() where e.name ends with 'z' return count(e.name)",
+            "match ()-[e]->() where e.name ends with 'z' return count(e.name)",
             &graph,
         )
         .await
@@ -526,7 +566,7 @@ mod test {
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
 
         let df = run_cypher(
-            "match ()-[e:_default|LAYER1|LAYER2]-() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+            "match ()-[e:_default|LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
             &graph,
         ).await.unwrap();
 
@@ -562,7 +602,7 @@ mod test {
         load_edges_with_str_props(&g, Some("LAYER2"));
 
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
-        let df = run_cypher("match ()-[e]-() return type(e), e", &graph)
+        let df = run_cypher("match ()-[e]->() return type(e), e", &graph)
             .await
             .unwrap();
 
@@ -575,7 +615,7 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_str_col(graph_dir);
 
-        let df = run_cypher("match ()-[e]-() return count(*)", &graph)
+        let df = run_cypher("match ()-[e]->() return count(*)", &graph)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
@@ -588,7 +628,7 @@ mod test {
         let graph = make_graph_with_str_col(graph_dir);
 
         let df = run_cypher(
-            "match ()-[e]-() where e.name contains 'a' return e limit 2",
+            "match ()-[e]->() where e.name contains 'a' return e limit 2",
             &graph,
         )
         .await
