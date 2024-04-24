@@ -416,8 +416,8 @@ impl ArrowOwnedNode {
                                 .clone()
                                 .into_value(self.vid.index())
                                 .map(|i| VID(i as usize));
-                            let src = self.vid;
-                            eids.zip(nbrs).map(move |(eid, dst)| {
+                            let dst = self.vid;
+                            eids.zip(nbrs).map(move |(eid, src)| {
                                 EdgeRef::new_incoming(eid, src, dst).at_layer(layer_id)
                             })
                         })
@@ -438,9 +438,9 @@ impl ArrowOwnedNode {
                     .clone()
                     .into_value(self.vid.index())
                     .map(|i| VID(i as usize));
-                let src = self.vid;
+                let dst = self.vid;
                 LayerVariants::One(
-                    eids.zip(nbrs).map(move |(eid, dst)| {
+                    eids.zip(nbrs).map(move |(eid, src)| {
                         EdgeRef::new_incoming(eid, src, dst).at_layer(layer_id)
                     }),
                 )
@@ -462,8 +462,8 @@ impl ArrowOwnedNode {
                             .clone()
                             .into_value(self.vid.index())
                             .map(|i| VID(i as usize));
-                        let src = self.vid;
-                        eids.zip(nbrs).map(move |(eid, dst)| {
+                        let dst = self.vid;
+                        eids.zip(nbrs).map(move |(eid, src)| {
                             EdgeRef::new_incoming(eid, src, dst).at_layer(layer_id)
                         })
                     })
