@@ -276,7 +276,6 @@ pub enum Expr {
 }
 
 impl Expr {
-
     pub fn binds(&self) -> Vec<String> {
         match self {
             Expr::Var { var_name, .. } => {

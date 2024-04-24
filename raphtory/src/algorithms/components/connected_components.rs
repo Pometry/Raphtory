@@ -96,8 +96,8 @@ mod cc_test {
     use crate::{db::api::mutation::AdditionOps, prelude::*};
     use itertools::*;
     use quickcheck_macros::quickcheck;
-    use tempfile::TempDir;
     use std::{cmp::Reverse, collections::HashMap, iter::once};
+    use tempfile::TempDir;
 
     #[test]
     fn run_loop_simple_connected_components() {

@@ -981,9 +981,21 @@ mod db_tests {
             assert!(graph.layers("layer2").unwrap().edge(11, 22).is_none());
             assert!(graph.layers("layer2").unwrap().edge(11, 44).is_some());
 
-                    assert!(graph.exclude_layers("layer2").unwrap().edge(11, 44).is_none());
-        assert!(graph.exclude_layers("layer2").unwrap().edge(11, 33).is_some());
-        assert!(graph.exclude_layers("layer2").unwrap().edge(11, 22).is_some());
+            assert!(graph
+                .exclude_layers("layer2")
+                .unwrap()
+                .edge(11, 44)
+                .is_none());
+            assert!(graph
+                .exclude_layers("layer2")
+                .unwrap()
+                .edge(11, 33)
+                .is_some());
+            assert!(graph
+                .exclude_layers("layer2")
+                .unwrap()
+                .edge(11, 22)
+                .is_some());
 
             let dft_layer = graph.default_layer();
             let layer1 = graph.layers("layer1").expect("layer1");

@@ -297,7 +297,6 @@ mod test {
             let data = df.collect().await.unwrap();
 
             print_batches(&data).expect("failed to print batches");
-
         }
     }
 

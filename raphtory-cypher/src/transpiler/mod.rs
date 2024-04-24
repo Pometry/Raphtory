@@ -1093,7 +1093,7 @@ mod test {
     }
 
     #[test]
-    fn select_edges_count(){
+    fn select_edges_count() {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN COUNT(e)",
             "WITH e AS (SELECT * FROM _default) SELECT COUNT(e.src) FROM e",
@@ -1153,7 +1153,7 @@ mod test {
              UNION ALL \
              SELECT layer_id, src, dst, time FROM L2) \
              SELECT COUNT(e.src) FROM e",
-            ["L1", "L2"]
+            ["L1", "L2"],
         )
     }
 

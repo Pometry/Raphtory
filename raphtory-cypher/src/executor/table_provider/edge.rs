@@ -66,7 +66,12 @@ impl EdgeListTableProvider {
         let sort_by_dst = create_physical_sort_expr(&expr, &df_schema, &ExecutionProps::new())?;
 
         //time
-        let time_field_name = graph.layer(layer_id).edges_data_type().first().map(|f|f.name.clone()).unwrap();
+        let time_field_name = graph
+            .layer(layer_id)
+            .edges_data_type()
+            .first()
+            .map(|f| f.name.clone())
+            .unwrap();
 
         let expr = Expr::Sort(expr::Sort::new(Box::new(col(time_field_name)), true, true));
         let df_schema = DFSchema::try_from(schema.as_ref().clone()).unwrap();
