@@ -473,9 +473,10 @@ impl ArrowOwnedNode {
     }
 
     pub fn edges(self, layers: LayerIds) -> impl Iterator<Item = EdgeRef> {
-        self.clone()
-            .in_edges(layers.clone())
-            .merge_by(self.out_edges(layers), |e1, e2| e1.remote() <= e2.remote())
+        self.clone().in_edges(layers.clone()).merge_by(
+            self.out_edges(layers).filter(|e| e.src() != e.dst()),
+            |e1, e2| e1.remote() <= e2.remote(),
+        )
     }
 }
 
