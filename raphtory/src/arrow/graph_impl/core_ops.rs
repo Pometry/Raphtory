@@ -16,9 +16,24 @@ use crate::{
         storage::{locked_view::LockedView, ArcEntry},
         ArcStr, Prop,
     },
-    db::api::view::{
-        internal::{CoreEdgeView, CoreGraphOps, EdgeUpdates, NodeAdditions},
-        BoxedIter,
+    db::api::{
+        storage::{
+            arrow::{
+                edges::{ArrowEdges, ArrowOwnedEdge},
+                nodes::{ArrowNode, ArrowNodesOwned, ArrowOwnedNode},
+            },
+            edges::{
+                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
+            },
+            nodes::{
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+            },
+            storage_ops::GraphStorage,
+        },
+        view::{
+            internal::{CoreGraphOps, EdgeUpdates, NodeAdditions},
+            BoxedIter,
+        },
     },
 };
 
@@ -50,7 +65,7 @@ impl CoreGraphOps for ArrowGraph {
         self.inner.find_layer_id(name)
     }
 
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         match layer_ids {
             LayerIds::None => Box::new(std::iter::empty()),
             LayerIds::All => Box::new(
@@ -62,7 +77,7 @@ impl CoreGraphOps for ArrowGraph {
             LayerIds::One(id) => Box::new(
                 self.inner
                     .layer_names()
-                    .get(id)
+                    .get(*id)
                     .cloned()
                     .into_iter()
                     .map(|s| ArcStr::from(s)),
@@ -112,11 +127,6 @@ impl CoreGraphOps for ArrowGraph {
 
         let edge = self.inner.edge(eref.pid(), layer_id);
         EdgeUpdates::Col(edge.timestamps())
-    }
-
-    fn node_additions(&self, v: VID) -> NodeAdditions {
-        let node = self.inner.internal_node(v, 0);
-        NodeAdditions::Col(node.timestamps())
     }
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
@@ -210,7 +220,38 @@ impl CoreGraphOps for ArrowGraph {
         Box::new(1..self.inner.edges_data_type(layer_id).len())
     }
 
-    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
-        todo!()
+    fn core_edges(&self) -> EdgesStorage {
+        EdgesStorage::Arrow(ArrowEdges::new(&self.inner))
+    }
+
+    fn unfiltered_num_layers(&self) -> usize {
+        self.inner.layers.len()
+    }
+
+    fn core_graph(&self) -> GraphStorage {
+        GraphStorage::Arrow(self.inner.clone())
+    }
+
+    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
+        let layer_id = *eid
+            .layer()
+            .expect("EdgeRefs in arrow should always have layer");
+        EdgeStorageEntry::Arrow(self.inner.layer(layer_id).edge(eid.pid()))
+    }
+
+    fn core_nodes(&self) -> NodesStorage {
+        NodesStorage::Arrow(ArrowNodesOwned::new(&self.inner))
+    }
+
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
+        NodeStorageEntry::Arrow(ArrowNode::new(&self.inner, vid))
+    }
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
+        NodeOwnedEntry::Arrow(ArrowOwnedNode::new(&self.inner, vid))
+    }
+
+    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry {
+        EdgeOwnedEntry::Arrow(ArrowOwnedEdge::new(&self.inner, eid))
     }
 }

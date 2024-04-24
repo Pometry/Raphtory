@@ -1,5 +1,3 @@
-use chrono::{DateTime, Utc};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
@@ -8,14 +6,16 @@ use crate::{
     },
     db::api::{
         properties::{internal::PropertiesOps, Properties},
-        storage::locked::LockedGraph,
+        storage::storage_ops::GraphStorage,
         view::{
-            internal::{CoreGraphOps, TimeSemantics},
+            internal::{CoreGraphOps, OneHopFilter, TimeSemantics},
+            reset_filter::ResetFilter,
             TimeOps,
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
+use chrono::{DateTime, Utc};
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -29,7 +29,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O>;
@@ -38,7 +38,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -46,7 +46,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&LockedGraph, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: for<'a> Fn(&GraphStorage, &'a Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -274,3 +274,5 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         })
     }
 }
+
+impl<'graph, V: BaseNodeViewOps<'graph> + OneHopFilter<'graph>> ResetFilter<'graph> for V {}

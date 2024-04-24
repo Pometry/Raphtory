@@ -7,8 +7,8 @@ use crate::{
 use super::ArrowGraph;
 
 impl InternalLayerOps for ArrowGraph {
-    fn layer_ids(&self) -> LayerIds {
-        LayerIds::All
+    fn layer_ids(&self) -> &LayerIds {
+        &LayerIds::All
     }
 
     fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {

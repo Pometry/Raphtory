@@ -1,10 +1,6 @@
 use crate::{
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::node_store::NodeStore,
-            LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
         Prop,
     },
     db::api::{

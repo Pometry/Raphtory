@@ -113,7 +113,7 @@ pub mod prelude {
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{
                     EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeTypesFilter, NodeViewOps,
-                    TimeOps,
+                    ResetFilter, TimeOps,
                 },
             },
             graph::graph::Graph,

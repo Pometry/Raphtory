@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            storage::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -13,9 +14,6 @@ use crate::{
     },
     prelude::*,
 };
-
-use crate::db::api::storage::locked::LockedGraph;
-use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 
@@ -58,7 +56,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
     }
 
     #[inline]
-    fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
+    pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         let g = self.graph.core_graph();
         g.into_nodes_iter(self.graph.clone())
     }
@@ -111,7 +109,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -126,7 +124,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -150,7 +148,7 @@ impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,

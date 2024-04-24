@@ -58,6 +58,17 @@ impl<
         GH: GraphViewOps<'graph>,
         S,
         CS: ComputeState + 'a,
+    > ResetFilter<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
+{
+}
+
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
     > BaseEdgeViewOps<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
 {
     type BaseGraph = &'graph G;

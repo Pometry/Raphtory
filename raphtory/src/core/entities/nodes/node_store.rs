@@ -120,7 +120,7 @@ impl NodeStore {
     }
 
     #[inline(always)]
-    pub(crate) fn find_edge(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
+    pub(crate) fn find_edge_eid(&self, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         match layer_id {
             LayerIds::All => match self.layers.len() {
                 0 => None,

@@ -22,7 +22,7 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::*,
 };
 
 pub fn execute<S: HopState + 'static>(
@@ -208,19 +208,14 @@ fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
             do_sink(sink, s, state.clone(), vid, tl);
         }
         let limit = limit.unwrap_or(usize::MAX);
-        let layer_id = graph.get_layer_id(&layer).expect("No layer");
         match dir {
             Direction::OUT => s.spawn(move |s| {
-                graph
-                    .node_edges(vid, Direction::OUT, LayerIds::One(layer_id), None)
-                    .map(|edge_ref| {
-                        let edge_view = EdgeView::new(graph, edge_ref);
-                        let node = edge_view.dst();
-                        (edge_view, node)
-                    })
-                    .filter_map(|(edge, node)| {
+                node.valid_layers(layer.as_ref())
+                    .out_edges()
+                    .iter()
+                    .filter_map(|edge| {
                         state
-                            .hop_with_state(&node, &edge)
+                            .hop_with_state(&edge.dst(), &edge.reset_filter())
                             .map(|new_state| (edge, node, new_state))
                     })
                     .take(limit)
@@ -229,16 +224,12 @@ fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
                     });
             }),
             Direction::IN => s.spawn(move |s| {
-                graph
-                    .node_edges(vid, Direction::IN, LayerIds::One(layer_id), None)
-                    .map(|edge_ref| {
-                        let edge_view = EdgeView::new(graph, edge_ref);
-                        let node = edge_view.src();
-                        (edge_view, node)
-                    })
-                    .filter_map(|(edge, node)| {
+                node.valid_layers(layer.as_ref())
+                    .in_edges()
+                    .iter()
+                    .filter_map(|edge| {
                         state
-                            .hop_with_state(&node, &edge)
+                            .hop_with_state(&edge.src(), &edge.reset_filter())
                             .map(|new_state| (edge, node, new_state))
                     })
                     .take(limit)

@@ -93,6 +93,12 @@ pub enum TimeIndex<T: Ord + Eq + Copy + Debug> {
     Set(BTreeSet<T>),
 }
 
+impl<T: Ord + Eq + Copy + Debug> Default for &TimeIndex<T> {
+    fn default() -> Self {
+        &TimeIndex::Empty
+    }
+}
+
 impl<T: AsTime> TimeIndex<T> {
     pub fn is_empty(&self) -> bool {
         matches!(self, TimeIndex::Empty)

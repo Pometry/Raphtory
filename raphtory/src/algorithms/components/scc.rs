@@ -101,7 +101,7 @@ pub fn strongly_connected_components<G>(
     threads: Option<usize>,
 ) -> AlgorithmResult<G, usize>
 where
-    G: StaticGraphViewOps + Debug,
+    G: StaticGraphViewOps,
 {
     #[derive(Clone, Debug, Default)]
     struct SCCNode {
@@ -212,7 +212,7 @@ mod strongly_connected_components_tests {
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
@@ -261,7 +261,7 @@ mod strongly_connected_components_tests {
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
@@ -293,7 +293,7 @@ mod strongly_connected_components_tests {
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
                 .map(|mut v| {
@@ -333,7 +333,7 @@ mod strongly_connected_components_tests {
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
-            let scc_nodes: HashSet<_> = strongly_connected_components(&graph, None)
+            let scc_nodes: HashSet<_> = strongly_connected_components(graph, None)
                 .group_by()
                 .into_values()
                 .map(|mut v| {

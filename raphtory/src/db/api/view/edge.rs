@@ -11,7 +11,8 @@ use crate::{
     db::api::{
         properties::{internal::PropertiesOps, Properties},
         view::{
-            internal::{CoreGraphOps, InternalLayerOps, TimeSemantics},
+            internal::{CoreGraphOps, InternalLayerOps, OneHopFilter, TimeSemantics},
+            reset_filter::ResetFilter,
             BoxedIter, IntoDynBoxed,
         },
     },
@@ -207,8 +208,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         .unwrap_or(tt.t())
             }
             None => {
-                let edge = g.core_edge(e.pid());
-                g.include_edge_window(&edge, t..t.saturating_add(1), g.layer_ids())
+                let edge = g.core_edge(e);
+                g.include_edge_window(edge.as_ref(), t..t.saturating_add(1), g.layer_ids())
             }
         })
     }

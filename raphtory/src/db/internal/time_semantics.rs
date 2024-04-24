@@ -4,13 +4,20 @@ use crate::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             graph::tgraph::InnerTemporalGraph,
             nodes::node_store::NodeStore,
+            properties::tprop::TPropOps,
             LayerIds, VID,
         },
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
-    db::api::view::{
-        internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
-        BoxedIter,
+    db::api::{
+        storage::{
+            edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef, node_storage_ops::*,
+            nodes::node_ref::NodeStorageRef,
+        },
+        view::{
+            internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
+            BoxedIter,
+        },
     },
     prelude::Prop,
 };
@@ -83,25 +90,37 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn include_node_window(&self, node: &NodeStore, w: Range<i64>, _layer_ids: &LayerIds) -> bool {
-        node.timestamps().active(w)
+    fn include_node_window(
+        &self,
+        node: NodeStorageRef,
+        w: Range<i64>,
+        _layer_ids: &LayerIds,
+    ) -> bool {
+        node.additions().active(w)
     }
 
     #[inline]
-    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         edge.active(layer_ids, w)
     }
 
     fn node_history(&self, v: VID) -> Vec<i64> {
-        self.node_additions(v).iter_t().collect()
+        let node = self.core_node_entry(v);
+        node.additions().iter_t().collect()
     }
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
-        self.node_additions(v).range(w).iter_t().collect()
+        let node = self.core_node_entry(v);
+        node.additions().range(w).iter_t().collect()
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
+        let core_edge = self.core_edge(e);
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
@@ -112,7 +131,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     }
 
     fn edge_history_window(&self, e: EdgeRef, layer_ids: LayerIds, w: Range<i64>) -> Vec<i64> {
-        let core_edge = self.core_edge(e.pid());
+        let core_edge = self.core_edge(e);
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
@@ -121,46 +140,19 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         .collect()
     }
 
-    fn edge_exploded_count(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> usize {
-        match layer_ids {
-            LayerIds::None => 0,
-            LayerIds::All => edge.additions.par_iter().map(|a| a.len()).sum(),
-            LayerIds::One(l) => edge.additions.get(*l).map(|a| a.len()).unwrap_or(0),
-            LayerIds::Multiple(ids) => ids
-                .par_iter()
-                .map(|l| edge.additions.get(*l).map(|a| a.len()).unwrap_or(0))
-                .sum(),
-        }
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
+        edge.additions_par_iter(layer_ids).map(|a| a.len()).sum()
     }
 
     fn edge_exploded_count_window(
         &self,
-        edge: &EdgeStore,
+        edge: EdgeStorageRef,
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
-        match layer_ids {
-            LayerIds::None => 0,
-            LayerIds::All => edge
-                .additions
-                .par_iter()
-                .map(|a| a.range(w.clone()).len())
-                .sum(),
-            LayerIds::One(l) => edge
-                .additions
-                .get(*l)
-                .map(|a| a.range(w).len())
-                .unwrap_or(0),
-            LayerIds::Multiple(ids) => ids
-                .par_iter()
-                .map(|l| {
-                    edge.additions
-                        .get(*l)
-                        .map(|a| a.range(w.clone()).len())
-                        .unwrap_or(0)
-                })
-                .sum(),
-        }
+        edge.additions_par_iter(layer_ids)
+            .map(|a| a.range(w.clone()).len())
+            .sum()
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {

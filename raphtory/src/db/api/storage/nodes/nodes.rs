@@ -10,9 +10,10 @@ use crate::{
 };
 use arrow2::Either;
 use rayon::iter::ParallelIterator;
+use std::sync::Arc;
 
 pub enum NodesStorage {
-    Mem(ReadLockedStorage<NodeStore, VID>),
+    Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
     Arrow(ArrowNodesOwned),
 }
 
@@ -20,7 +21,16 @@ impl NodesStorage {
     pub fn as_ref(&self) -> NodesStorageRef {
         match self {
             NodesStorage::Mem(storage) => NodesStorageRef::Mem(storage),
+            #[cfg(feature = "arrow")]
             NodesStorage::Arrow(storage) => NodesStorageRef::Arrow(storage.as_ref()),
+        }
+    }
+
+    pub fn node_ref(&self, vid: VID) -> NodeStorageRef {
+        match self {
+            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.get(vid)),
+            #[cfg(feature = "arrow")]
+            NodesStorage::Arrow(storage) => NodeStorageRef::Arrow(storage.node(vid)),
         }
     }
 }

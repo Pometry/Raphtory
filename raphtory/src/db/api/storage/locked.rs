@@ -1,23 +1,14 @@
 use crate::{
-    arrow::graph::TemporalGraph,
     core::{
-        entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::node_store::NodeStore,
-            LayerIds, EID, VID,
-        },
-        storage::{ArcEntry, ReadLockedStorage},
-        Direction,
+        entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, EID, VID},
+        storage::ReadLockedStorage,
     },
-    db::api::view::internal::{FilterOps, FilterState},
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
-use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LockedGraph {
-    pub(crate) nodes: ReadLockedStorage<NodeStore, VID>,
-    pub(crate) edges: ReadLockedStorage<EdgeStore, EID>,
+    pub(crate) nodes: Arc<ReadLockedStorage<NodeStore, VID>>,
+    pub(crate) edges: Arc<ReadLockedStorage<EdgeStore, EID>>,
 }

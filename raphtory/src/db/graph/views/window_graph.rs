@@ -59,7 +59,7 @@ use crate::{
             properties::internal::{
                 InheritStaticPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            storage::nodes::node_ref::NodeStorageRef,
+            storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
             view::{
                 internal::{
                     Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps,
@@ -250,12 +250,22 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
     }
 
     #[inline]
-    fn include_node_window(&self, node: &NodeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_node_window(
+        &self,
+        node: NodeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         self.graph.include_node_window(node, w, layer_ids)
     }
 
     #[inline]
-    fn include_edge_window(&self, edge: &EdgeStore, w: Range<i64>, layer_ids: &LayerIds) -> bool {
+    fn include_edge_window(
+        &self,
+        edge: EdgeStorageRef,
+        w: Range<i64>,
+        layer_ids: &LayerIds,
+    ) -> bool {
         self.graph.include_edge_window(edge, w, layer_ids)
     }
 
@@ -277,14 +287,14 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         self.graph.edge_history_window(e, layer_ids, w)
     }
 
-    fn edge_exploded_count(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> usize {
+    fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
         self.graph
             .edge_exploded_count_window(edge, layer_ids, self.start_bound()..self.end_bound())
     }
 
     fn edge_exploded_count_window(
         &self,
-        edge: &EdgeStore,
+        edge: EdgeStorageRef,
         layer_ids: &LayerIds,
         w: Range<i64>,
     ) -> usize {
@@ -484,7 +494,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
     }
 
     #[inline]
-    fn filter_edge(&self, edge: &EdgeStore, layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge(edge, layer_ids)
             && self
                 .graph

@@ -3,14 +3,14 @@ use crate::arrow::timestamps::TimeStamps;
 use crate::{
     core::{
         entities::{
-            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            edges::edge_ref::EdgeRef,
+            nodes::node_ref::NodeRef,
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, VID,
         },
         storage::{
             locked_view::LockedView,
@@ -18,17 +18,17 @@ use crate::{
                 LayeredTimeIndexWindow, LockedLayeredIndex, TimeIndex, TimeIndexEntry,
                 TimeIndexOps, TimeIndexWindow,
             },
-            ArcEntry, Entry, ReadLockedStorage,
         },
         ArcStr, Prop,
     },
     db::api::{
         storage::{
             edges::{
-                edge_entry::EdgeStorageEntry,
-                edges::{EdgesStorage, EdgesStorageRef},
+                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
             },
-            nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+            nodes::{
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+            },
             storage_ops::GraphStorage,
         },
         view::{internal::Base, BoxedIter},
@@ -49,10 +49,14 @@ pub trait CoreGraphOps {
     fn core_graph(&self) -> GraphStorage;
 
     fn core_edges(&self) -> EdgesStorage;
-    fn core_edge(&self, eid: EID) -> EdgeStorageEntry;
+    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry;
+
+    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry;
     fn core_nodes(&self) -> NodesStorage;
 
-    fn core_node(&self, vid: VID) -> NodeStorageEntry;
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry;
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry;
 
     fn node_meta(&self) -> &Meta;
 
@@ -82,10 +86,6 @@ pub trait CoreGraphOps {
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates;
-
-    /// Get all the addition timestamps for a node
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn node_additions(&self, v: VID) -> NodeAdditions;
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
     fn internalise_node(&self, v: NodeRef) -> Option<VID>;
@@ -315,11 +315,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn node_additions(&self, v: VID) -> NodeAdditions {
-        self.graph().node_additions(v)
-    }
-
-    #[inline]
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         self.graph().internalise_node(v)
     }
@@ -403,13 +398,22 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> EdgeStorageEntry {
+    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
         self.graph().core_edge(eid)
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> NodeStorageEntry {
-        self.graph().core_node(vid)
+    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry {
+        self.graph().core_edge_arc(eid)
+    }
+
+    #[inline]
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
+        self.graph().core_node_entry(vid)
+    }
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
+        self.graph().core_node_arc(vid)
     }
 }
 
@@ -428,7 +432,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         match self {
             NodeAdditions::Mem(index) => index.active(w),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w)),
+            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w.clone())),
             NodeAdditions::Range(index) => index.active(w),
         }
     }

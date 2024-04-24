@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            storage::locked::LockedGraph,
+            storage::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{
@@ -84,7 +84,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Clone + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -106,7 +106,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -135,7 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -276,7 +276,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: Fn(&LockedGraph, &Self::Graph, VID) -> O + Send + 'graph>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + 'graph>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -291,7 +291,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -317,7 +317,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: Fn(&LockedGraph, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,

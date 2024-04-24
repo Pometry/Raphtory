@@ -9,7 +9,7 @@ use crate::{
     },
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::edges::edge_ref::EdgeStorageRef,
+        storage::{edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef},
         view::{
             internal::{
                 Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritListOps, InheritMaterialize,

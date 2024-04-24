@@ -1,28 +1,42 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        storage::ArcEntry,
         Direction,
     },
     db::api::{
-        storage::{arrow::nodes::ArrowNode, node_storage_ops::NodeStorageOps},
+        storage::{
+            arrow::nodes::ArrowOwnedNode,
+            node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            nodes::node_ref::NodeStorageRef,
+        },
         view::internal::NodeAdditions,
     },
 };
-use arrow2::Either;
+use rayon::iter::Either;
 
-#[derive(Copy, Clone, Debug)]
-pub enum NodeStorageRef<'a> {
-    Mem(&'a NodeStore),
+pub enum NodeOwnedEntry {
+    Mem(ArcEntry<NodeStore>),
     #[cfg(feature = "arrow")]
-    Arrow(ArrowNode<'a>),
+    Arrow(ArrowOwnedNode),
+}
+
+impl NodeOwnedEntry {
+    pub fn as_ref(&self) -> NodeStorageRef {
+        match self {
+            NodeOwnedEntry::Mem(entry) => NodeStorageRef::Mem(entry),
+            #[cfg(feature = "arrow")]
+            NodeOwnedEntry::Arrow(entry) => NodeStorageRef::Arrow(entry.as_ref()),
+        }
+    }
 }
 
 macro_rules! for_all {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            NodeStorageRef::Mem($pattern) => $result,
+            NodeOwnedEntry::Mem($pattern) => $result,
             #[cfg(feature = "arrow")]
-            NodeStorageRef::Arrow($pattern) => $result,
+            NodeOwnedEntry::Arrow($pattern) => $result,
         }
     };
 }
@@ -31,8 +45,8 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeStorageRef::Mem($pattern) => Either::Left($result),
-            NodeStorageRef::Arrow($pattern) => Either::Right($result),
+            NodeOwnedEntry::Mem($pattern) => Either::Left($result),
+            NodeOwnedEntry::Arrow($pattern) => Either::Right($result),
         }
     }};
 }
@@ -41,12 +55,12 @@ macro_rules! for_all_iter {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeStorageRef::Mem($pattern) => $result,
+            NodeOwnedEntry::Mem($pattern) => $result,
         }
     }};
 }
 
-impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
+impl<'a> NodeStorageOps<'a> for &'a NodeOwnedEntry {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         for_all!(self, node => node.degree(layers, dir))
     }
@@ -76,6 +90,16 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        for_all!(self, node => NodeStorageOps::find_edge(node, dst, layer_ids))
+        for_all!(self, node => node.find_edge(dst, layer_ids))
+    }
+}
+
+impl NodeStorageIntoOps for NodeOwnedEntry {
+    fn into_edges_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> {
+        for_all_iter!(self, node => node.into_edges_iter(layers, dir))
+    }
+
+    fn into_neighbours_iter(self, layers: LayerIds, dir: Direction) -> impl Iterator<Item = VID> {
+        for_all_iter!(self, node => node.into_neighbours_iter(layers, dir))
     }
 }

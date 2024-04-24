@@ -24,6 +24,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
+            storage::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
@@ -103,6 +104,11 @@ impl<
     fn eq(&self, other: &EdgeView<G2, GH2>) -> bool {
         self.id() == other.id()
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
+    for EdgeView<G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
@@ -198,7 +204,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         let input_layer_id = self.resolve_layer(layer, false)?;
         if !self
             .graph
-            .core_edge(self.edge.pid())
+            .core_edge(self.edge)
             .has_layer(&LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {

@@ -223,6 +223,9 @@ impl TProp {
             TProp::Map(cell) => {
                 Box::new(cell.iter().map(|(t, value)| (*t, Prop::Map(value.clone()))))
             }
+            TProp::NDTime(cell) => {
+                Box::new(cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value))))
+            }
         }
     }
 

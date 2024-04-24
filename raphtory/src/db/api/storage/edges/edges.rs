@@ -1,5 +1,4 @@
 use crate::{
-    arrow::edge::Edge,
     core::{
         entities::{edges::edge_store::EdgeStore, LayerIds, EID},
         storage::ReadLockedStorage,
@@ -11,14 +10,16 @@ use crate::{
 };
 use arrow2::Either;
 use rayon::iter::ParallelIterator;
+use std::sync::Arc;
 
 pub enum EdgesStorage {
-    Mem(ReadLockedStorage<EdgeStore, EID>),
+    Mem(Arc<ReadLockedStorage<EdgeStore, EID>>),
     #[cfg(feature = "arrow")]
     Arrow(ArrowEdges),
 }
 
 impl EdgesStorage {
+    #[inline]
     pub fn as_ref(&self) -> EdgesStorageRef {
         match self {
             EdgesStorage::Mem(storage) => EdgesStorageRef::Mem(storage),
@@ -44,6 +45,7 @@ impl<'a> EdgesStorageRef<'a> {
         }
     }
 
+    #[inline]
     pub fn get(self, eid: EID) -> EdgeStorageRef<'a> {
         match self {
             EdgesStorageRef::Mem(storage) => EdgeStorageRef::Mem(storage.get(eid)),
@@ -81,6 +83,18 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Arrow(storage) => {
                 Either::Right(storage.par_iter(layers).map(EdgeStorageRef::Arrow))
             }
+        }
+    }
+
+    pub fn count(self, layers: &LayerIds) -> usize {
+        match self {
+            EdgesStorageRef::Mem(storage) => match layers {
+                LayerIds::None => 0,
+                LayerIds::All => storage.len(),
+                _ => storage.par_iter().filter(|e| e.has_layer(layers)).count(),
+            },
+            #[cfg(feature = "arrow")]
+            EdgesStorageRef::Arrow(storage) => storage.count(layers),
         }
     }
 }

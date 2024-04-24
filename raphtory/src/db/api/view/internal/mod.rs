@@ -23,7 +23,6 @@ use std::{
 };
 
 pub use core_deletion_ops::*;
-pub use core_edge_view::*;
 pub use core_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;

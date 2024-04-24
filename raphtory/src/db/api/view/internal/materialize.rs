@@ -2,7 +2,7 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
@@ -22,9 +22,13 @@ use crate::{
             },
             storage::{
                 edges::{
-                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                    edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
+                    edge_ref::EdgeStorageRef, edges::EdgesStorage,
                 },
-                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+                nodes::{
+                    node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
+                    nodes::NodesStorage,
+                },
                 storage_ops::GraphStorage,
             },
             view::{internal::*, BoxedIter},

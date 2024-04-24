@@ -1,6 +1,6 @@
 use crate::{
     core::entities::{edges::edge_store::EdgeStore, graph::tgraph::InnerTemporalGraph, LayerIds},
-    db::api::view::internal::EdgeFilterOps,
+    db::api::{storage::edges::edge_ref::EdgeStorageRef, view::internal::EdgeFilterOps},
 };
 
 impl<const N: usize> EdgeFilterOps for InnerTemporalGraph<N> {
@@ -16,7 +16,7 @@ impl<const N: usize> EdgeFilterOps for InnerTemporalGraph<N> {
         true
     }
 
-    fn filter_edge(&self, _edge: &EdgeStore, _layer_ids: &LayerIds) -> bool {
+    fn filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
         true
     }
 }

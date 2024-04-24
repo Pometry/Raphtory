@@ -1,20 +1,81 @@
 use crate::{
-    arrow::{edge::Edge, graph::TemporalGraph, graph_fragment::TempColGraphFragment},
-    core::entities::{LayerIds, EID},
-    db::api::{storage::layer_variants::LayerVariants, view::IntoDynBoxed},
+    arrow::{edge::Edge, edges::Edges, graph::TemporalGraph, graph_fragment::TempColGraphFragment},
+    core::entities::{edges::edge_ref::EdgeRef, LayerIds, EID},
+    db::api::storage::layer_variants::LayerVariants,
 };
 use rayon::prelude::*;
 use std::{iter, sync::Arc};
 
+#[derive(Clone, Debug)]
 pub struct ArrowEdges {
     layers: Arc<[TempColGraphFragment]>,
 }
 
 impl ArrowEdges {
+    pub(crate) fn new(graph: &TemporalGraph) -> Self {
+        Self {
+            layers: graph.layers.clone(),
+        }
+    }
     pub fn as_ref(&self) -> ArrowEdgesRef {
         ArrowEdgesRef {
             layers: &self.layers,
         }
+    }
+
+    pub fn into_iter_refs(self, layer_ids: LayerIds) -> impl Iterator<Item = (EID, usize)> {
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(iter::empty()),
+            LayerIds::All => LayerVariants::All((0..self.layers.len()).flat_map(move |layer_id| {
+                self.layers[layer_id]
+                    .all_edge_ids()
+                    .map(move |e| (e, layer_id))
+            })),
+            LayerIds::One(layer_id) => LayerVariants::One(
+                self.layers[layer_id]
+                    .all_edge_ids()
+                    .map(move |e| (e, layer_id)),
+            ),
+            LayerIds::Multiple(ids) => LayerVariants::Multiple((0..ids.len()).flat_map(move |i| {
+                let layer_id = ids[i];
+                self.layers[layer_id]
+                    .all_edge_ids()
+                    .map(move |e| (e, layer_id))
+            })),
+        }
+    }
+
+    pub fn into_par_iter_refs(
+        self,
+        layer_ids: LayerIds,
+    ) -> impl ParallelIterator<Item = (EID, usize)> {
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
+            LayerIds::All => LayerVariants::All((0..self.layers.len()).into_par_iter().flat_map(
+                move |layer_id| {
+                    self.layers[layer_id]
+                        .all_edge_ids_par()
+                        .map(move |e| (e, layer_id))
+                },
+            )),
+            LayerIds::One(layer_id) => LayerVariants::One(
+                self.layers[layer_id]
+                    .all_edge_ids_par()
+                    .map(move |e| (e, layer_id)),
+            ),
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple((0..ids.len()).into_par_iter().flat_map(move |i| {
+                    let layer_id = ids[i];
+                    self.layers[layer_id]
+                        .all_edge_ids_par()
+                        .map(move |e| (e, layer_id))
+                }))
+            }
+        }
+    }
+
+    pub fn get(&self, eid: EID, layer_id: usize) -> ArrowEdge {
+        self.layers[layer_id].edge(eid)
     }
 }
 
@@ -36,7 +97,7 @@ impl<'a> ArrowEdgesRef<'a> {
 
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = ArrowEdge<'a>> {
         match layers {
-            LayerIds::None => LayerVariants::None,
+            LayerIds::None => LayerVariants::None(iter::empty()),
             LayerIds::All => {
                 LayerVariants::All(self.layers.iter().flat_map(|layer| layer.edges.iter()))
             }
@@ -52,7 +113,7 @@ impl<'a> ArrowEdgesRef<'a> {
 
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = ArrowEdge<'a>> {
         match layers {
-            LayerIds::None => LayerVariants::None,
+            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
             LayerIds::All => LayerVariants::All(
                 self.layers
                     .par_iter()
@@ -69,18 +130,54 @@ impl<'a> ArrowEdgesRef<'a> {
             }
         }
     }
+
+    pub fn count(self, layers: &LayerIds) -> usize {
+        match layers {
+            LayerIds::None => 0,
+            LayerIds::All => self.layers.par_iter().map(|layer| layer.num_edges()).sum(),
+            LayerIds::One(id) => self.layers[*id].num_edges(),
+            LayerIds::Multiple(ids) => ids
+                .par_iter()
+                .map(|layer| self.layers[*layer].num_edges())
+                .sum(),
+        }
+    }
+
+    pub fn exploded_count(self, layers: &LayerIds) -> usize {
+        match layers {
+            LayerIds::None => 0,
+            LayerIds::All => self
+                .layers
+                .par_iter()
+                .map(|layer| layer.num_temporal_edges())
+                .sum(),
+            LayerIds::One(id) => self.layers[*id].num_temporal_edges(),
+            LayerIds::Multiple(ids) => ids
+                .par_iter()
+                .map(|layer| self.layers[*layer].num_temporal_edges())
+                .sum(),
+        }
+    }
 }
 
 pub type ArrowEdge<'a> = Edge<'a>;
 
-pub struct ArrowEdgesOwned {
-    layers: Arc<[TempColGraphFragment]>,
+pub struct ArrowOwnedEdge {
+    edges: Edges,
+    eid: EID,
 }
 
-impl ArrowEdgesOwned {
-    pub(crate) fn new(graph: &TemporalGraph) -> Self {
+impl ArrowOwnedEdge {
+    pub(crate) fn new(graph: &TemporalGraph, eid: EdgeRef) -> Self {
+        let layer = eid
+            .layer()
+            .expect("arrow EdgeRefs should have layer always defined");
         Self {
-            layers: graph.layers.clone(),
+            edges: graph.layers[*layer].edges.clone(),
+            eid: eid.pid(),
         }
+    }
+    pub fn as_ref(&self) -> ArrowEdge {
+        self.edges.edge(self.eid)
     }
 }

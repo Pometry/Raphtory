@@ -1,64 +1,34 @@
 use crate::{
     core::{
         entities::{edges::edge_store::EdgeStore, properties::tprop::TPropOps, LayerIds, VID},
-        storage::Entry,
+        storage::ArcEntry,
     },
     db::api::storage::{
-        arrow::edges::ArrowEdge,
+        arrow::edges::ArrowOwnedEdge,
         edge_storage_ops::{EdgeStorageOps, TimeIndexLike},
         edges::edge_ref::EdgeStorageRef,
     },
 };
-use rayon::{iter::Either, prelude::*};
+use rayon::iter::ParallelIterator;
 use std::ops::Range;
 
-#[derive(Debug)]
-pub enum EdgeStorageEntry<'a> {
-    Mem(Entry<'a, EdgeStore>),
+pub enum EdgeOwnedEntry {
+    Mem(ArcEntry<EdgeStore>),
     #[cfg(feature = "arrow")]
-    Arrow(ArrowEdge<'a>),
+    Arrow(ArrowOwnedEdge),
 }
 
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            EdgeStorageEntry::Mem($pattern) => $result,
-            #[cfg(feature = "arrow")]
-            EdgeStorageEntry::Arrow($pattern) => $result,
-        }
-    };
-}
-
-#[cfg(feature = "arrow")]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            EdgeStorageEntry::Mem($pattern) => Either::Left($result),
-            EdgeStorageEntry::Arrow($pattern) => Either::Right($result),
-        }
-    };
-}
-
-#[cfg(not(feature = "arrow"))]
-macro_rules! for_all_iter {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            EdgeStorageEntry::Mem($pattern) => $result,
-        }
-    };
-}
-
-impl<'a> EdgeStorageEntry<'a> {
+impl EdgeOwnedEntry {
     pub fn as_ref(&self) -> EdgeStorageRef {
         match self {
-            EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(edge),
+            EdgeOwnedEntry::Mem(entry) => EdgeStorageRef::Mem(entry),
             #[cfg(feature = "arrow")]
-            EdgeStorageEntry::Arrow(edge) => EdgeStorageRef::Arrow(*edge),
+            EdgeOwnedEntry::Arrow(entry) => EdgeStorageRef::Arrow(entry.as_ref()),
         }
     }
 }
 
-impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
+impl<'a> EdgeStorageOps<'a> for &'a EdgeOwnedEntry {
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.as_ref().active(layer_ids, w)
     }

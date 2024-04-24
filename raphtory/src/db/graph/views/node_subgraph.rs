@@ -2,7 +2,10 @@ use crate::{
     core::entities::{edges::edge_store::EdgeStore, nodes::node_store::NodeStore, LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+        storage::{
+            edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef,
+            node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef,
+        },
         view::internal::{
             Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritTimeSemantics, NodeFilterOps, Static,

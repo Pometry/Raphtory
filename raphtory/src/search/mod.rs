@@ -589,10 +589,10 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         if self.graph.nodes_filtered() {
             if !self
                 .graph
-                .filter_node(&self.graph.core_node(core_edge.src), layer_ids)
+                .filter_node(&self.graph.core_node_entry(core_edge.src), layer_ids)
                 || !self
                     .graph
-                    .filter_node(&self.graph.core_node(core_edge.dst), layer_ids)
+                    .filter_node(&self.graph.core_node_entry(core_edge.dst), layer_ids)
             {
                 return None;
             }

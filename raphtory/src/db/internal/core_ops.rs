@@ -20,9 +20,13 @@ use crate::{
     },
     db::api::{
         storage::{
-            edges::{edge_entry::EdgeStorageEntry, edges::EdgesStorage},
+            edges::{
+                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
+            },
             locked::LockedGraph,
-            nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
+            nodes::{
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+            },
             storage_ops::GraphStorage,
         },
         view::{
@@ -33,7 +37,7 @@ use crate::{
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter, marker::PhantomData};
+use std::{collections::HashMap, iter, marker::PhantomData, sync::Arc};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
@@ -107,12 +111,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let layer_ids = layer_ids.constrain_from_edge(eref);
         let edge = self.inner().edge(eref.pid());
         EdgeUpdates::Mem(edge.additions(layer_ids).unwrap())
-    }
-
-    #[inline]
-    fn node_additions(&self, v: VID) -> NodeAdditions {
-        let node = self.inner().node(v);
-        node.additions().map(NodeAdditions::Mem).unwrap()
     }
 
     #[inline]
@@ -291,22 +289,30 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
 
     #[inline]
     fn core_edges(&self) -> EdgesStorage {
-        EdgesStorage::Mem(self.inner().storage.edges.read_lock())
+        EdgesStorage::Mem(Arc::new(self.inner().storage.edges.read_lock()))
     }
 
     #[inline]
     fn core_nodes(&self) -> NodesStorage {
-        NodesStorage::Mem(self.inner().storage.nodes.read_lock())
+        NodesStorage::Mem(Arc::new(self.inner().storage.nodes.read_lock()))
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> EdgeStorageEntry {
-        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid))
+    fn core_edge(&self, eid: EdgeRef) -> EdgeStorageEntry {
+        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid.pid()))
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> NodeStorageEntry {
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
         NodeStorageEntry::Mem(self.inner().storage.nodes.entry(vid))
+    }
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
+        NodeOwnedEntry::Mem(self.inner().storage.nodes.entry_arc(vid))
+    }
+
+    fn core_edge_arc(&self, eid: EdgeRef) -> EdgeOwnedEntry {
+        EdgeOwnedEntry::Mem(self.inner().storage.edges.entry_arc(eid.pid()))
     }
 }
 

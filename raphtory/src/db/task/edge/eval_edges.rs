@@ -15,7 +15,7 @@ use crate::{
             task_state::Local2,
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, ResetFilter},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -111,6 +111,17 @@ impl<
             local_state_prev,
         }))
     }
+}
+
+impl<
+        'graph,
+        'a,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        CS: Clone + ComputeState,
+        S,
+    > ResetFilter<'graph> for EvalEdges<'graph, 'a, G, GH, CS, S>
+{
 }
 
 impl<

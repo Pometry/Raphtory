@@ -303,44 +303,6 @@ impl<const N: usize> TemporalGraph<N> {
     pub(crate) fn internal_num_nodes(&self) -> usize {
         self.storage.nodes.len()
     }
-    #[inline]
-    pub(crate) fn num_edges(&self, layers: &LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match filter {
-            None => match layers {
-                LayerIds::All => self.storage.edges.len(),
-                _ => {
-                    let guard = self.storage.edges.read_lock();
-                    guard.par_iter().filter(|e| e.has_layer(layers)).count()
-                }
-            },
-            Some(filter) => {
-                let guard = self.storage.edges.read_lock();
-                guard.par_iter().filter(|&e| filter(e, layers)).count()
-            }
-        }
-    }
-
-    #[inline]
-    pub(crate) fn degree(
-        &self,
-        v: VID,
-        dir: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> usize {
-        let node_store = self.storage.get_node(v);
-        match filter {
-            None => node_store.degree(layers, dir),
-            Some(filter) => {
-                let edges_locked = self.storage.edges.read_lock();
-                node_store
-                    .edge_tuples(layers, dir)
-                    .filter(|e| filter(edges_locked.get(e.pid()), layers))
-                    .dedup_by(|e1, e2| e1.remote() == e2.remote())
-                    .count()
-            }
-        }
-    }
 
     #[inline]
     fn update_time(&self, time: TimeIndexEntry) {
@@ -521,7 +483,7 @@ impl<const N: usize> TemporalGraph<N> {
         self.update_time(t);
         let src = node_pair.get_mut_i();
 
-        let edge_id = match src.find_edge(dst_id, &LayerIds::All) {
+        let edge_id = match src.find_edge_eid(dst_id, &LayerIds::All) {
             Some(edge_id) => {
                 let mut edge = self.storage.get_edge_mut(edge_id);
                 edge_fn(&mut edge)?;
@@ -572,7 +534,7 @@ impl<const N: usize> TemporalGraph<N> {
 
     pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         let node = self.storage.get_node(src);
-        node.find_edge(dst, layer_id)
+        node.find_edge_eid(dst, layer_id)
     }
 
     pub(crate) fn resolve_node_ref(&self, v: NodeRef) -> Option<VID> {
