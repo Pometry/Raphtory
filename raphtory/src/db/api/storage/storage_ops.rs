@@ -93,22 +93,15 @@ impl GraphStorage {
         }
     }
 
-    pub fn edge_layer(&self, eid: EID, layer_id: usize) -> EdgeStorageRef {
+    pub fn edge(&self, eid: EdgeRef) -> EdgeStorageRef {
         match self {
-            GraphStorage::Mem(storage) => EdgeStorageRef::Mem(storage.edges.get(eid)),
+            GraphStorage::Mem(storage) => EdgeStorageRef::Mem(storage.edges.get(eid.pid())),
             #[cfg(feature = "arrow")]
             GraphStorage::Arrow(storage) => {
-                EdgeStorageRef::Arrow(storage.layer(layer_id).edge(eid))
-            }
-        }
-    }
-
-    pub fn edge(&self, eid: EID) -> EdgeStorageRef {
-        match self {
-            GraphStorage::Mem(storage) => EdgeStorageRef::Mem(storage.edges.get(eid)),
-            #[cfg(feature = "arrow")]
-            GraphStorage::Arrow(storage) => {
-                todo!("edge without layer not implemented for arrow graph")
+                let layer = eid
+                    .layer()
+                    .expect("arrow EdgeRefs should always have layer set");
+                EdgeStorageRef::Arrow(storage.layers[*layer].edge(eid.pid()))
             }
         }
     }
@@ -495,15 +488,15 @@ impl GraphStorage {
         let iter = source.edges_iter(layers, dir);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
-            FilterState::Both => FilterVariants::Both(iter.filter(|e| {
-                view.filter_edge(self.edge(e.pid()), view.layer_ids())
+            FilterState::Both => FilterVariants::Both(iter.filter(|&e| {
+                view.filter_edge(self.edge(e), view.layer_ids())
                     && view.filter_node(self.node(e.remote()), view.layer_ids())
             })),
             FilterState::Nodes => FilterVariants::Nodes(
                 iter.filter(|e| view.filter_node(self.node(e.remote()), view.layer_ids())),
             ),
             FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
-                iter.filter(|e| view.filter_edge(self.edge(e.pid()), view.layer_ids())),
+                iter.filter(|&e| view.filter_edge(self.edge(e), view.layer_ids())),
             ),
         }
     }
@@ -520,15 +513,15 @@ impl GraphStorage {
 
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
-            FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
-                view.filter_edge(self.edge(e.pid()), view.layer_ids())
+            FilterState::Both => FilterVariants::Both(iter.filter(move |&e| {
+                view.filter_edge(self.edge(e), view.layer_ids())
                     && view.filter_node(self.node(e.remote()), view.layer_ids())
             })),
             FilterState::Nodes => FilterVariants::Nodes(
                 iter.filter(move |e| view.filter_node(self.node(e.remote()), view.layer_ids())),
             ),
             FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
-                iter.filter(move |e| view.filter_edge(self.edge(e.pid()), view.layer_ids())),
+                iter.filter(move |&e| view.filter_edge(self.edge(e), view.layer_ids())),
             ),
         }
     }
