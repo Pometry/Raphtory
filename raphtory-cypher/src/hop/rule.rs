@@ -1,10 +1,18 @@
+use std::sync::Arc;
+
+use async_trait::async_trait;
 use datafusion::{
     common::Column,
     error::DataFusionError,
-    logical_expr::{Expr, Join, LogicalPlan},
+    execution::context::{QueryPlanner, SessionState},
+    logical_expr::{Expr, Extension, Join, LogicalPlan, UserDefinedLogicalNode},
     optimizer::{optimize_children, optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
+    physical_plan::ExecutionPlan,
+    physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
+
+use crate::hop::operator::HopPlan;
 
 pub struct HopRule {
     pub graph: ArrowGraph,
@@ -28,14 +36,18 @@ impl OptimizerRule for HopRule {
     ) -> Result<Option<LogicalPlan>, DataFusionError> {
         if let LogicalPlan::Join(join) = plan {
             let Join {
-                right, on, left, ..
+                right,
+                on,
+                left,
+                schema,
+                ..
             } = join;
 
             println!("right: {right:?}");
             println!("left: {left:?}");
 
             if on.len() != 1 {
-                return optimize_children(self, plan, config);
+                return Ok(None); //optimize_children(self, plan, config);
             }
 
             // (Direction::OUT, Direction::OUT) => ("dst", "src"),
@@ -43,7 +55,7 @@ impl OptimizerRule for HopRule {
             // (Direction::IN, Direction::OUT) => ("src", "src"),
             // (Direction::IN, Direction::IN) => ("src", "dst"),
 
-            let (_hop_from_col, _hop_to_col, _direction) = if let (
+            let (_hop_from_col, _hop_to_col, direction) = if let (
                 Expr::Column(Column {
                     name: hop_from_col, ..
                 }),
@@ -66,17 +78,72 @@ impl OptimizerRule for HopRule {
                 };
                 (hop_from_col, hop_to_col, direction)
             } else {
-                return optimize_children(self, plan, config);
+                return Ok(None);
             };
 
-            // find the column we're hopping from on the left plan
-            println!("HopRule::try_optimize on plan right: {right:?}");
+            // simplest form TableScan -> TableScan
+            if let (LogicalPlan::SubqueryAlias(l_tbl), LogicalPlan::SubqueryAlias(r_tbl)) =
+                (left.as_ref(), right.as_ref())
+            {
+                if let (LogicalPlan::TableScan(l_tbl), LogicalPlan::TableScan(r_tbl)) =
+                    (l_tbl.input.as_ref(), r_tbl.input.as_ref())
+                {
+                    println!("BINGO!");
+                    let plan = LogicalPlan::Extension(Extension {
+                        node: Arc::new(HopPlan::from_table_scans(
+                            self.graph.clone(),
+                            direction,
+                            schema.clone(),
+                            l_tbl.clone(),
+                            r_tbl.clone(),
+                        )),
+                    });
+                    return Ok(Some(plan));
+                }
+            }
         }
         optimize_children(self, plan, config)
     }
 
     fn name(&self) -> &str {
         "hop"
+    }
+}
+
+struct HopQueryPlanner;
+
+#[async_trait]
+impl QueryPlanner for HopQueryPlanner {
+    /// Given a `LogicalPlan` created from above, create an
+    /// `ExecutionPlan` suitable for execution
+    async fn create_physical_plan(
+        &self,
+        logical_plan: &LogicalPlan,
+        session_state: &SessionState,
+    ) -> Result<Arc<dyn ExecutionPlan>, DataFusionError> {
+        // Teach the default physical planner how to plan TopK nodes.
+        let physical_planner =
+            DefaultPhysicalPlanner::with_extension_planners(vec![Arc::new(HopPlanner {})]);
+        // Delegate most work of physical planning to the default physical planner
+        physical_planner
+            .create_physical_plan(logical_plan, session_state)
+            .await
+    }
+}
+
+struct HopPlanner;
+
+#[async_trait]
+impl ExtensionPlanner for HopPlanner {
+    async fn plan_extension(
+        &self,
+        _planner: &dyn PhysicalPlanner,
+        node: &dyn UserDefinedLogicalNode,
+        logical_inputs: &[&LogicalPlan],
+        physical_inputs: &[Arc<dyn ExecutionPlan>],
+        _session_state: &SessionState,
+    ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
+        todo!()
     }
 }
 
@@ -100,13 +167,31 @@ mod test {
     }
 
     #[tokio::test]
-    async fn double_hop_edge_to_edge_with_pushdown_filter() {
+    async fn double_hop_edge_to_edge_with_pushdown_filter_e2() {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
         let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
-        let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() WHERE e2.weight > 5 RETURN *", &g)
-            .await
-            .unwrap();
+        let (_, plan) = prepare_plan(
+            "MATCH ()-[e1]->()-[e2]->() WHERE e2.weight > 5 RETURN *",
+            &g,
+        )
+        .await
+        .unwrap();
+
+        println!("PLAN {plan:?}");
+    }
+
+    #[tokio::test]
+    async fn double_hop_edge_to_edge_with_pushdown_filter_e1() {
+        let graph_dir = tempdir().unwrap();
+        let edges = vec![(0u64, 1u64, 0i64, 2.)];
+        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+        let (_, plan) = prepare_plan(
+            "MATCH ()-[e1]->()-[e2]->() WHERE e1.weight > 5 RETURN *",
+            &g,
+        )
+        .await
+        .unwrap();
 
         println!("PLAN {plan:?}");
     }

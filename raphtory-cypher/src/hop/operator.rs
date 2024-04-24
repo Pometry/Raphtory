@@ -2,16 +2,67 @@ use std::sync::Arc;
 
 use datafusion::{
     common::DFSchemaRef,
-    logical_expr::{BinaryExpr, Expr, LogicalPlan, Operator, UserDefinedLogicalNodeCore},
+    logical_expr::{BinaryExpr, Expr, LogicalPlan, Operator, TableScan, UserDefinedLogicalNodeCore},
 };
-use raphtory::core::Direction;
+use raphtory::{arrow::{graph::TemporalGraph, graph_impl::ArrowGraph}, core::Direction};
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Hash, Eq)]
 pub struct HopPlan {
+    graph: GraphHolder,
     input: Arc<LogicalPlan>,
     dir: Direction,
     schema: DFSchemaRef,
     expressions: Vec<(Expr, Expr)>,
+}
+
+#[derive(Clone)]
+struct GraphHolder {
+    pub graph: ArrowGraph,
+}
+
+impl GraphHolder {
+    pub fn new(graph: ArrowGraph) -> Self {
+        GraphHolder { graph }
+    }
+}
+
+impl AsRef<TemporalGraph> for GraphHolder {
+    fn as_ref(&self) -> &TemporalGraph {
+        self.graph.as_ref()
+    }
+}
+
+impl PartialEq for GraphHolder {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl std::hash::Hash for GraphHolder {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        0.hash(state);
+    }
+}
+
+impl Eq for GraphHolder {}
+
+impl std::fmt::Debug for GraphHolder {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let num_nodes = self.as_ref().num_nodes();
+        write!(f, "Graph num_nodes: {num_nodes}")
+    }
+}
+
+impl HopPlan{
+    pub fn from_table_scans(
+        graph: ArrowGraph,
+        dir: Direction,
+        schema: DFSchemaRef,
+        left: TableScan,
+        right: TableScan,
+    ) -> Self {
+        todo!()
+    }
 }
 
 impl UserDefinedLogicalNodeCore for HopPlan {
@@ -47,6 +98,7 @@ impl UserDefinedLogicalNodeCore for HopPlan {
                 left,
                 right,
             }) => HopPlan {
+                graph: self.graph.clone(),
                 dir: self.dir,
                 input: Arc::new(inputs[0].clone()),
                 schema: self.schema.clone(),

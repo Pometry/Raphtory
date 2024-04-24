@@ -45,7 +45,7 @@ pub async fn prepare_plan(
 
     let runtime = Arc::new(RuntimeEnv::default());
     let state = SessionState::new_with_config_rt(config, runtime)
-        .with_optimizer_rules(vec![Arc::new(HopRule::new(g.clone()))]);
+        .add_optimizer_rule(Arc::new(HopRule::new(g.clone())));
     let ctx = SessionContext::new_with_state(state);
 
     let graph = g.as_ref();
