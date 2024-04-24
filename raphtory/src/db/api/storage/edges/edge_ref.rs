@@ -57,19 +57,17 @@ impl<'a> EdgeStorageRef<'a> {
             EdgeStorageRef::Arrow(e) => e.eid(),
         }
     }
-
-    #[inline]
-    pub fn in_ref(self) -> EdgeRef {
-        EdgeRef::new_incoming(self.eid(), self.src(), self.dst())
-    }
-
-    #[inline]
-    pub fn out_ref(self) -> EdgeRef {
-        EdgeRef::new_outgoing(self.eid(), self.src(), self.dst())
-    }
 }
 
 impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
+    fn in_ref(self) -> EdgeRef {
+        for_all!(self, edge => EdgeStorageOps::in_ref(edge))
+    }
+
+    fn out_ref(self) -> EdgeRef {
+        for_all!(self, edge => EdgeStorageOps::out_ref(edge))
+    }
+
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         for_all!(self, edge => EdgeStorageOps::active(edge, layer_ids, w))
     }

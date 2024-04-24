@@ -2,7 +2,7 @@ use crate::{
     arrow::timestamps::TimeStamps,
     core::{
         entities::{
-            edges::edge_store::EdgeStore,
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
             properties::tprop::{LockedLayeredTProp, TPropOps},
             LayerIds, VID,
         },
@@ -115,6 +115,9 @@ impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
 }
 
 pub trait EdgeStorageOps<'a> {
+    fn in_ref(self) -> EdgeRef;
+
+    fn out_ref(self) -> EdgeRef;
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
     fn has_layer(self, layer_ids: &LayerIds) -> bool;
     fn src(self) -> VID;
@@ -159,6 +162,14 @@ pub trait EdgeStorageOps<'a> {
 }
 
 impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
+    fn in_ref(self) -> EdgeRef {
+        EdgeRef::new_incoming(self.eid, self.src, self.dst)
+    }
+
+    fn out_ref(self) -> EdgeRef {
+        EdgeRef::new_outgoing(self.eid, self.src, self.dst)
+    }
+
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.active(layer_ids, w)
     }

@@ -1,6 +1,10 @@
 use crate::{
     core::{
-        entities::{edges::edge_store::EdgeStore, properties::tprop::TPropOps, LayerIds, VID},
+        entities::{
+            edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
+            properties::tprop::TPropOps,
+            LayerIds, VID,
+        },
         storage::ArcEntry,
     },
     db::api::storage::{
@@ -29,6 +33,14 @@ impl EdgeOwnedEntry {
 }
 
 impl<'a> EdgeStorageOps<'a> for &'a EdgeOwnedEntry {
+    fn in_ref(self) -> EdgeRef {
+        self.as_ref().in_ref()
+    }
+
+    fn out_ref(self) -> EdgeRef {
+        self.as_ref().out_ref()
+    }
+
     fn active(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.as_ref().active(layer_ids, w)
     }
