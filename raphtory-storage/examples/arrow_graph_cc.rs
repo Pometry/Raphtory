@@ -6,6 +6,7 @@ use raphtory::{
         query::{ast::Query, executors::rayon2, ForwardState},
     },
     core::entities::VID,
+    db::api::view::GraphViewOps,
 };
 use std::{io::Write, time::Instant};
 
