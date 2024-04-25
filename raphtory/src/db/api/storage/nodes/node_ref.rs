@@ -3,12 +3,13 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
         Direction,
     },
-    db::api::{
-        storage::{arrow::nodes::ArrowNode, node_storage_ops::NodeStorageOps},
-        view::internal::NodeAdditions,
-    },
+    db::api::{storage::node_storage_ops::NodeStorageOps, view::internal::NodeAdditions},
 };
-use arrow2::Either;
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::nodes::ArrowNode;
+
+use either::Either;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {

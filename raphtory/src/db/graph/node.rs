@@ -387,6 +387,7 @@ mod node_test {
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -423,6 +424,7 @@ mod node_test {
         graph.add_node(2, 1, props, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

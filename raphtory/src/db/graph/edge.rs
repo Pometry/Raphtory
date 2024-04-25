@@ -416,6 +416,7 @@ mod test_edge {
         graph.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, props: [(ArcStr, Prop); 1]) {
@@ -425,6 +426,7 @@ mod test_edge {
             assert!(e1_w.properties().as_vec().is_empty())
         }
         test(&graph, props.clone());
+        #[cfg(feature = "arrow")]
         test(&arrow_graph, props);
     }
 
@@ -443,6 +445,7 @@ mod test_edge {
             .unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

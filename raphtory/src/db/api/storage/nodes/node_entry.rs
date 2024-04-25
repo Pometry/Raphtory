@@ -5,13 +5,14 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{
-            arrow::nodes::ArrowNode, node_storage_ops::NodeStorageOps,
-            nodes::node_ref::NodeStorageRef,
-        },
+        storage::{node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef},
         view::internal::NodeAdditions,
     },
 };
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::nodes::ArrowNode;
+
 use rayon::iter::Either;
 
 pub enum NodeStorageEntry<'a> {
@@ -53,6 +54,7 @@ impl<'a> NodeStorageEntry<'a> {
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
             NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(entry),
+            #[cfg(feature = "arrow")]
             NodeStorageEntry::Arrow(node) => NodeStorageRef::Arrow(*node),
         }
     }

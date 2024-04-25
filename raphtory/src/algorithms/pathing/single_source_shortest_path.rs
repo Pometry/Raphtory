@@ -108,6 +108,7 @@ mod sssp_tests {
         ]);
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -137,6 +138,7 @@ mod sssp_tests {
             println!("{:?}", binding.get_all_with_names());
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 }

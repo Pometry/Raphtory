@@ -8,11 +8,14 @@ use crate::{
         storage::ArcEntry,
     },
     db::api::storage::{
-        arrow::edges::ArrowOwnedEdge,
         edge_storage_ops::{EdgeStorageOps, TimeIndexLike},
         edges::edge_ref::EdgeStorageRef,
     },
 };
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::edges::ArrowOwnedEdge;
+
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 

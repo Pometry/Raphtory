@@ -98,6 +98,7 @@ tracing-subscriber = { version = "0.3.16", features = ["std", "env-filter"] }
 walkdir = "2"
 uuid = "1.7.0"
 config = "0.14.0"
+either = "=1.11.0"
 toml = "0.8.10"
 clap = { version = "4.3.11", features = ["derive"] }
 tar = "0.4.38"

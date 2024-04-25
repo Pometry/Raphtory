@@ -436,6 +436,7 @@ mod test {
         graph.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -454,6 +455,7 @@ mod test {
             assert_eq!(m.value(), old_value + delta)
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -468,6 +470,7 @@ mod test {
         graph.add_edge(0, 3, 0, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -485,6 +488,7 @@ mod test {
             assert!((value_merged - (value_after + delta)).abs() < 1e-8);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 }

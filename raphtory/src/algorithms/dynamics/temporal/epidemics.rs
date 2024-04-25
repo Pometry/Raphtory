@@ -371,6 +371,7 @@ mod test {
         inner_test(event_rate, recovery_rate, p);
     }
 
+    #[cfg(feature = "arrow")]
     #[test]
     fn compare_arrow_with_in_mem() {
         let event_rate = 0.00000001;

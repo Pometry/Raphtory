@@ -6,13 +6,16 @@ use crate::{
     },
     db::api::{
         storage::{
-            arrow::nodes::ArrowOwnedNode,
             node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             nodes::node_ref::NodeStorageRef,
         },
         view::internal::NodeAdditions,
     },
 };
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::nodes::ArrowOwnedNode;
+
 use rayon::iter::Either;
 
 pub enum NodeOwnedEntry {

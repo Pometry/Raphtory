@@ -8,11 +8,14 @@ use crate::{
         storage::Entry,
     },
     db::api::storage::{
-        arrow::edges::ArrowEdge,
         edge_storage_ops::{EdgeStorageOps, TimeIndexLike},
         edges::edge_ref::EdgeStorageRef,
     },
 };
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::edges::ArrowEdge;
+
 use rayon::prelude::*;
 use std::ops::Range;
 

@@ -98,7 +98,6 @@ def main():
             t_props_chunk_size,
             read_chunk_size,
             concurrent_files,
-            num_threads,
             print_result=False
         )
 

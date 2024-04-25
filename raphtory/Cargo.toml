@@ -39,6 +39,7 @@ glam = { workspace = true }
 quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
+either = {workspace = true}
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

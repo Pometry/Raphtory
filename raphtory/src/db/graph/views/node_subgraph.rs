@@ -117,6 +117,7 @@ mod subgraph_tests {
         graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps + Debug>(graph: &G) {
@@ -162,6 +163,7 @@ mod subgraph_tests {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -171,6 +173,7 @@ mod subgraph_tests {
             assert_eq!(ts, tg)
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -181,6 +184,7 @@ mod subgraph_tests {
         graph.add_edge(0, 3, 4, NO_PROPS, Some("2")).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

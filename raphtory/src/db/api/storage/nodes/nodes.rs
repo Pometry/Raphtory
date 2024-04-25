@@ -1,19 +1,20 @@
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::nodes::{ArrowNodesOwned, ArrowNodesRef};
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::{
-        arrow::nodes::{ArrowNodesOwned, ArrowNodesRef},
-        nodes::node_ref::NodeStorageRef,
-    },
+    db::api::storage::nodes::node_ref::NodeStorageRef,
 };
-use arrow2::Either;
+
+use either::Either;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 
 pub enum NodesStorage {
     Mem(Arc<ReadLockedStorage<NodeStore, VID>>),
+    #[cfg(feature = "arrow")]
     Arrow(ArrowNodesOwned),
 }
 
@@ -51,21 +52,41 @@ impl<'a> NodesStorageRef<'a> {
         }
     }
 
+    #[cfg(feature = "arrow")]
     pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
         match self {
             NodesStorageRef::Mem(store) => Either::Left(store.par_iter().map(NodeStorageRef::Mem)),
-            #[cfg(feature = "arrow")]
             NodesStorageRef::Arrow(store) => {
                 Either::Right(store.par_iter().map(NodeStorageRef::Arrow))
             }
         }
     }
 
+    #[cfg(not(feature = "arrow"))]
+    pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
+        match self {
+            NodesStorageRef::Mem(store) => {
+                Either::<_, rayon::iter::Empty<NodeStorageRef<'a>>>::Left(
+                    store.par_iter().map(NodeStorageRef::Mem),
+                )
+            }
+        }
+    }
+
+    #[cfg(feature = "arrow")]
     pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
         match self {
             NodesStorageRef::Mem(store) => Either::Left(store.iter().map(NodeStorageRef::Mem)),
-            #[cfg(feature = "arrow")]
             NodesStorageRef::Arrow(store) => Either::Right(store.iter().map(NodeStorageRef::Arrow)),
+        }
+    }
+
+    #[cfg(not(feature = "arrow"))]
+    pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
+        match self {
+            NodesStorageRef::Mem(store) => Either::<_, std::iter::Empty<NodeStorageRef<'a>>>::Left(
+                store.iter().map(NodeStorageRef::Mem),
+            ),
         }
     }
 }

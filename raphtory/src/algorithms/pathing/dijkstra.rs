@@ -245,6 +245,7 @@ mod dijkstra_tests {
     fn test_dijkstra_multiple_targets() {
         let graph = basic_graph();
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -282,6 +283,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -289,6 +291,7 @@ mod dijkstra_tests {
     fn test_dijkstra_no_weight() {
         let graph = basic_graph();
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -301,6 +304,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("F").unwrap().1, vec!["A", "C", "F"]);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -323,6 +327,7 @@ mod dijkstra_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -358,6 +363,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("6").unwrap().1, vec!["2", "3", "5", "6"]);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -381,6 +387,7 @@ mod dijkstra_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -416,6 +423,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("F").unwrap().1, vec!["B", "C", "E", "F"]);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -434,6 +442,7 @@ mod dijkstra_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -451,6 +460,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -469,6 +479,7 @@ mod dijkstra_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -479,6 +490,7 @@ mod dijkstra_tests {
             assert_eq!(results.get("D").unwrap().1, vec!["A", "C", "D"]);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 }

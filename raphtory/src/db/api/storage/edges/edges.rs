@@ -3,12 +3,13 @@ use crate::{
         entities::{edges::edge_store::EdgeStore, LayerIds, EID},
         storage::ReadLockedStorage,
     },
-    db::api::storage::{
-        arrow::edges::{ArrowEdges, ArrowEdgesRef},
-        edges::edge_ref::EdgeStorageRef,
-    },
+    db::api::storage::edges::edge_ref::EdgeStorageRef,
 };
-use arrow2::Either;
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::edges::{ArrowEdges, ArrowEdgesRef};
+
+use either::Either;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 
@@ -56,6 +57,7 @@ impl<'a> EdgesStorageRef<'a> {
         }
     }
 
+    #[cfg(feature = "arrow")]
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
         match self {
             EdgesStorageRef::Mem(storage) => Either::Left(
@@ -64,13 +66,27 @@ impl<'a> EdgesStorageRef<'a> {
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageRef::Mem),
             ),
-            #[cfg(feature = "arrow")]
             EdgesStorageRef::Arrow(storage) => {
                 Either::Right(storage.iter(layers).map(EdgeStorageRef::Arrow))
             }
         }
     }
 
+    #[cfg(not(feature = "arrow"))]
+    pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = EdgeStorageRef<'a>> {
+        match self {
+            EdgesStorageRef::Mem(storage) => {
+                Either::<_, std::iter::Empty<EdgeStorageRef<'a>>>::Left(
+                    storage
+                        .iter()
+                        .filter(move |e| e.has_layer(&layers))
+                        .map(EdgeStorageRef::Mem),
+                )
+            }
+        }
+    }
+
+    #[cfg(feature = "arrow")]
     pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> {
         match self {
             EdgesStorageRef::Mem(storage) => Either::Left(
@@ -79,9 +95,22 @@ impl<'a> EdgesStorageRef<'a> {
                     .filter(move |e| e.has_layer(&layers))
                     .map(EdgeStorageRef::Mem),
             ),
-            #[cfg(feature = "arrow")]
             EdgesStorageRef::Arrow(storage) => {
                 Either::Right(storage.par_iter(layers).map(EdgeStorageRef::Arrow))
+            }
+        }
+    }
+
+    #[cfg(not(feature = "arrow"))]
+    pub fn par_iter(self, layers: LayerIds) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> {
+        match self {
+            EdgesStorageRef::Mem(storage) => {
+                Either::<_, rayon::iter::Empty<EdgeStorageRef<'a>>>::Left(
+                    storage
+                        .par_iter()
+                        .filter(move |e| e.has_layer(&layers))
+                        .map(EdgeStorageRef::Mem),
+                )
             }
         }
     }

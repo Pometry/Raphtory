@@ -4,11 +4,12 @@ use crate::{
         properties::tprop::TPropOps,
         LayerIds, EID, VID,
     },
-    db::api::storage::{
-        arrow::edges::ArrowEdge,
-        edge_storage_ops::{EdgeStorageOps, TimeIndexLike},
-    },
+    db::api::storage::edge_storage_ops::{EdgeStorageOps, TimeIndexLike},
 };
+
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::edges::ArrowEdge;
+
 use rayon::{iter::Either, prelude::*};
 use std::ops::Range;
 

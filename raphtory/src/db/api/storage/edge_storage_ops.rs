@@ -1,5 +1,4 @@
 use crate::{
-    arrow::timestamps::TimeStamps,
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
@@ -11,6 +10,10 @@ use crate::{
     db::api::{storage::layer_variants::LayerVariants, view::IntoDynBoxed},
     prelude::TimeIndexEntry,
 };
+
+#[cfg(feature = "arrow")]
+use crate::arrow::timestamps::TimeStamps;
+
 use rayon::prelude::*;
 use std::ops::Range;
 
