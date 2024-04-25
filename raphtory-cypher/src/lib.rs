@@ -237,7 +237,6 @@ mod test {
 
             let graph = ArrowGraph::load_from_edge_lists(
                 &edge_lists,
-                NonZeroUsize::new(1).unwrap(),
                 20,
                 20,
                 graph_dir,

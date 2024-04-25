@@ -163,12 +163,9 @@ impl ArrowGraph {
 
     pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
-
         chunk_size: usize,
         t_props_chunk_size: usize,
-
         graph_dir: impl AsRef<Path> + Sync,
-
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
