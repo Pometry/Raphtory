@@ -125,7 +125,7 @@ mod tests {
         );
 
         assert_eq!(
-            measure_without_print_results("CC", || connected_components(graph.as_ref().layer(0)))
+            measure_without_print_results("CC", || connected_components(&graph))
                 .into_iter()
                 .take(10)
                 .collect::<Vec<_>>(),

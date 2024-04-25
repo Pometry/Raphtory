@@ -11,7 +11,9 @@ members = [
     "raphtory-graphql",
     "comparison-benchmark/rust/raphtory-rust-benchmark",
     "comparison-benchmark/graphql-benchmark/run_server",
-    "examples/lanl"]
+    "examples/lanl",
+    "examples/graph500"
+]
 default-members = ["raphtory"]
 resolver = "2"
 

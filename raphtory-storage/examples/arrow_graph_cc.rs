@@ -70,13 +70,13 @@ fn main() {
         graph
     };
 
-    connected_components(graph2.as_ref().layer(0));
+    connected_components(&graph2);
     hop_query(&graph2);
 }
 
-fn connected_components(tg: &TempColGraphFragment) {
-    println!("Graph has {} nodes", tg.num_nodes());
-    println!("Graph has {} edges", tg.num_edges());
+fn connected_components(tg: &ArrowGraph) {
+    println!("Graph has {} nodes", tg.count_nodes());
+    println!("Graph has {} edges", tg.count_edges());
 
     let now = Instant::now();
     // let ccs = weakly_connected_components(&graph2, 100, None).group_by();
