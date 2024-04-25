@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target: [x86_64, aarch64]
+        target: [ x86_64, aarch64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -42,8 +42,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
-            3.9
             3.10
             3.11
             3.12
@@ -114,7 +112,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        target: [x64]
+        target: [ x64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -128,9 +126,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
-            3.9
-            3.10
             3.11
             3.12
           architecture: ${{ matrix.target }}
@@ -150,7 +145,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        target: [x86_64, aarch64]
+        target: [ x86_64, aarch64 ]
     steps:
       - name: "Check if user has write access"
         uses: "lannonbr/repo-permission-check-action@2.0.0"
@@ -175,8 +170,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: |
-            3.8
-            3.9
             3.10
             3.11
             3.12
@@ -193,7 +186,7 @@ jobs:
           name: pyartifacts
           path: ./python/dist
   publish-python:
-    needs: [python-linux, python-windows, python-macos]
+    needs: [ python-linux, python-windows, python-macos ]
     name: Publish to PyPi
     runs-on: ubuntu-latest
     steps:
