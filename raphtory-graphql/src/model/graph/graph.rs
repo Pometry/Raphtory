@@ -387,40 +387,12 @@ impl GqlGraph {
         if nodes_to_expand.is_empty() {
             return vec![];
         }
-
-        let nodes: Vec<Node> = self
-            .graph
-            .nodes()
-            .iter()
-            .map(|vv| vv.into())
-            .filter(|n| NodeFilter::new(nodes_to_expand.clone()).matches(n))
-            .collect();
-
-        let mut all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
-        let mut all_expanded_edges: HashMap<String, EdgeView<DynamicGraph>> = HashMap::new();
-
-        let mut maybe_layers: Option<Vec<String>> = None;
-        if filter.is_some() {
-            maybe_layers = filter.clone().unwrap().layer_names.map(|l| l.contains);
-        }
-
-        for node in nodes {
-            let expanded_edges =
-                get_expanded_edges(all_graph_nodes.clone(), node.vv, maybe_layers.clone());
-            expanded_edges.clone().into_iter().for_each(|e| {
-                let src = e.src().name();
-                let dst = e.dst().name();
-                all_expanded_edges.insert(src.to_owned() + &dst, e);
-                all_graph_nodes.insert(src);
-                all_graph_nodes.insert(dst);
-            });
-        }
-
-        let fetched_edges = all_expanded_edges
-            .values()
-            .map(|ee| ee.clone().into())
+        let mut all_graph_nodes: Vec<NodeView<IndexedGraph<DynamicGraph>>>= graph_nodes.iter().filter_map(|n| self.graph.node(n.as_str())).collect();
+        let nodes_to_expand: Vec<NodeView<IndexedGraph<DynamicGraph>>> = nodes_to_expand.iter().filter_map(|n| self.graph.node(n.as_str())).collect();
+        let neighbours: Vec<NodeView<IndexedGraph<DynamicGraph>>> = nodes_to_expand.iter().map(|n|n.neighbours()).flatten().collect();
+        all_graph_nodes.extend(neighbours.iter().map(|x|x.clone()));
+        let mut fetched_edges = self.graph.subgraph(all_graph_nodes).edges().iter().filter_map(|ee| self.graph.edge(ee.src(),ee.dst())).map(|ee| ee.clone().into())
             .collect_vec();
-
         match filter {
             Some(filter) => fetched_edges
                 .into_iter()

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-
+use async_graphql::extensions::ApolloTracing;
 use crate::{
     data::Data,
     model::{
@@ -209,6 +209,7 @@ impl RaphtoryServer {
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
+        let schema_builder = schema_builder.extension(ApolloTracing);
         let schema = schema_builder.finish().unwrap();
         let app = Route::new()
             .at("/", get(graphql_playground).post(GraphQL::new(schema)))
