@@ -147,15 +147,6 @@ impl<'a> Event<'a> {
     fn t(&self) -> Time {
         self.inner().timestamp()
     }
-
-    #[inline]
-    fn name(&self) -> &'static str {
-        match self {
-            Event::Login(_) => "Login",
-            Event::Prog1(_) => "Prog1",
-            Event::Netflow(_) => "Netflow",
-        }
-    }
 }
 
 struct MergeIter<'a, I: Iterator<Item = Event<'a>>> {
@@ -435,7 +426,6 @@ mod test {
         let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -465,7 +455,6 @@ mod test {
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -497,7 +486,6 @@ mod test {
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -549,7 +537,6 @@ mod test {
         let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -579,7 +566,6 @@ mod test {
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -609,7 +595,6 @@ mod test {
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),

@@ -405,7 +405,6 @@ mod test {
         let graph_events2v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events2v"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -435,7 +434,6 @@ mod test {
         let graph_events1v = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("events1v"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),
@@ -467,7 +465,6 @@ mod test {
         let graph_netflow = TempColGraphFragment::load_from_edge_list(
             &test_dir.path().join("netflow"),
             0,
-            4.try_into().unwrap(),
             100,
             100,
             go.clone(),

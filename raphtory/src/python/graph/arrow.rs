@@ -1,4 +1,4 @@
-use std::{io::Write, num::NonZeroUsize, sync::Arc};
+use std::{io::Write, sync::Arc};
 
 use arrow2::{
     array::StructArray,
@@ -246,9 +246,6 @@ impl PyArrowGraph {
         let dst_col_idx = df.names.iter().position(|x| x == dst).unwrap();
         let time_col_idx = df.names.iter().position(|x| x == time).unwrap();
 
-        let num_threads =
-            std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap());
-
         let chunk_size = df
             .arrays
             .first()
@@ -277,7 +274,6 @@ impl PyArrowGraph {
 
         ArrowGraph::load_from_edge_lists(
             &edge_lists,
-            num_threads,
             chunk_size,
             t_props_chunk_size,
             graph_dir,

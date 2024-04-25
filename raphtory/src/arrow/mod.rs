@@ -6,7 +6,7 @@ use std::{
 };
 
 use arrow2::{
-    array::{Array, PrimitiveArray, StructArray, Utf8Array},
+    array::{Array, StructArray},
     chunk::Chunk,
     compute::concatenate::concatenate,
     datatypes::{DataType, Field, Schema},
@@ -66,8 +66,8 @@ pub enum Error {
     ColumnNotFound(String),
     #[error("No Edge lists found in input path")]
     NoEdgeLists,
-    #[error("Unable to open database: {0:?}")]
-    DatabaseNotFound(PathBuf),
+    #[error("Unable to open graph: {0:?}")]
+    EmptyGraphDir(PathBuf),
     #[error("Empty parquet chunk")]
     EmptyChunk,
     #[error("Conversion error: {0}")]
@@ -388,68 +388,6 @@ pub(crate) fn split_chunk<I: IntoIterator<Item = Box<dyn Array>>>(
         },
         PropsChunk(t_prop_cols),
     )
-}
-
-fn array_as_id_iter(array: &Box<dyn Array>) -> Result<Box<dyn Iterator<Item = GID>>, Error> {
-    match array.data_type() {
-        DataType::UInt64 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<PrimitiveArray<u64>>()
-                .ok_or_else(|| {
-                    Error::InvalidTypeColumn(format!(
-                        "expected u64 column, got {:?}",
-                        array.data_type()
-                    ))
-                })?
-                .clone();
-            Ok(Box::new(array.into_iter().flatten().map(GID::U64)))
-        }
-        DataType::Int64 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<PrimitiveArray<i64>>()
-                .ok_or_else(|| {
-                    Error::InvalidTypeColumn(format!(
-                        "expected i64 column, got {:?}",
-                        array.data_type()
-                    ))
-                })?
-                .clone();
-            Ok(Box::new(array.into_iter().flatten().map(GID::I64)))
-        }
-        DataType::Utf8 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<Utf8Array<i32>>()
-                .ok_or_else(|| {
-                    Error::InvalidTypeColumn(format!(
-                        "expected utf8 column, got {:?}",
-                        array.data_type()
-                    ))
-                })?
-                .clone();
-            Ok(Box::new(
-                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.into()),
-            ))
-        }
-        DataType::LargeUtf8 => {
-            let array = array
-                .as_any()
-                .downcast_ref::<Utf8Array<i64>>()
-                .ok_or_else(|| {
-                    Error::InvalidTypeColumn(format!(
-                        "expected large_utf8 column, got {:?}",
-                        array.data_type()
-                    ))
-                })?
-                .clone();
-            Ok(Box::new(
-                (0..array.len()).map(move |i| unsafe { array.value_unchecked(i) }.into()),
-            ))
-        }
-        v => Err(Error::DType(v.clone())),
-    }
 }
 
 fn prepare_graph_dir<P: AsRef<Path>>(graph_dir: P) -> Result<(), Error> {

@@ -17,7 +17,6 @@ use crate::lanl::{thread_pool, NUM_THREADS};
 const SRCPORT: i64 = 3128;
 const BOOT: i64 = 4608;
 const PROGRAM: i64 = 4688;
-const WINDOW: i64 = 4;
 
 pub fn run(g: &TemporalGraph) -> Option<usize> {
     // layer

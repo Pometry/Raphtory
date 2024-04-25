@@ -9,7 +9,7 @@ use crate::{
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
-use std::{num::NonZeroUsize, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use crate::{core::entities::properties::props::Meta, prelude::Graph};
 
@@ -95,7 +95,6 @@ impl ArrowGraph {
         )];
         ArrowGraph::load_from_edge_lists(
             &edge_lists,
-            std::num::NonZeroUsize::new(1).unwrap(),
             chunk_size,
             t_props_chunk_size,
             graph_dir.as_ref(),
@@ -164,7 +163,6 @@ impl ArrowGraph {
 
     pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
-        num_threads: NonZeroUsize,
 
         chunk_size: usize,
         t_props_chunk_size: usize,
@@ -177,7 +175,6 @@ impl ArrowGraph {
     ) -> Result<Self, Error> {
         let inner = TemporalGraph::from_sorted_edge_list(
             graph_dir,
-            num_threads,
             src_col_idx,
             dst_col_idx,
             time_col_idx,

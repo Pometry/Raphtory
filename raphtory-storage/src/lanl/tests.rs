@@ -12,7 +12,7 @@ mod tests {
         prelude::{GraphViewOps, *},
     };
     use std::{env, num::NonZeroUsize, path::Path};
-    use tempfile::TempDir;
+    use tempfile::tempdir;
 
     #[test]
     fn test_query1() {
@@ -22,7 +22,7 @@ mod tests {
             .join("resource");
         println!("{rsc_dir:?}");
 
-        let graph_dir = rsc_dir.join("target");
+        let graph_dir = tempdir().unwrap();
         let rsc_dir = rsc_dir.canonicalize().unwrap();
         let parquet_dirs = vec![
             rsc_dir
@@ -67,7 +67,7 @@ mod tests {
         ];
 
         let graph = match measure_without_print_results("Graph load from dir", || {
-            ArrowGraph::load_from_dir(graph_dir.clone())
+            ArrowGraph::load_from_dir(graph_dir.as_ref())
         }) {
             Ok(g) => g,
             Err(e) => {

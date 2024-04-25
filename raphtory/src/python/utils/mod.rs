@@ -11,7 +11,7 @@ use crate::{
     db::api::view::*,
     python::graph::node::PyNode,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDateTime};
 use std::{future::Future, thread};
 
@@ -70,7 +70,7 @@ impl<'source> FromPyObject<'source> for PyTime {
         if let Ok(number) = time.extract::<i64>() {
             return Ok(PyTime::new(number.try_into_time()?));
         }
-        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
+        if let Ok(parsed_datetime) = time.extract::<DateTime<Utc>>() {
             return Ok(PyTime::new(parsed_datetime.try_into_time()?));
         }
         if let Ok(py_datetime) = time.extract::<&PyDateTime>() {
