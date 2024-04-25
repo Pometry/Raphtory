@@ -3,6 +3,7 @@ use std::{error::Error, str::FromStr};
 use arrow::util::pretty::print_batches;
 use clap::Parser;
 use futures::{stream, StreamExt};
+use pest::pratt_parser::Op;
 use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
 use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
 use serde::{de::DeserializeOwned, Deserialize};
@@ -34,6 +35,25 @@ struct LoadGraph {
     /// Graph path on disk
     #[arg(short, long)]
     graph_dir: String,
+
+    #[arg(short, long, default_value_t = 1000000)]
+    chunk_size: usize,
+
+    #[arg(short, long, default_value_t = 5000000)]
+    t_prop_chunk_size: usize,
+
+    #[arg(short, long)]
+    read_chunk_size: Option<usize>,
+
+    #[arg(short, long, default_value_t = 8)]
+    num_threads: usize,
+
+    #[arg(short, long)]
+    concurrent_files: Option<usize>,
+
+    #[arg(short, long)]
+    node_props: Option<String>,
+
     // /// parquet files to load as layers
     #[arg(short='l', last = true, value_parser = parse_key_val::<String, ArgLayer>)]
     layers: Vec<(String, ArgLayer)>,
@@ -148,11 +168,11 @@ async fn main() {
                 args.graph_dir.as_str(),
                 layer_parquet_cols,
                 None,
-                1_000_000,
-                5_000_000,
-                Some(1_000_000),
-                Some(8),
-                8,
+                args.chunk_size,
+                args.t_prop_chunk_size,
+                args.read_chunk_size,
+                args.concurrent_files,
+                args.num_threads,
             )
             .expect("Failed to load graph");
         }

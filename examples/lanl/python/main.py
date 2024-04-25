@@ -56,27 +56,21 @@ def main():
             "parquet_dir": os.path.join(resources_dir, "netflowsorted/nft_sorted"),
             "layer": "netflow",
             "src_col": "src",
-            "src_hash_col": "src_hash",
             "dst_col": "dst",
-            "dst_hash_col": "dst_hash",
             "time_col": "epoch_time",
         },
         {
             "parquet_dir": os.path.join(resources_dir, "netflowsorted/v1_sorted"),
             "layer": "events_1v",
             "src_col": "src",
-            "src_hash_col": "src_hash",
             "dst_col": "dst",
-            "dst_hash_col": "dst_hash",
             "time_col": "epoch_time",
         },
         {
             "parquet_dir": os.path.join(resources_dir, "netflowsorted/v2_sorted"),
             "layer": "events_2v",
             "src_col": "src",
-            "src_hash_col": "src_hash",
             "dst_col": "dst",
-            "dst_hash_col": "dst_hash",
             "time_col": "epoch_time",
         }
     ]

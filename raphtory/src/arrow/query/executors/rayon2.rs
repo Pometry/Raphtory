@@ -206,9 +206,10 @@ fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
                     .out_edges()
                     .iter()
                     .filter_map(|edge| {
+                        let dst = edge.dst();
                         state
-                            .hop_with_state(&edge.dst(), &edge.reset_filter())
-                            .map(|new_state| (edge, node, new_state))
+                            .hop_with_state(&dst, &edge.reset_filter())
+                            .map(|new_state| (edge, dst, new_state))
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
@@ -220,9 +221,10 @@ fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
                     .in_edges()
                     .iter()
                     .filter_map(|edge| {
+                        let src = edge.src();
                         state
-                            .hop_with_state(&edge.src(), &edge.reset_filter())
-                            .map(|new_state| (edge, node, new_state))
+                            .hop_with_state(&src, &edge.reset_filter())
+                            .map(|new_state| (edge, src, new_state))
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
