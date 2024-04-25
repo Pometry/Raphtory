@@ -16,7 +16,7 @@ mod tests {
     #[test]
     fn test_query1() {
         let executable_path = env::current_exe().expect("Failed to get executable path");
-        
+
         println!("{executable_path:?}");
         let rsc_dir = executable_path
             .parent()
