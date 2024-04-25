@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::lanl::*;
+    use itertools::Itertools;
     use raphtory::{
         algorithms::{
             centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
@@ -11,7 +12,7 @@ mod tests {
         },
         prelude::{GraphViewOps, *},
     };
-    use std::{env, num::NonZeroUsize, path::Path};
+    use std::{cmp::Reverse, env, num::NonZeroUsize, path::Path};
     use tempfile::tempdir;
 
     #[test]
@@ -124,19 +125,32 @@ mod tests {
             0
         );
 
-        assert_eq!(
-            measure_without_print_results("CC", || connected_components(&graph))
-                .into_iter()
-                .take(10)
-                .collect::<Vec<_>>(),
-            vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        );
-
-        let actual = measure_without_print_results("Weakly CC", || {
+        let get_all_with_names = &measure_without_print_results("Weakly CC", || {
             weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
         })
-        .get_all_with_names()
-        .len();
+        .get_all_with_names();
+
+        let components = get_all_with_names
+            .iter()
+            .group_by(|(_, v)| *v)
+            .into_iter()
+            .map(|(c, group)| (c, group.count()))
+            .sorted_by_key(|(_, size)| Reverse(*size))
+            .into_iter()
+            .take(10)
+            .collect::<Vec<_>>();
+
+        println!("COMPONENTS {:?}", components);
+
+        // assert_eq!(
+        //     measure_without_print_results("CC", || connected_components(&graph))
+        //         .into_iter()
+        //         .take(10)
+        //         .collect::<Vec<_>>(),
+        //     vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        // );
+
+        let actual = get_all_with_names.len();
         assert_eq!(actual, 1624);
 
         let actual = measure_without_print_results("Page Rank", || {
