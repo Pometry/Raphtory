@@ -16,10 +16,14 @@ mod tests {
     #[test]
     fn test_query1() {
         let executable_path = env::current_exe().expect("Failed to get executable path");
+        
+        println!("{executable_path:?}");
         let rsc_dir = executable_path
             .parent()
             .expect("Executable has no parent directory")
             .join("../../../resource");
+
+        println!("{rsc_dir:?}");
 
         let graph_dir = rsc_dir.join("target");
         let rsc_dir = rsc_dir.canonicalize().unwrap();
