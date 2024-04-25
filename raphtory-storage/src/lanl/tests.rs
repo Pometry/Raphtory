@@ -11,18 +11,15 @@ mod tests {
         },
         prelude::{GraphViewOps, *},
     };
-    use std::{env, num::NonZeroUsize};
+    use std::{env, num::NonZeroUsize, path::Path};
+    use tempfile::TempDir;
 
     #[test]
     fn test_query1() {
-        let executable_path = env::current_exe().expect("Failed to get executable path");
-
-        println!("{executable_path:?}");
-        let rsc_dir = executable_path
+        let rsc_dir = Path::new(&env::var_os("CARGO_MANIFEST_DIR").unwrap())
             .parent()
-            .expect("Executable has no parent directory")
-            .join("../../../resource");
-
+            .unwrap()
+            .join("resource");
         println!("{rsc_dir:?}");
 
         let graph_dir = rsc_dir.join("target");
