@@ -235,16 +235,8 @@ mod test {
 
             let edge_lists = vec![chunk];
 
-            let graph = ArrowGraph::load_from_edge_lists(
-                &edge_lists,
-                20,
-                20,
-                graph_dir,
-                0,
-                1,
-                2,
-            )
-            .unwrap();
+            let graph =
+                ArrowGraph::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2).unwrap();
 
             let df = run_cypher("match ()-[e]->() RETURN *", &graph)
                 .await
