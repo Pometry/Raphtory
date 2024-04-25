@@ -96,9 +96,7 @@ fn main() {
 
     measure_without_print_results("Iterate All Edges", || iterate_all_edges(&graph));
 
-    measure_without_print_results("CC", || {
-        connected_components::connected_components(&graph)
-    });
+    measure_without_print_results("CC", || connected_components::connected_components(&graph));
     measure_without_print_results("Weakly CC", || {
         weakly_connected_components(&graph, 20, None)
     });

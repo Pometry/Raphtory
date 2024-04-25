@@ -113,9 +113,7 @@ fn main() {
     // # measure_with_print_results("Query 3c", || query3c::run(graph.as_ref()).unwrap());
     measure_with_print_results("Query 4", || query4::run2(graph.as_ref()).unwrap());
 
-    measure_without_print_results("CC", || {
-        connected_components::connected_components(&graph)
-    });
+    measure_without_print_results("CC", || connected_components::connected_components(&graph));
     measure_without_print_results("Weakly CC", || {
         weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
     });
