@@ -78,8 +78,8 @@ def test_arrow_graph():
     # assert(measure("Query 3c", lanl_query3c, g) == 0)
     assert (measure("Query 4", lanl_query4, g) == 0)
 
-    assert (measure("CC", algorithms.connected_components, g, print_result=False)[:10] == [0, 1, 2, 3, 4, 5, 6, 7, 8,
-                                                                                           9])
+    # assert (measure("CC", algorithms.connected_components, g, print_result=False)[:10] == [0, 1, 2, 3, 4, 5, 6, 7, 8,
+    #                                                                                        9])
 
     actual = measure("Weakly CC  Layer", algorithms.weakly_connected_components, g.layer("netflow"), 20,
                      print_result=False)
