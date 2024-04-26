@@ -88,7 +88,6 @@ impl OptimizerRule for HopRule {
                 if let (LogicalPlan::TableScan(l_tbl), LogicalPlan::TableScan(r_tbl)) =
                     (l_tbl.input.as_ref(), r_tbl.input.as_ref())
                 {
-                    println!("BINGO!");
                     let plan = LogicalPlan::Extension(Extension {
                         node: Arc::new(HopPlan::from_table_scans(
                             self.graph.clone(),
@@ -96,6 +95,7 @@ impl OptimizerRule for HopRule {
                             schema.clone(),
                             l_tbl.clone(),
                             r_tbl.clone(),
+                            on,
                         )),
                     });
                     return Ok(Some(plan));

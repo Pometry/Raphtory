@@ -41,7 +41,6 @@ pub async fn prepare_plan(
     let query = parser::parse_cypher(query)?;
 
     let config = SessionConfig::from_env()?.with_information_schema(true);
-    // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
 
     let runtime = Arc::new(RuntimeEnv::default());
     let state = SessionState::new_with_config_rt(config, runtime)
