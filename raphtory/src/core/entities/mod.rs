@@ -56,6 +56,35 @@ impl From<VID> for usize {
 )]
 pub struct EID(pub usize);
 
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
+)]
+pub struct ELID {
+    edge: EID,
+    layer: Option<usize>,
+}
+
+impl ELID {
+    pub fn new(edge: EID, layer: Option<usize>) -> Self {
+        Self { edge, layer }
+    }
+    pub fn pid(&self) -> EID {
+        self.edge
+    }
+
+    pub fn layer(&self) -> Option<usize> {
+        self.layer
+    }
+}
+
+impl From<EdgeRef> for ELID {
+    fn from(value: EdgeRef) -> Self {
+        ELID {
+            edge: value.pid(),
+            layer: value.layer().copied(),
+        }
+    }
+}
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
@@ -74,21 +103,15 @@ impl From<usize> for EID {
     }
 }
 
-pub(crate) enum VRef<'a, const N: usize> {
-    Entry(Entry<'a, NodeStore, N>),        // returned from graph.node
-    LockedEntry(GraphEntry<NodeStore, N>), // returned from locked_nodes
+pub(crate) enum VRef<'a> {
+    Entry(Entry<'a, NodeStore>),
+    // returned from graph.node
+    LockedEntry(GraphEntry<NodeStore>), // returned from locked_nodes
 }
 
 // return index -> usize for VRef
-impl<'a, const N: usize> VRef<'a, N> {
-    fn index(&'a self) -> usize {
-        match self {
-            VRef::Entry(e) => e.index(),
-            VRef::LockedEntry(ge) => ge.index(),
-        }
-    }
-
-    fn edge_ref(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a, N> {
+impl<'a> VRef<'a> {
+    fn edge_ref<const N: usize>(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a> {
         match self {
             VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
             VRef::LockedEntry(ge) => ERef::ELock {
@@ -99,7 +122,7 @@ impl<'a, const N: usize> VRef<'a, N> {
     }
 }
 
-impl<'a, const N: usize> Deref for VRef<'a, N> {
+impl<'a> Deref for VRef<'a> {
     type Target = NodeStore;
 
     fn deref(&self) -> &Self::Target {
@@ -114,7 +137,7 @@ pub(crate) trait GraphItem<'a, const N: usize> {
     fn from_edge_ids(
         src: VID,
         dst: VID,
-        e_id: ERef<'a, N>,
+        e_id: ERef<'a>,
         dir: Direction,
         graph: &'a TGraph<N>,
     ) -> Self;
@@ -172,9 +195,53 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(self, e: EdgeRef) -> LayerIds {
+    pub fn diff<'a>(
+        &self,
+        graph: impl crate::prelude::GraphViewOps<'a>,
+        other: &LayerIds,
+    ) -> LayerIds {
+        match (self, other) {
+            (LayerIds::None, _) => LayerIds::None,
+            (this, LayerIds::None) => this.clone(),
+            (this, LayerIds::All) => LayerIds::None,
+            (LayerIds::One(id), other) => {
+                if other.contains(id) {
+                    LayerIds::None
+                } else {
+                    LayerIds::One(*id)
+                }
+            }
+            (LayerIds::Multiple(ids), other) => {
+                let ids: Vec<usize> = ids
+                    .iter()
+                    .filter(|id| !other.contains(id))
+                    .copied()
+                    .collect();
+                match ids.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(ids[0]),
+                    _ => LayerIds::Multiple(ids.into()),
+                }
+            }
+            (LayerIds::All, other) => {
+                let all_layer_ids: Vec<usize> = graph
+                    .unique_layers()
+                    .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
+                    .into_iter()
+                    .filter(|id| !other.contains(id))
+                    .collect();
+                match all_layer_ids.len() {
+                    0 => LayerIds::None,
+                    1 => LayerIds::One(all_layer_ids[0]),
+                    _ => LayerIds::Multiple(all_layer_ids.into()),
+                }
+            }
+        }
+    }
+
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> LayerIds {
         match e.layer() {
-            None => self,
+            None => self.clone(),
             Some(l) => self.find(*l).map(LayerIds::One).unwrap_or(LayerIds::None),
         }
     }

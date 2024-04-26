@@ -1,9 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
@@ -14,7 +11,7 @@ use crate::{
         },
     },
 };
-use std::{cmp, collections::HashMap};
+use std::cmp;
 
 #[derive(Clone, Debug, Default)]
 struct WccState {
@@ -75,18 +72,14 @@ where
         vec![Job::read_only(step2)],
         None,
         |_, _, _, local: Vec<WccState>| {
-            let layers: crate::core::entities::LayerIds = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            local
+            graph
+                .nodes()
                 .iter()
-                .enumerate()
-                .filter_map(|(v_ref_id, state)| {
-                    let v_ref = VID(v_ref_id);
-                    graph
-                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.component))
+                .map(|node| {
+                    let VID(id) = node.node;
+                    (id, local[id].component)
                 })
-                .collect::<HashMap<_, _>>()
+                .collect()
         },
         threads,
         iter_count,
@@ -99,14 +92,11 @@ where
 
 #[cfg(test)]
 mod cc_test {
-    use crate::prelude::*;
-    use std::cmp::Reverse;
-
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
+    use crate::{db::api::mutation::AdditionOps, prelude::*};
     use itertools::*;
     use quickcheck_macros::quickcheck;
-    use std::iter::once;
+    use std::{cmp::Reverse, collections::HashMap, iter::once};
     use tempfile::TempDir;
 
     #[test]
@@ -128,6 +118,7 @@ mod cc_test {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -149,6 +140,7 @@ mod cc_test {
             );
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -187,6 +179,7 @@ mod cc_test {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -212,6 +205,7 @@ mod cc_test {
             );
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -227,6 +221,7 @@ mod cc_test {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -240,6 +235,7 @@ mod cc_test {
             );
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -252,6 +248,7 @@ mod cc_test {
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -278,6 +275,7 @@ mod cc_test {
             assert_eq!(results, expected);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -324,6 +322,7 @@ mod cc_test {
             }
 
             let test_dir = TempDir::new().unwrap();
+            #[cfg(feature = "arrow")]
             let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
             fn test<G: StaticGraphViewOps>(graph: &G, smallest: &u64, edges: &[(u64, u64)]) {
@@ -342,6 +341,7 @@ mod cc_test {
                 assert_eq!(actual, (*smallest, edges.len()));
             }
             test(&graph, smallest, &edges);
+            #[cfg(feature = "arrow")]
             test(&arrow_graph, smallest, &edges);
         }
     }

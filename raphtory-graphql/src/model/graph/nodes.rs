@@ -47,8 +47,16 @@ impl GqlNodes {
         self.update(self.nn.valid_layers(names))
     }
 
+    async fn exclude_layers(&self, names: Vec<String>) -> Self {
+        self.update(self.nn.exclude_valid_layers(names))
+    }
+
     async fn layer(&self, name: String) -> Self {
         self.update(self.nn.valid_layers(name))
+    }
+
+    async fn exclude_layer(&self, name: String) -> Self {
+        self.update(self.nn.exclude_valid_layers(name))
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
@@ -94,6 +102,7 @@ impl GqlNodes {
     /////////////////
     //// List ///////
     /////////////////
+
     async fn count(&self) -> usize {
         self.iter().count()
     }
@@ -109,5 +118,9 @@ impl GqlNodes {
 
     async fn ids(&self) -> Vec<String> {
         self.nn.name().collect()
+    }
+
+    async fn type_filter(&self, node_types: Vec<String>) -> Self {
+        self.update(self.nn.type_filter(node_types))
     }
 }

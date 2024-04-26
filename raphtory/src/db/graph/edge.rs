@@ -24,6 +24,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
+            storage::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
@@ -103,6 +104,11 @@ impl<
     fn eq(&self, other: &EdgeView<G2, GH2>) -> bool {
         self.id() == other.id()
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
+    for EdgeView<G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
@@ -198,7 +204,7 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         let input_layer_id = self.resolve_layer(layer, false)?;
         if !self
             .graph
-            .core_edge(self.edge.pid())
+            .core_edge(self.edge.into())
             .has_layer(&LayerIds::One(input_layer_id))
         {
             return Err(GraphError::InvalidEdgeLayer {
@@ -273,7 +279,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 
     fn const_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph
-            .const_edge_prop_ids(self.edge, self.graph.layer_ids())
+            .const_edge_prop_ids(self.edge, self.graph.layer_ids().clone())
     }
 
     fn const_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
@@ -283,7 +289,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
         self.graph
-            .get_const_edge_prop(self.edge, id, self.graph.layer_ids())
+            .get_const_edge_prop(self.edge, id, self.graph.layer_ids().clone())
     }
 }
 
@@ -292,14 +298,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
 {
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
+            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids().clone())
             .into_iter()
             .map(|(t, _)| t)
             .collect()
     }
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids())
+            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids().clone())
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
@@ -410,6 +416,7 @@ mod test_edge {
         graph.add_edge(2, 1, 2, props.clone(), None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, props: [(ArcStr, Prop); 1]) {
@@ -419,6 +426,7 @@ mod test_edge {
             assert!(e1_w.properties().as_vec().is_empty())
         }
         test(&graph, props.clone());
+        #[cfg(feature = "arrow")]
         test(&arrow_graph, props);
     }
 
@@ -437,6 +445,7 @@ mod test_edge {
             .unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

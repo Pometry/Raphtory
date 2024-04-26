@@ -2,17 +2,17 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, EID, ELID, VID,
         },
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry, ArcEntry},
+        storage::locked_view::LockedView,
         utils::errors::GraphError,
-        ArcStr, Direction, PropType,
+        ArcStr, PropType,
     },
     db::{
         api::{
@@ -20,14 +20,25 @@ use crate::{
             properties::internal::{
                 ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
-            view::{internal::*, BoxedIter, BoxedLIter},
+            storage::{
+                edges::{
+                    edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry,
+                    edge_ref::EdgeStorageRef, edges::EdgesStorage,
+                },
+                nodes::{
+                    node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry,
+                    nodes::NodesStorage,
+                },
+                storage_ops::GraphStorage,
+            },
+            view::{internal::*, BoxedIter},
         },
         graph::{
             graph::{Graph, InternalGraph},
-            views::deletion_graph::GraphWithDeletions,
+            views::deletion_graph::PersistentGraph,
         },
     },
-    prelude::{Layer, Prop},
+    prelude::*,
     BINCODE_VERSION,
 };
 use chrono::{DateTime, Utc};
@@ -37,8 +48,10 @@ use std::path::Path;
 
 #[enum_dispatch(CoreGraphOps)]
 #[enum_dispatch(InternalLayerOps)]
+#[enum_dispatch(ListOps)]
 #[enum_dispatch(TimeSemantics)]
 #[enum_dispatch(EdgeFilterOps)]
+#[enum_dispatch(NodeFilterOps)]
 #[enum_dispatch(InternalMaterialize)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
@@ -48,7 +61,7 @@ use std::path::Path;
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
-    PersistentGraph(GraphWithDeletions),
+    PersistentGraph(PersistentGraph),
 }
 
 fn version_deserialize<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -74,123 +87,6 @@ struct VersionedGraph<T> {
 
 impl Static for MaterializedGraph {}
 
-impl<'graph> GraphOps<'graph> for MaterializedGraph {
-    fn internal_node_ref(
-        &self,
-        v: NodeRef,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.internal_node_ref(v, layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.internal_node_ref(v, layer_ids, filter),
-        }
-    }
-
-    fn find_edge_id(
-        &self,
-        e_id: EID,
-        layer_ids: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.find_edge_id(e_id, layer_ids, filter),
-        }
-    }
-
-    fn nodes_len(&self, layer_ids: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.nodes_len(layer_ids, filter),
-            MaterializedGraph::PersistentGraph(g) => g.nodes_len(layer_ids, filter),
-        }
-    }
-
-    fn edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edges_len(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edges_len(layers, filter),
-        }
-    }
-
-    fn temporal_edges_len(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.temporal_edges_len(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.temporal_edges_len(layers, filter),
-        }
-    }
-
-    fn degree(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> usize {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.degree(v, d, layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.degree(v, d, layers, filter),
-        }
-    }
-
-    fn edge_ref(
-        &self,
-        src: VID,
-        dst: VID,
-        layer: &LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> Option<EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_ref(src, dst, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edge_ref(src, dst, layer, filter),
-        }
-    }
-
-    fn node_refs(&self, layers: LayerIds, filter: Option<&EdgeFilter>) -> BoxedLIter<'graph, VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.node_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.node_refs(layers, filter),
-        }
-    }
-
-    fn edge_refs(
-        &self,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.edge_refs(layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.edge_refs(layers, filter),
-        }
-    }
-
-    fn node_edges(
-        &self,
-        v: VID,
-        d: Direction,
-        layer: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, EdgeRef> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.node_edges(v, d, layer, filter),
-            MaterializedGraph::PersistentGraph(g) => g.node_edges(v, d, layer, filter),
-        }
-    }
-
-    fn neighbours(
-        &self,
-        v: VID,
-        d: Direction,
-        layers: LayerIds,
-        filter: Option<&EdgeFilter>,
-    ) -> BoxedLIter<'graph, VID> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.neighbours(v, d, layers, filter),
-            MaterializedGraph::PersistentGraph(g) => g.neighbours(v, d, layers, filter),
-        }
-    }
-}
-
 impl MaterializedGraph {
     pub fn into_events(self) -> Option<Graph> {
         match self {
@@ -198,7 +94,7 @@ impl MaterializedGraph {
             MaterializedGraph::PersistentGraph(_) => None,
         }
     }
-    pub fn into_persistent(self) -> Option<GraphWithDeletions> {
+    pub fn into_persistent(self) -> Option<PersistentGraph> {
         match self {
             MaterializedGraph::EventGraph(_) => None,
             MaterializedGraph::PersistentGraph(g) => Some(g),
@@ -278,8 +174,8 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, GraphOps, InternalLayerOps, InternalMaterialize,
-            MaterializedGraph, TimeSemantics,
+            CoreGraphOps, EdgeFilterOps, InternalLayerOps, InternalMaterialize, MaterializedGraph,
+            TimeSemantics,
         },
         prelude::*,
     };
@@ -293,12 +189,12 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_graph_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.nodes_len(mg.layer_ids(), mg.edge_filter()), 0);
+        assert_eq!(mg.count_nodes(), 0);
     }
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert!(mg.edge_filter().is_none());
+        assert!(!mg.edges_filtered());
     }
 
     #[test]

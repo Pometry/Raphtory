@@ -5,7 +5,7 @@ import random
 import pandas as pd
 import pandas.core.frame
 import pytest
-from raphtory import Graph, GraphWithDeletions, PyDirection
+from raphtory import Graph, PersistentGraph, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
@@ -13,11 +13,11 @@ from math import isclose
 from datetime import datetime, timezone
 import string
 from pathlib import Path
-from distutils import dir_util
 from pytest import fixture
 import os
-
-
+import shutil
+import numpy as np
+    
 base_dir = Path(__file__).parent
 edges = [(1, 1, 2), (2, 1, 3), (-1, 2, 1), (0, 1, 1), (7, 3, 2), (1, 1, 1)]
 utc = timezone.utc
@@ -37,7 +37,7 @@ def create_graph():
 
 
 def create_graph_with_deletions():
-    g = GraphWithDeletions()
+    g = PersistentGraph()
 
     g.add_node(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_node(-1, 2, {"type": "wallet", "cost": 10.0})
@@ -330,18 +330,20 @@ def test_entity_history_date_time():
         [datetime(1970, 1, 1, tzinfo=utc)],
         [datetime(1970, 1, 1, tzinfo=utc)],
     ]
-
+    
 
 def test_graph_properties():
     g = create_graph()
 
-    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
+    props = {"prop 1": 1, "prop 2": "hi", "prop 3": True, "prop 4": [1, 2], "prop 5": {"x": 1, "y": "ok"}}
     g.add_constant_properties(props)
 
     sp = g.properties.constant.keys()
     sp.sort()
-    assert sp == ["prop 1", "prop 2", "prop 3"]
+    assert sp == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5"]
     assert g.properties["prop 1"] == 1
+    assert g.properties["prop 4"] == [1, 2]
+    assert g.properties["prop 5"] == {"x": 1, "y": "ok"}
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
     g.add_property(1, props)
@@ -1378,11 +1380,18 @@ def test_layer():
 
     g.add_edge(0, 1, 2)
     g.add_edge(0, 1, 3, layer="layer1")
+    g.add_edge(0, 1, 5, layer="layer1")
+    g.add_edge(0, 1, 6, layer="layer1")
     g.add_edge(0, 1, 4, layer="layer2")
 
     assert g.default_layer().count_edges() == 1
-    assert g.layers(["layer1"]).count_edges() == 1
+    assert g.layers(["layer1"]).count_edges() == 3
     assert g.layers(["layer2"]).count_edges() == 1
+
+    assert g.exclude_layers(["layer1"]).count_edges() == 2
+    assert g.exclude_layer("layer1").count_edges() == 2
+    assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
+    assert g.exclude_layer("layer2").count_edges() == 4
 
 
 def test_layer_node():
@@ -1625,6 +1634,16 @@ def test_subgraph():
     x.sort()
     assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
 
+def test_exclude_nodes():
+    g = create_graph()
+    exclude_nodes = g.exclude_nodes([1])
+    assert exclude_nodes.nodes.id.collect() == [2, 3]
+
+def test_nbr():
+    g = create_graph()
+    r = [e.nbr.name for e in g.edges]
+    r.sort()
+    assert r == ['1', '1', '2', '2', '3']
 
 def test_materialize_graph():
     g = Graph()
@@ -1948,6 +1967,17 @@ def test_one_hop_filter_reset():
     assert len(out_out_2) == 0
 
 
+def test_node_types():
+    g = Graph()
+    g.add_node(1, 1, node_type="wallet")
+    g.add_node(1, 2, node_type="timer")
+    g.add_node(1, 3, node_type="timer")
+    g.add_node(1, 4, node_type="wallet")
+    
+    assert g.nodes.type_filter(["wallet"]).node_type.collect() == ['1', '4']
+    assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
+
+
 def test_time_exploded_edges():
     g = Graph()
     g.add_edge(1, 1, 2)
@@ -2003,8 +2033,6 @@ def test_leading_zeroes_ids():
     # assert g.node(g.node(1).name) is not None
 
 
-
-
 def test_node_types():
     g = Graph()
     a = g.add_node(0, "A", None, None)
@@ -2022,6 +2050,15 @@ def test_node_types_change():
     assert a.node_type == "YO"
 
 
+def test_persistent_event_graphs():
+    g = Graph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 2, 3)
+    g.add_edge(3, 1, 3)
+    pg = g.persistent_graph()
+    pg.delete_edge(4, 1, 3)
+
+
 def test_is_self_loop():
     g = Graph()
     g.add_node(0, "A", None, None)
@@ -2030,6 +2067,21 @@ def test_is_self_loop():
     g.add_node(0, "B", None, None)
     ee = g.add_edge(0, "A", "B", None, None)
     assert not ee.is_self_loop()
+
+def test_NaN_NaT_as_properties():
+    now = datetime.now()
+    data = {
+        'floats': [np.NaN, None, 2.4, None, None, None],
+        'time': [10, 20, 30, 40, 50, 60],
+        'id': [101, 102, 103, 104, 105, 106],
+        'datetime': [now, now, np.datetime64('NaT'), now, now, now]  # Hardcoded datetime
+    }
+
+    df = pd.DataFrame(data)
+    g = Graph()
+    g.load_nodes_from_pandas(time='time', id = 'id', df=df, properties=['floats'])
+    assert g.node(103).properties.temporal.get('floats').items() == [(30, 2.4)]
+    assert g.node(101).properties.temporal.get('floats') == None
 
 
 def test_fuzzy_search():
@@ -2111,7 +2163,11 @@ def datadir(tmpdir, request):
     filename = request.module.__file__
     test_dir, _ = os.path.splitext(filename)
     if os.path.isdir(test_dir):
-        dir_util.copy_tree(test_dir, str(tmpdir))
+        try:
+            shutil.copytree(test_dir, str(tmpdir), dirs_exist_ok=True)
+            return tmpdir
+        except Exception as e:
+            raise e
     return tmpdir
 
 

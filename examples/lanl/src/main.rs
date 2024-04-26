@@ -60,27 +60,21 @@ fn main() {
             parquet_dir: &parquet_dirs[0],
             layer: "netflow",
             src_col: "src",
-            src_hash_col: "src_hash",
             dst_col: "dst",
-            dst_hash_col: "dst_hash",
             time_col: "epoch_time",
         },
         ParquetLayerCols {
             parquet_dir: &parquet_dirs[1],
             layer: "events_1v",
             src_col: "src",
-            src_hash_col: "src_hash",
             dst_col: "dst",
-            dst_hash_col: "dst_hash",
             time_col: "epoch_time",
         },
         ParquetLayerCols {
             parquet_dir: &parquet_dirs[2],
             layer: "events_2v",
             src_col: "src",
-            src_hash_col: "src_hash",
             dst_col: "dst",
-            dst_hash_col: "dst_hash",
             time_col: "epoch_time",
         },
     ];
@@ -95,6 +89,7 @@ fn main() {
                 ArrowGraph::load_from_parquets(
                     graph_dir,
                     layer_parquet_cols,
+                    None,
                     chunk_size,
                     t_props_chunk_size,
                     Some(read_chunk_size),
@@ -118,9 +113,7 @@ fn main() {
     // # measure_with_print_results("Query 3c", || query3c::run(graph.as_ref()).unwrap());
     measure_with_print_results("Query 4", || query4::run2(graph.as_ref()).unwrap());
 
-    measure_without_print_results("CC", || {
-        connected_components::connected_components(graph.as_ref().layer(0))
-    });
+    measure_without_print_results("CC", || connected_components::connected_components(&graph));
     measure_without_print_results("Weakly CC", || {
         weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
     });

@@ -35,6 +35,9 @@ pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
         PropType::Document => {
             panic!("Document not supported as property")
         }
+        PropType::NDTime => {
+            panic!("datetime not supported as property")
+        }
     }
 }
 
@@ -100,6 +103,9 @@ pub fn arrow_array_from_props(
         PropType::Document => {
             panic!("Document not supported as property")
         }
+        PropType::NDTime => {
+            panic!("datetime not supported as property")
+        }
     }
 }
 
@@ -154,6 +160,9 @@ pub fn schema_from_prop_meta(prop_map: &PropMapper) -> Schema {
             }
             PropType::Document => {
                 panic!("Document not supported as property")
+            }
+            PropType::NDTime => {
+                panic!("datetime not supported as property")
             }
         }
     }

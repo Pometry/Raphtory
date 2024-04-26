@@ -1,4 +1,4 @@
-use std::{iter, ops::Deref};
+use std::iter;
 
 use chrono::{DateTime, Utc};
 
@@ -84,6 +84,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
 
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
+
     /// Returns the source node of the edge.
     fn src(&self) -> Self::Nodes;
 
@@ -108,12 +109,15 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
+
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
     fn time(&self) -> Self::ValueType<Option<i64>>;
+
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
@@ -150,12 +154,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(move |g, e| g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(move |g, e| g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e)))
     }
 
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
-            g.edge_deletion_history(e, g.layer_ids().constrain_from_edge(e))
+            g.edge_deletion_history(e, &g.layer_ids().constrain_from_edge(e))
                 .into_iter()
                 .map(|t| t.dt())
                 .collect()
@@ -163,11 +167,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn is_valid(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_is_valid(e, &g.layer_ids().constrain_from_edge(e)))
     }
 
     fn is_deleted(&self) -> Self::ValueType<bool> {
-        self.map(|g, e| !g.edge_is_valid(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| !g.edge_is_valid(e, &g.layer_ids().constrain_from_edge(e)))
     }
 
     fn is_self_loop(&self) -> Self::ValueType<bool> {
@@ -199,16 +203,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             Some(tt) => {
                 tt.t() <= t
                     && t <= g
-                        .edge_latest_time(e, g.layer_ids().constrain_from_edge(e))
+                        .edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))
                         .unwrap_or(tt.t())
             }
             None => {
-                let window_filter = g.include_edge_window();
-                window_filter(
-                    g.core_edge(e.pid()).deref(),
-                    &g.layer_ids(),
-                    t..t.saturating_add(1),
-                )
+                let edge = g.core_edge(e.into());
+                g.include_edge_window(edge.as_ref(), t..t.saturating_add(1), g.layer_ids())
             }
         })
     }
@@ -221,7 +221,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn explode(&self) -> Self::Exploded {
         self.map_exploded(|g, e| match e.time() {
             Some(_) => Box::new(iter::once(e)),
-            None => g.edge_exploded(e, g.layer_ids().constrain_from_edge(e)),
+            None => g.edge_exploded(e, &g.layer_ids().constrain_from_edge(e)),
         })
     }
 
@@ -234,26 +234,26 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, e| g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e)))
     }
 
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_earliest_time(e, g.layer_ids().constrain_from_edge(e))?
+            g.edge_earliest_time(e, &g.layer_ids().constrain_from_edge(e))?
                 .dt()
         })
     }
 
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
         self.map(|g, e| {
-            g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e))?
+            g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e))?
                 .dt()
         })
     }
 
     /// Gets the latest time an edge was updated
     fn latest_time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|g, e| g.edge_latest_time(e, g.layer_ids().constrain_from_edge(e)))
+        self.map(|g, e| g.edge_latest_time(e, &g.layer_ids().constrain_from_edge(e)))
     }
 
     /// Gets the time stamp of the edge if it is exploded
@@ -279,7 +279,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn layer_names(&self) -> Self::ValueType<BoxedIter<ArcStr>> {
         self.map(|g, e| {
             let layer_names = g.edge_meta().layer_meta().get_keys();
-            g.edge_layers(e, g.layer_ids().constrain_from_edge(e))
+            g.edge_layers(e, &g.layer_ids().constrain_from_edge(e))
                 .map(move |ee| {
                     layer_names[*ee.layer().expect("exploded edge should have layer")].clone()
                 })
@@ -302,6 +302,7 @@ mod test_edge_view {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, actual_prop_values: &[i32]) {
@@ -315,6 +316,7 @@ mod test_edge_view {
             assert_eq!(prop_values, actual_prop_values)
         }
         test(&graph, &actual_prop_values);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph, &actual_prop_values);
     }
 
@@ -331,6 +333,7 @@ mod test_edge_view {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(
@@ -358,6 +361,7 @@ mod test_edge_view {
             assert_eq!(prop_values, actual_prop_values_1)
         }
         test(&graph, &actual_prop_values_0, &actual_prop_values_1);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph, &actual_prop_values_0, &actual_prop_values_1);
     }
 
@@ -372,6 +376,7 @@ mod test_edge_view {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G, expected_prop_values: &[i32]) {
@@ -410,6 +415,7 @@ mod test_edge_view {
         graph.add_edge(0, 2, 3, [("second", true)], None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

@@ -1,9 +1,6 @@
 use crate::{
     algorithms::algorithm_result::AlgorithmResult,
-    core::{
-        entities::{nodes::node_ref::NodeRef, VID},
-        state::compute_state::ComputeStateVec,
-    },
+    core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::view::{NodeViewOps, StaticGraphViewOps},
         task::{
@@ -14,7 +11,7 @@ use crate::{
         },
     },
 };
-use std::collections::{HashMap, HashSet};
+use std::{collections::HashSet, mem};
 
 #[derive(Clone, Debug, Default)]
 struct InState {
@@ -67,19 +64,15 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<InState>| {
-            let layers: crate::core::entities::LayerIds = graph.layer_ids();
-            let edge_filter = graph.edge_filter();
-            local
+        |_, _, _, mut local: Vec<InState>| {
+            graph
+                .nodes()
                 .iter()
-                .enumerate()
-                .filter_map(|(v_ref_id, state)| {
-                    let v_ref = VID(v_ref_id);
-                    graph
-                        .has_node_ref(NodeRef::Internal(v_ref), &layers, edge_filter)
-                        .then_some((v_ref_id, state.in_components.clone()))
+                .map(|node| {
+                    let VID(id) = node.node;
+                    (id, mem::take(&mut local[id].in_components))
                 })
-                .collect::<HashMap<_, _>>()
+                .collect()
         },
         threads,
         1,
@@ -91,11 +84,10 @@ where
 
 #[cfg(test)]
 mod components_test {
-    use crate::prelude::*;
-    use tempfile::TempDir;
-
     use super::*;
-    use crate::db::api::mutation::AdditionOps;
+    use crate::{db::api::mutation::AdditionOps, prelude::*};
+    use std::collections::HashMap;
+    use tempfile::TempDir;
 
     #[test]
     fn in_components_test() {
@@ -115,6 +107,7 @@ mod components_test {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -138,6 +131,7 @@ mod components_test {
             assert_eq!(map, correct);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 }

@@ -21,8 +21,13 @@ jobs:
             cargo-args: ""
           - os: windows-latest-large-gh
             cargo-args: ""
-#            cargo-args: --target-dir=C:\target
+    #            cargo-args: --target-dir=C:\target
     steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        name: Xcode version
+        if: "contains(matrix.os, 'macOS')"
+        with:
+          xcode-version: latest-stable
       - uses: actions/checkout@v3
         name: Checkout
       - uses: actions-rs/toolchain@v1
@@ -50,7 +55,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
-            cache-all-crates: true
+          cache-all-crates: true
       - name: Run Tests (No features)
         env:
           RUSTFLAGS: -Awarnings

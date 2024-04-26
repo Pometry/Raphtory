@@ -7,16 +7,18 @@ use crate::{
         },
         storage::{
             lazy_vec::IllegalSet,
-            locked_view::LockedView,
             timeindex::{TimeIndex, TimeIndexEntry, TimeIndexOps},
         },
-        utils::errors::{GraphError, MutateGraphError},
+        utils::errors::GraphError,
         Prop,
     },
-    db::api::view::{internal::EdgeLike, BoxedLIter, IntoDynBoxed},
-    prelude::TimeOps,
+    db::api::{
+        storage::edge_storage_ops::EdgeStorageOps,
+        view::{BoxedLIter, IntoDynBoxed},
+    },
 };
 use itertools::{EitherOrBoth, Itertools};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     iter,
@@ -151,7 +153,7 @@ impl EdgeStore {
     }
 
     /// Iterate over (layer_id, additions, deletions) triplets for edge
-    pub fn updates_iter<'a>(
+    pub fn updates_iter_inner<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> impl Iterator<
@@ -164,8 +166,8 @@ impl EdgeStore {
         match layers {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => self
-                .additions_iter(layers)
-                .zip_longest(self.deletions_iter(layers))
+                .additions_iter_inner(layers)
+                .zip_longest(self.deletions_iter_inner(layers))
                 .enumerate()
                 .map(|(l, zipped)| match zipped {
                     EitherOrBoth::Both(additions, deletions) => (l, additions, deletions),
@@ -188,7 +190,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn additions_iter<'a>(
+    pub fn additions_iter_inner<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
@@ -203,7 +205,7 @@ impl EdgeStore {
         }
     }
 
-    pub fn deletions_iter<'a>(
+    pub fn deletions_iter_inner<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> BoxedLIter<'a, &TimeIndex<TimeIndexEntry>> {
@@ -288,7 +290,7 @@ impl EdgeStore {
             LayerIds::None => false,
             LayerIds::All => self
                 .additions
-                .iter()
+                .par_iter()
                 .any(|t_index| t_index.contains(w.clone())),
             LayerIds::One(l_id) => self
                 .additions
@@ -296,7 +298,7 @@ impl EdgeStore {
                 .map(|t_index| t_index.contains(w))
                 .unwrap_or(false),
             LayerIds::Multiple(layers) => layers
-                .iter()
+                .par_iter()
                 .any(|l_id| self.active(&LayerIds::One(*l_id), w.clone())),
         }
     }

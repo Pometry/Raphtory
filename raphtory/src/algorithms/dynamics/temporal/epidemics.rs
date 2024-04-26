@@ -83,8 +83,9 @@ impl<I: IntoIterator<Item = V>, V: AsNodeRef + Debug> IntoSeeds for I {
         self.into_iter()
             .map(|v| {
                 let description = format!("{:?}", v);
-                graph
-                    .internal_node_ref(v.as_node_ref(), &graph.layer_ids(), graph.edge_filter())
+                (&graph)
+                    .node(v)
+                    .map(|node| node.node)
                     .ok_or(SeedError::InvalidNode(description))
             })
             .collect()
@@ -95,12 +96,9 @@ impl IntoSeeds for Probability {
     fn into_initial_list<G: StaticGraphViewOps, R: Rng + ?Sized>(
         self,
         graph: &G,
-        rng: &mut R,
+        _rng: &mut R,
     ) -> Result<Vec<VID>, SeedError> {
-        Ok(graph
-            .node_refs(graph.layer_ids(), graph.edge_filter())
-            .filter(|_| self.sample(rng))
-            .collect())
+        Ok(graph.nodes().iter().map(|node| node.node).collect())
     }
 }
 
@@ -119,7 +117,9 @@ impl IntoSeeds for Number {
             })
         } else {
             Ok(graph
-                .node_refs(graph.layer_ids(), graph.edge_filter())
+                .nodes()
+                .iter()
+                .map(|node| node.node)
                 .choose_multiple(rng, num_seeds))
         }
     }
@@ -371,6 +371,7 @@ mod test {
         inner_test(event_rate, recovery_rate, p);
     }
 
+    #[cfg(feature = "arrow")]
     #[test]
     fn compare_arrow_with_in_mem() {
         let event_rate = 0.00000001;

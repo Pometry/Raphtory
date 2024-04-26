@@ -1,4 +1,7 @@
-use arrow2::array::StructArray;
+use arrow2::{
+    array::{PrimitiveArray, StructArray},
+    datatypes::{DataType, Field},
+};
 
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
@@ -6,7 +9,7 @@ use crate::{
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
-use std::{num::NonZeroUsize, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use crate::{core::entities::properties::props::Meta, prelude::Graph};
 
@@ -17,7 +20,9 @@ pub mod core_ops;
 pub mod edge_filter_ops;
 pub mod graph_ops;
 pub mod layer_ops;
+mod list_ops;
 pub mod materialize;
+mod node_filter_ops;
 pub mod prop_conversion;
 pub mod temporal_properties_ops;
 pub mod time_semantics;
@@ -28,9 +33,7 @@ pub struct ParquetLayerCols<'a> {
     pub parquet_dir: &'a str,
     pub layer: &'a str,
     pub src_col: &'a str,
-    pub src_hash_col: &'a str,
     pub dst_col: &'a str,
-    pub dst_hash_col: &'a str,
     pub time_col: &'a str,
 }
 
@@ -63,6 +66,45 @@ impl IntoDynamic for ArrowGraph {
 }
 
 impl ArrowGraph {
+    pub fn make_simple_graph(
+        graph_dir: impl AsRef<Path>,
+        edges: &[(u64, u64, i64, f64)],
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+    ) -> ArrowGraph {
+        // unzip into 4 vectors
+        let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
+            .into_iter()
+            .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
+            .unzip();
+
+        let edge_lists = vec![arrow2::array::StructArray::new(
+            DataType::Struct(vec![
+                Field::new("src", DataType::UInt64, false),
+                Field::new("dst", DataType::UInt64, false),
+                Field::new("time", DataType::Int64, false),
+                Field::new("weight", DataType::Float64, false),
+            ]),
+            vec![
+                PrimitiveArray::from_vec(src).boxed(),
+                PrimitiveArray::from_vec(dst).boxed(),
+                PrimitiveArray::from_vec(time).boxed(),
+                PrimitiveArray::from_vec(weight).boxed(),
+            ],
+            None,
+        )];
+        ArrowGraph::load_from_edge_lists(
+            &edge_lists,
+            chunk_size,
+            t_props_chunk_size,
+            graph_dir.as_ref(),
+            0,
+            1,
+            2,
+        )
+        .expect("failed to create graph")
+    }
+
     fn new(inner_graph: TemporalGraph) -> Self {
         let node_meta = Meta::new();
         let mut edge_meta = Meta::new();
@@ -121,20 +163,15 @@ impl ArrowGraph {
 
     pub fn load_from_edge_lists(
         edge_lists: &[StructArray],
-        num_threads: NonZeroUsize,
-
         chunk_size: usize,
         t_props_chunk_size: usize,
-
         graph_dir: impl AsRef<Path> + Sync,
-
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
     ) -> Result<Self, Error> {
         let inner = TemporalGraph::from_sorted_edge_list(
             graph_dir,
-            num_threads,
             src_col_idx,
             dst_col_idx,
             time_col_idx,
@@ -150,9 +187,10 @@ impl ArrowGraph {
         Ok(Self::new(inner))
     }
 
-    pub fn load_from_parquets(
-        graph_dir: impl AsRef<Path>,
+    pub fn load_from_parquets<P: AsRef<Path>>(
+        graph_dir: P,
         layer_parquet_cols: Vec<ParquetLayerCols>,
+        node_properties: Option<P>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
@@ -166,18 +204,14 @@ impl ArrowGraph {
                      parquet_dir,
                      layer,
                      src_col,
-                     src_hash_col,
                      dst_col,
-                     dst_hash_col,
                      time_col,
                  }| {
                     ExternalEdgeList::new(
                         *layer,
                         parquet_dir.as_ref(),
                         *src_col,
-                        *src_hash_col,
                         *dst_col,
-                        *dst_hash_col,
                         *time_col,
                     )
                     .expect("Failed to load events")
@@ -193,6 +227,7 @@ impl ArrowGraph {
             concurrent_files,
             graph_dir.as_ref(),
             layered_edge_list,
+            node_properties.as_ref().map(|p| p.as_ref()),
         )?;
         Ok(Self::new(t_graph))
     }
@@ -241,10 +276,6 @@ impl ArrowGraph {
 mod test {
     use std::{cmp::Reverse, iter::once, path::Path};
 
-    use arrow2::{
-        array::PrimitiveArray,
-        datatypes::{DataType, Field},
-    };
     use itertools::{chain, Itertools};
 
     use crate::{
@@ -258,40 +289,9 @@ mod test {
 
     fn make_simple_graph(
         graph_dir: impl AsRef<Path>,
-        edges: &[(u64, u64, Time, f64)],
+        edges: &[(u64, u64, i64, f64)],
     ) -> ArrowGraph {
-        // unzip into 4 vectors
-        let (src, (dst, (time, weight))): (Vec<_>, (Vec<_>, (Vec<_>, Vec<_>))) = edges
-            .into_iter()
-            .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
-            .unzip();
-
-        let edge_lists = vec![arrow2::array::StructArray::new(
-            DataType::Struct(vec![
-                Field::new("src", DataType::UInt64, false),
-                Field::new("dst", DataType::UInt64, false),
-                Field::new("time", DataType::Int64, false),
-                Field::new("weight", DataType::Float64, false),
-            ]),
-            vec![
-                PrimitiveArray::from_vec(src).boxed(),
-                PrimitiveArray::from_vec(dst).boxed(),
-                PrimitiveArray::from_vec(time).boxed(),
-                PrimitiveArray::from_vec(weight).boxed(),
-            ],
-            None,
-        )];
-        ArrowGraph::load_from_edge_lists(
-            &edge_lists,
-            std::num::NonZeroUsize::new(1).unwrap(),
-            1000,
-            1000,
-            graph_dir.as_ref(),
-            0,
-            1,
-            2,
-        )
-        .expect("failed to create graph")
+        ArrowGraph::make_simple_graph(graph_dir, edges, 1000, 1000)
     }
 
     fn check_graph_counts(edges: &[(u64, u64, Time, f64)], g: &impl StaticGraphViewOps) {

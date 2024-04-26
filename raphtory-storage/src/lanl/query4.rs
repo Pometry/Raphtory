@@ -11,20 +11,7 @@ use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps};
 
 use crate::lanl::{thread_pool, NUM_THREADS};
 
-// MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)
-//          <-[nf1:Netflow]-(b)-[nf2:Netflow]->(c)
-// WHERE a <> b AND b <> c AND a <> c
-//   AND nf1.srcPort = 3128
-//   AND boot.eventID = 4608
-//   AND program.eventID = 4688
-//   AND program.epochtime >= boot.epochtime
-//   AND nf1.epochtime >= program.epochtime
-//   AND nf1.epochtime - boot.epochtime < $max_time_window
-//   AND nf2.duration >= $min_session_duration
-//   AND nf2.epochtime < nf1.epochtime
-//   AND nf2.epochtime + nf2.duration >= nf1.epochtime
-// RETURN count(*)
-
+// MATCH (a)-[boot:Events1v]->(a)-[program:Events1v]->(a)<-[nf1:Netflow]-(b)-[nf2:Netflow]->(c) WHERE a <> b AND b <> c AND a <> c AND nf1.src_port = 3128 AND boot.event_id = 4608 AND program.event_id = 4688 AND program.epochtime >= boot.epochtime AND nf1.epochtime >= program.epochtime AND nf1.epochtime - boot.epochtime < 4 AND nf2.duration >= 3600 AND nf2.epochtime < nf1.epochtime AND nf2.epochtime + nf2.duration >= nf1.epochtime RETURN count(*)
 // Number of answers: 196
 // CPU times: user 13.6 ms, sys: 5.89 ms, total: 19.5 ms
 // Wall time: 4.02 s

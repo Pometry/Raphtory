@@ -1,34 +1,62 @@
+#[cfg(feature = "arrow")]
+use crate::arrow::timestamps::TimeStamps;
 use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, ELID, VID,
         },
         storage::{
             locked_view::LockedView,
-            timeindex::{LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps},
-            ArcEntry,
+            timeindex::{
+                LayeredTimeIndexWindow, LockedLayeredIndex, TimeIndex, TimeIndexEntry,
+                TimeIndexOps, TimeIndexWindow,
+            },
         },
         ArcStr, Prop,
     },
-    db::api::view::{internal::Base, BoxedIter},
+    db::api::{
+        storage::{
+            edges::{
+                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
+            },
+            nodes::{
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+            },
+            storage_ops::GraphStorage,
+        },
+        view::{internal::Base, BoxedIter},
+    },
 };
 use enum_dispatch::enum_dispatch;
+use rayon::prelude::*;
 use std::ops::Range;
-
-use super::CoreEdgeView;
 
 /// Core functions that should (almost-)always be implemented by pointing at the underlying graph.
 #[enum_dispatch]
 pub trait CoreGraphOps {
     /// get the number of nodes in the main graph
     fn unfiltered_num_nodes(&self) -> usize;
+
+    fn unfiltered_num_layers(&self) -> usize;
+
+    fn core_graph(&self) -> GraphStorage;
+
+    fn core_edges(&self) -> EdgesStorage;
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry;
+
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry;
+    fn core_nodes(&self) -> NodesStorage;
+
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry;
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry;
 
     fn node_meta(&self) -> &Meta;
 
@@ -41,7 +69,7 @@ pub trait CoreGraphOps {
     fn get_layer_id(&self, name: &str) -> Option<usize>;
 
     /// Get the layer name for a given id
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr>;
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr>;
 
     /// Get all node types
     fn get_all_node_types(&self) -> Vec<ArcStr>;
@@ -58,10 +86,6 @@ pub trait CoreGraphOps {
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates;
-
-    /// Get all the addition timestamps for a node
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn node_additions(&self, v: VID) -> NodeAdditions;
 
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
     fn internalise_node(&self, v: NodeRef) -> Option<VID>;
@@ -197,12 +221,6 @@ pub trait CoreGraphOps {
         e: EdgeRef,
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
-
-    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>>;
-
-    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_>;
-
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore>;
 }
 
 pub trait InheritCoreOps: Base {}
@@ -232,6 +250,16 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
+    fn unfiltered_num_layers(&self) -> usize {
+        self.graph().unfiltered_num_layers()
+    }
+
+    #[inline]
+    fn core_graph(&self) -> GraphStorage {
+        self.graph().core_graph()
+    }
+
+    #[inline]
     fn node_meta(&self) -> &Meta {
         self.graph().node_meta()
     }
@@ -257,7 +285,7 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         self.graph().get_layer_names_from_ids(layer_ids)
     }
 
@@ -284,11 +312,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
         self.graph().edge_additions(eref, layer_ids)
-    }
-
-    #[inline]
-    fn node_additions(&self, v: VID) -> NodeAdditions {
-        self.graph().node_additions(v)
     }
 
     #[inline]
@@ -365,49 +388,67 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
+    fn core_edges(&self) -> EdgesStorage {
         self.graph().core_edges()
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
+    fn core_nodes(&self) -> NodesStorage {
+        self.graph().core_nodes()
+    }
+
+    #[inline]
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
         self.graph().core_edge(eid)
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
-        self.graph().core_node(vid)
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
+        self.graph().core_edge_arc(eid)
+    }
+
+    #[inline]
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
+        self.graph().core_node_entry(vid)
+    }
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
+        self.graph().core_node_arc(vid)
     }
 }
-#[cfg(feature = "arrow")]
-use crate::arrow::timestamps::TimeStamps;
-use crate::core::storage::timeindex::{LayeredTimeIndexWindow, TimeIndexWindow};
 
 pub enum NodeAdditions<'a> {
-    Mem(LockedView<'a, TimeIndex<i64>>),
+    Mem(&'a TimeIndex<i64>),
     Range(TimeIndexWindow<'a, i64>),
     #[cfg(feature = "arrow")]
-    Col(TimeStamps<'a, i64>),
+    Col(Vec<TimeStamps<'a, i64>>),
 }
 
 impl<'b> TimeIndexOps for NodeAdditions<'b> {
     type IndexType = i64;
     type RangeType<'a> = NodeAdditions<'a> where Self: 'a;
 
-    fn active(&self, w: std::ops::Range<i64>) -> bool {
+    fn active(&self, w: Range<i64>) -> bool {
         match self {
             NodeAdditions::Mem(index) => index.active(w),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.active(w),
+            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w.clone())),
             NodeAdditions::Range(index) => index.active(w),
         }
     }
 
-    fn range(&self, w: std::ops::Range<i64>) -> Self::RangeType<'_> {
+    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
         match self {
             NodeAdditions::Mem(index) => NodeAdditions::Range(index.range(w)),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => NodeAdditions::Col(index.range(w)),
+            NodeAdditions::Col(index) => {
+                let mut ranges = Vec::with_capacity(index.len());
+                index
+                    .par_iter()
+                    .map(|index| index.range(w.clone()))
+                    .collect_into_vec(&mut ranges);
+                NodeAdditions::Col(ranges)
+            }
             NodeAdditions::Range(index) => NodeAdditions::Range(index.range(w)),
         }
     }
@@ -416,7 +457,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         match self {
             NodeAdditions::Mem(index) => index.first(),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.first(),
+            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.first()).min(),
             NodeAdditions::Range(index) => index.first(),
         }
     }
@@ -425,7 +466,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         match self {
             NodeAdditions::Mem(index) => index.last(),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.last(),
+            NodeAdditions::Col(index) => index.par_iter().flat_map(|index| index.last()).max(),
             NodeAdditions::Range(index) => index.last(),
         }
     }
@@ -434,8 +475,17 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
         match self {
             NodeAdditions::Mem(index) => index.iter(),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.iter(),
+            NodeAdditions::Col(index) => Box::new(index.iter().flat_map(|index| index.iter())),
             NodeAdditions::Range(index) => index.iter(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            NodeAdditions::Mem(index) => index.len(),
+            NodeAdditions::Range(range) => range.len(),
+            #[cfg(feature = "arrow")]
+            NodeAdditions::Col(col) => col.len(),
         }
     }
 }
@@ -493,6 +543,15 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
             EdgeUpdates::Range(index) => index.iter(),
             #[cfg(feature = "arrow")]
             EdgeUpdates::Col(index) => index.iter(),
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            EdgeUpdates::Mem(index) => index.len(),
+            EdgeUpdates::Range(index) => index.len(),
+            #[cfg(feature = "arrow")]
+            EdgeUpdates::Col(index) => index.len(),
         }
     }
 }

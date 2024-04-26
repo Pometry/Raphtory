@@ -13,6 +13,7 @@ use crate::{
             mutation::internal::{
                 InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
             },
+            storage::node_storage_ops::NodeStorageOps,
             view::{internal::InternalMaterialize, IntoDynamic, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -121,14 +122,12 @@ impl<
         node: &NodeView<GHH, GH>,
         force: bool,
     ) -> Result<NodeView<G, G>, GraphError> {
-        if !force {
-            if self.node(node.id()).is_some() {
-                return Err(NodeExistsError(node.id()));
-            }
+        if !force && self.node(node.id()).is_some() {
+            return Err(NodeExistsError(node.id()));
         }
 
         let node_internal =
-            self.resolve_node(node.id(), node.graph.core_node(node.node).name.as_str());
+            self.resolve_node(node.id(), node.graph.core_node_entry(node.node).name());
         let node_internal_type_id = self
             .resolve_node_type(node_internal, node.node_type().as_str())
             .unwrap_or(0usize);
@@ -192,10 +191,8 @@ impl<
         for layer in edge.graph.unique_layers().skip(1) {
             self.resolve_layer(Some(&layer));
         }
-        if !force {
-            if self.has_edge(edge.src().name(), edge.dst().name()) {
-                return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
-            }
+        if !force && self.has_edge(edge.src().name(), edge.dst().name()) {
+            return Err(EdgeExistsError(edge.src().id(), edge.dst().id()));
         }
         // Add edges first so we definitely have all associated nodes (important in case of persistent edges)
         // FIXME: this needs to be verified
@@ -219,7 +216,7 @@ impl<
             }
 
             if self.include_deletions() {
-                for t in edge.graph.edge_deletion_history(edge.edge, layer_ids) {
+                for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
                     let ti = TimeIndexEntry::from_input(self, t)?;
                     let src_id = self.resolve_node(edge.src().id(), Some(&edge.src().name()));
                     let dst_id = self.resolve_node(edge.dst().id(), Some(&edge.dst().name()));

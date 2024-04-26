@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import pandas.core.frame
-from raphtory import Graph, GraphWithDeletions, PyDirection
+from raphtory import Graph, PersistentGraph, PyDirection
 from raphtory import algorithms
 from raphtory import graph_loader
 
@@ -29,6 +29,14 @@ def test_connected_components():
     expected = {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "7": 1, "8": 1}
     assert actual.get_all_with_names() == expected
     assert actual.get("1") == 1
+
+
+def test_largest_connected_component():
+    g = gen_graph()
+    actual = g.largest_connected_component()
+    expected = ["1", "2", "3", "4", "5", "6", "7", "8"]
+    for node in expected:
+        assert actual.has_node(node)
 
 
 def test_in_components():

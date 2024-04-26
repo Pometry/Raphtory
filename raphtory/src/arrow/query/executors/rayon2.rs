@@ -1,8 +1,3 @@
-use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
-
-use itertools::Itertools;
-use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
-
 use crate::{
     arrow::{
         graph_impl::ArrowGraph,
@@ -14,16 +9,13 @@ use crate::{
         },
         Error,
     },
-    core::{
-        entities::{LayerIds, VID},
-        Direction,
-    },
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::{edge::EdgeView, node::NodeView},
-    },
-    prelude::{EdgeViewOps, GraphViewOps},
+    core::{entities::VID, Direction},
+    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
+    prelude::*,
 };
+use itertools::Itertools;
+use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
+use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
 
 pub fn execute<S: HopState + 'static>(
     query: Query<S>,
@@ -208,20 +200,16 @@ fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
             do_sink(sink, s, state.clone(), vid, tl);
         }
         let limit = limit.unwrap_or(usize::MAX);
-        let layer_id = graph.get_layer_id(&layer).expect("No layer");
         match dir {
             Direction::OUT => s.spawn(move |s| {
-                graph
-                    .node_edges(vid, Direction::OUT, LayerIds::One(layer_id), None)
-                    .map(|edge_ref| {
-                        let edge_view = EdgeView::new(graph, edge_ref);
-                        let node = edge_view.dst();
-                        (edge_view, node)
-                    })
-                    .filter_map(|(edge, node)| {
+                node.valid_layers(layer.as_ref())
+                    .out_edges()
+                    .iter()
+                    .filter_map(|edge| {
+                        let dst = edge.dst();
                         state
-                            .hop_with_state(&node, &edge)
-                            .map(|new_state| (edge, node, new_state))
+                            .hop_with_state(&dst, &edge.reset_filter())
+                            .map(|new_state| (edge, dst, new_state))
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {
@@ -229,17 +217,14 @@ fn hop_static_graph_view<'a, G: GraphViewOps<'a>, S: StaticGraphHopState + 'a>(
                     });
             }),
             Direction::IN => s.spawn(move |s| {
-                graph
-                    .node_edges(vid, Direction::IN, LayerIds::One(layer_id), None)
-                    .map(|edge_ref| {
-                        let edge_view = EdgeView::new(graph, edge_ref);
-                        let node = edge_view.src();
-                        (edge_view, node)
-                    })
-                    .filter_map(|(edge, node)| {
+                node.valid_layers(layer.as_ref())
+                    .in_edges()
+                    .iter()
+                    .filter_map(|edge| {
+                        let src = edge.src();
                         state
-                            .hop_with_state(&node, &edge)
-                            .map(|new_state| (edge, node, new_state))
+                            .hop_with_state(&src, &edge.reset_filter())
+                            .map(|new_state| (edge, src, new_state))
                     })
                     .take(limit)
                     .for_each(|(_, node, state)| {

@@ -3,25 +3,36 @@ use crate::{
         entities::{
             edges::edge_ref::EdgeRef,
             graph::tgraph::InnerTemporalGraph,
-            nodes::{node_ref::NodeRef, node_store::NodeStore},
+            nodes::node_ref::NodeRef,
             properties::{
                 graph_meta::GraphMeta,
                 props::Meta,
                 tprop::{LockedLayeredTProp, TProp},
             },
-            LayerIds, EID, VID,
+            LayerIds, ELID, VID,
         },
-        storage::{locked_view::LockedView, ArcEntry},
+        storage::locked_view::LockedView,
         ArcStr,
     },
-    db::api::view::{
-        internal::{CoreEdgeView, CoreGraphOps, EdgeUpdates, NodeAdditions},
-        BoxedIter,
+    db::api::{
+        storage::{
+            edges::{
+                edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
+            },
+            nodes::{
+                node_entry::NodeStorageEntry, node_owned_entry::NodeOwnedEntry, nodes::NodesStorage,
+            },
+            storage_ops::GraphStorage,
+        },
+        view::{
+            internal::{CoreGraphOps, EdgeUpdates},
+            BoxedIter,
+        },
     },
     prelude::Prop,
 };
 use itertools::Itertools;
-use std::{collections::HashMap, iter, marker::PhantomData};
+use std::{collections::HashMap, iter, sync::Arc};
 
 impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     #[inline]
@@ -29,6 +40,13 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         self.inner().internal_num_nodes()
     }
 
+    fn unfiltered_num_layers(&self) -> usize {
+        self.inner().num_layers()
+    }
+
+    fn core_graph(&self) -> GraphStorage {
+        GraphStorage::Mem(self.lock())
+    }
     #[inline]
     fn node_meta(&self) -> &Meta {
         &self.inner().node_meta
@@ -59,7 +77,7 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn get_layer_names_from_ids(&self, layer_ids: LayerIds) -> BoxedIter<ArcStr> {
+    fn get_layer_names_from_ids(&self, layer_ids: &LayerIds) -> BoxedIter<ArcStr> {
         self.inner().layer_names(layer_ids)
     }
 
@@ -88,12 +106,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         let layer_ids = layer_ids.constrain_from_edge(eref);
         let edge = self.inner().edge(eref.pid());
         EdgeUpdates::Mem(edge.additions(layer_ids).unwrap())
-    }
-
-    #[inline]
-    fn node_additions(&self, v: VID) -> NodeAdditions {
-        let node = self.inner().node(v);
-        node.additions().map(NodeAdditions::Mem).unwrap()
     }
 
     #[inline]
@@ -271,38 +283,42 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn core_edges(&self) -> Box<dyn Iterator<Item = CoreEdgeView<'_>>> {
-        Box::new(
-            self.inner()
-                .storage
-                .edges
-                .read_lock()
-                .into_iter()
-                .map(|edge| CoreEdgeView::Mem(edge, PhantomData)),
-        )
+    fn core_edges(&self) -> EdgesStorage {
+        EdgesStorage::Mem(Arc::new(self.inner().storage.edges.read_lock()))
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> CoreEdgeView<'_> {
-        CoreEdgeView::Mem(
-            self.inner().storage.edges.entry_arc(eid.into()),
-            PhantomData,
-        )
+    fn core_nodes(&self) -> NodesStorage {
+        NodesStorage::Mem(Arc::new(self.inner().storage.nodes.read_lock()))
     }
 
     #[inline]
-    fn core_node(&self, vid: VID) -> ArcEntry<NodeStore> {
-        self.inner().storage.nodes.entry_arc(vid.into())
+    fn core_edge(&self, eid: ELID) -> EdgeStorageEntry {
+        EdgeStorageEntry::Mem(self.inner().storage.edges.entry(eid.pid()))
+    }
+
+    #[inline]
+    fn core_node_entry(&self, vid: VID) -> NodeStorageEntry {
+        NodeStorageEntry::Mem(self.inner().storage.nodes.entry(vid))
+    }
+
+    fn core_node_arc(&self, vid: VID) -> NodeOwnedEntry {
+        NodeOwnedEntry::Mem(self.inner().storage.nodes.entry_arc(vid))
+    }
+
+    fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
+        EdgeOwnedEntry::Mem(self.inner().storage.edges.entry_arc(eid.pid()))
     }
 }
 
 #[cfg(test)]
 mod test_edges {
+    use std::collections::HashMap;
+
     use crate::{
         core::{ArcStr, IntoPropMap},
         prelude::*,
     };
-    use std::collections::HashMap;
 
     #[test]
     fn test_edge_properties_for_layers() {

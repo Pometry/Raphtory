@@ -1,4 +1,4 @@
-use std::{io::Write, num::NonZeroUsize, sync::Arc};
+use std::{io::Write, sync::Arc};
 
 use arrow2::{
     array::StructArray,
@@ -111,23 +111,9 @@ impl<'a> FromPyObject<'a> for ParquetLayerCols<'a> {
                 .get_item("src_col")
                 .and_then(|item| item.expect("src_col is required").extract::<&PyString>())
                 .and_then(|s| s.to_str())?,
-            src_hash_col: dict
-                .get_item("src_hash_col")
-                .and_then(|item| {
-                    item.expect("src_hash_col is required")
-                        .extract::<&PyString>()
-                })
-                .and_then(|s| s.to_str())?,
             dst_col: dict
                 .get_item("dst_col")
                 .and_then(|item| item.expect("dst_col is required").extract::<&PyString>())
-                .and_then(|s| s.to_str())?,
-            dst_hash_col: dict
-                .get_item("dst_hash_col")
-                .and_then(|item| {
-                    item.expect("dst_hash_col is required")
-                        .extract::<&PyString>()
-                })
                 .and_then(|s| s.to_str())?,
             time_col: dict
                 .get_item("time_col")
@@ -209,10 +195,11 @@ impl PyArrowGraph {
     }
 
     #[staticmethod]
-    #[pyo3(signature = (graph_dir, layer_parquet_cols, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads))]
+    #[pyo3(signature = (graph_dir, layer_parquet_cols, node_properties, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads))]
     fn load_from_parquets(
         graph_dir: &str,
         layer_parquet_cols: ParquetLayerColsList,
+        node_properties: Option<&str>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
@@ -222,6 +209,7 @@ impl PyArrowGraph {
         let graph = Self::from_parquets(
             graph_dir,
             layer_parquet_cols.0,
+            node_properties,
             chunk_size,
             t_props_chunk_size,
             read_chunk_size,
@@ -258,9 +246,6 @@ impl PyArrowGraph {
         let dst_col_idx = df.names.iter().position(|x| x == dst).unwrap();
         let time_col_idx = df.names.iter().position(|x| x == time).unwrap();
 
-        let num_threads =
-            std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap());
-
         let chunk_size = df
             .arrays
             .first()
@@ -289,7 +274,6 @@ impl PyArrowGraph {
 
         ArrowGraph::load_from_edge_lists(
             &edge_lists,
-            num_threads,
             chunk_size,
             t_props_chunk_size,
             graph_dir,
@@ -303,6 +287,7 @@ impl PyArrowGraph {
     fn from_parquets(
         graph_dir: &str,
         layer_parquet_cols: Vec<ParquetLayerCols>,
+        node_properties: Option<&str>,
         chunk_size: usize,
         t_props_chunk_size: usize,
         read_chunk_size: Option<usize>,
@@ -312,6 +297,7 @@ impl PyArrowGraph {
         ArrowGraph::load_from_parquets(
             graph_dir,
             layer_parquet_cols,
+            node_properties,
             chunk_size,
             t_props_chunk_size,
             read_chunk_size,

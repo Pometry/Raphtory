@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    core::entities::{nodes::node_ref::NodeRef, LayerIds, VID},
+    core::entities::{nodes::node_ref::NodeRef, VID},
     db::api::view::StaticGraphViewOps,
 };
 
@@ -43,7 +43,7 @@ impl NodeSource {
 
     fn into_iter_static_g<G: StaticGraphViewOps>(self, graph: G) -> Box<dyn Iterator<Item = VID>> {
         match self {
-            NodeSource::All => Box::new(graph.node_refs(LayerIds::All, None)),
+            NodeSource::All => Box::new(graph.nodes().iter_refs()),
             NodeSource::NodeIds(ids) => Box::new(ids.into_iter()),
             NodeSource::ExternalIds(ids) => Box::new(
                 ids.into_iter()

@@ -14,7 +14,7 @@ use crate::{
             path::{PathFromGraph, PathFromNode},
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, ResetFilter},
 };
 use std::sync::Arc;
 
@@ -88,6 +88,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
                 .map(move |e| EdgeView::new_filtered(base_graph.clone(), graph.clone(), e)),
         )
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
+    for Edges<'graph, G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
@@ -224,6 +229,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
             edges,
         }
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
+    for NestedEdges<'graph, G, GH>
+{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>

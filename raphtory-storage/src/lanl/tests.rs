@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::lanl::*;
+    use ahash::HashMapExt;
+    use itertools::Itertools;
     use raphtory::{
         algorithms::{
             centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
@@ -11,17 +13,18 @@ mod tests {
         },
         prelude::{GraphViewOps, *},
     };
-    use std::{env, num::NonZeroUsize};
+    use std::{cmp::Reverse, collections::HashMap, env, num::NonZeroUsize, path::Path};
+    use tempfile::tempdir;
 
     #[test]
     fn test_query1() {
-        let executable_path = env::current_exe().expect("Failed to get executable path");
-        let rsc_dir = executable_path
+        let rsc_dir = Path::new(&env::var_os("CARGO_MANIFEST_DIR").unwrap())
             .parent()
-            .expect("Executable has no parent directory")
-            .join("../../../resource");
+            .unwrap()
+            .join("resource");
+        println!("{rsc_dir:?}");
 
-        let graph_dir = rsc_dir.join("target");
+        let graph_dir = tempdir().unwrap();
         let rsc_dir = rsc_dir.canonicalize().unwrap();
         let parquet_dirs = vec![
             rsc_dir
@@ -46,33 +49,27 @@ mod tests {
                 parquet_dir: &parquet_dirs[0],
                 layer: "netflow",
                 src_col: "src",
-                src_hash_col: "src_hash",
                 dst_col: "dst",
-                dst_hash_col: "dst_hash",
                 time_col: "epoch_time",
             },
             ParquetLayerCols {
                 parquet_dir: &parquet_dirs[1],
                 layer: "events_1v",
                 src_col: "src",
-                src_hash_col: "src_hash",
                 dst_col: "dst",
-                dst_hash_col: "dst_hash",
                 time_col: "epoch_time",
             },
             ParquetLayerCols {
                 parquet_dir: &parquet_dirs[2],
                 layer: "events_2v",
                 src_col: "src",
-                src_hash_col: "src_hash",
                 dst_col: "dst",
-                dst_hash_col: "dst_hash",
                 time_col: "epoch_time",
             },
         ];
 
         let graph = match measure_without_print_results("Graph load from dir", || {
-            ArrowGraph::load_from_dir(graph_dir.clone())
+            ArrowGraph::load_from_dir(graph_dir.as_ref())
         }) {
             Ok(g) => g,
             Err(e) => {
@@ -90,6 +87,7 @@ mod tests {
                     ArrowGraph::load_from_parquets(
                         graph_dir,
                         layer_parquet_cols,
+                        None,
                         chunk_size,
                         t_props_chunk_size,
                         read_chunk_size,
@@ -128,19 +126,40 @@ mod tests {
             0
         );
 
-        assert_eq!(
-            measure_without_print_results("CC", || connected_components(graph.as_ref().layer(0)))
-                .into_iter()
-                .take(10)
-                .collect::<Vec<_>>(),
-            vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        );
-
-        let actual = measure_without_print_results("Weakly CC", || {
-            weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
+        let get_all_with_names = &measure_without_print_results("Weakly CC", || {
+            weakly_connected_components(&graph, 10_000_000, None)
         })
-        .get_all_with_names()
-        .len();
+        .get_all_with_names();
+
+        let ccs1 = get_all_with_names
+            .iter()
+            .fold(HashMap::new(), |mut map, (_, c)| {
+                map.entry(c).and_modify(|e| *e += 1).or_insert(1usize);
+                map
+            })
+            .into_iter()
+            .sorted_by_key(|(_, count)| Reverse(*count))
+            .take(10)
+            .map(|(_, count)| count)
+            .collect::<Vec<_>>();
+
+        let ccs2 = measure_without_print_results("CC", || connected_components(&graph))
+            .into_iter()
+            .enumerate()
+            .fold(HashMap::new(), |mut map, (_, c)| {
+                map.entry(c).and_modify(|e| *e += 1).or_insert(1usize);
+                map
+            })
+            .into_iter()
+            .sorted_by_key(|(_, count)| Reverse(*count))
+            .take(10)
+            .map(|(_, count)| count)
+            .collect::<Vec<_>>();
+
+        // FIXME: this needs to be fixed, the arrow CC is unstable and gives us a different result
+        assert_eq!(ccs1, ccs2);
+
+        let actual = get_all_with_names.len();
         assert_eq!(actual, 1624);
 
         let actual = measure_without_print_results("Page Rank", || {

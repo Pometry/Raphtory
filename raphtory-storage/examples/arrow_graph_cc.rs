@@ -6,6 +6,7 @@ use raphtory::{
         query::{ast::Query, executors::rayon2, ForwardState},
     },
     core::entities::VID,
+    db::api::view::GraphViewOps,
 };
 use std::{io::Write, time::Instant};
 
@@ -55,11 +56,10 @@ fn main() {
                 parquet_dir,
                 layer: "default",
                 src_col: "src",
-                src_hash_col: "src_hash",
                 dst_col: "dst",
-                dst_hash_col: "dst_hash",
                 time_col: "time",
             }],
+            None,
             chunk_size,
             t_props_chunk_size,
             Some(read_chunk_size),
@@ -71,13 +71,13 @@ fn main() {
         graph
     };
 
-    connected_components(graph2.as_ref().layer(0));
+    connected_components(&graph2);
     hop_query(&graph2);
 }
 
-fn connected_components(tg: &TempColGraphFragment) {
-    println!("Graph has {} nodes", tg.num_nodes());
-    println!("Graph has {} edges", tg.num_edges());
+fn connected_components(tg: &ArrowGraph) {
+    println!("Graph has {} nodes", tg.count_nodes());
+    println!("Graph has {} edges", tg.count_edges());
 
     let now = Instant::now();
     // let ccs = weakly_connected_components(&graph2, 100, None).group_by();

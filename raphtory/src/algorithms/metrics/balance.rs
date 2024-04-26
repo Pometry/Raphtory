@@ -169,6 +169,7 @@ mod sum_weight_test {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -208,6 +209,7 @@ mod sum_weight_test {
             assert_eq!(res.get_all(), expected);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 }

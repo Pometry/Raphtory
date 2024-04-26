@@ -65,6 +65,7 @@ mod directed_graph_density_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -75,6 +76,7 @@ mod directed_graph_density_tests {
             assert_eq!(actual, expected);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 
@@ -89,6 +91,7 @@ mod directed_graph_density_tests {
         }
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -99,6 +102,7 @@ mod directed_graph_density_tests {
             assert_eq!(actual, expected);
         }
         test(&graph);
+        #[cfg(feature = "arrow")]
         test(&arrow_graph);
     }
 }

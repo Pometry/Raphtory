@@ -38,6 +38,8 @@ ordered-float = { workspace = true }
 glam = { workspace = true }
 quad-rand = { workspace = true }
 serde_json = { workspace = true }
+ouroboros = { workspace = true }
+either = {workspace = true}
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -61,7 +63,7 @@ pyo3 = { workspace = true, optional = true }
 pyo3-asyncio = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
-arrow2 = { workspace = true, optional = true }
+arrow2 = { workspace = true, optional = true, features = ["compute"]}
 kdam = { workspace = true, optional = true }
 
 # arrow storage optional dependencies
@@ -104,4 +106,5 @@ arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck
     "arrow2?/compute_concatenate",
     "arrow2?/compute_sort",
     "arrow2?/compute_merge_sort",
+    "arrow2?/arrow",
     "dep:strum"]

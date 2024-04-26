@@ -14,6 +14,6 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory = {path = "../../raphtory", features = ["python"], version = "0.7.0"}
-raphtory-storage = {path = "../../raphtory-storage", version = "0.7.0"}
+raphtory = { path = "../../raphtory", features = ["python"], version = "0.8.0" }
+raphtory-storage = { path = "../../raphtory-storage", version = "0.8.0" }
 pyo3 = "0.20.0"

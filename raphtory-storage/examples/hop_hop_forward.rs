@@ -46,36 +46,12 @@ fn main() {
         println!("num_threads: {:?}", num_threads);
 
         let layered_edge_list = [
-            ExternalEdgeList::new(
-                "netflow",
-                netflow_dir,
-                "src",
-                "src_hash",
-                "dst",
-                "dst_hash",
-                "epoch_time",
-            )
-            .expect("failed to load netflow"),
-            ExternalEdgeList::new(
-                "events_1v",
-                v1_dir,
-                "src",
-                "src_hash",
-                "dst",
-                "dst_hash",
-                "epoch_time",
-            )
-            .expect("failed to load events_v1"),
-            ExternalEdgeList::new(
-                "events_2v",
-                v2_dir,
-                "src",
-                "src_hash",
-                "dst",
-                "dst_hash",
-                "epoch_time",
-            )
-            .expect("failed to load events_v2"),
+            ExternalEdgeList::new("netflow", netflow_dir, "src", "dst", "epoch_time")
+                .expect("failed to load netflow"),
+            ExternalEdgeList::new("events_1v", v1_dir, "src", "dst", "epoch_time")
+                .expect("failed to load events_v1"),
+            ExternalEdgeList::new("events_2v", v2_dir, "src", "dst", "epoch_time")
+                .expect("failed to load events_v2"),
         ];
         let graph = TemporalGraph::from_edge_lists(
             num_threads,
@@ -85,6 +61,7 @@ fn main() {
             None,
             graph_dir,
             layered_edge_list,
+            None,
         )
         .expect("failed to load graph");
         graph

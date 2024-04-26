@@ -29,7 +29,10 @@ use crate::{
 
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
-    db::graph::edges::Edges,
+    db::{
+        api::storage::{node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+        graph::edges::Edges,
+    },
 };
 use chrono::{DateTime, Utc};
 use std::{
@@ -39,7 +42,7 @@ use std::{
 };
 
 /// View of a Node in a Graph
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct NodeView<G, GH = G> {
     pub base_graph: G,
     pub graph: GH,
@@ -266,11 +269,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
-    fn map<O: 'graph, F: for<'a> Fn(&'a Self::Graph, VID) -> O>(
+    fn map<O: 'graph, F: Fn(&GraphStorage, &Self::Graph, VID) -> O>(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
-        op(&self.graph, self.node)
+        let cg = self.graph.core_graph();
+        op(&cg, &self.graph, self.node)
     }
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
@@ -279,14 +283,17 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
     ) -> Self::Edges {
         let graph = self.graph.clone();
         let node = self.node;
-        let edges = Arc::new(move || op(&graph, node).into_dyn_boxed());
+        let edges = Arc::new(move || {
+            let cg = graph.core_graph();
+            op(&cg, &graph, node).into_dyn_boxed()
+        });
         let base_graph = self.base_graph.clone();
         let graph = self.graph.clone();
         Edges {
@@ -298,7 +305,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'a> Fn(&'a Self::Graph, VID) -> I + Send + Sync + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + 'graph,
     >(
         &self,
         op: F,
@@ -306,7 +313,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         let graph = self.graph.clone();
         let node = self.node;
         PathFromNode::new(self.base_graph.clone(), move || {
-            op(&graph, node).into_dyn_boxed()
+            let cg = graph.core_graph();
+            op(&cg, &graph, node).into_dyn_boxed()
         })
     }
 }
@@ -355,7 +363,11 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             |name, dtype| self.graph.resolve_node_property(name, dtype, false),
             |prop| self.graph.process_prop_value(prop),
         )?;
-        let node_internal_type_id = self.graph.core_node(self.node).node_type;
+        let node_internal_type_id = self
+            .graph
+            .core_node_entry(self.node)
+            .as_ref()
+            .node_type_id();
         self.graph
             .internal_add_node(t, self.node, properties, node_internal_type_id)
     }
@@ -375,6 +387,7 @@ mod node_test {
         graph.add_node(2, 1, NO_PROPS, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {
@@ -411,6 +424,7 @@ mod node_test {
         graph.add_node(2, 1, props, None).unwrap();
 
         let test_dir = TempDir::new().unwrap();
+        #[cfg(feature = "arrow")]
         let arrow_graph = graph.persist_as_arrow(test_dir.path()).unwrap();
 
         fn test<G: StaticGraphViewOps>(graph: &G) {

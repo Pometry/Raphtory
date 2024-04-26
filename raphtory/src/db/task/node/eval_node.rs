@@ -11,15 +11,14 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            storage::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps},
         },
         graph::{node::NodeView, path::PathFromNode},
-        task::{node::eval_node_state::EVState, task_state::Local2},
+        task::{edge::eval_edges::EvalEdges, node::eval_node_state::EVState, task_state::Local2},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeTypesFilter},
 };
-
-use crate::db::task::edge::eval_edges::EvalEdges;
 use std::{
     cell::{Ref, RefCell},
     rc::Rc,
@@ -342,7 +341,10 @@ impl<
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
-    fn map<O: 'graph, F: for<'b> Fn(&'b Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
+    fn map<
+        O: 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -355,7 +357,7 @@ impl<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -374,7 +376,7 @@ impl<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -476,7 +478,10 @@ impl<
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
-    fn map<O: 'graph, F: Fn(&Self::Graph, VID) -> O + Send + Sync + Clone + 'graph>(
+    fn map<
+        O: 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> O + Send + Sync + Clone + 'graph,
+    >(
         &self,
         op: F,
     ) -> Self::ValueType<O> {
@@ -489,7 +494,7 @@ impl<
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -508,7 +513,7 @@ impl<
 
     fn hop<
         I: Iterator<Item = VID> + Send + 'graph,
-        F: for<'b> Fn(&'b Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
+        F: Fn(&GraphStorage, &Self::Graph, VID) -> I + Send + Sync + Clone + 'graph,
     >(
         &self,
         op: F,
@@ -524,6 +529,17 @@ impl<
             ss,
         }
     }
+}
+
+impl<
+        'graph,
+        'a: 'graph,
+        G: GraphViewOps<'graph>,
+        S,
+        CS: ComputeState + 'a,
+        GH: GraphViewOps<'graph>,
+    > NodeTypesFilter<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
+{
 }
 
 /// Represents an entry in the shuffle table.

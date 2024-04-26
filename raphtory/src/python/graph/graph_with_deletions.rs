@@ -1,18 +1,18 @@
-//! Defines the `GraphWithDeletions` class, which represents a raphtory graph in memory.
-//! Unlike in the `Graph` which has event semantics, `GraphWithDeletions` has edges that persist until explicitly deleted.
+//! Defines the `PersistentGraph` class, which represents a raphtory graph in memory.
+//! Unlike in the `Graph` which has event semantics, `PersistentGraph` has edges that persist until explicitly deleted.
 //!
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! It is a wrapper around a set of shards, which are the actual graph data structures.
 //! In Python, this class wraps around the rust graph.
 use crate::{
-    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Prop},
+    core::{entities::nodes::node_ref::NodeRef, utils::errors::GraphError, ArcStr, Prop},
     db::{
         api::{
             mutation::{AdditionOps, PropertyAdditionOps},
-            view::internal::MaterializedGraph,
+            view::internal::{CoreGraphOps, MaterializedGraph},
         },
-        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::GraphWithDeletions},
+        graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     prelude::{DeletionOps, GraphViewOps, ImportOps},
     python::{
@@ -20,38 +20,50 @@ use crate::{
         utils::{PyInputNode, PyTime},
     },
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyBytes},
+};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
 };
 
+use super::{
+    graph::PyGraph,
+    pandas::{
+        dataframe::{process_pandas_py_df, GraphLoadException},
+        loaders::load_edges_deletions_from_df,
+    },
+    utils,
+};
+
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
-#[pyclass(name="GraphWithDeletions", extends=PyGraphView)]
-pub struct PyGraphWithDeletions {
-    pub(crate) graph: GraphWithDeletions,
+#[pyclass(name = "PersistentGraph", extends = PyGraphView)]
+pub struct PyPersistentGraph {
+    pub(crate) graph: PersistentGraph,
 }
 
-impl Debug for PyGraphWithDeletions {
+impl Debug for PyPersistentGraph {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.graph)
     }
 }
 
-impl From<GraphWithDeletions> for PyGraphWithDeletions {
-    fn from(value: GraphWithDeletions) -> Self {
+impl From<PersistentGraph> for PyPersistentGraph {
+    fn from(value: PersistentGraph) -> Self {
         Self { graph: value }
     }
 }
 
-impl IntoPy<PyObject> for GraphWithDeletions {
+impl IntoPy<PyObject> for PersistentGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
         Py::new(
             py,
             (
-                PyGraphWithDeletions::from(self.clone()),
+                PyPersistentGraph::from(self.clone()),
                 PyGraphView::from(self),
             ),
         )
@@ -60,13 +72,13 @@ impl IntoPy<PyObject> for GraphWithDeletions {
     }
 }
 
-impl PyGraphWithDeletions {
-    pub fn py_from_db_graph(db_graph: GraphWithDeletions) -> PyResult<Py<PyGraphWithDeletions>> {
+impl PyPersistentGraph {
+    pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
         Python::with_gil(|py| {
             Py::new(
                 py,
                 (
-                    PyGraphWithDeletions::from(db_graph.clone()),
+                    PyPersistentGraph::from(db_graph.clone()),
                     PyGraphView::from(db_graph),
                 ),
             )
@@ -76,10 +88,10 @@ impl PyGraphWithDeletions {
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[pymethods]
-impl PyGraphWithDeletions {
+impl PyPersistentGraph {
     #[new]
     pub fn py_new() -> (Self, PyGraphView) {
-        let graph = GraphWithDeletions::new();
+        let graph = PersistentGraph::new();
         (
             Self {
                 graph: graph.clone(),
@@ -98,14 +110,14 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, id, properties=None, node_type=None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
         timestamp: PyTime,
         id: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-    ) -> Result<NodeView<GraphWithDeletions>, GraphError> {
+    ) -> Result<NodeView<PersistentGraph>, GraphError> {
         self.graph
             .add_node(timestamp, id, properties.unwrap_or_default(), node_type)
     }
@@ -165,7 +177,7 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///   None
-    #[pyo3(signature = (timestamp, src, dst, properties=None, layer=None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
         timestamp: PyTime,
@@ -173,7 +185,7 @@ impl PyGraphWithDeletions {
         dst: PyInputNode,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
         self.graph
             .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer)
     }
@@ -206,7 +218,7 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///   the node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: NodeRef) -> Option<NodeView<GraphWithDeletions>> {
+    pub fn node(&self, id: NodeRef) -> Option<NodeView<PersistentGraph>> {
         self.graph.node(id)
     }
 
@@ -224,7 +236,7 @@ impl PyGraphWithDeletions {
         &self,
         src: NodeRef,
         dst: NodeRef,
-    ) -> Option<EdgeView<GraphWithDeletions, GraphWithDeletions>> {
+    ) -> Option<EdgeView<PersistentGraph, PersistentGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -239,12 +251,12 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///     Result<NodeView<Graph, Graph>, GraphError> - A Result object which is Ok if the node was successfully imported, and Err otherwise.
-    #[pyo3(signature = (node, force=false))]
+    #[pyo3(signature = (node, force = false))]
     pub fn import_node(
         &self,
         node: PyNode,
         force: bool,
-    ) -> Result<NodeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+    ) -> Result<NodeView<PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_node(&node.node, force)
     }
 
@@ -260,12 +272,12 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///     Result<List(NodeView<Graph, Graph>), GraphError> - A Result object which is Ok if the nodes were successfully imported, and Err otherwise.
-    #[pyo3(signature = (nodes, force=false))]
+    #[pyo3(signature = (nodes, force = false))]
     pub fn import_nodes(
         &self,
         nodes: Vec<PyNode>,
         force: bool,
-    ) -> Result<Vec<NodeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+    ) -> Result<Vec<NodeView<PersistentGraph, PersistentGraph>>, GraphError> {
         let nodeviews = nodes.iter().map(|node| &node.node).collect();
         self.graph.import_nodes(nodeviews, force)
     }
@@ -282,12 +294,12 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///     Result<EdgeView<Graph, Graph>, GraphError> - A Result object which is Ok if the edge was successfully imported, and Err otherwise.
-    #[pyo3(signature = (edge, force=false))]
+    #[pyo3(signature = (edge, force = false))]
     pub fn import_edge(
         &self,
         edge: PyEdge,
         force: bool,
-    ) -> Result<EdgeView<GraphWithDeletions, GraphWithDeletions>, GraphError> {
+    ) -> Result<EdgeView<PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_edge(&edge.edge, force)
     }
 
@@ -303,12 +315,12 @@ impl PyGraphWithDeletions {
     ///
     /// Returns:
     ///     Result<List(EdgeView<Graph, Graph>), GraphError> - A Result object which is Ok if the edges were successfully imported, and Err otherwise.
-    #[pyo3(signature = (edges, force=false))]
+    #[pyo3(signature = (edges, force = false))]
     pub fn import_edges(
         &self,
         edges: Vec<PyEdge>,
         force: bool,
-    ) -> Result<Vec<EdgeView<GraphWithDeletions, GraphWithDeletions>>, GraphError> {
+    ) -> Result<Vec<EdgeView<PersistentGraph, PersistentGraph>>, GraphError> {
         let edgeviews = edges.iter().map(|edge| &edge.edge).collect();
         self.graph.import_edges(edgeviews, force)
     }
@@ -325,10 +337,10 @@ impl PyGraphWithDeletions {
     /// Returns:
     ///  Graph: The loaded graph.
     #[staticmethod]
-    #[pyo3(signature = (path, force=false))]
-    pub fn load_from_file(path: &str, force: bool) -> Result<GraphWithDeletions, GraphError> {
+    #[pyo3(signature = (path, force = false))]
+    pub fn load_from_file(path: &str, force: bool) -> Result<PersistentGraph, GraphError> {
         let file_path: PathBuf = [env!("CARGO_MANIFEST_DIR"), path].iter().collect();
-        GraphWithDeletions::load_from_file(file_path, force)
+        PersistentGraph::load_from_file(file_path, force)
     }
 
     /// Saves the graph to the given path.
@@ -342,9 +354,300 @@ impl PyGraphWithDeletions {
         self.graph.save_to_file(Path::new(path))
     }
 
+    /// Returns all the node types in the graph.
+    ///
+    /// Returns:
+    /// A list of node types
+    pub fn get_all_node_types(&self) -> Vec<ArcStr> {
+        self.graph.get_all_node_types()
+    }
+
     /// Get bincode encoded graph
     pub fn bincode<'py>(&'py self, py: Python<'py>) -> Result<&'py PyBytes, GraphError> {
         let bytes = MaterializedGraph::from(self.graph.clone()).bincode()?;
         Ok(PyBytes::new(py, &bytes))
+    }
+
+    /// Get event graph
+    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+        PyGraph::py_from_db_graph(self.graph.event_graph())
+    }
+
+    /// Load a graph from a Pandas DataFrame.
+    ///
+    /// Args:
+    ///     edge_df (pandas.DataFrame): The DataFrame containing the edges.
+    ///     edge_src (str): The column name for the source node ids.
+    ///     edge_dst (str): The column name for the destination node ids.
+    ///     edge_time (str): The column name for the timestamps.
+    ///     edge_properties (list): The column names for the temporal properties (optional) Defaults to None.
+    ///     edge_const_properties (list): The column names for the constant properties (optional) Defaults to None.
+    ///     edge_shared_const_properties (dict): A dictionary of constant properties that will be added to every edge (optional) Defaults to None.
+    ///     edge_layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the edge_df or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///     node_df (pandas.DataFrame): The DataFrame containing the nodes (optional) Defaults to None.
+    ///     node_id (str): The column name for the node ids (optional) Defaults to None.
+    ///     node_time (str): The column name for the node timestamps (optional) Defaults to None.
+    ///     node_properties (list): The column names for the node temporal properties (optional) Defaults to None.
+    ///     node_const_properties (list): The column names for the node constant properties (optional) Defaults to None.
+    ///     node_shared_const_properties (dict): A dictionary of constant properties that will be added to every node (optional) Defaults to None.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///
+    /// Returns:
+    ///      Graph: The loaded Graph object.
+    #[staticmethod]
+    #[pyo3(signature = (edge_df, edge_src, edge_dst, edge_time, edge_properties = None, edge_const_properties = None, edge_shared_const_properties = None,
+    edge_layer = None, layer_in_df = true, node_df = None, node_id = None, node_time = None, node_properties = None,
+    node_const_properties = None, node_shared_const_properties = None, node_type = None, node_type_in_df = true))]
+    fn load_from_pandas(
+        edge_df: &PyAny,
+        edge_src: &str,
+        edge_dst: &str,
+        edge_time: &str,
+        edge_properties: Option<Vec<&str>>,
+        edge_const_properties: Option<Vec<&str>>,
+        edge_shared_const_properties: Option<HashMap<String, Prop>>,
+        edge_layer: Option<&str>,
+        layer_in_df: Option<bool>,
+        node_df: Option<&PyAny>,
+        node_id: Option<&str>,
+        node_time: Option<&str>,
+        node_properties: Option<Vec<&str>>,
+        node_const_properties: Option<Vec<&str>>,
+        node_shared_const_properties: Option<HashMap<String, Prop>>,
+        node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
+    ) -> Result<PersistentGraph, GraphError> {
+        let graph = PyPersistentGraph {
+            graph: PersistentGraph::new(),
+        };
+        graph.load_edges_from_pandas(
+            edge_df,
+            edge_src,
+            edge_dst,
+            edge_time,
+            edge_properties,
+            edge_const_properties,
+            edge_shared_const_properties,
+            edge_layer,
+            layer_in_df,
+        )?;
+        if let (Some(node_df), Some(node_id), Some(node_time)) = (node_df, node_id, node_time) {
+            graph.load_nodes_from_pandas(
+                node_df,
+                node_id,
+                node_time,
+                node_type,
+                node_type_in_df,
+                node_properties,
+                node_const_properties,
+                node_shared_const_properties,
+            )?;
+        }
+        Ok(graph.graph)
+    }
+
+    /// Load nodes from a Pandas DataFrame into the graph.
+    ///
+    /// Arguments:
+    ///     df (pandas.DataFrame): The Pandas DataFrame containing the nodes.
+    ///     id (str): The column name for the node IDs.
+    ///     time (str): The column name for the timestamps.
+    ///     node_type (str): the column name for the node type
+    ///     node_type_in_df (bool): whether the node type should be used to look up the values in a column of the df or if it should be used directly as the node type
+    ///     properties (List<str>): List of node property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None.  (optional)
+    ///     shared_const_properties (Dictionary/Hashmap of properties): A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (df, id, time, node_type = None, node_type_in_df = true, properties = None, const_properties = None, shared_const_properties = None))]
+    fn load_nodes_from_pandas(
+        &self,
+        df: &PyAny,
+        id: &str,
+        time: &str,
+        node_type: Option<&str>,
+        node_type_in_df: Option<bool>,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        utils::load_nodes_from_pandas(
+            &self.graph.0,
+            df,
+            id,
+            time,
+            node_type,
+            node_type_in_df,
+            properties,
+            const_properties,
+            shared_const_properties,
+        )
+    }
+
+    /// Load edges from a Pandas DataFrame into the graph.
+    ///
+    /// Arguments:
+    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     time (str): The column name for the update timestamps.
+    ///     properties (List<str>): List of edge property column names. Defaults to None. (optional)
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (df, src, dst, time, properties = None, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    fn load_edges_from_pandas(
+        &self,
+        df: &PyAny,
+        src: &str,
+        dst: &str,
+        time: &str,
+        properties: Option<Vec<&str>>,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        utils::load_edges_from_pandas(
+            &self.graph.0,
+            df,
+            src,
+            dst,
+            time,
+            properties,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
+    }
+
+    /// Load edges deletions from a Pandas DataFrame into the graph.
+    ///
+    /// Arguments:
+    ///     df (Dataframe): The Pandas DataFrame containing the edges.
+    ///     src (str): The column name for the source node ids.
+    ///     dst (str): The column name for the destination node ids.
+    ///     time (str): The column name for the update timestamps.
+    ///     layer (str): The edge layer name (optional) Defaults to None.
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the dateframe or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (df, src, dst, time, layer = None, layer_in_df = true))]
+    fn load_edges_deletions_from_pandas(
+        &self,
+        df: &PyAny,
+        src: &str,
+        dst: &str,
+        time: &str,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        let graph = &self.graph.0;
+        Python::with_gil(|py| {
+            let size: usize = py
+                .eval(
+                    "index.__len__()",
+                    Some([("index", df.getattr("index")?)].into_py_dict(py)),
+                    None,
+                )?
+                .extract()?;
+
+            let mut cols_to_check = vec![src, dst, time];
+            if layer_in_df.unwrap_or(true) {
+                if let Some(ref layer) = layer {
+                    cols_to_check.push(layer.as_ref());
+                }
+            }
+
+            let df = process_pandas_py_df(df, py, size, cols_to_check.clone())?;
+
+            df.check_cols_exist(&cols_to_check)?;
+            load_edges_deletions_from_df(
+                &df,
+                size,
+                src,
+                dst,
+                time,
+                layer,
+                layer_in_df.unwrap_or(true),
+                graph,
+            )
+            .map_err(|e| GraphLoadException::new_err(format!("{:?}", e)))?;
+
+            Ok::<(), PyErr>(())
+        })
+        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        Ok(())
+    }
+
+    /// Load node properties from a Pandas DataFrame.
+    ///
+    /// Arguments:
+    ///     df (Dataframe): The Pandas DataFrame containing node information.
+    ///     id(str): The column name for the node IDs.
+    ///     const_properties (List<str>): List of constant node property column names. Defaults to None. (optional)
+    ///     shared_const_properties (<HashMap<String, Prop>>):  A dictionary of constant properties that will be added to every node. Defaults to None. (optional)
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (df, id, const_properties = None, shared_const_properties = None))]
+    fn load_node_props_from_pandas(
+        &self,
+        df: &PyAny,
+        id: &str,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+    ) -> Result<(), GraphError> {
+        utils::load_node_props_from_pandas(
+            &self.graph.0,
+            df,
+            id,
+            const_properties,
+            shared_const_properties,
+        )
+    }
+
+    /// Load edge properties from a Pandas DataFrame.
+    ///
+    /// Arguments:
+    ///     df (Dataframe): The Pandas DataFrame containing edge information.
+    ///     src (str): The column name for the source node.
+    ///     dst (str): The column name for the destination node.
+    ///     const_properties (List<str>): List of constant edge property column names. Defaults to None. (optional)
+    ///     shared_const_properties (dict): A dictionary of constant properties that will be added to every edge. Defaults to None. (optional)
+    ///     layer (str): Layer name. Defaults to None.  (optional)
+    ///     layer_in_df (bool): Whether the layer name should be used to look up the values in a column of the data frame or if it should be used directly as the layer for all edges (optional) defaults to True.
+    ///
+    /// Returns:
+    ///     Result<(), GraphError>: Result of the operation.
+    #[pyo3(signature = (df, src, dst, const_properties = None, shared_const_properties = None, layer = None, layer_in_df = true))]
+    fn load_edge_props_from_pandas(
+        &self,
+        df: &PyAny,
+        src: &str,
+        dst: &str,
+        const_properties: Option<Vec<&str>>,
+        shared_const_properties: Option<HashMap<String, Prop>>,
+        layer: Option<&str>,
+        layer_in_df: Option<bool>,
+    ) -> Result<(), GraphError> {
+        utils::load_edge_props_from_pandas(
+            &self.graph.0,
+            df,
+            src,
+            dst,
+            const_properties,
+            shared_const_properties,
+            layer,
+            layer_in_df,
+        )
     }
 }
