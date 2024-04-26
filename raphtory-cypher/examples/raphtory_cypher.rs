@@ -36,25 +36,31 @@ struct LoadGraph {
     #[arg(short, long)]
     graph_dir: String,
 
+    /// Chunk size of the adjacency list
     #[arg(short, long, default_value_t = 1000000)]
     chunk_size: usize,
 
+    /// Chunk size of the edge property list
     #[arg(short, long, default_value_t = 5000000)]
     t_prop_chunk_size: usize,
 
+    /// Chunk size of the parquet edge list
     #[arg(short, long)]
     read_chunk_size: Option<usize>,
 
+    /// Number of threads to use when loading temporal properties
     #[arg(short, long, default_value_t = 8)]
     num_threads: usize,
 
+    /// Number of concurrent files to read when loading temporal properties
     #[arg(short, long)]
     concurrent_files: Option<usize>,
 
+    /// Node properties to load
     #[arg(short, long)]
     node_props: Option<String>,
 
-    // /// parquet files to load as layers
+    /// Edge list parquet files to load as layers
     #[arg(short='l', last = true, value_parser = parse_key_val::<String, ArgLayer>)]
     layers: Vec<(String, ArgLayer)>,
 }
@@ -163,11 +169,10 @@ async fn main() {
                     }
                 })
                 .collect();
-            let node_properties = Some("/mnt/work/pometry/gov/case6/data/sorted_nodes.parquet");
             ArrowGraph::load_from_parquets(
                 args.graph_dir.as_str(),
                 layer_parquet_cols,
-                None,
+                args.node_props.as_deref(),
                 args.chunk_size,
                 args.t_prop_chunk_size,
                 args.read_chunk_size,
