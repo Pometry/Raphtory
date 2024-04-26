@@ -26,6 +26,7 @@ use std::{
     fmt::{Display, Formatter},
     io::Read,
     path::Path,
+    process::Command,
 };
 use uuid::Uuid;
 
@@ -53,6 +54,32 @@ pub(crate) struct QueryRoot;
 impl QueryRoot {
     async fn hello() -> &'static str {
         "Hello world from raphtory-graphql"
+    }
+
+    async fn execute_plugin<'a>(
+        ctx: &Context<'a>,
+        script: &str,
+        args: Option<Vec<String>>,
+    ) -> String {
+        let output = match args {
+            None => Command::new("python")
+                .arg(format!("plugins/{}.py", script))
+                .output(),
+            Some(args) => Command::new("python")
+                .arg(format!("plugins/{}.py", script))
+                .args(&args)
+                .output(),
+        };
+        match output {
+            Ok(output) => {
+                if output.status.success() {
+                    String::from_utf8_lossy(&output.stdout).to_string()
+                } else {
+                    String::from_utf8_lossy(&output.stderr).to_string()
+                }
+            }
+            Err(_) => "Failed to execute".to_string(),
+        }
     }
 
     /// Returns a graph
