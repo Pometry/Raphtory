@@ -157,7 +157,7 @@ mod tests {
             .collect::<Vec<_>>();
 
         // FIXME: this needs to be fixed, the arrow CC is unstable and gives us a different result
-        // assert_eq!(ccs1, ccs2);
+        assert_eq!(ccs1, ccs2);
 
         let actual = get_all_with_names.len();
         assert_eq!(actual, 1624);
