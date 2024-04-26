@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::lanl::*;
+    use ahash::HashMapExt;
     use itertools::Itertools;
     use raphtory::{
         algorithms::{
@@ -12,7 +13,7 @@ mod tests {
         },
         prelude::{GraphViewOps, *},
     };
-    use std::{cmp::Reverse, env, num::NonZeroUsize, path::Path};
+    use std::{cmp::Reverse, collections::HashMap, env, num::NonZeroUsize, path::Path};
     use tempfile::tempdir;
 
     #[test]
@@ -126,29 +127,37 @@ mod tests {
         );
 
         let get_all_with_names = &measure_without_print_results("Weakly CC", || {
-            weakly_connected_components(&graph.valid_layers("netflow"), 20, None)
+            weakly_connected_components(&graph, 10_000_000, None)
         })
         .get_all_with_names();
 
-        let components = get_all_with_names
+        let ccs1 = get_all_with_names
             .iter()
-            .group_by(|(_, v)| *v)
+            .fold(HashMap::new(), |mut map, (_, c)| {
+                map.entry(c).and_modify(|e| *e += 1).or_insert(1usize);
+                map
+            })
             .into_iter()
-            .map(|(c, group)| (c, group.count()))
-            .sorted_by_key(|(_, size)| Reverse(*size))
-            .into_iter()
+            .sorted_by_key(|(_, count)| Reverse(*count))
             .take(10)
+            .map(|(_, count)| count)
             .collect::<Vec<_>>();
 
-        println!("COMPONENTS {:?}", components);
+        let ccs2 = measure_without_print_results("CC", || connected_components(&graph))
+            .into_iter()
+            .enumerate()
+            .fold(HashMap::new(), |mut map, (_, c)| {
+                map.entry(c).and_modify(|e| *e += 1).or_insert(1usize);
+                map
+            })
+            .into_iter()
+            .sorted_by_key(|(_, count)| Reverse(*count))
+            .take(10)
+            .map(|(_, count)| count)
+            .collect::<Vec<_>>();
 
-        // assert_eq!(
-        //     measure_without_print_results("CC", || connected_components(&graph))
-        //         .into_iter()
-        //         .take(10)
-        //         .collect::<Vec<_>>(),
-        //     vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        // );
+        assert_eq!(ccs1, ccs2);
+
 
         let actual = get_all_with_names.len();
         assert_eq!(actual, 1624);
