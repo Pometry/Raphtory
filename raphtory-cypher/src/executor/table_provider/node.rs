@@ -14,10 +14,9 @@ use datafusion::{
     error::DataFusionError,
     execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
     logical_expr::Expr,
-    physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan, Partitioning,
+        ExecutionPlan, PlanProperties,
     },
 };
 use futures::Stream;
@@ -27,6 +26,8 @@ use raphtory::{
 };
 
 use crate::executor::ExecError;
+
+use super::plan_properties;
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,
@@ -115,11 +116,14 @@ impl TableProvider for NodeTableProvider {
             .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
+        let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
+
         Ok(Arc::new(NodeScanExecPlan {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
             chunk_size: self.chunk_size,
+            props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -180,6 +184,7 @@ struct NodeScanExecPlan {
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
+    props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -224,17 +229,12 @@ impl ExecutionPlan for NodeScanExecPlan {
         self
     }
 
-    /// Get the schema for this execution plan
+    fn properties(&self) -> &PlanProperties {
+        &self.props
+    }
+
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
-    }
-
-    fn output_partitioning(&self) -> Partitioning {
-        Partitioning::UnknownPartitioning(self.num_partitions)
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        None
     }
 
     fn maintains_input_order(&self) -> Vec<bool> {

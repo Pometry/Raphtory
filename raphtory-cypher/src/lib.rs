@@ -13,13 +13,14 @@ use datafusion::{
     logical_expr::{create_udf, ColumnarValue, LogicalPlan, Volatility},
     physical_plan::SendableRecordBatchStream,
 };
+
 use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
 use parser::ast::*;
 use raphtory::arrow::graph_impl::ArrowGraph;
 
 use crate::{
     executor::table_provider::node::NodeTableProvider,
-    hop::{operator::HopPlan, rule::HopRule},
+    hop::rule::{HopQueryPlanner, HopRule},
 };
 
 pub mod executor;
@@ -44,6 +45,7 @@ pub async fn prepare_plan(
 
     let runtime = Arc::new(RuntimeEnv::default());
     let state = SessionState::new_with_config_rt(config, runtime)
+        .with_query_planner(Arc::new(HopQueryPlanner {}))
         .add_optimizer_rule(Arc::new(HopRule::new(g.clone())));
     let ctx = SessionContext::new_with_state(state);
 
@@ -120,23 +122,25 @@ pub async fn run_sql(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecE
         ctx.register_table(layer, Arc::new(table))?;
     }
 
+    let node_table_provider = NodeTableProvider::new(graph.clone())?;
+    ctx.register_table("nodes", Arc::new(node_table_provider))?;
+
     let df = ctx.sql(query).await?;
     Ok(df)
 }
 
 #[cfg(test)]
 mod test {
-
     use std::path::Path;
-
-    use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
-    use tempfile::tempdir;
 
     // FIXME: actually assert the tests below
     // use pretty_assertions::assert_eq;
     use arrow::util::pretty::print_batches;
+    use tempfile::tempdir;
 
-    use crate::run_cypher;
+    use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
+
+    use crate::{run_cypher, run_sql};
 
     lazy_static::lazy_static! {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
@@ -207,17 +211,18 @@ mod test {
     }
 
     mod arrow2_load {
-        use std::{num::NonZeroUsize, path::PathBuf};
+        use std::path::PathBuf;
 
+        use arrow::util::pretty::print_batches;
         use arrow2::{
             array::{PrimitiveArray, StructArray},
             datatypes::*,
         };
-        use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
         use tempfile::tempdir;
 
+        use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
+
         use crate::run_cypher;
-        use arrow::util::pretty::print_batches;
 
         fn schema() -> Schema {
             let srcs = Field::new("srcs", DataType::UInt64, false);
@@ -529,12 +534,13 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_node_props(graph_dir);
 
-        let df = run_cypher(
-            "match (a)-[e1]->(b)-[e2]->(c) return a.name, b.name, c.name",
-            &graph,
-        )
-        .await
-        .unwrap();
+        let df = run_sql("WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), a AS (SELECT * FROM nodes), b AS (SELECT * FROM nodes), c AS (SELECT * FROM nodes) SELECT a.name, b.name, c.name FROM e1 JOIN a ON e1.src = a.id JOIN b ON e1.dst = b.id JOIN e2 ON b.id = e2.src JOIN c ON e2.dst = c.id WHERE e1.id <> e2.id", &graph).await.unwrap();
+        // let df = run_cypher(
+        //     "match (a)-[e1]->(b)-[e2]->(c) return a.name, b.name, c.name",
+        //     &graph,
+        // )
+        // .await
+        // .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
     }

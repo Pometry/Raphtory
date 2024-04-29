@@ -14,6 +14,8 @@ use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 
 use crate::hop::operator::HopPlan;
 
+use super::execution::HopExec;
+
 pub struct HopRule {
     pub graph: ArrowGraph,
 }
@@ -110,7 +112,7 @@ impl OptimizerRule for HopRule {
     }
 }
 
-struct HopQueryPlanner;
+pub struct HopQueryPlanner;
 
 #[async_trait]
 impl QueryPlanner for HopQueryPlanner {
@@ -139,16 +141,22 @@ impl ExtensionPlanner for HopPlanner {
         &self,
         _planner: &dyn PhysicalPlanner,
         node: &dyn UserDefinedLogicalNode,
-        logical_inputs: &[&LogicalPlan],
+        _logical_inputs: &[&LogicalPlan],
         physical_inputs: &[Arc<dyn ExecutionPlan>],
         _session_state: &SessionState,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
-        todo!()
+        if let Some(node) = node.as_any().downcast_ref::<HopPlan>() {
+            let exec_plan = HopExec::new(node, physical_inputs);
+            Ok(Some(Arc::new(exec_plan)))
+        } else {
+            Ok(None)
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use arrow::util::pretty::print_batches;
     use raphtory::arrow::graph_impl::ArrowGraph;
     use tempfile::tempdir;
 
@@ -194,5 +202,21 @@ mod test {
         .unwrap();
 
         println!("PLAN {plan:?}");
+    }
+
+    #[tokio::test]
+    async fn as_physical_plan_e1() {
+        let graph_dir = tempdir().unwrap();
+        let edges = vec![(0u64, 1u64, 0i64, 2.), (1, 2, 1, 3.)];
+        let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
+
+        let (ctx, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g)
+            .await
+            .unwrap();
+
+        println!("PLAN {plan:?}");
+        let df = ctx.execute_logical_plan(plan).await.unwrap();
+        let out = df.collect().await.unwrap();
+        print_batches(&out).expect("print_batches");
     }
 }

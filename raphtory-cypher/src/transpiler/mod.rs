@@ -188,6 +188,7 @@ fn scan_edges_as_sql_cte(
             },
             query: union_query,
             from: None,
+            materialized: None
         }
     } else {
         sql_ast::Cte {
@@ -197,6 +198,7 @@ fn scan_edges_as_sql_cte(
             },
             query: select_scan_query(layer_names.first().unwrap().as_ref(), graph, None).1,
             from: None,
+            materialized: None
         }
     }
 }
@@ -347,6 +349,8 @@ fn select_query_with_projection(
             named_window: vec![],
             // QUALIFY (Snowflake)
             qualify: None,
+
+            value_table_mode: None
         }))),
         // ORDER BY
         order_by: vec![],
@@ -429,6 +433,7 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
             "nodes",
         ),
         from: None,
+        materialized: None
     }
 }
 
@@ -472,6 +477,7 @@ fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr
         named_window: vec![],
         // QUALIFY (Snowflake)
         qualify: None,
+        value_table_mode: None
     })))
 }
 
