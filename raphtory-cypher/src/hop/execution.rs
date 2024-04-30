@@ -9,7 +9,9 @@ use arrow_array::builder::{
     make_builder, ArrayBuilder, GenericStringBuilder, Int64Builder, LargeStringBuilder,
     PrimitiveBuilder, StringBuilder, UInt64Builder,
 };
-use arrow_array::{Array, ArrowPrimitiveType, OffsetSizeTrait, RecordBatch, UInt64Array};
+use arrow_array::{
+    Array, ArrayRef, ArrowPrimitiveType, Int64Array, OffsetSizeTrait, RecordBatch, UInt64Array,
+};
 use arrow_schema::{DataType, Schema, SchemaRef};
 use async_trait::async_trait;
 use datafusion::common::DFSchemaRef;
@@ -161,39 +163,40 @@ impl HopStream {
             .into_iter()
             .enumerate()
             .filter(|(id, name)| self.layers.contains(name))
-            .map(|(id, _)| graph.layer(id))
+            .map(|(id, _)| (id, graph.layer(id)))
             .collect::<Vec<_>>();
 
-        let mut layers = layers
-            .iter()
-            .filter_map(|&layer| {
-                let builders = self
-                    .right_schema
-                    .fields()
-                    .iter()
-                    .filter_map(|f| layer.edge_property_id(f.name()).map(|id| (f, id)))
-                    .map(|(field, prop_id)| {
-                        (
-                            field,
-                            make_builder(field.data_type(), hop_col.len()),
-                            prop_id,
-                        )
-                    })
-                    .collect::<Vec<_>>();
+        // all properties accross all layers
+        layers.iter().flat_map(|(_, layer)| {
+            layer
+                .edges_data_type()
+                .into_iter()
+                .map(|f| f.name.to_string())
+        });
 
-                if builders.is_empty() {
-                    None
-                } else {
-                    Some((layer, builders))
-                }
+        let mut builders = self
+            .right_schema
+            .fields()
+            .iter()
+            .map(|f| {
+                let builder = make_builder(f.data_type(), hop_col.len());
+                let prop_ids = layers
+                    .iter()
+                    .map(|(_, layer)| layer.edge_property_id(f.name()))
+                    .collect::<Vec<_>>();
+                (builder, f, prop_ids)
             })
             .collect::<Vec<_>>();
 
         // build the indices used to take rows from the left hand side
-        let mut take_indices = vec![];
-        let mut edge_timestamps = vec![];
+        let mut take_indices = Vec::with_capacity(hop_col.len());
+        let mut edge_timestamps = Vec::with_capacity(hop_col.len());
+        let mut dst_indices = Vec::with_capacity(hop_col.len());
 
-        for (layer, prop_builders) in layers.iter_mut() {
+        let mut edge_ids = Vec::with_capacity(hop_col.len());
+        let mut layer_ids = Vec::with_capacity(hop_col.len());
+
+        for (layer_id, layer) in layers.iter() {
             for (col_id, v_id) in hop_col
                 .values()
                 .into_iter()
@@ -201,60 +204,89 @@ impl HopStream {
                 .enumerate()
             {
                 // handle edge additions and take indices
-                for t in layer
+                for (t, u_id, e_id) in layer
                     .out_edges(v_id)
-                    .map(|(e_id, _)| layer.edge(e_id))
-                    .flat_map(|edge| edge.timestamp_slice())
+                    .map(|(e_id, u_id)| (layer.edge(e_id), u_id))
+                    .flat_map(|(edge, u_id)| {
+                        edge.timestamp_slice().map(move |t| (t, u_id, edge.eid()))
+                    })
                 {
                     take_indices.push(col_id as u64);
                     edge_timestamps.push(t);
+                    dst_indices.push(u_id.0 as u64);
+                    edge_ids.push(e_id.0 as u64);
+                    layer_ids.push(*layer_id as u64);
                 }
+            }
+        }
 
-                // Handle properties
-                for (p_field, p_builder, p_id) in prop_builders.iter_mut() {
-                    // TODO: these potentially could happen in parallel
-                    match p_field.data_type() {
-                        DataType::UInt64 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<UInt64Builder>()?;
-                            let prop_iter = prop_iter_primitive::<u64>(&layer, v_id, *p_id);
-                            load_into_primitive_builder(builder, prop_iter);
+        println!(
+            "prop_ids {:?}",
+            builders.iter().map(|(_, _, p)| p).collect::<Vec<_>>()
+        );
+
+        for (p_builder, p_field, prop_ids) in builders.iter_mut() {
+            for (layer_id, (_, layer)) in layers.iter().enumerate() {
+                if let Some(p_id) = prop_ids[layer_id] {
+                    for v_id in hop_col.values().into_iter().map(|n| VID(*n as usize)) {
+                        match p_field.data_type() {
+                            DataType::UInt64 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<UInt64Builder>()?;
+                                let prop_iter = prop_iter_primitive::<u64>(layer, v_id, p_id);
+                                load_into_primitive_builder(builder, prop_iter);
+                            }
+                            DataType::Int64 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
+                                let prop_iter = prop_iter_primitive::<i64>(layer, v_id, p_id);
+                                load_into_primitive_builder(builder, prop_iter);
+                            }
+                            DataType::Utf8 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<StringBuilder>()?;
+                                let utf8_prop_iter = prop_iter_utf8::<i32>(layer, v_id, p_id);
+                                load_into_utf8_builder(builder, utf8_prop_iter);
+                            }
+                            DataType::LargeUtf8 => {
+                                let builder = p_builder
+                                    .as_any_mut()
+                                    .downcast_mut::<LargeStringBuilder>()
+                                    .unwrap();
+                                let utf8_prop_iter = prop_iter_utf8::<i64>(layer, v_id, p_id);
+                                load_into_utf8_builder(builder, utf8_prop_iter);
+                            }
+                            _ => {}
                         }
-                        DataType::Int64 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
-                            let prop_iter = prop_iter_primitive::<i64>(&layer, v_id, *p_id);
-                            load_into_primitive_builder(builder, prop_iter);
-                        }
-                        DataType::Utf8 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<StringBuilder>()?;
-                            let utf8_prop_iter = prop_iter_utf8::<i32>(&layer, v_id, *p_id);
-                            load_into_utf8_builder(builder, utf8_prop_iter);
-                        }
-                        DataType::LargeUtf8 => {
-                            let builder = p_builder
-                                .as_any_mut()
-                                .downcast_mut::<LargeStringBuilder>()
-                                .unwrap();
-                            let utf8_prop_iter = prop_iter_utf8::<i64>(&layer, v_id, *p_id);
-                            load_into_utf8_builder(builder, utf8_prop_iter);
-                        }
-                        _ => {}
                     }
                 }
             }
         }
 
-        // put all the things together
         let take_indices = UInt64Array::from(take_indices);
-        let left_rb = take_record_batch(&record_batch, &take_indices).map(|left_rb| {
-            let mut right_columns = vec![];
-            for (_, prop_builders) in layers.iter_mut() {
-                for (field, builder, _) in prop_builders.iter_mut() {
-                    right_rb = right_rb.add_column(field.name(), builder.finish().into());
-                }
-            }
-            right_rb
-        });
-        None
+        let left_rb = take_record_batch(&record_batch, &take_indices).expect("take failed");
+        let src_ids = left_rb
+            .column_by_name("dst")
+            .expect("dst not found")
+            .clone();
+
+        let edge_timestamps = Arc::new(Int64Array::from(edge_timestamps));
+        let dst_ids = Arc::new(UInt64Array::from(dst_indices));
+        let edge_ids = Arc::new(UInt64Array::from(edge_ids));
+        let layer_ids = Arc::new(UInt64Array::from(layer_ids));
+
+        let mut columns: Vec<ArrayRef> = left_rb.columns().into();
+
+        columns.push(edge_ids);
+        columns.push(layer_ids);
+        columns.push(src_ids);
+        columns.push(dst_ids);
+        columns.push(edge_timestamps);
+
+        for (builder, _, _) in builders.iter_mut() {
+            columns.push(builder.finish());
+        }
+        Some(RecordBatch::try_new(self.output_schema.clone(), columns).map_err(Into::into))
     }
 }
 
