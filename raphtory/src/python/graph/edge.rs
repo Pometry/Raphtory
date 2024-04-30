@@ -341,7 +341,6 @@ impl Repr for PyMutableEdge {
 }
 #[pymethods]
 impl PyMutableEdge {
-
     /// Add updates to an edge in the graph at a specified time.
     /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
@@ -398,10 +397,9 @@ impl PyMutableEdge {
     pub fn update_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
-        layer: Option<&str>
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.update_constant_properties(properties,layer)
-
+        self.edge.update_constant_properties(properties, layer)
     }
 
     fn __repr__(&self) -> String {
