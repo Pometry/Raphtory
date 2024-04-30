@@ -65,9 +65,11 @@ impl CoreGraphOps for ArrowGraph {
             LayerIds::None => Box::new(std::iter::empty()),
             LayerIds::All => Box::new(
                 self.inner
-                    .layer_names_vec()
+                    .layer_names()
                     .into_iter()
-                    .map(|s| ArcStr::from(s)),
+                    .map(|s| ArcStr::from(s.as_str()))
+                    .collect::<Vec<_>>()
+                    .into_iter(),
             ),
             LayerIds::One(id) => Box::new(
                 self.inner

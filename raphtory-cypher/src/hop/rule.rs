@@ -210,6 +210,7 @@ mod test {
         let edges = vec![(0u64, 1u64, 0i64, 2.), (1, 2, 1, 3.)];
         let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
 
+        // let (ctx, plan) = prepare_plan("MATCH ()-[e1]->() RETURN *", &g)
         let (ctx, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g)
             .await
             .unwrap();
