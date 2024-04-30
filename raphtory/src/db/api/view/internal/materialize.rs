@@ -2,12 +2,9 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
+            graph::tgraph::InternalGraph,
             nodes::node_ref::NodeRef,
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, EID, ELID, VID,
         },
         storage::locked_view::LockedView,
@@ -33,10 +30,7 @@ use crate::{
             },
             view::{internal::*, BoxedIter},
         },
-        graph::{
-            graph::{Graph, InternalGraph},
-            views::deletion_graph::PersistentGraph,
-        },
+        graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
     BINCODE_VERSION,

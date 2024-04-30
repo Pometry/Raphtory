@@ -16,7 +16,7 @@ use crate::{
 #[cfg(feature = "arrow")]
 use crate::db::api::storage::arrow::nodes::ArrowOwnedNode;
 
-use rayon::iter::Either;
+use crate::db::api::storage::{storage_variants::StorageVariants, tprop_storage_ops::TPropOps};
 
 pub enum NodeOwnedEntry {
     Mem(ArcEntry<NodeStore>),
@@ -48,8 +48,8 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeOwnedEntry::Mem($pattern) => Either::Left($result),
-            NodeOwnedEntry::Arrow($pattern) => Either::Right($result),
+            NodeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
+            NodeOwnedEntry::Arrow($pattern) => StorageVariants::Arrow($result),
         }
     }};
 }
@@ -70,6 +70,10 @@ impl<'a> NodeStorageOps<'a> for &'a NodeOwnedEntry {
 
     fn additions(self) -> NodeAdditions<'a> {
         for_all!(self, node => node.additions())
+    }
+
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        for_all_iter!(self, node => node.tprop(prop_id))
     }
 
     fn edges_iter(

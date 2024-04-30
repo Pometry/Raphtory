@@ -1,13 +1,13 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, LayerIds},
+        entities::{graph::tgraph::InternalGraph, LayerIds},
         utils::errors::GraphError,
     },
     db::api::view::internal::InternalLayerOps,
     prelude::Layer,
 };
 
-impl<const N: usize> InternalLayerOps for InnerTemporalGraph<N> {
+impl InternalLayerOps for InternalGraph {
     fn layer_ids(&self) -> &LayerIds {
         &LayerIds::All
     }

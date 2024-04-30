@@ -364,7 +364,7 @@ impl NodeStore {
     }
 
     pub(crate) fn active(&self, w: Range<i64>) -> bool {
-        self.timestamps.active(w)
+        self.timestamps.active_t(w)
     }
 }
 

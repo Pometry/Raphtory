@@ -1,13 +1,13 @@
 use crate::{
-    core::entities::graph::tgraph::InnerTemporalGraph,
+    core::entities::graph::tgraph::InternalGraph,
     db::{
         api::view::internal::{InternalMaterialize, MaterializedGraph},
-        graph::graph::{Graph, InternalGraph},
+        graph::graph::Graph,
     },
 };
 use std::sync::Arc;
 
-impl<const N: usize> InternalMaterialize for InnerTemporalGraph<N> {
+impl InternalMaterialize for InternalGraph {
     fn new_base_graph(&self, graph: InternalGraph) -> MaterializedGraph {
         MaterializedGraph::EventGraph(Graph::from_internal_graph(Arc::new(graph)))
     }

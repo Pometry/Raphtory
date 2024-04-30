@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, EID, VID},
+        entities::{graph::tgraph::InternalGraph, EID, VID},
         storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError,
     },
@@ -8,7 +8,7 @@ use crate::{
     prelude::Prop,
 };
 
-impl<const N: usize> InternalPropertyAdditionOps for InnerTemporalGraph<N> {
+impl InternalPropertyAdditionOps for InternalGraph {
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,

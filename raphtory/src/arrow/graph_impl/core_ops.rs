@@ -1,15 +1,10 @@
-use super::tprops::read_tprop_column;
 use crate::{
     arrow::{graph_impl::ArrowGraph, GID},
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
             nodes::{input_node::InputNode, node_ref::NodeRef},
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, ELID, VID,
         },
         storage::locked_view::LockedView,
@@ -29,10 +24,7 @@ use crate::{
             },
             storage_ops::GraphStorage,
         },
-        view::{
-            internal::{CoreGraphOps, EdgeUpdates},
-            BoxedIter,
-        },
+        view::{internal::CoreGraphOps, BoxedIter},
     },
 };
 use itertools::Itertools;
@@ -115,18 +107,6 @@ impl CoreGraphOps for ArrowGraph {
         todo!("Node types are not supported on arrow yet")
     }
 
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
-
-        let layer_id = match layer_ids {
-            LayerIds::One(id) => id,
-            _ => todo!("Edge views with multiple layers are not supported on arrow yet"),
-        };
-
-        let edge = self.inner.edge(eref.pid(), layer_id);
-        EdgeUpdates::Col(edge.timestamps())
-    }
-
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
             NodeRef::Internal(vid) => Some(vid),
@@ -164,10 +144,6 @@ impl CoreGraphOps for ArrowGraph {
         }
     }
 
-    fn temporal_node_prop(&self, _v: VID, _id: usize) -> Option<LockedView<TProp>> {
-        None
-    }
-
     fn temporal_node_prop_ids(&self, _v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         Box::new(std::iter::empty())
     }
@@ -184,32 +160,10 @@ impl CoreGraphOps for ArrowGraph {
         Box::new(std::iter::empty())
     }
 
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
-
-        let layer_id = match layer_ids {
-            LayerIds::One(id) => id,
-            _ => panic!("Only one layer is supported"),
-        };
-
-        let edge = self.inner.edge(e.pid(), layer_id);
-
-        let prop_field = &self.inner.edges_data_type(layer_id)[id];
-
-        let layered_t_prop = read_tprop_column(id, prop_field.clone(), edge)?;
-
-        Some(LockedLayeredTProp::External(layered_t_prop))
-    }
-
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         let layer_id = match layer_ids.constrain_from_edge(e) {
             LayerIds::One(id) => id,

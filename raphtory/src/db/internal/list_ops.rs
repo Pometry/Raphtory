@@ -1,9 +1,9 @@
 use crate::{
-    core::entities::graph::tgraph::InnerTemporalGraph,
+    core::entities::graph::tgraph::InternalGraph,
     db::api::view::internal::{EdgeList, ListOps, NodeList},
 };
 
-impl<const N: usize> ListOps for InnerTemporalGraph<N> {
+impl ListOps for InternalGraph {
     fn node_list(&self) -> NodeList {
         NodeList::All {
             num_nodes: self.inner().storage.nodes.len(),

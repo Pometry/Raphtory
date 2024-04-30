@@ -1,29 +1,28 @@
 use crate::{
     core::{
-        entities::{
-            edges::edge_ref::EdgeRef, graph::tgraph::InnerTemporalGraph,
-            properties::tprop::TPropOps, LayerIds, VID,
-        },
+        entities::{edges::edge_ref::EdgeRef, graph::tgraph::InternalGraph, LayerIds, VID},
         storage::timeindex::{AsTime, TimeIndexIntoOps, TimeIndexOps},
     },
     db::api::{
         storage::{
-            edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef, node_storage_ops::*,
+            edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
+            edges::edge_ref::EdgeStorageRef,
+            node_storage_ops::*,
             nodes::node_ref::NodeStorageRef,
+            tprop_storage_ops::TPropOps,
         },
         view::{
-            internal::{CoreDeletionOps, CoreGraphOps, TimeSemantics},
-            BoxedIter,
+            internal::{CoreGraphOps, TimeSemantics},
+            BoxedIter, IntoDynBoxed,
         },
     },
-    prelude::Prop,
+    prelude::{Prop, TimeIndexEntry},
 };
-use genawaiter::sync::GenBoxed;
-use itertools::kmerge;
+use itertools::{kmerge, Itertools};
 use rayon::prelude::*;
 use std::ops::Range;
 
-impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
+impl TimeSemantics for InternalGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.inner().node_entry(v).value().timestamps().first_t()
     }
@@ -54,7 +53,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .nodes
             .read_lock()
             .into_par_iter()
-            .flat_map(|v| v.timestamps().range(start..end).first_t())
+            .flat_map(|v| v.timestamps().range_t(start..end).first_t())
             .min()
     }
 
@@ -64,7 +63,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .nodes
             .read_lock()
             .into_par_iter()
-            .flat_map(|v| v.timestamps().range(start..end).last_t())
+            .flat_map(|v| v.timestamps().range_t(start..end).last_t())
             .max()
     }
 
@@ -73,7 +72,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .node_entry(v)
             .value()
             .timestamps()
-            .range(start..end)
+            .range_t(start..end)
             .first_t()
     }
 
@@ -82,7 +81,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
             .node_entry(v)
             .value()
             .timestamps()
-            .range(start..end)
+            .range_t(start..end)
             .last_t()
     }
 
@@ -93,7 +92,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         _layer_ids: &LayerIds,
     ) -> bool {
-        node.additions().active(w)
+        node.additions().active_t(w)
     }
 
     #[inline]
@@ -113,7 +112,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         let node = self.core_node_entry(v);
-        node.additions().range(w).iter_t().collect()
+        node.additions().range_t(w).iter_t().collect()
     }
 
     fn edge_history(&self, e: EdgeRef, layer_ids: LayerIds) -> Vec<i64> {
@@ -121,7 +120,7 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
-                .map(|index| index.into_iter()),
+                .map(|(_, index)| index.into_iter()),
         )
         .map(|te| te.t())
         .collect()
@@ -132,13 +131,15 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         kmerge(
             core_edge
                 .additions_iter(&layer_ids)
-                .map(move |index| index.into_range(w.clone()).into_iter_t()),
+                .map(move |(_, index)| index.into_range_t(w.clone()).into_iter_t()),
         )
         .collect()
     }
 
     fn edge_exploded_count(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> usize {
-        edge.additions_par_iter(layer_ids).map(|a| a.len()).sum()
+        edge.additions_par_iter(layer_ids)
+            .map(|(_, a)| a.len())
+            .sum()
     }
 
     fn edge_exploded_count_window(
@@ -148,33 +149,18 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
     ) -> usize {
         edge.additions_par_iter(layer_ids)
-            .map(|a| a.range(w.clone()).len())
+            .map(|(_, a)| a.range_t(w.clone()).len())
             .sum()
     }
 
     fn edge_exploded(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let arc = self.inner().edge_arc(e.pid());
-        let layer_id = layer_ids.clone().constrain_from_edge(e);
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            // this is for when we explode edges we want to select the layer we get the timestamps from
-            for (l, t) in arc.timestamps_and_layers(layer_id) {
-                co.yield_(e.at(t).at_layer(l)).await;
-            }
-        });
-        Box::new(iter.into_iter())
+        let entry = self.inner().storage.edges.entry_arc(e.pid());
+        entry.into_exploded(layer_ids.clone(), e).into_dyn_boxed()
     }
 
     fn edge_layers(&self, e: EdgeRef, layer_ids: &LayerIds) -> BoxedIter<EdgeRef> {
-        let arc = self.inner().edge_arc(e.pid());
-        let layer_ids = layer_ids.clone().constrain_from_edge(e);
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for l in arc.layers() {
-                if layer_ids.contains(&l) {
-                    co.yield_(e.at_layer(l)).await;
-                }
-            }
-        });
-        Box::new(iter.into_iter())
+        let entry = self.core_edge_arc(e.into());
+        entry.into_layers(layer_ids.clone(), e).into_dyn_boxed()
     }
 
     fn edge_window_exploded(
@@ -183,15 +169,10 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> BoxedIter<EdgeRef> {
-        let arc = self.inner().edge_arc(e.pid());
-        let layer_ids = layer_ids.clone().constrain_from_edge(e);
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            // this is for when we explode edges we want to select the layer we get the timestamps from
-            for (l, t) in arc.timestamps_and_layers_window(layer_ids, w) {
-                co.yield_(e.at(t).at_layer(l)).await;
-            }
-        });
-        Box::new(iter.into_iter())
+        let arc = self.core_edge_arc(e.into());
+        let layer_ids = layer_ids.clone();
+        arc.into_exploded_window(layer_ids, TimeIndexEntry::range(w), e)
+            .into_dyn_boxed()
     }
 
     fn edge_window_layers(
@@ -200,21 +181,22 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> BoxedIter<EdgeRef> {
-        let arc = self.inner().edge_arc(e.pid());
-        let layer_ids = layer_ids.clone();
-        let iter: GenBoxed<EdgeRef> = GenBoxed::new_boxed(|co| async move {
-            for l in arc.layers_window(w) {
-                if layer_ids.contains(&l) {
-                    co.yield_(e.at_layer(l)).await;
-                }
-            }
-        });
-        Box::new(iter.into_iter())
+        let entry = self.core_edge_arc(e.into());
+        entry
+            .clone()
+            .into_layers(layer_ids.clone(), e)
+            .filter(move |e| entry.additions(*e.layer().unwrap()).active_t(w.clone()))
+            .into_dyn_boxed()
     }
 
     fn edge_earliest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids.clone()).first_t())
+        e.time_t().or_else(|| {
+            let entry = self.core_edge(e.into());
+            entry
+                .additions_par_iter(layer_ids)
+                .flat_map(|(_, a)| a.first_t())
+                .min()
+        })
     }
 
     fn edge_earliest_time_window(
@@ -223,13 +205,26 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
-        e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids.clone()).range(w).first_t())
+        match e.time_t() {
+            Some(t) => w.contains(&t).then_some(t),
+            None => {
+                let entry = self.core_edge(e.into());
+                entry
+                    .additions_par_iter(layer_ids)
+                    .flat_map(|(_, a)| a.range_t(w.clone()).first_t())
+                    .min()
+            }
+        }
     }
 
     fn edge_latest_time(&self, e: EdgeRef, layer_ids: &LayerIds) -> Option<i64> {
-        e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids.clone()).last_t())
+        e.time_t().or_else(|| {
+            let entry = self.core_edge(e.into());
+            entry
+                .additions_par_iter(layer_ids)
+                .flat_map(|(_, a)| a.last_t())
+                .max()
+        })
     }
 
     fn edge_latest_time_window(
@@ -238,12 +233,25 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Option<i64> {
-        e.time_t()
-            .or_else(|| self.edge_additions(e, layer_ids.clone()).range(w).last_t())
+        match e.time_t() {
+            Some(t) => w.contains(&t).then_some(t),
+            None => {
+                let entry = self.core_edge(e.into());
+                entry
+                    .additions_par_iter(layer_ids)
+                    .flat_map(|(_, a)| a.range_t(w.clone()).last_t())
+                    .max()
+            }
+        }
     }
 
     fn edge_deletion_history(&self, e: EdgeRef, layer_ids: &LayerIds) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids.clone()).iter_t().collect()
+        let entry = self.core_edge(e.into());
+        entry
+            .deletions_iter(layer_ids)
+            .map(|(_, d)| d.into_iter_t())
+            .kmerge()
+            .collect()
     }
 
     fn edge_deletion_history_window(
@@ -252,9 +260,11 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         w: Range<i64>,
         layer_ids: &LayerIds,
     ) -> Vec<i64> {
-        self.edge_deletions(e, layer_ids.clone())
-            .range(w)
-            .iter_t()
+        let entry = self.core_edge(e.into());
+        entry
+            .deletions_iter(layer_ids)
+            .map(|(_, d)| d.into_range_t(w.clone()).into_iter_t())
+            .kmerge()
             .collect()
     }
 
@@ -288,24 +298,22 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
     fn temporal_prop_vec_window(&self, prop_id: usize, start: i64, end: i64) -> Vec<(i64, Prop)> {
         self.inner()
             .get_temporal_prop(prop_id)
-            .map(|prop| prop.iter_window_t(start..end).collect())
+            .map(|prop| (&prop).iter_window_t(start..end).collect())
             .unwrap_or_default()
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        let entry = self.inner().storage.get_node(v);
+        let entry = self.inner().storage.nodes.get(v);
         entry.temporal_property(prop_id).is_some()
     }
 
     fn temporal_node_prop_vec(&self, v: VID, prop_id: usize) -> Vec<(i64, Prop)> {
-        self.inner()
-            .node(v)
-            .temporal_properties(prop_id, None)
-            .collect()
+        let node = self.inner().storage.nodes.get(v);
+        node.temporal_properties(prop_id, None).collect()
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        let entry = self.inner().storage.get_node(v);
+        let entry = self.inner().storage.nodes.get(v);
         entry
             .temporal_property(prop_id)
             .filter(|p| p.iter_window_t(w).next().is_some())
@@ -320,7 +328,9 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         end: i64,
     ) -> Vec<(i64, Prop)> {
         self.inner()
-            .node(v)
+            .storage
+            .nodes
+            .get(v)
             .temporal_properties(prop_id, Some(start..end))
             .collect()
     }
@@ -330,10 +340,12 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
-        let entry = self.inner().storage.get_edge(e.pid());
-        entry.has_temporal_prop_window(layer_ids, prop_id, w)
+        let entry = self.core_edge(e.into());
+        entry
+            .temporal_prop_par_iter(layer_ids, prop_id)
+            .any(|(_, p)| p.active(w.clone()))
     }
 
     fn temporal_edge_prop_vec_window(
@@ -342,38 +354,50 @@ impl<const N: usize> TimeSemantics for InnerTemporalGraph<N> {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, prop_id, layer_ids)
-            .map(|p| match e.time() {
-                Some(t) => {
-                    if t.t() >= start && t.t() < end {
-                        p.at(&t).map(|v| vec![(t.t(), v)]).unwrap_or_default()
-                    } else {
-                        vec![]
-                    }
+        let entry = self.core_edge(e.into());
+        match e.time() {
+            Some(t) => {
+                if (start..end).contains(&t.t()) {
+                    entry
+                        .temporal_prop_iter(layer_ids, prop_id)
+                        .flat_map(|(_, p)| p.at(&t).map(|v| (t.t(), v)))
+                        .collect()
+                } else {
+                    vec![]
                 }
-                None => p.iter_window(start..end).collect(),
-            })
-            .unwrap_or_default()
+            }
+            None => entry
+                .temporal_prop_iter(layer_ids, prop_id)
+                .map(|(_, p)| p.iter_window_t(start..end))
+                .kmerge()
+                .collect(),
+        }
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
-        let entry = self.inner().storage.get_edge(e.pid());
-        entry.has_temporal_prop(&layer_ids, prop_id)
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
+        let entry = self.core_edge(e.into());
+        (&entry).has_temporal_prop(layer_ids, prop_id)
     }
 
     fn temporal_edge_prop_vec(
         &self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
-        self.temporal_edge_prop(e, prop_id, layer_ids)
-            .map(|p| match e.time() {
-                Some(t) => p.at(&t).map(|v| vec![(t.t(), v)]).unwrap_or_default(),
-                None => p.iter().collect(),
-            })
-            .unwrap_or_default()
+        let entry = self.core_edge(e.into());
+        match e.time() {
+            Some(t) => entry
+                .temporal_prop_iter(layer_ids, prop_id)
+                .flat_map(|(_, p)| p.at(&t).map(|v| (t.t(), v)))
+                .collect(),
+            None => entry
+                .temporal_prop_iter(layer_ids, prop_id)
+                .map(|(_, p)| p.iter_t())
+                .kmerge()
+                .collect(),
+        }
     }
 }

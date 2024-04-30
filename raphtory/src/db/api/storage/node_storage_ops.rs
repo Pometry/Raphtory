@@ -1,10 +1,16 @@
 use crate::{
     core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
+        entities::{
+            edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, properties::tprop::TProp,
+            LayerIds, VID,
+        },
         storage::ArcEntry,
         Direction, OptionAsStr,
     },
-    db::api::view::internal::NodeAdditions,
+    db::api::{
+        storage::tprop_storage_ops::{TPropOps, TPropRef},
+        view::internal::NodeAdditions,
+    },
 };
 use itertools::Itertools;
 
@@ -12,6 +18,8 @@ pub trait NodeStorageOps<'a>: Sized {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
     fn additions(self) -> NodeAdditions<'a>;
+
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
 
     fn edges_iter(self, layers: &'a LayerIds, dir: Direction)
         -> impl Iterator<Item = EdgeRef> + 'a;
@@ -32,6 +40,10 @@ impl<'a> NodeStorageOps<'a> for &'a NodeStore {
 
     fn additions(self) -> NodeAdditions<'a> {
         NodeAdditions::Mem(self.timestamps())
+    }
+
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        self.temporal_property(prop_id).unwrap_or(&TProp::Empty)
     }
 
     fn edges_iter(

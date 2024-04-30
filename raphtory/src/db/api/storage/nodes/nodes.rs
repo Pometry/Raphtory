@@ -52,23 +52,12 @@ impl<'a> NodesStorageRef<'a> {
         }
     }
 
-    #[cfg(feature = "arrow")]
     pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
         match self {
             NodesStorageRef::Mem(store) => Either::Left(store.par_iter().map(NodeStorageRef::Mem)),
+            #[cfg(feature = "arrow")]
             NodesStorageRef::Arrow(store) => {
                 Either::Right(store.par_iter().map(NodeStorageRef::Arrow))
-            }
-        }
-    }
-
-    #[cfg(not(feature = "arrow"))]
-    pub fn par_iter(self) -> impl ParallelIterator<Item = NodeStorageRef<'a>> {
-        match self {
-            NodesStorageRef::Mem(store) => {
-                Either::<_, rayon::iter::Empty<NodeStorageRef<'a>>>::Left(
-                    store.par_iter().map(NodeStorageRef::Mem),
-                )
             }
         }
     }
@@ -77,16 +66,8 @@ impl<'a> NodesStorageRef<'a> {
     pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
         match self {
             NodesStorageRef::Mem(store) => Either::Left(store.iter().map(NodeStorageRef::Mem)),
+            #[cfg(feature = "arrow")]
             NodesStorageRef::Arrow(store) => Either::Right(store.iter().map(NodeStorageRef::Arrow)),
-        }
-    }
-
-    #[cfg(not(feature = "arrow"))]
-    pub fn iter(self) -> impl Iterator<Item = NodeStorageRef<'a>> {
-        match self {
-            NodesStorageRef::Mem(store) => Either::<_, std::iter::Empty<NodeStorageRef<'a>>>::Left(
-                store.iter().map(NodeStorageRef::Mem),
-            ),
         }
     }
 }

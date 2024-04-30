@@ -5,11 +5,7 @@ use crate::{
         entities::{
             edges::edge_ref::EdgeRef,
             nodes::node_ref::NodeRef,
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, ELID, VID,
         },
         storage::{
@@ -83,10 +79,6 @@ pub trait CoreGraphOps {
     /// Returns the type of node
     fn node_type(&self, v: VID) -> Option<ArcStr>;
 
-    /// Get all the addition timestamps for an edge
-    /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates;
-
     /// Gets the internal reference for an external node reference and keeps internal references unchanged.
     fn internalise_node(&self, v: NodeRef) -> Option<VID>;
 
@@ -138,18 +130,6 @@ pub trait CoreGraphOps {
     /// The keys of the constant properties.
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    /// Gets a temporal property of a given node given the name and node reference.
-    ///
-    /// # Arguments
-    ///
-    /// * `v` - A reference to the node for which the property is being queried.
-    /// * `name` - The name of the property.
-    ///
-    /// Returns:
-    ///
-    /// Option<LockedView<TProp>> - The history of property values if it exists.
-    fn temporal_node_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>>;
-
     /// Returns a vector of all ids of temporal properties within the given node
     ///
     /// # Arguments
@@ -189,24 +169,6 @@ pub trait CoreGraphOps {
         layer_ids: LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 
-    /// Returns a vector of all temporal values of the edge property with the given name for the
-    /// given edge reference.
-    ///
-    /// # Arguments
-    ///
-    /// * `e` - An `EdgeRef` reference to the edge of interest.
-    /// * `name` - A `String` containing the name of the temporal property.
-    ///
-    /// Returns:
-    ///
-    /// A property if it exists
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp>;
-
     /// Returns a vector of keys for the temporal properties of the given edge reference.
     ///
     /// # Arguments
@@ -219,7 +181,7 @@ pub trait CoreGraphOps {
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_>;
 }
 
@@ -310,11 +272,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
-        self.graph().edge_additions(eref, layer_ids)
-    }
-
-    #[inline]
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         self.graph().internalise_node(v)
     }
@@ -343,12 +300,6 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph().constant_node_prop_ids(v)
     }
-
-    #[inline]
-    fn temporal_node_prop(&self, v: VID, id: usize) -> Option<LockedView<TProp>> {
-        self.graph().temporal_node_prop(v, id)
-    }
-
     #[inline]
     fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph().temporal_node_prop_ids(v)
@@ -369,20 +320,10 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     }
 
     #[inline]
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp> {
-        self.graph().temporal_edge_prop(e, id, layer_ids)
-    }
-
-    #[inline]
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         self.graph().temporal_edge_prop_ids(e, layer_ids)
     }
@@ -430,10 +371,10 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
 
     fn active(&self, w: Range<i64>) -> bool {
         match self {
-            NodeAdditions::Mem(index) => index.active(w),
+            NodeAdditions::Mem(index) => index.active_t(w),
             #[cfg(feature = "arrow")]
-            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active(w.clone())),
-            NodeAdditions::Range(index) => index.active(w),
+            NodeAdditions::Col(index) => index.par_iter().any(|index| index.active_t(w.clone())),
+            NodeAdditions::Range(index) => index.active_t(w),
         }
     }
 
@@ -445,7 +386,7 @@ impl<'b> TimeIndexOps for NodeAdditions<'b> {
                 let mut ranges = Vec::with_capacity(index.len());
                 index
                     .par_iter()
-                    .map(|index| index.range(w.clone()))
+                    .map(|index| index.range_t(w.clone()))
                     .collect_into_vec(&mut ranges);
                 NodeAdditions::Col(ranges)
             }
@@ -501,7 +442,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
     type IndexType = TimeIndexEntry;
     type RangeType<'b> = EdgeUpdates<'b> where Self: 'b;
 
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
             EdgeUpdates::Mem(index) => index.active(w),
             EdgeUpdates::Range(index) => index.active(w),
@@ -510,7 +451,7 @@ impl<'a> TimeIndexOps for EdgeUpdates<'a> {
         }
     }
 
-    fn range<'b>(&'b self, w: Range<i64>) -> Self::RangeType<'b> {
+    fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
         match self {
             EdgeUpdates::Mem(index) => EdgeUpdates::Range(index.range(w)),
             EdgeUpdates::Range(index) => EdgeUpdates::Range(index.range(w)),

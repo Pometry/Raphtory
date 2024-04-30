@@ -12,6 +12,7 @@ use crate::{
             direction_variants::DirectionVariants,
             layer_variants::LayerVariants,
             node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            tprop_storage_ops::TPropOps,
         },
         view::internal::NodeAdditions,
     },
@@ -268,6 +269,13 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
         self.additions_for_layers(&LayerIds::All)
     }
 
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        self.properties
+            .unwrap()
+            .temporal_props
+            .prop(self.vid, prop_id)
+    }
+
     fn edges_iter(
         self,
         layers: &'a LayerIds,
@@ -489,6 +497,11 @@ impl<'a> NodeStorageOps<'a> for &'a ArrowOwnedNode {
     #[inline]
     fn additions(self) -> NodeAdditions<'a> {
         self.as_ref().additions()
+    }
+
+    #[inline]
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        self.as_ref().tprop(prop_id)
     }
 
     #[inline]

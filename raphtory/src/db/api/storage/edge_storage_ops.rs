@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::{
             edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-            properties::tprop::{LockedLayeredTProp, TPropOps},
             LayerIds, VID,
         },
         storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
@@ -14,110 +13,134 @@ use crate::{
 #[cfg(feature = "arrow")]
 use crate::arrow::timestamps::TimeStamps;
 
+use crate::{
+    core::entities::properties::tprop::TProp, db::api::storage::tprop_storage_ops::TPropOps,
+};
 use rayon::prelude::*;
 use std::ops::Range;
 
-pub enum TimeIndexLike<'a> {
+pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
     Range(TimeIndexWindow<'a, TimeIndexEntry>),
     #[cfg(feature = "arrow")]
     External(TimeStamps<'a, TimeIndexEntry>),
 }
 
-impl<'a> TimeIndexLike<'a> {
+impl<'a> TimeIndexRef<'a> {
     pub fn len(&self) -> usize {
         match self {
-            TimeIndexLike::Ref(ts) => ts.len(),
-            TimeIndexLike::Range(ts) => ts.len(),
+            TimeIndexRef::Ref(ts) => ts.len(),
+            TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ts) => ts.len(),
+            TimeIndexRef::External(ts) => ts.len(),
         }
     }
 }
 
-impl<'a> TimeIndexOps for TimeIndexLike<'a> {
+impl<'a> TimeIndexOps for TimeIndexRef<'a> {
     type IndexType = TimeIndexEntry;
-    type RangeType<'b> = TimeIndexLike<'b> where Self: 'b;
+    type RangeType<'b> = TimeIndexRef<'b> where Self: 'b;
 
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<TimeIndexEntry>) -> bool {
         match self {
-            TimeIndexLike::Ref(ref t) => t.active(w),
-            TimeIndexLike::Range(ref t) => t.active(w),
+            TimeIndexRef::Ref(ref t) => t.active(w),
+            TimeIndexRef::Range(ref t) => t.active(w),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => t.active(w),
+            TimeIndexRef::External(ref t) => t.active(w),
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range(&self, w: Range<TimeIndexEntry>) -> Self::RangeType<'_> {
         match self {
-            TimeIndexLike::Ref(t) => TimeIndexLike::Range(t.range(w)),
-            TimeIndexLike::Range(ref t) => TimeIndexLike::Range(t.range(w)),
+            TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
+            TimeIndexRef::Range(ref t) => TimeIndexRef::Range(t.range(w)),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => TimeIndexLike::External(t.range(w)),
+            TimeIndexRef::External(ref t) => TimeIndexRef::External(t.range(w)),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::Ref(t) => t.first(),
-            TimeIndexLike::Range(ref t) => t.first(),
+            TimeIndexRef::Ref(t) => t.first(),
+            TimeIndexRef::Range(ref t) => t.first(),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => t.first(),
+            TimeIndexRef::External(ref t) => t.first(),
         }
     }
 
     fn last(&self) -> Option<Self::IndexType> {
         match self {
-            TimeIndexLike::Ref(t) => t.last(),
-            TimeIndexLike::Range(ref t) => t.last(),
+            TimeIndexRef::Ref(t) => t.last(),
+            TimeIndexRef::Range(ref t) => t.last(),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => t.last(),
+            TimeIndexRef::External(ref t) => t.last(),
         }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Self::IndexType> + Send + '_> {
         match self {
-            TimeIndexLike::Ref(t) => t.iter(),
-            TimeIndexLike::Range(t) => t.iter(),
+            TimeIndexRef::Ref(t) => t.iter(),
+            TimeIndexRef::Range(t) => t.iter(),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => t.iter(),
+            TimeIndexRef::External(ref t) => t.iter(),
         }
     }
 
     fn len(&self) -> usize {
         match self {
-            TimeIndexLike::Ref(ts) => ts.len(),
-            TimeIndexLike::Range(ts) => ts.len(),
+            TimeIndexRef::Ref(ts) => ts.len(),
+            TimeIndexRef::Range(ts) => ts.len(),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(ref t) => t.len(),
+            TimeIndexRef::External(ref t) => t.len(),
         }
     }
 }
 
-impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
+impl<'a> TimeIndexIntoOps for TimeIndexRef<'a> {
     type IndexType = TimeIndexEntry;
 
     type RangeType = Self;
 
-    fn into_range(self, w: Range<i64>) -> TimeIndexLike<'a> {
+    fn into_range(self, w: Range<TimeIndexEntry>) -> TimeIndexRef<'a> {
         match self {
-            TimeIndexLike::Ref(t) => TimeIndexLike::Range(t.range_inner(w)),
-            TimeIndexLike::Range(t) => TimeIndexLike::Range(t.into_range(w)),
+            TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range_inner(w)),
+            TimeIndexRef::Range(t) => TimeIndexRef::Range(t.into_range(w)),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(t) => TimeIndexLike::External(t.into_range(w)),
+            TimeIndexRef::External(t) => TimeIndexRef::External(t.into_range(w)),
         }
     }
     fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + 'a {
         match self {
-            TimeIndexLike::Ref(t) => t.iter(),
-            TimeIndexLike::Range(t) => t.into_iter().into_dyn_boxed(),
+            TimeIndexRef::Ref(t) => t.iter(),
+            TimeIndexRef::Range(t) => t.into_iter().into_dyn_boxed(),
             #[cfg(feature = "arrow")]
-            TimeIndexLike::External(t) => t.into_iter().into_dyn_boxed(),
+            TimeIndexRef::External(t) => t.into_iter().into_dyn_boxed(),
         }
     }
 }
 
-pub trait EdgeStorageOps<'a> {
+pub trait EdgeStorageIntoOps {
+    fn into_layers(
+        self,
+        layer_ids: LayerIds,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send;
+
+    fn into_exploded(
+        self,
+        layer_ids: LayerIds,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send;
+
+    fn into_exploded_window(
+        self,
+        layer_ids: LayerIds,
+        w: Range<TimeIndexEntry>,
+        eref: EdgeRef,
+    ) -> impl Iterator<Item = EdgeRef> + Send;
+}
+
+pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn in_ref(self) -> EdgeRef;
 
     fn out_ref(self) -> EdgeRef;
@@ -126,42 +149,91 @@ pub trait EdgeStorageOps<'a> {
     fn src(self) -> VID;
     fn dst(self) -> VID;
 
+    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a;
+
+    fn layer_ids_par_iter(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = usize> + 'a;
+
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.additions(id)))
+    }
 
     fn additions_par_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = TimeIndexLike<'a>> + 'a;
+    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+        self.layer_ids_par_iter(layer_ids)
+            .map(move |id| (id, self.additions(id)))
+    }
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a>;
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.deletions(id)))
+    }
 
     fn deletions_par_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = TimeIndexLike<'a>> + 'a;
+    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+        self.layer_ids_par_iter(layer_ids)
+            .map(move |id| (id, self.deletions(id)))
+    }
 
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexLike<'a>, TimeIndexLike<'a>)> + 'a;
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.additions(id), self.deletions(id)))
+    }
 
     fn updates_par_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexLike<'a>, TimeIndexLike<'a>)> + 'a;
+    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
+        self.layer_ids_par_iter(layer_ids)
+            .map(move |id| (id, self.additions(id), self.deletions(id)))
+    }
 
-    fn additions(self, layer_id: usize) -> TimeIndexLike<'a>;
-    fn deletions(self, layer_id: usize) -> TimeIndexLike<'a>;
+    fn additions(self, layer_id: usize) -> TimeIndexRef<'a>;
+    fn deletions(self, layer_id: usize) -> TimeIndexRef<'a>;
 
-    fn has_temporal_prop(self, layer_ids: &LayerIds, prop_id: usize) -> bool;
+    fn has_temporal_prop(self, layer_ids: &'a LayerIds, prop_id: usize) -> bool {
+        self.layer_ids_par_iter(layer_ids)
+            .any(move |id| !self.temporal_prop_layer(id, prop_id).is_empty())
+    }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize)
-        -> Option<Box<dyn TPropOps + 'a>>;
+    fn temporal_prop_layer(
+        self,
+        layer_id: usize,
+        prop_id: usize,
+    ) -> impl TPropOps<'a> + Send + Sync + 'a;
+
+    fn temporal_prop_iter(
+        self,
+        layer_ids: &'a LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
+    }
+
+    fn temporal_prop_par_iter(
+        self,
+        layer_ids: &'a LayerIds,
+        prop_id: usize,
+    ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
+        self.layer_ids_par_iter(layer_ids)
+            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
+    }
 }
 
 impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
@@ -178,126 +250,69 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
-        self.has_layer(layer_ids)
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => true,
+            LayerIds::One(id) => self.has_layer_inner(*id),
+            LayerIds::Multiple(ids) => ids.par_iter().any(|id| self.has_layer_inner(*id)),
+        }
     }
 
     fn src(self) -> VID {
-        self.src()
+        self.src
     }
 
     fn dst(self) -> VID {
-        self.dst()
+        self.dst
     }
 
-    fn additions_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        Box::new(self.additions_iter_inner(layer_ids).map(TimeIndexLike::Ref))
-    }
-
-    fn additions_par_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = TimeIndexLike<'a>> + 'a {
-        let iter = match layer_ids {
-            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
-            LayerIds::All => LayerVariants::All(self.additions.par_iter()),
-            LayerIds::One(layer_id) => {
-                LayerVariants::One(self.additions.get(*layer_id).into_par_iter())
-            }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.par_iter()
-                    .flat_map(|layer_id| self.additions.get(*layer_id)),
-            ),
-        };
-        iter.map(TimeIndexLike::Ref)
-    }
-
-    fn deletions_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        Box::new(self.deletions_iter_inner(layer_ids).map(TimeIndexLike::Ref))
-    }
-
-    fn deletions_par_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = TimeIndexLike<'a>> + 'a {
-        let iter = match layer_ids {
-            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
-            LayerIds::All => LayerVariants::All(self.deletions.par_iter()),
-            LayerIds::One(layer_id) => {
-                LayerVariants::One(self.deletions.get(*layer_id).into_par_iter())
-            }
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.par_iter()
-                    .flat_map(|layer_id| self.deletions.get(*layer_id)),
-            ),
-        };
-        iter.map(TimeIndexLike::Ref)
-    }
-
-    fn updates_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexLike<'a>, TimeIndexLike<'a>)> + 'a {
-        self.updates_iter_inner(layer_ids)
-            .map(|(layer, additions, deletions)| {
-                (
-                    layer,
-                    TimeIndexLike::Ref(additions),
-                    TimeIndexLike::Ref(deletions),
-                )
-            })
-    }
-
-    fn updates_par_iter(
-        self,
-        layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexLike<'a>, TimeIndexLike<'a>)> + 'a {
+    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
         match layer_ids {
-            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
+            LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => {
-                let len = self.additions.len().max(self.deletions.len());
-                LayerVariants::All(
-                    (0..len).into_par_iter().map(|layer_id| {
-                        (layer_id, self.additions(layer_id), self.deletions(layer_id))
-                    }),
-                )
+                LayerVariants::All((0..self.layers.len()).filter(|&l| self.has_layer_inner(l)))
             }
-            LayerIds::One(layer_id) => LayerVariants::One(rayon::iter::once((
-                *layer_id,
-                self.additions(*layer_id),
-                self.deletions(*layer_id),
-            ))),
+            LayerIds::One(id) => {
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
+            }
             LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(ids.par_iter().map(|&layer_id| {
-                    (layer_id, self.additions(layer_id), self.deletions(layer_id))
-                }))
+                LayerVariants::Multiple(ids.iter().copied().filter(|&id| self.has_layer_inner(id)))
             }
         }
     }
 
-    fn additions(self, layer_id: usize) -> TimeIndexLike<'a> {
-        TimeIndexLike::Ref(self.additions.get(layer_id).unwrap_or_default())
-    }
-
-    fn deletions(self, layer_id: usize) -> TimeIndexLike<'a> {
-        TimeIndexLike::Ref(self.deletions.get(layer_id).unwrap_or_default())
-    }
-
-    fn has_temporal_prop(self, layer_ids: &LayerIds, prop_id: usize) -> bool {
-        self.has_temporal_prop(layer_ids, prop_id)
-    }
-
-    fn temporal_prop_layer(
+    fn layer_ids_par_iter(
         self,
-        layer_id: usize,
-        prop_id: usize,
-    ) -> Option<Box<dyn TPropOps + 'a>> {
-        self.temporal_prop_layer(layer_id, prop_id)
-            .map(|props| Box::new(LockedLayeredTProp::One(props)) as Box<dyn TPropOps>)
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = usize> + 'a {
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(rayon::iter::empty()),
+            LayerIds::All => LayerVariants::All(
+                (0..self.layers.len())
+                    .into_par_iter()
+                    .filter(|&l| self.has_layer_inner(l)),
+            ),
+            LayerIds::One(id) => {
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_par_iter())
+            }
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(
+                ids.par_iter()
+                    .copied()
+                    .filter(|&id| self.has_layer_inner(id)),
+            ),
+        }
+    }
+
+    fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
+        TimeIndexRef::Ref(self.additions.get(layer_id).unwrap_or(&TimeIndex::Empty))
+    }
+
+    fn deletions(self, layer_id: usize) -> TimeIndexRef<'a> {
+        TimeIndexRef::Ref(self.deletions.get(layer_id).unwrap_or(&TimeIndex::Empty))
+    }
+
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
+        self.temporal_prop_layer_inner(layer_id, prop_id)
+            .unwrap_or(&TProp::Empty)
     }
 }

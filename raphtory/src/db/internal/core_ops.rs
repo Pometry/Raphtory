@@ -2,13 +2,9 @@ use crate::{
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
-            graph::tgraph::InnerTemporalGraph,
+            graph::tgraph::InternalGraph,
             nodes::node_ref::NodeRef,
-            properties::{
-                graph_meta::GraphMeta,
-                props::Meta,
-                tprop::{LockedLayeredTProp, TProp},
-            },
+            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
             LayerIds, ELID, VID,
         },
         storage::locked_view::LockedView,
@@ -24,17 +20,14 @@ use crate::{
             },
             storage_ops::GraphStorage,
         },
-        view::{
-            internal::{CoreGraphOps, EdgeUpdates},
-            BoxedIter,
-        },
+        view::{internal::CoreGraphOps, BoxedIter},
     },
     prelude::Prop,
 };
 use itertools::Itertools;
 use std::{collections::HashMap, iter, sync::Arc};
 
-impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
+impl CoreGraphOps for InternalGraph {
     #[inline]
     fn unfiltered_num_nodes(&self) -> usize {
         self.inner().internal_num_nodes()
@@ -102,13 +95,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
-    fn edge_additions(&self, eref: EdgeRef, layer_ids: LayerIds) -> EdgeUpdates {
-        let layer_ids = layer_ids.constrain_from_edge(eref);
-        let edge = self.inner().edge(eref.pid());
-        EdgeUpdates::Mem(edge.additions(layer_ids).unwrap())
-    }
-
-    #[inline]
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         self.inner().resolve_node_ref(v)
     }
@@ -148,12 +134,6 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
                 .collect_vec()
                 .into_iter(),
         )
-    }
-
-    #[inline]
-    fn temporal_node_prop(&self, v: VID, prop_id: usize) -> Option<LockedView<TProp>> {
-        let node = self.inner().node(v);
-        node.temporal_property(prop_id)
     }
 
     #[inline]
@@ -248,29 +228,17 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
         Box::new(ids.into_iter())
     }
 
-    #[inline]
-    fn temporal_edge_prop(
-        &self,
-        e: EdgeRef,
-        prop_id: usize,
-        layer_ids: LayerIds,
-    ) -> Option<LockedLayeredTProp> {
-        let layer_ids = layer_ids.constrain_from_edge(e);
-        let edge = self.inner().edge(e.pid());
-        edge.temporal_property(layer_ids, prop_id)
-    }
-
     fn temporal_edge_prop_ids(
         &self,
         e: EdgeRef,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Box<dyn Iterator<Item = usize> + '_> {
         // FIXME: revisit the locking scheme so we don't have to collect the ids
         let entry = self.inner().edge_entry(e.pid());
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(entry.temp_prop_ids(None).collect_vec().into_iter()),
-            LayerIds::One(id) => Box::new(entry.temp_prop_ids(Some(id)).collect_vec().into_iter()),
+            LayerIds::One(id) => Box::new(entry.temp_prop_ids(Some(*id)).collect_vec().into_iter()),
             LayerIds::Multiple(ids) => Box::new(
                 ids.iter()
                     .map(|id| entry.temp_prop_ids(Some(*id)))

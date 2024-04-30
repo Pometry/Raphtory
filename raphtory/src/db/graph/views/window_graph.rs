@@ -428,7 +428,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         self.graph
             .has_temporal_edge_prop_window(e, prop_id, w.start..w.end, layer_ids)
@@ -440,13 +440,13 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph
             .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.graph.has_temporal_edge_prop_window(
             e,
             prop_id,
@@ -459,7 +459,7 @@ impl<'graph, G: GraphViewOps<'graph>> TimeSemantics for WindowedGraph<G> {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph.temporal_edge_prop_vec_window(
             e,

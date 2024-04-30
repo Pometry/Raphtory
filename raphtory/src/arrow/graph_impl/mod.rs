@@ -9,9 +9,16 @@ use crate::{
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
-use std::{path::Path, sync::Arc};
+use std::{
+    fmt::{Display, Formatter},
+    path::Path,
+    sync::Arc,
+};
 
-use crate::{core::entities::properties::props::Meta, prelude::Graph};
+use crate::{
+    core::entities::properties::props::Meta,
+    prelude::{Graph, GraphViewOps},
+};
 
 use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
 
@@ -43,6 +50,17 @@ pub struct ArrowGraph {
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     graph_props: Arc<GraphMeta>,
+}
+
+impl Display for ArrowGraph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ArrowGraph(num_nodes={}, num_temporal_edges={}",
+            self.count_nodes(),
+            self.count_temporal_edges()
+        )
+    }
 }
 
 impl AsRef<TemporalGraph> for ArrowGraph {

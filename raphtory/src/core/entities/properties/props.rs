@@ -1,12 +1,15 @@
-use crate::core::{
-    entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
-    storage::{
-        lazy_vec::{IllegalSet, LazyVec},
-        locked_view::LockedView,
-        timeindex::TimeIndexEntry,
+use crate::{
+    core::{
+        entities::{graph::tgraph::FxDashMap, properties::tprop::TProp},
+        storage::{
+            lazy_vec::{IllegalSet, LazyVec},
+            locked_view::LockedView,
+            timeindex::TimeIndexEntry,
+        },
+        utils::errors::{GraphError, IllegalMutate, MutateGraphError},
+        ArcStr, Prop, PropType,
     },
-    utils::errors::{GraphError, IllegalMutate, MutateGraphError},
-    ArcStr, Prop, PropType,
+    db::api::storage::tprop_storage_ops::TPropOps,
 };
 use lock_api;
 use parking_lot::{RwLock, RwLockReadGuard};

@@ -151,18 +151,18 @@ impl<T: AsTime> TimeIndex<T> {
 
     pub(crate) fn range_iter(
         &self,
-        w: Range<i64>,
+        w: Range<T>,
     ) -> Box<dyn DoubleEndedIterator<Item = T> + Send + '_> {
         match self {
             TimeIndex::Empty => Box::new(iter::empty()),
             TimeIndex::One(t) => {
-                if w.contains(&t.t()) {
+                if w.contains(t) {
                     Box::new(iter::once(*t))
                 } else {
                     Box::new(iter::empty())
                 }
             }
-            TimeIndex::Set(ts) => Box::new(ts.range(T::range(w)).copied()),
+            TimeIndex::Set(ts) => Box::new(ts.range(w).copied()),
         }
     }
 
@@ -170,16 +170,16 @@ impl<T: AsTime> TimeIndex<T> {
     // = note: required when coercing `Box<dyn DoubleEndedIterator<Item = &i64> + Send>` into `Box<dyn Iterator<Item = &i64> + Send>`
     pub(crate) fn range_iter_forward(
         &self,
-        w: Range<i64>,
+        w: Range<T>,
     ) -> Box<dyn Iterator<Item = T> + Send + '_> {
         Box::new(self.range_iter(w))
     }
 
-    pub(crate) fn range_inner(&self, w: Range<i64>) -> TimeIndexWindow<T> {
+    pub(crate) fn range_inner(&self, w: Range<T>) -> TimeIndexWindow<T> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
-                if w.contains(&t.t()) {
+                if w.contains(t) {
                     TimeIndexWindow::All(self)
                 } else {
                     TimeIndexWindow::Empty
@@ -188,7 +188,7 @@ impl<T: AsTime> TimeIndex<T> {
             TimeIndex::Set(ts) => {
                 if let Some(min_val) = ts.first() {
                     if let Some(max_val) = ts.last() {
-                        if min_val.t() >= w.start && max_val.t() < w.end {
+                        if min_val >= &w.start && max_val < &w.end {
                             TimeIndexWindow::All(self)
                         } else {
                             TimeIndexWindow::TimeIndexRange {
@@ -212,7 +212,7 @@ pub enum TimeIndexWindow<'a, T: AsTime> {
     Empty,
     TimeIndexRange {
         timeindex: &'a TimeIndex<T>,
-        range: Range<i64>,
+        range: Range<T>,
     },
     All(&'a TimeIndex<T>),
 }
@@ -233,7 +233,7 @@ impl<'a, T: AsTime> TimeIndexIntoOps for TimeIndexWindow<'a, T> {
     type IndexType = T;
     type RangeType = Self;
 
-    fn into_range(self, w: Range<i64>) -> Self {
+    fn into_range(self, w: Range<T>) -> Self {
         match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::TimeIndexRange { range, timeindex } => {
@@ -305,11 +305,11 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>>    where
         Self: 'b;
 
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.view.as_ref().iter().any(|t| t.active(w.clone()))
     }
 
-    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
         let timeindex = self
             .view
             .as_ref()
@@ -344,9 +344,16 @@ pub trait TimeIndexOps: Send + Sync {
     where
         Self: 'a;
 
-    fn active(&self, w: Range<i64>) -> bool;
+    fn active(&self, w: Range<Self::IndexType>) -> bool;
+    fn active_t(&self, w: Range<i64>) -> bool {
+        self.active(Self::IndexType::range(w))
+    }
 
-    fn range(&self, w: Range<i64>) -> Self::RangeType<'_>;
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_>;
+
+    fn range_t(&self, w: Range<i64>) -> Self::RangeType<'_> {
+        self.range(Self::IndexType::range(w))
+    }
 
     fn first_t(&self) -> Option<i64> {
         self.first().map(|ti| ti.t())
@@ -373,7 +380,11 @@ pub trait TimeIndexIntoOps: Sized {
     type IndexType: AsTime;
     type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;
 
-    fn into_range(self, w: Range<i64>) -> Self::RangeType;
+    fn into_range(self, W: Range<Self::IndexType>) -> Self::RangeType;
+
+    fn into_range_t(self, w: Range<i64>) -> Self::RangeType {
+        self.into_range(Self::IndexType::range(w))
+    }
 
     fn into_iter(self) -> impl Iterator<Item = Self::IndexType> + Send;
 
@@ -387,19 +398,19 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
     type RangeType<'a> = TimeIndexWindow<'a, T> where Self: 'a,;
 
     #[inline(always)]
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<T>) -> bool {
         match &self {
             TimeIndex::Empty => false,
-            TimeIndex::One(t) => w.contains(&t.t()),
-            TimeIndex::Set(ts) => ts.range(T::range(w)).next().is_some(),
+            TimeIndex::One(t) => w.contains(&t),
+            TimeIndex::Set(ts) => ts.range(w).next().is_some(),
         }
     }
 
-    fn range(&self, w: Range<i64>) -> TimeIndexWindow<T> {
+    fn range(&self, w: Range<T>) -> TimeIndexWindow<T> {
         match &self {
             TimeIndex::Empty => TimeIndexWindow::Empty,
             TimeIndex::One(t) => {
-                if w.contains(&t.t()) {
+                if w.contains(&t) {
                     TimeIndexWindow::All(self)
                 } else {
                     TimeIndexWindow::Empty
@@ -408,7 +419,7 @@ impl<T: AsTime> TimeIndexOps for TimeIndex<T> {
             TimeIndex::Set(ts) => {
                 if let Some(min_val) = ts.first() {
                     if let Some(max_val) = ts.last() {
-                        if min_val.t() >= w.start && max_val.t() < w.end {
+                        if min_val >= &w.start && max_val < &w.end {
                             TimeIndexWindow::All(self)
                         } else {
                             TimeIndexWindow::TimeIndexRange {
@@ -466,7 +477,7 @@ where
     type IndexType = T;
     type RangeType<'a> = TimeIndexWindow<'a, T> where Self: 'a;
 
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<T>) -> bool {
         match self {
             TimeIndexWindow::Empty => false,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -478,7 +489,7 @@ where
         }
     }
 
-    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range(&self, w: Range<T>) -> Self::RangeType<'_> {
         match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::TimeIndexRange { timeindex, range } => {
@@ -533,13 +544,13 @@ where
             TimeIndexWindow::TimeIndexRange { timeindex, range } => match timeindex {
                 TimeIndex::Empty => 0,
                 TimeIndex::One(t) => {
-                    if range.contains(&t.t()) {
+                    if range.contains(t) {
                         1
                     } else {
                         0
                     }
                 }
-                TimeIndex::Set(ts) => ts.range(T::range(range.clone())).count(),
+                TimeIndex::Set(ts) => ts.range(range.clone()).count(),
             },
             TimeIndexWindow::All(ts) => ts.len(),
         }
@@ -550,11 +561,11 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
     type IndexType = Ops::IndexType;
     type RangeType<'b> = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>> where Self: 'b;
 
-    fn active(&self, w: Range<i64>) -> bool {
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.timeindex.iter().any(|t| t.active(w.clone()))
     }
 
-    fn range(&self, w: Range<i64>) -> Self::RangeType<'_> {
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType<'_> {
         let timeindex = self
             .timeindex
             .iter()
@@ -616,10 +627,10 @@ mod test {
     #[test]
     fn time_index_1() {
         check_time_index(vec![3], |vec_t_index, arr_t_index| {
-            assert_eq!(vec_t_index.active(0..5), arr_t_index.active(0..5));
-            assert_eq!(vec_t_index.active(0..3), arr_t_index.active(0..3));
-            assert_eq!(vec_t_index.active(0..2), arr_t_index.active(0..2));
-            assert_eq!(vec_t_index.active(3..100), arr_t_index.active(3..100));
+            assert_eq!(vec_t_index.active_t(0..5), arr_t_index.active_t(0..5));
+            assert_eq!(vec_t_index.active_t(0..3), arr_t_index.active_t(0..3));
+            assert_eq!(vec_t_index.active_t(0..2), arr_t_index.active_t(0..2));
+            assert_eq!(vec_t_index.active_t(3..100), arr_t_index.active_t(3..100));
 
             assert_eq!(vec_t_index.first(), arr_t_index.first());
             assert_eq!(vec_t_index.last(), arr_t_index.last());
@@ -634,11 +645,11 @@ mod test {
     #[test]
     fn time_index() {
         check_time_index(vec![7, 9, 12, 34], |vec_t_index, arr_t_index| {
-            assert_eq!(vec_t_index.active(0..5), arr_t_index.active(0..5));
-            assert_eq!(vec_t_index.active(0..7), arr_t_index.active(0..7));
-            assert_eq!(vec_t_index.active(7..13), arr_t_index.active(7..13));
-            assert_eq!(vec_t_index.active(10..100), arr_t_index.active(10..100));
-            assert_eq!(vec_t_index.active(35..200), arr_t_index.active(35..200));
+            assert_eq!(vec_t_index.active_t(0..5), arr_t_index.active_t(0..5));
+            assert_eq!(vec_t_index.active_t(0..7), arr_t_index.active_t(0..7));
+            assert_eq!(vec_t_index.active_t(7..13), arr_t_index.active_t(7..13));
+            assert_eq!(vec_t_index.active_t(10..100), arr_t_index.active_t(10..100));
+            assert_eq!(vec_t_index.active_t(35..200), arr_t_index.active_t(35..200));
 
             assert_eq!(vec_t_index.first(), arr_t_index.first());
             assert_eq!(vec_t_index.last(), arr_t_index.last());
@@ -653,25 +664,25 @@ mod test {
     #[test]
     fn time_index_range() {
         check_time_index(vec![7, 9, 12, 34], |vec_t_index, arr_t_index| {
-            let vec_window = vec_t_index.range(0..5);
-            let arr_window = arr_t_index.range(0..5);
+            let vec_window = vec_t_index.range_t(0..5);
+            let arr_window = arr_t_index.range_t(0..5);
 
-            assert_eq!(vec_window.active(0..5), arr_window.active(0..5));
-            assert_eq!(vec_window.active(0..7), arr_window.active(0..7));
+            assert_eq!(vec_window.active_t(0..5), arr_window.active_t(0..5));
+            assert_eq!(vec_window.active_t(0..7), arr_window.active_t(0..7));
 
             assert_eq!(
                 vec_window.iter_t().collect_vec(),
                 arr_window.iter_t().collect_vec()
             );
 
-            let vec_t_index = vec_t_index.range(0..13);
-            let arr_t_index = arr_t_index.range(0..13);
+            let vec_t_index = vec_t_index.range_t(0..13);
+            let arr_t_index = arr_t_index.range_t(0..13);
 
-            assert_eq!(vec_t_index.active(0..5), arr_t_index.active(0..5));
-            assert_eq!(vec_t_index.active(0..7), arr_t_index.active(0..7));
-            assert_eq!(vec_t_index.active(7..13), arr_t_index.active(7..13));
-            assert_eq!(vec_t_index.active(10..100), arr_t_index.active(10..100));
-            assert_eq!(vec_t_index.active(35..200), arr_t_index.active(35..200));
+            assert_eq!(vec_t_index.active_t(0..5), arr_t_index.active_t(0..5));
+            assert_eq!(vec_t_index.active_t(0..7), arr_t_index.active_t(0..7));
+            assert_eq!(vec_t_index.active_t(7..13), arr_t_index.active_t(7..13));
+            assert_eq!(vec_t_index.active_t(10..100), arr_t_index.active_t(10..100));
+            assert_eq!(vec_t_index.active_t(35..200), arr_t_index.active_t(35..200));
 
             assert_eq!(vec_t_index.first(), arr_t_index.first());
             assert_eq!(vec_t_index.last(), arr_t_index.last());

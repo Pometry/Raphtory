@@ -1,14 +1,18 @@
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, storage::timeindex::AsTime, ArcStr, Prop},
-    db::api::properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
+    core::{entities::graph::tgraph::InternalGraph, storage::timeindex::AsTime, ArcStr, Prop},
+    db::api::{
+        properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
+        storage::tprop_storage_ops::TPropOps,
+    },
 };
 use chrono::{DateTime, Utc};
+use std::ops::Deref;
 
-impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
+impl TemporalPropertyViewOps for InternalGraph {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         self.inner()
             .get_temporal_prop(id)
-            .and_then(|prop| prop.last_before(i64::MAX).map(|(_, v)| v))
+            .and_then(|prop| prop.deref().last_before(i64::MAX).map(|(_, v)| v))
     }
 
     fn temporal_history(&self, id: usize) -> Vec<i64> {
@@ -32,13 +36,15 @@ impl<const N: usize> TemporalPropertyViewOps for InnerTemporalGraph<N> {
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        self.inner()
-            .get_temporal_prop(id)
-            .and_then(|prop| prop.last_before(t.saturating_add(1)).map(|(_, v)| v))
+        self.inner().get_temporal_prop(id).and_then(|prop| {
+            prop.deref()
+                .last_before(t.saturating_add(1))
+                .map(|(_, v)| v)
+        })
     }
 }
 
-impl<const N: usize> TemporalPropertiesOps for InnerTemporalGraph<N> {
+impl TemporalPropertiesOps for InternalGraph {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.inner().graph_meta.get_temporal_id(name)
     }

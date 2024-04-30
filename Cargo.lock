@@ -3953,6 +3953,7 @@ dependencies = [
  "raphtory",
  "rayon",
  "sorted_vector_map",
+ "tempfile",
 ]
 
 [[package]]

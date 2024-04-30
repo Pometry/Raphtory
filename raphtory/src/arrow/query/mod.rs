@@ -88,7 +88,7 @@ impl HopState for ForwardState {
     fn hop_with_state(&self, node: Node, edge: Edge) -> Option<Self> {
         let ts = edge.timestamps();
         let w = self.time + 1..i64::MAX;
-        let next_time = ts.range(w);
+        let next_time = ts.range_t(w);
 
         next_time.first_t().map(|t| ForwardState {
             time: t,
