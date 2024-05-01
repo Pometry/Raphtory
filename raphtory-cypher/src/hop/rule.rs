@@ -45,8 +45,8 @@ impl OptimizerRule for HopRule {
                 ..
             } = join;
 
-            println!("right: {right:?}");
-            println!("left: {left:?}");
+            // println!("right: {right:?}");
+            // println!("left: {left:?}");
 
             if on.len() != 1 {
                 return Ok(None); //optimize_children(self, plan, config);

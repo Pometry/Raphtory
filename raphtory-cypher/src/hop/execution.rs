@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use datafusion::common::DFSchemaRef;
 use datafusion::execution::RecordBatchStream;
 use datafusion::physical_expr::EquivalenceProperties;
-use datafusion::physical_plan::{Distribution, ExecutionMode, ExecutionPlanProperties};
+use datafusion::physical_plan::{Distribution, ExecutionPlanProperties};
 use datafusion::{
     error::DataFusionError,
     execution::TaskContext,
@@ -65,7 +65,7 @@ impl HopExec {
         let input_partitioning = input.output_partitioning().clone();
 
         let eq_properties = EquivalenceProperties::new(Arc::new(out_schema));
-        let props = PlanProperties::new(eq_properties, input_partitioning, ExecutionMode::Bounded);
+        let props = PlanProperties::new(eq_properties, input_partitioning, input.execution_mode());
         Self {
             graph,
             dir,
@@ -96,7 +96,12 @@ impl ExecutionPlan for HopExec {
     }
 
     fn required_input_distribution(&self) -> Vec<Distribution> {
-        vec![Distribution::SinglePartition]
+        vec![Distribution::UnspecifiedDistribution]
+    }
+
+    fn maintains_input_order(&self) -> Vec<bool> {
+        // tell optimizer this operator doesn't reorder its input
+        vec![true]
     }
 
     fn children(&self) -> Vec<Arc<dyn ExecutionPlan>> {
@@ -120,10 +125,10 @@ impl ExecutionPlan for HopExec {
 
     fn execute(
         &self,
-        _partition: usize,
-        _context: Arc<TaskContext>,
+        partition: usize,
+        context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream, DataFusionError> {
-        let input = self.input.execute(_partition, _context)?;
+        let input = self.input.execute(partition, context)?;
         Ok(Box::pin(HopStream {
             input,
             graph: self.graph.clone(),
@@ -368,10 +373,7 @@ impl Stream for HopStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.input.poll_next_unpin(cx).map(|poll| match poll {
             Some(Ok(batch)) => self.hop_from_batch(batch),
-            other => {
-                println!("other: {:?}", other);
-                other
-            }
+            other => other,
         })
     }
 }

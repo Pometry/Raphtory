@@ -188,7 +188,7 @@ fn scan_edges_as_sql_cte(
             },
             query: union_query,
             from: None,
-            materialized: None
+            materialized: None,
         }
     } else {
         sql_ast::Cte {
@@ -198,7 +198,7 @@ fn scan_edges_as_sql_cte(
             },
             query: select_scan_query(layer_names.first().unwrap().as_ref(), graph, None).1,
             from: None,
-            materialized: None
+            materialized: None,
         }
     }
 }
@@ -350,7 +350,7 @@ fn select_query_with_projection(
             // QUALIFY (Snowflake)
             qualify: None,
 
-            value_table_mode: None
+            value_table_mode: None,
         }))),
         // ORDER BY
         order_by: vec![],
@@ -433,7 +433,7 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
             "nodes",
         ),
         from: None,
-        materialized: None
+        materialized: None,
     }
 }
 
@@ -477,7 +477,7 @@ fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr
         named_window: vec![],
         // QUALIFY (Snowflake)
         qualify: None,
-        value_table_mode: None
+        value_table_mode: None,
     })))
 }
 
@@ -487,23 +487,6 @@ fn rel_names(query: &Query) -> Vec<String> {
 
 fn all_bound_nodes(query: &Query) -> impl Iterator<Item = &NodePattern> + '_ {
     query.node_patterns().filter(|&node_pat| is_bound(node_pat))
-}
-
-fn parse_tables(query: &Query) -> Vec<sql_ast::TableWithJoins> {
-    let m = query
-        .clauses()
-        .iter()
-        .find(|clause| matches!(clause, Clause::Match(_)));
-    if let Some(Clause::Match(m)) = m {
-        let mut tables = vec![];
-        let mut patterns = m.pattern.0.iter();
-        let first = patterns.next().unwrap();
-        let first_table: sql_ast::TableWithJoins = as_table_with_joins(first);
-        tables.push(first_table);
-        tables
-    } else {
-        vec![]
-    }
 }
 
 fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
@@ -730,94 +713,6 @@ fn is_bound(node: &NodePattern) -> bool {
 
 fn is_bound_str(node: &str) -> bool {
     !node.starts_with("n_")
-}
-
-fn as_table_with_joins(first: &PatternPart) -> sql_ast::TableWithJoins {
-    let PatternPart {
-        rel_chain, node, ..
-    } = first;
-    let mut joins = vec![];
-    let mut iter = rel_chain.iter().peekable();
-
-    if let Some((rel, _)) = iter.peek() {
-        if is_bound(node) {
-            match rel.direction {
-                Direction::OUT => joins.push(make_sql_join(&rel.name, "src", &node.name, "id")),
-                Direction::IN => joins.push(make_sql_join(&rel.name, "dst", &node.name, "id")),
-                Direction::BOTH => todo!(),
-            }
-        }
-
-        for ((rel1, node), (rel2, _)) in iter.tuple_windows() {
-            let (from, to) = match (rel1.direction, rel2.direction) {
-                (Direction::OUT, Direction::OUT) => ("dst", "src"),
-                (Direction::OUT, Direction::IN) => ("dst", "dst"),
-                (Direction::IN, Direction::OUT) => ("src", "src"),
-                (Direction::IN, Direction::IN) => ("src", "dst"),
-                _ => unimplemented!("both direction not supported"),
-            };
-
-            if is_bound(node) {
-                match rel1.direction {
-                    Direction::OUT => {
-                        joins.push(make_sql_join(&rel1.name, "dst", &node.name, "id"))
-                    }
-                    Direction::IN => joins.push(make_sql_join(&rel1.name, "src", &node.name, "id")),
-                    Direction::BOTH => todo!(),
-                }
-                match rel2.direction {
-                    Direction::OUT => {
-                        joins.push(make_sql_join(&node.name, "id", &rel2.name, "src"))
-                    }
-                    Direction::IN => joins.push(make_sql_join(&node.name, "id", &rel2.name, "dst")),
-                    Direction::BOTH => todo!(),
-                }
-            } else {
-                let join_op = sql_ast::JoinOperator::Inner(sql_ast::JoinConstraint::On(
-                    sql_ast::Expr::BinaryOp {
-                        left: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
-                            sql_ast::Ident::new(&rel1.name),
-                            sql_ast::Ident::new(from),
-                        ])),
-                        op: sql_ast::BinaryOperator::Eq,
-                        right: Box::new(sql_ast::Expr::CompoundIdentifier(vec![
-                            sql_ast::Ident::new(&rel2.name),
-                            sql_ast::Ident::new(to),
-                        ])),
-                    },
-                ));
-
-                let join = sql_ast::Join {
-                    relation: table_from_name(&rel2.name),
-                    join_operator: join_op,
-                };
-
-                joins.push(join)
-            }
-        }
-
-        // deal with the last node pattern
-        if let Some((rel, node)) = rel_chain.last() {
-            if is_bound(node) {
-                match rel.direction {
-                    Direction::OUT => joins.push(make_sql_join(&rel.name, "dst", &node.name, "id")),
-                    Direction::IN => joins.push(make_sql_join(&rel.name, "src", &node.name, "id")),
-                    Direction::BOTH => todo!(),
-                }
-            }
-        }
-
-        sql_ast::TableWithJoins {
-            relation: table_from_name(&rel.name),
-            joins,
-        }
-    } else {
-        // matching only one node
-        sql_ast::TableWithJoins {
-            relation: table_from_name(&node.name),
-            joins,
-        }
-    }
 }
 
 fn make_sql_join(
