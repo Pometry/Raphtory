@@ -25,7 +25,7 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: 1.75.0
+          toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
       - name: Free up space (ubuntu)
@@ -80,7 +80,7 @@ jobs:
         name: Setup Rust
         with:
           profile: minimal
-          toolchain: 1.75.0
+          toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
