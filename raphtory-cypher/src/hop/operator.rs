@@ -71,27 +71,9 @@ impl HopPlan {
         schema: DFSchemaRef,
         left: TableScan,
         right: TableScan,
-        on: &[(Expr, Expr)],
+        left_col: String,
+        on: Vec<(Expr, Expr)>,
     ) -> Self {
-        assert_eq!(on.len(), 1);
-
-        let left_col = match on.first() {
-            Some((
-                Expr::Column(Column {
-                    relation: Some(l_relation),
-                    name: l_name,
-                }),
-                Expr::Column(Column { name: r_name, .. }),
-            )) => {
-                if l_relation == &left.table_name {
-                    l_name
-                } else {
-                    r_name
-                }
-            }
-            _ => panic!("Invalid hop columns"),
-        };
-
         Self {
             graph: GraphHolder::new(graph),
             input: Arc::new(LogicalPlan::TableScan(left)),

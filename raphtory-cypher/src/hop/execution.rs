@@ -1,13 +1,15 @@
 use arrow::compute::take_record_batch;
 use arrow2::offset::Offset;
 use arrow2::types::NativeType;
+use std::collections::HashSet;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{any::Any, fmt, sync::Arc};
 
 use arrow_array::builder::{
-    make_builder, ArrayBuilder, GenericStringBuilder, Int64Builder, LargeStringBuilder,
-    PrimitiveBuilder, StringBuilder, UInt64Builder,
+    make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder, Int32Builder,
+    Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringBuilder, UInt32Builder,
+    UInt64Builder,
 };
 use arrow_array::{
     Array, ArrayRef, ArrowPrimitiveType, Int64Array, OffsetSizeTrait, RecordBatch, UInt64Array,
@@ -167,17 +169,22 @@ impl HopStream {
             .collect::<Vec<_>>();
 
         // all properties accross all layers
-        layers.iter().flat_map(|(_, layer)| {
-            layer
-                .edges_data_type()
-                .into_iter()
-                .map(|f| f.name.to_string())
-        });
+        let property_names: HashSet<String> = layers
+            .iter()
+            .flat_map(|(_, layer)| {
+                layer
+                    .edges_data_type()
+                    .into_iter()
+                    .skip(1) // skip the timestamp
+                    .map(|f| f.name.to_string())
+            })
+            .collect();
 
         let mut builders = self
             .right_schema
             .fields()
             .iter()
+            .filter(|f| property_names.contains(f.name()))
             .map(|f| {
                 let builder = make_builder(f.data_type(), hop_col.len());
                 let prop_ids = layers
@@ -220,10 +227,9 @@ impl HopStream {
             }
         }
 
-        println!(
-            "prop_ids {:?}",
-            builders.iter().map(|(_, _, p)| p).collect::<Vec<_>>()
-        );
+        if take_indices.is_empty() {
+            return None;
+        }
 
         for (p_builder, p_field, prop_ids) in builders.iter_mut() {
             for (layer_id, (_, layer)) in layers.iter().enumerate() {
@@ -236,10 +242,34 @@ impl HopStream {
                                 let prop_iter = prop_iter_primitive::<u64>(layer, v_id, p_id);
                                 load_into_primitive_builder(builder, prop_iter);
                             }
+                            DataType::UInt32 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<UInt32Builder>()?;
+                                let prop_iter = prop_iter_primitive::<u32>(layer, v_id, p_id);
+                                load_into_primitive_builder(builder, prop_iter);
+                            }
                             DataType::Int64 => {
                                 let builder =
                                     p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
                                 let prop_iter = prop_iter_primitive::<i64>(layer, v_id, p_id);
+                                load_into_primitive_builder(builder, prop_iter);
+                            }
+                            DataType::Int32 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<Int32Builder>()?;
+                                let prop_iter = prop_iter_primitive::<i32>(layer, v_id, p_id);
+                                load_into_primitive_builder(builder, prop_iter);
+                            }
+                            DataType::Float32 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<Float32Builder>()?;
+                                let prop_iter = prop_iter_primitive::<f32>(layer, v_id, p_id);
+                                load_into_primitive_builder(builder, prop_iter);
+                            }
+                            DataType::Float64 => {
+                                let builder =
+                                    p_builder.as_any_mut().downcast_mut::<Float64Builder>()?;
+                                let prop_iter = prop_iter_primitive::<f64>(layer, v_id, p_id);
                                 load_into_primitive_builder(builder, prop_iter);
                             }
                             DataType::Utf8 => {

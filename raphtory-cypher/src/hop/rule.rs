@@ -57,7 +57,7 @@ impl OptimizerRule for HopRule {
             // (Direction::IN, Direction::OUT) => ("src", "src"),
             // (Direction::IN, Direction::IN) => ("src", "dst"),
 
-            let (_hop_from_col, _hop_to_col, direction) = if let (
+            let (hop_from_col, _hop_to_col, direction) = if let (
                 Expr::Column(Column {
                     name: hop_from_col, ..
                 }),
@@ -97,7 +97,8 @@ impl OptimizerRule for HopRule {
                             schema.clone(),
                             l_tbl.clone(),
                             r_tbl.clone(),
-                            on,
+                            hop_from_col.clone(),
+                            on.clone(),
                         )),
                     });
                     return Ok(Some(plan));
@@ -206,8 +207,14 @@ mod test {
 
     #[tokio::test]
     async fn as_physical_plan_e1() {
+        // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
+        // | id | layer_id | src | dst | rap_time | weight | id | layer_id | src | dst | rap_time | weight |
+        // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
+        // | 0  | 0        | 0   | 1   | 0        | 2.0    | 1  | 0        | 1   | 2   | 1        | 3.0    |
+        // | 1  | 0        | 1   | 2   | 1        | 3.0    | 2  | 0        | 2   | 3   | 2        | 4.0    |
+        // +----+----------+-----+-----+----------+--------+----+----------+-----+-----+----------+--------+
         let graph_dir = tempdir().unwrap();
-        let edges = vec![(0u64, 1u64, 0i64, 2.), (1, 2, 1, 3.)];
+        let edges = vec![(0u64, 1u64, 0i64, 2.), (1, 2, 1, 3.), (2, 3, 2, 4.)];
         let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
 
         // let (ctx, plan) = prepare_plan("MATCH ()-[e1]->() RETURN *", &g)
