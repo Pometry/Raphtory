@@ -92,6 +92,7 @@ def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_si
             ArrowGraph.load_from_parquets,
             graph_dir,
             layer_parquet_cols,
+            None,
             chunk_size, 
             t_props_chunk_size,
             read_chunk_size,
