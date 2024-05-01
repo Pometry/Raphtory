@@ -1,6 +1,6 @@
 use crate::{core::utils::errors::GraphError};
 use arrow2::{
-    array::{Array, BooleanArray,PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, Utf8Array},
     compute::cast::{self, CastOptions},
     datatypes::{DataType, TimeUnit},
     ffi,
