@@ -80,8 +80,9 @@ impl<'a> TimeIndexIntoOps for TimeIndexLike<'a> {
         }
     }
 }
-
+#[allow(unused)]
 pub trait EdgeLike {
+
     fn active(&self, layer_ids: &LayerIds, w: Range<i64>) -> bool;
     fn has_layer(&self, layer_ids: &LayerIds) -> bool;
     fn src(&self) -> VID;

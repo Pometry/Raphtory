@@ -3,7 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::DynamicGraph,
-        graph::{node, nodes::Nodes},
+        graph::{nodes::Nodes},
     },
     prelude::*,
 };

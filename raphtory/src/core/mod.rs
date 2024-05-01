@@ -37,7 +37,6 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use thiserror::Error;
 
 #[cfg(test)]
 extern crate core;

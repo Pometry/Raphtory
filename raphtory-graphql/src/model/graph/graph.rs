@@ -2,7 +2,7 @@ use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
     graph::{
-        edge::Edge, edges::GqlEdges, get_expanded_edges, node::Node, nodes::GqlNodes,
+        edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes,
         property::GqlProperties,
     },
     schema::graph_schema::GraphSchema,
@@ -16,13 +16,13 @@ use raphtory::{
             properties::dyn_props::DynProperties,
             view::{DynamicGraph, NodeViewOps, TimeOps},
         },
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{node::NodeView},
     },
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashSet},
     convert::Into,
 };
 
@@ -376,30 +376,6 @@ impl GqlGraph {
             .into_iter()
             .map(|v| v.name())
             .collect_vec()
-    }
-
-    async fn expanded_edges(
-        &self,
-        nodes_to_expand: Vec<String>,
-        graph_nodes: Vec<String>,
-        filter: Option<EdgeFilter>,
-    ) -> Vec<Edge> {
-        if nodes_to_expand.is_empty() {
-            return vec![];
-        }
-        let mut all_graph_nodes: Vec<NodeView<IndexedGraph<DynamicGraph>>>= graph_nodes.iter().filter_map(|n| self.graph.node(n.as_str())).collect();
-        let nodes_to_expand: Vec<NodeView<IndexedGraph<DynamicGraph>>> = nodes_to_expand.iter().filter_map(|n| self.graph.node(n.as_str())).collect();
-        let neighbours: Vec<NodeView<IndexedGraph<DynamicGraph>>> = nodes_to_expand.iter().map(|n|n.neighbours()).flatten().collect();
-        all_graph_nodes.extend(neighbours.iter().map(|x|x.clone()));
-        let mut fetched_edges = self.graph.subgraph(all_graph_nodes).edges().iter().filter_map(|ee| self.graph.edge(ee.src(),ee.dst())).map(|ee| ee.clone().into())
-            .collect_vec();
-        match filter {
-            Some(filter) => fetched_edges
-                .into_iter()
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => fetched_edges,
-        }
     }
 
     async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {

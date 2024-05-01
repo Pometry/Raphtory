@@ -1,14 +1,12 @@
 use crate::model::{
     filters::edge_filter::EdgeFilter,
-    graph::{edge::Edge, get_expanded_edges, property::GqlProperties},
+    graph::{edge::Edge, property::GqlProperties},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::db::{
     api::{properties::dyn_props::DynProperties, view::*},
     graph::node::NodeView,
 };
-use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -204,33 +202,4 @@ impl Node {
             .collect()
     }
 
-    ////////////////////////
-    // GRAPHQL SPECIFIC ////
-    ////////////////////////
-    async fn expanded_edges(
-        &self,
-        graph_nodes: Vec<String>,
-        filter: Option<EdgeFilter>,
-    ) -> Vec<Edge> {
-        let all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
-
-        match filter {
-            Some(edge_filter) => {
-                let maybe_layers = edge_filter.clone().layer_names.map(|l| l.contains);
-                let fetched_edges =
-                    get_expanded_edges(all_graph_nodes, self.vv.clone(), maybe_layers)
-                        .iter()
-                        .map(|ee| ee.clone().into())
-                        .collect_vec();
-                fetched_edges
-                    .into_iter()
-                    .filter(|ev| edge_filter.matches(ev))
-                    .collect()
-            }
-            None => get_expanded_edges(all_graph_nodes, self.vv.clone(), None)
-                .iter()
-                .map(|ee| ee.clone().into())
-                .collect_vec(),
-        }
-    }
 }
