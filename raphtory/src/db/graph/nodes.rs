@@ -97,6 +97,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
         self.iter().collect()
     }
+
+    pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
+        self.graph.node_meta().get_prop_id(prop_name, true)
+    }
+
+    pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
+        self.graph.node_meta().get_prop_id(prop_name, false)
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph>
