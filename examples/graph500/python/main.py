@@ -106,12 +106,6 @@ def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_si
     print("Earliest time =", g.earliest_time)
     print("Latest time =", g.latest_time)
     
-    def iterate_all_edges():
-        for e in g.edges:
-            e.src.name
-
-    measure("Iterate All Edges", iterate_all_edges, print_result=False)
-    
     measure("CC", algorithms.connected_components, g, print_result=False)
     measure("Weakly CC  Layer", algorithms.weakly_connected_components, g.layer("default"), 20, print_result=False)
     measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result=False)

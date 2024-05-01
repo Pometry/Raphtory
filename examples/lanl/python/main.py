@@ -44,21 +44,21 @@ def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_si
 
     layer_parquet_cols = [
         {
-            "parquet_dir": os.path.join(resources_dir, "netflowsorted/nft_sorted"),
+            "parquet_dir": os.path.join(resources_dir, "nft_sorted"),
             "layer": "netflow",
             "src_col": "src",
             "dst_col": "dst",
             "time_col": "epoch_time",
         },
         {
-            "parquet_dir": os.path.join(resources_dir, "netflowsorted/v1_sorted"),
+            "parquet_dir": os.path.join(resources_dir, "v1_sorted"),
             "layer": "events_1v",
             "src_col": "src",
             "dst_col": "dst",
             "time_col": "epoch_time",
         },
         {
-            "parquet_dir": os.path.join(resources_dir, "netflowsorted/v2_sorted"),
+            "parquet_dir": os.path.join(resources_dir, "v2_sorted"),
             "layer": "events_2v",
             "src_col": "src",
             "dst_col": "dst",
@@ -83,6 +83,7 @@ def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_si
             t_props_chunk_size,
             read_chunk_size,
             concurrent_files,
+            num_threads,
             print_result=False
         )
 
