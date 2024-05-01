@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use async_graphql::extensions::ApolloTracing;
 use crate::{
     data::Data,
     model::{
@@ -9,6 +8,7 @@ use crate::{
     observability::tracing::create_tracer_from_env,
     routes::{graphql_playground, health},
 };
+use async_graphql::extensions::ApolloTracing;
 use async_graphql_poem::GraphQL;
 use itertools::Itertools;
 use poem::{get, listener::TcpListener, middleware::Cors, EndpointExt, Route, Server};

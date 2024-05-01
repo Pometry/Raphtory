@@ -1,10 +1,7 @@
 use crate::model::{filters::node_filter::NodeFilter, graph::node::Node};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    db::{
-        api::view::DynamicGraph,
-        graph::{nodes::Nodes},
-    },
+    db::{api::view::DynamicGraph, graph::nodes::Nodes},
     prelude::*,
 };
 

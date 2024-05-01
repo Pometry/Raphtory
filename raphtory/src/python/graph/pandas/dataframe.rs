@@ -1,4 +1,4 @@
-use crate::{core::utils::errors::GraphError};
+use crate::core::utils::errors::GraphError;
 use arrow2::{
     array::{Array, PrimitiveArray, Utf8Array},
     compute::cast::{self, CastOptions},

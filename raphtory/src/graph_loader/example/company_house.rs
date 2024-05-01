@@ -1,5 +1,5 @@
 use crate::{graph_loader::source::csv_loader::CsvLoader, prelude::*};
-use chrono::{DateTime};
+use chrono::DateTime;
 use serde::Deserialize;
 use std::{fs, path::PathBuf, time::Instant};
 

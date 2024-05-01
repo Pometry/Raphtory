@@ -5,4 +5,3 @@ pub(crate) mod node;
 mod nodes;
 pub(crate) mod property;
 pub(crate) mod vectorised_graph;
-

@@ -1,10 +1,7 @@
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
     filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
-    graph::{
-        edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes,
-        property::GqlProperties,
-    },
+    graph::{edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties},
     schema::graph_schema::GraphSchema,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -16,15 +13,12 @@ use raphtory::{
             properties::dyn_props::DynProperties,
             view::{DynamicGraph, NodeViewOps, TimeOps},
         },
-        graph::{node::NodeView},
+        graph::node::NodeView,
     },
     prelude::*,
     search::{into_indexed::DynamicIndexedGraph, IndexedGraph},
 };
-use std::{
-    collections::{HashSet},
-    convert::Into,
-};
+use std::{collections::HashSet, convert::Into};
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlGraph {

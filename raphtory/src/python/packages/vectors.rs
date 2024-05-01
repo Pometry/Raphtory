@@ -23,7 +23,7 @@ use crate::{
         Document, Embedding, EmbeddingFunction,
     },
 };
-use chrono::{DateTime};
+use chrono::DateTime;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{

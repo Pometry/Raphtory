@@ -78,8 +78,8 @@ impl QueryRoot {
     }
 
     async fn plugins<'a>(ctx: &Context<'a>) -> GlobalPlugins {
-            let data = ctx.data_unchecked::<Data>();
-            GlobalPlugins {
+        let data = ctx.data_unchecked::<Data>();
+        GlobalPlugins {
             graphs: data.graphs.clone(),
             vectorised_graphs: data.vector_stores.clone(),
         }
