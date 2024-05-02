@@ -40,21 +40,21 @@ def hop_queries(graph, nodes, layer, hops, temporal, start=None, keep_path=False
     else:
         state = State.no_state()
     
-    q.run_to_vec(graph, state)
+    q.run(graph, state)
 
 def static_multi_hop_single_node_query(graph: ArrowGraph):
-    hop_queries(graph, [0], "default", 4, False)
+    hop_queries(graph, [0], "default", 3, False)
 
 def static_multi_hop_multi_node_query(graph: ArrowGraph):
     nodes = list(range(100))
-    hop_queries(graph, nodes, "default", 4, False)
+    hop_queries(graph, nodes, "default", 3, False)
     
 def multi_hop_single_node_query(graph: ArrowGraph):
-    hop_queries(graph, [0], "default", 4, True, 10, True)
+    hop_queries(graph, [0], "default", 3, True, 10, True)
 
 def multi_hop_multi_node_query(graph: ArrowGraph):
     nodes = list(range(100))
-    hop_queries(graph, nodes, "default", 4, True, 10, True)
+    hop_queries(graph, nodes, "default", 3, True, 10, True)
 
 def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads):
 
