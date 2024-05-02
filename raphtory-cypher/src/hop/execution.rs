@@ -2,6 +2,7 @@ use arrow::compute::take_record_batch;
 use arrow2::offset::Offset;
 use arrow2::types::NativeType;
 use std::collections::HashSet;
+use std::ops::Range;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{any::Any, fmt, sync::Arc};
@@ -30,6 +31,7 @@ use datafusion::{
 use futures::{Stream, StreamExt};
 
 use raphtory::arrow::graph_fragment::TempColGraphFragment;
+use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps, PrimitiveCol};
 use raphtory::core::entities::VID;
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 
@@ -137,6 +139,7 @@ impl ExecutionPlan for HopExec {
             layers: self.layers.clone(),
             right_schema: self.right_schema.clone(),
             output_schema: self.schema(),
+            context: None,
         }))
     }
 }
@@ -149,6 +152,15 @@ struct HopStream {
     layers: Vec<String>,
     right_schema: DFSchemaRef,
     output_schema: SchemaRef,
+    context: Option<HopStreamContext>,
+}
+
+struct HopStreamContext {
+    rb: RecordBatch,
+    row: usize,
+    edge: usize,
+    property: usize,
+    layer: usize,
 }
 
 impl HopStream {
@@ -169,7 +181,7 @@ impl HopStream {
             .layer_names()
             .into_iter()
             .enumerate()
-            .filter(|(id, name)| self.layers.contains(name))
+            .filter(|(id, name)| self.layers.contains(&name.to_lowercase()))
             .map(|(id, _)| (id, graph.layer(id)))
             .collect::<Vec<_>>();
 
@@ -334,6 +346,47 @@ fn load_into_primitive_builder<T: ArrowPrimitiveType>(
     }
 }
 
+fn load_into_primitive_builder_2<T: ArrowPrimitiveType>(
+    layer: &TempColGraphFragment,
+    b: &mut PrimitiveBuilder<T>,
+    p_id: usize,
+    indices: &[Range<usize>],
+) -> Option<()>
+where
+    T::Native: arrow2::types::NativeType,
+{
+    let col = layer
+        .edges_storage()
+        .temporal_props()
+        .values()
+        .primitive_col::<T::Native>(p_id)?;
+    for r in indices {
+        for i in r.clone() {
+            // FIXME: this is not great, every get will do a dynamic cast
+            let value = col.get(i);
+            b.append_option(value);
+        }
+    }
+    Some(())
+}
+
+fn load_into_utf8_builder_2<I: OffsetSizeTrait + arrow2::offset::Offset>(
+    layer: &TempColGraphFragment,
+    b: &mut GenericStringBuilder<I>,
+    p_id: usize,
+    indices: &[Range<usize>],
+) -> Option<()> {
+    let array = layer.edges_storage().temporal_props().utf8_col::<I>(p_id)?;
+    let col = array.values();
+    for r in indices {
+        for i in r.clone() {
+            let value = col.get(i);
+            b.append_option(value);
+        }
+    }
+    Some(())
+}
+
 fn prop_iter_primitive<T: NativeType>(
     layer: &TempColGraphFragment,
     v_id: VID,
@@ -371,11 +424,229 @@ impl Stream for HopStream {
     type Item = Result<RecordBatch, DataFusionError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.input.poll_next_unpin(cx).map(|poll| match poll {
-            Some(Ok(batch)) => self.hop_from_batch(batch),
-            other => other,
-        })
+        let window_size: usize = 8 * 1024;
+
+        let input_col = self.input_col;
+        let graph = self.graph.clone();
+        let layers = self.layers.clone();
+        let output_schema = self.output_schema.clone();
+        let right_schema = self.right_schema.clone();
+
+        if let Some(HopStreamContext {
+            rb,
+            row,
+            edge,
+            property,
+            layer,
+        }) = &mut self.context
+        {
+            Poll::Ready(produce_next_record(
+                rb,
+                row,
+                edge,
+                property,
+                layer,
+                window_size,
+                input_col,
+                &graph,
+                layers,
+                output_schema,
+                right_schema,
+            ))
+        } else {
+            let record_batch = match self.input.poll_next_unpin(cx) {
+                Poll::Ready(Some(Ok(record_batch))) => record_batch,
+                Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
+                Poll::Ready(None) => return Poll::Ready(None),
+                Poll::Pending => return Poll::Pending,
+            };
+            self.context = Some(HopStreamContext {
+                rb: record_batch,
+                row: 0,
+                edge: 0,
+                property: 0,
+                layer: 0,
+            });
+            return self.poll_next(cx);
+        }
     }
+}
+
+fn produce_next_record(
+    rb: &RecordBatch,
+    row_pos: &mut usize,
+    edge_pos: &mut usize,
+    time_pos: &mut usize,
+    layer_pos: &mut usize,
+    max_record_rows: usize,
+    input_col: usize,
+    graph: &ArrowGraph,
+    layers: Vec<String>,
+    output_schema: SchemaRef,
+    right_schema: DFSchemaRef,
+) -> Option<Result<RecordBatch, DataFusionError>> {
+    let rb = rb.slice(*row_pos, rb.num_rows() - *row_pos);
+    let hop_col = rb
+        .column(input_col)
+        .as_any()
+        .downcast_ref::<UInt64Array>()?
+        .values();
+
+    let mut take_indices = Vec::with_capacity(max_record_rows);
+    let mut edge_timestamps = Vec::with_capacity(max_record_rows);
+    let mut dst_indices = Vec::with_capacity(max_record_rows);
+
+    let mut edge_ids = Vec::with_capacity(max_record_rows);
+    let mut layer_ids = Vec::with_capacity(max_record_rows);
+
+    let graph = graph.as_ref();
+
+    let layers = graph
+        .layer_names()
+        .into_iter()
+        .enumerate()
+        .filter(|(id, name)| layers.contains(&name.to_lowercase()))
+        .map(|(id, _)| (id, graph.layer(id)))
+        .collect::<Vec<_>>();
+
+    let property_names: HashSet<String> = layers
+        .iter()
+        .flat_map(|(_, layer)| {
+            layer
+                .edges_data_type()
+                .into_iter()
+                .skip(1) // skip the timestamp
+                .map(|f| f.name.to_string())
+        })
+        .collect();
+
+    let mut builders = right_schema
+        .fields()
+        .iter()
+        .filter(|f| property_names.contains(f.name()))
+        .map(|f| {
+            let builder = make_builder(f.data_type(), hop_col.len());
+            let prop_ids = layers
+                .iter()
+                .map(|(_, layer)| layer.edge_property_id(f.name()))
+                .collect::<Vec<_>>();
+            (builder, f, prop_ids)
+        })
+        .collect::<Vec<_>>();
+
+    let mut prop_ranges = Vec::with_capacity(hop_col.len());
+
+    for (layer_id, layer) in &layers[*layer_pos..] {
+        'node: for (col_id, v_id) in hop_col.into_iter().map(|n| VID(*n as usize)).enumerate() {
+            for (edge, u_id) in layer
+                .out_edges_from(v_id, *edge_pos)
+                .map(|(e_id, u_id)| (layer.edge(e_id), u_id))
+            {
+                let e_id = edge.eid();
+                let slice = edge.timestamp_slice();
+                let time_slice = slice.slice(*time_pos..);
+                let start = time_slice.range().start;
+                let mut end = start;
+                for t in time_slice {
+                    take_indices.push(col_id as u64);
+                    edge_timestamps.push(t);
+                    dst_indices.push(u_id.0 as u64);
+                    edge_ids.push(e_id.0 as u64);
+                    layer_ids.push(*layer_id as u64);
+
+                    *time_pos += 1;
+                    end += 1;
+
+                    if take_indices.len() >= max_record_rows {
+                        prop_ranges.push(start..end);
+                        break 'node;
+                    }
+                }
+                prop_ranges.push(start..end);
+                *time_pos = 0;
+                *edge_pos += 1;
+            }
+            *edge_pos = 0;
+            *row_pos += 1;
+        }
+
+        // deal with properties
+
+        for (p_builder, p_field, prop_ids) in builders.iter_mut() {
+            for (layer_id, layer) in &layers[*layer_pos..] {
+                if let Some(p_id) = prop_ids[*layer_id] {
+                    match p_field.data_type() {
+                        DataType::UInt64 => {
+                            let builder = p_builder.as_any_mut().downcast_mut::<UInt64Builder>()?;
+                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::UInt32 => {
+                            let builder = p_builder.as_any_mut().downcast_mut::<UInt32Builder>()?;
+                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::Int64 => {
+                            let builder = p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
+                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::Int32 => {
+                            let builder = p_builder.as_any_mut().downcast_mut::<Int32Builder>()?;
+                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::Float32 => {
+                            let builder =
+                                p_builder.as_any_mut().downcast_mut::<Float32Builder>()?;
+                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::Float64 => {
+                            let builder =
+                                p_builder.as_any_mut().downcast_mut::<Float64Builder>()?;
+                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::Utf8 => {
+                            let builder = p_builder.as_any_mut().downcast_mut::<StringBuilder>()?;
+                            load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        DataType::LargeUtf8 => {
+                            let builder = p_builder
+                                .as_any_mut()
+                                .downcast_mut::<LargeStringBuilder>()
+                                .unwrap();
+                            load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges)?;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        *layer_pos += 1;
+    }
+
+    if take_indices.is_empty() {
+        return None;
+    }
+
+    let take_indices = UInt64Array::from(take_indices);
+    let left_rb = take_record_batch(&rb, &take_indices).expect("take failed");
+    let src_ids = left_rb
+        .column_by_name("dst")
+        .expect("dst not found")
+        .clone();
+
+    let edge_timestamps = Arc::new(Int64Array::from(edge_timestamps));
+    let dst_ids = Arc::new(UInt64Array::from(dst_indices));
+    let edge_ids = Arc::new(UInt64Array::from(edge_ids));
+    let layer_ids = Arc::new(UInt64Array::from(layer_ids));
+
+    let mut columns: Vec<ArrayRef> = left_rb.columns().into();
+
+    columns.push(edge_ids);
+    columns.push(layer_ids);
+    columns.push(src_ids);
+    columns.push(dst_ids);
+    columns.push(edge_timestamps);
+
+    Some(RecordBatch::try_new(output_schema, columns).map_err(Into::into))
 }
 
 impl RecordBatchStream for HopStream {

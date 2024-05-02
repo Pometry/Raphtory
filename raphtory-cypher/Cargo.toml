@@ -29,10 +29,10 @@ datafusion = { version = "37" }
 async-trait = "0.1.73"
 futures = "0.3"
 arrow = { version = "51" }
-arrow-buffer = { version = "51"}
-arrow-schema = { version = "51"}
-arrow-data = { version = "51"}
-arrow-array = { version = "51"}
+arrow-buffer = { version = "51" }
+arrow-schema = { version = "51" }
+arrow-data = { version = "51" }
+arrow-array = { version = "51" }
 
 raphtory = { path = "../raphtory" }
 rayon.workspace = true
