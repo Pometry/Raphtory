@@ -1,4 +1,4 @@
-use crate::model::{graph::node::Node};
+use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{api::view::DynamicGraph, graph::nodes::Nodes},
@@ -7,7 +7,7 @@ use raphtory::{
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>
+    pub(crate) nn: Nodes<'static, DynamicGraph>,
 }
 
 impl GqlNodes {
@@ -17,12 +17,8 @@ impl GqlNodes {
 }
 
 impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(
-        nodes: N
-    ) -> Self {
-        Self {
-            nn: nodes.into()
-        }
+    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(nodes: N) -> Self {
+        Self { nn: nodes.into() }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {

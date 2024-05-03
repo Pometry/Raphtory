@@ -1,4 +1,4 @@
-use crate::model::{graph::edge::Edge};
+use crate::model::graph::edge::Edge;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{api::view::DynamicGraph, graph::edges::Edges},
@@ -7,7 +7,8 @@ use raphtory::{
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlEdges {
-    pub(crate) ee: Edges<'static, DynamicGraph>}
+    pub(crate) ee: Edges<'static, DynamicGraph>,
+}
 
 impl GqlEdges {
     fn update<E: Into<Edges<'static, DynamicGraph>>>(&self, edges: E) -> Self {
@@ -16,11 +17,8 @@ impl GqlEdges {
 }
 
 impl GqlEdges {
-    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph>>>(
-        edges: E) -> Self {
-        Self {
-            ee: edges.into()
-        }
+    pub(crate) fn new<E: Into<Edges<'static, DynamicGraph>>>(edges: E) -> Self {
+        Self { ee: edges.into() }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Edge> + '_> {

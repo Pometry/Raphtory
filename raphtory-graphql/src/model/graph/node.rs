@@ -1,6 +1,4 @@
-use crate::model::{
-    graph::{edge::Edge, property::GqlProperties},
-};
+use crate::model::graph::{edge::Edge, property::GqlProperties};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::{properties::dyn_props::DynProperties, view::*},
@@ -151,7 +149,7 @@ impl Node {
     }
 
     async fn out_edges(&self) -> Vec<Edge> {
-            self.vv.out_edges().iter().map(|ee| ee.into()).collect()
+        self.vv.out_edges().iter().map(|ee| ee.into()).collect()
     }
 
     async fn in_edges(&self) -> Vec<Edge> {

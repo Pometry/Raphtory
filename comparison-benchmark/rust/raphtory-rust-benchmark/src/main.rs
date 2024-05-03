@@ -159,7 +159,8 @@ fn main() {
                             .parse()
                             .unwrap(),
                     )
-                    .unwrap().naive_utc();
+                    .unwrap()
+                    .naive_utc();
                 }
                 if debug {
                     println!("Adding edge {} -> {} at time {}", src_id, dst_id, edge_time);
