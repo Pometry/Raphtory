@@ -3,6 +3,7 @@ from raphtory import ArrowGraph
 from raphtory import algorithms
 import time
 from typing import TypeVar, Callable
+from tqdm import tqdm
 import os
 import sys
 from raphtory import ArrowGraph, Query, State
@@ -106,14 +107,12 @@ def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_si
     print("Earliest time =", g.earliest_time)
     print("Latest time =", g.latest_time)
     
-    measure("CC", algorithms.connected_components, g, print_result=False)
-    measure("Weakly CC  Layer", algorithms.weakly_connected_components, g.layer("default"), 20, print_result=False)
-    measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result=False)
-    measure("Page Rank", algorithms.pagerank, g, 100, print_result=False)
     measure("Static Multi Hop Single Node Query", static_multi_hop_single_node_query, g, print_result=False)
     measure("Static Multi Hop Multi Node Query", static_multi_hop_multi_node_query, g, print_result=False)
     measure("Temporal Multi Hop Singl Node Query", multi_hop_single_node_query, g, print_result=False)
     measure("Temporal Multi Hop Multi Node Query", multi_hop_multi_node_query, g, print_result=False)
+    measure("CC", algorithms.connected_components, g, print_result=False)
+    measure("Page Rank", algorithms.pagerank, g, 100, print_result=False)
 
     
 if __name__ == "__main__":

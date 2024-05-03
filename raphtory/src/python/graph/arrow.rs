@@ -306,6 +306,8 @@ impl PyArrowGraph {
         )
         .map_err(|err| GraphError::LoadFailure(format!("Failed to load graph {err:?}")))
     }
+
+
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

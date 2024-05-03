@@ -1,4 +1,4 @@
-from raphtory import ArrowGraph, Query, State
+from raphtory import ArrowGraph, Query, State, PyDirection
 import pandas as pd
 import tempfile
 
@@ -50,7 +50,7 @@ def test_counts():
 def test_simple_hop():
     dir = tempfile.TemporaryDirectory()
     graph = create_graph(edges, dir.name)
-    q = Query.from_node_ids([1]).out()
+    q = Query.from_node_ids([1]).hop(dir=PyDirection("OUT"), layer=None, limit=100)
     state = State.path()
     actual = q.run_to_vec(graph, state)
 

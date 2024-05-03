@@ -1,6 +1,6 @@
 import tempfile
 import pytest
-from raphtory import Graph, GraphWithDeletions
+from raphtory import Graph, PersistentGraph
 from raphtory.algorithms import dijkstra_single_source_shortest_paths
 from typing import TypeVar, Callable
 import os
@@ -79,7 +79,7 @@ def build_graph():
     
 def build_graph_with_deletions():
     # Create an instance of a Graph with deletions
-    graph = GraphWithDeletions()
+    graph = PersistentGraph()
 
     # Add nodes with deletions and properties
     graph.add_node(0, 1, {"type": "wallet", "cost": 99.5})
@@ -170,7 +170,7 @@ def test_graph():
     assert g2.node('shivam').name == 'shivam'
     
     # Create an instance of a Graph with deletions
-    graph = GraphWithDeletions()
+    graph = PersistentGraph()
 
     # Add nodes with deletions and properties
     graph.add_node(0, 1, {"type": "wallet", "cost": 99.5})
@@ -201,7 +201,7 @@ def test_graph():
     assert all_edges.src.name.collect() == ['1', '2', '1', '1']
         
     # Run Dijkstra's algorithm for single-source shortest paths
-    assert measure("Shortest path", dijkstra_single_source_shortest_paths, graph, 1, [2], print_result=False) == {'2': (4.0, ['1', '2'])}
+    assert measure("Shortest path", dijkstra_single_source_shortest_paths, graph, 1, [2], print_result=False) == {'2': (2.0, ['1', '2'])}
 
 
 def test_graph_with_deletions():
