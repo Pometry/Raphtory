@@ -7,10 +7,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, ELID},
         storage::timeindex::TimeIndexOps,
     },
-    db::api::storage::{
-        edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
-        layer_variants::LayerVariants,
-    },
+    db::api::storage::{edge_storage_ops::EdgeStorageIntoOps, layer_variants::LayerVariants},
     prelude::TimeIndexEntry,
 };
 use rayon::prelude::*;

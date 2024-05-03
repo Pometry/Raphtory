@@ -7,10 +7,7 @@ use crate::{
         storage::ArcEntry,
         Direction, OptionAsStr,
     },
-    db::api::{
-        storage::tprop_storage_ops::{TPropOps, TPropRef},
-        view::internal::NodeAdditions,
-    },
+    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::NodeAdditions},
 };
 use itertools::Itertools;
 

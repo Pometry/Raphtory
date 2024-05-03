@@ -380,7 +380,7 @@ pub trait TimeIndexIntoOps: Sized {
     type IndexType: AsTime;
     type RangeType: TimeIndexIntoOps<IndexType = Self::IndexType>;
 
-    fn into_range(self, W: Range<Self::IndexType>) -> Self::RangeType;
+    fn into_range(self, w: Range<Self::IndexType>) -> Self::RangeType;
 
     fn into_range_t(self, w: Range<i64>) -> Self::RangeType {
         self.into_range(Self::IndexType::range(w))

@@ -1,17 +1,10 @@
 use crate::{
-    arrow::graph_impl::tprops::{ArrowTProp, TPropColumn},
-    core::{
-        entities::properties::tprop::TProp,
-        storage::{locked_view::LockedView, timeindex::AsTime},
-        Prop,
-    },
+    arrow::graph_impl::tprops::ArrowTProp,
+    core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop},
     db::api::storage::storage_variants::StorageVariants,
     prelude::TimeIndexEntry,
 };
-use itertools::Itertools;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::ops::{Deref, Range};
-use tantivy::SegmentComponent::Store;
+use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]
 pub enum TPropRef<'a> {
@@ -20,7 +13,7 @@ pub enum TPropRef<'a> {
     Arrow(ArrowTProp<'a>),
 }
 
-pub trait TPropOps<'a>: Sized + Copy + 'a {
+pub trait TPropOps<'a>: Sized + Copy + 'a + Send {
     fn active(self, w: Range<i64>) -> bool {
         self.iter_window_t(w).next().is_some()
     }

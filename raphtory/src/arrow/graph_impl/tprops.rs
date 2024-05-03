@@ -1,3 +1,12 @@
+use std::{iter, ops::Range};
+
+use arrow2::{
+    array::StructArray,
+    datatypes::{DataType, Field},
+    types::{NativeType, Offset},
+};
+use rayon::prelude::*;
+
 use crate::{
     arrow::{
         chunked_array::{
@@ -8,24 +17,12 @@ use crate::{
             ChunkedArraySlice,
         },
         edge::Edge,
-        prelude::Chunked,
         timestamps::TimeStamps,
     },
-    core::{
-        storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
-        ArcStr, DocumentInput,
-    },
+    core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
     db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
-    prelude::{Graph, Prop, TimeIndexEntry},
+    prelude::{Prop, TimeIndexEntry},
 };
-use arrow2::{
-    array::StructArray,
-    datatypes::{DataType, Field},
-    types::{NativeType, Offset},
-};
-use chrono::{DateTime, NaiveDateTime, Utc};
-use rayon::prelude::*;
-use std::{collections::HashMap, iter, ops::Range, sync::Arc};
 
 #[derive(Debug, Copy, Clone)]
 pub struct TPropColumn<'a, A> {
