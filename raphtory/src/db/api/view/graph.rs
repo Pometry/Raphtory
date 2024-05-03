@@ -9,7 +9,9 @@ use crate::{
         api::{
             mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
             properties::Properties,
-            storage::{edge_storage_ops::EdgeStorageOps, node_storage_ops::NodeStorageOps},
+            storage::{
+                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+            },
             view::{internal::*, *},
         },
         graph::{

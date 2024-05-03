@@ -30,7 +30,7 @@ use crate::{
 use crate::{
     core::{entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime},
     db::{
-        api::storage::{node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
+        api::storage::{nodes::node_storage_ops::NodeStorageOps, storage_ops::GraphStorage},
         graph::edges::Edges,
     },
 };

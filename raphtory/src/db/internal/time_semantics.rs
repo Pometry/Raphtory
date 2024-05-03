@@ -5,10 +5,11 @@ use crate::{
     },
     db::api::{
         storage::{
-            edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
-            edges::edge_ref::EdgeStorageRef,
-            node_storage_ops::*,
-            nodes::node_ref::NodeStorageRef,
+            edges::{
+                edge_ref::EdgeStorageRef,
+                edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
+            },
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::*},
             tprop_storage_ops::TPropOps,
         },
         view::{

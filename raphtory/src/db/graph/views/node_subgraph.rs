@@ -3,8 +3,8 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         storage::{
-            edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef,
-            node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef,
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
         },
         view::internal::{
             Base, EdgeFilterOps, Immutable, InheritCoreOps, InheritLayerOps, InheritListOps,

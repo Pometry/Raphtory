@@ -11,8 +11,10 @@ use crate::{
         storage::ArcEntry,
     },
     db::api::storage::{
-        edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps, TimeIndexRef},
-        edges::edge_ref::EdgeStorageRef,
+        edges::{
+            edge_ref::EdgeStorageRef,
+            edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps, TimeIndexRef},
+        },
         tprop_storage_ops::TPropOps,
     },
     prelude::TimeIndexEntry,

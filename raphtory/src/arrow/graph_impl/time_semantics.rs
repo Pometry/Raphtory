@@ -6,8 +6,8 @@ use crate::{
     },
     db::api::{
         storage::{
-            edge_storage_ops::EdgeStorageOps, edges::edge_ref::EdgeStorageRef,
-            node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef,
+            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
         view::{internal::TimeSemantics, BoxedIter},

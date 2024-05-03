@@ -15,7 +15,7 @@ use crate::{
     },
     db::api::{
         storage::{
-            edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
+            edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
             layer_variants::LayerVariants,
         },
         view::{BoxedLIter, IntoDynBoxed},

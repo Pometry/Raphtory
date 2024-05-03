@@ -19,16 +19,18 @@ use crate::{
     },
     db::api::{
         storage::{
-            edge_storage_ops::EdgeStorageOps,
             edges::{
                 edge_ref::EdgeStorageRef,
+                edge_storage_ops::EdgeStorageOps,
                 edges::{EdgesStorage, EdgesStorageRef},
             },
             filter_variants::FilterVariants,
             locked::LockedGraph,
-            node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             nodes::{
-                node_owned_entry::NodeOwnedEntry, node_ref::NodeStorageRef, nodes::NodesStorage,
+                node_owned_entry::NodeOwnedEntry,
+                node_ref::NodeStorageRef,
+                node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+                nodes::NodesStorage,
                 nodes_ref::NodesStorageRef,
             },
         },

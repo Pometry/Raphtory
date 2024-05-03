@@ -8,7 +8,7 @@ use crate::{
         LayerIds, EID, VID,
     },
     db::api::storage::{
-        edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+        edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
         tprop_storage_ops::TPropOps,
     },
 };

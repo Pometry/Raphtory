@@ -6,9 +6,9 @@ use crate::{
         },
         storage::Entry,
     },
-    db::api::storage::{
+    db::api::storage::edges::{
+        edge_ref::EdgeStorageRef,
         edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
-        edges::edge_ref::EdgeStorageRef,
     },
 };
 

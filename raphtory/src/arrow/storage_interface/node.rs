@@ -11,7 +11,7 @@ use crate::{
         storage::{
             direction_variants::DirectionVariants,
             layer_variants::LayerVariants,
-            node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             tprop_storage_ops::TPropOps,
         },
         view::internal::NodeAdditions,

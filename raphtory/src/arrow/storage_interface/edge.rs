@@ -4,7 +4,7 @@ use crate::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, ELID},
         storage::timeindex::TimeIndexOps,
     },
-    db::api::storage::edge_storage_ops::EdgeStorageIntoOps,
+    db::api::storage::edges::edge_storage_ops::EdgeStorageIntoOps,
     prelude::TimeIndexEntry,
 };
 use std::ops::Range;
