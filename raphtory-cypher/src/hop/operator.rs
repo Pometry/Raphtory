@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use datafusion::common::Column;
-use datafusion::logical_expr::expr::Alias;
 use datafusion::{
-    common::DFSchemaRef,
+    common::{Column, DFSchemaRef},
     logical_expr::{
-        BinaryExpr, Expr, LogicalPlan, Operator, TableScan, UserDefinedLogicalNodeCore,
+        expr::Alias, BinaryExpr, Expr, LogicalPlan, Operator, TableScan, UserDefinedLogicalNodeCore,
     },
 };
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};

@@ -1,39 +1,48 @@
-use arrow::compute::take_record_batch;
-use arrow2::offset::Offset;
-use arrow2::types::NativeType;
-use std::collections::HashSet;
-use std::ops::Range;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use std::{any::Any, fmt, sync::Arc};
-
-use arrow_array::builder::{
-    make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder, Int32Builder,
-    Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringBuilder, UInt32Builder,
-    UInt64Builder,
+use arrow::{compute::take_record_batch, util::pretty::print_batches};
+use arrow2::{offset::Offset, types::NativeType};
+use std::{
+    any::Any,
+    collections::HashSet,
+    fmt,
+    ops::Range,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
 };
+
 use arrow_array::{
+    builder::{
+        make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder,
+        Int32Builder, Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringBuilder,
+        UInt32Builder, UInt64Builder,
+    },
     Array, ArrayRef, ArrowPrimitiveType, Int64Array, OffsetSizeTrait, RecordBatch, UInt64Array,
 };
 use arrow_schema::{DataType, Schema, SchemaRef};
 use async_trait::async_trait;
-use datafusion::common::DFSchemaRef;
-use datafusion::execution::RecordBatchStream;
-use datafusion::physical_expr::EquivalenceProperties;
-use datafusion::physical_plan::{Distribution, ExecutionPlanProperties};
 use datafusion::{
+    common::DFSchemaRef,
     error::DataFusionError,
-    execution::TaskContext,
+    execution::{RecordBatchStream, TaskContext},
+    physical_expr::EquivalenceProperties,
     physical_plan::{
-        DisplayAs, DisplayFormatType, ExecutionPlan, PlanProperties, SendableRecordBatchStream,
+        need_data_exchange, DisplayAs, DisplayFormatType, Distribution, ExecutionPlan,
+        ExecutionPlanProperties, PlanProperties, SendableRecordBatchStream,
     },
 };
 use futures::{Stream, StreamExt};
 
-use raphtory::arrow::graph_fragment::TempColGraphFragment;
-use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps, PrimitiveCol};
-use raphtory::core::entities::VID;
-use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
+use raphtory::{
+    arrow::{
+        graph_fragment::TempColGraphFragment,
+        graph_impl::ArrowGraph,
+        prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
+    },
+    core::{
+        entities::{EID, VID},
+        Direction,
+    },
+};
 
 use super::operator::HopPlan;
 
@@ -132,17 +141,16 @@ impl ExecutionPlan for HopExec {
     ) -> Result<SendableRecordBatchStream, DataFusionError> {
         let batch_size = context.session_config().batch_size();
         let input = self.input.execute(partition, context)?;
-        Ok(Box::pin(HopStream {
+        Ok(Box::pin(HopStream::new(
             input,
-            graph: self.graph.clone(),
-            dir: self.dir,
-            input_col: self.input_col,
+            self.graph.clone(),
+            self.dir,
+            self.input_col,
             batch_size,
-            layers: self.layers.clone(),
-            right_schema: self.right_schema.clone(),
-            output_schema: self.schema(),
-            context: None,
-        }))
+            self.layers.clone(),
+            self.right_schema.clone(),
+            self.schema(),
+        )))
     }
 }
 pub(crate) struct HopStream {
@@ -154,15 +162,48 @@ pub(crate) struct HopStream {
     layers: Vec<String>,
     right_schema: DFSchemaRef,
     output_schema: SchemaRef,
-    context: Option<HopStreamContext>,
+    context: HopStreamContext,
+}
+
+impl HopStream {
+    fn new(
+        input: SendableRecordBatchStream,
+        graph: ArrowGraph,
+        dir: Direction,
+        input_col: usize,
+        batch_size: usize,
+        layers: Vec<String>,
+        right_schema: DFSchemaRef,
+        output_schema: SchemaRef,
+    ) -> Self {
+        Self {
+            input,
+            graph,
+            dir,
+            input_col,
+            batch_size,
+            layers,
+            right_schema,
+            output_schema,
+            context: HopStreamContext {
+                rb: None,
+                row: 0,
+                edge: 0,
+                property: 0,
+                layer: 0,
+                last_node: None,
+            },
+        }
+    }
 }
 
 struct HopStreamContext {
-    rb: RecordBatch,
+    rb: Option<RecordBatch>,
     row: usize,
     edge: usize,
     property: usize,
     layer: usize,
+    last_node: Option<VID>,
 }
 
 impl HopStream {
@@ -434,27 +475,38 @@ impl Stream for HopStream {
         let output_schema = self.output_schema.clone();
         let right_schema = self.right_schema.clone();
 
-        if let Some(HopStreamContext {
-            rb,
+        if let HopStreamContext {
+            rb: Some(record_batch),
             row,
             edge,
             property,
             layer,
-        }) = &mut self.context
+            last_node,
+        } = &mut self.context
         {
-            Poll::Ready(produce_next_record(
-                rb,
+            let next_record = produce_next_record(
+                record_batch,
                 row,
                 edge,
                 property,
                 layer,
                 window_size,
+                last_node,
                 input_col,
                 &graph,
                 layers,
                 output_schema,
                 right_schema,
-            ))
+            );
+            if next_record.is_some() {
+                Poll::Ready(next_record)
+            } else {
+                println!("Record Done! {:?}", last_node);
+                self.context.rb.take();
+                self.context.row = 0;
+                self.context.layer = 0;
+                return self.poll_next(cx);
+            }
         } else {
             let record_batch = match self.input.poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(record_batch))) => record_batch,
@@ -462,13 +514,7 @@ impl Stream for HopStream {
                 Poll::Ready(None) => return Poll::Ready(None),
                 Poll::Pending => return Poll::Pending,
             };
-            self.context = Some(HopStreamContext {
-                rb: record_batch,
-                row: 0,
-                edge: 0,
-                property: 0,
-                layer: 0,
-            });
+            self.context.rb = Some(record_batch);
             return self.poll_next(cx);
         }
     }
@@ -481,6 +527,10 @@ fn produce_next_record(
     time_pos: &mut usize,
     layer_pos: &mut usize,
     max_record_rows: usize,
+
+    // prev_edge: Option<EID>,
+    prev_node: &mut Option<VID>,
+
     input_col: usize,
     graph: &ArrowGraph,
     layers: Vec<String>,
@@ -491,6 +541,7 @@ fn produce_next_record(
         "produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
         row_pos, edge_pos, time_pos, layer_pos, max_record_rows
     );
+    // print_batches(&[rb.clone()]);
 
     let rb = rb.slice(*row_pos, rb.num_rows() - *row_pos);
     let hop_col = rb
@@ -546,6 +597,18 @@ fn produce_next_record(
         prop_ranges.push(vec![]);
     }
 
+    // when we switch to a new record batch, we need to reset the edge and time positions if the node id changes
+    let first = hop_col.first().map(|n| VID(*n as usize));
+    if first != prev_node.map(|vid| vid) {
+        println!("Resetting edge and time positions");
+        *edge_pos = 0;
+        *time_pos = 0;
+    }
+    println!(
+        "2 produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
+        row_pos, edge_pos, layer_pos, time_pos, max_record_rows
+    );
+
     let mut max_layer_id = *layer_pos;
     'top: for (layer_id, layer) in &layers[*layer_pos..] {
         for (col_id, v_id) in hop_col.into_iter().map(|n| VID(*n as usize)).enumerate() {
@@ -570,6 +633,7 @@ fn produce_next_record(
 
                     if take_indices.len() >= max_record_rows {
                         &mut prop_ranges[*layer_id].push(start..end);
+                        prev_node.replace(v_id);
                         break 'top;
                     }
                 }
@@ -579,6 +643,7 @@ fn produce_next_record(
             }
             *edge_pos = 0;
             *row_pos += 1;
+            prev_node.replace(v_id);
         }
 
         *layer_pos += 1;
@@ -702,13 +767,16 @@ impl RecordBatchStream for HopStream {
 #[cfg(test)]
 mod test {
     use super::*;
-    use arrow::compute::concat_batches;
-    use arrow::util::pretty::print_batches;
-    use arrow_array::types::{Float64Type, Int64Type, UInt64Type};
-    use arrow_array::{Float64Array, PrimitiveArray};
+    use arrow::{compute::concat_batches, util::pretty::print_batches};
+    use arrow_array::{
+        types::{Float64Type, Int64Type, UInt64Type},
+        Float64Array, PrimitiveArray,
+    };
     use arrow_schema::{ArrowError, Field};
-    use datafusion::common::{DFSchema, ToDFSchema};
-    use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
+    use datafusion::{
+        common::{DFSchema, ToDFSchema},
+        physical_plan::stream::RecordBatchStreamAdapter,
+    };
     use futures::stream;
     use tempfile::tempdir;
 
@@ -726,33 +794,43 @@ mod test {
     }
     #[tokio::test]
     async fn stream_one_hop_from_0_bs1() {
-        check_rb_hop(1, 2, 2, 0..1, 0..1).await;
+        check_rb_hop(1, 2, 2, &[0..1], 0..1).await;
     }
     #[tokio::test]
     async fn stream_one_hop_from_0_bs4() {
-        check_rb_hop(4, 2, 2, 0..1, 0..1).await;
+        check_rb_hop(4, 2, 2, &[0..1], 0..1).await;
     }
 
     #[tokio::test]
     async fn stream_one_hop_from_12_bs1() {
-        check_rb_hop(1, 2, 2, 1..2, 1..4).await;
+        check_rb_hop(1, 2, 2, &[1..2], 1..4).await;
     }
 
     #[tokio::test]
     async fn stream_one_hop_from_02_bs1() {
-        check_rb_hop(1, 2, 2, 0..2, 0..4).await;
+        check_rb_hop(1, 2, 2, &[0..2], 0..4).await;
     }
 
     #[tokio::test]
     async fn stream_one_hop_from_13_bs1() {
-        check_rb_hop(1, 2, 2, 1..3, 1..5).await;
+        check_rb_hop(1, 2, 2, &[1..3], 1..5).await;
+    }
+
+    #[tokio::test]
+    async fn stream_one_hop_from_07_bs1() {
+        check_rb_hop(1, 2, 2, &[0..7], 0..6).await;
+    }
+
+    #[tokio::test]
+    async fn stream_one_hop_from_07_bs1_split_input() {
+        check_rb_hop(1, 2, 2, &[0..2, 2..7], 0..6).await;
     }
 
     async fn check_rb_hop(
         batch_size: usize,
         chunk_size: usize,
         t_props_chunk_size: usize,
-        input_range: Range<usize>,
+        input_range: &[Range<usize>],
         output_range: Range<usize>,
     ) {
         let graph_dir = tempdir().unwrap();
@@ -764,13 +842,18 @@ mod test {
         let schema = Arc::new(schema);
 
         let output_schema = make_out_schema();
+        let input_range: Vec<Range<usize>> = input_range.into();
 
         let input = RecordBatchStreamAdapter::new(
             schema.clone(),
-            stream::once(async move {
-                make_rb(schema).map(|rb| rb.slice(input_range.start, input_range.len()))
-                // hop from the the first node only
-            }),
+            stream::iter(
+                make_rb(schema).into_iter().flat_map(move |rb| {
+                    input_range
+                        .clone()
+                        .into_iter()
+                        .map(move |input_range| Ok(rb.slice(input_range.start, input_range.len())))
+                }), // hop from the the first node only
+            ),
         );
 
         let stream = make_hop_stream(
@@ -804,18 +887,18 @@ mod test {
         RecordBatch::try_new(
             output_schema.clone(),
             vec![
-                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0]),
-                arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2]),
-                arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2]),
-                arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3]),
-                arr::<Int64Type>(vec![0i64, 1, 1, 1, 2]),
-                arr::<Float64Type>(vec![3., 4., 4., 4., 5.]),
-                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0]),
-                arr::<UInt64Type>(vec![1u64, 2, 3, 4, 5]),
-                arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3]),
-                arr::<UInt64Type>(vec![2u64, 3, 4, 5, 4]),
-                arr::<Int64Type>(vec![1i64, 2, 3, 4, 5]),
-                arr::<Float64Type>(vec![4., 5., 6., 7., 8.]),
+                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0, 0]), // layer_id
+                arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2, 4]), // edge_id
+                arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2, 2]), // src
+                arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3, 5]), // dst
+                arr::<Int64Type>(vec![0i64, 1, 1, 1, 2, 4]),  // ts
+                arr::<Float64Type>(vec![3., 4., 4., 4., 5., 7.]), // weight
+                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0, 0]), // layer_id
+                arr::<UInt64Type>(vec![1u64, 2, 3, 4, 5, 6]), // edge_id
+                arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3, 5]), // src
+                arr::<UInt64Type>(vec![2u64, 3, 4, 5, 4, 4]), //dst
+                arr::<Int64Type>(vec![1i64, 2, 3, 4, 5, 7]),  // ts
+                arr::<Float64Type>(vec![4., 5., 6., 7., 8., 8.]), //weight
             ],
         )
     }
@@ -861,17 +944,16 @@ mod test {
             impl stream::Stream<Item = Result<RecordBatch, DataFusionError>> + Send + 'static,
         >,
     ) -> HopStream {
-        HopStream {
-            input: Box::pin(input),
-            graph: graph,
-            dir: Direction::OUT,
-            input_col: 3,
+        HopStream::new(
+            Box::pin(input),
+            graph,
+            Direction::OUT,
+            3,
             batch_size,
-            layers: vec!["_default".to_string()],
-            right_schema: table_schema.into(),
+            vec!["_default".to_string()],
+            table_schema.into(),
             output_schema,
-            context: None,
-        }
+        )
     }
 
     fn make_rb(schema: Arc<Schema>) -> Result<RecordBatch, DataFusionError> {

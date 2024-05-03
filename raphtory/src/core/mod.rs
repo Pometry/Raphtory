@@ -134,7 +134,16 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
 #[derive(
-    Clone, Copy, Hash, Eq, PartialEq, PartialOrd, Debug, Default, serde::Serialize, serde::Deserialize,
+    Clone,
+    Copy,
+    Hash,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub enum Direction {
     OUT,
