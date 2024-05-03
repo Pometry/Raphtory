@@ -1,5 +1,14 @@
 use crate::{
-    arrow::{graph_impl::ArrowGraph, GID},
+    arrow::{
+        graph_impl::ArrowGraph,
+        storage_interface::{
+            edge::ArrowOwnedEdge,
+            edges::ArrowEdges,
+            node::{ArrowNode, ArrowOwnedNode},
+            nodes::ArrowNodesOwned,
+        },
+        GID,
+    },
     core::{
         entities::{
             edges::edge_ref::EdgeRef,
@@ -12,10 +21,6 @@ use crate::{
     },
     db::api::{
         storage::{
-            arrow::{
-                edges::{ArrowEdges, ArrowOwnedEdge},
-                nodes::{ArrowNode, ArrowNodesOwned, ArrowOwnedNode},
-            },
             edges::{
                 edge_entry::EdgeStorageEntry, edge_owned_entry::EdgeOwnedEntry, edges::EdgesStorage,
             },

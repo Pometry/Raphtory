@@ -1,5 +1,5 @@
 #[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::nodes::ArrowNodesOwned;
+use crate::arrow::storage_interface::nodes::ArrowNodesOwned;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},

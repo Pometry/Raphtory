@@ -1,11 +1,17 @@
 #[cfg(feature = "arrow")]
-use crate::{
-    arrow::graph::TemporalGraph,
-    db::api::storage::arrow::{
-        edges::{ArrowEdges, ArrowEdgesRef},
-        nodes::{ArrowNode, ArrowNodesOwned, ArrowNodesRef, ArrowOwnedNode},
-    },
-};
+use crate::arrow::graph::TemporalGraph;
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::edges::ArrowEdges;
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::edges_ref::ArrowEdgesRef;
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::node::ArrowNode;
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::node::ArrowOwnedNode;
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::nodes::ArrowNodesOwned;
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::nodes_ref::ArrowNodesRef;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},

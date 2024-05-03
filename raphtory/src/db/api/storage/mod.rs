@@ -1,15 +1,12 @@
-pub mod locked;
-pub mod storage_ops;
-
-#[cfg(feature = "arrow")]
-pub mod arrow;
-mod direction_variants;
+pub mod direction_variants;
 pub mod edge_storage_ops;
 pub mod edges;
 pub mod filter_variants;
 pub mod layer_variants;
+pub mod locked;
 pub mod node_storage_ops;
 pub mod nodes;
+pub mod storage_ops;
 #[cfg(feature = "arrow")]
 pub mod storage_variants;
 pub mod tprop_storage_ops;

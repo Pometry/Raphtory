@@ -1,5 +1,7 @@
 #[cfg(feature = "arrow")]
-use crate::db::api::storage::{arrow::edges::ArrowEdge, storage_variants::StorageVariants};
+use crate::arrow::storage_interface::edge::ArrowEdge;
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::storage_variants::StorageVariants;
 use crate::{
     core::entities::{
         edges::{edge_ref::EdgeRef, edge_store::EdgeStore},

@@ -1,5 +1,7 @@
 #[cfg(feature = "arrow")]
-use crate::db::api::storage::{arrow::nodes::ArrowNodesRef, storage_variants::StorageVariants};
+use crate::arrow::storage_interface::nodes_ref::ArrowNodesRef;
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::storage_variants::StorageVariants;
 use crate::{
     core::{
         entities::{nodes::node_store::NodeStore, VID},
