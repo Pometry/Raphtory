@@ -21,7 +21,7 @@ use crate::{
     db::{
         api::{
             mutation::internal::{InheritPropertyAdditionOps, InternalAdditionOps},
-            storage::edge_storage_ops::EdgeStorageOps,
+            storage::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{DynamicGraph, InheritViewOps, IntoDynamic, Static},
                 Base, MaterializedGraph, StaticGraphViewOps,
