@@ -1,4 +1,4 @@
-from raphtory import Graph, GraphWithDeletions
+from raphtory import Graph, PersistentGraph
 from raphtory.algorithms import dijkstra_single_source_shortest_paths
 import tempfile
 
@@ -118,7 +118,7 @@ def main():
     assert g2.node('shivam').name == 'shivam'
     
     # Create an instance of a Graph with deletions
-    graph = GraphWithDeletions()
+    graph = PersistentGraph()
 
     # Add nodes with deletions and properties
     graph.add_node(0, 1, {"type": "wallet", "cost": 99.5})

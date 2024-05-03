@@ -1,3 +1,4 @@
+import argparse
 from raphtory import ArrowGraph
 from raphtory.lanl import lanl_query1, lanl_query2, lanl_query3, lanl_query3b, lanl_query3c, lanl_query4, exfilteration_query1, exfilteration_count_query_total, exfiltration_list_query_count
 from raphtory import algorithms
@@ -28,20 +29,10 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
     return result
 
 
-def main():
-    # Retrieve mandatory parameters from environment variables
-    resources_dir = os.getenv('resources_dir')
-    graph_dir = os.getenv('target_dir')
+def main(graph_dir, resources_dir, chunk_size, t_props_chunk_size, read_chunk_size, concurrent_files, num_threads):
 
     if resources_dir is None or graph_dir is None:
         raise ValueError("Both 'resources_dir' and 'target_dir' environment variables must be set.")
-
-    # Retrieve optional parameters from environment variables or set default values
-    chunk_size = int(os.getenv('chunk_size', '268435456'))
-    t_props_chunk_size = int(os.getenv('t_props_chunk_size', '20000000'))
-    read_chunk_size = int(os.getenv('read_chunk_size', '4000000'))
-    concurrent_files = int(os.getenv('concurrent_files', '1'))
-    num_threads = int(os.getenv('num_threads', '4'))
     
     print(f"Resources directory: {resources_dir}")
     print(f"Target directory: {graph_dir}")
@@ -53,21 +44,21 @@ def main():
 
     layer_parquet_cols = [
         {
-            "parquet_dir": os.path.join(resources_dir, "netflowsorted/nft_sorted"),
+            "parquet_dir": os.path.join(resources_dir, "nft_sorted"),
             "layer": "netflow",
             "src_col": "src",
             "dst_col": "dst",
             "time_col": "epoch_time",
         },
         {
-            "parquet_dir": os.path.join(resources_dir, "netflowsorted/v1_sorted"),
+            "parquet_dir": os.path.join(resources_dir, "v1_sorted"),
             "layer": "events_1v",
             "src_col": "src",
             "dst_col": "dst",
             "time_col": "epoch_time",
         },
         {
-            "parquet_dir": os.path.join(resources_dir, "netflowsorted/v2_sorted"),
+            "parquet_dir": os.path.join(resources_dir, "v2_sorted"),
             "layer": "events_2v",
             "src_col": "src",
             "dst_col": "dst",
@@ -79,7 +70,6 @@ def main():
     # table = pq.read_table(parquet_dir + '/part-00000-8b31eaa4-2bd9-4f07-b61c-a353aed2af22-c000.snappy.parquet')
     # print(table.schema)
 
-    print()
     try:
         g = measure("Graph load from dir", ArrowGraph.load_from_dir, graph_dir, print_result=False)
     except Exception as e:
@@ -88,10 +78,12 @@ def main():
             ArrowGraph.load_from_parquets,
             graph_dir,
             layer_parquet_cols,
+            None,
             chunk_size, 
             t_props_chunk_size,
             read_chunk_size,
             concurrent_files,
+            num_threads,
             print_result=False
         )
 
@@ -117,4 +109,13 @@ def main():
     measure("Exfilteration List Query Count", exfiltration_list_query_count, g, 30)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Run LANL example queries')
+    parser.add_argument('--graph-dir', type=str, help='The directory of the graph')
+    parser.add_argument('--resources-dir', type=str, help='paths to the parquet directory')
+    parser.add_argument('--chunk-size', type=int, default=268435456, help='Chunk size')
+    parser.add_argument('--t-props-chunk-size', type=int, default=20000000, help='t_props chunk size')
+    parser.add_argument('--read-chunk-size', type=int, default=4000000, help='Read chunk size')
+    parser.add_argument('--concurrent-files', type=int, default=1, help='Concurrent files')
+    parser.add_argument('--num-threads', type=int, default=4, help='Number of threads')
+    args = parser.parse_args()
+    main(args.graph_dir, args.resources_dir, args.chunk_size, args.t_props_chunk_size, args.read_chunk_size, args.concurrent_files, args.num_threads)
