@@ -15,25 +15,6 @@ pub enum NodesStorage {
     Arrow(ArrowNodesOwned),
 }
 
-#[cfg(feature = "arrow")]
-macro_rules! for_all_variants {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            NodesStorage::Mem($pattern) => StorageVariants::Mem($result),
-            NodesStorage::Arrow($pattern) => StorageVariants::Arrow($result),
-        }
-    };
-}
-
-#[cfg(not(feature = "arrow"))]
-macro_rules! for_all_variants {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            NodesStorage::Mem($pattern) => $result,
-        }
-    };
-}
-
 impl NodesStorage {
     pub fn as_ref(&self) -> NodesStorageRef {
         match self {

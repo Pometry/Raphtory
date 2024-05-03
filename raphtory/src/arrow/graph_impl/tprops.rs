@@ -19,7 +19,7 @@ use crate::{
         edge::Edge,
         timestamps::TimeStamps,
     },
-    core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+    core::storage::timeindex::TimeIndexIntoOps,
     db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::{Prop, TimeIndexEntry},
 };

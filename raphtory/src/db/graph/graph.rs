@@ -33,8 +33,6 @@ use std::{
 
 use super::views::deletion_graph::PersistentGraph;
 
-const SEG: usize = 16;
-
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph(pub Arc<InternalGraph>);
