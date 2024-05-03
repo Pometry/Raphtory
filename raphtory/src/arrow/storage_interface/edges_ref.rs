@@ -4,7 +4,7 @@ use crate::{
         storage_interface::edge::ArrowEdge,
     },
     core::entities::{LayerIds, EID},
-    db::api::storage::layer_variants::LayerVariants,
+    db::api::storage::variants::layer_variants::LayerVariants,
 };
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::iter;

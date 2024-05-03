@@ -9,10 +9,9 @@ use crate::{
     },
     db::api::{
         storage::{
-            direction_variants::DirectionVariants,
-            layer_variants::LayerVariants,
             nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             tprop_storage_ops::TPropOps,
+            variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
         view::internal::NodeAdditions,
     },

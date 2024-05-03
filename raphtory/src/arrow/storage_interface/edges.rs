@@ -5,7 +5,7 @@ use crate::{
         storage_interface::{edge::ArrowEdge, edges_ref::ArrowEdgesRef},
     },
     core::entities::{LayerIds, EID},
-    db::api::storage::layer_variants::LayerVariants,
+    db::api::storage::variants::layer_variants::LayerVariants,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{iter, sync::Arc};

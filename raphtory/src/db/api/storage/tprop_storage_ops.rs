@@ -1,6 +1,7 @@
 #[cfg(feature = "arrow")]
 use crate::{
-    arrow::graph_impl::tprops::ArrowTProp, db::api::storage::storage_variants::StorageVariants,
+    arrow::graph_impl::tprops::ArrowTProp,
+    db::api::storage::variants::storage_variants::StorageVariants,
 };
 use crate::{
     core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop},

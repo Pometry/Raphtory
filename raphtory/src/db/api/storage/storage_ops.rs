@@ -24,7 +24,6 @@ use crate::{
                 edge_storage_ops::EdgeStorageOps,
                 edges::{EdgesStorage, EdgesStorageRef},
             },
-            filter_variants::FilterVariants,
             locked::LockedGraph,
             nodes::{
                 node_owned_entry::NodeOwnedEntry,
@@ -33,6 +32,7 @@ use crate::{
                 nodes::NodesStorage,
                 nodes_ref::NodesStorageRef,
             },
+            variants::filter_variants::FilterVariants,
         },
         view::{
             internal::{FilterOps, FilterState, NodeList},

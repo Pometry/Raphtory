@@ -6,7 +6,7 @@ use crate::{
         },
         storage::timeindex::{TimeIndex, TimeIndexIntoOps, TimeIndexOps, TimeIndexWindow},
     },
-    db::api::{storage::layer_variants::LayerVariants, view::IntoDynBoxed},
+    db::api::view::IntoDynBoxed,
     prelude::TimeIndexEntry,
 };
 
@@ -14,7 +14,8 @@ use crate::{
 use crate::arrow::timestamps::TimeStamps;
 
 use crate::{
-    core::entities::properties::tprop::TProp, db::api::storage::tprop_storage_ops::TPropOps,
+    core::entities::properties::tprop::TProp,
+    db::api::storage::{tprop_storage_ops::TPropOps, variants::layer_variants::LayerVariants},
 };
 use rayon::prelude::*;
 use std::ops::Range;

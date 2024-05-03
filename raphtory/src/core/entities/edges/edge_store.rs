@@ -14,10 +14,7 @@ use crate::{
         Prop,
     },
     db::api::{
-        storage::{
-            edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
-            layer_variants::LayerVariants,
-        },
+        storage::edges::edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps},
         view::{BoxedLIter, IntoDynBoxed},
     },
 };
@@ -28,7 +25,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     iter,
     ops::{Deref, DerefMut, Range},
-    sync::Arc,
 };
 
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
