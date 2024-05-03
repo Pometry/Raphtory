@@ -1,5 +1,4 @@
 use crate::model::{
-    filters::edge_filter::EdgeFilter,
     graph::{edge::Edge, property::GqlProperties},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
@@ -147,43 +146,16 @@ impl Node {
         self.vv.in_degree()
     }
 
-    async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.edges().iter().map(|ee| ee.into()).collect(),
-        }
+    async fn edges(&self) -> Vec<Edge> {
+        self.vv.edges().iter().map(|ee| ee.into()).collect()
     }
 
-    async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .out_edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.out_edges().iter().map(|ee| ee.into()).collect(),
-        }
+    async fn out_edges(&self) -> Vec<Edge> {
+            self.vv.out_edges().iter().map(|ee| ee.into()).collect()
     }
 
-    async fn in_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .in_edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.in_edges().iter().map(|ee| ee.into()).collect(),
-        }
+    async fn in_edges(&self) -> Vec<Edge> {
+        self.vv.in_edges().iter().map(|ee| ee.into()).collect()
     }
 
     async fn neighbours<'a>(&self) -> Vec<Node> {

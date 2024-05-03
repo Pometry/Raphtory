@@ -1,4 +1,4 @@
-use crate::model::{filters::node_filter::NodeFilter, graph::node::Node};
+use crate::model::{graph::node::Node};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{api::view::DynamicGraph, graph::nodes::Nodes},
@@ -7,33 +7,27 @@ use raphtory::{
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>,
-    pub(crate) filter: Option<NodeFilter>,
+    pub(crate) nn: Nodes<'static, DynamicGraph>
 }
 
 impl GqlNodes {
     fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
-        GqlNodes::new(nodes, self.filter.clone())
+        GqlNodes::new(nodes)
     }
 }
 
 impl GqlNodes {
     pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(
-        nodes: N,
-        filter: Option<NodeFilter>,
+        nodes: N
     ) -> Self {
         Self {
-            nn: nodes.into(),
-            filter,
+            nn: nodes.into()
         }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = Node> + '_> {
         let iter = self.nn.iter().map(Node::from);
-        match self.filter.as_ref() {
-            Some(filter) => Box::new(iter.filter(|n| filter.matches(n))),
-            None => Box::new(iter),
-        }
+        Box::new(iter)
     }
 }
 

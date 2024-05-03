@@ -1,6 +1,5 @@
 use crate::model::{
     algorithms::graph_algorithms::GraphAlgorithms,
-    filters::{edge_filter::EdgeFilter, node_filter::NodeFilter},
     graph::{edge::Edge, edges::GqlEdges, node::Node, nodes::GqlNodes, property::GqlProperties},
     schema::graph_schema::GraphSchema,
 };
@@ -173,48 +172,20 @@ impl GqlGraph {
     //////// COUNTERS //////
     ////////////////////////
 
-    async fn count_edges(&self, filter: Option<EdgeFilter>) -> usize {
-        if let Some(filter) = filter {
-            self.graph
-                .edges()
-                .into_iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .count()
-        } else {
-            self.graph.count_edges()
-        }
+    async fn count_edges(&self) -> usize {
+        self.graph.count_edges()
     }
 
-    async fn count_temporal_edges(&self, filter: Option<EdgeFilter>) -> usize {
-        if let Some(filter) = filter {
-            self.graph
-                .edges()
-                .explode()
-                .into_iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .count()
-        } else {
-            self.graph.count_temporal_edges()
-        }
+    async fn count_temporal_edges(&self) -> usize {
+        self.graph.count_temporal_edges()
     }
 
     async fn search_edge_count(&self, query: String) -> usize {
         self.graph.search_edge_count(&query).unwrap_or(0)
     }
 
-    async fn count_nodes(&self, filter: Option<NodeFilter>) -> usize {
-        if let Some(filter) = filter {
-            self.graph
-                .nodes()
-                .iter()
-                .map(|vv| vv.into())
-                .filter(|n| filter.matches(n))
-                .count()
-        } else {
-            self.graph.count_nodes()
-        }
+    async fn count_nodes(&self) -> usize {
+        self.graph.count_nodes()
     }
     async fn search_node_count(&self, query: String) -> usize {
         self.graph.search_node_count(&query).unwrap_or(0)
@@ -271,8 +242,8 @@ impl GqlGraph {
         self.graph.node(v_ref).map(|v| v.into())
     }
 
-    async fn nodes(&self, filter: Option<NodeFilter>) -> GqlNodes {
-        GqlNodes::new(self.graph.nodes(), filter)
+    async fn nodes(&self) -> GqlNodes {
+        GqlNodes::new(self.graph.nodes())
     }
 
     async fn search_nodes(&self, query: String, limit: usize, offset: usize) -> Vec<Node> {
@@ -311,8 +282,8 @@ impl GqlGraph {
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
-    async fn edges<'a>(&self, filter: Option<EdgeFilter>) -> GqlEdges {
-        GqlEdges::new(self.graph.edges(), filter)
+    async fn edges<'a>(&self) -> GqlEdges {
+        GqlEdges::new(self.graph.edges())
     }
 
     async fn search_edges(&self, query: String, limit: usize, offset: usize) -> Vec<Edge> {
