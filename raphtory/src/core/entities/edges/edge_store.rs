@@ -116,6 +116,12 @@ impl<E: Deref<Target = EdgeStore>> From<E> for EdgeRef {
 }
 
 impl EdgeStore {
+    pub fn internal_num_layers(&self) -> usize {
+        self.layers
+            .len()
+            .max(self.additions.len())
+            .max(self.deletions.len())
+    }
     fn get_or_allocate_layer(&mut self, layer_id: usize) -> &mut EdgeLayer {
         if self.layers.len() <= layer_id {
             self.layers.resize_with(layer_id + 1, Default::default);
@@ -387,7 +393,8 @@ impl EdgeStorageIntoOps for ArcEntry<EdgeStore> {
             layer_ids,
             iter_builder: move |edge, layers| {
                 edge.additions_iter(layers)
-                    .flat_map(move |(l, a)| a.into_iter().map(move |t| eref.at(t).at_layer(l)))
+                    .map(move |(l, a)| a.into_iter().map(move |t| eref.at(t).at_layer(l)))
+                    .kmerge_by(|e1, e2| e1.time() <= e2.time())
                     .into_dyn_boxed()
             },
         }

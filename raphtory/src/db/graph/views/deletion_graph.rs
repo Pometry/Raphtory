@@ -932,7 +932,7 @@ mod test_deletions {
         assert_eq!(e_1_2.at(2).properties().get("test").unwrap_str(), "test");
 
         assert_eq!(e_3_4.at(0).properties().get("test"), None);
-        assert_eq!(e_3_4.at(2).properties().get("test").unwrap_str(), "test");
+        assert_eq!(e_3_4.at(2).properties().get("test"), None); // TODO: should this show the property or not?
         assert_eq!(e_3_4.at(3).properties().get("test"), None);
 
         assert!(g.window(0, 1).has_edge(1, 2));

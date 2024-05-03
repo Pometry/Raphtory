@@ -269,9 +269,9 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
-            LayerIds::All => {
-                LayerVariants::All((0..self.layers.len()).filter(|&l| self.has_layer_inner(l)))
-            }
+            LayerIds::All => LayerVariants::All(
+                (0..self.internal_num_layers()).filter(|&l| self.has_layer_inner(l)),
+            ),
             LayerIds::One(id) => {
                 LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
             }
@@ -288,7 +288,7 @@ impl<'a> EdgeStorageOps<'a> for &'a EdgeStore {
         match layer_ids {
             LayerIds::None => LayerVariants::None(rayon::iter::empty()),
             LayerIds::All => LayerVariants::All(
-                (0..self.layers.len())
+                (0..self.internal_num_layers())
                     .into_par_iter()
                     .filter(|&l| self.has_layer_inner(l)),
             ),
