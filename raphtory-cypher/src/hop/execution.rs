@@ -130,12 +130,14 @@ impl ExecutionPlan for HopExec {
         partition: usize,
         context: Arc<TaskContext>,
     ) -> Result<SendableRecordBatchStream, DataFusionError> {
+        let batch_size = context.session_config().batch_size();
         let input = self.input.execute(partition, context)?;
         Ok(Box::pin(HopStream {
             input,
             graph: self.graph.clone(),
             dir: self.dir,
             input_col: self.input_col,
+            batch_size,
             layers: self.layers.clone(),
             right_schema: self.right_schema.clone(),
             output_schema: self.schema(),
@@ -143,12 +145,12 @@ impl ExecutionPlan for HopExec {
         }))
     }
 }
-
-struct HopStream {
+pub(crate) struct HopStream {
     input: SendableRecordBatchStream,
     graph: ArrowGraph,
     dir: Direction,
     input_col: usize,
+    batch_size: usize,
     layers: Vec<String>,
     right_schema: DFSchemaRef,
     output_schema: SchemaRef,
@@ -424,7 +426,7 @@ impl Stream for HopStream {
     type Item = Result<RecordBatch, DataFusionError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let window_size: usize = 8 * 1024;
+        let window_size: usize = self.batch_size;
 
         let input_col = self.input_col;
         let graph = self.graph.clone();
@@ -485,6 +487,11 @@ fn produce_next_record(
     output_schema: SchemaRef,
     right_schema: DFSchemaRef,
 ) -> Option<Result<RecordBatch, DataFusionError>> {
+    println!(
+        "produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
+        row_pos, edge_pos, time_pos, layer_pos, max_record_rows
+    );
+
     let rb = rb.slice(*row_pos, rb.num_rows() - *row_pos);
     let hop_col = rb
         .column(input_col)
@@ -534,10 +541,14 @@ fn produce_next_record(
         })
         .collect::<Vec<_>>();
 
-    let mut prop_ranges = Vec::with_capacity(hop_col.len());
+    let mut prop_ranges: Vec<Vec<Range<usize>>> = vec![];
+    for _ in 0..layers.len() {
+        prop_ranges.push(vec![]);
+    }
 
-    for (layer_id, layer) in &layers[*layer_pos..] {
-        'node: for (col_id, v_id) in hop_col.into_iter().map(|n| VID(*n as usize)).enumerate() {
+    let mut max_layer_id = *layer_pos;
+    'top: for (layer_id, layer) in &layers[*layer_pos..] {
+        for (col_id, v_id) in hop_col.into_iter().map(|n| VID(*n as usize)).enumerate() {
             for (edge, u_id) in layer
                 .out_edges_from(v_id, *edge_pos)
                 .map(|(e_id, u_id)| (layer.edge(e_id), u_id))
@@ -558,11 +569,11 @@ fn produce_next_record(
                     end += 1;
 
                     if take_indices.len() >= max_record_rows {
-                        prop_ranges.push(start..end);
-                        break 'node;
+                        &mut prop_ranges[*layer_id].push(start..end);
+                        break 'top;
                     }
                 }
-                prop_ranges.push(start..end);
+                &mut prop_ranges[*layer_id].push(start..end);
                 *time_pos = 0;
                 *edge_pos += 1;
             }
@@ -570,60 +581,87 @@ fn produce_next_record(
             *row_pos += 1;
         }
 
-        // deal with properties
-
-        for (p_builder, p_field, prop_ids) in builders.iter_mut() {
-            for (layer_id, layer) in &layers[*layer_pos..] {
-                if let Some(p_id) = prop_ids[*layer_id] {
-                    match p_field.data_type() {
-                        DataType::UInt64 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<UInt64Builder>()?;
-                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::UInt32 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<UInt32Builder>()?;
-                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::Int64 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
-                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::Int32 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<Int32Builder>()?;
-                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::Float32 => {
-                            let builder =
-                                p_builder.as_any_mut().downcast_mut::<Float32Builder>()?;
-                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::Float64 => {
-                            let builder =
-                                p_builder.as_any_mut().downcast_mut::<Float64Builder>()?;
-                            load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::Utf8 => {
-                            let builder = p_builder.as_any_mut().downcast_mut::<StringBuilder>()?;
-                            load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        DataType::LargeUtf8 => {
-                            let builder = p_builder
-                                .as_any_mut()
-                                .downcast_mut::<LargeStringBuilder>()
-                                .unwrap();
-                            load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges)?;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-
         *layer_pos += 1;
     }
 
     if take_indices.is_empty() {
         return None;
+    }
+
+    // deal with properties
+    for (p_builder, p_field, prop_ids) in builders.iter_mut() {
+        for (layer_id, layer) in &layers[max_layer_id..] {
+            if let Some(p_id) = prop_ids[*layer_id] {
+                match p_field.data_type() {
+                    DataType::UInt64 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<UInt64Builder>()?;
+                        load_into_primitive_builder_2(
+                            layer,
+                            builder,
+                            p_id,
+                            &prop_ranges[*layer_id],
+                        )?;
+                    }
+                    DataType::UInt32 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<UInt32Builder>()?;
+                        load_into_primitive_builder_2(
+                            layer,
+                            builder,
+                            p_id,
+                            &prop_ranges[*layer_id],
+                        )?;
+                    }
+                    DataType::Int64 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
+                        load_into_primitive_builder_2(
+                            layer,
+                            builder,
+                            p_id,
+                            &prop_ranges[*layer_id],
+                        )?;
+                    }
+                    DataType::Int32 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<Int32Builder>()?;
+                        load_into_primitive_builder_2(
+                            layer,
+                            builder,
+                            p_id,
+                            &prop_ranges[*layer_id],
+                        )?;
+                    }
+                    DataType::Float32 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<Float32Builder>()?;
+                        load_into_primitive_builder_2(
+                            layer,
+                            builder,
+                            p_id,
+                            &prop_ranges[*layer_id],
+                        )?;
+                    }
+                    DataType::Float64 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<Float64Builder>()?;
+                        load_into_primitive_builder_2(
+                            layer,
+                            builder,
+                            p_id,
+                            &prop_ranges[*layer_id],
+                        )?;
+                    }
+                    DataType::Utf8 => {
+                        let builder = p_builder.as_any_mut().downcast_mut::<StringBuilder>()?;
+                        load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges[*layer_id])?;
+                    }
+                    DataType::LargeUtf8 => {
+                        let builder = p_builder
+                            .as_any_mut()
+                            .downcast_mut::<LargeStringBuilder>()
+                            .unwrap();
+                        load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges[*layer_id])?;
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     let take_indices = UInt64Array::from(take_indices);
@@ -640,11 +678,17 @@ fn produce_next_record(
 
     let mut columns: Vec<ArrayRef> = left_rb.columns().into();
 
-    columns.push(edge_ids);
     columns.push(layer_ids);
+    columns.push(edge_ids);
     columns.push(src_ids);
     columns.push(dst_ids);
     columns.push(edge_timestamps);
+
+    for (builder, _, _) in builders.iter_mut() {
+        columns.push(builder.finish());
+    }
+
+    // println!("columns: {:?}", columns);
 
     Some(RecordBatch::try_new(output_schema, columns).map_err(Into::into))
 }
@@ -652,5 +696,193 @@ fn produce_next_record(
 impl RecordBatchStream for HopStream {
     fn schema(&self) -> SchemaRef {
         self.output_schema.clone()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use arrow::compute::concat_batches;
+    use arrow::util::pretty::print_batches;
+    use arrow_array::types::{Float64Type, Int64Type, UInt64Type};
+    use arrow_array::{Float64Array, PrimitiveArray};
+    use arrow_schema::{ArrowError, Field};
+    use datafusion::common::{DFSchema, ToDFSchema};
+    use datafusion::physical_plan::stream::RecordBatchStreamAdapter;
+    use futures::stream;
+    use tempfile::tempdir;
+
+    use pretty_assertions::assert_eq;
+    lazy_static::lazy_static! {
+    static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
+            (0, 1, 0, 3.),
+            (1, 2, 1, 4.),
+            (2, 3, 2, 5.),
+            (2, 4, 3, 6.),
+            (2, 5, 4, 7.),
+            (3, 4, 5, 8.),
+            (5, 4, 7, 8.),
+        ];
+    }
+    #[tokio::test]
+    async fn stream_one_hop_from_0_bs1() {
+        check_rb_hop(1, 2, 2, 0..1, 0..1).await;
+    }
+    #[tokio::test]
+    async fn stream_one_hop_from_0_bs4() {
+        check_rb_hop(4, 2, 2, 0..1, 0..1).await;
+    }
+
+    #[tokio::test]
+    async fn stream_one_hop_from_12_bs1() {
+        check_rb_hop(1, 2, 2, 1..2, 1..4).await;
+    }
+
+    #[tokio::test]
+    async fn stream_one_hop_from_02_bs1() {
+        check_rb_hop(1, 2, 2, 0..2, 0..4).await;
+    }
+
+    #[tokio::test]
+    async fn stream_one_hop_from_13_bs1() {
+        check_rb_hop(1, 2, 2, 1..3, 1..5).await;
+    }
+
+    async fn check_rb_hop(
+        batch_size: usize,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        input_range: Range<usize>,
+        output_range: Range<usize>,
+    ) {
+        let graph_dir = tempdir().unwrap();
+        let graph =
+            ArrowGraph::make_simple_graph(graph_dir, &EDGES, chunk_size, t_props_chunk_size);
+
+        let schema = make_input_schema();
+        let table_schema: DFSchema = schema.clone().to_dfschema().unwrap();
+        let schema = Arc::new(schema);
+
+        let output_schema = make_out_schema();
+
+        let input = RecordBatchStreamAdapter::new(
+            schema.clone(),
+            stream::once(async move {
+                make_rb(schema).map(|rb| rb.slice(input_range.start, input_range.len()))
+                // hop from the the first node only
+            }),
+        );
+
+        let stream = make_hop_stream(
+            batch_size,
+            graph,
+            table_schema,
+            output_schema.clone(),
+            input,
+        );
+
+        let actual = stream
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Failed to collect output record batches")
+            .into_iter()
+            .reduce(|rb1, rb2| concat_batches(&output_schema, &[rb1, rb2]).expect("concat failed"))
+            .unwrap();
+
+        print_batches(&[actual.clone()]);
+
+        let expected = make_output_rb(output_schema)
+            .unwrap()
+            .slice(output_range.start, output_range.len());
+
+        assert_eq!(actual, expected);
+    }
+
+    fn make_output_rb(output_schema: SchemaRef) -> Result<RecordBatch, ArrowError> {
+        RecordBatch::try_new(
+            output_schema.clone(),
+            vec![
+                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0]),
+                arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2]),
+                arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2]),
+                arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3]),
+                arr::<Int64Type>(vec![0i64, 1, 1, 1, 2]),
+                arr::<Float64Type>(vec![3., 4., 4., 4., 5.]),
+                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0]),
+                arr::<UInt64Type>(vec![1u64, 2, 3, 4, 5]),
+                arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3]),
+                arr::<UInt64Type>(vec![2u64, 3, 4, 5, 4]),
+                arr::<Int64Type>(vec![1i64, 2, 3, 4, 5]),
+                arr::<Float64Type>(vec![4., 5., 6., 7., 8.]),
+            ],
+        )
+    }
+
+    fn arr<T: ArrowPrimitiveType>(v: Vec<T::Native>) -> Arc<PrimitiveArray<T>> {
+        Arc::new(PrimitiveArray::from_iter_values(v))
+    }
+
+    fn make_input_schema() -> Schema {
+        Schema::new(vec![
+            Field::new("layer_id", DataType::UInt64, false),
+            Field::new("edge_id", DataType::UInt64, false),
+            Field::new("src", DataType::UInt64, false),
+            Field::new("dst", DataType::UInt64, false),
+            Field::new("timestamp", DataType::Int64, false),
+            Field::new("weight", DataType::Float64, true),
+        ])
+    }
+
+    fn make_out_schema() -> SchemaRef {
+        Arc::new(Schema::new(vec![
+            Field::new("layer_id", DataType::UInt64, false),
+            Field::new("edge_id", DataType::UInt64, false),
+            Field::new("src", DataType::UInt64, false),
+            Field::new("dst", DataType::UInt64, false),
+            Field::new("timestamp", DataType::Int64, false),
+            Field::new("weight", DataType::Float64, true),
+            Field::new("layer_id", DataType::UInt64, false),
+            Field::new("edge_id", DataType::UInt64, false),
+            Field::new("src", DataType::UInt64, false),
+            Field::new("dst", DataType::UInt64, false),
+            Field::new("timestamp", DataType::Int64, false),
+            Field::new("weight", DataType::Float64, true),
+        ]))
+    }
+
+    fn make_hop_stream(
+        batch_size: usize,
+        graph: ArrowGraph,
+        table_schema: DFSchema,
+        output_schema: Arc<Schema>,
+        input: RecordBatchStreamAdapter<
+            impl stream::Stream<Item = Result<RecordBatch, DataFusionError>> + Send + 'static,
+        >,
+    ) -> HopStream {
+        HopStream {
+            input: Box::pin(input),
+            graph: graph,
+            dir: Direction::OUT,
+            input_col: 3,
+            batch_size,
+            layers: vec!["_default".to_string()],
+            right_schema: table_schema.into(),
+            output_schema,
+            context: None,
+        }
+    }
+
+    fn make_rb(schema: Arc<Schema>) -> Result<RecordBatch, DataFusionError> {
+        let cols: Vec<ArrayRef> = vec![
+            Arc::new(UInt64Array::from(vec![0, 0, 0, 0, 0, 0, 0])), // layer_id
+            Arc::new(UInt64Array::from(vec![0, 1, 2, 3, 4, 5, 6])), // edge_id
+            Arc::new(UInt64Array::from(vec![0, 1, 2, 2, 2, 3, 5])), // src
+            Arc::new(UInt64Array::from(vec![1, 2, 3, 4, 5, 4, 4])), // dst
+            Arc::new(Int64Array::from(vec![0, 1, 2, 3, 4, 5, 6])),  // timestamp
+            Arc::new(Float64Array::from(vec![3., 4., 5., 6., 7., 8., 9.])), // weight
+        ];
+        RecordBatch::try_new(schema.clone(), cols).map_err(Into::into)
     }
 }
