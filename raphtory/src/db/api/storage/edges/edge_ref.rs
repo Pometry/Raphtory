@@ -1,15 +1,15 @@
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::{arrow::edges::ArrowEdge, storage_variants::StorageVariants};
 use crate::{
     core::entities::{
         edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
         LayerIds, EID, VID,
     },
-    db::api::storage::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+    db::api::storage::{
+        edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+        tprop_storage_ops::TPropOps,
+    },
 };
-
-#[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::edges::ArrowEdge;
-
-use crate::db::api::storage::{storage_variants::StorageVariants, tprop_storage_ops::TPropOps};
 use rayon::prelude::*;
 use std::ops::Range;
 

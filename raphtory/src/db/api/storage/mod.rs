@@ -10,5 +10,6 @@ pub mod filter_variants;
 pub mod layer_variants;
 pub mod node_storage_ops;
 pub mod nodes;
+#[cfg(feature = "arrow")]
 pub mod storage_variants;
 pub mod tprop_storage_ops;

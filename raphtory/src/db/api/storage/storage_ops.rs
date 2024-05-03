@@ -22,9 +22,8 @@ use crate::{
             locked::LockedGraph,
             node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             nodes::{
-                node_owned_entry::NodeOwnedEntry,
-                node_ref::NodeStorageRef,
-                nodes::{NodesStorage, NodesStorageRef},
+                node_owned_entry::NodeOwnedEntry, node_ref::NodeStorageRef, nodes::NodesStorage,
+                nodes_ref::NodesStorageRef,
             },
         },
         view::{
@@ -233,7 +232,6 @@ impl GraphStorage {
         filtered.map(|e| e.out_ref())
     }
 
-    #[cfg(feature = "arrow")]
     pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
@@ -268,7 +266,14 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::Left(filtered)
+                #[cfg(feature = "arrow")]
+                {
+                    Either::Left(filtered)
+                }
+                #[cfg(not(feature = "arrow"))]
+                {
+                    filtered
+                }
             }
             #[cfg(feature = "arrow")]
             EdgesStorage::Arrow(edges) => {

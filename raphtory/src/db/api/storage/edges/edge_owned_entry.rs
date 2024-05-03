@@ -1,3 +1,7 @@
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::arrow::edges::ArrowOwnedEdge;
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::storage_variants::StorageVariants;
 use crate::{
     core::{
         entities::{
@@ -7,17 +11,8 @@ use crate::{
         storage::ArcEntry,
     },
     db::api::storage::{
-        edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+        edge_storage_ops::{EdgeStorageIntoOps, EdgeStorageOps, TimeIndexRef},
         edges::edge_ref::EdgeStorageRef,
-    },
-};
-
-#[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::edges::ArrowOwnedEdge;
-
-use crate::{
-    db::api::storage::{
-        edge_storage_ops::EdgeStorageIntoOps, storage_variants::StorageVariants,
         tprop_storage_ops::TPropOps,
     },
     prelude::TimeIndexEntry,
@@ -30,6 +25,25 @@ pub enum EdgeOwnedEntry {
     Mem(ArcEntry<EdgeStore>),
     #[cfg(feature = "arrow")]
     Arrow(ArrowOwnedEdge),
+}
+
+#[cfg(feature = "arrow")]
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            EdgeOwnedEntry::Mem($pattern) => StorageVariants::Mem($result),
+            EdgeOwnedEntry::Arrow($pattern) => StorageVariants::Arrow($result),
+        }
+    };
+}
+
+#[cfg(not(feature = "arrow"))]
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            EdgeOwnedEntry::Mem($pattern) => $result,
+        }
+    };
 }
 
 impl EdgeOwnedEntry {
@@ -163,13 +177,7 @@ impl EdgeStorageIntoOps for EdgeOwnedEntry {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        match self {
-            EdgeOwnedEntry::Mem(edge) => StorageVariants::Mem(edge.into_layers(layer_ids, eref)),
-            #[cfg(feature = "arrow")]
-            EdgeOwnedEntry::Arrow(edge) => {
-                StorageVariants::Arrow(edge.into_layers(layer_ids, eref))
-            }
-        }
+        for_all_variants!(self, edge => edge.into_layers(layer_ids, eref))
     }
 
     fn into_exploded(
@@ -177,13 +185,7 @@ impl EdgeStorageIntoOps for EdgeOwnedEntry {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        match self {
-            EdgeOwnedEntry::Mem(edge) => StorageVariants::Mem(edge.into_exploded(layer_ids, eref)),
-            #[cfg(feature = "arrow")]
-            EdgeOwnedEntry::Arrow(edge) => {
-                StorageVariants::Arrow(edge.into_exploded(layer_ids, eref))
-            }
-        }
+        for_all_variants!(self, edge => edge.into_exploded(layer_ids, eref))
     }
 
     fn into_exploded_window(
@@ -192,14 +194,6 @@ impl EdgeStorageIntoOps for EdgeOwnedEntry {
         w: Range<TimeIndexEntry>,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        match self {
-            EdgeOwnedEntry::Mem(edge) => {
-                StorageVariants::Mem(edge.into_exploded_window(layer_ids, w, eref))
-            }
-            #[cfg(feature = "arrow")]
-            EdgeOwnedEntry::Arrow(edge) => {
-                StorageVariants::Arrow(edge.into_exploded_window(layer_ids, w, eref))
-            }
-        }
+        for_all_variants!(self, edge => edge.into_exploded_window(layer_ids, w, eref))
     }
 }

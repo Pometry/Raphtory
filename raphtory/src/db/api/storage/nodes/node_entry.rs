@@ -1,3 +1,5 @@
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::{arrow::nodes::ArrowNode, storage_variants::StorageVariants};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
@@ -5,15 +7,13 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef},
+        storage::{
+            node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef,
+            tprop_storage_ops::TPropOps,
+        },
         view::internal::NodeAdditions,
     },
 };
-
-#[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::nodes::ArrowNode;
-
-use crate::db::api::storage::{storage_variants::StorageVariants, tprop_storage_ops::TPropOps};
 
 pub enum NodeStorageEntry<'a> {
     Mem(Entry<'a, NodeStore>),

@@ -8,7 +8,6 @@ use std::{cmp::Ordering, ops::Range};
 #[derive(Copy, Clone, Debug)]
 pub enum StorageVariants<Mem, Arrow> {
     Mem(Mem),
-    #[cfg(feature = "arrow")]
     Arrow(Arrow),
 }
 

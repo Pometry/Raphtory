@@ -1,21 +1,34 @@
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::{arrow::nodes::ArrowNode, storage_variants::StorageVariants};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
         Direction,
     },
-    db::api::{storage::node_storage_ops::NodeStorageOps, view::internal::NodeAdditions},
+    db::api::{
+        storage::{node_storage_ops::NodeStorageOps, tprop_storage_ops::TPropOps},
+        view::internal::NodeAdditions,
+    },
 };
-
-#[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::nodes::ArrowNode;
-
-use crate::db::api::storage::{storage_variants::StorageVariants, tprop_storage_ops::TPropOps};
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
     Mem(&'a NodeStore),
     #[cfg(feature = "arrow")]
     Arrow(ArrowNode<'a>),
+}
+
+impl<'a> From<&'a NodeStore> for NodeStorageRef<'a> {
+    fn from(value: &'a NodeStore) -> Self {
+        NodeStorageRef::Mem(value)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl<'a> From<ArrowNode<'a>> for NodeStorageRef<'a> {
+    fn from(value: ArrowNode<'a>) -> Self {
+        NodeStorageRef::Arrow(value)
+    }
 }
 
 macro_rules! for_all {

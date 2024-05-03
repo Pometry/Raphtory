@@ -1,7 +1,9 @@
+#[cfg(feature = "arrow")]
 use crate::{
-    arrow::graph_impl::tprops::ArrowTProp,
+    arrow::graph_impl::tprops::ArrowTProp, db::api::storage::storage_variants::StorageVariants,
+};
+use crate::{
     core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop},
-    db::api::storage::storage_variants::StorageVariants,
     prelude::TimeIndexEntry,
 };
 use std::ops::Range;
@@ -11,6 +13,35 @@ pub enum TPropRef<'a> {
     Mem(&'a TProp),
     #[cfg(feature = "arrow")]
     Arrow(ArrowTProp<'a>),
+}
+
+macro_rules! for_all {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            TPropRef::Mem($pattern) => $result,
+            #[cfg(feature = "arrow")]
+            TPropRef::Arrow($pattern) => $result,
+        }
+    };
+}
+
+#[cfg(feature = "arrow")]
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            TPropRef::Mem($pattern) => StorageVariants::Mem($result),
+            TPropRef::Arrow($pattern) => StorageVariants::Arrow($result),
+        }
+    };
+}
+
+#[cfg(not(feature = "arrow"))]
+macro_rules! for_all_variants {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            TPropRef::Mem($pattern) => $result,
+        }
+    };
 }
 
 pub trait TPropOps<'a>: Sized + Copy + 'a + Send {
@@ -50,40 +81,25 @@ pub trait TPropOps<'a>: Sized + Copy + 'a + Send {
 
 impl<'a> TPropOps<'a> for TPropRef<'a> {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
-        match self {
-            TPropRef::Arrow(tprop) => tprop.last_before(t),
-            TPropRef::Mem(t_prop) => t_prop.last_before(t),
-        }
+        for_all!(self, tprop => tprop.last_before(t))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        match self {
-            TPropRef::Arrow(tprop) => StorageVariants::Arrow(tprop.iter()),
-            TPropRef::Mem(t_prop) => StorageVariants::Mem(t_prop.iter()),
-        }
+        for_all_variants!(self, tprop => tprop.iter())
     }
 
     fn iter_window(
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        match self {
-            TPropRef::Arrow(tprop) => StorageVariants::Arrow(tprop.iter_window(r)),
-            TPropRef::Mem(t_prop) => StorageVariants::Mem(t_prop.iter_window(r)),
-        }
+        for_all_variants!(self, tprop => tprop.iter_window(r))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        match self {
-            TPropRef::Arrow(tprop) => tprop.at(ti),
-            TPropRef::Mem(t_prop) => t_prop.at(ti),
-        }
+        for_all!(self, tprop => tprop.at(ti))
     }
 
     fn len(self) -> usize {
-        match self {
-            TPropRef::Mem(prop) => prop.len(),
-            TPropRef::Arrow(prop) => prop.len(),
-        }
+        for_all!(self, tprop => tprop.len())
     }
 }
