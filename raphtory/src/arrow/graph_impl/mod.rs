@@ -1,12 +1,16 @@
+use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
+use crate::{
+    arrow::graph_fragment::TempColGraphFragment,
+    core::entities::{
+        properties::{graph_meta::GraphMeta, props::Meta},
+        LayerIds,
+    },
+    db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
+    prelude::{Graph, GraphViewOps},
+};
 use arrow2::{
     array::{PrimitiveArray, StructArray},
     datatypes::{DataType, Field},
-};
-
-use crate::{
-    arrow::graph_fragment::TempColGraphFragment,
-    core::entities::{properties::graph_meta::GraphMeta, LayerIds},
-    db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
 };
 use rayon::prelude::*;
 use std::{
@@ -14,13 +18,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-use crate::{
-    core::entities::properties::props::Meta,
-    prelude::{Graph, GraphViewOps},
-};
-
-use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
 
 pub mod const_properties_ops;
 pub mod core_ops;
@@ -292,18 +289,16 @@ impl ArrowGraph {
 
 #[cfg(test)]
 mod test {
-    use std::{cmp::Reverse, iter::once, path::Path};
-
-    use itertools::{chain, Itertools};
-
+    use super::ArrowGraph;
     use crate::{
         algorithms::components::weakly_connected_components, arrow::Time,
         db::api::view::StaticGraphViewOps, prelude::*,
     };
-
+    use itertools::{chain, Itertools};
     use proptest::{prelude::*, sample::size_range};
-
-    use super::ArrowGraph;
+    use rayon::prelude::*;
+    use std::{cmp::Reverse, iter::once, path::Path};
+    use tempfile::TempDir;
 
     fn make_simple_graph(
         graph_dir: impl AsRef<Path>,
@@ -564,5 +559,25 @@ mod test {
     proptest! {
         #[test]
         fn connected_components_smallest_values(vs in any_with::<Vec<u64>>(size_range(1..=1000).lift())){ connected_components_check(vs) }
+    }
+
+    #[test]
+    fn test_par_nodes() {
+        let test_dir = TempDir::new().unwrap();
+
+        let mut edges = vec![
+            (1u64, 2u64, -2i64, 1.0),
+            (1u64, 2u64, -1i64, 2.0),
+            (1u64, 2u64, 0i64, 3.0),
+            (1u64, 2u64, 1i64, 4.0),
+            (1u64, 3u64, 2i64, 1.0),
+            (1u64, 3u64, 3i64, 2.0),
+        ];
+
+        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
+
+        let g = make_simple_graph(test_dir.path(), &edges);
+
+        assert_eq!(g.nodes().par_iter().count(), g.count_nodes())
     }
 }
