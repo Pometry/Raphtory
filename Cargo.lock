@@ -2080,7 +2080,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "graph500"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
@@ -2491,7 +2491,7 @@ dependencies = [
 
 [[package]]
 name = "lanl"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
@@ -3958,7 +3958,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -4058,7 +4058,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "ahash",
  "arrow2",

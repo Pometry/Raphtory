@@ -1,17 +1,17 @@
 #[cfg(feature = "arrow")]
-use crate::arrow::graph::TemporalGraph;
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::edges::ArrowEdges;
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::edges_ref::ArrowEdgesRef;
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::node::ArrowNode;
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::node::ArrowOwnedNode;
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::nodes::ArrowNodesOwned;
-#[cfg(feature = "arrow")]
-use crate::arrow::storage_interface::nodes_ref::ArrowNodesRef;
+use crate::{
+    arrow::{
+        graph::TemporalGraph,
+        storage_interface::{
+            edges::ArrowEdges,
+            edges_ref::ArrowEdgesRef,
+            node::{ArrowNode, ArrowOwnedNode},
+            nodes::ArrowNodesOwned,
+            nodes_ref::ArrowNodesRef,
+        },
+    },
+    db::api::storage::variants::storage_variants::StorageVariants,
+};
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
@@ -42,7 +42,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use rayon::{iter::Either, prelude::*};
+use rayon::prelude::*;
 use std::{iter, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -276,7 +276,7 @@ impl GraphStorage {
                 };
                 #[cfg(feature = "arrow")]
                 {
-                    Either::Left(filtered)
+                    StorageVariants::Mem(filtered)
                 }
                 #[cfg(not(feature = "arrow"))]
                 {
@@ -332,7 +332,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::Right(filtered)
+                StorageVariants::Arrow(filtered)
             }
         }
     }
@@ -366,7 +366,6 @@ impl GraphStorage {
             .map(|e| e.out_ref())
     }
 
-    #[cfg(feature = "arrow")]
     pub fn into_edges_par<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
@@ -401,7 +400,14 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::Left(filtered)
+                #[cfg(feature = "arrow")]
+                {
+                    StorageVariants::Mem(filtered)
+                }
+                #[cfg(not(feature = "arrow"))]
+                {
+                    filtered
+                }
             }
             #[cfg(feature = "arrow")]
             EdgesStorage::Arrow(edges) => {
@@ -454,7 +460,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::Right(filtered)
+                StorageVariants::Arrow(filtered)
             }
         }
     }

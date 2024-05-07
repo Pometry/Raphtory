@@ -6,9 +6,24 @@ use rayon::iter::{
 use std::{cmp::Ordering, ops::Range};
 
 #[derive(Copy, Clone, Debug)]
-pub enum StorageVariants<Mem, Arrow> {
+pub enum StorageVariants<Mem, #[cfg(feature = "arrow")] Arrow> {
     Mem(Mem),
+    #[cfg(feature = "arrow")]
     Arrow(Arrow),
+}
+
+#[cfg(feature = "arrow")]
+macro_rules! SelfType {
+    ($Mem:ident, $Arrow:ident) => {
+        StorageVariants<$Mem, $Arrow>
+    };
+}
+
+#[cfg(not(feature = "arrow"))]
+macro_rules! SelfType {
+    ($Mem:ident, $Arrow:ident) => {
+        StorageVariants<$Mem>
+    };
 }
 
 macro_rules! for_all {
@@ -40,8 +55,8 @@ macro_rules! for_all_iter {
     };
 }
 
-impl<V, Mem: Iterator<Item = V>, Arrow: Iterator<Item = V>> Iterator
-    for StorageVariants<Mem, Arrow>
+impl<V, Mem: Iterator<Item = V>, #[cfg(feature = "arrow")] Arrow: Iterator<Item = V>> Iterator
+    for SelfType!(Mem, Arrow)
 {
     type Item = V;
 
@@ -159,8 +174,11 @@ impl<V, Mem: Iterator<Item = V>, Arrow: Iterator<Item = V>> Iterator
     }
 }
 
-impl<V, Mem: DoubleEndedIterator<Item = V>, Arrow: DoubleEndedIterator<Item = V>>
-    DoubleEndedIterator for StorageVariants<Mem, Arrow>
+impl<
+        V,
+        Mem: DoubleEndedIterator<Item = V>,
+        #[cfg(feature = "arrow")] Arrow: DoubleEndedIterator<Item = V>,
+    > DoubleEndedIterator for SelfType!(Mem, Arrow)
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         for_all!(self, iter => iter.next_back())
@@ -187,16 +205,22 @@ impl<V, Mem: DoubleEndedIterator<Item = V>, Arrow: DoubleEndedIterator<Item = V>
     }
 }
 
-impl<V, Mem: ExactSizeIterator<Item = V>, Arrow: ExactSizeIterator<Item = V>> ExactSizeIterator
-    for StorageVariants<Mem, Arrow>
+impl<
+        V,
+        Mem: ExactSizeIterator<Item = V>,
+        #[cfg(feature = "arrow")] Arrow: ExactSizeIterator<Item = V>,
+    > ExactSizeIterator for SelfType!(Mem, Arrow)
 {
     fn len(&self) -> usize {
         for_all!(self, iter => iter.len())
     }
 }
 
-impl<V: Send, Mem: ParallelIterator<Item = V>, Arrow: ParallelIterator<Item = V>> ParallelIterator
-    for StorageVariants<Mem, Arrow>
+impl<
+        V: Send,
+        Mem: ParallelIterator<Item = V>,
+        #[cfg(feature = "arrow")] Arrow: ParallelIterator<Item = V>,
+    > ParallelIterator for SelfType!(Mem, Arrow)
 {
     type Item = V;
 
@@ -212,8 +236,11 @@ impl<V: Send, Mem: ParallelIterator<Item = V>, Arrow: ParallelIterator<Item = V>
     }
 }
 
-impl<V: Send, Mem: IndexedParallelIterator<Item = V>, Arrow: IndexedParallelIterator<Item = V>>
-    IndexedParallelIterator for StorageVariants<Mem, Arrow>
+impl<
+        V: Send,
+        Mem: IndexedParallelIterator<Item = V>,
+        #[cfg(feature = "arrow")] Arrow: IndexedParallelIterator<Item = V>,
+    > IndexedParallelIterator for SelfType!(Mem, Arrow)
 {
     fn len(&self) -> usize {
         for_all!(self, iter => iter.len())
@@ -228,8 +255,8 @@ impl<V: Send, Mem: IndexedParallelIterator<Item = V>, Arrow: IndexedParallelIter
     }
 }
 
-impl<'a, Mem: TPropOps<'a> + 'a, Arrow: TPropOps<'a> + 'a> TPropOps<'a>
-    for StorageVariants<Mem, Arrow>
+impl<'a, Mem: TPropOps<'a> + 'a, #[cfg(feature = "arrow")] Arrow: TPropOps<'a> + 'a> TPropOps<'a>
+    for SelfType!(Mem, Arrow)
 {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, props => props.last_before(t))
