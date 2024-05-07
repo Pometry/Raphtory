@@ -168,7 +168,7 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let edges = vec![(0u64, 1u64, 0i64, 2.)];
         let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
-        let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g)
+        let (_, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g, true)
             .await
             .unwrap();
 
@@ -183,6 +183,7 @@ mod test {
         let (_, plan) = prepare_plan(
             "MATCH ()-[e1]->()-[e2]->() WHERE e2.weight > 5 RETURN *",
             &g,
+            true,
         )
         .await
         .unwrap();
@@ -198,6 +199,7 @@ mod test {
         let (_, plan) = prepare_plan(
             "MATCH ()-[e1]->()-[e2]->() WHERE e1.weight > 5 RETURN *",
             &g,
+            true,
         )
         .await
         .unwrap();
@@ -218,7 +220,7 @@ mod test {
         let g = ArrowGraph::make_simple_graph(graph_dir, &edges, 10, 10);
 
         // let (ctx, plan) = prepare_plan("MATCH ()-[e1]->() RETURN *", &g)
-        let (ctx, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g)
+        let (ctx, plan) = prepare_plan("MATCH ()-[e1]->()-[e2]->() RETURN *", &g, true)
             .await
             .unwrap();
 

@@ -99,10 +99,6 @@ impl UserDefinedLogicalNodeCore for HopPlan {
     }
 
     fn expressions(&self) -> Vec<datafusion::prelude::Expr> {
-        // self.expressions
-        //     .iter()
-        //     .map(|(l, r)| Expr::eq(l.clone(), r.clone()))
-        //     .collect()
         vec![]
     }
 

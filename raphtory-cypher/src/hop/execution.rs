@@ -26,8 +26,8 @@ use datafusion::{
     execution::{RecordBatchStream, TaskContext},
     physical_expr::EquivalenceProperties,
     physical_plan::{
-        need_data_exchange, DisplayAs, DisplayFormatType, Distribution, ExecutionPlan,
-        ExecutionPlanProperties, PlanProperties, SendableRecordBatchStream,
+        DisplayAs, DisplayFormatType, Distribution, ExecutionPlan, ExecutionPlanProperties,
+        PlanProperties, SendableRecordBatchStream,
     },
 };
 use futures::{Stream, StreamExt};
@@ -38,10 +38,7 @@ use raphtory::{
         graph_impl::ArrowGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
     },
-    core::{
-        entities::{EID, VID},
-        Direction,
-    },
+    core::{entities::VID, Direction},
 };
 
 use super::operator::HopPlan;
@@ -58,11 +55,7 @@ pub struct HopExec {
 }
 
 impl HopExec {
-    pub fn new(
-        hop: &HopPlan,
-        // logical_inputs: &[&LogicalPlan],
-        physical_inputs: &[Arc<dyn ExecutionPlan>],
-    ) -> Self {
+    pub fn new(hop: &HopPlan, physical_inputs: &[Arc<dyn ExecutionPlan>]) -> Self {
         let graph = hop.graph();
         let dir = hop.dir;
         let input = physical_inputs[0].clone();
@@ -501,7 +494,6 @@ impl Stream for HopStream {
             if next_record.is_some() {
                 Poll::Ready(next_record)
             } else {
-                println!("Record Done! {:?}", last_node);
                 self.context.rb.take();
                 self.context.row = 0;
                 self.context.layer = 0;
@@ -537,10 +529,10 @@ fn produce_next_record(
     output_schema: SchemaRef,
     right_schema: DFSchemaRef,
 ) -> Option<Result<RecordBatch, DataFusionError>> {
-    println!(
-        "produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
-        row_pos, edge_pos, time_pos, layer_pos, max_record_rows
-    );
+    // println!(
+    //     "produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
+    //     row_pos, edge_pos, time_pos, layer_pos, max_record_rows
+    // );
     // print_batches(&[rb.clone()]);
 
     let rb = rb.slice(*row_pos, rb.num_rows() - *row_pos);
@@ -563,8 +555,9 @@ fn produce_next_record(
         .layer_names()
         .into_iter()
         .enumerate()
-        .filter(|(id, name)| layers.contains(&name.to_lowercase()))
-        .map(|(id, _)| (id, graph.layer(id)))
+        .filter(|(_, name)| layers.contains(&name.to_lowercase()))
+        .map(|(id, _)| graph.layer(id))
+        .enumerate()
         .collect::<Vec<_>>();
 
     let property_names: HashSet<String> = layers
@@ -600,17 +593,17 @@ fn produce_next_record(
     // when we switch to a new record batch, we need to reset the edge and time positions if the node id changes
     let first = hop_col.first().map(|n| VID(*n as usize));
     if first != prev_node.map(|vid| vid) {
-        println!("Resetting edge and time positions");
+        // println!("Resetting edge and time positions");
         *edge_pos = 0;
         *time_pos = 0;
     }
-    println!(
-        "2 produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
-        row_pos, edge_pos, layer_pos, time_pos, max_record_rows
-    );
+    // println!(
+    //     "2 produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
+    //     row_pos, edge_pos, layer_pos, time_pos, max_record_rows
+    // );
 
-    let mut max_layer_id = *layer_pos;
-    'top: for (layer_id, layer) in &layers[*layer_pos..] {
+    let min_layer_pos = *layer_pos;
+    'top: for (l, layer) in &layers[*layer_pos..] {
         for (col_id, v_id) in hop_col.into_iter().map(|n| VID(*n as usize)).enumerate() {
             for (edge, u_id) in layer
                 .out_edges_from(v_id, *edge_pos)
@@ -625,19 +618,19 @@ fn produce_next_record(
                     take_indices.push(col_id as u64);
                     edge_timestamps.push(t);
                     dst_indices.push(u_id.0 as u64);
-                    edge_ids.push(e_id.0 as u64);
-                    layer_ids.push(*layer_id as u64);
+                    edge_ids.push(end as u64);
+                    layer_ids.push(edge.layer_id() as u64);
 
                     *time_pos += 1;
                     end += 1;
 
                     if take_indices.len() >= max_record_rows {
-                        &mut prop_ranges[*layer_id].push(start..end);
+                        prop_ranges[*l].push(start..end);
                         prev_node.replace(v_id);
                         break 'top;
                     }
                 }
-                &mut prop_ranges[*layer_id].push(start..end);
+                prop_ranges[*l].push(start..end);
                 *time_pos = 0;
                 *edge_pos += 1;
             }
@@ -655,73 +648,43 @@ fn produce_next_record(
 
     // deal with properties
     for (p_builder, p_field, prop_ids) in builders.iter_mut() {
-        for (layer_id, layer) in &layers[max_layer_id..] {
-            if let Some(p_id) = prop_ids[*layer_id] {
+        for (l, layer) in &layers[min_layer_pos..] {
+            if let Some(p_id) = prop_ids[*l] {
                 match p_field.data_type() {
                     DataType::UInt64 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<UInt64Builder>()?;
-                        load_into_primitive_builder_2(
-                            layer,
-                            builder,
-                            p_id,
-                            &prop_ranges[*layer_id],
-                        )?;
+                        load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::UInt32 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<UInt32Builder>()?;
-                        load_into_primitive_builder_2(
-                            layer,
-                            builder,
-                            p_id,
-                            &prop_ranges[*layer_id],
-                        )?;
+                        load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::Int64 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<Int64Builder>()?;
-                        load_into_primitive_builder_2(
-                            layer,
-                            builder,
-                            p_id,
-                            &prop_ranges[*layer_id],
-                        )?;
+                        load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::Int32 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<Int32Builder>()?;
-                        load_into_primitive_builder_2(
-                            layer,
-                            builder,
-                            p_id,
-                            &prop_ranges[*layer_id],
-                        )?;
+                        load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::Float32 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<Float32Builder>()?;
-                        load_into_primitive_builder_2(
-                            layer,
-                            builder,
-                            p_id,
-                            &prop_ranges[*layer_id],
-                        )?;
+                        load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::Float64 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<Float64Builder>()?;
-                        load_into_primitive_builder_2(
-                            layer,
-                            builder,
-                            p_id,
-                            &prop_ranges[*layer_id],
-                        )?;
+                        load_into_primitive_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::Utf8 => {
                         let builder = p_builder.as_any_mut().downcast_mut::<StringBuilder>()?;
-                        load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges[*layer_id])?;
+                        load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     DataType::LargeUtf8 => {
                         let builder = p_builder
                             .as_any_mut()
                             .downcast_mut::<LargeStringBuilder>()
                             .unwrap();
-                        load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges[*layer_id])?;
+                        load_into_utf8_builder_2(layer, builder, p_id, &prop_ranges[*l])?;
                     }
                     _ => {}
                 }
@@ -743,8 +706,8 @@ fn produce_next_record(
 
     let mut columns: Vec<ArrayRef> = left_rb.columns().into();
 
-    columns.push(layer_ids);
     columns.push(edge_ids);
+    columns.push(layer_ids);
     columns.push(src_ids);
     columns.push(dst_ids);
     columns.push(edge_timestamps);
@@ -752,8 +715,6 @@ fn produce_next_record(
     for (builder, _, _) in builders.iter_mut() {
         columns.push(builder.finish());
     }
-
-    // println!("columns: {:?}", columns);
 
     Some(RecordBatch::try_new(output_schema, columns).map_err(Into::into))
 }
@@ -874,7 +835,7 @@ mod test {
             .reduce(|rb1, rb2| concat_batches(&output_schema, &[rb1, rb2]).expect("concat failed"))
             .unwrap();
 
-        print_batches(&[actual.clone()]);
+        let _ = print_batches(&[actual.clone()]);
 
         let expected = make_output_rb(output_schema)
             .unwrap()

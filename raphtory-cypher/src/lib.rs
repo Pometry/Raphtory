@@ -29,7 +29,13 @@ pub mod parser;
 pub mod transpiler;
 
 pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
-    let (ctx, plan) = prepare_plan(query, g).await?;
+    let (ctx, plan) = prepare_plan(query, g, false).await?;
+    let df = ctx.execute_logical_plan(plan).await?;
+    Ok(df)
+}
+
+pub async fn run_cypher_optim(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
+    let (ctx, plan) = prepare_plan(query, g, true).await?;
     let df = ctx.execute_logical_plan(plan).await?;
     Ok(df)
 }
@@ -37,6 +43,7 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
 pub async fn prepare_plan(
     query: &str,
     g: &ArrowGraph,
+    enable_hop_optim: bool,
 ) -> Result<(SessionContext, LogicalPlan), ExecError> {
     println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
@@ -44,9 +51,13 @@ pub async fn prepare_plan(
     let config = SessionConfig::from_env()?.with_information_schema(true);
 
     let runtime = Arc::new(RuntimeEnv::default());
-    let state = SessionState::new_with_config_rt(config, runtime)
-        .with_query_planner(Arc::new(HopQueryPlanner {}))
-        .add_optimizer_rule(Arc::new(HopRule::new(g.clone())));
+    let state = if enable_hop_optim {
+        SessionState::new_with_config_rt(config, runtime)
+            .with_query_planner(Arc::new(HopQueryPlanner {}))
+            .add_optimizer_rule(Arc::new(HopRule::new(g.clone())))
+    } else {
+        SessionState::new_with_config_rt(config, runtime)
+    };
     let ctx = SessionContext::new_with_state(state);
 
     let graph = g.as_ref();
@@ -101,7 +112,7 @@ pub async fn prepare_plan(
     opts.verify_plan(&plan)?;
 
     let plan = ctx.state().optimize(&plan)?;
-    // println!("PLAN! {:?}", plan);
+    println!("PLAN! {:?}", plan);
     Ok((ctx, plan))
 }
 
@@ -136,39 +147,40 @@ mod test {
     // FIXME: actually assert the tests below
     // use pretty_assertions::assert_eq;
     use arrow::util::pretty::print_batches;
+    use datafusion::prelude::col;
     use tempfile::tempdir;
 
     use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
 
-    use crate::{run_cypher, run_sql};
+    use crate::{run_cypher, run_cypher_optim, run_sql};
 
     lazy_static::lazy_static! {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
-            (0, 1, 1, 3.),
+            // (0, 1, 1, 3.),
             (0, 1, 2, 4.),
-            (0, 3, 0, 1.),
+            // (0, 3, 0, 1.),
             (1, 2, 2, 4.),
             (1, 2, 3, 4.),
-            (1, 5, 1, 1.),
-            (2, 3, 5, 5.),
-            (3, 4, 1, 6.),
-            (3, 4, 3, 6.),
-            (3, 5, 7, 6.),
-            (4, 5, 9, 7.),
+            // (1, 5, 1, 1.),
+            // (2, 3, 5, 5.),
+            // (3, 4, 1, 6.),
+            // (3, 4, 3, 6.),
+            // (3, 5, 7, 6.),
+            // (4, 5, 9, 7.),
         ];
 
     static ref EDGES2: Vec<(u64, u64, i64, f64, String)> = vec![
-            (0, 1, 1, 3., "baa".to_string()),
-            (0, 2, 2, 7., "buu".to_string()),
+            // (0, 1, 1, 3., "baa".to_string()),
+            // (0, 2, 2, 7., "buu".to_string()),
             (2, 3, 1, 9., "xbaa".to_string()),
             (2, 3, 2, 1., "xbaa".to_string()),
-            (3, 0, 3, 4., "beea".to_string()),
-            (3, 0, 3, 1., "beex".to_string()),
-            (4, 1, 5, 5., "baaz".to_string()),
-            (4, 5, 1, 6., "bxx".to_string()),
-            (5, 6, 3, 6., "mbaa".to_string()),
-            (6, 4, 7, 8., "baa".to_string()),
-            (6, 4, 9, 7., "bzz".to_string()),
+            (1, 0, 3, 4., "beea".to_string()),
+            (1, 0, 3, 1., "beex".to_string()),
+            // (4, 1, 5, 5., "baaz".to_string()),
+            // (4, 5, 1, 6., "bxx".to_string()),
+            // (5, 6, 3, 6., "mbaa".to_string()),
+            // (6, 4, 7, 8., "baa".to_string()),
+            // (6, 4, 9, 7., "bzz".to_string()),
         ];
 
         // a star graph with 5 nodes an 4 edges
@@ -580,6 +592,39 @@ mod test {
 
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn hop_two_different_layers() {
+        let graph_dir = tempdir().unwrap();
+        let g = Graph::new();
+
+        load_edges_1(&g, Some("LAYER1"));
+        load_edges_with_str_props(&g, Some("LAYER2"));
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
+
+        let df = run_cypher("match ()-[e2:LAYER2]->() RETURN *", &graph)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).expect("failed to print batches");
+
+        let df = run_cypher("match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN *", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
+
+        let df = run_cypher_optim("match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN *", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
     }
 
     #[tokio::test]

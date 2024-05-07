@@ -491,12 +491,7 @@ fn all_bound_nodes(query: &Query) -> impl Iterator<Item = &NodePattern> + '_ {
 
 fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
     let mut joins = vec![];
-    // println!("{:?}", query);
     let graph = query_to_graph(query);
-
-    // graph.edges().into_iter().for_each(|edge| {
-    //     println!("{:?} - {:?} dir: {:?}", edge.src().name(), edge.dst().name(), edge.edge.dir());
-    // });
 
     let first = query
         .node_patterns()
@@ -508,8 +503,6 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
         .into_iter()
         .filter(|node| node.get_const_prop(0).is_some())
         .count();
-
-    // println!("edge counts: {}", edge_counts);
 
     if edge_counts > 0 {
         let first_edge = query
@@ -543,12 +536,9 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
                     .or_else(|| graph.edge(&n.name(), &parent.name()))
                     .expect("surprisingly edge not found!");
 
-                // println!("parent: {:?}, child: {:?}, dir: {:?}", parent.name(), n.name(), edge.edge.dir());
                 let dir = if (edge.src().name(), edge.dst().name()) == (parent.name(), n.name()) {
-                    // println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
                     Dir::Out
                 } else if (edge.src().name(), edge.dst().name()) == (n.name(), parent.name()) {
-                    // println!("{:?} -> {:?}", edge.src().name(), edge.dst().name());
                     Dir::Into
                 } else {
                     panic!("unexpected edge direction");
@@ -583,10 +573,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
                     }
 
                     if let Some(ref last_edge) = last_edge {
-                        additional_filters.push(Expr::neq(
-                            Expr::var(&last_edge.name(), ["id"]),
-                            Expr::var(&n.name(), ["id"]),
-                        ));
+                        additional_filters.push(unique_edge_filter(&last_edge.name(), &n.name()));
                     }
                     child_edges.push(n.name());
                     last_edge_dir = current_edge_dir;
@@ -609,7 +596,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
 
             let unique_edges = child_edges.iter().combinations(2).map(|perm_vec| {
                 let (a, b) = (perm_vec[0], perm_vec[1]);
-                Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"]))
+                unique_edge_filter(a, b)
             });
 
             additional_filters.extend(unique_edges);
@@ -624,7 +611,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
             relation: table_from_name(&first_edge.name),
             joins,
         };
-        (vec![table], additional_filters)
+        (vec![table], /*additional_filters*/ vec![])
     } else {
         // matching only one node
         let node_table = sql_ast::TableWithJoins {
@@ -633,6 +620,14 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
         };
         (vec![node_table], vec![])
     }
+}
+
+fn unique_edge_filter(a: &str, b: &str) -> Expr {
+    // Expr::and(
+    //     Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"])),
+    //     Expr::neq(Expr::var(a, ["layer_id"]), Expr::var(b, ["layer_id"])),
+    // )
+    Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"]))
 }
 
 /// walk the path parts of the query and build a graph from every node pattern and edge pattern
