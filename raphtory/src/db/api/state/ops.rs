@@ -6,7 +6,7 @@ use rayon::{
 };
 
 use crate::{
-    core::entities::nodes::node_ref::NodeRef,
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::state::{node_state::NodeState, ord_ops, Index},
         graph::node::NodeView,
@@ -69,7 +69,7 @@ pub trait NodeStateOps<'graph>:
         index: usize,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;
 
-    fn get_by_node<N: Into<NodeRef>>(
+    fn get_by_node<N: AsNodeRef>(
         &self,
         node: N,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)>;

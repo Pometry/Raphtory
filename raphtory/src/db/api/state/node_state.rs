@@ -1,5 +1,8 @@
 use crate::{
-    core::entities::{nodes::node_ref::NodeRef, VID},
+    core::entities::{
+        nodes::node_ref::{AsNodeRef, NodeRef},
+        VID,
+    },
     db::{
         api::{state::ops::NodeStateOps, view::IntoDynBoxed},
         graph::node::NodeView,
@@ -265,11 +268,11 @@ impl<
         }
     }
 
-    fn get_by_node<N: Into<NodeRef>>(
+    fn get_by_node<N: AsNodeRef>(
         &self,
         node: N,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        let id = self.graph.internalise_node(node.into())?;
+        let id = self.graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
             Some(index) => index.map.get(&id).map(|i| {
                 (

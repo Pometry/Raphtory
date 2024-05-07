@@ -1,9 +1,12 @@
 use crate::{
-    core::entities::{nodes::node_ref::NodeRef, VID},
+    core::entities::{
+        nodes::node_ref::{AsNodeRef, NodeRef},
+        VID,
+    },
     db::{
         api::{
             state::{NodeState, NodeStateOps},
-            storage::locked::LockedGraph,
+            storage::storage_ops::GraphStorage,
             view::{internal::NodeList, IntoDynBoxed},
         },
         graph::node::NodeView,
@@ -14,7 +17,7 @@ use rayon::prelude::*;
 use std::{marker::PhantomData, sync::Arc};
 
 pub struct LazyNodeState<'graph, V, G, GH = G> {
-    op: Arc<dyn Fn(&LockedGraph, &GH, VID) -> V + Send + Sync + 'graph>,
+    op: Arc<dyn Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph>,
     base_graph: G,
     graph: GH,
     nodes: NodeList,
@@ -28,7 +31,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
         base_graph: G,
         graph: GH,
         nodes: NodeList,
-        op: impl Fn(&LockedGraph, &GH, VID) -> V + Send + Sync + 'graph,
+        op: impl Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph,
     ) -> Self {
         let op = Arc::new(op);
         Self {
@@ -40,7 +43,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
         }
     }
 
-    fn apply(&self, cg: &LockedGraph, g: &GH, vid: VID) -> V {
+    fn apply(&self, cg: &GraphStorage, g: &GH, vid: VID) -> V {
         (self.op)(cg, g, vid)
     }
 
@@ -61,7 +64,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
                         Some(keys.into()),
                     )
                 } else {
-                    let n = cg.nodes.len();
+                    let n = cg.nodes().len();
                     let mut values = Vec::with_capacity(n);
                     (0..n)
                         .into_par_iter()
@@ -77,7 +80,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: Send + Sync +
                         .par_iter()
                         .filter(|&&v| {
                             self.graph
-                                .filter_node(cg.nodes.get(v), self.graph.layer_ids())
+                                .filter_node(cg.nodes().node(v), self.graph.layer_ids())
                         })
                         .copied()
                         .collect();
@@ -121,7 +124,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, V: 'graph> IntoI
             .into_iter()
             .filter_map(move |v| {
                 self.graph
-                    .filter_node(cg.nodes.get(v), self.graph.layer_ids())
+                    .filter_node(cg.nodes().node(v), self.graph.layer_ids())
                     .then(|| {
                         (
                             NodeView::new_one_hop_filtered(
@@ -164,7 +167,7 @@ impl<
         let cg = self.graph.core_graph();
         self.nodes.iter().filter_map(move |n| {
             self.graph
-                .filter_node(cg.nodes.get(n), self.graph.layer_ids())
+                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
                 .then(|| (self.op)(&cg, &self.graph, n))
         })
     }
@@ -176,7 +179,7 @@ impl<
         let cg = self.graph.core_graph();
         self.nodes.par_iter().filter_map(move |n| {
             self.graph
-                .filter_node(cg.nodes.get(n), self.graph.layer_ids())
+                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
                 .then(|| (self.op)(&cg, &self.graph, n))
         })
     }
@@ -185,7 +188,7 @@ impl<
         let cg = self.graph.core_graph();
         self.nodes.into_iter().filter_map(move |n| {
             self.graph
-                .filter_node(cg.nodes.get(n), self.graph.layer_ids())
+                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
                 .then(|| (self.op)(&cg, &self.graph, n))
         })
     }
@@ -194,7 +197,7 @@ impl<
         let cg = self.graph.core_graph();
         self.nodes.into_par_iter().filter_map(move |n| {
             self.graph
-                .filter_node(cg.nodes.get(n), self.graph.layer_ids())
+                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
                 .then(|| (self.op)(&cg, &self.graph, n))
         })
     }
@@ -213,7 +216,7 @@ impl<
         let cg = self.graph.core_graph();
         self.nodes.iter().filter_map(move |n| {
             self.graph
-                .filter_node(cg.nodes.get(n), self.graph.layer_ids())
+                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
                 .then(|| {
                     (
                         NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
@@ -237,7 +240,7 @@ impl<
         let cg = self.graph.core_graph();
         self.nodes.par_iter().filter_map(move |n| {
             self.graph
-                .filter_node(cg.nodes.get(n), self.graph.layer_ids())
+                .filter_node(cg.nodes().node(n), self.graph.layer_ids())
                 .then(|| {
                     (
                         NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
@@ -272,11 +275,11 @@ impl<
         }
     }
 
-    fn get_by_node<N: Into<NodeRef>>(
+    fn get_by_node<N: AsNodeRef>(
         &self,
         node: N,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        let vid = self.graph.internalise_node(node.into())?;
+        let vid = self.graph.internalise_node(node.as_node_ref())?;
         match &self.nodes {
             NodeList::All { .. } => {}
             NodeList::List { nodes } => {
@@ -287,7 +290,7 @@ impl<
         }
         let cg = self.graph.core_graph();
         self.graph
-            .filter_node(cg.nodes.get(vid), self.graph.layer_ids())
+            .filter_node(cg.nodes().node(vid), self.graph.layer_ids())
             .then(|| {
                 (
                     NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, vid),
