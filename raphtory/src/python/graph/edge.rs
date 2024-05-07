@@ -14,7 +14,7 @@ use crate::{
                 StaticGraphViewOps,
             },
         },
-        graph::{edge::EdgeView, views::deletion_graph::GraphWithDeletions},
+        graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
     python::{types::repr::Repr, utils::PyTime},
@@ -107,7 +107,7 @@ impl IntoPy<PyObject> for EdgeView<Graph, Graph> {
     }
 }
 
-impl IntoPy<PyObject> for EdgeView<GraphWithDeletions, GraphWithDeletions> {
+impl IntoPy<PyObject> for EdgeView<PersistentGraph, PersistentGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph: MaterializedGraph = self.base_graph.into();
@@ -341,6 +341,17 @@ impl Repr for PyMutableEdge {
 }
 #[pymethods]
 impl PyMutableEdge {
+    /// Add updates to an edge in the graph at a specified time.
+    /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
+    ///
+    /// Parameters:
+    ///     t (PyTime): The timestamp at which the updates should be applied.
+    ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
+    ///         Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///         If None, no properties are updated.
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
     fn add_updates(
         &self,
         t: PyTime,
@@ -351,12 +362,44 @@ impl PyMutableEdge {
             .add_updates(t, properties.unwrap_or_default(), layer)
     }
 
+    /// Add constant properties to an edge in the graph.
+    /// This function is used to add properties to an edge that remain constant and do not
+    /// change over time. These properties are fundamental attributes of the edge.
+    ///
+    /// Parameters:
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+    ///     Each key is a string representing the property name, and each value is of type Prop
+    ///     representing the property value.
+    ///     layer (str): The layer you want these properties to be added on to.
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
     fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         self.edge.add_constant_properties(properties, layer)
+    }
+
+    /// Update constant properties of an edge in the graph overwriting existing values.
+    /// This function is used to add properties to an edge that remains constant and does not
+    /// change over time. These properties are fundamental attributes of the edge.
+    ///
+    /// Parameters:
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+    ///     Each key is a string representing the property name, and each value is of type Prop
+    ///     representing the property value.
+    ///     layer (str): The layer you want these properties to be added on to.
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    pub fn update_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.edge.update_constant_properties(properties, layer)
     }
 
     fn __repr__(&self) -> String {

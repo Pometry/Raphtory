@@ -42,16 +42,26 @@ impl Node {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
-
     async fn layers(&self, names: Vec<String>) -> Node {
         self.vv.valid_layers(names).into()
     }
+
+    async fn exclude_layers(&self, names: Vec<String>) -> Node {
+        self.vv.exclude_valid_layers(names).into()
+    }
+
     async fn layer(&self, name: String) -> Node {
         self.vv.valid_layers(name).into()
     }
+
+    async fn exclude_layer(&self, name: String) -> Node {
+        self.vv.exclude_valid_layers(name).into()
+    }
+
     async fn window(&self, start: i64, end: i64) -> Node {
         self.vv.window(start, end).into()
     }
+
     async fn at(&self, time: i64) -> Node {
         self.vv.at(time).into()
     }
@@ -79,7 +89,6 @@ impl Node {
     ////////////////////////
     //// TIME QUERIES //////
     ////////////////////////
-
     async fn earliest_time(&self) -> Option<i64> {
         self.vv.earliest_time()
     }
@@ -107,6 +116,7 @@ impl Node {
     async fn history(&self) -> Vec<i64> {
         self.vv.history()
     }
+
     ////////////////////////
     /////// PROPERTIES /////
     ////////////////////////
@@ -120,6 +130,7 @@ impl Node {
     async fn properties(&self) -> GqlProperties {
         Into::<DynProperties>::into(self.vv.properties()).into()
     }
+
     ////////////////////////
     //// EDGE GETTERS //////
     ////////////////////////
@@ -150,6 +161,7 @@ impl Node {
             None => self.vv.edges().iter().map(|ee| ee.into()).collect(),
         }
     }
+
     async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
         match filter {
             Some(filter) => self
@@ -195,7 +207,6 @@ impl Node {
     ////////////////////////
     // GRAPHQL SPECIFIC ////
     ////////////////////////
-
     async fn expanded_edges(
         &self,
         graph_nodes: Vec<String>,

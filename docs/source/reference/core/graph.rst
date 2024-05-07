@@ -9,7 +9,7 @@ Graph
    :inherited-members:
 
 
-.. autoclass:: raphtory.GraphWithDeletions
+.. autoclass:: raphtory.PersistentGraph
    :autosummary:
    :members:
    :undoc-members:

@@ -15,7 +15,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::deletion_graph::GraphWithDeletions,
+            views::deletion_graph::PersistentGraph,
         },
     },
     prelude::Graph,
@@ -311,7 +311,7 @@ impl IntoPy<PyObject> for NodeView<Graph, Graph> {
     }
 }
 
-impl IntoPy<PyObject> for NodeView<GraphWithDeletions, GraphWithDeletions> {
+impl IntoPy<PyObject> for NodeView<PersistentGraph, PersistentGraph> {
     fn into_py(self, py: Python<'_>) -> PyObject {
         let graph: MaterializedGraph = self.graph.into();
         let base_graph = graph.clone();
@@ -376,12 +376,30 @@ impl PyMutableNode {
     ///     representing the property value.
     ///
     /// Returns:
-    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError..
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
     pub fn add_constant_properties(
         &self,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
         self.node.add_constant_properties(properties)
+    }
+
+    /// Update constant properties of a node in the graph overwriting existing values.
+    /// This function is used to add properties to a node that remain constant and do not
+    /// change over time. These properties are fundamental attributes of the node.
+    ///
+    /// Parameters:
+    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    ///     Each key is a string representing the property name, and each value is of type Prop
+    ///     representing the property value.
+    ///
+    /// Returns:
+    ///     Result: A result object indicating success or failure. On failure, it contains a GraphError.
+    pub fn update_constant_properties(
+        &self,
+        properties: HashMap<String, Prop>,
+    ) -> Result<(), GraphError> {
+        self.node.update_constant_properties(properties)
     }
 
     /// Return a string representation of the node.
