@@ -34,18 +34,12 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
     Ok(df)
 }
 
-pub async fn run_cypher_optim(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
-    let (ctx, plan) = prepare_plan(query, g, true).await?;
-    let df = ctx.execute_logical_plan(plan).await?;
-    Ok(df)
-}
-
 pub async fn prepare_plan(
     query: &str,
     g: &ArrowGraph,
     enable_hop_optim: bool,
 ) -> Result<(SessionContext, LogicalPlan), ExecError> {
-    println!("Running query: {:?}", query);
+    // println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
     let config = SessionConfig::from_env()?.with_information_schema(true);
@@ -101,7 +95,7 @@ pub async fn prepare_plan(
     ctx.refresh_catalogs().await?;
     let query = transpiler::to_sql(query, g);
 
-    println!("SQL: {:?}", query.to_string());
+    // println!("SQL: {:?}", query.to_string());
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -152,35 +146,35 @@ mod test {
 
     use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
 
-    use crate::{run_cypher, run_cypher_optim, run_sql};
+    use crate::{run_cypher, run_sql};
 
     lazy_static::lazy_static! {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
-            // (0, 1, 1, 3.),
+            (0, 1, 1, 3.),
             (0, 1, 2, 4.),
-            // (0, 3, 0, 1.),
+            (0, 3, 0, 1.),
             (1, 2, 2, 4.),
             (1, 2, 3, 4.),
-            // (1, 5, 1, 1.),
-            // (2, 3, 5, 5.),
-            // (3, 4, 1, 6.),
-            // (3, 4, 3, 6.),
-            // (3, 5, 7, 6.),
-            // (4, 5, 9, 7.),
+            (1, 5, 1, 1.),
+            (2, 3, 5, 5.),
+            (3, 4, 1, 6.),
+            (3, 4, 3, 6.),
+            (3, 5, 7, 6.),
+            (4, 5, 9, 7.),
         ];
 
     static ref EDGES2: Vec<(u64, u64, i64, f64, String)> = vec![
-            // (0, 1, 1, 3., "baa".to_string()),
-            // (0, 2, 2, 7., "buu".to_string()),
+            (0, 1, 1, 3., "baa".to_string()),
+            (0, 2, 2, 7., "buu".to_string()),
             (2, 3, 1, 9., "xbaa".to_string()),
             (2, 3, 2, 1., "xbaa".to_string()),
             (1, 0, 3, 4., "beea".to_string()),
             (1, 0, 3, 1., "beex".to_string()),
-            // (4, 1, 5, 5., "baaz".to_string()),
-            // (4, 5, 1, 6., "bxx".to_string()),
-            // (5, 6, 3, 6., "mbaa".to_string()),
-            // (6, 4, 7, 8., "baa".to_string()),
-            // (6, 4, 9, 7., "bzz".to_string()),
+            (4, 1, 5, 5., "baaz".to_string()),
+            (4, 5, 1, 6., "bxx".to_string()),
+            (5, 6, 3, 6., "mbaa".to_string()),
+            (6, 4, 7, 8., "baa".to_string()),
+            (6, 4, 9, 7., "bzz".to_string()),
         ];
 
         // a star graph with 5 nodes an 4 edges
@@ -618,18 +612,6 @@ mod test {
         .unwrap();
 
         let data = df.collect().await.unwrap();
-
-        print_batches(&data).expect("failed to print batches");
-
-        let df = run_cypher_optim(
-            "match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN count(*)",
-            &graph,
-        )
-        .await
-        .unwrap();
-
-        let data = df.collect().await.unwrap();
-
         print_batches(&data).expect("failed to print batches");
     }
 

@@ -305,7 +305,8 @@ impl Stream for HopStream {
     }
 }
 
-// FIXME: this will fail when prev_node is the same but the src node changes
+// FIXME: this will fail when prev_node (dst) is the same but the src node changes
+// because we're not resetting the edge and time positions
 fn produce_next_record(
     rb: &RecordBatch,
     row_pos: &mut usize,
@@ -324,10 +325,11 @@ fn produce_next_record(
     right_schema: DFSchemaRef,
     right_proj: Option<Vec<usize>>,
 ) -> Option<Result<RecordBatch, DataFusionError>> {
-    // println!(
-    //     "produce_next_record row: {} edge: {} layer: {} time: {} max_rows: {}",
-    //     row_pos, edge_pos, time_pos, layer_pos, max_record_rows
-    // );
+    // if let Some(VID(0)) = prev_node {
+    //     println!(
+    //         "produce_next_record row: {row_pos} edge: {edge_pos} layer: {layer_pos} time: {time_pos} max_rows: {max_record_rows}, prev_node: {prev_node:?}",
+    //     );
+    // }
     // print_batches(&[rb.clone()]);
 
     let rb = rb.slice(*row_pos, rb.num_rows() - *row_pos);
@@ -543,12 +545,14 @@ mod test {
     use arrow_schema::{ArrowError, Field};
     use datafusion::{
         common::{DFSchema, ToDFSchema},
+        dataframe::DataFrame,
         physical_plan::stream::RecordBatchStreamAdapter,
     };
     use futures::stream;
     use tempfile::tempdir;
 
     use pretty_assertions::assert_eq;
+    use proptest::proptest;
     lazy_static::lazy_static! {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
             (0, 1, 0, 3.),
@@ -592,6 +596,79 @@ mod test {
     #[tokio::test]
     async fn stream_one_hop_from_07_bs1_split_input() {
         check_rb_hop(1, 2, 2, &[0..2, 2..7], 0..6).await;
+    }
+
+    use crate::executor::ExecError;
+    use crate::{prepare_plan, run_cypher};
+    use proptest::prelude::*;
+    use raphtory::{graphgen::random_attachment::random_attachment, prelude::*};
+
+    proptest! {
+        #[test]
+        fn stream_one_hop_from_07_bs1_split_input_proptest(
+            batch_size in 1usize..17,
+            chunk_size in 1usize..23,
+            t_props_chunk_size in 1usize..11,
+            edges in (1..5usize).prop_map(|num_nodes| graph_gen_edges(num_nodes))
+        ) {
+            tokio::runtime::Runtime::new().unwrap().block_on(
+                check_random_hop(batch_size, chunk_size, t_props_chunk_size, &edges)
+            );
+        }
+    }
+
+    fn graph_gen_edges(num_nodes: usize) -> Vec<(u64, u64, i64, f64)> {
+        let graph = Graph::new();
+        random_attachment(&graph, num_nodes, 10, None);
+        let mut edges = vec![];
+        for edge in graph.edges().into_iter() {
+            for e in edge.explode() {
+                let e_ref = e.edge;
+                edges.push((
+                    e_ref.src().0 as u64,
+                    e_ref.dst().0 as u64,
+                    e_ref.time_t().unwrap(),
+                    0.,
+                ));
+            }
+        }
+        edges.sort_by_key(|(src, dst, t, _)| (*src, *dst, *t));
+        edges
+    }
+
+    async fn check_random_hop(
+        batch_size: usize,
+        chunk_size: usize,
+        t_props_chunk_size: usize,
+        edges: &[(u64, u64, i64, f64)],
+    ) {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
+
+        let now = std::time::Instant::now();
+        let df = run_cypher_with_joins("MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)", &graph)
+            .await
+            .unwrap();
+
+        let rbs = df.collect().await.unwrap();
+        assert!(!rbs.is_empty());
+        let col_hop = &rbs[0].columns()[0];
+
+        let df = run_cypher("MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)", &graph)
+            .await
+            .unwrap();
+
+        let rbs = df.collect().await.unwrap();
+        assert!(!rbs.is_empty());
+        let col_join = &rbs[0].columns()[0];
+
+        assert_eq!(col_hop, col_join);
+    }
+
+    async fn run_cypher_with_joins(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
+        let (ctx, plan) = prepare_plan(query, g, true).await?;
+        let df = ctx.execute_logical_plan(plan).await?;
+        Ok(df)
     }
 
     async fn check_rb_hop(
@@ -655,14 +732,14 @@ mod test {
         RecordBatch::try_new(
             output_schema.clone(),
             vec![
-                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0, 0]), // layer_id
                 arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2, 4]), // edge_id
+                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0, 0]), // layer_id
                 arr::<UInt64Type>(vec![0u64, 1, 1, 1, 2, 2]), // src
                 arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3, 5]), // dst
                 arr::<Int64Type>(vec![0i64, 1, 1, 1, 2, 4]),  // ts
                 arr::<Float64Type>(vec![3., 4., 4., 4., 5., 7.]), // weight
-                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0, 0]), // layer_id
                 arr::<UInt64Type>(vec![1u64, 2, 3, 4, 5, 6]), // edge_id
+                arr::<UInt64Type>(vec![0u64, 0, 0, 0, 0, 0]), // layer_id
                 arr::<UInt64Type>(vec![1u64, 2, 2, 2, 3, 5]), // src
                 arr::<UInt64Type>(vec![2u64, 3, 4, 5, 4, 4]), //dst
                 arr::<Int64Type>(vec![1i64, 2, 3, 4, 5, 7]),  // ts
@@ -677,8 +754,8 @@ mod test {
 
     fn make_input_schema() -> Schema {
         Schema::new(vec![
-            Field::new("layer_id", DataType::UInt64, false),
             Field::new("edge_id", DataType::UInt64, false),
+            Field::new("layer_id", DataType::UInt64, false),
             Field::new("src", DataType::UInt64, false),
             Field::new("dst", DataType::UInt64, false),
             Field::new("timestamp", DataType::Int64, false),
@@ -688,14 +765,14 @@ mod test {
 
     fn make_out_schema() -> SchemaRef {
         Arc::new(Schema::new(vec![
-            Field::new("layer_id", DataType::UInt64, false),
             Field::new("edge_id", DataType::UInt64, false),
+            Field::new("layer_id", DataType::UInt64, false),
             Field::new("src", DataType::UInt64, false),
             Field::new("dst", DataType::UInt64, false),
             Field::new("timestamp", DataType::Int64, false),
             Field::new("weight", DataType::Float64, true),
-            Field::new("layer_id", DataType::UInt64, false),
             Field::new("edge_id", DataType::UInt64, false),
+            Field::new("layer_id", DataType::UInt64, false),
             Field::new("src", DataType::UInt64, false),
             Field::new("dst", DataType::UInt64, false),
             Field::new("timestamp", DataType::Int64, false),
@@ -727,8 +804,8 @@ mod test {
 
     fn make_rb(schema: Arc<Schema>) -> Result<RecordBatch, DataFusionError> {
         let cols: Vec<ArrayRef> = vec![
-            Arc::new(UInt64Array::from(vec![0, 0, 0, 0, 0, 0, 0])), // layer_id
             Arc::new(UInt64Array::from(vec![0, 1, 2, 3, 4, 5, 6])), // edge_id
+            Arc::new(UInt64Array::from(vec![0, 0, 0, 0, 0, 0, 0])), // layer_id
             Arc::new(UInt64Array::from(vec![0, 1, 2, 2, 2, 3, 5])), // src
             Arc::new(UInt64Array::from(vec![1, 2, 3, 4, 5, 4, 4])), // dst
             Arc::new(Int64Array::from(vec![0, 1, 2, 3, 4, 5, 6])),  // timestamp

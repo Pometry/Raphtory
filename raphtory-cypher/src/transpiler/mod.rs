@@ -7,7 +7,6 @@ use crate::parser::ast::*;
 
 use arrow_schema::{Fields, Schema};
 
-use crate::executor::table_provider::node::lift_arrow_schema;
 use itertools::Itertools;
 use raphtory::{
     arrow::graph_impl::ArrowGraph,

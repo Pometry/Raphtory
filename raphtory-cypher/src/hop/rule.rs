@@ -83,19 +83,15 @@ impl OptimizerRule for HopRule {
                 return Ok(None);
             };
 
-            // simplest form TableScan -> TableScan
-            if let (LogicalPlan::SubqueryAlias(l_tbl), LogicalPlan::SubqueryAlias(r_tbl)) =
-                (left.as_ref(), right.as_ref())
-            {
-                if let (LogicalPlan::TableScan(l_tbl), LogicalPlan::TableScan(r_tbl)) =
-                    (l_tbl.input.as_ref(), r_tbl.input.as_ref())
-                {
+            // simplest form Any -> TableScan
+            if let (l_tbl, LogicalPlan::SubqueryAlias(r_tbl)) = (left.as_ref(), right.as_ref()) {
+                if let LogicalPlan::TableScan(r_tbl) = r_tbl.input.as_ref() {
                     let plan = LogicalPlan::Extension(Extension {
                         node: Arc::new(HopPlan::from_table_scans(
                             self.graph.clone(),
                             direction,
                             schema.clone(),
-                            l_tbl.clone(),
+                            l_tbl,
                             r_tbl.clone(),
                             hop_from_col.clone(),
                             on.clone(),

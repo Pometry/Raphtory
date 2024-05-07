@@ -68,14 +68,14 @@ impl HopPlan {
         graph: ArrowGraph,
         dir: Direction,
         schema: DFSchemaRef,
-        left: TableScan,
+        left: &LogicalPlan,
         right: TableScan,
         left_col: String,
         on: Vec<(Expr, Expr)>,
     ) -> Self {
         Self {
             graph: GraphHolder::new(graph),
-            input: Arc::new(LogicalPlan::TableScan(left)),
+            input: Arc::new(left.clone()),
             dir,
             out_schema: schema.clone(),
             left_col: left_col.to_string(),
