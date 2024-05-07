@@ -37,4 +37,4 @@ pub mod layout;
 pub mod metrics;
 pub mod motifs;
 pub mod pathing;
-pub mod temporal_bipartite_projection;
+pub mod projections;

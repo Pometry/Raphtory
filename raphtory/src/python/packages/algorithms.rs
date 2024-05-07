@@ -45,7 +45,7 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
+        projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     core::{entities::nodes::node_ref::NodeRef, Prop},
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},

@@ -48,11 +48,11 @@ fn populate_edges<G: StaticGraphViewOps, V: Into<NodeRef>>(
     if let Some(vertex) = g.node(v) {
         // get vector of vertices which need connecting up
         let mut visitors = vertex
-            .in_edges()
+            .edges()
             .explode()
             .iter()
             .map(|e| Visitor {
-                name: e.src().name(),
+                name: e.nbr().name(),
                 time: e.time().unwrap(),
             })
             .collect_vec();
