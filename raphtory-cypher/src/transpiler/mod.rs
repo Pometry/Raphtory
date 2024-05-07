@@ -7,6 +7,7 @@ use crate::parser::ast::*;
 
 use arrow_schema::{Fields, Schema};
 
+use crate::executor::table_provider::node::lift_arrow_schema;
 use itertools::Itertools;
 use raphtory::{
     arrow::graph_impl::ArrowGraph,
@@ -171,35 +172,24 @@ fn scan_edges_as_sql_cte(
     // this is the schema that all layers must match, any missing columns will be filled with NULLs
     let schema = Schema::try_merge(schemas).expect("failed to merge schemas");
 
-    if layer_names.len() > 1 {
-        let union_query = layer_names
-            .iter()
-            .map(|layer| select_scan_query(layer.as_ref(), graph, Some(&schema)))
-            // FIXME: there seems to be an issue in which DataFusion executes the query where it sometimes complains about the schema not matching
-            // this is an attempted workaround where we lift the most descriptive schema (the one with fewest nulls) to the top of the UNION ALL
-            .sorted_by(|(null_count1, _), (null_count2, _)| null_count1.cmp(null_count2))
-            .map(|(_, query)| query)
-            .reduce(query_union)
-            .unwrap();
-        sql_ast::Cte {
-            alias: TableAlias {
-                name: sql_ast::Ident::new(name.as_ref()),
-                columns: vec![],
-            },
-            query: union_query,
-            from: None,
-            materialized: None,
-        }
-    } else {
-        sql_ast::Cte {
-            alias: TableAlias {
-                name: sql_ast::Ident::new(name.as_ref()),
-                columns: vec![],
-            },
-            query: select_scan_query(layer_names.first().unwrap().as_ref(), graph, None).1,
-            from: None,
-            materialized: None,
-        }
+    let union_query = layer_names
+        .iter()
+        .map(|layer| select_scan_query(layer.as_ref(), graph, Some(&schema)))
+        // FIXME: there seems to be an issue in which DataFusion executes the query where it sometimes complains about the schema not matching
+        // this is an attempted workaround where we lift the most descriptive schema (the one with fewest nulls) to the top of the UNION ALL
+        .sorted_by(|(null_count1, _), (null_count2, _)| null_count1.cmp(null_count2))
+        .map(|(_, query)| query)
+        .reduce(query_union)
+        .unwrap();
+
+    sql_ast::Cte {
+        alias: TableAlias {
+            name: sql_ast::Ident::new(name.as_ref()),
+            columns: vec![],
+        },
+        query: union_query,
+        from: None,
+        materialized: None,
     }
 }
 
@@ -623,10 +613,6 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
 }
 
 fn unique_edge_filter(a: &str, b: &str) -> Expr {
-    // Expr::and(
-    //     Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"])),
-    //     Expr::neq(Expr::var(a, ["layer_id"]), Expr::var(b, ["layer_id"])),
-    // )
     Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"]))
 }
 

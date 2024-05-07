@@ -63,7 +63,7 @@ impl NodeTableProvider {
     }
 }
 
-fn lift_arrow_schema(
+pub fn lift_arrow_schema(
     gid_dt: arrow2::datatypes::DataType,
     properties: Option<&Properties<VID>>,
 ) -> Result<SchemaRef, ExecError> {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use datafusion::{
-    common::{Column, DFSchemaRef},
+    common::DFSchemaRef,
     logical_expr::{
         expr::Alias, BinaryExpr, Expr, LogicalPlan, Operator, TableScan, UserDefinedLogicalNodeCore,
     },
@@ -10,7 +10,7 @@ use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 
 #[derive(Debug, PartialEq, Hash, Eq)]
 pub struct HopPlan {
-    pub graph: GraphHolder,
+    graph: GraphHolder,
     input: Arc<LogicalPlan>,
     pub dir: Direction,
     pub left_col: String,
@@ -18,6 +18,7 @@ pub struct HopPlan {
     pub right_schema: DFSchemaRef, // helps pick the columns from the edge list we're hopping onto
     pub right_layers: Vec<String>, // what layers are we hopping onto
     pub expressions: Vec<(Expr, Expr)>, // [left.col == right.col]
+    pub right_proj: Option<Vec<usize>>,
 }
 
 #[derive(Clone)]
@@ -81,6 +82,7 @@ impl HopPlan {
             right_schema: right.projected_schema,
             right_layers: vec![right.table_name.to_string()],
             expressions: on.iter().cloned().collect(),
+            right_proj: right.projection,
         }
     }
 }
@@ -98,7 +100,7 @@ impl UserDefinedLogicalNodeCore for HopPlan {
         &self.out_schema
     }
 
-    fn expressions(&self) -> Vec<datafusion::prelude::Expr> {
+    fn expressions(&self) -> Vec<Expr> {
         vec![]
     }
 
@@ -121,7 +123,7 @@ impl UserDefinedLogicalNodeCore for HopPlan {
         )
     }
 
-    fn from_template(&self, exprs: &[datafusion::prelude::Expr], inputs: &[LogicalPlan]) -> Self {
+    fn from_template(&self, exprs: &[Expr], inputs: &[LogicalPlan]) -> Self {
         assert_eq!(inputs.len(), 1);
         assert_eq!(exprs.len(), 0); // (eg JOIN on edge1.src = edge2.dst for -[]->()-[]->)
                                     // let expr = exprs.first().unwrap();
@@ -135,6 +137,7 @@ impl UserDefinedLogicalNodeCore for HopPlan {
             right_schema: self.right_schema.clone(),
             right_layers: self.right_layers.clone(),
             expressions: self.expressions.clone(),
+            right_proj: self.right_proj.clone(),
         }
     }
 }

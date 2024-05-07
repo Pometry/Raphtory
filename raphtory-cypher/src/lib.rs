@@ -29,7 +29,7 @@ pub mod parser;
 pub mod transpiler;
 
 pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
-    let (ctx, plan) = prepare_plan(query, g, false).await?;
+    let (ctx, plan) = prepare_plan(query, g, true).await?;
     let df = ctx.execute_logical_plan(plan).await?;
     Ok(df)
 }
@@ -610,17 +610,23 @@ mod test {
         let data = df.collect().await.unwrap();
         print_batches(&data).expect("failed to print batches");
 
-        let df = run_cypher("match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN *", &graph)
-            .await
-            .unwrap();
+        let df = run_cypher(
+            "match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN count(*)",
+            &graph,
+        )
+        .await
+        .unwrap();
 
         let data = df.collect().await.unwrap();
 
         print_batches(&data).expect("failed to print batches");
 
-        let df = run_cypher_optim("match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN *", &graph)
-            .await
-            .unwrap();
+        let df = run_cypher_optim(
+            "match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN count(*)",
+            &graph,
+        )
+        .await
+        .unwrap();
 
         let data = df.collect().await.unwrap();
 
