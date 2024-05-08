@@ -16,6 +16,7 @@ use crate::{
 use rayon::prelude::*;
 use std::{marker::PhantomData, sync::Arc};
 
+#[derive(Clone)]
 pub struct LazyNodeState<'graph, V, G, GH = G> {
     op: Arc<dyn Fn(&GraphStorage, &GH, VID) -> V + Send + Sync + 'graph>,
     base_graph: G,
