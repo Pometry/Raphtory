@@ -7,8 +7,11 @@ use crate::{
 };
 
 #[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::edges::{ArrowEdges, ArrowEdgesRef};
+use crate::arrow::storage_interface::edges_ref::ArrowEdgesRef;
 
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::edges::ArrowEdges;
+use crate::db::api::storage::edges::edge_storage_ops::EdgeStorageOps;
 use either::Either;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;

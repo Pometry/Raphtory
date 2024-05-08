@@ -73,7 +73,7 @@ impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
 impl<G: InheritViewOps> InheritListOps for G {}
 
-impl<G: InheritViewOps> InheritCoreDeletionOps for G {}
+impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 impl<G: InheritViewOps> InheritEdgeFilterOps for G {}
 impl<G: InheritViewOps> InheritLayerOps for G {}
 impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}

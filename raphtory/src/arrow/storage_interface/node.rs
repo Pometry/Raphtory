@@ -9,90 +9,22 @@ use crate::{
     },
     db::api::{
         storage::{
-            direction_variants::DirectionVariants,
-            layer_variants::LayerVariants,
-            node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            nodes::node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+            tprop_storage_ops::TPropOps,
+            variants::{direction_variants::DirectionVariants, layer_variants::LayerVariants},
         },
         view::internal::NodeAdditions,
     },
 };
 use itertools::Itertools;
-use rayon::prelude::*;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
-pub struct ArrowNodesRef<'a> {
-    num_nodes: usize,
-    properties: Option<&'a Properties<VID>>,
-    layers: &'a Arc<[TempColGraphFragment]>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ArrowNodesOwned {
-    num_nodes: usize,
-    properties: Option<Properties<VID>>,
-    layers: Arc<[TempColGraphFragment]>,
-}
-
-impl ArrowNodesOwned {
-    pub(crate) fn new(graph: &TemporalGraph) -> Self {
-        Self {
-            num_nodes: graph.num_nodes(),
-            properties: graph.node_properties.clone(),
-            layers: graph.layers.clone(),
-        }
-    }
-
-    pub fn node(&self, vid: VID) -> ArrowNode {
-        ArrowNode {
-            properties: self.properties.as_ref(),
-            layers: &self.layers,
-            vid,
-        }
-    }
-
-    pub fn as_ref(&self) -> ArrowNodesRef {
-        ArrowNodesRef {
-            num_nodes: self.num_nodes,
-            properties: self.properties.as_ref(),
-            layers: &self.layers,
-        }
-    }
-}
-
-impl<'a> ArrowNodesRef<'a> {
-    pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
-        Self {
-            num_nodes: graph.num_nodes(),
-            properties: graph.node_properties.as_ref(),
-            layers: &graph.layers,
-        }
-    }
-
-    pub fn node(self, vid: VID) -> ArrowNode<'a> {
-        ArrowNode {
-            properties: self.properties,
-            layers: self.layers,
-            vid,
-        }
-    }
-
-    pub fn par_iter(self) -> impl IndexedParallelIterator<Item = ArrowNode<'a>> {
-        (0..self.num_nodes)
-            .into_par_iter()
-            .map(move |vid| self.node(VID(vid)))
-    }
-
-    pub fn iter(self) -> impl Iterator<Item = ArrowNode<'a>> {
-        (0..self.num_nodes).map(move |vid| self.node(VID(vid)))
-    }
-}
-
-#[derive(Copy, Clone, Debug)]
 pub struct ArrowNode<'a> {
-    properties: Option<&'a Properties<VID>>,
-    layers: &'a Arc<[TempColGraphFragment]>,
-    vid: VID,
+    pub(super) properties: Option<&'a Properties<VID>>,
+    pub(super) layers: &'a Arc<[TempColGraphFragment]>,
+    pub(super) vid: VID,
 }
 
 impl<'a> ArrowNode<'a> {
@@ -266,6 +198,13 @@ impl<'a> NodeStorageOps<'a> for ArrowNode<'a> {
 
     fn additions(self) -> NodeAdditions<'a> {
         self.additions_for_layers(&LayerIds::All)
+    }
+
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        self.properties
+            .unwrap()
+            .temporal_props
+            .prop(self.vid, prop_id)
     }
 
     fn edges_iter(
@@ -489,6 +428,11 @@ impl<'a> NodeStorageOps<'a> for &'a ArrowOwnedNode {
     #[inline]
     fn additions(self) -> NodeAdditions<'a> {
         self.as_ref().additions()
+    }
+
+    #[inline]
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        self.as_ref().tprop(prop_id)
     }
 
     #[inline]

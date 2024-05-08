@@ -1,6 +1,6 @@
-use crate::db::{
-    api::view::{internal::InternalMaterialize, MaterializedGraph},
-    graph::graph::InternalGraph,
+use crate::{
+    core::entities::graph::tgraph::InternalGraph,
+    db::api::view::{internal::InternalMaterialize, MaterializedGraph},
 };
 
 use super::ArrowGraph;

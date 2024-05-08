@@ -1775,7 +1775,7 @@ dependencies = [
 
 [[package]]
 name = "examples"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "chrono",
  "itertools 0.12.1",
@@ -2080,7 +2080,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "graph500"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
@@ -2445,7 +2445,7 @@ dependencies = [
 
 [[package]]
 name = "js-raphtory"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -2491,7 +2491,7 @@ dependencies = [
 
 [[package]]
 name = "lanl"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
@@ -2867,7 +2867,7 @@ dependencies = [
 
 [[package]]
 name = "netflow_algorithm"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -3882,7 +3882,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "ahash",
  "arrow2",
@@ -3945,7 +3945,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arrow2",
  "criterion",
@@ -3953,11 +3953,12 @@ dependencies = [
  "raphtory",
  "rayon",
  "sorted_vector_map",
+ "tempfile",
 ]
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -3988,7 +3989,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "async-graphql",
  "async-graphql-poem",
@@ -4024,7 +4025,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "async-graphql",
  "crossbeam-channel",
@@ -4043,7 +4044,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-rust-benchmark"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "chrono",
  "clap",
@@ -4057,7 +4058,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "ahash",
  "arrow2",
@@ -4305,7 +4306,7 @@ dependencies = [
 
 [[package]]
 name = "run_server"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "raphtory-graphql",
  "tokio",

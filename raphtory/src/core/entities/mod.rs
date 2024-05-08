@@ -3,7 +3,6 @@
 use std::{ops::Deref, sync::Arc};
 
 use crate::core::entities::edges::edge_ref::EdgeRef;
-use edges::edge::ERef;
 use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
 use nodes::{node_ref::NodeRef, node_store::NodeStore};
 use serde::{Deserialize, Serialize};
@@ -101,46 +100,6 @@ impl From<usize> for EID {
     fn from(id: usize) -> Self {
         EID(id)
     }
-}
-
-pub(crate) enum VRef<'a> {
-    Entry(Entry<'a, NodeStore>),
-    // returned from graph.node
-    LockedEntry(GraphEntry<NodeStore>), // returned from locked_nodes
-}
-
-// return index -> usize for VRef
-impl<'a> VRef<'a> {
-    fn edge_ref<const N: usize>(&self, edge_id: EID, graph: &'a TGraph<N>) -> ERef<'a> {
-        match self {
-            VRef::Entry(_) => ERef::ERef(graph.edge_entry(edge_id)),
-            VRef::LockedEntry(ge) => ERef::ELock {
-                lock: ge.locked_gs().clone(),
-                eid: edge_id,
-            },
-        }
-    }
-}
-
-impl<'a> Deref for VRef<'a> {
-    type Target = NodeStore;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            VRef::Entry(e) => e,
-            VRef::LockedEntry(e) => e,
-        }
-    }
-}
-
-pub(crate) trait GraphItem<'a, const N: usize> {
-    fn from_edge_ids(
-        src: VID,
-        dst: VID,
-        e_id: ERef<'a>,
-        dir: Direction,
-        graph: &'a TGraph<N>,
-    ) -> Self;
 }
 
 #[derive(Clone, Debug)]

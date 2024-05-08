@@ -245,7 +245,7 @@ pub trait TimeSemantics {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
@@ -269,7 +269,7 @@ pub trait TimeSemantics {
         id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)>;
 
     /// Check if edge has temporal property with the given id
@@ -278,7 +278,7 @@ pub trait TimeSemantics {
     ///
     /// * `e` - The id of the edge
     /// * `prop_id` - The id of the property to retrieve.
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool;
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool;
 
     /// Returns a vector of tuples containing the values of the temporal property with the given name
     /// for the given edge reference.
@@ -295,7 +295,7 @@ pub trait TimeSemantics {
         &self,
         e: EdgeRef,
         id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)>;
 }
 
@@ -553,7 +553,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         e: EdgeRef,
         prop_id: usize,
         w: Range<i64>,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> bool {
         self.graph()
             .has_temporal_edge_prop_window(e, prop_id, w, layer_ids)
@@ -566,13 +566,13 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         prop_id: usize,
         start: i64,
         end: i64,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph()
             .temporal_edge_prop_vec_window(e, prop_id, start, end, layer_ids)
     }
 
-    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: LayerIds) -> bool {
+    fn has_temporal_edge_prop(&self, e: EdgeRef, prop_id: usize, layer_ids: &LayerIds) -> bool {
         self.graph().has_temporal_edge_prop(e, prop_id, layer_ids)
     }
 
@@ -581,7 +581,7 @@ impl<G: DelegateTimeSemantics + ?Sized> TimeSemantics for G {
         &self,
         e: EdgeRef,
         prop_id: usize,
-        layer_ids: LayerIds,
+        layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
         self.graph().temporal_edge_prop_vec(e, prop_id, layer_ids)
     }

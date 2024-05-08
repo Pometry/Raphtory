@@ -1,10 +1,16 @@
 #[cfg(feature = "arrow")]
 use crate::{
-    arrow::graph::TemporalGraph,
-    db::api::storage::arrow::{
-        edges::{ArrowEdges, ArrowEdgesRef},
-        nodes::{ArrowNode, ArrowNodesOwned, ArrowNodesRef, ArrowOwnedNode},
+    arrow::{
+        graph::TemporalGraph,
+        storage_interface::{
+            edges::ArrowEdges,
+            edges_ref::ArrowEdgesRef,
+            node::{ArrowNode, ArrowOwnedNode},
+            nodes::ArrowNodesOwned,
+            nodes_ref::ArrowNodesRef,
+        },
     },
+    db::api::storage::variants::storage_variants::StorageVariants,
 };
 use crate::{
     core::{
@@ -13,19 +19,20 @@ use crate::{
     },
     db::api::{
         storage::{
-            edge_storage_ops::EdgeStorageOps,
             edges::{
                 edge_ref::EdgeStorageRef,
+                edge_storage_ops::EdgeStorageOps,
                 edges::{EdgesStorage, EdgesStorageRef},
             },
-            filter_variants::FilterVariants,
             locked::LockedGraph,
-            node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
             nodes::{
                 node_owned_entry::NodeOwnedEntry,
                 node_ref::NodeStorageRef,
-                nodes::{NodesStorage, NodesStorageRef},
+                node_storage_ops::{NodeStorageIntoOps, NodeStorageOps},
+                nodes::NodesStorage,
+                nodes_ref::NodesStorageRef,
             },
+            variants::filter_variants::FilterVariants,
         },
         view::{
             internal::{FilterOps, FilterState, NodeList},
@@ -35,7 +42,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use rayon::{iter::Either, prelude::*};
+use rayon::prelude::*;
 use std::{iter, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -233,7 +240,6 @@ impl GraphStorage {
         filtered.map(|e| e.out_ref())
     }
 
-    #[cfg(not(feature = "arrow"))]
     pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
@@ -268,48 +274,16 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::<_, std::iter::Empty<EdgeRef>>::Left(filtered)
+                #[cfg(feature = "arrow")]
+                {
+                    StorageVariants::Mem(filtered)
+                }
+                #[cfg(not(feature = "arrow"))]
+                {
+                    filtered
+                }
             }
-        }
-    }
-
-    #[cfg(feature = "arrow")]
-    pub fn into_edges_iter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        view: G,
-    ) -> impl Iterator<Item = EdgeRef> + Send + 'graph {
-        let edges = self.owned_edges();
-        let nodes = self.owned_nodes();
-
-        match edges {
-            EdgesStorage::Mem(edges) => {
-                let iter = (0..edges.len()).map(EID);
-                let filtered = match view.filter_state() {
-                    FilterState::Neither => {
-                        FilterVariants::Neither(iter.map(move |eid| EdgeRef::from(edges.get(eid))))
-                    }
-                    FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
-                        let e = EdgeStorageRef::Mem(edges.get(e));
-                        (view.filter_edge(e, view.layer_ids())
-                            && view.filter_node(nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(nodes.node_ref(e.dst()), view.layer_ids()))
-                        .then(|| e.out_ref())
-                    })),
-                    FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
-                        let e = EdgeStorageRef::Mem(edges.get(e));
-                        (view.filter_node(nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(nodes.node_ref(e.dst()), view.layer_ids()))
-                        .then(|| e.out_ref())
-                    })),
-                    FilterState::Edges | FilterState::BothIndependent => {
-                        FilterVariants::Edges(iter.filter_map(move |e| {
-                            let e = EdgeStorageRef::Mem(edges.get(e));
-                            view.filter_edge(e, view.layer_ids()).then(|| e.out_ref())
-                        }))
-                    }
-                };
-                Either::Left(filtered)
-            }
+            #[cfg(feature = "arrow")]
             EdgesStorage::Arrow(edges) => {
                 let edges_clone = edges.clone();
                 let iter = edges_clone.into_iter_refs(view.layer_ids().clone());
@@ -358,7 +332,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::Right(filtered)
+                StorageVariants::Arrow(filtered)
             }
         }
     }
@@ -392,7 +366,6 @@ impl GraphStorage {
             .map(|e| e.out_ref())
     }
 
-    #[cfg(not(feature = "arrow"))]
     pub fn into_edges_par<'graph, G: GraphViewOps<'graph>>(
         self,
         view: G,
@@ -427,48 +400,16 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::<_, rayon::iter::Empty<EdgeRef>>::Left(filtered)
+                #[cfg(feature = "arrow")]
+                {
+                    StorageVariants::Mem(filtered)
+                }
+                #[cfg(not(feature = "arrow"))]
+                {
+                    filtered
+                }
             }
-        }
-    }
-
-    #[cfg(feature = "arrow")]
-    pub fn into_edges_par<'graph, G: GraphViewOps<'graph>>(
-        self,
-        view: G,
-    ) -> impl ParallelIterator<Item = EdgeRef> + 'graph {
-        let edges = self.owned_edges();
-        let nodes = self.owned_nodes();
-
-        match edges {
-            EdgesStorage::Mem(edges) => {
-                let iter = (0..edges.len()).into_par_iter().map(EID);
-                let filtered = match view.filter_state() {
-                    FilterState::Neither => {
-                        FilterVariants::Neither(iter.map(move |eid| EdgeRef::from(edges.get(eid))))
-                    }
-                    FilterState::Both => FilterVariants::Both(iter.filter_map(move |e| {
-                        let e = EdgeStorageRef::Mem(edges.get(e));
-                        (view.filter_edge(e, view.layer_ids())
-                            && view.filter_node(nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(nodes.node_ref(e.dst()), view.layer_ids()))
-                        .then(|| e.out_ref())
-                    })),
-                    FilterState::Nodes => FilterVariants::Nodes(iter.filter_map(move |e| {
-                        let e = EdgeStorageRef::Mem(edges.get(e));
-                        (view.filter_node(nodes.node_ref(e.src()), view.layer_ids())
-                            && view.filter_node(nodes.node_ref(e.dst()), view.layer_ids()))
-                        .then(|| e.out_ref())
-                    })),
-                    FilterState::Edges | FilterState::BothIndependent => {
-                        FilterVariants::Edges(iter.filter_map(move |e| {
-                            let e = EdgeStorageRef::Mem(edges.get(e));
-                            view.filter_edge(e, view.layer_ids()).then(|| e.out_ref())
-                        }))
-                    }
-                };
-                Either::Left(filtered)
-            }
+            #[cfg(feature = "arrow")]
             EdgesStorage::Arrow(edges) => {
                 let edges_clone = edges.clone();
                 let iter = edges_clone.into_par_iter_refs(view.layer_ids().clone());
@@ -519,7 +460,7 @@ impl GraphStorage {
                         }))
                     }
                 };
-                Either::Right(filtered)
+                StorageVariants::Arrow(filtered)
             }
         }
     }

@@ -3,16 +3,16 @@ use crate::core::entities::{nodes::node_store::NodeStore, EID, VID};
 use ouroboros::self_referencing;
 use std::{ops::Deref, sync::Arc};
 
-pub struct Iter<'a, T: Default, const N: usize, Index> {
-    raw: &'a RawStorage<T, N, Index>,
+pub struct Iter<'a, T: Default, Index> {
+    raw: &'a RawStorage<T, Index>,
     segment: usize,
     offset: usize,
     current: Option<GuardIter<'a, T>>,
 }
 
 // impl new for Iter
-impl<'a, T: Default, const N: usize, Index> Iter<'a, T, N, Index> {
-    pub fn new(raw: &'a RawStorage<T, N, Index>) -> Self {
+impl<'a, T: Default, Index> Iter<'a, T, Index> {
+    pub fn new(raw: &'a RawStorage<T, Index>) -> Self {
         Iter {
             raw,
             segment: 0,
@@ -27,23 +27,21 @@ type GuardIter<'a, T> = (
     std::slice::Iter<'a, T>,
 );
 
-pub struct RefT<'a, T, const N: usize> {
+pub struct RefT<'a, T> {
     _guard: Arc<parking_lot::RwLockReadGuard<'a, Vec<T>>>,
     t: &'a T,
-    i: usize,
 }
 
-impl<'a, T, const N: usize> Clone for RefT<'_, T, N> {
+impl<'a, T> Clone for RefT<'_, T> {
     fn clone(&self) -> Self {
         RefT {
             _guard: self._guard.clone(),
             t: self.t,
-            i: self.i,
         }
     }
 }
 
-impl<'a, T, const N: usize> Deref for RefT<'a, T, N> {
+impl<'a, T> Deref for RefT<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -52,13 +50,9 @@ impl<'a, T, const N: usize> Deref for RefT<'a, T, N> {
 }
 
 // simple impl for RefT that returns &T in the value function
-impl<'a, T, const N: usize> RefT<'a, T, N> {
+impl<'a, T> RefT<'a, T> {
     pub fn value(&self) -> &T {
         self.t
-    }
-
-    pub fn index(&self) -> usize {
-        self.i
     }
 }
 
@@ -70,25 +64,21 @@ pub unsafe fn change_lifetime_const<'b, T>(x: &T) -> &'b T {
     &*(x as *const T)
 }
 
-impl<'a, T: std::fmt::Debug + Default, const N: usize, Index> Iterator for Iter<'a, T, N, Index> {
-    type Item = RefT<'a, T, N>;
+impl<'a, T: std::fmt::Debug + Default, Index> Iterator for Iter<'a, T, Index> {
+    type Item = RefT<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             if let Some((guard, iter)) = self.current.as_mut() {
                 if let Some(t) = iter.next() {
                     let guard = guard.clone();
-                    let next = Some(RefT {
-                        _guard: guard,
-                        i: (self.offset * N + (self.segment - 1)),
-                        t,
-                    });
+                    let next = Some(RefT { _guard: guard, t });
                     self.offset += 1;
                     return next;
                 }
             }
 
-            if self.segment >= N {
+            if self.segment >= self.raw.data.len() {
                 return None;
             }
 

@@ -1,9 +1,9 @@
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, ArcStr, Prop},
+    core::{entities::graph::tgraph::InternalGraph, ArcStr, Prop},
     db::api::properties::internal::ConstPropertiesOps,
 };
 
-impl<const N: usize> ConstPropertiesOps for InnerTemporalGraph<N> {
+impl ConstPropertiesOps for InternalGraph {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.inner().graph_meta.get_const_prop_id(name)
     }

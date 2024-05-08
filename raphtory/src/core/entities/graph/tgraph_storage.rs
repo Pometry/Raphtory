@@ -15,19 +15,19 @@ use std::{
 };
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
-pub(crate) struct GraphStorage<const N: usize> {
+pub(crate) struct GraphStorage {
     // node storage with having (id, time_index, properties, adj list for each layer)
-    pub(crate) nodes: storage::RawStorage<NodeStore, N, VID>,
+    pub(crate) nodes: storage::RawStorage<NodeStore, VID>,
 
     // edge storage with having (src, dst, time_index, properties) for each layer
-    pub(crate) edges: storage::RawStorage<EdgeStore, N, EID>,
+    pub(crate) edges: storage::RawStorage<EdgeStore, EID>,
 }
 
-impl<const N: usize> GraphStorage<N> {
-    pub(crate) fn new() -> Self {
+impl GraphStorage {
+    pub(crate) fn new(num_locks: usize) -> Self {
         Self {
-            nodes: storage::RawStorage::new(),
-            edges: storage::RawStorage::new(),
+            nodes: storage::RawStorage::new(num_locks),
+            edges: storage::RawStorage::new(num_locks),
         }
     }
 
@@ -73,23 +73,6 @@ impl<const N: usize> GraphStorage<N> {
 
     pub(crate) fn pair_node_mut(&self, i: VID, j: VID) -> PairEntryMut<'_, NodeStore> {
         self.nodes.pair_entry_mut(i, j)
-    }
-
-    fn lock(&self) -> LockedGraphStorage {
-        LockedGraphStorage::new(self)
-    }
-
-    pub(crate) fn locked_nodes(&self) -> LockedIter<NodeStore> {
-        LockedIter {
-            from: 0,
-            to: self.nodes.len(),
-            locked_gs: Arc::new(self.lock()),
-            phantom: std::marker::PhantomData,
-        }
-    }
-
-    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = ArcEntry<EdgeStore>> {
-        self.edges.read_lock().into_iter()
     }
 
     pub(crate) fn edge_refs(&self) -> impl Iterator<Item = EdgeRef> + Send {
@@ -188,7 +171,7 @@ pub(crate) struct LockedGraphStorage {
 }
 
 impl LockedGraphStorage {
-    pub(crate) fn new<const N: usize>(storage: &GraphStorage<N>) -> Self {
+    pub(crate) fn new(storage: &GraphStorage) -> Self {
         Self {
             nodes: storage.nodes.read_lock(),
             edges: storage.edges.read_lock(),

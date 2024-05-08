@@ -17,7 +17,7 @@
 //!
 
 use crate::{
-    core::{entities::graph::tgraph::InnerTemporalGraph, utils::errors::GraphError},
+    core::{entities::graph::tgraph::InternalGraph, utils::errors::GraphError},
     db::api::{
         mutation::internal::InheritMutationOps,
         view::internal::{Base, InheritViewOps, MaterializedGraph, Static},
@@ -32,10 +32,6 @@ use std::{
 };
 
 use super::views::deletion_graph::PersistentGraph;
-
-const SEG: usize = 16;
-
-pub(crate) type InternalGraph = InnerTemporalGraph<SEG>;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

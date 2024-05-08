@@ -34,6 +34,7 @@ pub mod load;
 pub(crate) mod nodes;
 pub mod properties;
 pub mod query;
+pub mod storage_interface;
 pub(crate) mod timestamps;
 
 pub type Time = i64;

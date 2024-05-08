@@ -1,19 +1,25 @@
 use crate::{
     core::{
-        entities::{
-            properties::{props::DictMapper, tcell::TCell},
-            LayerIds,
-        },
-        storage::{locked_view::LockedView, timeindex::TimeIndexEntry},
+        entities::properties::tcell::TCell,
+        storage::timeindex::{AsTime, TimeIndexEntry},
         utils::errors::GraphError,
         ArcStr, DocumentInput, Prop, PropType,
     },
-    db::graph::graph::Graph,
+    db::{
+        api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
+        graph::graph::Graph,
+    },
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, iter, ops::Range, sync::Arc};
+use std::{
+    collections::HashMap,
+    iter,
+    ops::{Deref, Range},
+    sync::Arc,
+};
 
 // TODO TProp struct could be replaced with Option<TCell<Prop>>, with the only issue (or advantage) that then the type can change?
 
@@ -144,55 +150,9 @@ impl TProp {
         Ok(())
     }
 
-    pub(crate) fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
-        match self {
-            TProp::Empty => None,
-            TProp::Str(cell) => cell.at(ti).map(|v| Prop::Str(v.clone())),
-            TProp::I32(cell) => cell.at(ti).map(|v| Prop::I32(*v)),
-            TProp::I64(cell) => cell.at(ti).map(|v| Prop::I64(*v)),
-            TProp::U32(cell) => cell.at(ti).map(|v| Prop::U32(*v)),
-            TProp::U8(cell) => cell.at(ti).map(|v| Prop::U8(*v)),
-            TProp::U16(cell) => cell.at(ti).map(|v| Prop::U16(*v)),
-            TProp::U64(cell) => cell.at(ti).map(|v| Prop::U64(*v)),
-            TProp::F32(cell) => cell.at(ti).map(|v| Prop::F32(*v)),
-            TProp::F64(cell) => cell.at(ti).map(|v| Prop::F64(*v)),
-            TProp::Bool(cell) => cell.at(ti).map(|v| Prop::Bool(*v)),
-            TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
-            TProp::NDTime(cell) => cell.at(ti).map(|v| Prop::NDTime(*v)),
-            TProp::Graph(cell) => cell.at(ti).map(|v| Prop::Graph(v.clone())),
-            TProp::Document(cell) => cell.at(ti).map(|v| Prop::Document(v.clone())),
-            TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
-            TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
-        }
-    }
-
-    pub(crate) fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
-        match self {
-            TProp::Empty => None,
-            TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Str(v.clone()))),
-            TProp::I32(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::I32(*v))),
-            TProp::I64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::I64(*v))),
-            TProp::U8(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U8(*v))),
-            TProp::U16(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U16(*v))),
-            TProp::U32(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U32(*v))),
-            TProp::U64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U64(*v))),
-            TProp::F32(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::F32(*v))),
-            TProp::F64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::F64(*v))),
-            TProp::Bool(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Bool(*v))),
-            TProp::DTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::DTime(*v))),
-            TProp::NDTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::NDTime(*v))),
-            TProp::Graph(cell) => cell
-                .last_before(t)
-                .map(|(t, v)| (t, Prop::Graph(v.clone()))),
-            TProp::Document(cell) => cell
-                .last_before(t)
-                .map(|(t, v)| (t, Prop::Document(v.clone()))),
-            TProp::List(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::List(v.clone()))),
-            TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Map(v.clone()))),
-        }
-    }
-
-    pub(crate) fn iter(&self) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
+    pub(crate) fn iter_inner(
+        &self,
+    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => {
@@ -229,7 +189,7 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    pub(crate) fn iter_t(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -270,10 +230,10 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_window(
+    pub(crate) fn iter_window_inner(
         &self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + '_> {
+    ) -> Box<dyn Iterator<Item = (TimeIndexEntry, Prop)> + Send + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -342,10 +302,10 @@ impl TProp {
         }
     }
 
-    pub(crate) fn iter_window_t(
+    pub(crate) fn iter_window_inner_t(
         &self,
         r: Range<i64>,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    ) -> Box<dyn Iterator<Item = (i64, Prop)> + Send + '_> {
         match self {
             TProp::Empty => Box::new(iter::empty()),
             TProp::Str(cell) => Box::new(
@@ -416,92 +376,85 @@ impl TProp {
     }
 }
 
-pub enum LockedLayeredTProp<'a> {
-    VecProp(Vec<LockedView<'a, TProp>>),
-    One(&'a TProp),
-    External(Box<dyn TPropOps + 'a>),
-}
+impl<'a> TPropOps<'a> for &'a TProp {
+    fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
+        match self {
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Str(v.clone()))),
+            TProp::I32(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::I32(*v))),
+            TProp::I64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::I64(*v))),
+            TProp::U8(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U8(*v))),
+            TProp::U16(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U16(*v))),
+            TProp::U32(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U32(*v))),
+            TProp::U64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::U64(*v))),
+            TProp::F32(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::F32(*v))),
+            TProp::F64(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::F64(*v))),
+            TProp::Bool(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Bool(*v))),
+            TProp::DTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::DTime(*v))),
+            TProp::NDTime(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::NDTime(*v))),
+            TProp::Graph(cell) => cell
+                .last_before(t)
+                .map(|(t, v)| (t, Prop::Graph(v.clone()))),
+            TProp::Document(cell) => cell
+                .last_before(t)
+                .map(|(t, v)| (t, Prop::Document(v.clone()))),
+            TProp::List(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::List(v.clone()))),
+            TProp::Map(cell) => cell.last_before(t).map(|(t, v)| (t, Prop::Map(v.clone()))),
+        }
+    }
 
-pub trait TPropOps {
-    fn last_before(&self, t: i64) -> Option<(i64, Prop)>;
-    fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_>;
-    fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, Prop)> + '_>;
-    fn iter_window_te(
-        &self,
+    fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.iter_inner()
+    }
+
+    fn iter_window(
+        self,
         r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_>;
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop>;
-}
-
-impl<'a> LockedLayeredTProp<'a> {
-    pub(crate) fn new(tprop: Vec<LockedView<'a, TProp>>) -> Self {
-        LockedLayeredTProp::VecProp(tprop)
+    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
+        self.iter_window_inner(r)
     }
-}
 
-impl<'a> TPropOps for LockedLayeredTProp<'a> {
-    fn last_before(&self, t: i64) -> Option<(i64, Prop)> {
+    fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
         match self {
-            LockedLayeredTProp::VecProp(tprop) => tprop
-                .iter()
-                .flat_map(|p| p.last_before(t))
-                .max_by_key(|v| v.0),
-            LockedLayeredTProp::External(tprop) => tprop.last_before(t),
-            LockedLayeredTProp::One(t_prop) => t_prop.last_before(t),
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.at(ti).map(|v| Prop::Str(v.clone())),
+            TProp::I32(cell) => cell.at(ti).map(|v| Prop::I32(*v)),
+            TProp::I64(cell) => cell.at(ti).map(|v| Prop::I64(*v)),
+            TProp::U32(cell) => cell.at(ti).map(|v| Prop::U32(*v)),
+            TProp::U8(cell) => cell.at(ti).map(|v| Prop::U8(*v)),
+            TProp::U16(cell) => cell.at(ti).map(|v| Prop::U16(*v)),
+            TProp::U64(cell) => cell.at(ti).map(|v| Prop::U64(*v)),
+            TProp::F32(cell) => cell.at(ti).map(|v| Prop::F32(*v)),
+            TProp::F64(cell) => cell.at(ti).map(|v| Prop::F64(*v)),
+            TProp::Bool(cell) => cell.at(ti).map(|v| Prop::Bool(*v)),
+            TProp::DTime(cell) => cell.at(ti).map(|v| Prop::DTime(*v)),
+            TProp::NDTime(cell) => cell.at(ti).map(|v| Prop::NDTime(*v)),
+            TProp::Graph(cell) => cell.at(ti).map(|v| Prop::Graph(v.clone())),
+            TProp::Document(cell) => cell.at(ti).map(|v| Prop::Document(v.clone())),
+            TProp::List(cell) => cell.at(ti).map(|v| Prop::List(v.clone())),
+            TProp::Map(cell) => cell.at(ti).map(|v| Prop::Map(v.clone())),
         }
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    fn len(self) -> usize {
         match self {
-            LockedLayeredTProp::VecProp(tprop) => {
-                Box::new(tprop.iter().map(|p| p.iter_t()).kmerge_by(|a, b| a.0 < b.0))
-            }
-            LockedLayeredTProp::External(tprop) => tprop.iter(),
-            LockedLayeredTProp::One(t_prop) => t_prop.iter_t(),
-        }
-    }
-
-    fn iter_window(&self, r: Range<i64>) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
-        match self {
-            LockedLayeredTProp::VecProp(tprop) => Box::new(
-                tprop
-                    .iter()
-                    .map(|p| p.iter_window_t(r.clone()))
-                    .kmerge_by(|a, b| a.0 < b.0),
-            ),
-            LockedLayeredTProp::External(tprop) => tprop.iter_window(r),
-            LockedLayeredTProp::One(t_prop) => Box::new(
-                t_prop
-                    .iter_window(TimeIndexEntry::new(r.start, 0)..TimeIndexEntry::new(r.end, 0))
-                    .map(|(t, p)| (t.0, p)),
-            ),
-        }
-    }
-
-    fn iter_window_te(
-        &self,
-        r: Range<TimeIndexEntry>,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
-        match self {
-            LockedLayeredTProp::VecProp(tprop) => Box::new(
-                tprop
-                    .iter()
-                    .map(|p| p.iter_window(r.clone()))
-                    .kmerge_by(|a, b| a.0 < b.0)
-                    .map(|(t, p)| (t.0, p)),
-            ),
-            LockedLayeredTProp::External(tprop) => tprop.iter_window_te(r),
-            LockedLayeredTProp::One(t_prop) => {
-                Box::new(t_prop.iter_window(r).map(|(t, p)| (t.0, p)))
-            }
-        }
-    }
-
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
-        match self {
-            LockedLayeredTProp::VecProp(tprop) => tprop.iter().find_map(|p| p.at(ti)),
-            LockedLayeredTProp::External(tprop) => tprop.at(ti),
-            LockedLayeredTProp::One(t_prop) => t_prop.at(ti),
+            TProp::Empty => 0,
+            TProp::Str(v) => v.len(),
+            TProp::U8(v) => v.len(),
+            TProp::U16(v) => v.len(),
+            TProp::I32(v) => v.len(),
+            TProp::I64(v) => v.len(),
+            TProp::U32(v) => v.len(),
+            TProp::U64(v) => v.len(),
+            TProp::F32(v) => v.len(),
+            TProp::F64(v) => v.len(),
+            TProp::Bool(v) => v.len(),
+            TProp::DTime(v) => v.len(),
+            TProp::NDTime(v) => v.len(),
+            TProp::Graph(v) => v.len(),
+            TProp::Document(v) => v.len(),
+            TProp::List(v) => v.len(),
+            TProp::Map(v) => v.len(),
         }
     }
 }

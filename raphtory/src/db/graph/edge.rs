@@ -24,7 +24,7 @@ use crate::{
                 internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            storage::edge_storage_ops::EdgeStorageOps,
+            storage::edges::edge_storage_ops::EdgeStorageOps,
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, IntoDynBoxed, StaticGraphViewOps,
@@ -298,23 +298,23 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
 {
     fn temporal_history(&self, id: usize) -> Vec<i64> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids().clone())
+            .temporal_edge_prop_vec(self.edge, id, &self.layer_ids())
             .into_iter()
             .map(|(t, _)| t)
             .collect()
     }
     fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, self.graph.layer_ids().clone())
+            .temporal_edge_prop_vec(self.edge, id, &self.layer_ids())
             .into_iter()
             .map(|(t, _)| t.dt())
             .collect()
     }
 
     fn temporal_values(&self, id: usize) -> Vec<Prop> {
-        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        let layer_ids = self.layer_ids();
         self.graph
-            .temporal_edge_prop_vec(self.edge, id, layer_ids)
+            .temporal_edge_prop_vec(self.edge, id, &layer_ids)
             .into_iter()
             .map(|(_, v)| v)
             .collect()
@@ -325,12 +325,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        let layer_ids = self.layer_ids();
         self.graph
             .edge_meta()
             .temporal_prop_meta()
             .get_id(name)
-            .filter(move |id| self.graph.has_temporal_edge_prop(self.edge, *id, layer_ids))
+            .filter(move |id| {
+                self.graph
+                    .has_temporal_edge_prop(self.edge, *id, &layer_ids)
+            })
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
@@ -342,13 +345,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
     }
 
     fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        let layer_ids = self.graph.layer_ids().constrain_from_edge(self.edge);
+        let layer_ids = self.layer_ids();
         Box::new(
             self.graph
-                .temporal_edge_prop_ids(self.edge, layer_ids.clone())
+                .temporal_edge_prop_ids(self.edge, &layer_ids)
                 .filter(move |id| {
                     self.graph
-                        .has_temporal_edge_prop(self.edge, *id, layer_ids.clone())
+                        .has_temporal_edge_prop(self.edge, *id, &layer_ids)
                 }),
         )
     }

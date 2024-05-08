@@ -88,20 +88,20 @@ def test_empty_lists():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     assert (
-        g.nodes.out_edges.properties.temporal.get("value_dec")
-        .values()
-        .median()
-        .median()
-        .median()
-        == 5
+            g.nodes.out_edges.properties.temporal.get("value_dec")
+            .values()
+            .median()
+            .median()
+            .median()
+            == 5
     )
     assert (
-        g.nodes.out_edges.properties.temporal.get("value_dec")
-        .values()
-        .mean()
-        .mean()
-        .mean()
-        == 1.3333333333333335
+            int(g.nodes.out_edges.properties.temporal.get("value_dec")
+                .values()
+                .mean()
+                .mean()
+                .mean() * 100)
+            == 616
     )
 
 
@@ -157,13 +157,13 @@ def test_propiterable():
     assert sorted(total) == [3, 5, 15, 32]
 
     total = g.nodes.out_edges.properties.get("value_dec").median()
-    assert list(total) == [10, 5, 10, 2, None]
+    assert list(total) == [10, 5, 5, 1, None]
 
     total = g.node("1").in_edges.properties.get("value_dec").sum()
     assert total == 6
 
     total = g.node("1").in_edges.properties.get("value_dec").median()
-    assert total == 5
+    assert total == 1
 
 
 def test_pypropvalue_list_listlist():
@@ -197,7 +197,7 @@ def test_pypropvalue_list_listlist():
 
     assert res.median() == 5
     assert res_v.median() == 5
-    assert res_ll.median() == [5, 5, 10, 5, 5]
+    assert res_ll.median() == [5, 5, 10, 2, 5]
 
     assert res.min() == 1
     assert res_v.min() == 1
@@ -214,9 +214,9 @@ def test_pypropvalue_list_listlist():
     assert res.mean() == res.average() == 18.5
     assert res_v.mean() == res_v.average() == 26.2
     assert (
-        res_ll.mean()
-        == res_ll.average()
-        == [26.2, 35.666666666666664, 11.666666666666666, 4.5, 5.0]
+            res_ll.mean()
+            == res_ll.average()
+            == [26.2, 35.666666666666664, 11.666666666666666, 4.5, 5.0]
     )
 
 

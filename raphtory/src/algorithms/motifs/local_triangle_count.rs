@@ -42,11 +42,11 @@ use itertools::Itertools;
 
 /// calculates the number of triangles (a cycle of length 3) for a node.
 pub fn local_triangle_count<G: StaticGraphViewOps, V: AsNodeRef>(graph: &G, v: V) -> Option<usize> {
-    if let Some(node) = graph.node(v) {
+    if let Some(node) = (&graph).node(v) {
         if node.degree() >= 2 {
             let len = node
                 .neighbours()
-                .id()
+                .iter()
                 .combinations(2)
                 .filter_map(|nb| match graph.has_edge(nb[0], nb[1]) {
                     true => Some(1),

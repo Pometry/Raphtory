@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{graph::tgraph::InnerTemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
+        entities::{graph::tgraph::InternalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
         utils::errors::GraphError,
         ArcStr, OptionAsStr,
@@ -9,7 +9,9 @@ use crate::{
         api::{
             mutation::{internal::InternalAdditionOps, AdditionOps, PropertyAdditionOps},
             properties::Properties,
-            storage::{edge_storage_ops::EdgeStorageOps, node_storage_ops::NodeStorageOps},
+            storage::{
+                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
+            },
             view::{internal::*, *},
         },
         graph::{
@@ -131,7 +133,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         Nodes::new(graph)
     }
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        let g = InnerTemporalGraph::default();
+        let g = InternalGraph::default();
 
         // make sure we preserve all layers even if they are empty
         // skip default layer

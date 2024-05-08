@@ -1,16 +1,18 @@
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::edge::ArrowEdge;
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{
     core::entities::{
         edges::{edge_ref::EdgeRef, edge_store::EdgeStore},
-        properties::tprop::TPropOps,
         LayerIds, EID, VID,
     },
-    db::api::storage::edge_storage_ops::{EdgeStorageOps, TimeIndexLike},
+    db::api::storage::{
+        edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+        tprop_storage_ops::TPropOps,
+    },
 };
-
-#[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::edges::ArrowEdge;
-
-use rayon::{iter::Either, prelude::*};
+use rayon::prelude::*;
 use std::ops::Range;
 
 macro_rules! for_all {
@@ -27,8 +29,8 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {
         match $value {
-            EdgeStorageRef::Mem($pattern) => Either::Left($result),
-            EdgeStorageRef::Arrow($pattern) => Either::Right($result),
+            EdgeStorageRef::Mem($pattern) => StorageVariants::Mem($result),
+            EdgeStorageRef::Arrow($pattern) => StorageVariants::Arrow($result),
         }
     };
 }
@@ -85,53 +87,64 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all!(self, edge => edge.dst())
     }
 
+    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
+        for_all_iter!(self, edge => EdgeStorageOps::layer_ids_iter(edge, layer_ids))
+    }
+
+    fn layer_ids_par_iter(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl ParallelIterator<Item = usize> + 'a {
+        for_all_iter!(self, edge => EdgeStorageOps::layer_ids_par_iter(edge, layer_ids))
+    }
+
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        for_all!(self, edge => EdgeStorageOps::additions_iter(edge, layer_ids))
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+        for_all_iter!(self, edge => EdgeStorageOps::additions_iter(edge, layer_ids))
     }
 
     fn additions_par_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = TimeIndexLike<'a>> + 'a {
+    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::additions_par_iter(edge, layer_ids))
     }
 
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> Box<dyn Iterator<Item = TimeIndexLike<'a>> + 'a> {
-        for_all!(self, edge => EdgeStorageOps::deletions_iter(edge, layer_ids))
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+        for_all_iter!(self, edge => EdgeStorageOps::deletions_iter(edge, layer_ids))
     }
 
     fn deletions_par_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = TimeIndexLike<'a>> + 'a {
+    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::deletions_par_iter(edge, layer_ids))
     }
 
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexLike<'a>, TimeIndexLike<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::updates_iter(edge, layer_ids))
     }
 
     fn updates_par_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexLike<'a>, TimeIndexLike<'a>)> + 'a {
+    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
         for_all_iter!(self, edge => EdgeStorageOps::updates_par_iter(edge, layer_ids))
     }
 
-    fn additions(self, layer_id: usize) -> TimeIndexLike<'a> {
+    fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
         for_all!(self, edge => EdgeStorageOps::additions(edge, layer_id))
     }
 
-    fn deletions(self, layer_id: usize) -> TimeIndexLike<'a> {
+    fn deletions(self, layer_id: usize) -> TimeIndexRef<'a> {
         for_all!(self, edge => EdgeStorageOps::deletions(edge, layer_id))
     }
 
@@ -143,7 +156,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         self,
         layer_id: usize,
         prop_id: usize,
-    ) -> Option<Box<dyn TPropOps + 'a>> {
-        for_all!(self, edge => EdgeStorageOps::temporal_prop_layer(edge, layer_id, prop_id))
+    ) -> impl TPropOps<'a> + Send + Sync + 'a {
+        for_all_iter!(self, edge => edge.temporal_prop_layer(layer_id, prop_id))
     }
 }

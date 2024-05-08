@@ -1,3 +1,7 @@
+#[cfg(feature = "arrow")]
+use crate::arrow::storage_interface::node::ArrowNode;
+#[cfg(feature = "arrow")]
+use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, nodes::node_store::NodeStore, LayerIds, VID},
@@ -5,15 +9,13 @@ use crate::{
         Direction,
     },
     db::api::{
-        storage::{node_storage_ops::NodeStorageOps, nodes::node_ref::NodeStorageRef},
+        storage::{
+            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+            tprop_storage_ops::TPropOps,
+        },
         view::internal::NodeAdditions,
     },
 };
-
-#[cfg(feature = "arrow")]
-use crate::db::api::storage::arrow::nodes::ArrowNode;
-
-use rayon::iter::Either;
 
 pub enum NodeStorageEntry<'a> {
     Mem(Entry<'a, NodeStore>),
@@ -35,8 +37,8 @@ macro_rules! for_all {
 macro_rules! for_all_iter {
     ($value:expr, $pattern:pat => $result:expr) => {{
         match $value {
-            NodeStorageEntry::Mem($pattern) => Either::Left($result),
-            NodeStorageEntry::Arrow($pattern) => Either::Right($result),
+            NodeStorageEntry::Mem($pattern) => StorageVariants::Mem($result),
+            NodeStorageEntry::Arrow($pattern) => StorageVariants::Arrow($result),
         }
     }};
 }
@@ -73,6 +75,10 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
 
     fn additions(self) -> NodeAdditions<'a> {
         for_all!(self, node => node.additions())
+    }
+
+    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
+        for_all_iter!(self, node => node.tprop(prop_id))
     }
 
     fn edges_iter(

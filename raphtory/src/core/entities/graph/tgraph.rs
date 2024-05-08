@@ -2,7 +2,6 @@ use crate::{
     core::{
         entities::{
             edges::{
-                edge::EdgeView,
                 edge_ref::EdgeRef,
                 edge_store::{EdgeLayer, EdgeStore},
             },
@@ -10,12 +9,7 @@ use crate::{
                 tgraph_storage::{GraphStorage, LockedGraphStorage, LockedIter},
                 timer::{MaxCounter, MinCounter, TimeCounterTrait},
             },
-            nodes::{
-                input_node::InputNode,
-                node::{ArcEdge, ArcNode, Node},
-                node_ref::NodeRef,
-                node_store::NodeStore,
-            },
+            nodes::{input_node::InputNode, node_ref::NodeRef, node_store::NodeStore},
             properties::{
                 graph_meta::GraphMeta,
                 props::{ArcReadLockedVec, Meta},
@@ -59,16 +53,16 @@ use std::{
 pub(crate) type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
-pub(crate) type TGraph<const N: usize> = TemporalGraph<N>;
+pub(crate) type TGraph = TemporalGraph;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct InnerTemporalGraph<const N: usize>(Arc<TemporalGraph<N>>);
+pub struct InternalGraph(Arc<TemporalGraph>);
 
-impl<const N: usize> DeletionOps for InnerTemporalGraph<N> {}
+impl DeletionOps for InternalGraph {}
 
-impl<const N: usize> InnerTemporalGraph<N> {
+impl InternalGraph {
     #[inline]
-    pub(crate) fn inner(&self) -> &TemporalGraph<N> {
+    pub(crate) fn inner(&self) -> &TemporalGraph {
         &self.0
     }
 
@@ -77,15 +71,31 @@ impl<const N: usize> InnerTemporalGraph<N> {
         let edges = Arc::new(self.inner().storage.edges.read_lock());
         LockedGraph { nodes, edges }
     }
+
+    pub(crate) fn new(num_locks: usize) -> Self {
+        let tg = TemporalGraph {
+            logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
+            string_pool: Default::default(),
+            storage: GraphStorage::new(num_locks),
+            event_counter: AtomicUsize::new(0),
+            earliest_time: MinCounter::new(),
+            latest_time: MaxCounter::new(),
+            node_meta: Arc::new(Meta::new()),
+            edge_meta: Arc::new(Meta::new()),
+            graph_meta: GraphMeta::new(),
+        };
+
+        Self(Arc::new(tg))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct TemporalGraph<const N: usize> {
+pub struct TemporalGraph {
     // mapping between logical and physical ids
     logical_to_physical: FxDashMap<u64, VID>,
     string_pool: FxDashSet<ArcStr>,
 
-    pub(crate) storage: GraphStorage<N>,
+    pub(crate) storage: GraphStorage,
 
     pub(crate) event_counter: AtomicUsize,
 
@@ -105,7 +115,7 @@ pub struct TemporalGraph<const N: usize> {
     pub(crate) graph_meta: GraphMeta,
 }
 
-impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
+impl std::fmt::Display for InternalGraph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -116,25 +126,13 @@ impl<const N: usize> std::fmt::Display for InnerTemporalGraph<N> {
     }
 }
 
-impl<const N: usize> Default for InnerTemporalGraph<N> {
+impl Default for InternalGraph {
     fn default() -> Self {
-        let tg = TemporalGraph {
-            logical_to_physical: FxDashMap::default(), // TODO: could use DictMapper here
-            string_pool: Default::default(),
-            storage: GraphStorage::new(),
-            event_counter: AtomicUsize::new(0),
-            earliest_time: MinCounter::new(),
-            latest_time: MaxCounter::new(),
-            node_meta: Arc::new(Meta::new()),
-            edge_meta: Arc::new(Meta::new()),
-            graph_meta: GraphMeta::new(),
-        };
-
-        Self(Arc::new(tg))
+        Self::new(rayon::current_num_threads())
     }
 }
 
-impl<const N: usize> TemporalGraph<N> {
+impl TemporalGraph {
     pub(crate) fn num_layers(&self) -> usize {
         self.edge_meta.layer_meta().len()
     }
@@ -299,7 +297,7 @@ impl<const N: usize> TemporalGraph<N> {
     }
 }
 
-impl<const N: usize> TemporalGraph<N> {
+impl TemporalGraph {
     pub(crate) fn internal_num_nodes(&self) -> usize {
         self.storage.nodes.len()
     }
@@ -528,10 +526,6 @@ impl<const N: usize> TemporalGraph<N> {
         (0..self.storage.nodes.len()).map(|i| i.into())
     }
 
-    pub(crate) fn locked_edges(&self) -> impl Iterator<Item = ArcEntry<EdgeStore>> {
-        self.storage.locked_edges()
-    }
-
     pub(crate) fn find_edge(&self, src: VID, dst: VID, layer_id: &LayerIds) -> Option<EID> {
         let node = self.storage.get_node(src);
         node.find_edge_eid(dst, layer_id)
@@ -546,27 +540,6 @@ impl<const N: usize> TemporalGraph<N> {
             }
             NodeRef::ExternalStr(string) => self.resolve_node_ref(NodeRef::External(string.id())),
         }
-    }
-
-    pub(crate) fn node(&self, v: VID) -> Node<N> {
-        let node = self.storage.get_node(v);
-        Node::from_entry(node, self)
-    }
-
-    pub(crate) fn node_arc(&self, v: VID) -> ArcNode {
-        let node = self.storage.get_node_arc(v);
-        ArcNode::from_entry(node, self.node_meta.clone())
-    }
-
-    pub(crate) fn edge_arc(&self, e: EID) -> ArcEdge {
-        let edge = self.storage.get_edge_arc(e);
-        ArcEdge::from_entry(edge, self.edge_meta.clone())
-    }
-
-    #[inline]
-    pub(crate) fn edge(&self, e: EID) -> EdgeView<N> {
-        let edge = self.storage.get_edge(e);
-        EdgeView::from_entry(edge, self)
     }
 
     /// Checks if the same string value already exists and returns a pointer to the same existing value if it exists,
