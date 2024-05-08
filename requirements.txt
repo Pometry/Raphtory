@@ -361,7 +361,7 @@ toolz==0.12.1
     # via altair
 torch==2.1.2
     # via sentence-transformers
-tqdm==4.65.0
+tqdm==4.66.3
     # via
     #   -r requirements.in
     #   huggingface-hub
