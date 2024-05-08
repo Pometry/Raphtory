@@ -1684,7 +1684,7 @@ mod db_tests {
                 e.explode().iter().filter_map(|e| {
                     e.edge
                         .layer()
-                        .zip(e.time())
+                        .zip(Some(e.time().unwrap()))
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                 })
             })
@@ -1714,7 +1714,7 @@ mod db_tests {
                 e.explode().iter().filter_map(|e| {
                     e.edge
                         .layer()
-                        .zip(e.time())
+                        .zip(Some(e.time().unwrap()))
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                 })
             })

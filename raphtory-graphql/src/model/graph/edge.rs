@@ -95,8 +95,11 @@ impl Edge {
         self.ee.history().last().cloned()
     }
 
-    async fn time(&self) -> Option<i64> {
-        self.ee.time()
+    async fn time(&self) -> Result<i64, Error> {
+        match self.ee.time().map(|x| x.into()) {
+            Ok(name) => Ok(name),
+            Err(e) => Err(Error::new(e.to_string())),
+        }
     }
 
     async fn start(&self) -> Option<i64> {

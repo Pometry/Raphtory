@@ -16,7 +16,7 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, I64VecIterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, I64Iterable, I64VecIterable,
                 NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
                 NestedI64VecIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
                 NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
@@ -147,9 +147,14 @@ impl PyEdges {
     /// Returns:
     ///   Time of edge
     #[getter]
-    fn time(&self) -> OptionI64Iterable {
-        let edges = self.edges.clone();
-        (move || edges.time()).into()
+    fn time(&self) -> Result<I64Iterable, GraphError> {
+        match self.edges.time().next() {
+            Some(Err(err)) => Err(err),
+            _ => {
+                let edges = self.edges.clone();
+                Ok((move || edges.time().map(|t| t.unwrap())).into())
+            }
+        }
     }
 
     /// Returns all properties of the edges
@@ -413,9 +418,20 @@ impl PyNestedEdges {
 
     /// Returns the times of exploded edges
     #[getter]
-    fn time(&self) -> NestedOptionI64Iterable {
-        let edges = self.edges.clone();
-        (move || edges.time()).into()
+    fn time(&self) -> Result<NestedOptionI64Iterable, GraphError> {
+        match self.edges.time().flatten().next() {
+            Some(Err(err)) => Err(err),
+            _ => {
+                let edges = self.edges.clone();
+                Ok((move || {
+                    edges
+                        .time()
+                        .map(|t_iter| t_iter.map(|t| t.unwrap()).into_dyn_boxed())
+                        .into_dyn_boxed()
+                })
+                .into())
+            }
+        }
     }
 
     /// Returns the name of the layer the edges belong to - assuming they only belong to one layer

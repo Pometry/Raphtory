@@ -117,7 +117,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>>;
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
@@ -258,8 +258,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Option<i64>> {
-        self.map(|_, e| e.time_t())
+    fn time(&self) -> Self::ValueType<Result<i64, GraphError>> {
+        self.map(|_, e| e.time_t().ok_or_else(|| GraphError::TimeAPIError))
     }
 
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>> {
@@ -354,6 +354,11 @@ mod test_edge_view {
             .layer_name()
             .all(|l| l.is_ok()));
         assert!(g.edges().explode().layer_name().all(|l| l.is_ok()));
+
+        assert!(g.edge(1, 2).unwrap().time().is_err());
+        assert!(g.edges().time().all(|l| l.is_err()));
+        assert!(g.edge(1, 2).unwrap().explode().time().all(|l| l.is_ok()));
+        assert!(g.edges().explode().time().all(|l| l.is_ok()));
     }
 
     #[test]

@@ -445,7 +445,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
 
         // add all time events
         for e in e_ref.explode() {
-            if let Some(t) = e.time() {
+            if let Ok(t) = e.time() {
                 document.add_i64(time_field, t);
             }
         }

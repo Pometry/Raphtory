@@ -1436,7 +1436,7 @@ def test_layer_name():
     assert g.edge(0, 2).layer_names == ["awesome layer"]
 
     error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() or "
-                 ".explode(). If you want to retrieve the layers for this edge you can use .layer_names.")
+                 ".explode(). If you want to retrieve the layers for this edge you can use .layer_names")
     with pytest.raises(Exception) as e:
         g.edges.layer_name()
     assert str(e.value) == error_msg
@@ -1448,6 +1448,44 @@ def test_layer_name():
     assert str(e.value) == error_msg
 
     assert list(g.edge(0, 2).explode().layer_name) == ['awesome layer']
+
+    with pytest.raises(Exception) as e:
+        g.nodes.neighbours.edges.layer_name()
+    assert str(e.value) == error_msg
+
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name] == [
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"]
+    ]
+
+def test_time():
+    g = Graph()
+
+    g.add_edge(0, 0, 1)
+    g.add_edge(0, 0, 2)
+    g.add_edge(1, 0, 2)
+
+    error_msg = ("The time function is only available once an edge has been exploded via .explode_layers() or "
+                 ".explode(). You may want to retrieve the history for this edge via .history(), "
+                 "or the earliest/latest time via earliest_time or latest_time")
+    with pytest.raises(Exception) as e:
+        g.edges.time()
+    assert str(e.value) == error_msg
+
+    assert list(g.edges.explode().time) == [0, 0, 1]
+
+    with pytest.raises(Exception) as e:
+        g.edge(0, 2).time()
+    assert str(e.value) == error_msg
+
+    assert list(g.edge(0, 2).explode().time) == [0, 1]
+
+    with pytest.raises(Exception) as e:
+        g.nodes.neighbours.edges.time()
+    assert str(e.value) == error_msg
+
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().time] == [[0, 0, 1], [0, 0, 1], [0, 0, 1]]
 
 
 def test_window_size():
@@ -1824,11 +1862,6 @@ def test_starend_edges():
     g.add_edge(2, 1, 2)
     g.add_edge(3, 1, 2)
 
-    old_time_way = []
-    for e in g.edges:
-        old_time_way.append(e.time)
-    assert old_time_way == list(g.edges.time)
-
     old_latest_time_way = []
     for e in g.edges:
         old_latest_time_way.append(e.latest_time)
@@ -1840,20 +1873,13 @@ def test_starend_edges():
         old_earliest_time_way.append(e.earliest_time)
     assert old_earliest_time_way == list(g.edges.earliest_time)
 
-    old_start_nested_way = []
-    old_end_nested_way = []
-    old_time_nested_way = []
     old_latest_time_nested_way = []
     old_earliest_time_nested_way = []
     for edges in g.nodes.edges:
         for edge in edges:
-            old_time_nested_way.append(edge.time)
             old_latest_time_nested_way.append(edge.latest_time)
             old_earliest_time_nested_way.append(edge.earliest_time)
 
-    assert old_time_nested_way == [
-        item for sublist in g.nodes.edges.time.collect() for item in sublist
-    ]
     assert old_latest_time_nested_way == [
         item for sublist in g.nodes.edges.latest_time.collect() for item in sublist
     ]

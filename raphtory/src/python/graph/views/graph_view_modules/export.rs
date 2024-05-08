@@ -235,7 +235,7 @@ impl PyGraphView {
                 properties.set_item("layer", layer)?;
                 if include_update_history.unwrap_or(true) {
                     if explode_edges.unwrap_or(true) {
-                        properties.set_item("update_history", e.time())?;
+                        properties.set_item("update_history", e.time()?)?;
                     } else {
                         properties.set_item("update_history", e.history())?;
                     }

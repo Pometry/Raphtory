@@ -263,7 +263,7 @@ impl PyEdge {
     /// Returns:
     ///     (int) The time of an exploded edge
     #[getter]
-    pub fn time(&self) -> Option<i64> {
+    pub fn time(&self) -> Result<i64, GraphError> {
         self.edge.time()
     }
 
