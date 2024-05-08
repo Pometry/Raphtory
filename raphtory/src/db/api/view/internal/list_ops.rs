@@ -28,6 +28,7 @@ where
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum NodeList {
     All { num_nodes: usize },
     List { nodes: Index<VID> },

@@ -4,7 +4,10 @@ use crate::{
         VID,
     },
     db::{
-        api::{state::ops::NodeStateOps, view::IntoDynBoxed},
+        api::{
+            state::ops::NodeStateOps,
+            view::{internal::NodeList, IntoDynBoxed},
+        },
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
@@ -89,7 +92,16 @@ pub struct NodeState<'graph, V, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'graph, V, G, GH> NodeState<'graph, V, G, GH> {
+impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
+    pub(crate) fn node_list(&self) -> NodeList {
+        match self.keys.as_ref() {
+            None => self.graph.node_list(),
+            Some(index) => NodeList::List {
+                nodes: index.clone(),
+            },
+        }
+    }
+
     pub(crate) fn new(base_graph: G, graph: GH, values: Vec<V>, keys: Option<Index<VID>>) -> Self {
         Self {
             base_graph,

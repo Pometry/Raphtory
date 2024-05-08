@@ -10,6 +10,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            state::{LazyNodeState, NodeStateOps},
             view::{
                 internal::{CoreGraphOps, DynamicGraph, Immutable, IntoDynamic, MaterializedGraph},
                 *,
@@ -479,23 +480,20 @@ impl PyNodes {
 
     /// Returns an iterator over the nodes ids
     #[getter]
-    fn id(&self) -> U64Iterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.id()).into()
+    fn id(&self) -> LazyNodeState<'static, u64, DynamicGraph, DynamicGraph> {
+        self.nodes.id()
     }
 
     /// Returns an iterator over the nodes name
     #[getter]
-    fn name(&self) -> StringIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.name()).into()
+    fn name(&self) -> LazyNodeState<'static, String, DynamicGraph, DynamicGraph> {
+        self.nodes.name()
     }
 
     /// Returns an iterator over the nodes earliest time
     #[getter]
-    fn earliest_time(&self) -> OptionI64Iterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.earliest_time()).into()
+    fn earliest_time(&self) -> LazyNodeState<'static, Option<i64>, DynamicGraph, DynamicGraph> {
+        self.nodes.earliest_time()
     }
 
     /// Returns the earliest time of the nodes.
@@ -503,16 +501,14 @@ impl PyNodes {
     /// Returns:
     /// Earliest time of the nodes.
     #[getter]
-    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.earliest_date_time()).into()
+    fn earliest_date_time(&self) -> LazyNodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
+        self.nodes.earliest_date_time()
     }
 
     /// Returns an iterator over the nodes latest time
     #[getter]
-    fn latest_time(&self) -> OptionI64Iterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.latest_time()).into()
+    fn latest_time(&self) -> LazyNodeState<'static, Option<i64>, DynamicGraph> {
+        self.nodes.latest_time()
     }
 
     /// Returns the latest date time of the nodes.
@@ -520,9 +516,8 @@ impl PyNodes {
     /// Returns:
     ///   Latest date time of the nodes.
     #[getter]
-    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.latest_date_time()).into()
+    fn latest_date_time(&self) -> LazyNodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
+        self.nodes.latest_date_time()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
@@ -530,16 +525,14 @@ impl PyNodes {
     /// Returns:
     ///    A list of unix timestamps.
     ///
-    fn history(&self) -> I64VecIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.history()).into()
+    fn history(&self) -> LazyNodeState<'static, Vec<i64>, DynamicGraph> {
+        self.nodes.history()
     }
 
     /// Returns the type of node
     #[getter]
-    fn node_type(&self) -> OptionArcStringIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.node_type()).into()
+    fn node_type(&self) -> LazyNodeState<'static, Option<ArcStr>, DynamicGraph> {
+        self.nodes.node_type()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
@@ -547,9 +540,10 @@ impl PyNodes {
     /// Returns:
     ///    An  list of timestamps.
     ///
-    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.history_date_time()).into()
+    fn history_date_time(
+        &self,
+    ) -> LazyNodeState<'static, Option<Vec<DateTime<Utc>>>, DynamicGraph> {
+        self.nodes.history_date_time()
     }
 
     /// The properties of the node
@@ -559,34 +553,31 @@ impl PyNodes {
     #[getter]
     fn properties(&self) -> PyPropsList {
         let nodes = self.nodes.clone();
-        (move || nodes.properties()).into()
+        (move || nodes.properties().into_values()).into()
     }
 
     /// Returns the number of edges of the nodes
     ///
     /// Returns:
     ///     An iterator of the number of edges of the nodes
-    fn degree(&self) -> UsizeIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.degree()).into()
+    fn degree(&self) -> LazyNodeState<'static, usize, DynamicGraph> {
+        self.nodes.degree()
     }
 
     /// Returns the number of in edges of the nodes
     ///
     /// Returns:
     ///     An iterator of the number of in edges of the nodes
-    fn in_degree(&self) -> UsizeIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.in_degree()).into()
+    fn in_degree(&self) -> LazyNodeState<'static, usize, DynamicGraph> {
+        self.nodes.in_degree()
     }
 
     /// Returns the number of out edges of the nodes
     ///
     /// Returns:
     ///     An iterator of the number of out edges of the nodes
-    fn out_degree(&self) -> UsizeIterable {
-        let nodes = self.nodes.clone();
-        (move || nodes.out_degree()).into()
+    fn out_degree(&self) -> LazyNodeState<'static, usize, DynamicGraph> {
+        self.nodes.out_degree()
     }
 
     pub fn __getitem__(&self, node: NodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {

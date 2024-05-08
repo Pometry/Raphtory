@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, iter::Sum};
 
 use rayon::{
     iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator},
@@ -33,6 +33,10 @@ pub trait NodeStateOps<'graph>:
     fn values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
     where
         'graph: 'a;
+
+    fn collect(&self) -> Vec<Self::OwnedValue> {
+        self.par_values().map(|v| v.borrow().clone()).collect()
+    }
 
     fn par_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
     where
@@ -171,7 +175,7 @@ pub trait NodeStateOps<'graph>:
         cmp: F,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
         self.par_iter()
-            .max_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()).reverse())
+            .max_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()))
     }
 
     fn median_item_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(
@@ -186,5 +190,13 @@ pub trait NodeStateOps<'graph>:
         values.par_sort_by(|(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()));
         let median_index = len / 2;
         values.into_iter().skip(median_index).next()
+    }
+
+    fn sum<'a, S>(&'a self) -> S
+    where
+        'graph: 'a,
+        S: Send + Sum<Self::Value<'a>> + Sum<S>,
+    {
+        self.par_values().sum()
     }
 }
