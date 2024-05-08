@@ -96,9 +96,14 @@ impl Clause {
         })
     }
 
-    pub fn return_(all: bool, items: impl IntoIterator<Item = ReturnItem>) -> Self {
+    pub fn return_(
+        all: bool,
+        order_by: Option<OrderBy>,
+        items: impl IntoIterator<Item = ReturnItem>,
+    ) -> Self {
         Clause::Return(Return {
             all,
+            order_by,
             items: items.into_iter().collect(),
             limit: None,
         })
@@ -227,10 +232,24 @@ impl RelPattern {
 }
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OrderBy {
+    pub exprs: Vec<(Expr, Option<bool>)>,
+}
+
+impl OrderBy {
+    pub fn new(exprs: impl IntoIterator<Item = (Expr, Option<bool>)>) -> Self {
+        OrderBy {
+            exprs: exprs.into_iter().collect(),
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Return {
     pub all: bool,
     pub items: Vec<ReturnItem>,
     pub limit: Option<usize>,
+    pub order_by: Option<OrderBy>,
 }
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]

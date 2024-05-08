@@ -42,8 +42,11 @@ impl OptimizerRule for HopRule {
                 on,
                 left,
                 schema,
+                filter,
                 ..
             } = join;
+
+            println!("filter: {filter:?}");
 
             // println!("right: {right:?}");
             // println!("left: {left:?}");

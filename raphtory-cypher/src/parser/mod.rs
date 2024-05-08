@@ -150,6 +150,7 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
     let mut all = false;
     let mut inner = pair.into_inner();
     let mut limit = None;
+    let mut order_by = None;
     // skip return
     inner.next();
     for pair in inner {
@@ -185,6 +186,9 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
                                 ));
                             }
                         }
+                        Rule::Order => {
+                            order_by = parse_order(pair)?;
+                        }
                         rule => return unsupported("parse_return 2", &rule),
                     }
                 }
@@ -192,7 +196,42 @@ pub fn parse_return(pair: Pair<Rule>) -> Result<Return, ParseError> {
             rule => return unsupported("parse_return 1", &rule),
         }
     }
-    Ok(Return { all, items, limit })
+    Ok(Return {
+        all,
+        order_by,
+        items,
+        limit,
+    })
+}
+
+fn parse_order(pairs: Pair<Rule>) -> Result<Option<OrderBy>, ParseError> {
+    let mut exprs = vec![];
+    let mut ord = vec![];
+    for pair in pairs.into_inner() {
+        match pair.as_rule() {
+            Rule::SortItem => {
+                let mut order: Option<bool> = None;
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::Expression => {
+                            exprs.push(parse_expr(pair.into_inner())?);
+                        }
+                        Rule::DESC | Rule::DESCENDING => {
+                            order = Some(false);
+                        }
+                        Rule::ASC | Rule::ASCENDING => {
+                            order = Some(true);
+                        }
+                        _ => {}
+                    }
+                }
+                ord.push(order)
+            }
+            _ => {}
+        }
+    }
+
+    Ok(Some(OrderBy::new(exprs.into_iter().zip(ord))))
 }
 
 pub fn parse_return_item(pair: Pair<Rule>) -> Result<ReturnItem, ParseError> {
@@ -714,7 +753,7 @@ mod test {
                     Pattern(vec![PatternPart::path(NodePattern::named("n"), [])]),
                     None
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("n"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("n"), None)])
             ]))
         );
     }
@@ -735,7 +774,63 @@ mod test {
                     Pattern(vec![PatternPart::path(NodePattern::named("n"), [])]),
                     None
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::count_all(), None)])
+            ]))
+        );
+    }
+
+    #[test]
+    fn match_with_order_by() {
+        let input = "MATCH (n) RETURN n ORDER BY n.name";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(NodePattern::named("n"), [])]),
+                    None
+                ),
+                Clause::return_(
+                    false,
+                    Some(OrderBy::new([(Expr::var("n", ["name"]), None)])),
+                    [ReturnItem::new(Expr::prop_named("n"), None)]
+                ),
+            ]))
+        );
+    }
+
+    #[test]
+    fn match_with_order_by_desc_asc() {
+        let input = "MATCH (n)-[e]->(m) RETURN e ORDER BY n.name DESC, m.name ASC";
+
+        let pairs = CypherParser::parse(Rule::Cypher, input);
+        assert!(pairs.is_ok());
+
+        let query = parse_cypher(input);
+
+        assert_eq!(
+            query,
+            Ok(Query::single(vec![
+                Clause::match_(
+                    Pattern(vec![PatternPart::path(
+                        NodePattern::named("n"),
+                        [(RelPattern::out("e"), NodePattern::named("m")),]
+                    )]),
+                    None
+                ),
+                Clause::return_(
+                    false,
+                    Some(OrderBy::new([
+                        (Expr::var("n", ["name"]), Some(false)),
+                        (Expr::var("m", ["name"]), Some(true))
+                    ])),
+                    [ReturnItem::new(Expr::prop_named("e"), None)]
+                ),
             ]))
         );
     }
@@ -754,6 +849,7 @@ mod test {
             Ok(Return {
                 all: false,
                 limit: None,
+                order_by: None,
                 items: vec![ReturnItem {
                     expr: Expr::Var {
                         var_name: "n".to_string(),
@@ -779,6 +875,7 @@ mod test {
             Ok(Return {
                 all: false,
                 limit: Some(10),
+                order_by: None,
                 items: vec![ReturnItem {
                     expr: Expr::Var {
                         var_name: "n".to_string(),
@@ -804,6 +901,7 @@ mod test {
             Ok(Return {
                 all: false,
                 limit: None,
+                order_by: None,
                 items: vec![ReturnItem {
                     expr: Expr::Var {
                         var_name: "n".to_string(),
@@ -829,6 +927,7 @@ mod test {
             Ok(Return {
                 all: false,
                 limit: None,
+                order_by: None,
                 items: vec![
                     ReturnItem {
                         expr: Expr::Var {
@@ -1106,6 +1205,7 @@ mod test {
 
         let expr = parse_expr(pairs.unwrap());
 
+        println!("{:?}", expr);
         assert_eq!(
             expr,
             Ok(Expr::and(
@@ -1360,7 +1460,7 @@ mod test {
                     ]),
                     None
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::count_all(), None)])
             ]))
         );
     }
@@ -1403,7 +1503,7 @@ mod test {
                     ]),
                     None
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::count_all(), None)])
             ]))
         );
     }
@@ -1452,7 +1552,7 @@ mod test {
                         Expr::neq(Expr::prop_named("A"), Expr::prop_named("E"))
                     ))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::count_all(), None)])
             ]))
         );
     }
@@ -1550,7 +1650,7 @@ mod test {
                         )
                     ))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::count_all(), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::count_all(), None)])
             ]))
         );
     }
@@ -1598,7 +1698,7 @@ mod test {
                         ]
                     ))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("p"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("p"), None)])
             ]))
         );
     }
@@ -1617,7 +1717,7 @@ mod test {
                     Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
                     Some(Expr::is_null(Expr::prop("a", ["name"])))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("a"), None)])
             ]))
         );
 
@@ -1633,7 +1733,7 @@ mod test {
                     Pattern(vec![PatternPart::path(NodePattern::named("a"), [])]),
                     Some(Expr::is_not_null(Expr::prop("a", ["name"])))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("a"), None)])
             ]))
         );
 
@@ -1654,7 +1754,7 @@ mod test {
                         Expr::eq(Expr::prop("a", ["age"]), Expr::int(12))
                     ))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("a"), None)])
             ]))
         );
     }
@@ -1676,7 +1776,7 @@ mod test {
                         Expr::ends_with(Expr::prop("a", ["name"]), Expr::str("Doe"))
                     ))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("a"), None)])
             ]))
         );
     }
@@ -1699,7 +1799,7 @@ mod test {
                         Expr::not(Expr::ends_with(Expr::prop("a", ["name"]), Expr::str("Doe")))
                     ))
                 ),
-                Clause::return_(false, [ReturnItem::new(Expr::prop_named("a"), None)])
+                Clause::return_(false, None, [ReturnItem::new(Expr::prop_named("a"), None)])
             ]))
         );
     }

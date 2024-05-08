@@ -141,15 +141,3 @@ impl UserDefinedLogicalNodeCore for HopPlan {
         }
     }
 }
-
-fn extract_eq_exprs(expr: &Expr) -> Option<(Expr, Expr)> {
-    match expr {
-        Expr::BinaryExpr(BinaryExpr {
-            op: Operator::Eq,
-            left,
-            right,
-        }) => Some((left.as_ref().clone(), right.as_ref().clone())),
-        Expr::Alias(Alias { expr, .. }) => extract_eq_exprs(expr.as_ref()),
-        _ => None,
-    }
-}

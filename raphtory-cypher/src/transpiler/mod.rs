@@ -18,7 +18,7 @@ use raphtory::{
     prelude::*,
 };
 use sqlparser::ast::{
-    self as sql_ast, GroupByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
+    self as sql_ast, GroupByExpr, OrderByExpr, SetExpr, TableAlias, WildcardAdditionalOptions, With,
 };
 
 mod exprs;
@@ -27,14 +27,21 @@ pub fn to_sql(query: Query, graph: &ArrowGraph) -> sql_ast::Statement {
     let query = bind_unbound_pattern_filters(query);
     let query = unbind_unused_binds(query);
 
+    let rel_binds = rel_names(&query);
+
+    let node_binds = query
+        .node_patterns()
+        .map(|node_pat| node_pat.name.clone())
+        .collect::<Vec<_>>();
+
     let with = parse_rels_to_ctes(&query, graph);
     sql_ast::Statement::Query(Box::new(sql_ast::Query {
         // WITH (common table expressions, or CTEs)
         with: Some(with),
         // SELECT or UNION / EXCEPT / INTERSECT
-        body: parse_select_body(&query, graph),
+        body: parse_select_body(&query, graph, &rel_binds, &node_binds),
         // ORDER BY
-        order_by: parse_order_by(&query),
+        order_by: parse_order_by(&query, &rel_binds, &node_binds),
         // `LIMIT { <N> | ALL }`
         limit: exprs::parse_limit(&query),
 
@@ -99,6 +106,23 @@ fn unbind_unused_binds(mut query: Query) -> Query {
         .filter(|where_bound| node_binds.contains(where_bound))
         .collect::<HashSet<_>>();
 
+    let nodes_in_order_by = query
+        .clauses()
+        .iter()
+        .flat_map(|clause| match clause {
+            Clause::Return(Return {
+                order_by: Some(items),
+                ..
+            }) => items
+                .exprs
+                .iter()
+                .flat_map(|(expr, _)| expr.binds())
+                .filter(|order_by_bound| node_binds.contains(order_by_bound))
+                .collect::<Vec<_>>(),
+            _ => vec![],
+        })
+        .collect::<HashSet<_>>();
+
     let nodes_with_pattern_props = query
         .node_patterns()
         .filter(|node_pat| node_pat.props.is_some())
@@ -113,6 +137,7 @@ fn unbind_unused_binds(mut query: Query) -> Query {
                 && !nodes_in_return.contains(&node_pattern.name)
                 && !nodes_in_where.contains(&node_pattern.name)
                 && !nodes_with_pattern_props.contains(&node_pattern.name)
+                && !nodes_in_order_by.contains(&node_pattern.name)
             {
                 match bind_table.entry(node_pattern.name.clone()) {
                     std::collections::hash_map::Entry::Vacant(entry) => {
@@ -151,8 +176,29 @@ fn max_bind_count(query: &Query) -> usize {
         .unwrap_or(0)
 }
 
-fn parse_order_by(_query: &Query) -> Vec<sql_ast::OrderByExpr> {
-    vec![]
+fn parse_order_by(query: &Query, rel_binds: &[String], node_binds: &[String]) -> Vec<OrderByExpr> {
+    query
+        .clauses()
+        .into_iter()
+        .flat_map(|clause| match clause {
+            Clause::Return(Return {
+                order_by: Some(items),
+                ..
+            }) => items
+                .exprs
+                .iter()
+                .map(|(expr, asc)| {
+                    let sql_expr = cypher_to_sql_expr(expr, rel_binds, node_binds, false);
+                    OrderByExpr {
+                        expr: sql_expr,
+                        asc: *asc,
+                        nulls_first: None,
+                    }
+                })
+                .collect(),
+            _ => vec![],
+        })
+        .collect()
 }
 
 fn scan_edges_as_sql_cte(
@@ -431,19 +477,17 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
     }
 }
 
-fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr> {
+fn parse_select_body(
+    query: &Query,
+    _graph: &ArrowGraph,
+    rel_binds: &[String],
+    node_binds: &[String],
+) -> Box<SetExpr> {
     let order_by = vec![];
 
     let (from_tables, rel_uniqueness_filters) = parse_tables_2(query);
 
-    let rel_binds = rel_names(query);
-
-    let node_binds = query
-        .node_patterns()
-        .map(|node_pat| node_pat.name.clone())
-        .collect::<Vec<_>>();
-
-    Box::new(sql_ast::SetExpr::Select(Box::new(sql_ast::Select {
+    Box::new(SetExpr::Select(Box::new(sql_ast::Select {
         distinct: None,
         // MSSQL syntax: `TOP (<N>) [ PERCENT ] [ WITH TIES ]`
         top: None,
@@ -674,10 +718,7 @@ fn query_to_graph(query: &Query) -> Graph {
                 Direction::BOTH => unimplemented!("BOTH direction not supported"),
             }
 
-            assert!(
-                direction != &Direction::BOTH,
-                "BOTH direction not supported"
-            );
+            assert_ne!(direction, &Direction::BOTH, "BOTH direction not supported");
             let direction_flag = direction == &Direction::OUT;
 
             let edge_node = graph.node(edge.as_str()).expect("edge not found");
@@ -1122,6 +1163,29 @@ mod test {
         check_cypher_to_sql(
             "MATCH ()-[e]->() RETURN e",
             "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e",
+        );
+    }
+
+    #[test]
+    fn select_all_edges_order_by() {
+        check_cypher_to_sql(
+            "MATCH ()-[e]->() RETURN e ORDER BY e.time",
+            "WITH e AS (SELECT * FROM _default) SELECT e.* FROM e ORDER BY e.time",
+        );
+    }
+
+    #[test]
+    fn select_all_edges_order_by_nodes() {
+        check_cypher_to_sql(
+            "MATCH (m)-[e]->(n) RETURN e ORDER BY m.name ASC, n.name DESC",
+            "WITH \
+            e AS (SELECT * FROM _default), \
+            m AS (SELECT * FROM nodes), \
+            n AS (SELECT * FROM nodes) \
+            SELECT e.* FROM e \
+            JOIN m ON e.src = m.id \
+            JOIN n ON e.dst = n.id \
+            ORDER BY m.name ASC, n.name DESC",
         );
     }
 

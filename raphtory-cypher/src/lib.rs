@@ -232,6 +232,20 @@ mod test {
         print_batches(&data).expect("failed to print batches");
     }
 
+    #[tokio::test]
+    async fn select_table_order_by() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
+
+        let df = run_cypher("match ()-[e]->() RETURN * ORDER by e.weight", &graph)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
+    }
+
     mod arrow2_load {
         use std::path::PathBuf;
 
