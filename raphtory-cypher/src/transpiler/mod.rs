@@ -661,7 +661,10 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
 }
 
 fn unique_edge_filter(a: &str, b: &str) -> Expr {
-    Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"]))
+    Expr::and(
+        Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"])),
+        Expr::neq(Expr::var(a, ["layer_id"]), Expr::var(b, ["layer_id"])),
+    )
 }
 
 /// walk the path parts of the query and build a graph from every node pattern and edge pattern

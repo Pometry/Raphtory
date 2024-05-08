@@ -255,7 +255,7 @@ fn produce_record_batch(
         None,
     ));
 
-    let e_ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
+    let row_num: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
         ScalarBuffer::from(ids_builder),
         None,
     ));
@@ -273,7 +273,7 @@ fn produce_record_batch(
         .zip(temporal_props_chunks)
         .scan(0, move |from, (time_values, time_props)| {
             let len = time_values.len();
-            let e_ids = e_ids.slice(*from, len);
+            let e_ids = row_num.slice(*from, len);
             let layer_ids = layer_ids.slice(*from, len);
             let srcs = srcs.slice(*from, len);
             let dsts = dsts.slice(*from, len);
