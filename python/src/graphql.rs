@@ -348,7 +348,7 @@ impl PyRaphtoryServer {
         slf: PyRefMut<Self>,
         port: u16,
         log_level: String,
-        enable_tracing:bool
+        enable_tracing: bool,
     ) -> PyResult<PyRunningRaphtoryServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let server = take_server_ownership(slf)?;
@@ -361,7 +361,7 @@ impl PyRaphtoryServer {
                 .build()
                 .unwrap()
                 .block_on(async move {
-                    let handler = server.start_with_port(port, &log_level,enable_tracing);
+                    let handler = server.start_with_port(port, &log_level, enable_tracing);
                     let tokio_sender = handler._get_sender().clone();
                     tokio::task::spawn_blocking(move || {
                         match receiver.recv().expect("Failed to wait for cancellation") {
@@ -385,8 +385,14 @@ impl PyRaphtoryServer {
     /// Arguments:
     ///   * `port`: the port to use (defaults to 1736).
     #[pyo3(signature = (port = 1736, log_level="INFO".to_string(),enable_tracing=false))]
-    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16, log_level: String,enable_tracing:bool) -> PyResult<()> {
-        let mut server = Self::start(slf, port, log_level,enable_tracing)?.server_handler;
+    pub fn run(
+        slf: PyRefMut<Self>,
+        py: Python,
+        port: u16,
+        log_level: String,
+        enable_tracing: bool,
+    ) -> PyResult<()> {
+        let mut server = Self::start(slf, port, log_level, enable_tracing)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }
