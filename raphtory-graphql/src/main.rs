@@ -13,7 +13,7 @@ async fn main() {
     let config_path = "config.toml";
 
     RaphtoryServer::from_directory(&graph_directory)
-        .run(config_path)
+        .run(config_path,false)
         .await
         .unwrap()
 }
