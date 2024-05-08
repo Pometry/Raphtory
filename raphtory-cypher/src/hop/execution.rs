@@ -1,4 +1,4 @@
-use arrow::compute::take_record_batch;
+// use arrow::compute::take_record_batch;
 use arrow2::{offset::Offset, types::NativeType};
 use std::{
     any::Any,
@@ -20,18 +20,26 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, Schema, SchemaRef};
 use async_trait::async_trait;
+// use datafusion::physical_plan::ExecutionPlanProperties;
+use datafusion::physical_expr::Partitioning;
+// use datafusion::physical_plan::ExecutionPlanProperties;
 use datafusion::{
     common::DFSchemaRef,
     error::DataFusionError,
     execution::{RecordBatchStream, TaskContext},
     physical_expr::EquivalenceProperties,
     physical_plan::{
-        DisplayAs, DisplayFormatType, Distribution, ExecutionPlan, ExecutionPlanProperties,
-        PlanProperties, SendableRecordBatchStream,
+        DisplayAs,
+        DisplayFormatType,
+        Distribution,
+        ExecutionPlan, //ExecutionPlanProperties,
+        // PlanProperties,
+        SendableRecordBatchStream,
     },
 };
 use futures::{Stream, StreamExt};
 
+use crate::take_record_batch;
 use raphtory::{
     arrow::{
         graph_fragment::TempColGraphFragment,
@@ -51,7 +59,10 @@ pub struct HopExec {
     input: Arc<dyn ExecutionPlan>,
     layers: Vec<String>,
     right_schema: DFSchemaRef,
-    props: PlanProperties,
+
+    output_schema: SchemaRef,
+
+    // props: PlanProperties,
     right_proj: Option<Vec<usize>>,
 }
 
@@ -67,10 +78,10 @@ impl HopExec {
             .expect("input_col not found");
 
         let out_schema: Schema = hop.out_schema.as_ref().into();
-        let input_partitioning = input.output_partitioning().clone();
+        // let input_partitioning = input.output_partitioning().clone();
 
-        let eq_properties = EquivalenceProperties::new(Arc::new(out_schema));
-        let props = PlanProperties::new(eq_properties, input_partitioning, input.execution_mode());
+        // let eq_properties = EquivalenceProperties::new(Arc::new(out_schema));
+        // let props = PlanProperties::new(eq_properties, input_partitioning, input.execution_mode());
         Self {
             graph,
             dir,
@@ -78,7 +89,9 @@ impl HopExec {
             input,
             right_schema: hop.right_schema.clone(),
             layers: hop.right_layers.clone(),
-            props,
+
+            output_schema: Arc::new(out_schema),
+
             right_proj: hop.right_proj.clone(),
         }
     }
@@ -97,9 +110,23 @@ impl ExecutionPlan for HopExec {
         self
     }
 
-    fn properties(&self) -> &PlanProperties {
-        &self.props
+    fn schema(&self) -> SchemaRef {
+        self.output_schema.clone()
     }
+    fn output_partitioning(&self) -> Partitioning {
+        self.input.output_partitioning()
+    }
+    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
+        self.input.output_ordering()
+    }
+
+    // fn output_partitioning(&self) -> datafusion::physical_plan::Partitioning {
+    //     self.input.output_partitioning().clone()
+    // }
+
+    // fn properties(&self) -> &PlanProperties {
+    //     &self.props
+    // }
 
     fn required_input_distribution(&self) -> Vec<Distribution> {
         vec![Distribution::UnspecifiedDistribution]
@@ -125,7 +152,8 @@ impl ExecutionPlan for HopExec {
             input: children[0].clone(),
             layers: self.layers.clone(),
             right_schema: self.right_schema.clone(),
-            props: self.props.clone(),
+            // props: self.props.clone(),
+            output_schema: self.output_schema.clone(),
             right_proj: self.right_proj.clone(),
         }))
     }
@@ -598,8 +626,7 @@ mod test {
         check_rb_hop(1, 2, 2, &[0..2, 2..7], 0..6).await;
     }
 
-    use crate::executor::ExecError;
-    use crate::{prepare_plan, run_cypher};
+    use crate::{executor::ExecError, prepare_plan, run_cypher};
     use proptest::prelude::*;
     use raphtory::{graphgen::random_attachment::random_attachment, prelude::*};
 

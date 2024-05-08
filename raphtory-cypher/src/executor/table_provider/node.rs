@@ -15,8 +15,11 @@ use datafusion::{
     execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
     logical_expr::Expr,
     physical_plan::{
-        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan, PlanProperties,
+        metrics::MetricsSet,
+        stream::RecordBatchStreamAdapter,
+        DisplayAs,
+        DisplayFormatType,
+        ExecutionPlan, //PlanProperties,
     },
 };
 use futures::Stream;
@@ -27,7 +30,7 @@ use raphtory::{
 
 use crate::executor::ExecError;
 
-use super::plan_properties;
+// use super::plan_properties;
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,
@@ -116,14 +119,14 @@ impl TableProvider for NodeTableProvider {
             .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
-        let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
+        // let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
 
         Ok(Arc::new(NodeScanExecPlan {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
             chunk_size: self.chunk_size,
-            props: plan_properties,
+            // props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -184,7 +187,7 @@ struct NodeScanExecPlan {
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
-    props: PlanProperties,
+    // props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -229,8 +232,15 @@ impl ExecutionPlan for NodeScanExecPlan {
         self
     }
 
-    fn properties(&self) -> &PlanProperties {
-        &self.props
+    // fn properties(&self) -> &PlanProperties {
+    //     &self.props
+    // }
+
+    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
+        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
+    }
+    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
+        None
     }
 
     fn schema(&self) -> SchemaRef {

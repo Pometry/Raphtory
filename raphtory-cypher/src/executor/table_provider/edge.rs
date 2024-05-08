@@ -22,7 +22,7 @@ use datafusion::{
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan, PlanProperties,
+        ExecutionPlan,
     },
     physical_planner::create_physical_sort_expr,
 };
@@ -34,7 +34,7 @@ use raphtory::arrow::{
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 
-use super::plan_properties;
+// use super::plan_properties;
 
 pub struct EdgeListTableProvider {
     layer_id: usize,
@@ -149,7 +149,7 @@ impl TableProvider for EdgeListTableProvider {
             .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
-        let plan_properties = plan_properties(schema.clone(), self.num_partitions);
+        // let plan_properties = plan_properties(schema.clone(), self.num_partitions);
         Ok(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
@@ -158,7 +158,7 @@ impl TableProvider for EdgeListTableProvider {
             num_partitions: self.num_partitions,
             row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
-            props: plan_properties,
+            // props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -172,7 +172,7 @@ struct EdgeListExecPlan {
     num_partitions: usize,
     row_count: usize,
     sorted_by: Vec<PhysicalSortExpr>,
-    props: PlanProperties,
+    // props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -352,8 +352,15 @@ impl ExecutionPlan for EdgeListExecPlan {
         self
     }
 
-    fn properties(&self) -> &PlanProperties {
-        &self.props
+    // fn properties(&self) -> &PlanProperties {
+    //     &self.props
+    // }
+
+    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
+        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
+    }
+    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
+        Some(&self.sorted_by)
     }
 
     fn schema(&self) -> SchemaRef {
@@ -380,7 +387,7 @@ impl ExecutionPlan for EdgeListExecPlan {
         target_partitions: usize,
         _config: &ConfigOptions,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
-        let plan_properties = plan_properties(self.schema.clone(), target_partitions);
+        // let plan_properties = plan_properties(self.schema.clone(), target_partitions);
         Ok(Some(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
@@ -389,7 +396,7 @@ impl ExecutionPlan for EdgeListExecPlan {
             num_partitions: target_partitions,
             row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
-            props: plan_properties,
+            // props: plan_properties,
             projection: self.projection.clone(),
         })))
     }

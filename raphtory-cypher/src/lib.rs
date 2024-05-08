@@ -1,7 +1,8 @@
+use arrow::compute::take;
 use std::sync::Arc;
 
-use arrow_array::{builder, UInt64Array};
-use arrow_schema::DataType;
+use arrow_array::{builder, Array, RecordBatch, UInt64Array};
+use arrow_schema::{ArrowError, DataType};
 use datafusion::{
     dataframe::DataFrame,
     error::DataFusionError,
@@ -42,7 +43,10 @@ pub async fn prepare_plan(
     // println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
-    let config = SessionConfig::from_env()?.with_information_schema(true);
+    let mut config = SessionConfig::from_env()?.with_information_schema(true);
+
+    // config.options_mut().optimizer.skip_failed_rules = true;
+    // config.options_mut().optimizer.top_down_join_key_reordering = false;
 
     let runtime = Arc::new(RuntimeEnv::default());
     let state = if enable_hop_optim {
@@ -95,7 +99,7 @@ pub async fn prepare_plan(
     ctx.refresh_catalogs().await?;
     let query = transpiler::to_sql(query, g);
 
-    // println!("SQL: {:?}", query.to_string());
+    println!("SQL: {:?}", query.to_string());
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -132,6 +136,18 @@ pub async fn run_sql(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecE
 
     let df = ctx.sql(query).await?;
     Ok(df)
+}
+
+pub fn take_record_batch(
+    record_batch: &RecordBatch,
+    indices: &dyn Array,
+) -> Result<RecordBatch, ArrowError> {
+    let columns = record_batch
+        .columns()
+        .iter()
+        .map(|c| take(c, indices, None))
+        .collect::<Result<Vec<_>, _>>()?;
+    RecordBatch::try_new(record_batch.schema(), columns)
 }
 
 #[cfg(test)]
@@ -540,13 +556,12 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_node_props(graph_dir);
 
-        let df = run_sql("WITH e1 AS (SELECT * FROM _default), e2 AS (SELECT * FROM _default), a AS (SELECT * FROM nodes), b AS (SELECT * FROM nodes), c AS (SELECT * FROM nodes) SELECT a.name, b.name, c.name FROM e1 JOIN a ON e1.src = a.id JOIN b ON e1.dst = b.id JOIN e2 ON b.id = e2.src JOIN c ON e2.dst = c.id WHERE e1.id <> e2.id", &graph).await.unwrap();
-        // let df = run_cypher(
-        //     "match (a)-[e1]->(b)-[e2]->(c) return a.name, b.name, c.name",
-        //     &graph,
-        // )
-        // .await
-        // .unwrap();
+        let df = run_cypher(
+            "match (a)-[e1]->(b)-[e2]->(c) return a.name, b.name, c.name",
+            &graph,
+        )
+        .await
+        .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
     }

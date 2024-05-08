@@ -72,10 +72,7 @@ impl OptimizerRule for HopRule {
                     ("src", "src") => Direction::OUT,
                     ("src", "dst") => Direction::IN,
                     cols => {
-                        return Err(DataFusionError::Plan(format!(
-                            "Invalid hop columns: {:?}",
-                            cols
-                        )));
+                        return Ok(None);
                     }
                 };
                 (hop_from_col, hop_to_col, direction)

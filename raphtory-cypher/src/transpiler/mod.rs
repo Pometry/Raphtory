@@ -173,7 +173,13 @@ fn scan_edges_as_sql_cte(
 
     let union_query = layer_names
         .iter()
-        .map(|layer| select_scan_query(layer.as_ref(), graph, Some(&schema)))
+        .map(|layer| {
+            select_scan_query(
+                layer.as_ref(),
+                graph,
+                Some(&schema).filter(|_| layer_names.len() > 1), // skip expanding the schema if there is only one layer
+            )
+        })
         // FIXME: there seems to be an issue in which DataFusion executes the query where it sometimes complains about the schema not matching
         // this is an attempted workaround where we lift the most descriptive schema (the one with fewest nulls) to the top of the UNION ALL
         .sorted_by(|(null_count1, _), (null_count2, _)| null_count1.cmp(null_count2))
@@ -188,7 +194,7 @@ fn scan_edges_as_sql_cte(
         },
         query: union_query,
         from: None,
-        materialized: None,
+        // materialized: None,
     }
 }
 
@@ -338,8 +344,7 @@ fn select_query_with_projection(
             named_window: vec![],
             // QUALIFY (Snowflake)
             qualify: None,
-
-            value_table_mode: None,
+            // value_table_mode: None,
         }))),
         // ORDER BY
         order_by: vec![],
@@ -422,7 +427,7 @@ fn node_scan_cte(node: &NodePattern) -> sql_ast::Cte {
             "nodes",
         ),
         from: None,
-        materialized: None,
+        // materialized: None,
     }
 }
 
@@ -466,7 +471,7 @@ fn parse_select_body(query: &Query, _graph: &ArrowGraph) -> Box<sql_ast::SetExpr
         named_window: vec![],
         // QUALIFY (Snowflake)
         qualify: None,
-        value_table_mode: None,
+        // value_table_mode: None,
     })))
 }
 
@@ -600,7 +605,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
             relation: table_from_name(&first_edge.name),
             joins,
         };
-        (vec![table], /*additional_filters*/ vec![])
+        (vec![table], additional_filters)
     } else {
         // matching only one node
         let node_table = sql_ast::TableWithJoins {
