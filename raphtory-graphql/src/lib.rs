@@ -46,6 +46,7 @@ mod graphql_test {
     use serde_json::json;
     use std::collections::HashMap;
     use tempfile::tempdir;
+    use raphtory::db::graph::node::NodeView;
 
     #[tokio::test]
     async fn search_for_gandalf_query() {
@@ -139,25 +140,6 @@ mod graphql_test {
                 }
             }),
         );
-    }
-    #[tokio::test]
-    async fn query_properties() {
-        let graph = PersistentGraph::new();
-        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) =
-            graph.add_node(0, "bilbo", [("food".to_string(), Prop::str("lots"))], None)
-        {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) =
-            graph.add_node(0, "frodo", [("food".to_string(), Prop::str("some"))], None)
-        {
-            panic!("Could not add node! {:?}", err);
-        }
-
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
     }
 
     #[tokio::test]
