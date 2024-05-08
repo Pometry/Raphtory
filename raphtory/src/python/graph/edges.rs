@@ -30,7 +30,6 @@ use crate::{
         },
     },
 };
-use futures_util::{FutureExt, TryStreamExt};
 use itertools::Itertools;
 use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
