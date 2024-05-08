@@ -1435,6 +1435,20 @@ def test_layer_name():
     assert g.edge(0, 1).layer_names == ["_default"]
     assert g.edge(0, 2).layer_names == ["awesome layer"]
 
+    error_msg = ("The layer_name function is only available once an edge has been exploded via .explode_layers() or "
+                 ".explode(). If you want to retrieve the layers for this edge you can use .layer_names.")
+    with pytest.raises(Exception) as e:
+        g.edges.layer_name()
+    assert str(e.value) == error_msg
+
+    assert list(g.edges.explode().layer_name) == ['_default', 'awesome layer']
+
+    with pytest.raises(Exception) as e:
+        g.edge(0, 2).layer_name()
+    assert str(e.value) == error_msg
+
+    assert list(g.edge(0, 2).explode().layer_name) == ['awesome layer']
+
 
 def test_window_size():
     g = Graph()

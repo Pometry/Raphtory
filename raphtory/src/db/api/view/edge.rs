@@ -6,6 +6,7 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::errors::GraphError,
         ArcStr,
     },
     db::api::{
@@ -121,7 +122,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>>;
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
@@ -266,8 +267,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    fn layer_name(&self) -> Self::ValueType<Option<ArcStr>> {
-        self.map(|g, e| e.layer().map(|l_id| g.get_layer_name(*l_id)))
+    fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>> {
+        self.map(|g, e| {
+            e.layer()
+                .map(|l_id| g.get_layer_name(*l_id))
+                .ok_or_else(|| GraphError::LayerNameAPIError)
+        })
     }
 
     /// Gets the TimeIndexEntry if the edge is exploded
@@ -339,6 +344,16 @@ mod test_edge_view {
             .collect();
         assert_eq!(prop_values, expected_prop_values);
         assert_eq!(actual_layers, expected_layers);
+
+        assert!(g.edge(1, 2).unwrap().layer_name().is_err());
+        assert!(g.edges().layer_name().all(|l| l.is_err()));
+        assert!(g
+            .edge(1, 2)
+            .unwrap()
+            .explode()
+            .layer_name()
+            .all(|l| l.is_ok()));
+        assert!(g.edges().explode().layer_name().all(|l| l.is_ok()));
     }
 
     #[test]
@@ -368,7 +383,7 @@ mod test_edge_view {
                 (2, 3, None),
                 (1, 2, None),
                 (1, 2, Some(true)),
-                (2, 3, Some(true))
+                (2, 3, Some(true)),
             ]
         )
     }

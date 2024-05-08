@@ -1,4 +1,5 @@
 use crate::model::graph::{node::Node, property::GqlProperties};
+use async_graphql::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
@@ -122,8 +123,11 @@ impl Edge {
         self.ee.layer_names().map(|x| x.into()).collect()
     }
 
-    async fn layer_name(&self) -> Option<String> {
-        self.ee.layer_name().map(|x| x.into())
+    async fn layer_name(&self) -> Result<String, Error> {
+        match self.ee.layer_name().map(|x| x.into()) {
+            Ok(name) => Ok(name),
+            Err(e) => Err(Error::new(e.to_string())),
+        }
     }
 
     async fn explode(&self) -> Vec<Edge> {

@@ -1,5 +1,5 @@
 use crate::{
-    core::{ArcStr, Prop},
+    core::{utils::errors::GraphError, ArcStr, Prop},
     db::{
         api::view::{
             internal::CoreGraphOps, BoxedIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -16,11 +16,12 @@ use crate::{
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterators::{
-                ArcStringVecIterable, BoolIterable, I64VecIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
-                NestedOptionI64Iterable, NestedU64U64Iterable, NestedUtcDateTimeIterable,
-                NestedVecUtcDateTimeIterable, OptionArcStringIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64U64Iterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, I64VecIterable,
+                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
+                NestedI64VecIterable, NestedOptionI64Iterable, NestedU64U64Iterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
+                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                U64U64Iterable,
             },
         },
         utils::{
@@ -29,6 +30,7 @@ use crate::{
         },
     },
 };
+use futures_util::{FutureExt, TryStreamExt};
 use itertools::Itertools;
 use pyo3::{
     prelude::PyModule, pyclass, pymethods, types::PyDict, IntoPy, PyObject, PyResult, Python,
@@ -225,9 +227,14 @@ impl PyEdges {
     /// Returns:
     ///  The name of the layer
     #[getter]
-    fn layer_name(&self) -> OptionArcStringIterable {
-        let edges = self.edges.clone();
-        (move || edges.layer_name()).into()
+    fn layer_name(&self) -> Result<ArcStringIterable, GraphError> {
+        match self.edges.layer_name().next() {
+            Some(Err(err)) => Err(err),
+            _ => {
+                let edges = self.edges.clone();
+                Ok((move || edges.layer_name().map(|layer| layer.unwrap())).into())
+            }
+        }
     }
 
     /// Get the layer names that all edges belong to - assuming they only belong to one layer
@@ -256,7 +263,7 @@ impl PyEdges {
     ///
     /// Returns:
     ///     If successful, this PyObject will be a Pandas DataFrame.
-    #[pyo3(signature = (include_property_history=true, convert_datetime=false, explode=false))]
+    #[pyo3(signature = (include_property_history = true, convert_datetime = false, explode = false))]
     pub fn to_df(
         &self,
         include_property_history: bool,
@@ -413,9 +420,24 @@ impl PyNestedEdges {
 
     /// Returns the name of the layer the edges belong to - assuming they only belong to one layer
     #[getter]
-    fn layer_name(&self) -> NestedOptionArcStringIterable {
-        let edges = self.edges.clone();
-        (move || edges.layer_name()).into()
+    fn layer_name(&self) -> Result<NestedArcStringIterable, GraphError> {
+        match self.edges.layer_name().flatten().next() {
+            Some(Err(err)) => Err(err),
+            _ => {
+                let edges = self.edges.clone();
+                Ok((move || {
+                    edges
+                        .layer_name()
+                        .map(|layer_name_iter| {
+                            layer_name_iter
+                                .map(|layer_name| layer_name.unwrap())
+                                .into_dyn_boxed()
+                        })
+                        .into_dyn_boxed()
+                })
+                .into())
+            }
+        }
     }
 
     /// Returns the names of the layers the edges belong to

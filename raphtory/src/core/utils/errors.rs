@@ -114,6 +114,9 @@ pub enum GraphError {
         "Failed to load the graph as the bincode version {0} is different to installed version {1}"
     )]
     BincodeVersionError(u32, u32),
+
+    #[error("The layer_name function is only available once an edge has been exploded via .explode_layers() or .explode(). If you want to retrieve the layers for this edge you can use .layer_names.")]
+    LayerNameAPIError,
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

@@ -281,7 +281,7 @@ impl PyEdge {
     /// Returns:
     ///     (List<str>) The name of the layer
     #[getter]
-    pub fn layer_name(&self) -> Option<ArcStr> {
+    pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
         self.edge.layer_name().map(|v| v.clone())
     }
 
