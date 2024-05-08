@@ -40,13 +40,15 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
-        db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
+        db::{
+            api::view::IntoDynamic,
+            graph::{node::NodeView, views::deletion_graph::PersistentGraph},
+        },
         prelude::*,
     };
     use serde_json::json;
     use std::collections::HashMap;
     use tempfile::tempdir;
-    use raphtory::db::graph::node::NodeView;
 
     #[tokio::test]
     async fn search_for_gandalf_query() {

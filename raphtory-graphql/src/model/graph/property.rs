@@ -279,7 +279,7 @@ impl GqlTemporalProperties {
     async fn keys(&self) -> Vec<String> {
         self.props.keys().map(|k| k.into()).collect()
     }
-    async fn values(&self,keys: Option<Vec<String>>) -> Vec<GqlTemporalProp> {
+    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProp> {
         match keys {
             Some(keys) => self
                 .props
