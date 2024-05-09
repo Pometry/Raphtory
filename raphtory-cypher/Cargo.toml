@@ -14,16 +14,13 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arrow2.workspace = true
+polars-arrow = { workspace = true }
+polars-parquet = { workspace = true }
 
 lazy_static = "1.4.0"
 pest = "2.7.8"
 pest_derive = "2.7.8"
 sqlparser = "0.43.1"
-
-# polars-core = { version = "0.38", features = ["lazy", "fmt", "dtype-struct"] }
-# polars-arrow = { version = "0.38", features = ["arrow_rs"] }
-# polars-lazy = { version = "0.38", features = ["list_eval"] }
 
 datafusion = { version = "36" }
 async-trait = "0.1.73"

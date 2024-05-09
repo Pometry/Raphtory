@@ -596,9 +596,9 @@ impl<'a, Ops: TimeIndexOps + 'a> TimeIndexOps for LayeredTimeIndexWindow<'a, Ops
 mod test {
     use std::collections::BTreeSet;
 
-    use arrow2::{
+    use crate::arrow2::{
         array::{PrimitiveArray, StructArray},
-        datatypes::{DataType, Field},
+        datatypes::{ArrowDataType as DataType, Field},
     };
     use itertools::Itertools;
 

@@ -122,3 +122,4 @@ pub mod prelude {
 }
 
 pub const BINCODE_VERSION: u32 = 1u32;
+pub use polars_arrow as arrow2;

@@ -5,16 +5,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use arrow2::{
+use crate::arrow2::{
     array::{Array, StructArray},
-    chunk::Chunk,
     compute::concatenate::concatenate,
-    datatypes::{DataType, Field, Schema},
+    datatypes::{ArrowDataType as DataType, ArrowSchema as Schema, Field},
 };
 use itertools::Itertools;
 use num_traits::ToPrimitive;
+use polars_arrow::record_batch::RecordBatch;
 use serde::{Deserialize, Serialize};
 
+use crate::arrow2::legacy::error;
 use crate::{
     arrow::load::parquet_reader::{NumRows, TrySlice},
     core::entities::nodes::input_node::parse_u64_strict,
@@ -48,10 +49,10 @@ pub enum Error {
     #[error("Failed to memory map file {file:?}, source: {source}")]
     MMap {
         file: PathBuf,
-        source: arrow2::error::Error,
+        source: error::PolarsError,
     },
     #[error("Arrow error: {0}")]
-    Arrow(#[from] arrow2::error::Error),
+    Arrow(#[from] error::PolarsError),
     #[error("IO error: {0}")]
     IO(#[from] std::io::Error),
     //serde error
@@ -301,8 +302,8 @@ pub(crate) struct GraphChunk {
 }
 
 impl GraphChunk {
-    pub fn to_chunk(&self) -> Chunk<Box<dyn Array>> {
-        Chunk::new(vec![self.srcs.clone(), self.dsts.clone()])
+    pub fn to_chunk(&self) -> RecordBatch<Box<dyn Array>> {
+        RecordBatch::new(vec![self.srcs.clone(), self.dsts.clone()])
     }
 }
 

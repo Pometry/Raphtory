@@ -78,7 +78,9 @@ async-trait = "0.1.77"
 async-openai = "0.17.1"
 num = "0.4.1"
 display-error-chain = "0.2.0"
-arrow2 = { git = "https://github.com/Pometry/arrow2.git", branch = "transition_50", features = ["arrow"] }
+polars-arrow = "0.39.2"
+polars-parquet = "0.39.2"
+polars-utils = "0.39.2"
 kdam = { version = "0.5.1", features = ["notebook"] }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"

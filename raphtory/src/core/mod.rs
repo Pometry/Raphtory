@@ -39,7 +39,7 @@ use std::{
 };
 
 #[cfg(feature = "arrow")]
-use arrow2::datatypes::DataType;
+use crate::arrow2::datatypes::ArrowDataType as DataType;
 
 #[cfg(test)]
 extern crate core;
