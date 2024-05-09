@@ -127,7 +127,7 @@ async fn main() {
                 let df = if args.sql {
                     run_sql(&args.query, &graph).await.unwrap()
                 } else {
-                    run_cypher(&args.query, &graph).await.unwrap()
+                    run_cypher(&args.query, &graph, true).await.unwrap()
                 };
 
                 let now = std::time::Instant::now();

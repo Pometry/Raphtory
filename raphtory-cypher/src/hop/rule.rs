@@ -1,3 +1,4 @@
+use arrow_schema::Schema;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -7,7 +8,7 @@ use datafusion::{
     execution::context::{QueryPlanner, SessionState},
     logical_expr::{Expr, Extension, Join, LogicalPlan, UserDefinedLogicalNode},
     optimizer::{optimize_children, optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
-    physical_plan::ExecutionPlan,
+    physical_plan::{joins::utils::build_join_schema, ExecutionPlan},
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
@@ -42,23 +43,12 @@ impl OptimizerRule for HopRule {
                 on,
                 left,
                 schema,
-                filter,
                 ..
             } = join;
-
-            println!("filter: {filter:?}");
-
-            // println!("right: {right:?}");
-            // println!("left: {left:?}");
 
             if on.len() != 1 {
                 return Ok(None); //optimize_children(self, plan, config);
             }
-
-            // (Direction::OUT, Direction::OUT) => ("dst", "src"),
-            // (Direction::OUT, Direction::IN) => ("dst", "dst"),
-            // (Direction::IN, Direction::OUT) => ("src", "src"),
-            // (Direction::IN, Direction::IN) => ("src", "dst"),
 
             let (hop_from_col, _hop_to_col, direction) = if let (
                 Expr::Column(Column {

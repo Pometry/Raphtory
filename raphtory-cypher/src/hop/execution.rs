@@ -1,4 +1,5 @@
 // use arrow::compute::take_record_batch;
+use arrow::util::pretty::print_batches;
 use arrow2::{offset::Offset, types::NativeType};
 use std::{
     any::Any,
@@ -62,8 +63,20 @@ pub struct HopExec {
 
     output_schema: SchemaRef,
 
-    // props: PlanProperties,
     right_proj: Option<Vec<usize>>,
+}
+
+// we assume to be chaining the hops so we need to find the last input column
+fn find_last_input_col(hop: &HopPlan, input: &Arc<dyn ExecutionPlan>) -> usize {
+    let mut input_col = None;
+
+    for (id, field) in input.schema().fields().iter().enumerate() {
+        if field.name() == &hop.left_col {
+            input_col = Some(id);
+        }
+    }
+    let input_col = input_col.expect("failed to find the input column in the input schema");
+    input_col
 }
 
 impl HopExec {
@@ -72,16 +85,10 @@ impl HopExec {
         let dir = hop.dir;
         let input = physical_inputs[0].clone();
 
-        let input_col = input
-            .schema()
-            .index_of(&hop.left_col)
-            .expect("input_col not found");
+        let input_col = find_last_input_col(hop, &input);
 
         let out_schema: Schema = hop.out_schema.as_ref().into();
-        // let input_partitioning = input.output_partitioning().clone();
 
-        // let eq_properties = EquivalenceProperties::new(Arc::new(out_schema));
-        // let props = PlanProperties::new(eq_properties, input_partitioning, input.execution_mode());
         Self {
             graph,
             dir,
@@ -120,20 +127,11 @@ impl ExecutionPlan for HopExec {
         self.input.output_ordering()
     }
 
-    // fn output_partitioning(&self) -> datafusion::physical_plan::Partitioning {
-    //     self.input.output_partitioning().clone()
-    // }
-
-    // fn properties(&self) -> &PlanProperties {
-    //     &self.props
-    // }
-
     fn required_input_distribution(&self) -> Vec<Distribution> {
         vec![Distribution::UnspecifiedDistribution]
     }
 
     fn maintains_input_order(&self) -> Vec<bool> {
-        // tell optimizer this operator doesn't reorder its input
         vec![true]
     }
 
@@ -152,7 +150,6 @@ impl ExecutionPlan for HopExec {
             input: children[0].clone(),
             layers: self.layers.clone(),
             right_schema: self.right_schema.clone(),
-            // props: self.props.clone(),
             output_schema: self.output_schema.clone(),
             right_proj: self.right_proj.clone(),
         }))
@@ -343,7 +340,6 @@ fn produce_next_record(
     layer_pos: &mut usize,
     max_record_rows: usize,
 
-    // prev_edge: Option<EID>,
     prev_node: &mut Option<VID>,
 
     input_col: usize,
@@ -361,6 +357,9 @@ fn produce_next_record(
     // print_batches(&[rb.clone()]);
 
     let rb = rb.slice(*row_pos, rb.num_rows() - *row_pos);
+    if rb.num_rows() == 0 {
+        return None;
+    }
     let hop_col = rb
         .column(input_col)
         .as_any()
@@ -519,10 +518,7 @@ fn produce_next_record(
     let take_indices = UInt64Array::from(take_indices);
     let left_rb = take_record_batch(&rb, &take_indices).expect("take failed");
 
-    let src_ids = left_rb
-        .column_by_name("dst")
-        .expect("dst not found")
-        .clone();
+    let src_ids = left_rb.column(input_col).clone();
 
     let edge_timestamps = Arc::new(Int64Array::from(edge_timestamps));
     let dst_ids = Arc::new(UInt64Array::from(dst_indices));
@@ -673,29 +669,20 @@ mod test {
         let graph = ArrowGraph::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
 
         let now = std::time::Instant::now();
-        let df = run_cypher_with_joins("MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)", &graph)
-            .await
-            .unwrap();
+        let query = "MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)";
+        let df = run_cypher(query, &graph, false).await.unwrap();
 
         let rbs = df.collect().await.unwrap();
         assert!(!rbs.is_empty());
         let col_hop = &rbs[0].columns()[0];
 
-        let df = run_cypher("MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)", &graph)
-            .await
-            .unwrap();
+        let df = run_cypher(query, &graph, true).await.unwrap();
 
         let rbs = df.collect().await.unwrap();
         assert!(!rbs.is_empty());
         let col_join = &rbs[0].columns()[0];
 
         assert_eq!(col_hop, col_join);
-    }
-
-    async fn run_cypher_with_joins(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
-        let (ctx, plan) = prepare_plan(query, g, true).await?;
-        let df = ctx.execute_logical_plan(plan).await?;
-        Ok(df)
     }
 
     async fn check_rb_hop(

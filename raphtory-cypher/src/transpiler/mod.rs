@@ -661,8 +661,11 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
 }
 
 fn unique_edge_filter(a: &str, b: &str) -> Expr {
-    Expr::and(
-        Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"])),
+    Expr::or(
+        Expr::and(
+            Expr::neq(Expr::var(a, ["id"]), Expr::var(b, ["id"])),
+            Expr::eq(Expr::var(a, ["layer_id"]), Expr::var(b, ["layer_id"])),
+        ),
         Expr::neq(Expr::var(a, ["layer_id"]), Expr::var(b, ["layer_id"])),
     )
 }
@@ -940,15 +943,19 @@ fn cypher_to_sql_expr(
                             sql_ast::Ident::new("id"),
                         ])
                     } else {
-                        sql_ast::Expr::CompoundIdentifier(vec![sql_ast::Ident::new(var_name)])
+                        sql_ast::Expr::Identifier(sql_ast::Ident::new(var_name))
                     }
                 }
             } else {
-                sql_ast::Expr::CompoundIdentifier(
-                    std::iter::once(sql_ast::Ident::new(var_name))
-                        .chain(attrs.iter().map(sql_ast::Ident::new))
-                        .collect(),
-                )
+                if !attrs.is_empty() {
+                    sql_ast::Expr::CompoundIdentifier(
+                        std::iter::once(sql_ast::Ident::new(var_name))
+                            .chain(attrs.iter().map(sql_ast::Ident::new))
+                            .collect(),
+                    )
+                } else {
+                    sql_ast::Expr::Identifier(sql_ast::Ident::new(var_name))
+                }
             }
         }
         // contains
@@ -1379,7 +1386,7 @@ mod test {
              SELECT e1.*, e2.* \
              FROM e1 \
              JOIN e2 ON e1.dst = e2.src \
-             WHERE e1.id <> e2.id",
+             WHERE e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id",
         );
     }
 
@@ -1414,7 +1421,7 @@ mod test {
              JOIN n2 ON e1.dst = n2.id \
              JOIN e2 ON n2.id = e2.src \
              JOIN n3 ON e2.dst = n3.id \
-             WHERE e1.id <> e2.id",
+             WHERE e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id",
         );
     }
 
@@ -1434,72 +1441,89 @@ mod test {
              JOIN n2 ON e1.dst = n2.id \
              JOIN e2 ON n2.id = e2.src \
              JOIN n3 ON e2.dst = n3.id \
-             WHERE e1.id <> e2.id",
+             WHERE e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id",
         );
     }
 
     #[test]
     fn test_fork_in_path() {
+        let expected = "WITH \
+        e3 AS (SELECT * FROM _default), \
+        e1 AS (SELECT * FROM _default), \
+        e2 AS (SELECT * FROM _default), \
+        b AS (SELECT * FROM nodes) \
+        SELECT e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst \
+        FROM e3 \
+        JOIN b ON e3.src = b.id \
+        JOIN e1 ON b.id = e1.dst \
+        JOIN e2 ON b.id = e2.src \
+        WHERE \
+        e3.id <> e1.id AND \
+        e3.layer_id = e1.layer_id OR e3.layer_id <> e1.layer_id \
+        AND e3.id <> e2.id \
+        AND e3.layer_id = e2.layer_id OR e3.layer_id <> e2.layer_id \
+        AND e1.id <> e2.id \
+        AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id";
         check_cypher_to_sql(
             "match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst",
-            "WITH \
-             e3 AS (SELECT * FROM _default), \
-             e1 AS (SELECT * FROM _default), \
-             e2 AS (SELECT * FROM _default), \
-             b AS (SELECT * FROM nodes) \
-             SELECT e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst \
-             FROM e3 \
-             JOIN b ON e3.src = b.id \
-             JOIN e1 ON b.id = e1.dst \
-             JOIN e2 ON b.id = e2.src \
-             WHERE e3.id <> e1.id AND e3.id <> e2.id AND e1.id <> e2.id",
+             expected
         )
     }
 
     #[test]
     fn two_hops_with_self_loop() {
+        let expected = "WITH \
+        nf1 AS (SELECT * FROM Netflow), \
+        login1 AS (SELECT * FROM Events2v), \
+        prog1 AS (SELECT * FROM Events1v), \
+        E AS (SELECT * FROM nodes), \
+        B AS (SELECT * FROM nodes), \
+        A AS (SELECT * FROM nodes) \
+        SELECT E.name, B.name, A.name \
+        FROM nf1 \
+        JOIN E ON nf1.dst = E.id \
+        JOIN B ON nf1.src = B.id \
+        JOIN login1 ON B.id = login1.dst \
+        JOIN prog1 ON B.id = prog1.src \
+        JOIN A ON login1.src = A.id \
+        WHERE \
+        nf1.id <> login1.id AND \
+        nf1.layer_id = login1.layer_id OR nf1.layer_id <> login1.layer_id AND \
+        nf1.id <> prog1.id AND \
+        nf1.layer_id = prog1.layer_id OR nf1.layer_id <> prog1.layer_id AND \
+        login1.id <> prog1.id AND \
+        login1.layer_id = prog1.layer_id OR login1.layer_id <> prog1.layer_id";
         check_cypher_to_sql_layers(
             "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) RETURN E.name, B.name, A.name",
-            "WITH \
-             nf1 AS (SELECT * FROM Netflow), \
-             login1 AS (SELECT * FROM Events2v), \
-             prog1 AS (SELECT * FROM Events1v), \
-             E AS (SELECT * FROM nodes), \
-             B AS (SELECT * FROM nodes), \
-             A AS (SELECT * FROM nodes) \
-             SELECT E.name, B.name, A.name \
-             FROM nf1 \
-             JOIN E ON nf1.dst = E.id \
-             JOIN B ON nf1.src = B.id \
-             JOIN login1 ON B.id = login1.dst \
-             JOIN prog1 ON B.id = prog1.src \
-             JOIN A ON login1.src = A.id \
-             WHERE nf1.id <> login1.id AND nf1.id <> prog1.id AND login1.id <> prog1.id",
+             expected,
             ["Netflow", "Events2v", "Events1v"]
         );
     }
 
     #[test]
     fn two_hops_with_self_loop_ignore_nodes() {
+        let expect = "WITH \
+        nf1 AS (SELECT * FROM Netflow), \
+        login1 AS (SELECT * FROM Events2v), \
+        prog1 AS (SELECT * FROM Events1v), \
+        B AS (SELECT * FROM nodes), \
+        A AS (SELECT * FROM nodes) \
+        SELECT COUNT(nf1.id) FROM nf1 \
+        JOIN B ON nf1.src = B.id \
+        JOIN login1 ON B.id = login1.dst \
+        JOIN prog1 ON B.id = prog1.src \
+        JOIN A ON login1.src = A.id \
+        WHERE \
+        A.id <> B.id AND \
+        nf1.id <> login1.id AND \
+        nf1.layer_id = login1.layer_id OR nf1.layer_id <> login1.layer_id AND \
+        nf1.id <> prog1.id AND \
+        nf1.layer_id = prog1.layer_id OR nf1.layer_id <> prog1.layer_id AND \
+        login1.id <> prog1.id AND \
+        login1.layer_id = prog1.layer_id OR login1.layer_id <> prog1.layer_id";
         check_cypher_to_sql_layers(
             "MATCH (E)<-[nf1:Netflow]-(B)<-[login1:Events2v]-(A), (B)<-[prog1:Events1v]-(B) WHERE A <> B RETURN count(*)",
-            "WITH \
-             nf1 AS (SELECT * FROM Netflow), \
-             login1 AS (SELECT * FROM Events2v), \
-             prog1 AS (SELECT * FROM Events1v), \
-             B AS (SELECT * FROM nodes), \
-             A AS (SELECT * FROM nodes) \
-             SELECT COUNT(nf1.id) \
-             FROM nf1 \
-             JOIN B ON nf1.src = B.id \
-             JOIN login1 ON B.id = login1.dst \
-             JOIN prog1 ON B.id = prog1.src \
-             JOIN A ON login1.src = A.id \
-             WHERE \
-             A.id <> B.id AND \
-             nf1.id <> login1.id AND \
-             nf1.id <> prog1.id AND \
-             login1.id <> prog1.id",
+             expect,
            ["Netflow", "Events2v", "Events1v"])
     }
 
@@ -1544,23 +1568,25 @@ mod test {
              AND c.name LIKE '%cc%' \
              AND r1.eprop2flt <= r2.eprop2flt \
              AND r1.eprop2flt >= (r2.eprop2flt - 40L) \
-             AND r1.id <> r2.id",
+             AND r1.id <> r2.id AND r1.layer_id = r2.layer_id OR r1.layer_id <> r2.layer_id",
         );
     }
 
     #[test]
     fn hop_3_times_out() {
+        let expected = "WITH \
+        e1 AS (SELECT * FROM _default), \
+        e2 AS (SELECT * FROM _default), \
+        e3 AS (SELECT * FROM _default) \
+        SELECT e1.*, e2.*, e3.* FROM e1 \
+        JOIN e2 ON e1.dst = e2.src \
+        JOIN e3 ON e2.dst = e3.src \
+        WHERE \
+        e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id AND \
+        e2.id <> e3.id AND e2.layer_id = e3.layer_id OR e2.layer_id <> e3.layer_id";
         check_cypher_to_sql(
             "MATCH ()-[e1]->()-[e2]->()-[e3]->() RETURN e1, e2, e3",
-            "WITH \
-             e1 AS (SELECT * FROM _default), \
-             e2 AS (SELECT * FROM _default), \
-             e3 AS (SELECT * FROM _default) \
-             SELECT e1.*, e2.*, e3.* \
-             FROM e1 \
-             JOIN e2 ON e1.dst = e2.src \
-             JOIN e3 ON e2.dst = e3.src \
-             WHERE e1.id <> e2.id AND e2.id <> e3.id",
+            expected,
         );
     }
 
@@ -1574,7 +1600,7 @@ mod test {
              SELECT e1.*, e2.* \
              FROM e1 \
              JOIN e2 ON e1.src = e2.dst \
-             WHERE e1.id <> e2.id",
+             WHERE e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id",
         );
     }
 
@@ -1588,7 +1614,7 @@ mod test {
              SELECT e1.*, e2.* \
              FROM e1 \
              JOIN e2 ON e1.dst = e2.dst \
-             WHERE e1.id <> e2.id",
+             WHERE e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id",
         );
     }
 
