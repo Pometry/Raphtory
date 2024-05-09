@@ -243,57 +243,61 @@ def test_windows_and_layers():
     q = """
     query GetEdges {
       graph(name: "lotr") {
-        window(start:200,end:800){
-        node(name: "Frodo"){
-          after(time:500){
-            history
-            neighbours{
-              name
-              before(time:300){
-                history
+        window(start: 200, end: 800) {
+          node(name: "Frodo") {
+            after(time: 500) {
+              history
+              neighbours {
+                list {
+                  name
+                  before(time: 300) {
+                    history
+                  }
+                }
               }
             }
           }
         }
-      }
       }
     }
     """
     ra = """
     {
-        "graph": {
-          "window": {
-            "node": {
-              "after": {
-                "history": [
-                  555,
-                  562
-                ],
-                "neighbours": [
-                  {
-                    "name": "Gandalf",
-                    "before": {
-                      "history": [
-                        270
-                      ]
-                    }
-                  },
-                  {
-                    "name": "Bilbo",
-                    "before": {
-                      "history": [
-                        205,
-                        270,
-                        286
-                      ]
-                    }
+    "graph": {
+      "window": {
+        "node": {
+          "after": {
+            "history": [
+              555,
+              562
+            ],
+            "neighbours": {
+              "list": [
+                {
+                  "name": "Gandalf",
+                  "before": {
+                    "history": [
+                      270
+                    ]
                   }
-                ]
-              }
+                },
+                {
+                  "name": "Bilbo",
+                  "before": {
+                    "history": [
+                      205,
+                      270,
+                      286
+                    ]
+                  }
+                }
+              ]
             }
           }
         }
+      }
     }
+  }
     """
     a = json.dumps(server.query(q))
     json_a = json.loads(a)
@@ -301,47 +305,54 @@ def test_windows_and_layers():
     assert json_a == json_ra
 
     q = """
-    query GetEdges {
-      graph(name: "layers") {
-            node(name:"1"){
-          layer(name:"layer1"){
-            name
-            neighbours{
-              name
-              layer(name:"layer2"){
-               neighbours{
+        query GetEdges {
+          graph(name: "layers") {
+            node(name: "1") {
+              layer(name: "layer1") {
                 name
-              } 
+                neighbours {
+                  list {
+                    name
+                    layer(name: "layer2") {
+                      neighbours {
+                        list {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
-            }
+          }
         }
-      }
-    }
     """
-
     ra = """
     {
         "graph": {
-            "node": {
-                "layer": {
-                    "name": "1",
-                    "neighbours": [
-                        {
-                            "name": "2",
-                            "layer": {
-                                "neighbours": [
-                                    {
-                                        "name": "3"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
+          "node": {
+            "layer": {
+              "name": "1",
+              "neighbours": {
+                "list": [
+                  {
+                    "name": "2",
+                    "layer": {
+                      "neighbours": {
+                        "list": [
+                          {
+                            "name": "3"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
             }
+          }
         }
-    }
+      }
       """
 
     a = json.dumps(server.query(q))
