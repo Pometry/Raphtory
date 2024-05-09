@@ -37,7 +37,6 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use thiserror::Error;
 
 #[cfg(feature = "arrow")]
 use arrow2::datatypes::DataType;

@@ -1,6 +1,3 @@
-// use arrow::compute::take_record_batch;
-use arrow::util::pretty::print_batches;
-use arrow2::{offset::Offset, types::NativeType};
 use std::{
     any::Any,
     collections::HashSet,
@@ -11,6 +8,8 @@ use std::{
     task::{Context, Poll},
 };
 
+use arrow2::{offset::Offset, types::NativeType};
+// use arrow::compute::take_record_batch;
 use arrow_array::{
     builder::{
         make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder,
@@ -22,13 +21,10 @@ use arrow_array::{
 use arrow_schema::{DataType, Schema, SchemaRef};
 use async_trait::async_trait;
 // use datafusion::physical_plan::ExecutionPlanProperties;
-use datafusion::physical_expr::Partitioning;
-// use datafusion::physical_plan::ExecutionPlanProperties;
 use datafusion::{
     common::DFSchemaRef,
     error::DataFusionError,
     execution::{RecordBatchStream, TaskContext},
-    physical_expr::EquivalenceProperties,
     physical_plan::{
         DisplayAs,
         DisplayFormatType,
@@ -38,9 +34,10 @@ use datafusion::{
         SendableRecordBatchStream,
     },
 };
+// use datafusion::physical_plan::ExecutionPlanProperties;
+use datafusion::physical_expr::Partitioning;
 use futures::{Stream, StreamExt};
 
-use crate::take_record_batch;
 use raphtory::{
     arrow::{
         graph_fragment::TempColGraphFragment,
@@ -49,6 +46,8 @@ use raphtory::{
     },
     core::{entities::VID, Direction},
 };
+
+use crate::take_record_batch;
 
 use super::operator::HopPlan;
 
@@ -560,7 +559,6 @@ impl RecordBatchStream for HopStream {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use arrow::{compute::concat_batches, util::pretty::print_batches};
     use arrow_array::{
         types::{Float64Type, Int64Type, UInt64Type},
@@ -569,14 +567,19 @@ mod test {
     use arrow_schema::{ArrowError, Field};
     use datafusion::{
         common::{DFSchema, ToDFSchema},
-        dataframe::DataFrame,
         physical_plan::stream::RecordBatchStreamAdapter,
     };
     use futures::stream;
+    use pretty_assertions::assert_eq;
+    use proptest::{prelude::*, proptest};
     use tempfile::tempdir;
 
-    use pretty_assertions::assert_eq;
-    use proptest::proptest;
+    use raphtory::{graphgen::random_attachment::random_attachment, prelude::*};
+
+    use crate::run_cypher;
+
+    use super::*;
+
     lazy_static::lazy_static! {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
             (0, 1, 0, 3.),
@@ -622,20 +625,15 @@ mod test {
         check_rb_hop(1, 2, 2, &[0..2, 2..7], 0..6).await;
     }
 
-    use crate::{executor::ExecError, prepare_plan, run_cypher};
-    use proptest::prelude::*;
-    use raphtory::{graphgen::random_attachment::random_attachment, prelude::*};
-
     proptest! {
         #[test]
         fn stream_one_hop_from_07_bs1_split_input_proptest(
-            batch_size in 1usize..17,
             chunk_size in 1usize..23,
             t_props_chunk_size in 1usize..11,
             edges in (1..5usize).prop_map(|num_nodes| graph_gen_edges(num_nodes))
         ) {
             tokio::runtime::Runtime::new().unwrap().block_on(
-                check_random_hop(batch_size, chunk_size, t_props_chunk_size, &edges)
+                check_random_hop(chunk_size, t_props_chunk_size, &edges)
             );
         }
     }
@@ -660,7 +658,6 @@ mod test {
     }
 
     async fn check_random_hop(
-        batch_size: usize,
         chunk_size: usize,
         t_props_chunk_size: usize,
         edges: &[(u64, u64, i64, f64)],
@@ -668,7 +665,6 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, edges, chunk_size, t_props_chunk_size);
 
-        let now = std::time::Instant::now();
         let query = "MATCH (a)-[e1]->(b)-[e2]->(c) RETURN count(*)";
         let df = run_cypher(query, &graph, false).await.unwrap();
 

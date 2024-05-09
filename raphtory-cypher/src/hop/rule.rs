@@ -1,4 +1,3 @@
-use arrow_schema::Schema;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -8,7 +7,7 @@ use datafusion::{
     execution::context::{QueryPlanner, SessionState},
     logical_expr::{Expr, Extension, Join, LogicalPlan, UserDefinedLogicalNode},
     optimizer::{optimize_children, optimizer::ApplyOrder, OptimizerConfig, OptimizerRule},
-    physical_plan::{joins::utils::build_join_schema, ExecutionPlan},
+    physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
@@ -64,9 +63,7 @@ impl OptimizerRule for HopRule {
                     ("dst", "dst") => Direction::IN,
                     ("src", "src") => Direction::OUT,
                     ("src", "dst") => Direction::IN,
-                    cols => {
-                        return Ok(None);
-                    }
+                    _ => return Ok(None),
                 };
                 (hop_from_col, hop_to_col, direction)
             } else {

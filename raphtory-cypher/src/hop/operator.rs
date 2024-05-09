@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use datafusion::{
     common::DFSchemaRef,
-    logical_expr::{
-        expr::Alias, BinaryExpr, Expr, LogicalPlan, Operator, TableScan, UserDefinedLogicalNodeCore,
-    },
+    logical_expr::{Expr, LogicalPlan, TableScan, UserDefinedLogicalNodeCore},
 };
+
 use raphtory::{arrow::graph_impl::ArrowGraph, core::Direction};
 
 #[derive(Debug, PartialEq, Hash, Eq)]

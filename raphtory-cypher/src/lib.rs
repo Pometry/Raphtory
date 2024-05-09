@@ -47,7 +47,7 @@ pub async fn prepare_plan(
     // println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
-    let mut config = SessionConfig::from_env()?.with_information_schema(true);
+    let config = SessionConfig::from_env()?.with_information_schema(true);
 
     // config.options_mut().optimizer.skip_failed_rules = true;
     // config.options_mut().optimizer.top_down_join_key_reordering = false;
@@ -169,12 +169,11 @@ mod test {
     // use pretty_assertions::assert_eq;
     use arrow::util::pretty::print_batches;
     use arrow_array::RecordBatch;
-    use datafusion::prelude::col;
     use tempfile::tempdir;
 
     use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
 
-    use crate::{run_cypher, run_sql};
+    use crate::run_cypher;
 
     lazy_static::lazy_static! {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
@@ -415,15 +414,6 @@ mod test {
     async fn two_hops() {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
-
-        let sql_query = "WITH \
-        e1 AS (SELECT * FROM _default), \
-        e2 AS (SELECT * FROM _default) \
-        SELECT e1.src AS start, e1.dst AS mid, e2.dst AS end \
-        FROM e1 \
-        JOIN e2 ON e1.dst = e2.src \
-        WHERE e1.id <> e2.id AND e1.layer_id = e2.layer_id OR e1.layer_id <> e2.layer_id \
-        ORDER BY start, mid, end";
 
         let query = "match ()-[e1]->()-[e2]->() return e1.src as start, e1.dst as mid, e2.dst as end ORDER BY start, mid, end";
 

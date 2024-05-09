@@ -28,7 +28,7 @@ use datafusion::{
 };
 use futures::Stream;
 use raphtory::arrow::{
-    chunked_array::array_ops::{ArrayOps, BaseArrayOps, Chunked},
+    chunked_array::array_ops::{ArrayOps, BaseArrayOps},
     graph_impl::ArrowGraph,
 };
 
