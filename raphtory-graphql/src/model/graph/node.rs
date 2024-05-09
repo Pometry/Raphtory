@@ -1,4 +1,6 @@
-use crate::model::graph::{edge::Edge, property::GqlProperties};
+use crate::model::graph::{
+    edge::Edge, edges::GqlEdges, path_from_node::GqlPathFromNode, property::GqlProperties,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::{properties::dyn_props::DynProperties, view::*},
@@ -144,31 +146,27 @@ impl Node {
         self.vv.in_degree()
     }
 
-    async fn edges(&self) -> Vec<Edge> {
-        self.vv.edges().iter().map(|ee| ee.into()).collect()
+    async fn edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.edges())
     }
 
-    async fn out_edges(&self) -> Vec<Edge> {
-        self.vv.out_edges().iter().map(|ee| ee.into()).collect()
+    async fn out_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.out_edges())
     }
 
-    async fn in_edges(&self) -> Vec<Edge> {
-        self.vv.in_edges().iter().map(|ee| ee.into()).collect()
+    async fn in_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.in_edges())
     }
 
-    async fn neighbours<'a>(&self) -> Vec<Node> {
-        self.vv.neighbours().iter().map(|vv| vv.into()).collect()
+    async fn neighbours<'a>(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.neighbours())
     }
 
-    async fn in_neighbours<'a>(&self) -> Vec<Node> {
-        self.vv.in_neighbours().iter().map(|vv| vv.into()).collect()
+    async fn in_neighbours<'a>(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.in_neighbours())
     }
 
-    async fn out_neighbours(&self) -> Vec<Node> {
-        self.vv
-            .out_neighbours()
-            .iter()
-            .map(|vv| vv.into())
-            .collect()
+    async fn out_neighbours(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.out_neighbours())
     }
 }

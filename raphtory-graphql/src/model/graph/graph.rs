@@ -71,6 +71,18 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
     }
 
+    async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
+        let nodes: Vec<NodeRef> = nodes
+            .iter()
+            .map(|v| {
+                let v = *v;
+                let v: NodeRef = v.into();
+                v
+            })
+            .collect();
+        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
+    }
+
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
         GqlGraph::new(
             self.name.clone(),
@@ -83,7 +95,7 @@ impl GqlGraph {
         GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
     }
 
-    async fn subgraph_id(&self, nodes: Vec<u64>) -> GqlGraph {
+    async fn exclude_nodes_id(&self, nodes: Vec<u64>) -> GqlGraph {
         let nodes: Vec<NodeRef> = nodes
             .iter()
             .map(|v| {
@@ -92,7 +104,7 @@ impl GqlGraph {
                 v
             })
             .collect();
-        GqlGraph::new(self.name.clone(), self.graph.subgraph(nodes))
+        GqlGraph::new(self.name.clone(), self.graph.exclude_nodes(nodes))
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
@@ -333,14 +345,6 @@ impl GqlGraph {
 
     async fn algorithms(&self) -> GraphAlgorithms {
         self.graph.graph().clone().into()
-    }
-
-    async fn node_names(&self) -> Vec<String> {
-        self.graph
-            .nodes()
-            .into_iter()
-            .map(|v| v.name())
-            .collect_vec()
     }
 
     async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<Node> {
