@@ -29,6 +29,8 @@ pub mod hop;
 pub mod parser;
 pub mod transpiler;
 
+pub use polars_arrow as arrow2;
+
 pub async fn run_cypher(
     query: &str,
     g: &ArrowGraph,
@@ -259,23 +261,23 @@ mod test {
     mod arrow2_load {
         use std::path::PathBuf;
 
-        use arrow::util::pretty::print_batches;
-        use arrow2::{
+        use crate::arrow2::{
             array::{PrimitiveArray, StructArray},
             datatypes::*,
         };
+        use arrow::util::pretty::print_batches;
         use tempfile::tempdir;
 
         use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
 
         use crate::run_cypher;
 
-        fn schema() -> Schema {
-            let srcs = Field::new("srcs", DataType::UInt64, false);
-            let dsts = Field::new("dsts", DataType::UInt64, false);
-            let time = Field::new("bla_time", DataType::Int64, false);
-            let weight = Field::new("weight", DataType::Float64, true);
-            Schema::from(vec![srcs, dsts, time, weight])
+        fn schema() -> ArrowSchema {
+            let srcs = Field::new("srcs", ArrowDataType::UInt64, false);
+            let dsts = Field::new("dsts", ArrowDataType::UInt64, false);
+            let time = Field::new("bla_time", ArrowDataType::Int64, false);
+            let weight = Field::new("weight", ArrowDataType::Float64, true);
+            ArrowSchema::from(vec![srcs, dsts, time, weight])
         }
 
         #[tokio::test]
@@ -288,7 +290,7 @@ mod test {
             let weight = PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
 
             let chunk = StructArray::new(
-                DataType::Struct(schema().fields),
+                ArrowDataType::Struct(schema().fields),
                 vec![srcs, dsts, time, weight],
                 None,
             );

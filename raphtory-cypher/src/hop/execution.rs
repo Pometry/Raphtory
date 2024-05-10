@@ -8,7 +8,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use arrow2::{offset::Offset, types::NativeType};
+use crate::arrow2::{offset::Offset, types::NativeType};
 // use arrow::compute::take_record_batch;
 use arrow_array::{
     builder::{

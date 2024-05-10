@@ -1,10 +1,10 @@
 use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
-use crate::arrow2::{
-    array::{PrimitiveArray, StructArray},
-    datatypes::{ArrowDataType as DataType, Field},
-};
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
+    arrow2::{
+        array::{PrimitiveArray, StructArray},
+        datatypes::{ArrowDataType as DataType, Field},
+    },
     core::entities::{
         properties::{graph_meta::GraphMeta, props::Meta},
         LayerIds,

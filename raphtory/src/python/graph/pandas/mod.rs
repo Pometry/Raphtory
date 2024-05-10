@@ -4,8 +4,8 @@ mod prop_handler;
 
 #[cfg(test)]
 mod test {
-    use crate::arrow2::array::{PrimitiveArray, Utf8Array};
     use crate::{
+        arrow2::array::{PrimitiveArray, Utf8Array},
         core::ArcStr,
         prelude::*,
         python::graph::pandas::{

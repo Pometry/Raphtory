@@ -15,9 +15,9 @@ use num_traits::ToPrimitive;
 use polars_arrow::record_batch::RecordBatch;
 use serde::{Deserialize, Serialize};
 
-use crate::arrow2::legacy::error;
 use crate::{
     arrow::load::parquet_reader::{NumRows, TrySlice},
+    arrow2::legacy::error,
     core::entities::nodes::input_node::parse_u64_strict,
 };
 
@@ -37,6 +37,8 @@ pub mod properties;
 pub mod query;
 pub mod storage_interface;
 pub(crate) mod timestamps;
+
+mod compute;
 
 pub type Time = i64;
 

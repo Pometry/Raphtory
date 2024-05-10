@@ -1,7 +1,7 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
+use crate::arrow2::{self, array::to_data, datatypes::ArrowDataType};
 use arrow::datatypes::UInt64Type;
-use arrow2::array::to_data;
 use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
 use arrow_schema::{DataType, Schema};
@@ -67,14 +67,14 @@ impl NodeTableProvider {
 }
 
 pub fn lift_arrow_schema(
-    gid_dt: arrow2::datatypes::DataType,
+    gid_dt: ArrowDataType,
     properties: Option<&Properties<VID>>,
 ) -> Result<SchemaRef, ExecError> {
     let mut fields = vec![];
 
     fields.push(arrow2::datatypes::Field::new(
         "id",
-        arrow2::datatypes::DataType::UInt64,
+        ArrowDataType::UInt64,
         false,
     ));
 
@@ -83,7 +83,7 @@ pub fn lift_arrow_schema(
         fields.extend_from_slice(properties.const_props.prop_dtypes());
     }
 
-    let dt: DataType = arrow2::datatypes::DataType::Struct(fields).into();
+    let dt: DataType = ArrowDataType::Struct(fields).into();
 
     if let DataType::Struct(fields) = dt {
         Ok(Arc::new(Schema::new(fields)))

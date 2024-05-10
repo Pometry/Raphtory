@@ -1,8 +1,8 @@
-use crate::arrow2::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
-    datatypes::{ArrowDataType as DataType, Field, Schema},
-};
 use crate::{
+    arrow2::{
+        array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+        datatypes::{ArrowDataType as DataType, ArrowSchema as Schema, Field},
+    },
     core::{entities::properties::props::PropMapper, PropType},
     prelude::{Prop, PropUnwrap},
 };

@@ -101,7 +101,7 @@ impl EdgeListTableProvider {
 
 fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
     let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
-    let a2_dt = arrow2::datatypes::DataType::Struct(arrow2_fields.clone());
+    let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.clone());
     let a_dt: DataType = a2_dt.into();
     let schema = match a_dt {
         DataType::Struct(fields) => {
@@ -308,11 +308,11 @@ fn produce_record_batch(
 }
 
 fn property_to_arrow_column(
-    temporal_props: &arrow2::array::StructArray,
+    temporal_props: &crate::arrow2::array::StructArray,
     col_id: usize,
 ) -> Arc<dyn Array> {
     let arr = temporal_props.values()[col_id].as_ref();
-    let arrow_data = arrow2::array::to_data(arr);
+    let arrow_data = crate::arrow2::array::to_data(arr);
 
     (make_array(arrow_data)) as _
 }
