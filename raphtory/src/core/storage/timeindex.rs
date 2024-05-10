@@ -309,7 +309,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
             .iter()
             .enumerate()
             .filter(|&(l, t)| self.layers.contains(&l))
-            .flat_map(|(_, t) | t.first())
+            .flat_map(|(_, t)| t.first())
             .min()
     }
 

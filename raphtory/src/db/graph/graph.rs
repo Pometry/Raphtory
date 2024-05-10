@@ -653,8 +653,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             2,
             1,
@@ -662,8 +662,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             3,
             1,
@@ -671,8 +671,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(5))],
             Some("a"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(
             4,
             1,
@@ -680,8 +680,8 @@ mod db_tests {
             vec![("duration".to_string(), Prop::U32(6))],
             Some("b"),
         )
-            .map_err(|err| println!("{:?}", err))
-            .ok();
+        .map_err(|err| println!("{:?}", err))
+        .ok();
         g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
             .map_err(|err| println!("{:?}", err))
             .ok();
