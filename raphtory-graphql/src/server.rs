@@ -87,9 +87,9 @@ impl RaphtoryServer {
         cache: &Path,
         template: Option<T>,
     ) -> Self
-        where
-            F: EmbeddingFunction + Clone + 'static,
-            T: DocumentTemplate<DynamicGraph> + 'static,
+    where
+        F: EmbeddingFunction + Clone + 'static,
+        T: DocumentTemplate<DynamicGraph> + 'static,
     {
         let graphs = &self.data.graphs;
         let stores = &self.data.vector_stores;
@@ -204,7 +204,7 @@ impl RaphtoryServer {
                 .try_init(),
             None => registry.with(env_filter).try_init(),
         }
-            .unwrap_or(());
+        .unwrap_or(());
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let schema_builder = App::create_schema();
@@ -272,7 +272,7 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
     };
 
     #[cfg(unix)]
-        let terminate = async {
+    let terminate = async {
         signal::unix::signal(signal::unix::SignalKind::terminate())
             .expect("failed to install signal handler")
             .recv()
@@ -280,7 +280,7 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
     };
 
     #[cfg(not(unix))]
-        let terminate = std::future::pending::<()>();
+    let terminate = std::future::pending::<()>();
 
     let internal_terminate = async {
         internal_signal.recv().await;
@@ -301,22 +301,24 @@ mod server_tests {
 
     use crate::server::RaphtoryServer;
     use chrono::prelude::*;
-    use raphtory::prelude::{AdditionOps, Graph, GraphViewOps};
+    use raphtory::{
+        core::Prop,
+        prelude::{AdditionOps, Graph, GraphViewOps},
+    };
     use std::collections::HashMap;
     use tokio::time::{sleep, Duration};
-    use raphtory::core::Prop;
 
     #[tokio::test]
     async fn test_server_stop() {
         let graph = Graph::new();
-        graph.add_node(
-            1,
-            1,
-            [
-                ("name", Prop::str("Character")),
-                ("bool", Prop::Bool(true))
-            ],
-            None).unwrap();
+        graph
+            .add_node(
+                1,
+                1,
+                [("name", Prop::str("Character")), ("bool", Prop::Bool(true))],
+                None,
+            )
+            .unwrap();
         let g = graph.materialize().unwrap();
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
