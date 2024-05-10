@@ -304,7 +304,13 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     }
 
     fn first(&self) -> Option<T> {
-        self.view.as_ref().iter().flat_map(|t| t.first()).min()
+        self.view
+            .as_ref()
+            .iter()
+            .enumerate()
+            .filter(|&(l, t)| self.layers.contains(&l))
+            .flat_map(|(_, t) | t.first())
+            .min()
     }
 
     fn last(&self) -> Option<T> {
