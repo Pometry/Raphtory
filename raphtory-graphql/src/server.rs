@@ -315,15 +315,28 @@ async fn server_termination(mut internal_signal: Receiver<()>) {
 #[cfg(test)]
 mod server_tests {
     extern crate chrono;
+
     use crate::server::RaphtoryServer;
     use chrono::prelude::*;
-    use raphtory::prelude::{Graph, GraphViewOps};
+    use raphtory::{
+        core::Prop,
+        prelude::{AdditionOps, Graph, GraphViewOps},
+    };
     use std::collections::HashMap;
     use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_server_stop() {
-        let g = Graph::new().materialize().unwrap();
+        let graph = Graph::new();
+        graph
+            .add_node(
+                1,
+                1,
+                [("name", Prop::str("Character")), ("bool", Prop::Bool(true))],
+                None,
+            )
+            .unwrap();
+        let g = graph.materialize().unwrap();
         let graphs = HashMap::from([("test".to_owned(), g)]);
         let server = RaphtoryServer::from_map(graphs);
         println!("calling start at time {}", Local::now());
