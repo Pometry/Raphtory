@@ -995,6 +995,23 @@ mod db_tests {
     }
 
     #[test]
+    fn test_props() {
+        let mut g = Graph::new();
+        g.add_edge(0, 1, 2, [("weight", Prop::I64(1))], None)
+            .unwrap();
+        g.add_edge(1, 1, 2, [("weight", Prop::I64(2))], None)
+            .unwrap();
+        g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
+
+        let exploded = g.edge(1, 2).unwrap().explode();
+        let res = exploded
+            .properties()
+            .map(|p| p.as_vec().iter().count())
+            .collect_vec();
+        assert_eq!(res, vec![1, 1, 0]);
+    }
+
+    #[test]
     fn test_exploded_edge() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, [("weight", Prop::I64(1))], None)
