@@ -35,5 +35,6 @@ where
 {
     let dt = ArrowDataType::from(<U::Native as crate::arrow2::types::NativeType>::PRIMITIVE);
     let prim_array = crate::arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
-    prim_array.to_data().into()
+    let data = prim_array.to_data();
+    arrow::array::PrimitiveArray::from(data)
 }

@@ -391,9 +391,9 @@ pub fn query_count<GO: GlobalOrder>(g: &TemporalGraph<GO>, window: i64) -> usize
 #[cfg(test)]
 mod test {
     use crate::lanl::exfiltration::list::query;
-    use arrow2::{
+    use polars_arrow::{
         array::{PrimitiveArray, StructArray},
-        datatypes::{DataType, Field},
+        datatypes::{ArrowDataType as DataType, Field},
     };
     use raphtory::arrow::{
         global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
