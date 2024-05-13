@@ -14,27 +14,22 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arrow2.workspace = true
-
-lazy_static = "1.4.0"
-pest = "2.7.8"
-pest_derive = "2.7.8"
-sqlparser = "0.43.1"
-
-# polars-core = { version = "0.38", features = ["lazy", "fmt", "dtype-struct"] }
-# polars-arrow = { version = "0.38", features = ["arrow_rs"] }
-# polars-lazy = { version = "0.38", features = ["list_eval"] }
-
-datafusion = { version = "36" }
-async-trait = "0.1.73"
-futures = "0.3"
-arrow = { version = "50" }
-arrow-buffer = { version = "50" }
-arrow-schema = { version = "50" }
-arrow-data = { version = "50" }
-arrow-array = { version = "50" }
-
 raphtory = { path = "../raphtory" }
+
+lazy_static.workspace = true
+pest.workspace = true
+pest_derive.workspace = true
+sqlparser.workspace = true
+
+datafusion.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+arrow.workspace = true
+arrow-buffer.workspace = true
+arrow-schema.workspace = true
+arrow-data.workspace = true
+arrow-array.workspace = true
+
 rayon.workspace = true
 thiserror.workspace = true
 serde.workspace = true

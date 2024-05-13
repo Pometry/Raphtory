@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "raphtory",
+    "cypher",
     "raphtory-benchmark",
     "examples/rust",
     "examples/netflow",
@@ -105,3 +106,16 @@ console_error_panic_hook = "0.1.7"
 wee_alloc = "0.4.5"
 wasm-bindgen-test = "0.3.41"
 ouroboros = "0.18.3"
+
+lazy_static = "1.4.0"
+pest = "2.7.8"
+pest_derive = "2.7.8"
+sqlparser = "0.43.1"
+
+datafusion = { version = "36" }
+futures = "0.3"
+arrow = { version = "50" }
+arrow-buffer = { version = "50" }
+arrow-schema = { version = "50" }
+arrow-data = { version = "50" }
+arrow-array = { version = "50" }

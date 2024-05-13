@@ -1,5 +1,5 @@
 use arrow::datatypes::ArrowPrimitiveType;
-use arrow2::{array::Arrow2Arrow, types::NativeType};
+use raphtory::core::utils::errors::GraphError;
 
 pub(crate) mod table_provider;
 
@@ -25,15 +25,7 @@ pub enum ExecError {
 
     #[error("IO Failure {0}")]
     IOError(#[from] std::io::Error),
-}
-
-fn arrow2_to_arrow_buf<U: ArrowPrimitiveType>(
-    buffer: &arrow2::buffer::Buffer<U::Native>,
-) -> arrow::array::PrimitiveArray<U>
-where
-    U::Native: NativeType,
-{
-    let dt = arrow2::datatypes::DataType::from(<U::Native as arrow2::types::NativeType>::PRIMITIVE);
-    let prim_array = arrow2::array::PrimitiveArray::new(dt, buffer.clone(), None);
-    prim_array.to_data().into()
+    
+    #[error("Graph Error {0}")]
+    GraphError(#[from] GraphError),
 }

@@ -9,7 +9,7 @@ use crate::core::{
     ArcStr, Prop, PropType,
 };
 use lock_api;
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Borrow,
@@ -21,6 +21,8 @@ use std::{
         Arc,
     },
 };
+use itertools::Itertools;
+use crate::core::storage::ReadLockedStorage;
 
 type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
@@ -69,7 +71,7 @@ impl Props {
         })
     }
 
-    pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    pub fn temporal_props(&self, prop_id: usize) -> Box<dyn Iterator<Item=(i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
             Box::new(t_prop.iter())
@@ -83,7 +85,7 @@ impl Props {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> Box<dyn Iterator<Item = (i64, Prop)> + '_> {
+    ) -> Box<dyn Iterator<Item=(i64, Prop)> + '_> {
         let o = self.temporal_props.get(prop_id);
         if let Some(t_prop) = o {
             Box::new(t_prop.iter_window_t(start..end))
@@ -101,11 +103,11 @@ impl Props {
         self.temporal_props.get(prop_id)
     }
 
-    pub fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
+    pub fn const_prop_ids(&self) -> impl Iterator<Item=usize> + '_ {
         self.constant_props.filled_ids()
     }
 
-    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
+    pub fn temporal_prop_ids(&self) -> impl Iterator<Item=usize> + '_ {
         self.temporal_props.filled_ids()
     }
 }
@@ -310,10 +312,10 @@ impl<T: Clone> Iterator for LockedIter<T> {
 
 impl DictMapper {
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> usize
-    where
-        ArcStr: Borrow<Q>,
-        Q: Hash + Eq + ?Sized + ToOwned<Owned = T>,
-        T: Into<ArcStr>,
+        where
+            ArcStr: Borrow<Q>,
+            Q: Hash + Eq + ?Sized + ToOwned<Owned=T>,
+            T: Into<ArcStr>,
     {
         if let Some(existing_id) = self.map.get(name) {
             return *existing_id;
@@ -425,6 +427,14 @@ impl PropMapper {
 
     pub fn get_dtype(&self, prop_id: usize) -> Option<PropType> {
         self.dtypes.read_recursive().get(prop_id).copied()
+    }
+
+    pub fn d_types(&self) -> impl Deref<Target=[PropType]> + '_ {
+        RwLockReadGuard::map(self.dtypes.read_recursive(), |dtypes| &dtypes[..])
+    }
+
+    pub fn names(&self) -> Vec<String> {
+        self.id_mapper.get_keys().iter().map(|x| x.to_string()).into_iter().collect()
     }
 }
 

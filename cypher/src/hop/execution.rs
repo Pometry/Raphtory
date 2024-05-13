@@ -8,15 +8,14 @@ use std::{
     task::{Context, Poll},
 };
 
-use arrow2::{offset::Offset, types::NativeType};
 // use arrow::compute::take_record_batch;
 use arrow_array::{
-    builder::{
-        make_builder, ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder,
-        Int32Builder, Int64Builder, LargeStringBuilder, PrimitiveBuilder, StringBuilder,
+    Array,
+    ArrayRef, ArrowPrimitiveType, builder::{
+        ArrayBuilder, Float32Builder, Float64Builder, GenericStringBuilder, Int32Builder,
+        Int64Builder, LargeStringBuilder, make_builder, PrimitiveBuilder, StringBuilder,
         UInt32Builder, UInt64Builder,
-    },
-    Array, ArrayRef, ArrowPrimitiveType, Int64Array, OffsetSizeTrait, RecordBatch, UInt64Array,
+    }, Int64Array, OffsetSizeTrait, RecordBatch, UInt64Array,
 };
 use arrow_schema::{DataType, Schema, SchemaRef};
 use async_trait::async_trait;
@@ -38,14 +37,8 @@ use datafusion::{
 use datafusion::physical_expr::Partitioning;
 use futures::{Stream, StreamExt};
 
-use raphtory::{
-    arrow::{
-        graph_fragment::TempColGraphFragment,
-        graph_impl::ArrowGraph,
-        prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
-    },
-    core::{entities::VID, Direction},
-};
+use arrow2::{offset::Offset, types::NativeType};
+use raphtory::core::{Direction, entities::VID};
 
 use crate::take_record_batch;
 
@@ -561,8 +554,8 @@ impl RecordBatchStream for HopStream {
 mod test {
     use arrow::{compute::concat_batches, util::pretty::print_batches};
     use arrow_array::{
-        types::{Float64Type, Int64Type, UInt64Type},
-        Float64Array, PrimitiveArray,
+        Float64Array,
+        PrimitiveArray, types::{Float64Type, Int64Type, UInt64Type},
     };
     use arrow_schema::{ArrowError, Field};
     use datafusion::{

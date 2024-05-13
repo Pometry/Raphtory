@@ -18,6 +18,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub fn history(&self) -> Vec<i64> {
         self.props.temporal_history(self.id)
     }
+    
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }
@@ -43,6 +44,10 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)
+    }
+    
+    pub fn id(&self) -> usize {
+        self.id
     }
 }
 
