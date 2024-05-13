@@ -4,6 +4,7 @@ use crate::{
         constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
+use itertools::Itertools;
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|node|edge)
@@ -48,7 +49,7 @@ impl<P: PropertiesOps + Clone> Properties<P> {
 
     /// Iterate over all property values
     pub fn values(&self) -> impl Iterator<Item = Prop> + '_ {
-        self.keys().map(|k| self.get(&k).unwrap())
+        self.keys().filter_map(move |k| self.get(&k))
     }
 
     /// Iterate over all property key-value pairs
