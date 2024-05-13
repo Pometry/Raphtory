@@ -644,7 +644,7 @@ mod db_tests {
     }
 
     #[test]
-    fn test_earliest_time() {
+    fn test_explode_layers_time() {
         let g = Graph::new();
         g.add_edge(
             1,
@@ -688,7 +688,7 @@ mod db_tests {
 
         assert_eq!(g.latest_time(), Some(5));
 
-        let latest_times = g
+        let earliest_times = g
             .edge(1, 2)
             .unwrap()
             .explode_layers()
@@ -696,53 +696,7 @@ mod db_tests {
             .map(|t| t.unwrap())
             .collect_vec();
 
-        assert_eq!(latest_times, vec![1, 4, 5]);
-    }
-
-    #[test]
-    fn test_latest_time() {
-        let g = Graph::new();
-        g.add_edge(
-            1,
-            1,
-            2,
-            vec![("duration".to_string(), Prop::U32(5))],
-            Some("a"),
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-        g.add_edge(
-            2,
-            1,
-            2,
-            vec![("duration".to_string(), Prop::U32(5))],
-            Some("a"),
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-        g.add_edge(
-            3,
-            1,
-            2,
-            vec![("duration".to_string(), Prop::U32(5))],
-            Some("a"),
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-        g.add_edge(
-            4,
-            1,
-            2,
-            vec![("duration".to_string(), Prop::U32(6))],
-            Some("b"),
-        )
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-        g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
-            .map_err(|err| println!("{:?}", err))
-            .ok();
-
-        assert_eq!(g.latest_time(), Some(5));
+        assert_eq!(earliest_times, vec![1, 4, 5]);
 
         let latest_times = g
             .edge(1, 2)
