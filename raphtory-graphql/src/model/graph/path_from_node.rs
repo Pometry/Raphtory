@@ -3,7 +3,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
         api::view::DynamicGraph,
-        graph::{nodes::Nodes, path::PathFromNode},
+        graph::{path::PathFromNode},
     },
     prelude::*,
 };
@@ -38,53 +38,52 @@ impl GqlPathFromNode {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    // async fn layers(&self, names: Vec<String>) -> Self {
-    //     self.update(self.nn.valid_layers(names))
-    // }
-    //
-    // async fn exclude_layers(&self, names: Vec<String>) -> Self {
-    //     self.update(self.nn.exclude_valid_layers(names))
-    // }
-    //
-    // async fn layer(&self, name: String) -> Self {
-    //     self.update(self.nn.valid_layers(name))
-    // }
-    //
-    // async fn exclude_layer(&self, name: String) -> Self {
-    //     self.update(self.nn.exclude_valid_layers(name))
-    // }
-    //
-    // async fn window(&self, start: i64, end: i64) -> Self {
-    //     self.update(self.nn.window(start, end))
-    // }
-    //
-    // async fn at(&self, time: i64) -> Self {
-    //     self.update(self.nn.at(time))
-    // }
-    //
-    // async fn before(&self, time: i64) -> Self {
-    //     self.update(self.nn.before(time))
-    // }
-    //
-    // async fn after(&self, time: i64) -> Self {
-    //     self.update(self.nn.after(time))
-    // }
-    //
-    // async fn shrink_window(&self, start: i64, end: i64) -> Self {
-    //     self.update(self.nn.shrink_window(start, end))
-    // }
-    //
-    // async fn shrink_start(&self, start: i64) -> Self {
-    //     self.update(self.nn.shrink_start(start))
-    // }
-    //
-    // async fn shrink_end(&self, end: i64) -> Self {
-    //     self.update(self.nn.shrink_end(end))
-    // }
+    async fn layers(&self, names: Vec<String>) -> Self {
+        self.update(self.nn.valid_layers(names))
+    }
 
-    // async fn type_filter(&self, node_types: Vec<String>) -> Self {
-    //     self.update(self.nn.type_filter(node_types))
-    // }
+    async fn exclude_layers(&self, names: Vec<String>) -> Self {
+        self.update(self.nn.exclude_valid_layers(names))
+    }
+
+    async fn layer(&self, name: String) -> Self {
+        self.update(self.nn.valid_layers(name))
+    }
+
+    async fn exclude_layer(&self, name: String) -> Self {
+        self.update(self.nn.exclude_valid_layers(name))
+    }
+
+    async fn window(&self, start: i64, end: i64) -> Self {
+        self.update(self.nn.window(start, end))
+    }
+
+    async fn at(&self, time: i64) -> Self {
+        self.update(self.nn.at(time))
+    }
+
+    async fn before(&self, time: i64) -> Self {
+        self.update(self.nn.before(time))
+    }
+
+    async fn after(&self, time: i64) -> Self {
+        self.update(self.nn.after(time))
+    }
+    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+        self.update(self.nn.shrink_window(start, end))
+    }
+
+    async fn shrink_start(&self, start: i64) -> Self {
+        self.update(self.nn.shrink_start(start))
+    }
+
+    async fn shrink_end(&self, end: i64) -> Self {
+        self.update(self.nn.shrink_end(end))
+    }
+
+    async fn type_filter(&self, node_types: Vec<String>) -> Self {
+        self.update(self.nn.type_filter(node_types))
+    }
 
     ////////////////////////
     //// TIME QUERIES //////
