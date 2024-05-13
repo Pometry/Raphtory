@@ -211,27 +211,29 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
     }
 }
 
-impl From<PathFromNode<'static,DynamicGraph, LayeredGraph<DynamicGraph>>>
-    for PathFromNode<'static,DynamicGraph, DynamicGraph>
+impl From<PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>>
+    for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
-    fn from(value: PathFromNode<'static,DynamicGraph, LayeredGraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move|| (value.op)())
+    fn from(value: PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>) -> Self {
+        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
     }
 }
 
-impl From<PathFromNode<'static,DynamicGraph, WindowedGraph<DynamicGraph>>>
-    for PathFromNode<'static,DynamicGraph, DynamicGraph>
+impl From<PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>>
+    for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
-    fn from(value: PathFromNode<'static,DynamicGraph, WindowedGraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move|| (value.op)())
+    fn from(value: PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>) -> Self {
+        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
     }
 }
 
-impl From<PathFromNode<'static,DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>>
-    for PathFromNode<'static,DynamicGraph, DynamicGraph>
+impl From<PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>>
+    for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
-    fn from(value: PathFromNode<'static,DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move|| (value.op)())
+    fn from(
+        value: PathFromNode<'static, DynamicGraph, TypeFilteredSubgraph<DynamicGraph>>,
+    ) -> Self {
+        PathFromNode::new(DynamicGraph::new(value.graph.clone()), move || (value.op)())
     }
 }
 
