@@ -176,7 +176,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
                 schema.add_f64_field(prop, INDEXED);
             }
             Prop::Bool(_) => {
-                schema.add_u64_field(prop, INDEXED);
+                schema.add_bool_field(prop, INDEXED);
             }
             _ => {
                 schema.add_text_field(prop, TEXT);
