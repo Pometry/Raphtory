@@ -284,7 +284,7 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     type IndexType = Ops::IndexType;
     type RangeType<'b>
 
-    = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>>    where
+    = LayeredTimeIndexWindow<'b, Ops::RangeType<'b>> where
         Self: 'b;
 
     fn active(&self, w: Range<i64>) -> bool {
@@ -304,11 +304,23 @@ impl<'a, T: AsTime, Ops: TimeIndexOps<IndexType = T>, V: AsRef<Vec<Ops>> + Send 
     }
 
     fn first(&self) -> Option<T> {
-        self.view.as_ref().iter().flat_map(|t| t.first()).min()
+        self.view
+            .as_ref()
+            .iter()
+            .enumerate()
+            .filter(|&(l, t)| self.layers.contains(&l))
+            .flat_map(|(_, t)| t.first())
+            .min()
     }
 
     fn last(&self) -> Option<T> {
-        self.view.as_ref().iter().flat_map(|t| t.last()).max()
+        self.view
+            .as_ref()
+            .iter()
+            .enumerate()
+            .filter(|&(l, t)| self.layers.contains(&l))
+            .flat_map(|(_, t)| t.last())
+            .max()
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = T> + Send + '_> {

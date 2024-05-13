@@ -212,7 +212,7 @@ mod db_tests {
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{CoreGraphOps, EdgeFilterOps, InternalLayerOps, TimeSemantics},
                     time::internal::InternalTimeOps,
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
@@ -641,6 +641,72 @@ mod db_tests {
             .collect::<Vec<_>>();
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_explode_layers_time() {
+        let g = Graph::new();
+        g.add_edge(
+            1,
+            1,
+            2,
+            vec![("duration".to_string(), Prop::U32(5))],
+            Some("a"),
+        )
+        .map_err(|err| println!("{:?}", err))
+        .ok();
+        g.add_edge(
+            2,
+            1,
+            2,
+            vec![("duration".to_string(), Prop::U32(5))],
+            Some("a"),
+        )
+        .map_err(|err| println!("{:?}", err))
+        .ok();
+        g.add_edge(
+            3,
+            1,
+            2,
+            vec![("duration".to_string(), Prop::U32(5))],
+            Some("a"),
+        )
+        .map_err(|err| println!("{:?}", err))
+        .ok();
+        g.add_edge(
+            4,
+            1,
+            2,
+            vec![("duration".to_string(), Prop::U32(6))],
+            Some("b"),
+        )
+        .map_err(|err| println!("{:?}", err))
+        .ok();
+        g.add_edge(5, 1, 2, NO_PROPS, Some("c"))
+            .map_err(|err| println!("{:?}", err))
+            .ok();
+
+        assert_eq!(g.latest_time(), Some(5));
+
+        let earliest_times = g
+            .edge(1, 2)
+            .unwrap()
+            .explode_layers()
+            .earliest_time()
+            .map(|t| t.unwrap())
+            .collect_vec();
+
+        assert_eq!(earliest_times, vec![1, 4, 5]);
+
+        let latest_times = g
+            .edge(1, 2)
+            .unwrap()
+            .explode_layers()
+            .latest_time()
+            .map(|t| t.unwrap())
+            .collect_vec();
+
+        assert_eq!(latest_times, vec![3, 4, 5]);
     }
 
     #[test]
