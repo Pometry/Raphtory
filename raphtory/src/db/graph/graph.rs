@@ -217,7 +217,9 @@ mod db_tests {
                     EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
                 },
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{
+                edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode,
+            },
         },
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
@@ -2152,6 +2154,26 @@ mod db_tests {
             g.edge(0, 2).unwrap().layer_names().collect_vec(),
             ["awesome layer"]
         );
+    }
+
+    #[test]
+    fn test_node_type() {
+        let g = Graph::new();
+        g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        g.add_node(2, 2, NO_PROPS, Some("b")).unwrap();
+        g.add_node(2, 3, NO_PROPS, Some("b")).unwrap();
+        g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
+        g.add_edge(3, 3, 2, NO_PROPS, None).unwrap();
+
+        for node in g.nodes().filter_by_type(vec!["a"]) {
+            assert_eq!(node.degree(), 1);
+        }
+
+        for node in g.nodes() {
+            if node.node_type() == Some(ArcStr::from("a")) {
+                assert_eq!(node.degree(), 1);
+            }
+        }
     }
 
     #[test]

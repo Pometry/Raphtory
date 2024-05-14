@@ -11,7 +11,7 @@ use crate::{
         storage::locked::LockedGraph,
         view::{
             internal::{CoreGraphOps, TimeSemantics},
-            TimeOps,
+            Base, TimeOps,
         },
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},

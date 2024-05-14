@@ -14,10 +14,15 @@ use crate::{
     prelude::*,
 };
 
-use crate::db::api::storage::locked::LockedGraph;
+use crate::{core::ArcStr, db::api::storage::locked::LockedGraph};
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
-use std::{marker::PhantomData, sync::Arc};
+use std::{
+    borrow::Borrow,
+    iter::{FilterMap, FlatMap, Map},
+    marker::PhantomData,
+    sync::Arc,
+};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -94,6 +99,29 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
             self.graph.clone(),
             vid,
         ))
+    }
+
+    pub fn filter_by_type<I: IntoIterator<Item = V>, V: AsRef<str>>(
+        &self,
+        node_types: I,
+    ) -> BoxedLIter<'graph, NodeView<G, G>>
+    where
+        I::IntoIter: Send + Sync + 'graph,
+        V: Send + Sync + 'graph,
+    {
+        let base_graph = self.base_graph.clone();
+        node_types
+            .into_iter()
+            .flat_map(move |nt| {
+                base_graph.nodes().into_iter().filter_map(move |node| {
+                    if nt.as_ref() == node.node_type()?.as_ref() {
+                        Some(node)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .into_dyn_boxed()
     }
 
     pub fn collect(&self) -> Vec<NodeView<G, GH>> {
