@@ -14,7 +14,7 @@ use crate::{
         },
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
-    prelude::{DeletionOps, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, Graph, GraphViewOps, ImportOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyInputNode, PyTime},
@@ -69,6 +69,13 @@ impl IntoPy<PyObject> for PersistentGraph {
         )
         .unwrap() // I think this only fails if we are out of memory? Seems to be unavoidable if we want to create an actual graph.
         .into_py(py)
+    }
+}
+
+impl<'source> FromPyObject<'source> for PersistentGraph {
+    fn extract(ob: &'source PyAny) -> PyResult<Self> {
+        let g: PyRef<PyPersistentGraph> = ob.extract()?;
+        Ok(g.graph.clone())
     }
 }
 
