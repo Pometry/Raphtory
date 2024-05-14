@@ -305,12 +305,13 @@ mod graphql_test {
         );
 
         let graph = Graph::new();
-        graph.add_node(
-            0,
-            1,
-            [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
-            None,
-        )
+        graph
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                None,
+            )
             .unwrap();
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
@@ -347,7 +348,6 @@ mod graphql_test {
                 }
             }),
         );
-
     }
 
     #[tokio::test]
