@@ -210,7 +210,7 @@ mod db_tests {
         },
         db::{
             api::{
-                properties::internal::ConstPropertiesOps,
+                properties::internal::{ConstPropertiesOps, TemporalPropertiesOps},
                 view::{
                     internal::{CoreGraphOps, EdgeFilterOps, InternalLayerOps, TimeSemantics},
                     time::internal::InternalTimeOps,
@@ -2164,6 +2164,37 @@ mod db_tests {
         let pg = g.persistent_graph();
         pg.delete_edge(10, 0, 1, None).unwrap();
         assert_eq!(g.edges().id().collect::<Vec<_>>(), vec![(0, 1)]);
+    }
+
+    #[test]
+    fn persistent_graph_as_prop() {
+        let g = Graph::new();
+        g.add_node(0, 1, [("graph", Prop::Graph(Graph::new()))], None)
+            .unwrap();
+        g.add_node(
+            0,
+            1,
+            [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+            None,
+        )
+        .unwrap();
+        g.add_node(0, 1, [("bool", Prop::Bool(true))], None)
+            .unwrap();
+        g.add_node(0, 1, [("u32", Prop::U32(2))], None).unwrap();
+        assert_eq!(
+            g.node(1)
+                .unwrap()
+                .properties()
+                .temporal()
+                .keys()
+                .collect::<Vec<_>>(),
+            vec![
+                ArcStr("graph".into()),
+                ArcStr("pgraph".into()),
+                ArcStr("bool".into()),
+                ArcStr("u32".into())
+            ]
+        );
     }
 
     // non overlaping time intervals
