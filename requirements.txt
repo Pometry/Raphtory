@@ -106,7 +106,7 @@ itemloaders==1.1.0
     # via scrapy
 jedi==0.18.2
     # via ipython
-jinja2==3.1.2
+jinja2==3.1.4
     # via
     #   altair
     #   pyvis
@@ -361,7 +361,7 @@ toolz==0.12.1
     # via altair
 torch==2.1.2
     # via sentence-transformers
-tqdm==4.65.0
+tqdm==4.66.3
     # via
     #   -r requirements.in
     #   huggingface-hub
