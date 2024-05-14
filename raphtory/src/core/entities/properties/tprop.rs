@@ -3,7 +3,7 @@ use crate::{
         entities::properties::tcell::TCell, storage::timeindex::TimeIndexEntry,
         utils::errors::GraphError, ArcStr, DocumentInput, Prop, PropType,
     },
-    db::{api::storage::tprop_storage_ops::TPropOps, graph::graph::Graph},
+    db::graph::{api::storage::tprop_storage_ops::TPropOps,graph::Graph, views::deletion_graph::PersistentGraph},
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,7 @@ pub enum TProp {
     DTime(TCell<DateTime<Utc>>),
     NDTime(TCell<NaiveDateTime>),
     Graph(TCell<Graph>),
+    PersistentGraph(TCell<PersistentGraph>),
     Document(TCell<DocumentInput>),
     List(TCell<Arc<Vec<Prop>>>),
     Map(TCell<Arc<HashMap<ArcStr, Prop>>>),
@@ -49,6 +50,7 @@ impl TProp {
             TProp::Bool(_) => PropType::Bool,
             TProp::NDTime(_) => PropType::NDTime,
             TProp::Graph(_) => PropType::Graph,
+            TProp::PersistentGraph(_) => PropType::PersistentGraph,
             TProp::Document(_) => PropType::Document,
             TProp::List(_) => PropType::List,
             TProp::Map(_) => PropType::Map,
@@ -71,6 +73,7 @@ impl TProp {
             Prop::DTime(value) => TProp::DTime(TCell::new(t, value)),
             Prop::NDTime(value) => TProp::NDTime(TCell::new(t, value)),
             Prop::Graph(value) => TProp::Graph(TCell::new(t, value)),
+            Prop::PersistentGraph(value) => TProp::PersistentGraph(TCell::new(t, value)),
             Prop::Document(value) => TProp::Document(TCell::new(t, value)),
             Prop::List(value) => TProp::List(TCell::new(t, value)),
             Prop::Map(value) => TProp::Map(TCell::new(t, value)),
@@ -123,6 +126,9 @@ impl TProp {
                 (TProp::Graph(cell), Prop::Graph(a)) => {
                     cell.set(t, a);
                 }
+                (TProp::PersistentGraph(cell), Prop::PersistentGraph(a)) => {
+                    cell.set(t, a);
+                }
                 (TProp::Document(cell), Prop::Document(a)) => {
                     cell.set(t, a);
                 }
@@ -156,6 +162,9 @@ impl TProp {
             TProp::F64(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::F64(*value)))),
             TProp::Bool(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::Bool(*value)))),
             TProp::DTime(cell) => Box::new(cell.iter().map(|(t, value)| (*t, Prop::DTime(*value)))),
+            TProp::NDTime(cell) => {
+                Box::new(cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value))))
+            },
             TProp::Graph(cell) => Box::new(
                 cell.iter()
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
@@ -171,9 +180,7 @@ impl TProp {
             TProp::Map(cell) => {
                 Box::new(cell.iter().map(|(t, value)| (*t, Prop::Map(value.clone()))))
             }
-            TProp::NDTime(cell) => {
-                Box::new(cell.iter().map(|(t, value)| (*t, Prop::NDTime(*value))))
-            }
+
         }
     }
 
@@ -202,6 +209,10 @@ impl TProp {
             TProp::Graph(cell) => Box::new(
                 cell.iter_t()
                     .map(|(t, value)| (t, Prop::Graph(value.clone()))),
+            ),
+            TProp::PersistentGraph(cell) => Box::new(
+                cell.iter_t()
+                    .map(|(t, value)| (t, Prop::PersistentGraph(value.clone()))),
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter_t()
@@ -274,6 +285,10 @@ impl TProp {
             TProp::Graph(cell) => Box::new(
                 cell.iter_window(r)
                     .map(|(t, value)| (*t, Prop::Graph(value.clone()))),
+            ),
+            TProp::PersistentGraph(cell) => Box::new(
+                cell.iter_window(r)
+                    .map(|(t, value)| (*t, Prop::PersistentGraph(value.clone()))),
             ),
             TProp::Document(cell) => Box::new(
                 cell.iter_window(r)

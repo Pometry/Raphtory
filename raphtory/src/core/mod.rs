@@ -24,7 +24,10 @@
 //!    * `macOS`
 //!
 
-use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
+use crate::{
+    db::graph::{graph::Graph, views::deletion_graph::PersistentGraph},
+    prelude::GraphViewOps,
+};
 use chrono::{DateTime, NaiveDateTime, Utc};
 #[cfg(feature = "arrow")]
 use raphtory_arrow::interop::AsDir;
@@ -203,6 +206,7 @@ pub enum PropType {
     Map,
     NDTime,
     Graph,
+    PersistentGraph,
     Document,
     DTime,
 }
@@ -286,6 +290,7 @@ pub enum Prop {
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Graph(Graph),
+    PersistentGraph(PersistentGraph),
     Document(DocumentInput),
 }
 
@@ -336,6 +341,9 @@ impl Prop {
             Prop::DTime(value) => Value::String(value.to_string()),
             Prop::NDTime(value) => Value::String(value.to_string()),
             Prop::Graph(_) => Value::String("Graph cannot be converted to JSON".to_string()),
+            Prop::PersistentGraph(_) => {
+                Value::String("Persistent Graph cannot be converted to JSON".to_string())
+            }
             Prop::Document(DocumentInput { content, .. }) => Value::String(content.to_owned()), // TODO: return Value::Object ??
         }
     }
@@ -356,6 +364,7 @@ impl Prop {
             Prop::Map(_) => PropType::Map,
             Prop::NDTime(_) => PropType::NDTime,
             Prop::Graph(_) => PropType::Graph,
+            Prop::PersistentGraph(_) => PropType::PersistentGraph,
             Prop::Document(_) => PropType::Document,
             Prop::DTime(_) => PropType::DTime,
         }
@@ -492,6 +501,9 @@ pub trait PropUnwrap: Sized {
     }
 
     fn into_graph(self) -> Option<Graph>;
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph>;
+
     fn unwrap_graph(self) -> Graph {
         self.into_graph().unwrap()
     }
@@ -557,6 +569,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.and_then(|p| p.into_graph())
+    }
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        self.and_then(|p| p.into_persistent_graph())
     }
 
     fn into_document(self) -> Option<DocumentInput> {
@@ -677,6 +693,14 @@ impl PropUnwrap for Prop {
         }
     }
 
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        if let Prop::PersistentGraph(g) = self {
+            Some(g)
+        } else {
+            None
+        }
+    }
+
     fn into_document(self) -> Option<DocumentInput> {
         if let Prop::Document(d) = self {
             Some(d)
@@ -702,6 +726,12 @@ impl Display for Prop {
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
             Prop::Graph(value) => write!(
+                f,
+                "Graph(num_nodes={}, num_edges={})",
+                value.count_nodes(),
+                value.count_edges()
+            ),
+            Prop::PersistentGraph(value) => write!(
                 f,
                 "Graph(num_nodes={}, num_edges={})",
                 value.count_nodes(),

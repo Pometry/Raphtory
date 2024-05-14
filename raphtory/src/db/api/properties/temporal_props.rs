@@ -1,6 +1,6 @@
 use crate::{
     core::{ArcStr, DocumentInput, Prop, PropUnwrap},
-    db::api::properties::internal::PropertiesOps,
+    db::{api::properties::internal::PropertiesOps, graph::views::deletion_graph::PersistentGraph},
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -187,6 +187,10 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_graph(self) -> Option<Graph> {
         self.latest().into_graph()
+    }
+
+    fn into_persistent_graph(self) -> Option<PersistentGraph> {
+        self.latest().into_persistent_graph()
     }
 
     fn into_document(self) -> Option<DocumentInput> {

@@ -109,6 +109,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::NDTime => return Err("Weight type: NDTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
+        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let max_val = match weight_type.unwrap() {
@@ -128,6 +129,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         PropType::DTime => return Err("Weight type: DTime, not supported"),
         PropType::NDTime => return Err("Weight type: NDTime, not supported"),
         PropType::Graph => return Err("Weight type: Graph, not supported"),
+        PropType::PersistentGraph => return Err("Weight type: Persistent Graph, not supported"),
         PropType::Document => return Err("Weight type: Document, not supported"),
     };
     let mut heap = BinaryHeap::new();
