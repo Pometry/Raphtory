@@ -44,49 +44,11 @@ pub mod prelude {
     pub use raphtory_arrow::chunked_array::array_ops::*;
 }
 
-// #[derive(thiserror::Error, Debug)]
-// pub enum Error {
-//     #[error("Failed to memory map file {file:?}, source: {source}")]
-//     MMap {
-//         file: PathBuf,
-//         source: error::PolarsError,
-//     },
-//     #[error("Arrow error: {0}")]
-//     Arrow(#[from] error::PolarsError),
-//     #[error("IO error: {0}")]
-//     IO(#[from] std::io::Error),
-//     //serde error
-//     #[error("Serde error: {0}")]
-//     Serde(#[from] serde_json::Error),
-//     #[error("Bad data type for node column: {0:?}")]
-//     DType(DataType),
-//     #[error("Graph directory is not empty before loading")]
-//     GraphDirNotEmpty,
-//     #[error("Invalid type for column: {0}")]
-//     InvalidTypeColumn(String),
-//     #[error("Column not found: {0}")]
-//     ColumnNotFound(String),
-//     #[error("No Edge lists found in input path")]
-//     NoEdgeLists,
-//     #[error("Unable to open graph: {0:?}")]
-//     EmptyGraphDir(PathBuf),
-//     #[error("Empty parquet chunk")]
-//     EmptyChunk,
-//     #[error("Conversion error: {0}")]
-//     ArgumentError(#[from] TryFromIntError),
-//     #[error("Invalid file: {0:?}")]
-//     InvalidFile(PathBuf),
-//     #[error("Invalid metadata: {0:?}")]
-//     MetadataError(#[from] Box<bincode::ErrorKind>),
-//     #[error("Failed to cast mmap_mut to [i64]: {0:?}")]
-//     SliceCastError(bytemuck::PodCastError),
-//     #[error("Failed to cast array")]
-//     TypeCastError,
-//     #[error("Missing chunk {0}")]
-//     MissingChunk(usize),
-// }
-
-// unsafe impl Send for Error {} // heed::Error can't be made Send
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("Raphtory Arrow Error: {0}")]
+    RAError(#[from] raphtory_arrow::RAError),
+}
 
 // const TIME_COLUMN: &str = "rap_time";
 // const TIME_COLUMN_IDX: usize = 0;

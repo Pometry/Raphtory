@@ -1,5 +1,9 @@
 use raphtory_arrow::{chunked_array::col::ChunkedPrimitiveCol, tprops::TPropColumn};
 use std::{iter, ops::Range};
+use raphtory_arrow::chunked_array::utf8_col::StringCol;
+use raphtory_arrow::edge::Edge;
+use raphtory_arrow::prelude::{ArrayOps, BaseArrayOps};
+use raphtory_arrow::timestamps::TimeStamps;
 
 use crate::arrow2::{
     array::StructArray,
@@ -18,13 +22,13 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a> for TPropColumn<'a, ChunkedPri
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
         let (t, t_index) = self.timestamps().last_before(t)?;
         let v = self.props().get(t_index)?;
-        Some((t, v.into()))
+        Some((t.into(), v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.timestamps
+        self.timestamps()
             .into_iter()
-            .zip(self.props)
+            .zip(self.props())
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
@@ -32,40 +36,40 @@ impl<'a, T: NativeType + Into<Prop>> TPropOps<'a> for TPropColumn<'a, ChunkedPri
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        let start = self.timestamps.position(&r.start);
-        let end = self.timestamps.position(&r.end);
-        self.timestamps
+        let start = self.timestamps().position(&r.start.into());
+        let end = self.timestamps().position(&r.end.into());
+        self.timestamps()
             .sliced(start..end)
             .into_iter()
-            .zip(self.props.sliced(start..end).into_iter())
+            .zip(self.prop().sliced(start..end).into_iter())
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        let t_index = self.timestamps.position(ti);
-        self.props.get(t_index).map(|v| v.into())
+        let t_index = self.timestamps().position(ti.into());
+        self.props().get(t_index).map(|v| v.into())
     }
 
     fn len(self) -> usize {
-        self.props.par_iter().flatten().count()
+        self.props().par_iter().flatten().count()
     }
 
     fn is_empty(self) -> bool {
-        self.props.par_iter().any(|v| v.is_some())
+        self.props().par_iter().any(|v| v.is_some())
     }
 }
 
 impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>> {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
-        let (t, t_index) = self.timestamps.last_before(t)?;
-        let v = self.props.get(t_index)?;
-        Some((t, v.into()))
+        let (t, t_index) = self.timestamps().last_before(t)?;
+        let v = self.props().get(t_index)?;
+        Some((t.into(), v.into()))
     }
 
     fn iter(self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        self.timestamps
+        self.timestamps()
             .into_iter()
-            .zip(self.props)
+            .zip(self.props())
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
@@ -73,26 +77,26 @@ impl<'a, I: Offset> TPropOps<'a> for TPropColumn<'a, StringCol<'a, I>> {
         self,
         r: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + 'a {
-        let start = self.timestamps.position(&r.start);
-        let end = self.timestamps.position(&r.end);
-        self.timestamps
+        let start = self.timestamps().position(&r.start.into());
+        let end = self.timestamps().position(&r.end.into());
+        self.timestamps()
             .sliced(start..end)
             .into_iter()
-            .zip(self.props.sliced(start..end).into_iter())
+            .zip(self.props().sliced(start..end).into_iter())
             .filter_map(|(t, v)| v.map(|v| (t, v.into())))
     }
 
     fn at(self, ti: &TimeIndexEntry) -> Option<Prop> {
-        let t_index = self.timestamps.position(ti);
-        self.props.get(t_index).map(|v| v.into())
+        let t_index = self.timestamps().position(ti.into());
+        self.props().get(t_index).map(|v| v.into())
     }
 
     fn len(self) -> usize {
-        self.props.par_iter().flatten().count()
+        self.props().par_iter().flatten().count()
     }
 
     fn is_empty(self) -> bool {
-        self.props.par_iter().any(|v| v.is_some())
+        self.props().par_iter().any(|v| v.is_some())
     }
 }
 
@@ -105,7 +109,7 @@ where
 {
     let props = edge.prop_values::<T>(id)?;
     let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
-    Some(TPropColumn { props, timestamps })
+    Some(TPropColumn::new(props, timestamps))
 }
 
 pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<ArrowTProp> {
@@ -119,12 +123,12 @@ pub fn read_tprop_column(id: usize, field: Field, edge: Edge) -> Option<ArrowTPr
         DataType::Utf8 => {
             let props = edge.prop_str_values::<i32>(id)?;
             let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
-            Some(ArrowTProp::Str32(TPropColumn { props, timestamps }))
+            Some(ArrowTProp::Str32(TPropColumn::new(props, timestamps)))
         }
         DataType::LargeUtf8 => {
             let props = edge.prop_str_values::<i64>(id)?;
             let timestamps = TimeStamps::new(edge.timestamp_slice(), None);
-            Some(ArrowTProp::Str64(TPropColumn { props, timestamps }))
+            Some(ArrowTProp::Str64(TPropColumn::new(props, timestamps)))
         }
         _ => todo!(),
     }

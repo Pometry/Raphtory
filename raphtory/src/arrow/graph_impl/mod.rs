@@ -17,6 +17,10 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use raphtory_arrow::arrow_hmap::ArrowHashMap;
+use raphtory_arrow::RAError;
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
+use raphtory_arrow::load::ExternalEdgeList;
 
 pub mod const_properties_ops;
 pub mod core_ops;
@@ -66,7 +70,7 @@ impl AsRef<TemporalGraph> for ArrowGraph {
 }
 
 impl Graph {
-    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
+    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, RAError> {
         ArrowGraph::from_graph(self, graph_dir)
     }
 }
@@ -146,7 +150,7 @@ impl ArrowGraph {
             edge_meta.layer_meta().get_or_create_id(l_name);
         }
 
-        if let Some(props) = inner_graph.node_properties.as_ref() {
+        if let Some(props) = inner_graph.node_properties().as_ref() {
             let node_const_props_fields = props.const_props.prop_dtypes();
             for field in node_const_props_fields {
                 node_meta
@@ -170,7 +174,7 @@ impl ArrowGraph {
         }
     }
 
-    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
+    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, RAError> {
         let inner_graph = TemporalGraph::from_graph(graph, graph_dir)?;
         Ok(Self::new(inner_graph))
     }
@@ -183,7 +187,7 @@ impl ArrowGraph {
         src_col_idx: usize,
         dst_col_idx: usize,
         time_col_idx: usize,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, RAError> {
         let inner = TemporalGraph::from_sorted_edge_list(
             graph_dir,
             src_col_idx,
@@ -196,7 +200,7 @@ impl ArrowGraph {
         Ok(Self::new(inner))
     }
 
-    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
+    pub fn load_from_dir(graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, RAError> {
         let inner = TemporalGraph::new(graph_dir)?;
         Ok(Self::new(inner))
     }
@@ -210,7 +214,7 @@ impl ArrowGraph {
         read_chunk_size: Option<usize>,
         concurrent_files: Option<usize>,
         num_threads: usize,
-    ) -> Result<ArrowGraph, Error> {
+    ) -> Result<ArrowGraph, RAError> {
         let layered_edge_list: Vec<ExternalEdgeList<&Path>> = layer_parquet_cols
             .iter()
             .map(
@@ -251,7 +255,7 @@ impl ArrowGraph {
         layer_ids: &'a LayerIds,
     ) -> impl ParallelIterator<Item = &'a TempColGraphFragment> + 'a {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
@@ -263,7 +267,7 @@ impl ArrowGraph {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = &'a TempColGraphFragment> + 'a {
         self.inner
-            .layers
+            .layers()
             .iter()
             .enumerate()
             .filter(|(l_id, _)| layer_ids.contains(l_id))
@@ -271,7 +275,7 @@ impl ArrowGraph {
     }
 
     pub fn from_layer(layer: TempColGraphFragment) -> Self {
-        let global_ordering = layer.nodes.gids.clone();
+        let global_ordering = layer.nodes_storage().gids().clone();
 
         let global_order = ArrowHashMap::from_sorted_dedup(global_ordering.clone())
             .expect("Failed to create global order");

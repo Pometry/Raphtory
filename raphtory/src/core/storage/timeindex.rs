@@ -38,6 +38,13 @@ impl From<i64> for TimeIndexEntry {
     }
 }
 
+impl From<raphtory_arrow::interop::TimeIndexEntry> for TimeIndexEntry {
+    #[inline]
+    fn from(value: raphtory_arrow::interop::TimeIndexEntry) -> Self {
+        TimeIndexEntry(value.0, value.1)
+    }
+}
+
 impl TimeIndexEntry {
     pub const MIN: TimeIndexEntry = TimeIndexEntry(i64::MIN, 0);
 

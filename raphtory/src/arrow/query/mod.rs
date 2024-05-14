@@ -1,5 +1,6 @@
 use raphtory_arrow::GID;
 use std::sync::Arc;
+use raphtory_arrow::edge::Edge;
 
 use crate::{
     core::entities::{nodes::node_ref::NodeRef, VID},
@@ -10,6 +11,7 @@ use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
 use super::graph_impl::ArrowGraph;
+use raphtory_arrow::nodes::Node;
 
 pub mod ast;
 pub mod executors;
@@ -75,7 +77,7 @@ impl ForwardState {
     pub fn at_time(node: Node, t: i64, hop_n_limit: usize) -> Self {
         ForwardState {
             time: t,
-            path: rpds::List::new_sync().push_front(node.vid()),
+            path: rpds::List::new_sync().push_front(node.vid().into()),
             hop_n_limit,
         }
     }

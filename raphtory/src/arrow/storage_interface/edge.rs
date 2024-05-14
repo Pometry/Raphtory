@@ -8,6 +8,7 @@ use crate::{
 };
 use raphtory_arrow::{edge::Edge, edges::Edges, graph::TemporalGraph};
 use std::ops::Range;
+use raphtory_arrow::timestamps::TimeStamps;
 
 pub type ArrowEdge<'a> = Edge<'a>;
 
@@ -66,12 +67,12 @@ impl EdgeStorageIntoOps for ArrowOwnedEdge {
         w: Range<TimeIndexEntry>,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_id = self.edges.layer_id;
+        let layer_id = self.edges.layer_id();
         layer_ids
             .contains(&layer_id)
             .then(move || {
                 let ts: TimeStamps<TimeIndexEntry> =
-                    TimeStamps::new(self.edges.time_col.value(self.eid.0), None);
+                    TimeStamps::new(self.edges.time().value(self.eid.0), None);
                 let times = ts.range(w).timestamps.into_owned();
                 let range = times.range().clone();
                 times

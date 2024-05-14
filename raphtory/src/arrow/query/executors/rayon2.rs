@@ -12,7 +12,7 @@ use crate::{
     prelude::*,
 };
 use itertools::Itertools;
-use raphtory_arrow::{nodes::Node, Error};
+use raphtory_arrow::{nodes::Node, RAError};
 use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
 use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
 
@@ -21,7 +21,7 @@ pub fn execute<S: HopState + 'static>(
     source: NodeSource,
     graph: &ArrowGraph,
     make_state: impl Fn(Node) -> S + Send + Sync,
-) -> Result<(), Error> {
+) -> Result<(), RAError> {
     let tp = ThreadPoolBuilder::new()
         .build()
         .expect("failed to make a thread pool what's the point!");
@@ -58,7 +58,7 @@ pub fn execute_static_graph<G: StaticGraphViewOps, S: StaticGraphHopState + 'sta
     source: NodeSource,
     graph: G,
     start_state: S,
-) -> Result<(), Error> {
+) -> Result<(), RAError> {
     let tp = ThreadPoolBuilder::new()
         .build()
         .expect("failed to make a thread pool what's the point!");

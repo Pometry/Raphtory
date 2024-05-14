@@ -10,12 +10,11 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyDict, PyList, PyString},
 };
-
+use raphtory_arrow::{Error, GID};
 use crate::{
     arrow::{
         graph_impl::{ArrowGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
-        Error, GID,
     },
     core::{
         entities::{nodes::node_ref::NodeRef, VID},

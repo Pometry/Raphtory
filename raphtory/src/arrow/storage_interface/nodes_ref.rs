@@ -1,17 +1,19 @@
 use crate::{
     arrow::{
-        graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
         storage_interface::node::ArrowNode,
     },
     core::entities::VID,
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::sync::Arc;
+use raphtory_arrow::graph::TemporalGraph;
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
+use raphtory_arrow::properties::Properties;
 
 #[derive(Copy, Clone, Debug)]
 pub struct ArrowNodesRef<'a> {
     pub(super) num_nodes: usize,
-    pub(super) properties: Option<&'a Properties<VID>>,
+    pub(super) properties: Option<&'a Properties<raphtory_arrow::interop::VID>>,
     pub(super) layers: &'a Arc<[TempColGraphFragment]>,
 }
 
@@ -19,8 +21,8 @@ impl<'a> ArrowNodesRef<'a> {
     pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
         Self {
             num_nodes: graph.num_nodes(),
-            properties: graph.node_properties.as_ref(),
-            layers: &graph.layers,
+            properties: graph.node_properties(),
+            layers: &graph.arc_layers(),
         }
     }
 

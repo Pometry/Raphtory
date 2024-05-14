@@ -1,18 +1,19 @@
 use crate::{
     arrow::{
-        graph::TemporalGraph,
-        graph_fragment::TempColGraphFragment,
-        properties::Properties,
         storage_interface::{node::ArrowNode, nodes_ref::ArrowNodesRef},
     },
     core::entities::VID,
 };
+
 use std::sync::Arc;
+use raphtory_arrow::graph::TemporalGraph;
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
+use raphtory_arrow::properties::Properties;
 
 #[derive(Clone, Debug)]
 pub struct ArrowNodesOwned {
     num_nodes: usize,
-    properties: Option<Properties<VID>>,
+    properties: Option<Properties<raphtory_arrow::interop::VID>>,
     layers: Arc<[TempColGraphFragment]>,
 }
 
@@ -20,8 +21,8 @@ impl ArrowNodesOwned {
     pub(crate) fn new(graph: &TemporalGraph) -> Self {
         Self {
             num_nodes: graph.num_nodes(),
-            properties: graph.node_properties.clone(),
-            layers: graph.layers.clone(),
+            properties: graph.node_properties().cloned(),
+            layers: graph.layers().into(),
         }
     }
 

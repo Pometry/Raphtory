@@ -59,7 +59,7 @@ use rand::{prelude::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "arrow")]
-use crate::arrow::algorithms::connected_components::connected_components as connected_components_rs;
+use raphtory_arrow::algorithms::connected_components::connected_components as connected_components_rs;
 
 #[cfg(feature = "arrow")]
 use crate::python::graph::arrow::PyArrowGraph;
@@ -126,7 +126,7 @@ pub fn strongly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (g))]
 pub fn connected_components(g: &PyArrowGraph) -> Vec<usize> {
-    connected_components_rs(&g.graph)
+    connected_components_rs(g.graph.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.

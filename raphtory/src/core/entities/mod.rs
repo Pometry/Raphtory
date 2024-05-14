@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use std::{ops::Deref, sync::Arc};
+use raphtory_arrow::interop::{AsEID, AsVID};
 
 use crate::core::entities::edges::edge_ref::EdgeRef;
 use graph::{tgraph::TGraph, tgraph_storage::GraphEntry};
@@ -49,6 +50,19 @@ impl From<VID> for usize {
     }
 }
 
+impl AsVID for VID {
+    fn as_vid(&self) -> raphtory_arrow::interop::VID {
+        raphtory_arrow::interop::VID::from(self.0)
+    }
+}
+
+impl Into<raphtory_arrow::interop::VID> for VID {
+    #[inline]
+    fn into(self) -> raphtory_arrow::interop::VID {
+        raphtory_arrow::interop::VID(self.0)
+    }
+}
+
 #[repr(transparent)]
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
@@ -56,7 +70,14 @@ impl From<VID> for usize {
 pub struct EID(pub usize);
 
 impl Into<raphtory_arrow::interop::EID> for EID {
+    #[inline]
     fn into(self) -> raphtory_arrow::interop::EID {
+        raphtory_arrow::interop::EID(self.0)
+    }
+}
+
+impl AsEID for EID {
+    fn as_eid(&self) -> raphtory_arrow::interop::EID {
         raphtory_arrow::interop::EID(self.0)
     }
 }
