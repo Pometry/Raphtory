@@ -208,11 +208,9 @@ mod db_tests {
             api::{
                 properties::internal::ConstPropertiesOps,
                 view::{
-                    time::internal::InternalTimeOps, EdgeViewOps, Layer, LayerOps, NodeViewOps,
-                    StaticGraphViewOps, TimeOps,
-                    internal::{CoreGraphOps, EdgeFilterOps, InternalLayerOps, TimeSemantics},
+                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, Layer, LayerOps, NodeViewOps, StaticGraphViewOps, TimeOps,
                 },
             },
             graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
