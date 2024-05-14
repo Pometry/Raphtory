@@ -1,16 +1,16 @@
 use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
 use crate::{
     arrow::graph_fragment::TempColGraphFragment,
+    arrow2::{
+        array::{PrimitiveArray, StructArray},
+        datatypes::{ArrowDataType as DataType, Field},
+    },
     core::entities::{
         properties::{graph_meta::GraphMeta, props::Meta},
         LayerIds,
     },
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
-};
-use arrow2::{
-    array::{PrimitiveArray, StructArray},
-    datatypes::{DataType, Field},
 };
 use rayon::prelude::*;
 use std::{
@@ -93,7 +93,7 @@ impl ArrowGraph {
             .map(|(a, b, c, d)| (*a, (*b, (*c, *d))))
             .unzip();
 
-        let edge_lists = vec![arrow2::array::StructArray::new(
+        let edge_lists = vec![StructArray::new(
             DataType::Struct(vec![
                 Field::new("src", DataType::UInt64, false),
                 Field::new("dst", DataType::UInt64, false),

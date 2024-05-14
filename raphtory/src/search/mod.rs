@@ -7,8 +7,8 @@ use std::{collections::HashSet, ops::Deref, path::Path, sync::Arc};
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use tantivy::{
     collector::TopDocs,
-    schema::{Field, Schema, SchemaBuilder, FAST, INDEXED, STORED, TEXT},
-    Document, Index, IndexReader, IndexSettings, IndexWriter, TantivyError,
+    schema::{Field, Schema, SchemaBuilder, Value, FAST, INDEXED, STORED, TEXT},
+    Index, IndexReader, IndexSettings, IndexWriter, TantivyDocument, TantivyError,
 };
 
 use crate::{
@@ -290,7 +290,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         schema.build()
     }
 
-    fn index_prop_value(document: &mut Document, prop_field: Field, prop_value: Prop) {
+    fn index_prop_value(document: &mut TantivyDocument, prop_field: Field, prop_value: Prop) {
         match prop_value {
             Prop::Str(prop_text) => {
                 // add the property to the document
@@ -392,7 +392,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     ) -> tantivy::Result<()> {
         let node_id: u64 = usize::from(node.node) as u64;
 
-        let mut document = Document::new();
+        let mut document = TantivyDocument::new();
         // add the node_id
         document.add_u64(node_id_field, node_id);
         document.add_u64(node_id_rev_field, u64::MAX - node_id);
@@ -438,7 +438,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
         let src = e_ref.src();
         let dst = e_ref.dst();
 
-        let mut document = Document::new();
+        let mut document = TantivyDocument::new();
         let edge_id: u64 = Into::<usize>::into(edge_ref.pid()) as u64;
         document.add_u64(edge_id_field, edge_id);
         document.add_text(source_field, src.name());
@@ -561,7 +561,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn resolve_node_from_search_result(
         &self,
         node_id: Field,
-        doc: Document,
+        doc: TantivyDocument,
     ) -> Option<NodeView<G>> {
         let node_id: usize = doc
             .get_first(node_id)
@@ -575,7 +575,7 @@ impl<'graph, G: GraphViewOps<'graph>> IndexedGraph<G> {
     fn resolve_edge_from_search_result(
         &self,
         edge_id: Field,
-        doc: Document,
+        doc: TantivyDocument,
     ) -> Option<EdgeView<G, G>> {
         let edge_id: usize = doc
             .get_first(edge_id)
@@ -801,7 +801,7 @@ impl<G: StaticGraphViewOps + InternalAdditionOps> InternalAdditionOps for Indexe
         props: Vec<(usize, Prop)>,
         node_type_id: usize,
     ) -> Result<(), GraphError> {
-        let mut document = Document::new();
+        let mut document = TantivyDocument::new();
         // add time to the document
         let time = self.node_index.schema().get_field(fields::TIME)?;
         document.add_i64(time, t.t());
@@ -1285,7 +1285,7 @@ mod test {
 
         let reader = index
             .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::OnCommit)
+            .reload_policy(tantivy::ReloadPolicy::OnCommitWithDelay)
             .try_into()
             .unwrap();
 

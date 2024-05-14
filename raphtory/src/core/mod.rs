@@ -37,10 +37,9 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use thiserror::Error;
 
 #[cfg(feature = "arrow")]
-use arrow2::datatypes::DataType;
+use crate::arrow2::datatypes::ArrowDataType as DataType;
 
 #[cfg(test)]
 extern crate core;
@@ -134,7 +133,16 @@ impl<'a, O: AsRef<str> + 'a> OptionAsStr<'a> for Option<&'a O> {
 
 /// Denotes the direction of an edge. Can be incoming, outgoing or both.
 #[derive(
-    Clone, Copy, PartialEq, PartialOrd, Debug, Default, serde::Serialize, serde::Deserialize,
+    Clone,
+    Copy,
+    Hash,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Debug,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 pub enum Direction {
     OUT,

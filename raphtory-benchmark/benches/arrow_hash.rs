@@ -1,5 +1,5 @@
-use arrow2::array::PrimitiveArray;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use polars_arrow::array::PrimitiveArray;
 use rand::{distributions::Uniform, seq::IteratorRandom, Rng};
 
 use raphtory::arrow::{

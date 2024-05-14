@@ -16,11 +16,11 @@ edition.workspace = true
 [dependencies]
 itertools.workspace = true
 parking_lot.workspace = true
-raphtory = { path = "../raphtory", features = ["io", "arrow", "python"]}
+raphtory = { path = "../raphtory", features = ["io", "arrow", "python"] }
 rayon.workspace = true
 thiserror.workspace = true
 memmap2.workspace = true
-arrow2.workspace = true
+polars-arrow.workspace = true
 ahash.workspace = true
 tempfile.workspace = true
 clap.workspace = true

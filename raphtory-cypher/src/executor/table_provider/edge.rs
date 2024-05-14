@@ -22,17 +22,19 @@ use datafusion::{
     physical_expr::PhysicalSortExpr,
     physical_plan::{
         metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan, Partitioning,
+        ExecutionPlan,
     },
     physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
 use raphtory::arrow::{
-    chunked_array::array_ops::{ArrayOps, BaseArrayOps, Chunked},
+    chunked_array::array_ops::{ArrayOps, BaseArrayOps},
     graph_impl::ArrowGraph,
 };
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
+
+// use super::plan_properties;
 
 pub struct EdgeListTableProvider {
     layer_id: usize,
@@ -53,16 +55,8 @@ impl EdgeListTableProvider {
 
         let schema = lift_nested_arrow_schema(&g, layer_id)?;
 
-        let layer_num_chunks = graph
-            .as_ref()
-            .layer(layer_id)
-            .edges_storage()
-            .time()
-            .values()
-            .num_chunks();
-        let num_partitions = std::thread::available_parallelism()?
-            .get()
-            .min(layer_num_chunks);
+        let num_partitions = std::thread::available_parallelism()?.get();
+
         let row_count = graph
             .as_ref()
             .layer(layer_id)
@@ -107,7 +101,7 @@ impl EdgeListTableProvider {
 
 fn lift_nested_arrow_schema(graph: &ArrowGraph, layer_id: usize) -> Result<Arc<Schema>, ExecError> {
     let arrow2_fields = graph.as_ref().layer(layer_id).edges_data_type();
-    let a2_dt = arrow2::datatypes::DataType::Struct(arrow2_fields.clone());
+    let a2_dt = crate::arrow2::datatypes::ArrowDataType::Struct(arrow2_fields.clone());
     let a_dt: DataType = a2_dt.into();
     let schema = match a_dt {
         DataType::Struct(fields) => {
@@ -155,6 +149,7 @@ impl TableProvider for EdgeListTableProvider {
             .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
+        // let plan_properties = plan_properties(schema.clone(), self.num_partitions);
         Ok(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
@@ -163,6 +158,7 @@ impl TableProvider for EdgeListTableProvider {
             num_partitions: self.num_partitions,
             row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
+            // props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -176,6 +172,7 @@ struct EdgeListExecPlan {
     num_partitions: usize,
     row_count: usize,
     sorted_by: Vec<PhysicalSortExpr>,
+    // props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -258,7 +255,7 @@ fn produce_record_batch(
         None,
     ));
 
-    let e_ids: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
+    let row_num: Arc<dyn Array> = Arc::new(PrimitiveArray::<UInt64Type>::new(
         ScalarBuffer::from(ids_builder),
         None,
     ));
@@ -276,7 +273,7 @@ fn produce_record_batch(
         .zip(temporal_props_chunks)
         .scan(0, move |from, (time_values, time_props)| {
             let len = time_values.len();
-            let e_ids = e_ids.slice(*from, len);
+            let e_ids = row_num.slice(*from, len);
             let layer_ids = layer_ids.slice(*from, len);
             let srcs = srcs.slice(*from, len);
             let dsts = dsts.slice(*from, len);
@@ -311,11 +308,11 @@ fn produce_record_batch(
 }
 
 fn property_to_arrow_column(
-    temporal_props: &arrow2::array::StructArray,
+    temporal_props: &crate::arrow2::array::StructArray,
     col_id: usize,
 ) -> Arc<dyn Array> {
     let arr = temporal_props.values()[col_id].as_ref();
-    let arrow_data = arrow2::array::to_data(arr);
+    let arrow_data = crate::arrow2::array::to_data(arr);
 
     (make_array(arrow_data)) as _
 }
@@ -355,17 +352,19 @@ impl ExecutionPlan for EdgeListExecPlan {
         self
     }
 
-    /// Get the schema for this execution plan
+    // fn properties(&self) -> &PlanProperties {
+    //     &self.props
+    // }
+
+    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
+        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
+    }
+    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
+        Some(&self.sorted_by)
+    }
+
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
-    }
-
-    fn output_partitioning(&self) -> Partitioning {
-        Partitioning::UnknownPartitioning(self.num_partitions)
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        Some(&self.sorted_by)
     }
 
     fn maintains_input_order(&self) -> Vec<bool> {
@@ -388,6 +387,7 @@ impl ExecutionPlan for EdgeListExecPlan {
         target_partitions: usize,
         _config: &ConfigOptions,
     ) -> Result<Option<Arc<dyn ExecutionPlan>>, DataFusionError> {
+        // let plan_properties = plan_properties(self.schema.clone(), target_partitions);
         Ok(Some(Arc::new(EdgeListExecPlan {
             layer_id: self.layer_id,
             layer_name: self.layer_name.clone(),
@@ -396,6 +396,7 @@ impl ExecutionPlan for EdgeListExecPlan {
             num_partitions: target_partitions,
             row_count: self.row_count,
             sorted_by: self.sorted_by.clone(),
+            // props: plan_properties,
             projection: self.projection.clone(),
         })))
     }

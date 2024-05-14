@@ -1,7 +1,8 @@
+use arrow::compute::take;
 use std::sync::Arc;
 
-use arrow_array::{builder, UInt64Array};
-use arrow_schema::DataType;
+use arrow_array::{builder, Array, RecordBatch, UInt64Array};
+use arrow_schema::{ArrowError, DataType};
 use datafusion::{
     dataframe::DataFrame,
     error::DataFusionError,
@@ -10,29 +11,57 @@ use datafusion::{
         context::{SQLOptions, SessionContext, SessionState},
         runtime_env::RuntimeEnv,
     },
-    logical_expr::{create_udf, ColumnarValue, Volatility},
+    logical_expr::{create_udf, ColumnarValue, LogicalPlan, Volatility},
     physical_plan::SendableRecordBatchStream,
 };
+
 use executor::{table_provider::edge::EdgeListTableProvider, ExecError};
 use parser::ast::*;
 use raphtory::arrow::graph_impl::ArrowGraph;
 
-use crate::executor::table_provider::node::NodeTableProvider;
+use crate::{
+    executor::table_provider::node::NodeTableProvider,
+    hop::rule::{HopQueryPlanner, HopRule},
+};
 
 pub mod executor;
 pub mod hop;
 pub mod parser;
 pub mod transpiler;
 
-pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecError> {
-    println!("Running query: {:?}", query);
+pub use polars_arrow as arrow2;
+
+pub async fn run_cypher(
+    query: &str,
+    g: &ArrowGraph,
+    enable_hop_optim: bool,
+) -> Result<DataFrame, ExecError> {
+    let (ctx, plan) = prepare_plan(query, g, enable_hop_optim).await?;
+    let df = ctx.execute_logical_plan(plan).await?;
+    Ok(df)
+}
+
+pub async fn prepare_plan(
+    query: &str,
+    g: &ArrowGraph,
+    enable_hop_optim: bool,
+) -> Result<(SessionContext, LogicalPlan), ExecError> {
+    // println!("Running query: {:?}", query);
     let query = parser::parse_cypher(query)?;
 
     let config = SessionConfig::from_env()?.with_information_schema(true);
-    // config.options_mut().optimizer.skip_failed_rules = true; // should probably raise these with Datafusion
+
+    // config.options_mut().optimizer.skip_failed_rules = true;
+    // config.options_mut().optimizer.top_down_join_key_reordering = false;
 
     let runtime = Arc::new(RuntimeEnv::default());
-    let state = SessionState::new_with_config_rt(config, runtime);
+    let state = if enable_hop_optim {
+        SessionState::new_with_config_rt(config, runtime)
+            .with_query_planner(Arc::new(HopQueryPlanner {}))
+            .add_optimizer_rule(Arc::new(HopRule::new(g.clone())))
+    } else {
+        SessionState::new_with_config_rt(config, runtime)
+    };
     let ctx = SessionContext::new_with_state(state);
 
     let graph = g.as_ref();
@@ -76,7 +105,8 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
     ctx.refresh_catalogs().await?;
     let query = transpiler::to_sql(query, g);
 
-    println!("SQL: {:?}", query.to_string());
+    // println!("SQL: {:?}", query.to_string());
+    // println!("SQL AST: {:?}", query);
     let plan = ctx
         .state()
         .statement_to_plan(datafusion::sql::parser::Statement::Statement(Box::new(
@@ -88,15 +118,14 @@ pub async fn run_cypher(query: &str, g: &ArrowGraph) -> Result<DataFrame, ExecEr
 
     let plan = ctx.state().optimize(&plan)?;
     // println!("PLAN! {:?}", plan);
-    let df = ctx.execute_logical_plan(plan).await?;
-    Ok(df)
+    Ok((ctx, plan))
 }
 
 pub async fn run_cypher_to_streams(
     query: &str,
     graph: &ArrowGraph,
 ) -> Result<Vec<SendableRecordBatchStream>, ExecError> {
-    let df = run_cypher(query, graph).await?;
+    let df = run_cypher(query, graph, true).await?;
     let stream = df.execute_stream_partitioned().await?;
     Ok(stream)
 }
@@ -109,21 +138,42 @@ pub async fn run_sql(query: &str, graph: &ArrowGraph) -> Result<DataFrame, ExecE
         ctx.register_table(layer, Arc::new(table))?;
     }
 
+    let node_table_provider = NodeTableProvider::new(graph.clone())?;
+    ctx.register_table("nodes", Arc::new(node_table_provider))?;
+
+    // let state = ctx.state();
+    // let dialect = state.config().options().sql_parser.dialect.as_str();
+    // let sql_ast = ctx.state().sql_to_statement(query, dialect)?;
+    // println!("SQL AST: {:?}", sql_ast);
+
     let df = ctx.sql(query).await?;
     Ok(df)
 }
 
+pub fn take_record_batch(
+    record_batch: &RecordBatch,
+    indices: &dyn Array,
+) -> Result<RecordBatch, ArrowError> {
+    let columns = record_batch
+        .columns()
+        .iter()
+        .map(|c| take(c, indices, None))
+        .collect::<Result<Vec<_>, _>>()?;
+    RecordBatch::try_new(record_batch.schema(), columns)
+}
+
 #[cfg(test)]
 mod test {
-
+    use arrow::compute::concat_batches;
     use std::path::Path;
-
-    use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
-    use tempfile::tempdir;
 
     // FIXME: actually assert the tests below
     // use pretty_assertions::assert_eq;
     use arrow::util::pretty::print_batches;
+    use arrow_array::RecordBatch;
+    use tempfile::tempdir;
+
+    use raphtory::{arrow::graph_impl::ArrowGraph, prelude::*};
 
     use crate::run_cypher;
 
@@ -131,11 +181,11 @@ mod test {
     static ref EDGES: Vec<(u64, u64, i64, f64)> = vec![
             (0, 1, 1, 3.),
             (0, 1, 2, 4.),
-            (0, 3, 0, 1.),
+            (0, 2, 0, 1.),
             (1, 2, 2, 4.),
-            (1, 2, 3, 4.),
-            (1, 5, 1, 1.),
-            (2, 3, 5, 5.),
+            (1, 3, 3, 4.),
+            (1, 4, 1, 1.),
+            (3, 2, 5, 5.),
             (3, 4, 1, 6.),
             (3, 4, 3, 6.),
             (3, 5, 7, 6.),
@@ -147,8 +197,8 @@ mod test {
             (0, 2, 2, 7., "buu".to_string()),
             (2, 3, 1, 9., "xbaa".to_string()),
             (2, 3, 2, 1., "xbaa".to_string()),
-            (3, 0, 3, 4., "beea".to_string()),
-            (3, 0, 3, 1., "beex".to_string()),
+            (1, 0, 3, 4., "beea".to_string()),
+            (1, 0, 3, 1., "beex".to_string()),
             (4, 1, 5, 5., "baaz".to_string()),
             (4, 5, 1, 6., "bxx".to_string()),
             (5, 6, 3, 6., "mbaa".to_string()),
@@ -180,13 +230,26 @@ mod test {
     }
 
     //TODO: need better way of testing these, since they run in parallel order of batches is non-deterministic
-
     #[tokio::test]
     async fn select_table() {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
 
-        let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+        let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
+            .await
+            .unwrap();
+
+        let data = df.collect().await.unwrap();
+
+        print_batches(&data).expect("failed to print batches");
+    }
+
+    #[tokio::test]
+    async fn select_table_order_by() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 3, 2);
+
+        let df = run_cypher("match ()-[e]->() RETURN * ORDER by e.weight", &graph, true)
             .await
             .unwrap();
 
@@ -196,24 +259,25 @@ mod test {
     }
 
     mod arrow2_load {
-        use std::{num::NonZeroUsize, path::PathBuf};
+        use std::path::PathBuf;
 
-        use arrow2::{
+        use crate::arrow2::{
             array::{PrimitiveArray, StructArray},
             datatypes::*,
         };
-        use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
+        use arrow::util::pretty::print_batches;
         use tempfile::tempdir;
 
-        use crate::run_cypher;
-        use arrow::util::pretty::print_batches;
+        use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
 
-        fn schema() -> Schema {
-            let srcs = Field::new("srcs", DataType::UInt64, false);
-            let dsts = Field::new("dsts", DataType::UInt64, false);
-            let time = Field::new("bla_time", DataType::Int64, false);
-            let weight = Field::new("weight", DataType::Float64, true);
-            Schema::from(vec![srcs, dsts, time, weight])
+        use crate::run_cypher;
+
+        fn schema() -> ArrowSchema {
+            let srcs = Field::new("srcs", ArrowDataType::UInt64, false);
+            let dsts = Field::new("dsts", ArrowDataType::UInt64, false);
+            let time = Field::new("bla_time", ArrowDataType::Int64, false);
+            let weight = Field::new("weight", ArrowDataType::Float64, true);
+            ArrowSchema::from(vec![srcs, dsts, time, weight])
         }
 
         #[tokio::test]
@@ -226,7 +290,7 @@ mod test {
             let weight = PrimitiveArray::from_vec(vec![3.14f64, 4.14f64, 5.14f64, 6.14f64]).boxed();
 
             let chunk = StructArray::new(
-                DataType::Struct(schema().fields),
+                ArrowDataType::Struct(schema().fields),
                 vec![srcs, dsts, time, weight],
                 None,
             );
@@ -238,7 +302,7 @@ mod test {
             let graph =
                 ArrowGraph::load_from_edge_lists(&edge_lists, 20, 20, graph_dir, 0, 1, 2).unwrap();
 
-            let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+            let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                 .await
                 .unwrap();
 
@@ -290,7 +354,7 @@ mod test {
             )
             .unwrap();
 
-            let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+            let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
                 .await
                 .unwrap();
 
@@ -310,13 +374,13 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&graph, graph_dir).unwrap();
 
-        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
+        let df = run_cypher("match ()-[e1]->(b)-[e2]->(), (b)-[e3]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph, true)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).expect("failed to print batches");
 
-        let df = run_cypher("match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph)
+        let df = run_cypher("match (b)-[e3]->(), ()-[e1]->(b)-[e2]->() RETURN e1.src, e1.id, b.id, e2.id, e2.dst, e3.id, e3.dst", &graph, true)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
@@ -328,7 +392,7 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 10, 10);
 
-        let df = run_cypher("match ()-[e {src: 0}]->() RETURN *", &graph)
+        let df = run_cypher("match ()-[e {src: 0}]->() RETURN *", &graph, true)
             .await
             .unwrap();
 
@@ -339,6 +403,7 @@ mod test {
         let df = run_cypher(
             "match ()-[e]->() where e.rap_time >2 and e.weight<7 RETURN *",
             &graph,
+            true,
         )
         .await
         .unwrap();
@@ -352,25 +417,45 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
-        let df = run_cypher(
-            "match ()-[e1]->()-[e2]->() return e1.src as start, e1.dst as mid, e2.dst as end",
-            &graph,
-        )
-        .await
-        .unwrap();
+        let query = "match ()-[e1]->()-[e2]->() return e1.src as start, e1.dst as mid, e2.dst as end ORDER BY start, mid, end";
 
+        let rb_hop = run_to_rb(&graph, query, true).await;
+        let rb_join = run_to_rb(&graph, query, false).await;
+
+        assert_eq!(rb_hop, rb_join);
+    }
+
+    async fn run_to_rb(graph: &ArrowGraph, query: &str, enable_hop_optim: bool) -> RecordBatch {
+        let df = run_cypher(query, &graph, enable_hop_optim).await.unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
+        let schema = data.first().map(|rb| rb.schema()).unwrap();
+        concat_batches(&schema, data.iter()).unwrap()
     }
 
     #[tokio::test]
+    #[ignore] // Hop optimization is not yet fully implemented
     async fn three_hops() {
+        let graph_dir = tempdir().unwrap();
+        let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
+
+        let query = "match ()-[e1]->()-[e2]->()-[e3]->() return * ORDER BY e1.src, e1.dst, e2.src, e2.dst, e3.src, e3.dst";
+        let hop_rb = run_to_rb(&graph, query, true).await;
+        let hop_join = run_to_rb(&graph, query, false).await;
+
+        assert_eq!(hop_rb.num_rows(), hop_join.num_rows());
+        assert_eq!(hop_rb, hop_join);
+    }
+
+    #[tokio::test]
+    async fn three_hops_with_condition() {
         let graph_dir = tempdir().unwrap();
         let graph = ArrowGraph::make_simple_graph(graph_dir, &EDGES, 100, 100);
 
         let df = run_cypher(
             "match ()-[e1]->()-[e2]->()<-[e3]-() where e2.weight > 5 return *",
             &graph,
+            true,
         )
         .await
         .unwrap();
@@ -387,6 +472,7 @@ mod test {
         let df = run_cypher(
             "match ()-[e1]->()-[e2]->()-[e3]->()-[e4]->()-[e5]->() return *",
             &graph,
+            true,
         )
         .await
         .unwrap();
@@ -468,6 +554,7 @@ mod test {
         let df = run_cypher(
             "match ()-[e]->() where e.name ends WITH 'z' RETURN e",
             &graph,
+            true,
         )
         .await
         .unwrap();
@@ -484,6 +571,7 @@ mod test {
         let df = run_cypher(
             "match ()-[e]->() where e.name ends with 'z' return count(e.name)",
             &graph,
+            true,
         )
         .await
         .unwrap();
@@ -496,7 +584,9 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_node_props(graph_dir);
 
-        let df = run_cypher("match (n) return n", &graph).await.unwrap();
+        let df = run_cypher("match (n) return n", &graph, true)
+            .await
+            .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
     }
@@ -506,7 +596,7 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_node_props(graph_dir);
 
-        let df = run_cypher("match (a)-[e]->(b) return a.name, e, b.name", &graph)
+        let df = run_cypher("match (a)-[e]->(b) return a.name, e, b.name", &graph, true)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
@@ -521,6 +611,7 @@ mod test {
         let df = run_cypher(
             "match (a)-[e1]->(b)-[e2]->(c) return a.name, b.name, c.name",
             &graph,
+            true,
         )
         .await
         .unwrap();
@@ -533,13 +624,13 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_node_props(graph_dir);
 
-        let df = run_cypher("match (n) return count(n)", &graph)
+        let df = run_cypher("match (n) return count(n)", &graph, true)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
 
-        let df = run_cypher("match (n) return count(*)", &graph)
+        let df = run_cypher("match (n) return count(*)", &graph, true)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
@@ -559,10 +650,38 @@ mod test {
         let df = run_cypher(
             "match ()-[e:_default|LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
             &graph,
-        ).await.unwrap();
+         true).await.unwrap();
 
         let data = df.collect().await.unwrap();
         print_batches(&data).unwrap();
+    }
+
+    #[tokio::test]
+    async fn hop_two_different_layers() {
+        let graph_dir = tempdir().unwrap();
+        let g = Graph::new();
+
+        load_edges_1(&g, Some("LAYER1"));
+        load_edges_with_str_props(&g, Some("LAYER2"));
+
+        let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
+
+        let df = run_cypher("match ()-[e2:LAYER2]->() RETURN *", &graph, true)
+            .await
+            .unwrap();
+        let data = df.collect().await.unwrap();
+        print_batches(&data).expect("failed to print batches");
+
+        let df = run_cypher(
+            "match ()-[e1:LAYER1]->()-[e2:LAYER2]->() RETURN count(*)",
+            &graph,
+            true,
+        )
+        .await
+        .unwrap();
+
+        let data = df.collect().await.unwrap();
+        print_batches(&data).expect("failed to print batches");
     }
 
     #[tokio::test]
@@ -575,7 +694,7 @@ mod test {
 
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
 
-        let df = run_cypher("match ()-[e]->() RETURN *", &graph)
+        let df = run_cypher("match ()-[e]->() RETURN *", &graph, true)
             .await
             .unwrap();
 
@@ -593,7 +712,7 @@ mod test {
         load_edges_with_str_props(&g, Some("LAYER2"));
 
         let graph = ArrowGraph::from_graph(&g, graph_dir).unwrap();
-        let df = run_cypher("match ()-[e]->() return type(e), e", &graph)
+        let df = run_cypher("match ()-[e]->() return type(e), e", &graph, true)
             .await
             .unwrap();
 
@@ -606,7 +725,7 @@ mod test {
         let graph_dir = tempdir().unwrap();
         let graph = make_graph_with_str_col(graph_dir);
 
-        let df = run_cypher("match ()-[e]->() return count(*)", &graph)
+        let df = run_cypher("match ()-[e]->() return count(*)", &graph, true)
             .await
             .unwrap();
         let data = df.collect().await.unwrap();
@@ -621,6 +740,7 @@ mod test {
         let df = run_cypher(
             "match ()-[e]->() where e.name contains 'a' return e limit 2",
             &graph,
+            true,
         )
         .await
         .unwrap();

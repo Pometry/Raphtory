@@ -1,8 +1,8 @@
 use std::{iter, ops::Range};
 
-use arrow2::{
+use crate::arrow2::{
     array::StructArray,
-    datatypes::{DataType, Field},
+    datatypes::{ArrowDataType as DataType, Field},
     types::{NativeType, Offset},
 };
 use rayon::prelude::*;

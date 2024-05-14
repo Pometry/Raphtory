@@ -1,7 +1,7 @@
 use std::{any::Any, fmt::Formatter, sync::Arc};
 
+use crate::arrow2::{self, array::to_data, datatypes::ArrowDataType};
 use arrow::datatypes::UInt64Type;
-use arrow2::array::to_data;
 use arrow_array::{make_array, Array, PrimitiveArray};
 use arrow_buffer::ScalarBuffer;
 use arrow_schema::{DataType, Schema};
@@ -14,10 +14,12 @@ use datafusion::{
     error::DataFusionError,
     execution::{context::SessionState, SendableRecordBatchStream, TaskContext},
     logical_expr::Expr,
-    physical_expr::PhysicalSortExpr,
     physical_plan::{
-        metrics::MetricsSet, stream::RecordBatchStreamAdapter, DisplayAs, DisplayFormatType,
-        ExecutionPlan, Partitioning,
+        metrics::MetricsSet,
+        stream::RecordBatchStreamAdapter,
+        DisplayAs,
+        DisplayFormatType,
+        ExecutionPlan, //PlanProperties,
     },
 };
 use futures::Stream;
@@ -27,6 +29,8 @@ use raphtory::{
 };
 
 use crate::executor::ExecError;
+
+// use super::plan_properties;
 
 pub struct NodeTableProvider {
     graph: ArrowGraph,
@@ -62,15 +66,15 @@ impl NodeTableProvider {
     }
 }
 
-fn lift_arrow_schema(
-    gid_dt: arrow2::datatypes::DataType,
+pub fn lift_arrow_schema(
+    gid_dt: ArrowDataType,
     properties: Option<&Properties<VID>>,
 ) -> Result<SchemaRef, ExecError> {
     let mut fields = vec![];
 
     fields.push(arrow2::datatypes::Field::new(
         "id",
-        arrow2::datatypes::DataType::UInt64,
+        ArrowDataType::UInt64,
         false,
     ));
 
@@ -79,7 +83,7 @@ fn lift_arrow_schema(
         fields.extend_from_slice(properties.const_props.prop_dtypes());
     }
 
-    let dt: DataType = arrow2::datatypes::DataType::Struct(fields).into();
+    let dt: DataType = ArrowDataType::Struct(fields).into();
 
     if let DataType::Struct(fields) = dt {
         Ok(Arc::new(Schema::new(fields)))
@@ -115,11 +119,14 @@ impl TableProvider for NodeTableProvider {
             .map(|proj| Arc::new(self.schema().project(proj).expect("failed projection")))
             .unwrap_or_else(|| self.schema().clone());
 
+        // let plan_properties = plan_properties(self.schema.clone(), self.num_partitions);
+
         Ok(Arc::new(NodeScanExecPlan {
             graph: self.graph.clone(),
             schema,
             num_partitions: self.num_partitions,
             chunk_size: self.chunk_size,
+            // props: plan_properties,
             projection: projection.map(|proj| Arc::from(proj.as_slice())),
         }))
     }
@@ -180,6 +187,7 @@ struct NodeScanExecPlan {
     schema: SchemaRef,
     num_partitions: usize,
     chunk_size: usize,
+    // props: PlanProperties,
     projection: Option<Arc<[usize]>>,
 }
 
@@ -224,17 +232,19 @@ impl ExecutionPlan for NodeScanExecPlan {
         self
     }
 
-    /// Get the schema for this execution plan
+    // fn properties(&self) -> &PlanProperties {
+    //     &self.props
+    // }
+
+    fn output_partitioning(&self) -> datafusion::physical_expr::Partitioning {
+        datafusion::physical_expr::Partitioning::UnknownPartitioning(self.num_partitions)
+    }
+    fn output_ordering(&self) -> Option<&[datafusion::physical_expr::PhysicalSortExpr]> {
+        None
+    }
+
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
-    }
-
-    fn output_partitioning(&self) -> Partitioning {
-        Partitioning::UnknownPartitioning(self.num_partitions)
-    }
-
-    fn output_ordering(&self) -> Option<&[PhysicalSortExpr]> {
-        None
     }
 
     fn maintains_input_order(&self) -> Vec<bool> {

@@ -1,8 +1,8 @@
 use std::{io::Write, sync::Arc};
 
-use arrow2::{
+use crate::arrow2::{
     array::StructArray,
-    datatypes::{DataType, Field},
+    datatypes::{ArrowDataType as DataType, Field},
 };
 use itertools::Itertools;
 /// A columnar temporal graph.

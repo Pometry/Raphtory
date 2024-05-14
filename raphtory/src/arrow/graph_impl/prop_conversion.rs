@@ -1,10 +1,10 @@
 use crate::{
+    arrow2::{
+        array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+        datatypes::{ArrowDataType as DataType, ArrowSchema as Schema, Field},
+    },
     core::{entities::properties::props::PropMapper, PropType},
     prelude::{Prop, PropUnwrap},
-};
-use arrow2::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
-    datatypes::{DataType, Field, Schema},
 };
 
 pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {

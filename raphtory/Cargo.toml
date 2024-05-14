@@ -39,7 +39,7 @@ glam = { workspace = true }
 quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
-either = {workspace = true}
+either = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -63,7 +63,9 @@ pyo3 = { workspace = true, optional = true }
 pyo3-asyncio = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
-arrow2 = { workspace = true, optional = true, features = ["compute"]}
+polars-arrow = { workspace = true, optional = true, features = ["compute"] }
+polars-parquet = { workspace = true, optional = true }
+polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
 # arrow storage optional dependencies
@@ -83,28 +85,52 @@ quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 tempfile = { workspace = true }
 tempdir = { workspace = true }
-tokio = { workspace = true } # for vector testing
-dotenv = { workspace = true } # for vector testing
+tokio = { workspace = true }             # for vector testing
+dotenv = { workspace = true }            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 
 [features]
 default = ["arrow"]
 # Enables the graph loader io module
-io = ["dep:zip", "dep:neo4rs", "dep:bzip2", "dep:flate2", "dep:csv", "dep:reqwest", "dep:tokio"]
+io = [
+    "dep:zip",
+    "dep:neo4rs",
+    "dep:bzip2",
+    "dep:flate2",
+    "dep:csv",
+    "dep:reqwest",
+    "dep:tokio",
+]
 # Enables generating the pyo3 python bindings
-python = ["io", "arrow", "dep:pyo3", "dep:pyo3-asyncio", "dep:num", "dep:display-error-chain", "dep:arrow2", "dep:kdam", "dep:rpds"]
+python = [
+    "io",
+    "arrow",
+    "dep:pyo3",
+    "dep:pyo3-asyncio",
+    "dep:num",
+    "dep:display-error-chain",
+    "dep:polars-arrow",
+    "dep:kdam",
+    "dep:rpds",
+]
 # search
 search = ["dep:tantivy"]
 # vectors
 vectors = ["dep:futures-util", "dep:async-trait", "dep:async-openai"]
 # arrow
-arrow = ["dep:arrow2", "dep:memmap2", "dep:ahash", "dep:tempfile", "dep:bytemuck", "dep:rpds", "dep:thread_local",
-    "arrow2?/io_ipc",
-    "arrow2?/io_parquet",
-    "arrow2?/io_parquet_compression",
-    "arrow2?/compute_concatenate",
-    "arrow2?/compute_sort",
-    "arrow2?/compute_merge_sort",
-    "arrow2?/arrow",
-    "dep:strum"]
+arrow = [
+    "dep:polars-arrow",
+    "dep:polars-utils",
+    "dep:polars-parquet",
+    "dep:memmap2",
+    "dep:ahash",
+    "dep:tempfile",
+    "dep:bytemuck",
+    "dep:rpds",
+    "dep:thread_local",
+    "polars-arrow?/io_ipc",
+    "polars-arrow?/arrow_rs",
+    "polars-parquet?/compression",
+    "dep:strum",
+]

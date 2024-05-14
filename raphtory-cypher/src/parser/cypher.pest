@@ -250,7 +250,7 @@ is_null = { ^"IS" ~ NOT? ~ ^"NULL" }
 
 atom = _{ unary_op? ~ PropertyExpression ~ is_null? | unary_op? ~ Atom ~ is_null? | "(" ~ Expression ~ ")" }
 
-Expression = { atom ~ (op ~ atom)* }
+Expression = { atom ~ (!ORDER ~ op ~ atom)* }
 
 ListOperatorExpression = {
     (SP ~ IN ~ SP? ~ PropertyOrLabelsExpression)

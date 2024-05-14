@@ -3,7 +3,6 @@ use std::{error::Error, str::FromStr};
 use arrow::util::pretty::print_batches;
 use clap::Parser;
 use futures::{stream, StreamExt};
-use pest::pratt_parser::Op;
 use raphtory::arrow::graph_impl::{ArrowGraph, ParquetLayerCols};
 use raphtory_cypher::{run_cypher, run_cypher_to_streams, run_sql};
 use serde::{de::DeserializeOwned, Deserialize};
@@ -128,7 +127,7 @@ async fn main() {
                 let df = if args.sql {
                     run_sql(&args.query, &graph).await.unwrap()
                 } else {
-                    run_cypher(&args.query, &graph).await.unwrap()
+                    run_cypher(&args.query, &graph, true).await.unwrap()
                 };
 
                 let now = std::time::Instant::now();

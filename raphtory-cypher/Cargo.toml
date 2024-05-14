@@ -14,27 +14,25 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arrow2.workspace = true
-
-lazy_static = "1.4.0"
-pest = "2.7.8"
-pest_derive = "2.7.8"
-sqlparser = "0.43.1"
-
-# polars-core = { version = "0.38", features = ["lazy", "fmt", "dtype-struct"] }
-# polars-arrow = { version = "0.38", features = ["arrow_rs"] }
-# polars-lazy = { version = "0.38", features = ["list_eval"] }
-
-datafusion = { version = "36.0" }
-arrow = { version = "50" }
-async-trait = "0.1.73"
-futures = "0.3"
-arrow-buffer = { version = "50"}
-arrow-schema = { version = "50"}
-arrow-data = { version = "50"}
-arrow-array = { version = "50"}
-
 raphtory = { path = "../raphtory" }
+arrow.workspace = true
+arrow-buffer.workspace = true
+arrow-schema.workspace = true
+arrow-data.workspace = true
+arrow-array.workspace = true
+
+pest.workspace = true
+pest_derive.workspace = true
+
+polars-arrow.workspace = true
+polars-parquet.workspace = true
+
+datafusion.workspace = true
+lazy_static.workspace = true
+sqlparser.workspace = true
+futures.workspace = true
+async-trait.workspace = true
+
 rayon.workspace = true
 thiserror.workspace = true
 serde.workspace = true
@@ -42,8 +40,8 @@ serde_json.workspace = true
 itertools.workspace = true
 
 [dev-dependencies]
-proptest = { workspace = true }
-pretty_assertions = { workspace = true }
+proptest.workspace = true
+pretty_assertions.workspace = true
 tempfile.workspace = true
 rand.workspace = true
 tokio.workspace = true

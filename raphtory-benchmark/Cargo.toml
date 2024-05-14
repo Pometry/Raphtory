@@ -11,7 +11,7 @@ raphtory = { path = "../raphtory", features = ["io", "arrow"] }
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
-arrow2 = { workspace = true }
+polars-arrow = { workspace = true }
 tempfile = { workspace = true }
 
 [[bench]]

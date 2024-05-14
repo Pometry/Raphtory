@@ -1,11 +1,13 @@
-use crate::core::utils::errors::GraphError;
-use arrow2::{
-    array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
-    compute::cast::{self, CastOptions},
-    datatypes::{DataType, TimeUnit},
-    ffi,
-    offset::Offset,
-    types::NativeType,
+use crate::{
+    arrow2::{
+        array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
+        compute::cast::{self, CastOptions},
+        datatypes::{ArrowDataType as DataType, TimeUnit},
+        ffi,
+        offset::Offset,
+        types::NativeType,
+    },
+    core::utils::errors::GraphError,
 };
 use itertools::Itertools;
 use pyo3::{
