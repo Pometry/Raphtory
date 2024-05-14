@@ -1,8 +1,4 @@
 use crate::{
-    arrow::{
-        graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
-        timestamps::TimeStamps,
-    },
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
         Direction,
@@ -17,6 +13,9 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use raphtory_arrow::{
+    graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
+};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 
@@ -31,7 +30,7 @@ impl<'a> ArrowNode<'a> {
     pub(crate) fn new(graph: &'a TemporalGraph, vid: VID) -> Self {
         Self {
             properties: graph.node_properties(),
-            layers: &graph.layers,
+            layers: graph.layers(),
             vid,
         }
     }

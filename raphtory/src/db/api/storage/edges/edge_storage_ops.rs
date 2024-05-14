@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[cfg(feature = "arrow")]
-use crate::arrow::timestamps::TimeStamps;
+use raphtory_arrow::timestamps::TimeStamps;
 
 use crate::{
     core::entities::properties::tprop::TProp,

@@ -1,3 +1,4 @@
+use raphtory_arrow::{chunked_array::col::ChunkedPrimitiveCol, tprops::TPropColumn};
 use std::{iter, ops::Range};
 
 use crate::arrow2::{
@@ -8,50 +9,15 @@ use crate::arrow2::{
 use rayon::prelude::*;
 
 use crate::{
-    arrow::{
-        chunked_array::{
-            array_ops::{ArrayOps, BaseArrayOps},
-            chunked_array::ChunkedArray,
-            col::ChunkedPrimitiveCol,
-            utf8_col::StringCol,
-            ChunkedArraySlice,
-        },
-        edge::Edge,
-        timestamps::TimeStamps,
-    },
     core::storage::timeindex::TimeIndexIntoOps,
     db::api::{storage::tprop_storage_ops::TPropOps, view::IntoDynBoxed},
     prelude::{Prop, TimeIndexEntry},
 };
 
-#[derive(Debug, Copy, Clone)]
-pub struct TPropColumn<'a, A> {
-    props: ChunkedArraySlice<'a, A>,
-    timestamps: TimeStamps<'a, TimeIndexEntry>,
-}
-
-pub fn new_primitive_tprop_column<'a, T: NativeType + Into<Prop>>(
-    timestamps: TimeStamps<'a, TimeIndexEntry>,
-    props: ChunkedArraySlice<'a, &'a ChunkedArray<StructArray>>,
-    col_idx: usize,
-) -> Option<TPropColumn<'a, ChunkedPrimitiveCol<'a, T>>> {
-    let props = props.into_primitive_col(col_idx)?;
-    Some(TPropColumn { props, timestamps })
-}
-
-pub fn new_str_tprop_column<'a, I: Offset>(
-    timestamps: TimeStamps<'a, TimeIndexEntry>,
-    props: ChunkedArraySlice<'a, &'a ChunkedArray<StructArray>>,
-    col_idx: usize,
-) -> Option<TPropColumn<'a, StringCol<'a, I>>> {
-    let props = props.into_utf8_col(col_idx)?;
-    Some(TPropColumn { props, timestamps })
-}
-
 impl<'a, T: NativeType + Into<Prop>> TPropOps<'a> for TPropColumn<'a, ChunkedPrimitiveCol<'a, T>> {
     fn last_before(self, t: i64) -> Option<(TimeIndexEntry, Prop)> {
-        let (t, t_index) = self.timestamps.last_before(t)?;
-        let v = self.props.get(t_index)?;
+        let (t, t_index) = self.timestamps().last_before(t)?;
+        let v = self.props().get(t_index)?;
         Some((t, v.into()))
     }
 

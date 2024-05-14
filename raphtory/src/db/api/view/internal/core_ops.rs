@@ -1,5 +1,3 @@
-#[cfg(feature = "arrow")]
-use crate::arrow::timestamps::TimeStamps;
 use crate::{
     core::{
         entities::{
@@ -31,6 +29,8 @@ use crate::{
     },
 };
 use enum_dispatch::enum_dispatch;
+#[cfg(feature = "arrow")]
+use raphtory_arrow::timestamps::TimeStamps;
 use rayon::prelude::*;
 use std::ops::Range;
 

@@ -1,7 +1,7 @@
+use raphtory_arrow::{edge::Edge, nodes::Node};
 use std::option::Option;
 
 use crate::{
-    arrow::{edge::Edge, nodes::Node},
     core::entities::VID,
     db::graph::{edge::EdgeView, node::NodeView},
     prelude::GraphViewOps,
@@ -38,14 +38,14 @@ pub struct VecState(pub Vec<VID>);
 
 impl VecState {
     pub fn new(node: Node) -> Self {
-        VecState(vec![node.vid()])
+        VecState(vec![node.vid().into()])
     }
 }
 
 impl HopState for VecState {
     fn hop_with_state(&self, node: Node, _edge: Edge) -> Option<VecState> {
         let VecState(mut vec) = self.clone();
-        vec.push(node.vid());
+        vec.push(node.vid().into());
         Some(VecState(vec))
     }
 }

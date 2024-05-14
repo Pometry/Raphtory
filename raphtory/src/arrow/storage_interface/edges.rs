@@ -1,12 +1,9 @@
 use crate::{
-    arrow::{
-        graph::TemporalGraph,
-        graph_fragment::TempColGraphFragment,
-        storage_interface::{edge::ArrowEdge, edges_ref::ArrowEdgesRef},
-    },
+    arrow::storage_interface::{edge::ArrowEdge, edges_ref::ArrowEdgesRef},
     core::entities::{LayerIds, EID},
     db::api::storage::variants::layer_variants::LayerVariants,
 };
+use raphtory_arrow::{graph::TemporalGraph, graph_fragment::TempColGraphFragment};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{iter, sync::Arc};
 
@@ -18,7 +15,7 @@ pub struct ArrowEdges {
 impl ArrowEdges {
     pub(crate) fn new(graph: &TemporalGraph) -> Self {
         Self {
-            layers: graph.layers.clone(),
+            layers: graph.layers().clone(),
         }
     }
     pub fn as_ref(&self) -> ArrowEdgesRef {

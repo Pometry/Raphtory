@@ -55,6 +55,12 @@ impl From<VID> for usize {
 )]
 pub struct EID(pub usize);
 
+impl Into<raphtory_arrow::interop::EID> for EID {
+    fn into(self) -> raphtory_arrow::interop::EID {
+        raphtory_arrow::interop::EID(self.0)
+    }
+}
+
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize, Default,
 )]

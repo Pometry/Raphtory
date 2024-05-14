@@ -1,5 +1,4 @@
 use crate::{
-    arrow::{edge::Edge, edges::Edges, graph::TemporalGraph, timestamps::TimeStamps},
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, ELID},
         storage::timeindex::TimeIndexOps,
@@ -7,6 +6,7 @@ use crate::{
     db::api::storage::edges::edge_storage_ops::EdgeStorageIntoOps,
     prelude::TimeIndexEntry,
 };
+use raphtory_arrow::{edge::Edge, edges::Edges, graph::TemporalGraph};
 use std::ops::Range;
 
 pub type ArrowEdge<'a> = Edge<'a>;
@@ -23,7 +23,7 @@ impl ArrowOwnedEdge {
             .layer()
             .expect("arrow EdgeRefs should have layer always defined");
         Self {
-            edges: graph.layers[layer].edges.clone(),
+            edges: graph.layer(layer).edges_storage().clone(),
             eid: eid.pid(),
         }
     }
@@ -38,7 +38,7 @@ impl EdgeStorageIntoOps for ArrowOwnedEdge {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_id = self.edges.layer_id;
+        let layer_id = self.edges.layer_id();
         layer_ids.contains(&layer_id).then_some(eref).into_iter()
     }
 
@@ -47,11 +47,11 @@ impl EdgeStorageIntoOps for ArrowOwnedEdge {
         layer_ids: LayerIds,
         eref: EdgeRef,
     ) -> impl Iterator<Item = EdgeRef> + Send {
-        let layer_id = self.edges.layer_id;
+        let layer_id = self.edges.layer_id();
         layer_ids
             .contains(&layer_id)
             .then(move || {
-                let ts = self.edges.time_col.into_value(self.eid.0);
+                let ts = self.edges.time().into_value(self.eid.0);
                 let range = ts.range().clone();
                 ts.zip(range)
                     .map(move |(t, s)| eref.at(TimeIndexEntry(t, s)))

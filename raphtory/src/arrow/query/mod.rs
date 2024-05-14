@@ -1,3 +1,4 @@
+use raphtory_arrow::GID;
 use std::sync::Arc;
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 use self::state::HopState;
 use crate::core::storage::timeindex::TimeIndexOps;
 
-use super::{edge::Edge, graph_impl::ArrowGraph, nodes::Node, GID};
+use super::graph_impl::ArrowGraph;
 
 pub mod ast;
 pub mod executors;
@@ -31,7 +32,7 @@ impl NodeSource {
                 graph
                     .inner
                     .all_nodes()
-                    .filter(move |node| filter(*node, graph)),
+                    .filter(move |node| filter(*node.into(), graph)),
             ),
             NodeSource::ExternalIds(ext_ids) => Box::new(
                 ext_ids

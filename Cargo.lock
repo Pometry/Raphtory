@@ -828,9 +828,9 @@ checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "bytemuck"
-version = "1.15.0"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d6d68c57235a3a081186990eca2867354726650f42f7516ca50c28d6281fd15"
+checksum = "78834c15cb5d5efe3452d58b1e8ba890dd62d21907f867f383358198e56ebca5"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -4091,6 +4091,7 @@ dependencies = [
  "quickcheck_macros",
  "rand 0.8.5",
  "rand_distr",
+ "raphtory-arrow",
  "rayon",
  "regex",
  "reqwest",
@@ -4110,6 +4111,30 @@ dependencies = [
  "twox-hash",
  "xxhash-rust",
  "zip",
+]
+
+[[package]]
+name = "raphtory-arrow"
+version = "0.8.1"
+dependencies = [
+ "ahash",
+ "bincode",
+ "bytemuck",
+ "itertools 0.12.1",
+ "memmap2",
+ "num-traits",
+ "once_cell",
+ "parking_lot",
+ "polars-arrow",
+ "polars-parquet",
+ "polars-utils",
+ "rayon",
+ "serde",
+ "serde_json",
+ "strum 0.26.2",
+ "tempfile",
+ "thiserror",
+ "twox-hash",
 ]
 
 [[package]]

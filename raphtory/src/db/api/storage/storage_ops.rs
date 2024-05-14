@@ -1,17 +1,17 @@
 #[cfg(feature = "arrow")]
 use crate::{
-    arrow::{
-        graph::TemporalGraph,
-        storage_interface::{
-            edges::ArrowEdges,
-            edges_ref::ArrowEdgesRef,
-            node::{ArrowNode, ArrowOwnedNode},
-            nodes::ArrowNodesOwned,
-            nodes_ref::ArrowNodesRef,
-        },
+    arrow::storage_interface::{
+        edges::ArrowEdges,
+        edges_ref::ArrowEdgesRef,
+        node::{ArrowNode, ArrowOwnedNode},
+        nodes::ArrowNodesOwned,
+        nodes_ref::ArrowNodesRef,
     },
     db::api::storage::variants::storage_variants::StorageVariants,
 };
+#[cfg(feature = "arrow")]
+use raphtory_arrow::graph::TemporalGraph;
+
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, EID, VID},
@@ -111,7 +111,7 @@ impl GraphStorage {
                 let layer = eid
                     .layer()
                     .expect("arrow EdgeRefs should always have layer set");
-                EdgeStorageRef::Arrow(storage.layers[*layer].edge(eid.pid()))
+                EdgeStorageRef::Arrow(storage.layers()[*layer].edge(eid.pid()))
             }
         }
     }

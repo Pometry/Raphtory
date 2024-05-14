@@ -7,7 +7,6 @@ use crate::{
             node::{ArrowNode, ArrowOwnedNode},
             nodes::ArrowNodesOwned,
         },
-        GID,
     },
     core::{
         entities::{
@@ -33,6 +32,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use raphtory_arrow::GID;
 
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {

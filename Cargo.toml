@@ -116,7 +116,7 @@ memmap2 = { version = "0.9.4" }
 ahash = { version = "0.8.3", features = ["serde"] }
 xxhash-rust = "0.8.7"
 strum = { version = "0.26.1", features = ["derive"] }
-bytemuck = { version = "1.14.1" }
+bytemuck = { version = "1.15.0" }
 rpds = { version = "1.1.0", features = ["serde"] }
 thread_local = "1.1.8"
 ouroboros = "0.18.3"
@@ -133,6 +133,9 @@ arrow-buffer = { version = "50" }
 arrow-schema = { version = "50" }
 arrow-data = { version = "50" }
 arrow-array = { version = "50" }
+
+raphtory-arrow = { path = "../raphtory-arrow" }
+#raphtory-arrow = { git = "ssh://git@github.com/Pometry/raphtory-arrow.git", branch = "master" }
 
 # Make sure that transitive dependencies stick to arrow 50
 [patch.crates-io]

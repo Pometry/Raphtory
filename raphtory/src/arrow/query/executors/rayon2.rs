@@ -1,19 +1,18 @@
 use crate::{
     arrow::{
         graph_impl::ArrowGraph,
-        nodes::Node,
         query::{
             ast::{Hop, Query, Sink},
             state::{HopState, StaticGraphHopState},
             NodeSource,
         },
-        Error,
     },
     core::{entities::VID, Direction},
     db::{api::view::StaticGraphViewOps, graph::node::NodeView},
     prelude::*,
 };
 use itertools::Itertools;
+use raphtory_arrow::{nodes::Node, Error};
 use rayon::{current_thread_index, Scope, ThreadPoolBuilder};
 use std::{cell::RefCell, fs::File, io::BufWriter, path::Path, sync::Arc};
 
@@ -43,7 +42,7 @@ pub fn execute<S: HopState + 'static>(
                 let hop = query.get_hop(0).expect("No hops");
                 let layer = lookup_layer(&hop.layer, graph);
                 for node in node_chunk {
-                    let node = graph.inner.layer(layer).node(node);
+                    let node = graph.inner.layer(layer).node(node.into());
                     let state = (make_state)(node);
                     hop_arrow_graph(node, &query, 0, state, graph, s, tl);
                 }

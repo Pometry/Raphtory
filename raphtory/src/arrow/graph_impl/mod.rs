@@ -1,6 +1,4 @@
-use super::{arrow_hmap::ArrowHashMap, graph::TemporalGraph, load::ExternalEdgeList, Error};
 use crate::{
-    arrow::graph_fragment::TempColGraphFragment,
     arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
@@ -12,6 +10,7 @@ use crate::{
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
 };
+use raphtory_arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 use std::{
     fmt::{Display, Formatter},
