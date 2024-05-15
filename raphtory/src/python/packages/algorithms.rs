@@ -803,9 +803,9 @@ pub fn cohesive_fruchterman_reingold(
 #[pyfunction]
 pub fn max_weight_matching(
     graph: &PyGraphView,
-    weight_prop:String,
-    max_cardinality: bool,
-    verify_optimum_flag: bool,
+    weight_prop:Option<String>,
+    max_cardinality: Option<bool>,
+    verify_optimum_flag: Option<bool>,
 ) -> Vec<(usize, usize)> {
-    mwm(&graph.graph,weight_prop,max_cardinality,verify_optimum_flag).into_iter().collect()
+    mwm(&graph.graph,weight_prop,max_cardinality.unwrap_or(true),verify_optimum_flag.unwrap_or(false)).into_iter().collect()
 }
