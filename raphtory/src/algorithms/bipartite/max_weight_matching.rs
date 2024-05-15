@@ -846,11 +846,11 @@ fn verify_optimum(
 ///
 /// // Run max weight matching with max cardinality set to false
 /// let res = max_weight_matching(
-///     &g, false, true
+///     &g, Some("weight".to_string()), false, true
 /// );
 /// // Run max weight matching with max cardinality set to true
 /// let maxc_res = max_weight_matching(
-///     &g, true, true
+///     &g, Some("weight".to_string()),true, true
 /// );
 ///
 /// let matching = res;
@@ -864,7 +864,7 @@ fn verify_optimum(
 /// ```
 pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
-    weight_prop:String,
+    weight_prop:Option<String>,
     max_cardinality: bool,
     verify_optimum_flag: bool,
 ) -> HashSet<(usize, usize)>
@@ -882,8 +882,12 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
         .collect();
     let mut edges: Vec<(usize, usize, i64)> = Vec::with_capacity(num_edges);
     let mut max_weight: i64 = 0;
+
     g.edges().iter().for_each(|edge|{
-        let weight = edge.properties().get(&*weight_prop).unwrap_or(Prop::F64(0f64)).into_F64().unwrap_or(0f64);
+        let weight = match weight_prop.clone(){
+            None => {1}
+            Some(weight_prop) => {edge.properties().get(&*weight_prop).unwrap_or(Prop::I64(1)).into_i64().unwrap_or(1)}
+        };
         if weight > max_weight {
             max_weight = weight;
         };
