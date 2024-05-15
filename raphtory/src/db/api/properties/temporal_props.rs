@@ -4,7 +4,12 @@ use crate::{
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use std::{collections::HashMap, iter::Zip, sync::Arc};
+use itertools::Itertools;
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Zip,
+    sync::Arc,
+};
 
 pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: usize,
@@ -43,6 +48,11 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)
+    }
+
+    pub fn unique(&self) -> Vec<Prop> {
+        let unique_props: HashSet<_> = self.values().into_iter().collect();
+        unique_props.into_iter().collect()
     }
 }
 

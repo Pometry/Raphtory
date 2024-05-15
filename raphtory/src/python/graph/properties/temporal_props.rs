@@ -240,6 +240,10 @@ impl PyTemporalProp {
         self.prop.iter().collect()
     }
 
+    pub fn unique(&self) -> Vec<Prop> {
+        self.prop.unique()
+    }
+
     /// List update timestamps and corresponding property values
     pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
         Some(self.prop.histories_date_time()?.collect())

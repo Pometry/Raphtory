@@ -2192,9 +2192,46 @@ mod db_tests {
                 ArcStr("graph".into()),
                 ArcStr("pgraph".into()),
                 ArcStr("bool".into()),
-                ArcStr("u32".into())
+                ArcStr("u32".into()),
             ]
         );
+    }
+
+    #[test]
+    fn test_unique_property() {
+        let g = Graph::new();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+
+        let mut props = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .unique()
+            .into_iter()
+            .map(|x| x.unwrap_str().to_string())
+            .collect_vec();
+        props.sort();
+        assert_eq!(props, vec!["in-progress", "open", "review"]);
+
+        // assert g.edge(1,2).properties.temporal.get(“status”).unique() == [“open”, “review”, “in-progress”]
+        // assert g.edge(1,2).properties.temporal.get(“status”).ordered_deduple(latest_time=True) == [(2,“open”), (3“review”), (4,“open”), (10, “in-progress”)]
+        // assert g.edge(1,2).properties.temporal.get(“status”).ordered_deduple(latest_time=False) == [(1,“open”), (3“review”), (4,“open”), (5, “in-progress”)]
+
+        // let r = g.edge(1,2).unwrap().properties().temporal().get("status").unwrap().latest().unwrap();
+        // println!("{:?}", r);
     }
 
     // non overlaping time intervals
