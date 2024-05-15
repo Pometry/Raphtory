@@ -40,10 +40,7 @@ mod graphql_test {
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
-        db::{
-            api::view::IntoDynamic,
-            graph::{node::NodeView, views::deletion_graph::PersistentGraph},
-        },
+        db::{api::view::IntoDynamic, graph::views::deletion_graph::PersistentGraph},
         prelude::*,
     };
     use serde_json::json;
@@ -159,15 +156,15 @@ mod graphql_test {
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
-
         let prop_has_key_filter = r#"
         {
           graph(name: "graph") {
-            nodes(filter: { propertyHas: {
-              key: "pgraph"
-            }}) {
+            nodes{
               list {
                 name
+                properties{
+                    contains(key:"pgraph")
+                }
               }
             }
           }
@@ -177,14 +174,16 @@ mod graphql_test {
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
-
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "nodes": {
                         "list": [
-                            { "name": "1" },
+                            { "name": "1",
+                              "properties":{
+                                "contains":true
+                            }},
                         ]
                     }
                 }
