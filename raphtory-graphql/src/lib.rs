@@ -145,6 +145,54 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn query_nodefilter() {
+        let graph = Graph::new();
+        graph
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                None,
+            )
+            .unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let prop_has_key_filter = r#"
+        {
+          graph(name: "graph") {
+            nodes(filter: { propertyHas: {
+              key: "pgraph"
+            }}) {
+              list {
+                name
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(prop_has_key_filter);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "list": [
+                            { "name": "1" },
+                        ]
+                    }
+                }
+            }),
+        );
+    }
+
+    #[tokio::test]
     async fn test_mutation() {
         let test_dir = tempdir().unwrap();
         let g0 = PersistentGraph::new();
