@@ -244,6 +244,10 @@ impl PyTemporalProp {
         self.prop.unique()
     }
 
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+        self.prop.ordered_dedupe(latest_time)
+    }
+
     /// List update timestamps and corresponding property values
     pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
         Some(self.prop.histories_date_time()?.collect())

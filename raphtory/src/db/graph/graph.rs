@@ -2226,12 +2226,49 @@ mod db_tests {
         props.sort();
         assert_eq!(props, vec!["in-progress", "open", "review"]);
 
-        // assert g.edge(1,2).properties.temporal.get(“status”).unique() == [“open”, “review”, “in-progress”]
-        // assert g.edge(1,2).properties.temporal.get(“status”).ordered_deduple(latest_time=True) == [(2,“open”), (3“review”), (4,“open”), (10, “in-progress”)]
-        // assert g.edge(1,2).properties.temporal.get(“status”).ordered_deduple(latest_time=False) == [(1,“open”), (3“review”), (4,“open”), (5, “in-progress”)]
+        let ordered_dedupe_latest = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .ordered_dedupe(true)
+            .into_iter()
+            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .collect_vec();
 
-        // let r = g.edge(1,2).unwrap().properties().temporal().get("status").unwrap().latest().unwrap();
-        // println!("{:?}", r);
+        assert_eq!(
+            ordered_dedupe_latest,
+            vec![
+                (2, "open".to_string()),
+                (3, "review".to_string()),
+                (4, "open".to_string()),
+                (10, "in-progress".to_string())
+            ]
+        );
+
+        let ordered_dedupe_earliest = g
+            .edge(1, 2)
+            .unwrap()
+            .properties()
+            .temporal()
+            .get("status")
+            .unwrap()
+            .ordered_dedupe(false)
+            .into_iter()
+            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .collect_vec();
+
+        assert_eq!(
+            ordered_dedupe_earliest,
+            vec![
+                (1, "open".to_string()),
+                (3, "review".to_string()),
+                (4, "open".to_string()),
+                (5, "in-progress".to_string())
+            ]
+        );
     }
 
     // non overlaping time intervals

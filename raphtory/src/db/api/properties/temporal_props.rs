@@ -54,6 +54,38 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         let unique_props: HashSet<_> = self.values().into_iter().collect();
         unique_props.into_iter().collect()
     }
+
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+        let mut last_seen_value: Option<Prop> = None;
+        let mut result: Vec<(i64, Prop)> = vec![];
+
+        let mut current_entry: Option<(i64, Prop)> = None;
+
+        for (t, prop) in self {
+            if latest_time {
+                if last_seen_value == Some(prop.clone()) {
+                    current_entry = Some((t, prop.clone()));
+                } else {
+                    if let Some(entry) = current_entry.take() {
+                        result.push(entry);
+                    }
+                    current_entry = Some((t, prop.clone()));
+                }
+                last_seen_value = Some(prop.clone());
+            } else {
+                if last_seen_value != Some(prop.clone()) {
+                    result.push((t, prop.clone()));
+                    last_seen_value = Some(prop.clone());
+                }
+            }
+        }
+
+        if let Some(entry) = current_entry {
+            result.push(entry);
+        }
+
+        result
+    }
 }
 
 impl<P: PropertiesOps> IntoIterator for TemporalPropertyView<P> {

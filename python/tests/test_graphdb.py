@@ -2112,6 +2112,32 @@ def test_unique_temporal_properties():
     assert sorted(g.node(3).properties.temporal.get('name').unique()) == ['avatar1', 'avatar2']
 
 
+def test_ordered_dedupe():
+    g = Graph()
+    g.add_property(1, {"name": "tarzan"})
+    g.add_property(2, {"name": "tarzan2"})
+    g.add_property(3, {"name": "tarzan2"})
+    g.add_property(2, {"salary": "1000"})
+    g.add_constant_properties({"type": "character"})
+    g.add_edge(1,1,2,properties={"status":"open"})
+    g.add_edge(2,1,2,properties={"status":"open"})
+    g.add_edge(3,1,2,properties={"status":"review"})
+    g.add_edge(4,1,2,properties={"status":"open"})
+    g.add_edge(5,1,2,properties={"status":"in-progress"})
+    g.add_edge(10,1,2,properties={"status":"in-progress"})
+    g.add_edge(6,1,2)
+    g.add_node(1, 3, {"name": "avatar1"})
+    g.add_node(2, 3, {"name": "avatar2"})
+    g.add_node(3, 3, {"name": "avatar2"})
+
+    assert g.edge(1,2).properties.temporal.get('status').ordered_dedupe(True) == [(2, "open"), (3, "review"), (4, "open"), (10, "in-progress")]
+    assert g.edge(1,2).properties.temporal.get('status').ordered_dedupe(False) == [(1, "open"), (3, "review"), (4, "open"), (5, "in-progress")]
+    assert g.properties.temporal.get('name').ordered_dedupe(True) == [(1, "tarzan"), (3, "tarzan2")]
+    assert g.properties.temporal.get('name').ordered_dedupe(False) == [(1, "tarzan"), (2, "tarzan2")]
+    assert g.node(3).properties.temporal.get('name').ordered_dedupe(True) == [(1, "avatar1"), (3, "avatar2")] 
+    assert g.node(3).properties.temporal.get('name').ordered_dedupe(False) == [(1, "avatar1"), (2, "avatar2")] 
+
+
 def test_fuzzy_search():
     g = Graph()
     g.add_node(
