@@ -1,4 +1,5 @@
 use super::ArrowGraph;
+use crate::arrow::graph_impl::tprops::read_tprop_column;
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
@@ -21,7 +22,7 @@ use std::{iter, ops::Range};
 impl TimeSemantics for ArrowGraph {
     fn node_earliest_time(&self, v: VID) -> Option<i64> {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .map(|layer| layer.node(v).timestamps().first_t())
             .flatten()
@@ -30,7 +31,7 @@ impl TimeSemantics for ArrowGraph {
 
     fn node_latest_time(&self, v: VID) -> Option<i64> {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .map(|layer| layer.node(v).timestamps().last_t())
             .flatten()
@@ -68,7 +69,7 @@ impl TimeSemantics for ArrowGraph {
     #[doc = " Returns the timestamp for the earliest activity in the window"]
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .flat_map(|layer| {
                 layer
@@ -82,7 +83,7 @@ impl TimeSemantics for ArrowGraph {
     #[doc = " Returns the timestamp for the latest activity in the window"]
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .flat_map(|layer| {
                 layer
@@ -95,7 +96,7 @@ impl TimeSemantics for ArrowGraph {
 
     fn node_earliest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .flat_map(|layer| layer.node(v).timestamps().range_t(start..end).first_t())
             .min()
@@ -103,7 +104,7 @@ impl TimeSemantics for ArrowGraph {
 
     fn node_latest_time_window(&self, v: VID, start: i64, end: i64) -> Option<i64> {
         self.inner
-            .layers
+            .layers()
             .par_iter()
             .flat_map(|layer| layer.node(v).timestamps().range_t(start..end).last_t())
             .max()
@@ -115,9 +116,14 @@ impl TimeSemantics for ArrowGraph {
             layer.node(v.vid()).timestamps().active_t(w.clone())
                 || self
                     .inner
-                    .node_properties
+                    .node_properties()
                     .as_ref()
-                    .map(|props| props.temporal_props.timestamps(v.vid()).active_t(w.clone()))
+                    .map(|props| {
+                        props
+                            .temporal_props
+                            .timestamps::<TimeIndexEntry>(v.vid().into())
+                            .active_t(w.clone())
+                    })
                     .unwrap_or(false)
         })
     }
@@ -134,7 +140,7 @@ impl TimeSemantics for ArrowGraph {
 
     fn node_history(&self, v: VID) -> Vec<i64> {
         self.inner
-            .layers
+            .layers()
             .iter()
             .map(|layer| layer.node(v).timestamps().into_iter_t())
             .kmerge()
@@ -144,7 +150,7 @@ impl TimeSemantics for ArrowGraph {
 
     fn node_history_window(&self, v: VID, w: Range<i64>) -> Vec<i64> {
         self.inner
-            .layers
+            .layers()
             .iter()
             .map(|layer| {
                 layer
@@ -162,7 +168,8 @@ impl TimeSemantics for ArrowGraph {
         match e.layer() {
             Some(layer) => {
                 if layer_ids.contains(layer) {
-                    self.inner.layers[*layer]
+                    self.inner
+                        .layer(*layer)
                         .edge(e.pid())
                         .timestamp_slice()
                         .into_iter()
@@ -179,9 +186,10 @@ impl TimeSemantics for ArrowGraph {
         match e.layer() {
             Some(layer) => {
                 if layer_ids.contains(layer) {
-                    self.inner.layers[*layer]
+                    self.inner
+                        .layer(*layer)
                         .edge(e.pid())
-                        .timestamps()
+                        .timestamps::<TimeIndexEntry>()
                         .range_t(w)
                         .iter_t()
                         .collect()
@@ -221,9 +229,11 @@ impl TimeSemantics for ArrowGraph {
         match e.layer() {
             Some(layer) => {
                 if layer_ids.contains(layer) {
-                    let layer_times = self.inner.layers[*layer]
+                    let layer_times = self
+                        .inner
+                        .layer(*layer)
                         .edge(e.pid())
-                        .timestamps()
+                        .timestamps::<TimeIndexEntry>()
                         .into_iter();
                     Box::new(layer_times.into_iter().map(move |t| e.at(t)))
                 } else {
@@ -261,9 +271,11 @@ impl TimeSemantics for ArrowGraph {
         match e.layer() {
             Some(layer) => {
                 if layer_ids.contains(layer) {
-                    let windowed_times = self.inner.layers[*layer]
+                    let windowed_times = self
+                        .inner
+                        .layer(*layer)
                         .edge(e.pid())
-                        .timestamps()
+                        .timestamps::<TimeIndexEntry>()
                         .range_t(w)
                         .into_iter();
                     Box::new(windowed_times.map(move |t| e.at(t)))
@@ -297,9 +309,10 @@ impl TimeSemantics for ArrowGraph {
             .expect("arrow edges should always have a layer currently");
         if layer_ids.contains(layer) {
             e.time_t().or_else(|| {
-                self.inner.layers[*layer]
+                self.inner
+                    .layer(*layer)
                     .edge(e.pid())
-                    .timestamps()
+                    .timestamps::<TimeIndexEntry>()
                     .first_t()
             })
         } else {
@@ -320,9 +333,11 @@ impl TimeSemantics for ArrowGraph {
         if layer_ids.contains(layer) {
             match e.time_t() {
                 Some(t) => w.contains(&t).then_some(t),
-                None => self.inner.layers[*layer]
+                None => self
+                    .inner
+                    .layer(*layer)
                     .edge(e.pid())
-                    .timestamps()
+                    .timestamps::<TimeIndexEntry>()
                     .range_t(w)
                     .first_t(),
             }
@@ -338,9 +353,10 @@ impl TimeSemantics for ArrowGraph {
             .expect("arrow edges should always have a layer currently");
         if layer_ids.contains(layer) {
             e.time_t().or_else(|| {
-                self.inner.layers[*layer]
+                self.inner
+                    .layer(*layer)
                     .edge(e.pid())
-                    .timestamps()
+                    .timestamps::<TimeIndexEntry>()
                     .last_t()
             })
         } else {
@@ -361,9 +377,11 @@ impl TimeSemantics for ArrowGraph {
         if layer_ids.contains(layer) {
             match e.time_t() {
                 Some(t) => w.contains(&t).then_some(t),
-                None => self.inner.layers[*layer]
+                None => self
+                    .inner
+                    .layer(*layer)
                     .edge(e.pid())
-                    .timestamps()
+                    .timestamps::<TimeIndexEntry>()
                     .range_t(w)
                     .last_t(),
             }
@@ -399,9 +417,11 @@ impl TimeSemantics for ArrowGraph {
             .layer()
             .expect("arrow edges should always have layer currently");
         layer_ids.contains(layer)
-            && self.inner.layers[*layer]
+            && self
+                .inner
+                .layer(*layer)
                 .edge(e.pid())
-                .timestamps()
+                .timestamps::<TimeIndexEntry>()
                 .first_t()
                 >= Some(t)
     }
@@ -430,26 +450,26 @@ impl TimeSemantics for ArrowGraph {
     }
 
     fn has_temporal_node_prop(&self, v: VID, prop_id: usize) -> bool {
-        match &self.inner.node_properties {
+        match &self.inner.node_properties() {
             None => false,
-            Some(props) => props.temporal_props.has_prop(v, prop_id),
+            Some(props) => props.temporal_props.has_prop(v.into(), prop_id),
         }
     }
 
     #[doc = " and the second element is the property value."]
     fn temporal_node_prop_vec(&self, v: VID, id: usize) -> Vec<(i64, Prop)> {
-        match &self.inner.node_properties {
+        match &self.inner.node_properties() {
             None => {
                 vec![]
             }
-            Some(props) => props.temporal_props.prop(v, id).iter_t().collect(),
+            Some(props) => props.temporal_props.prop(v.into(), id).iter_t().collect(),
         }
     }
 
     fn has_temporal_node_prop_window(&self, v: VID, prop_id: usize, w: Range<i64>) -> bool {
-        match &self.inner.node_properties {
+        match &self.inner.node_properties() {
             None => false,
-            Some(props) => props.temporal_props.has_prop_window(v, prop_id, w),
+            Some(props) => props.temporal_props.has_prop_window(v.into(), prop_id, w),
         }
     }
 
@@ -460,11 +480,11 @@ impl TimeSemantics for ArrowGraph {
         start: i64,
         end: i64,
     ) -> Vec<(i64, Prop)> {
-        match &self.inner.node_properties {
+        match &self.inner.node_properties() {
             None => vec![],
             Some(props) => props
                 .temporal_props
-                .prop(v, id)
+                .prop(v.into(), id)
                 .iter_window_t(start..end)
                 .collect(),
         }
@@ -481,7 +501,8 @@ impl TimeSemantics for ArrowGraph {
         if !layer_ids.contains(layer_id) {
             return false;
         }
-        self.inner.layers[*layer_id]
+        self.inner
+            .layer(*layer_id)
             .edge(e.pid())
             .has_temporal_prop_window(prop_id, w)
     }
@@ -494,12 +515,11 @@ impl TimeSemantics for ArrowGraph {
         end: i64,
         layer_ids: &LayerIds,
     ) -> Vec<(i64, Prop)> {
-        if let Some(layer_id) = self.inner.layer_from_ids(&layer_ids.constrain_from_edge(e)) {
-            if let Some(t_prop) = self
-                .inner
-                .layer(layer_id)
-                .edge(e.pid())
-                .temporal_property(id)
+        if let Some(layer_id) = self.layer_from_ids(&layer_ids.constrain_from_edge(e)) {
+            let edge = self.inner.layer(layer_id).edge(e.pid());
+            if let Some(t_prop) = edge
+                .temporal_property_field(id)
+                .and_then(|field| read_tprop_column(id, field, edge))
             {
                 match e.time() {
                     Some(t) => {
@@ -521,7 +541,8 @@ impl TimeSemantics for ArrowGraph {
         if !layer_ids.contains(layer_id) {
             return false;
         }
-        self.inner.layers[*layer_id]
+        self.inner
+            .layer(*layer_id)
             .edge(e.pid())
             .has_temporal_prop_inner(prop_id)
     }
@@ -540,11 +561,10 @@ impl TimeSemantics for ArrowGraph {
                 todo!("multilayer edge view not supported in arrow yet")
             }
             LayerIds::One(layer_id) => {
-                if let Some(t_prop) = self
-                    .inner
-                    .layer(layer_id)
-                    .edge(e.pid())
-                    .temporal_property(id)
+                let edge = self.inner.layer(layer_id).edge(e.pid());
+                if let Some(t_prop) = edge
+                    .temporal_property_field(id)
+                    .and_then(|field| read_tprop_column(id, field, edge))
                 {
                     match e.time() {
                         Some(t) => t_prop.at(&t).map(|v| (t.t(), v)).into_iter().collect(),

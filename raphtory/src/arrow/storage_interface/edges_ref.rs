@@ -26,14 +26,18 @@ impl<'a> ArrowEdgesRef<'a> {
     pub fn iter(self, layers: LayerIds) -> impl Iterator<Item = ArrowEdge<'a>> {
         match layers {
             LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => {
-                LayerVariants::All(self.layers.iter().flat_map(|layer| layer.edges.iter()))
+            LayerIds::All => LayerVariants::All(
+                self.layers
+                    .iter()
+                    .flat_map(|layer| layer.edges_storage().iter()),
+            ),
+            LayerIds::One(layer_id) => {
+                LayerVariants::One(self.layers[layer_id].edges_storage().iter())
             }
-            LayerIds::One(layer_id) => LayerVariants::One(self.layers[layer_id].edges.iter()),
             LayerIds::Multiple(ids) => {
                 let ids = ids.clone();
                 LayerVariants::Multiple(
-                    (0..ids.len()).flat_map(move |i| self.layers[ids[i]].edges.iter()),
+                    (0..ids.len()).flat_map(move |i| self.layers[ids[i]].edges_storage().iter()),
                 )
             }
         }
@@ -45,15 +49,17 @@ impl<'a> ArrowEdgesRef<'a> {
             LayerIds::All => LayerVariants::All(
                 self.layers
                     .par_iter()
-                    .flat_map(|layer| layer.edges.par_iter()),
+                    .flat_map(|layer| layer.edges_storage().par_iter()),
             ),
-            LayerIds::One(layer_id) => LayerVariants::One(self.layers[layer_id].edges.par_iter()),
+            LayerIds::One(layer_id) => {
+                LayerVariants::One(self.layers[layer_id].edges_storage().par_iter())
+            }
             LayerIds::Multiple(ids) => {
                 let ids = ids.clone();
                 LayerVariants::Multiple(
                     (0..ids.len())
                         .into_par_iter()
-                        .flat_map(move |i| self.layers[ids[i]].edges.par_iter()),
+                        .flat_map(move |i| self.layers[ids[i]].edges_storage().par_iter()),
                 )
             }
         }

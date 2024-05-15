@@ -32,16 +32,27 @@ pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn range(w: Range<i64>) -> Range<Self>;
 }
 
-impl From<i64> for TimeIndexEntry {
-    fn from(value: i64) -> Self {
-        Self::start(value)
+impl raphtory_arrow::interop::AsTime for TimeIndexEntry {
+    fn t(&self) -> i64 {
+        self.0
+    }
+
+    fn range(w: Range<i64>) -> Range<Self> {
+        Self::start(w.start)..Self::start(w.end)
+    }
+
+    fn new(t: i64, s: usize) -> Self {
+        Self(t, s)
+    }
+
+    fn i(&self) -> usize {
+        self.1
     }
 }
 
-impl From<raphtory_arrow::interop::TimeIndexEntry> for TimeIndexEntry {
-    #[inline]
-    fn from(value: raphtory_arrow::interop::TimeIndexEntry) -> Self {
-        TimeIndexEntry(value.0, value.1)
+impl From<i64> for TimeIndexEntry {
+    fn from(value: i64) -> Self {
+        Self::start(value)
     }
 }
 

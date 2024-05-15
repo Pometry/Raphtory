@@ -42,7 +42,7 @@ pub fn execute<S: HopState + 'static>(
                 let hop = query.get_hop(0).expect("No hops");
                 let layer = lookup_layer(&hop.layer, graph);
                 for node in node_chunk {
-                    let node = graph.inner.layer(layer).node(node.into());
+                    let node = graph.inner.layer(layer).node(node);
                     let state = (make_state)(node);
                     hop_arrow_graph(node, &query, 0, state, graph, s, tl);
                 }
@@ -132,14 +132,14 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
     {
         let layer = lookup_layer(layer, graph);
         if *variable {
-            do_sink(sink, s, state.clone(), vid, tl);
+            do_sink(sink, s, state.clone(), vid.into(), tl);
         }
         let limit = limit.unwrap_or(usize::MAX);
         match dir {
             Direction::OUT => s.spawn(move |s| {
                 let layer = graph.inner.layer(layer);
                 layer
-                    .nodes
+                    .nodes_storage()
                     .out_adj_list(vid)
                     .map(|(eid, vid)| (layer.edge(eid), layer.node(vid)))
                     .filter_map(|(edge, node)| {
@@ -155,7 +155,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
             Direction::IN => s.spawn(move |s| {
                 let layer = graph.inner.layer(layer);
                 layer
-                    .nodes
+                    .nodes_storage()
                     .in_adj_list(vid)
                     .map(|(eid, vid)| (layer.edge(eid), layer.node(vid)))
                     .filter_map(|(edge, node)| {
@@ -173,7 +173,7 @@ fn hop_arrow_graph<'a, S: HopState + 'a>(
             }
         }
     } else {
-        do_sink(sink, s, state, vid, tl);
+        do_sink(sink, s, state, vid.into(), tl);
     }
 }
 

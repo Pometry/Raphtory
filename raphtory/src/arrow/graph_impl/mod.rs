@@ -10,21 +10,22 @@ use crate::{
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
 };
+use raphtory_arrow::arrow_hmap::ArrowHashMap;
 use raphtory_arrow::graph::TemporalGraph;
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
+use raphtory_arrow::load::ExternalEdgeList;
+use raphtory_arrow::RAError;
 use rayon::prelude::*;
 use std::{
     fmt::{Display, Formatter},
     path::Path,
     sync::Arc,
 };
-use raphtory_arrow::arrow_hmap::ArrowHashMap;
-use raphtory_arrow::RAError;
-use raphtory_arrow::graph_fragment::TempColGraphFragment;
-use raphtory_arrow::load::ExternalEdgeList;
 
 pub mod const_properties_ops;
 pub mod core_ops;
 pub mod edge_filter_ops;
+mod edge_storage_ops;
 pub mod graph_ops;
 pub mod layer_ops;
 mod list_ops;
@@ -32,6 +33,7 @@ pub mod materialize;
 mod node_filter_ops;
 pub mod prop_conversion;
 pub mod temporal_properties_ops;
+mod time_index_into_ops;
 pub mod time_semantics;
 pub mod tprops;
 
@@ -84,6 +86,23 @@ impl IntoDynamic for ArrowGraph {
 }
 
 impl ArrowGraph {
+    pub fn layer_from_ids(&self, layer_ids: &LayerIds) -> Option<usize> {
+        match layer_ids {
+            LayerIds::One(layer_id) => Some(*layer_id),
+            LayerIds::None => None,
+            LayerIds::All => match self.inner.layers().len() {
+                0 => None,
+                1 => Some(0),
+                _ => todo!("multilayer edge views not yet supported in arrow"),
+            },
+            LayerIds::Multiple(ids) => match ids.len() {
+                0 => None,
+                1 => Some(ids[0]),
+                _ => todo!("multilayer edge views not yet supported in arrow"),
+            },
+        }
+    }
+
     pub fn make_simple_graph(
         graph_dir: impl AsRef<Path>,
         edges: &[(u64, u64, i64, f64)],

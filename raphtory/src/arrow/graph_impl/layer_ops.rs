@@ -8,7 +8,7 @@ use super::ArrowGraph;
 
 impl InternalLayerOps for ArrowGraph {
     fn layer_ids(&self) -> &LayerIds {
-        match self.inner.layers.len() {
+        match self.inner.layers().len() {
             0 => &LayerIds::None,
             1 => &LayerIds::One(0),
             _ => &LayerIds::All,

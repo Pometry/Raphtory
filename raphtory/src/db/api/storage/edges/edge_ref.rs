@@ -57,7 +57,7 @@ impl<'a> EdgeStorageRef<'a> {
         match self {
             EdgeStorageRef::Mem(e) => e.eid,
             #[cfg(feature = "arrow")]
-            EdgeStorageRef::Arrow(e) => e.eid(),
+            EdgeStorageRef::Arrow(e) => e.eid().into(),
         }
     }
 }

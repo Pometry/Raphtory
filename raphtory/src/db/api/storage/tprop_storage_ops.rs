@@ -1,19 +1,17 @@
 #[cfg(feature = "arrow")]
-use crate::{
-    arrow::graph_impl::tprops::ArrowTProp,
-    db::api::storage::variants::storage_variants::StorageVariants,
-};
+use crate::db::api::storage::variants::storage_variants::StorageVariants;
 use crate::{
     core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop},
     prelude::TimeIndexEntry,
 };
+use raphtory_arrow::tprops::ArrowTProp;
 use std::ops::Range;
 
 #[derive(Copy, Clone, Debug)]
 pub enum TPropRef<'a> {
     Mem(&'a TProp),
     #[cfg(feature = "arrow")]
-    Arrow(ArrowTProp<'a>),
+    Arrow(ArrowTProp<'a, TimeIndexEntry>),
 }
 
 macro_rules! for_all {

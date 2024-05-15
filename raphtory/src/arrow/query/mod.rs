@@ -1,6 +1,6 @@
+use raphtory_arrow::edge::Edge;
 use raphtory_arrow::GID;
 use std::sync::Arc;
-use raphtory_arrow::edge::Edge;
 
 use crate::{
     core::entities::{nodes::node_ref::NodeRef, VID},
@@ -34,12 +34,14 @@ impl NodeSource {
                 graph
                     .inner
                     .all_nodes()
-                    .filter(move |node| filter(*node.into(), graph)),
+                    .filter(move |node| filter(Into::<VID>::into(*node), graph))
+                    .map(|node| node.into()),
             ),
             NodeSource::ExternalIds(ext_ids) => Box::new(
                 ext_ids
                     .into_iter()
-                    .filter_map(move |gid| graph.inner.find_node(&gid)),
+                    .filter_map(move |gid| graph.inner.find_node(&gid))
+                    .map(|node| node.into()),
             ),
         }
     }
@@ -89,13 +91,13 @@ impl ForwardState {
 
 impl HopState for ForwardState {
     fn hop_with_state(&self, node: Node, edge: Edge) -> Option<Self> {
-        let ts = edge.timestamps();
+        let ts = edge.timestamps::<i64>();
         let w = self.time + 1..i64::MAX;
         let next_time = ts.range_t(w);
 
         next_time.first_t().map(|t| ForwardState {
             time: t,
-            path: self.path.push_front(node.vid()),
+            path: self.path.push_front(node.vid().into()),
             hop_n_limit: self.hop_n_limit,
         })
     }

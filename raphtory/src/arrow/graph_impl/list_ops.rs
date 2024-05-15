@@ -14,7 +14,7 @@ impl ListOps for ArrowGraph {
     fn edge_list(&self) -> EdgeList {
         let count = self
             .inner
-            .layers
+            .layers()
             .par_iter()
             .map(|layer| layer.num_edges())
             .sum();

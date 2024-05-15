@@ -6,9 +6,9 @@ use crate::{
     db::api::storage::edges::edge_storage_ops::EdgeStorageIntoOps,
     prelude::TimeIndexEntry,
 };
+use raphtory_arrow::timestamps::TimeStamps;
 use raphtory_arrow::{edge::Edge, edges::Edges, graph::TemporalGraph};
 use std::ops::Range;
-use raphtory_arrow::timestamps::TimeStamps;
 
 pub type ArrowEdge<'a> = Edge<'a>;
 
@@ -52,7 +52,7 @@ impl EdgeStorageIntoOps for ArrowOwnedEdge {
         layer_ids
             .contains(&layer_id)
             .then(move || {
-                let ts = self.edges.time().into_value(self.eid.0);
+                let ts = self.edges.into_time().into_value(self.eid.0);
                 let range = ts.range().clone();
                 ts.zip(range)
                     .map(move |(t, s)| eref.at(TimeIndexEntry(t, s)))
@@ -71,9 +71,9 @@ impl EdgeStorageIntoOps for ArrowOwnedEdge {
         layer_ids
             .contains(&layer_id)
             .then(move || {
-                let ts: TimeStamps<TimeIndexEntry> =
-                    TimeStamps::new(self.edges.time().value(self.eid.0), None);
-                let times = ts.range(w).timestamps.into_owned();
+                let array = self.edges.into_time();
+                let ts: TimeStamps<TimeIndexEntry> = TimeStamps::new(array.value(self.eid.0), None);
+                let times = ts.range(w).timestamps().into_owned();
                 let range = times.range().clone();
                 times
                     .zip(range)

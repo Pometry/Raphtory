@@ -32,6 +32,8 @@ use crate::{
     },
 };
 use itertools::Itertools;
+use polars_arrow::datatypes::ArrowDataType;
+use raphtory_arrow::properties::Properties;
 use raphtory_arrow::GID;
 
 impl CoreGraphOps for ArrowGraph {
@@ -116,9 +118,12 @@ impl CoreGraphOps for ArrowGraph {
 
     fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {
-            NodeRef::Internal(vid) => Some(vid),
-            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)),
-            NodeRef::ExternalStr(string) => self.inner.find_node(&GID::Str(string.into())),
+            NodeRef::Internal(vid) => Some(vid.into()),
+            NodeRef::External(vid) => self.inner.find_node(&GID::U64(vid)).map(|v| v.into()),
+            NodeRef::ExternalStr(string) => self
+                .inner
+                .find_node(&GID::Str(string.into()))
+                .map(|v| v.into()),
         }
     }
 
@@ -135,18 +140,18 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
-        match &self.inner.node_properties {
+        match &self.inner.node_properties() {
             None => None,
-            Some(props) => props.const_props.prop(v, id),
+            Some(props) => const_props(props, v.into(), id),
         }
     }
 
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        match &self.inner.node_properties {
+        match &self.inner.node_properties() {
             None => Box::new(std::iter::empty()),
             Some(props) => Box::new(
                 (0..props.const_props.num_props())
-                    .filter(move |id| props.const_props.has_prop(v, *id)),
+                    .filter(move |id| props.const_props.has_prop(v.into(), *id)),
             ),
         }
     }
@@ -184,7 +189,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn unfiltered_num_layers(&self) -> usize {
-        self.inner.layers.len()
+        self.inner.layers().len()
     }
 
     fn core_graph(&self) -> GraphStorage {
@@ -212,5 +217,38 @@ impl CoreGraphOps for ArrowGraph {
 
     fn core_edge_arc(&self, eid: ELID) -> EdgeOwnedEntry {
         EdgeOwnedEntry::Arrow(ArrowOwnedEdge::new(&self.inner, eid))
+    }
+}
+
+pub fn const_props<Index>(props: &Properties<Index>, index: Index, id: usize) -> Option<Prop>
+where
+    usize: From<Index>,
+{
+    let dtype = props.const_props.prop_dtype(id);
+    match dtype.data_type() {
+        ArrowDataType::Int64 => props.const_props.prop_native(index, id).map(Prop::I64),
+        ArrowDataType::Int32 => props.const_props.prop_native(index, id).map(Prop::I32),
+        ArrowDataType::UInt64 => props.const_props.prop_native(index, id).map(Prop::U64),
+        ArrowDataType::UInt32 => props.const_props.prop_native(index, id).map(Prop::U32),
+        ArrowDataType::UInt16 => props.const_props.prop_native(index, id).map(Prop::U16),
+        ArrowDataType::UInt8 => props.const_props.prop_native(index, id).map(Prop::U8),
+        ArrowDataType::Float64 => props.const_props.prop_native(index, id).map(Prop::F64),
+        ArrowDataType::Float32 => props.const_props.prop_native(index, id).map(Prop::F32),
+        ArrowDataType::Utf8 => props
+            .const_props
+            .prop_str(index, id)
+            .map(Into::into)
+            .map(Prop::Str),
+        ArrowDataType::LargeUtf8 => props
+            .const_props
+            .prop_str(index, id)
+            .map(Into::into)
+            .map(Prop::Str),
+        ArrowDataType::Utf8View => props
+            .const_props
+            .prop_str(index, id)
+            .map(Into::into)
+            .map(Prop::Str),
+        _ => unimplemented!(),
     }
 }

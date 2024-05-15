@@ -15,7 +15,7 @@ pub struct ArrowEdges {
 impl ArrowEdges {
     pub(crate) fn new(graph: &TemporalGraph) -> Self {
         Self {
-            layers: graph.layers().clone(),
+            layers: graph.arc_layers().clone(),
         }
     }
     pub fn as_ref(&self) -> ArrowEdgesRef {
@@ -30,18 +30,18 @@ impl ArrowEdges {
             LayerIds::All => LayerVariants::All((0..self.layers.len()).flat_map(move |layer_id| {
                 self.layers[layer_id]
                     .all_edge_ids()
-                    .map(move |e| (e, layer_id))
+                    .map(move |e| (e.into(), layer_id))
             })),
             LayerIds::One(layer_id) => LayerVariants::One(
                 self.layers[layer_id]
                     .all_edge_ids()
-                    .map(move |e| (e, layer_id)),
+                    .map(move |e| (e.into(), layer_id)),
             ),
             LayerIds::Multiple(ids) => LayerVariants::Multiple((0..ids.len()).flat_map(move |i| {
                 let layer_id = ids[i];
                 self.layers[layer_id]
                     .all_edge_ids()
-                    .map(move |e| (e, layer_id))
+                    .map(move |e| (e.into(), layer_id))
             })),
         }
     }
@@ -56,20 +56,20 @@ impl ArrowEdges {
                 move |layer_id| {
                     self.layers[layer_id]
                         .all_edge_ids_par()
-                        .map(move |e| (e, layer_id))
+                        .map(move |e| (e.into(), layer_id))
                 },
             )),
             LayerIds::One(layer_id) => LayerVariants::One(
                 self.layers[layer_id]
                     .all_edge_ids_par()
-                    .map(move |e| (e, layer_id)),
+                    .map(move |e| (e.into(), layer_id)),
             ),
             LayerIds::Multiple(ids) => {
                 LayerVariants::Multiple((0..ids.len()).into_par_iter().flat_map(move |i| {
                     let layer_id = ids[i];
                     self.layers[layer_id]
                         .all_edge_ids_par()
-                        .map(move |e| (e, layer_id))
+                        .map(move |e| (e.into(), layer_id))
                 }))
             }
         }
