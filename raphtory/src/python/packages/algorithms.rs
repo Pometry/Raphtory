@@ -3,6 +3,7 @@
 use crate::{
     algorithms::{
         algorithm_result::AlgorithmResult,
+        bipartite::max_weight_matching::max_weight_matching as mwm,
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
@@ -47,13 +48,11 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
-        bipartite::{
-            max_weight_matching::max_weight_matching as mwm
-        },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     core::Prop,
     db::{api::view::internal::DynamicGraph, graph::node::NodeView},
+    prelude::GraphViewOps,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
@@ -64,7 +63,6 @@ use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
-use crate::prelude::GraphViewOps;
 
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
@@ -898,9 +896,16 @@ pub fn temporal_rich_club_coefficient(
 #[pyfunction]
 pub fn max_weight_matching(
     graph: &PyGraphView,
-    weight_prop:Option<String>,
+    weight_prop: Option<String>,
     max_cardinality: Option<bool>,
     verify_optimum_flag: Option<bool>,
 ) -> Vec<(usize, usize)> {
-    mwm(&graph.graph,weight_prop,max_cardinality.unwrap_or(true),verify_optimum_flag.unwrap_or(false)).into_iter().collect()
+    mwm(
+        &graph.graph,
+        weight_prop,
+        max_cardinality.unwrap_or(true),
+        verify_optimum_flag.unwrap_or(false),
+    )
+    .into_iter()
+    .collect()
 }

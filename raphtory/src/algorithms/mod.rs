@@ -30,6 +30,7 @@ pub mod algorithm_result;
 pub mod centrality;
 pub mod community_detection;
 
+pub mod bipartite;
 pub mod components;
 pub mod cores;
 pub mod dynamics;
@@ -37,5 +38,4 @@ pub mod layout;
 pub mod metrics;
 pub mod motifs;
 pub mod pathing;
-pub mod bipartite;
 pub mod projections;

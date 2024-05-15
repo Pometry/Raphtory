@@ -17,16 +17,13 @@
 // paper
 #![allow(clippy::many_single_char_names)]
 
-use crate::{
-    prelude::{GraphViewOps, NodeViewOps},
-};
+use crate::prelude::{GraphViewOps, NodeViewOps};
 
-use std::cmp::max;
-use std::mem;
+use std::{cmp::max, mem};
 
+use crate::prelude::{EdgeViewOps, Prop, PropUnwrap};
 use hashbrown::{HashMap, HashSet};
 use num_traits::ToPrimitive;
-use crate::prelude::{EdgeViewOps, Prop, PropUnwrap};
 
 /// Return 2 * slack of edge k (does not work inside blossoms).
 fn slack(edge_index: usize, dual_var: &[i64], edges: &[(usize, usize, i64)]) -> i64 {
@@ -35,11 +32,7 @@ fn slack(edge_index: usize, dual_var: &[i64], edges: &[(usize, usize, i64)]) -> 
 }
 
 /// Generate the leaf vertices of a blossom.
-fn blossom_leaves(
-    blossom: usize,
-    num_nodes: usize,
-    blossom_children: &[Vec<usize>],
-) -> Vec<usize> {
+fn blossom_leaves(blossom: usize, num_nodes: usize, blossom_children: &[Vec<usize>]) -> Vec<usize> {
     let mut out_vec: Vec<usize> = Vec::new();
     if blossom < num_nodes {
         out_vec.push(blossom);
@@ -213,8 +206,8 @@ fn add_blossom(
         assert!(
             labels[blossom_v] == Some(2)
                 || (labels[blossom_v] == Some(1)
-                && label_ends[blossom_v]
-                == mate.get(&blossom_base[blossom_v].unwrap()).copied())
+                    && label_ends[blossom_v]
+                        == mate.get(&blossom_base[blossom_v].unwrap()).copied())
         );
         // Trace one step back.
         assert!(label_ends[blossom_v].is_some());
@@ -236,8 +229,8 @@ fn add_blossom(
         assert!(
             labels[blossom_w] == Some(2)
                 || (labels[blossom_w] == Some(1)
-                && label_ends[blossom_w]
-                == mate.get(&blossom_base[blossom_w].unwrap()).copied())
+                    && label_ends[blossom_w]
+                        == mate.get(&blossom_base[blossom_w].unwrap()).copied())
         );
         // Trace one step back
         assert!(label_ends[blossom_w].is_some());
@@ -285,8 +278,8 @@ fn add_blossom(
                 if blossom_j != blossom
                     && labels[blossom_j] == Some(1)
                     && (best_edge_to.get(&blossom_j).is_none()
-                    || slack(edge_index, dual_var, edges)
-                    < slack(best_edge_to[&blossom_j], dual_var, edges))
+                        || slack(edge_index, dual_var, edges)
+                            < slack(best_edge_to[&blossom_j], dual_var, edges))
                 {
                     best_edge_to.insert(blossom_j, edge_index);
                 }
@@ -302,7 +295,7 @@ fn add_blossom(
     for edge_index in &blossom_best_edges[blossom] {
         if best_edge[blossom].is_none()
             || slack(*edge_index, dual_var, edges)
-            < slack(best_edge[blossom].unwrap(), dual_var, edges)
+                < slack(best_edge[blossom].unwrap(), dual_var, edges)
         {
             best_edge[blossom] = Some(*edge_index);
         }
@@ -864,11 +857,10 @@ fn verify_optimum(
 /// ```
 pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     g: &'graph G,
-    weight_prop:Option<String>,
+    weight_prop: Option<String>,
     max_cardinality: bool,
     verify_optimum_flag: bool,
-) -> HashSet<(usize, usize)>
-{
+) -> HashSet<(usize, usize)> {
     let num_edges = g.count_edges();
     let num_nodes = g.count_nodes();
     let mut out_set: HashSet<(usize, usize)> = HashSet::with_capacity(num_nodes);
@@ -877,16 +869,25 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
         return HashSet::new();
     }
 
-    let node_map: HashMap<u64, usize> = g.nodes().id().into_iter().enumerate()
+    let node_map: HashMap<u64, usize> = g
+        .nodes()
+        .id()
+        .into_iter()
+        .enumerate()
         .map(|(index, node_index)| (node_index, index))
         .collect();
     let mut edges: Vec<(usize, usize, i64)> = Vec::with_capacity(num_edges);
     let mut max_weight: i64 = 0;
 
-    g.edges().iter().for_each(|edge|{
-        let weight = match weight_prop.clone(){
-            None => {1}
-            Some(weight_prop) => {edge.properties().get(&*weight_prop).unwrap_or(Prop::I64(1)).into_i64().unwrap_or(1)}
+    g.edges().iter().for_each(|edge| {
+        let weight = match weight_prop.clone() {
+            None => 1,
+            Some(weight_prop) => edge
+                .properties()
+                .get(&*weight_prop)
+                .unwrap_or(Prop::I64(1))
+                .into_i64()
+                .unwrap_or(1),
         };
         if weight > max_weight {
             max_weight = weight;
@@ -1366,10 +1367,18 @@ pub fn max_weight_matching<'graph, G: GraphViewOps<'graph>>(
     for (index, node) in mate.iter() {
         let tmp = (
             g.node(node_list[*index]).unwrap().id().to_usize().unwrap(),
-            g.node(node_list[endpoints[*node]]).unwrap().id().to_usize().unwrap(),
+            g.node(node_list[endpoints[*node]])
+                .unwrap()
+                .id()
+                .to_usize()
+                .unwrap(),
         );
         let rev_tmp = (
-            g.node(node_list[endpoints[*node]]).unwrap().id().to_usize().unwrap(),
+            g.node(node_list[endpoints[*node]])
+                .unwrap()
+                .id()
+                .to_usize()
+                .unwrap(),
             g.node(node_list[*index]).unwrap().id().to_usize().unwrap(),
         );
         if !seen.contains(&tmp) && !seen.contains(&rev_tmp) {
