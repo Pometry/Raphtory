@@ -47,6 +47,9 @@ use crate::{
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
         },
+        bipartite::{
+            max_weight_matching::max_weight_matching as mwm
+        },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     core::Prop,
@@ -61,6 +64,7 @@ use pyo3::prelude::*;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::GID, Direction};
 use std::collections::{HashMap, HashSet};
+use crate::prelude::GraphViewOps;
 
 #[cfg(feature = "storage")]
 use crate::python::graph::disk_graph::PyDiskGraph;
@@ -861,4 +865,42 @@ pub fn temporal_rich_club_coefficient(
         .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;
     Ok(temporal_rich_club_rs(graph.graph, views, k, delta))
+}
+
+/// Compute a maximum-weighted matching in the general undirected weighted
+/// graph given by "edges". If `max_cardinality` is true, only
+/// maximum-cardinality matchings are considered as solutions.
+///
+/// The algorithm is based on "Efficient Algorithms for Finding Maximum
+/// Matching in Graphs" by Zvi Galil, ACM Computing Surveys, 1986.
+///
+/// Based on networkx implementation
+/// <https://github.com/networkx/networkx/blob/3351206a3ce5b3a39bb2fc451e93ef545b96c95b/networkx/algorithms/matching.py>
+///
+/// With reference to the standalone protoype implementation from:
+/// <http://jorisvr.nl/article/maximum-matching>
+///
+/// <http://jorisvr.nl/files/graphmatching/20130407/mwmatching.py>
+///
+/// The function takes time O(n**3)
+///
+/// Arguments:
+///
+/// * `graph` - The graph to compute the maximum weight matching for
+/// * 'weight_prop' - The property on the edge to use for the weight
+/// * `max_cardinality` - If set to true compute the maximum-cardinality matching
+///     with maximum weight among all maximum-cardinality matchings
+/// * `verify_optimum_flag`: If true prior to returning an additional routine
+///     to verify the optimal solution was found will be run after computing
+///     the maximum weight matching. If it's true and the found matching is not
+///     an optimal solution this function will panic. This option should
+///     normally be only set true during testing.
+#[pyfunction]
+pub fn max_weight_matching(
+    graph: &PyGraphView,
+    weight_prop:String,
+    max_cardinality: bool,
+    verify_optimum_flag: bool,
+) -> Vec<(usize, usize)> {
+    mwm(&graph.graph,weight_prop,max_cardinality,verify_optimum_flag).into_iter().collect()
 }
