@@ -3007,6 +3007,7 @@ dependencies = [
  "futures-util",
  "genawaiter",
  "glam",
+ "hashbrown 0.14.3",
  "itertools 0.12.1",
  "kdam",
  "lock_api",

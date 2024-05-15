@@ -108,6 +108,7 @@ fn raphtory(py: Python<'_>, m: &PyModule) -> PyResult<()> {
         louvain,
         fruchterman_reingold,
         cohesive_fruchterman_reingold,
+        max_weight_matching,
     );
     m.add_submodule(algorithm_module)?;
 
