@@ -148,6 +148,13 @@ impl GqlTemporalProp {
             .map(|x| x.to_string())
             .collect_vec()
     }
+    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlProp> {
+        self.prop
+            .ordered_dedupe(latest_time)
+            .into_iter()
+            .map(|(k, p)| (k.to_string(), p).into())
+            .collect()
+    }
 }
 
 #[derive(ResolvedObject)]

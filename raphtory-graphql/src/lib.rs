@@ -243,8 +243,6 @@ mod graphql_test {
         g.add_node(12, 3, [("name", "fax")], None).unwrap();
         g.add_node(13, 3, [("name", "fax")], None).unwrap();
 
-        g.save_to_file("/tmp/graphs").unwrap();
-
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let data = Data::from_map(graphs);
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -407,6 +405,263 @@ mod graphql_test {
                     .map(|v| v.as_str().unwrap()))
                 .flatten()
                 .collect::<HashSet<_>>()
+        );
+    }
+
+
+    #[tokio::test]
+    async fn test_ordered_dedupe_temporal_properties() {
+        let g = Graph::new();
+        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_properties(1, [("state", "abc")]).unwrap();
+        g.add_properties(2, [("state", "abc")]).unwrap();
+        g.add_properties(3, [("state", "xyz")]).unwrap();
+        g.add_properties(4, [("state", "abc")]).unwrap();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+        g.add_node(11, 3, [("name", "phone")], None).unwrap();
+        g.add_node(12, 3, [("name", "fax")], None).unwrap();
+        g.add_node(13, 3, [("name", "fax")], None).unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), g)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let prop_has_key_filter = r#"
+        {
+          graph(name: "graph") {
+            properties {
+              temporal {
+                values {
+                  od1: orderedDedupe(latestTime: true) {
+                    key
+                    value
+                  },
+                  od2: orderedDedupe(latestTime: false) {
+                    key
+                    value
+                  }
+                }
+              }
+            }
+            node(name: "3") {
+              properties {
+                temporal {
+                  values {
+                    od1: orderedDedupe(latestTime: true) {
+                      key
+                      value
+                    },
+                    od2: orderedDedupe(latestTime: false) {
+                      key
+                      value
+                    }
+                  }
+                }
+              }
+            }
+            edge(
+              src: "1",
+              dst: "2"
+            ) {
+              properties{
+                temporal{
+                  values{
+                    od1: orderedDedupe(latestTime: true) {
+                      key
+                      value
+                    },
+                    od2: orderedDedupe(latestTime: false) {
+                      key
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(prop_has_key_filter);
+        let res = schema.execute(req).await;
+        let actual_data = res.data.into_json().unwrap();
+        let expected = json!({
+            "graph": {
+              "properties": {
+                "temporal": {
+                  "values": [
+                    {
+                      "od1": [
+                        {
+                          "key": "2",
+                          "value": "abc"
+                        },
+                        {
+                          "key": "3",
+                          "value": "xyz"
+                        },
+                        {
+                          "key": "4",
+                          "value": "abc"
+                        }
+                      ],
+                      "od2": [
+                        {
+                          "key": "1",
+                          "value": "abc"
+                        },
+                        {
+                          "key": "3",
+                          "value": "xyz"
+                        },
+                        {
+                          "key": "4",
+                          "value": "abc"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "node": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "od1": [
+                          {
+                            "key": "11",
+                            "value": "phone"
+                          },
+                          {
+                            "key": "13",
+                            "value": "fax"
+                          }
+                        ],
+                        "od2": [
+                          {
+                            "key": "11",
+                            "value": "phone"
+                          },
+                          {
+                            "key": "12",
+                            "value": "fax"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "edge": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "od1": [
+                          {
+                            "key": "2",
+                            "value": "open"
+                          },
+                          {
+                            "key": "3",
+                            "value": "review"
+                          },
+                          {
+                            "key": "4",
+                            "value": "open"
+                          },
+                          {
+                            "key": "10",
+                            "value": "in-progress"
+                          }
+                        ],
+                        "od2": [
+                          {
+                            "key": "1",
+                            "value": "open"
+                          },
+                          {
+                            "key": "3",
+                            "value": "review"
+                          },
+                          {
+                            "key": "4",
+                            "value": "open"
+                          },
+                          {
+                            "key": "5",
+                            "value": "in-progress"
+                          }
+                        ]
+                      },
+                      {
+                        "od1": [
+                          {
+                            "key": "9",
+                            "value": true
+                          },
+                          {
+                            "key": "10",
+                            "value": false
+                          }
+                        ],
+                        "od2": [
+                          {
+                            "key": "9",
+                            "value": true
+                          },
+                          {
+                            "key": "10",
+                            "value": false
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+        });
+
+        assert_eq!(
+            actual_data["graph"]["properties"]["temporal"]["values"][0]["od1"],
+            expected["graph"]["properties"]["temporal"]["values"][0]["od1"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["properties"]["temporal"]["values"][0]["od2"],
+            expected["graph"]["properties"]["temporal"]["values"][0]["od2"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["node"]["properties"]["temporal"]["values"][0]["od1"],
+            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["od1"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["node"]["properties"]["temporal"]["values"][0]["od2"],
+            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["od2"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["edge"]["properties"]["temporal"]["values"][0]["od1"],
+            expected["graph"]["edge"]["properties"]["temporal"]["values"][0]["od1"]
+        );
+
+        assert_eq!(
+            actual_data["graph"]["edge"]["properties"]["temporal"]["values"][0]["od2"],
+            expected["graph"]["edge"]["properties"]["temporal"]["values"][0]["od2"]
         );
     }
 
