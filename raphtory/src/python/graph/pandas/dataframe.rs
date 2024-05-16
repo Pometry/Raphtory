@@ -1,6 +1,6 @@
-use crate::{core::utils::errors::GraphError, prelude::Prop};
+use crate::core::utils::errors::GraphError;
 use arrow2::{
-    array::{Array, BooleanArray, Int64Array, ListArray, PrimitiveArray, Utf8Array},
+    array::{Array, PrimitiveArray, Utf8Array},
     compute::cast::{self, CastOptions},
     datatypes::{DataType, TimeUnit},
     ffi,
@@ -61,22 +61,6 @@ impl PretendDF {
         let iter = self.arrays.iter().flat_map(move |arr| {
             let arr = &arr[idx];
             let arr = arr.as_any().downcast_ref::<Utf8Array<O>>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
-    }
-
-    pub fn bool(&self, name: &str) -> Option<impl Iterator<Item = Option<bool>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
-
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<BooleanArray>()?;
-
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
             arr.iter()
         });
 
