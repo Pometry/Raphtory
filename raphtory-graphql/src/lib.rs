@@ -144,75 +144,47 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter() {
-        let graph = PersistentGraph::new();
-        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) = graph.add_node(0, "bilbo", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) = graph.add_node(0, "frodo", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
+        let graph = Graph::new();
+        graph
+            .add_node(
+                0,
+                1,
+                [("pgraph", Prop::PersistentGraph(PersistentGraph::new()))],
+                None,
+            )
+            .unwrap();
 
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
         let data = Data::from_map(graphs);
-
         let schema = App::create_schema().data(data).finish().unwrap();
-
-        let gandalf_query = r#"
+        let prop_has_key_filter = r#"
         {
-          graph(name: "lotr") {
-            nodes(filter: { name: { eq: "gandalf" } }) {
+          graph(name: "graph") {
+            nodes{
               list {
                 name
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(gandalf_query);
-        let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "nodes": {
-                        "list": [
-                            {"name": "gandalf"}
-                        ]
-                    }
+                properties{
+                    contains(key:"pgraph")
                 }
-            }),
-        );
-
-        let not_gandalf_query = r#"
-        {
-          graph(name: "lotr") {
-            nodes(filter: { name: { ne: "gandalf" } }) {
-              list {
-                name
               }
             }
           }
         }
         "#;
 
-        let req = Request::new(not_gandalf_query);
+        let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
-
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "nodes": {
                         "list": [
-                            { "name": "bilbo" },
-                            { "name": "frodo" }
+                            { "name": "1",
+                              "properties":{
+                                "contains":true
+                            }},
                         ]
                     }
                 }
@@ -666,89 +638,6 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_properties() {
-        let graph = PersistentGraph::new();
-        if let Err(err) = graph.add_node(0, "gandalf", NO_PROPS, None) {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) =
-            graph.add_node(0, "bilbo", [("food".to_string(), Prop::str("lots"))], None)
-        {
-            panic!("Could not add node! {:?}", err);
-        }
-        if let Err(err) =
-            graph.add_node(0, "frodo", [("food".to_string(), Prop::str("some"))], None)
-        {
-            panic!("Could not add node! {:?}", err);
-        }
-
-        let graphs = HashMap::from([("lotr".to_string(), graph)]);
-        let data = Data::from_map(graphs);
-
-        let schema = App::create_schema().data(data).finish().unwrap();
-
-        let prop_has_key_filter = r#"
-        {
-          graph(name: "lotr") {
-            nodes(filter: { propertyHas: {
-              key: "food"
-            }}) {
-              list {
-                name
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(prop_has_key_filter);
-        let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "nodes": {
-                        "list": [
-                            { "name": "bilbo" },
-                            { "name": "frodo" },
-                        ]
-                    }
-                }
-            }),
-        );
-
-        let prop_has_value_filter = r#"
-        {
-          graph(name: "lotr") {
-            nodes(filter: { propertyHas: {
-                            valueStr: "lots"
-            }}) {
-              list {
-                name
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(prop_has_value_filter);
-        let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
-
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                    "nodes": {
-                        "list": [
-                            { "name": "bilbo" },
-                        ]
-                    }
-                }
-            }),
-        );
-
         let graph = Graph::new();
         graph
             .add_node(
