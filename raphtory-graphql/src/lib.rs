@@ -8,6 +8,7 @@ mod routes;
 pub mod server;
 
 mod data;
+
 #[derive(thiserror::Error, Debug)]
 pub enum UrlDecodeError {
     #[error("Bincode operation failed")]
@@ -44,7 +45,7 @@ mod graphql_test {
         prelude::*,
     };
     use serde_json::json;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use tempfile::tempdir;
 
     #[tokio::test]
@@ -216,6 +217,196 @@ mod graphql_test {
                     }
                 }
             }),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_unique_temporal_properties() {
+        let g = Graph::new();
+        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_properties(1, [("state", "abc")]).unwrap();
+        g.add_properties(2, [("state", "abc")]).unwrap();
+        g.add_properties(3, [("state", "xyz")]).unwrap();
+        g.add_properties(4, [("state", "abc")]).unwrap();
+        g.add_edge(1, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(2, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(3, 1, 2, [("status", "review")], None).unwrap();
+        g.add_edge(4, 1, 2, [("status", "open")], None).unwrap();
+        g.add_edge(5, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(10, 1, 2, [("status", "in-progress")], None)
+            .unwrap();
+        g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
+        g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
+        g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
+        g.add_node(11, 3, [("name", "phone")], None).unwrap();
+        g.add_node(12, 3, [("name", "fax")], None).unwrap();
+        g.add_node(13, 3, [("name", "fax")], None).unwrap();
+
+        g.save_to_file("/tmp/graphs").unwrap();
+
+        let graphs = HashMap::from([("graph".to_string(), g)]);
+        let data = Data::from_map(graphs);
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let prop_has_key_filter = r#"
+        {
+          graph(name: "graph") {
+            properties {
+              temporal {
+                values {
+                  unique
+                }
+              }
+            }
+            node(name: "3") {
+              properties {
+                temporal {
+                  values {
+                    unique
+                  }
+                }
+              }
+            }
+            edge(
+              src: "1",
+              dst: "2"
+            ) {
+              properties{
+                temporal{
+                  values{
+                    unique
+                  }
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(prop_has_key_filter);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        let expected = json!({
+            "graph": {
+              "properties": {
+                "temporal": {
+                  "values": [
+                    {
+                      "unique": [
+                        "xyz",
+                        "abc"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "node": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "unique": [
+                          "fax",
+                          "phone"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              "edge": {
+                "properties": {
+                  "temporal": {
+                    "values": [
+                      {
+                        "unique": [
+                          "open",
+                          "review",
+                          "in-progress"
+                        ]
+                      },
+                      {
+                        "unique": [
+                          "false",
+                          "true"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+        });
+
+        let mut actual_graph_props = HashSet::new();
+        let mut actual_node_props = HashSet::new();
+        let mut actual_edge_props = HashSet::new();
+
+        let graph_props = &expected["graph"]["properties"]["temporal"]["values"];
+        for value in graph_props.as_array().unwrap().iter() {
+            let unique_values: HashSet<_> = value["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            actual_graph_props.extend(unique_values);
+        }
+
+        let node_props = &expected["graph"]["node"]["properties"]["temporal"]["values"];
+        for value in node_props.as_array().unwrap().iter() {
+            let unique_values: HashSet<_> = value["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            actual_node_props.extend(unique_values);
+        }
+
+        let edge_props = &expected["graph"]["edge"]["properties"]["temporal"]["values"];
+        for value in edge_props.as_array().unwrap().iter() {
+            let unique_values: HashSet<_> = value["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect();
+            actual_edge_props.extend(unique_values);
+        }
+
+        assert_eq!(
+            actual_graph_props,
+            expected["graph"]["properties"]["temporal"]["values"][0]["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            actual_node_props,
+            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["unique"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            actual_edge_props,
+            expected["graph"]["edge"]["properties"]["temporal"]["values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value["unique"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_str().unwrap()))
+                .flatten()
+                .collect::<HashSet<_>>()
         );
     }
 

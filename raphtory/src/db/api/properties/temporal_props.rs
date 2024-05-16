@@ -4,7 +4,6 @@ use crate::{
     prelude::Graph,
 };
 use chrono::{DateTime, NaiveDateTime, Utc};
-use itertools::Itertools;
 use std::{
     collections::{HashMap, HashSet},
     iter::Zip,

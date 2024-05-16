@@ -1,5 +1,6 @@
 use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use itertools::Itertools;
 use raphtory::{
     core::{IntoPropMap, Prop},
     db::api::properties::{
@@ -8,7 +9,7 @@ use raphtory::{
     },
 };
 use serde_json::Number;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Debug, Scalar)]
 pub struct GqlPropValue(pub Prop);
@@ -139,6 +140,13 @@ impl GqlTemporalProp {
     }
     async fn latest(&self) -> Option<String> {
         self.prop.latest().map(|x| x.to_string())
+    }
+    async fn unique(&self) -> Vec<String> {
+        self.prop
+            .unique()
+            .into_iter()
+            .map(|x| x.to_string())
+            .collect_vec()
     }
 }
 
