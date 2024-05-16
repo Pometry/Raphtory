@@ -1,5 +1,5 @@
 use crate::{
-    core::{utils::time::IntoTime, ArcStr, Prop, PropType},
+    core::{utils::time::IntoTime, ArcStr, Prop},
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
