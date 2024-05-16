@@ -9,6 +9,9 @@ sys.modules["raphtory.graphql"] = graphql
 
 from .nullmodels import *
 from .plottingutils import *
+from .ml.pyg import *
+from .ml.pyg_temporal import *
+from .ml.tgx import *
 
 __doc__ = raphtory.__doc__
 if hasattr(raphtory, "__all__"):
