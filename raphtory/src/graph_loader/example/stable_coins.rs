@@ -2,7 +2,7 @@ use crate::{
     graph_loader::{fetch_file, source::csv_loader::CsvLoader, unzip_file},
     prelude::*,
 };
-use chrono::NaiveDateTime;
+use chrono::DateTime;
 use regex::Regex;
 use serde::Deserialize;
 use std::{collections::HashMap, fs, path::PathBuf, time::Instant};
@@ -87,7 +87,9 @@ pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
                 let s: &str = &stablecoin.contract_address;
                 let label = *contract_addr_labels.get(s).unwrap();
                 g.add_edge(
-                    NaiveDateTime::from_timestamp_opt(stablecoin.time_stamp, 0).unwrap(),
+                    DateTime::from_timestamp(stablecoin.time_stamp, 0)
+                        .unwrap()
+                        .naive_utc(),
                     stablecoin.from_address,
                     stablecoin.to_address,
                     [("value", stablecoin.value)],

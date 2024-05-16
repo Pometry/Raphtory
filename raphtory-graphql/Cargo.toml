@@ -24,7 +24,7 @@ serde_json = { workspace = true }
 once_cell = { workspace = true }
 poem = { workspace = true }
 tokio = { workspace = true }
-async-graphql = { workspace = true }
+async-graphql = { workspace = true, features=["apollo_tracing"] }
 dynamic-graphql = { workspace = true }
 async-graphql-poem = { workspace = true }
 parking_lot = { workspace = true }

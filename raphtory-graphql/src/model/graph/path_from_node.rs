@@ -1,23 +1,25 @@
 use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    db::{api::view::DynamicGraph, graph::nodes::Nodes},
+    db::{api::view::DynamicGraph, graph::path::PathFromNode},
     prelude::*,
 };
 
 #[derive(ResolvedObject)]
-pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>,
+pub(crate) struct GqlPathFromNode {
+    pub(crate) nn: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl GqlNodes {
-    fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
-        GqlNodes::new(nodes)
+impl GqlPathFromNode {
+    fn update<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(&self, nodes: N) -> Self {
+        GqlPathFromNode::new(nodes)
     }
 }
 
-impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(nodes: N) -> Self {
+impl GqlPathFromNode {
+    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(
+        nodes: N,
+    ) -> Self {
         Self { nn: nodes.into() }
     }
 
@@ -28,7 +30,7 @@ impl GqlNodes {
 }
 
 #[ResolvedObjectFields]
-impl GqlNodes {
+impl GqlPathFromNode {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
@@ -64,7 +66,6 @@ impl GqlNodes {
     async fn after(&self, time: i64) -> Self {
         self.update(self.nn.after(time))
     }
-
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.update(self.nn.shrink_window(start, end))
     }

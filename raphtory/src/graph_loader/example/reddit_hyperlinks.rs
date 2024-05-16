@@ -110,7 +110,7 @@ pub fn generate_reddit_graph(path: PathBuf) -> Graph {
 
             match NaiveDateTime::parse_from_str(reddit[3], "%Y-%m-%d %H:%M:%S") {
                 Ok(time) => {
-                    let time = time.timestamp() * 1000;
+                    let time = time.and_utc().timestamp_millis() * 1000;
                     let post_label: i32 = reddit[4].parse::<i32>().unwrap();
                     let post_properties: Vec<f64> = reddit[5]
                         .split(',')

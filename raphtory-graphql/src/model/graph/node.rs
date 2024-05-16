@@ -1,14 +1,11 @@
-use crate::model::{
-    filters::edge_filter::EdgeFilter,
-    graph::{edge::Edge, get_expanded_edges, property::GqlProperties},
+use crate::model::graph::{
+    edges::GqlEdges, path_from_node::GqlPathFromNode, property::GqlProperties,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use itertools::Itertools;
 use raphtory::db::{
     api::{properties::dyn_props::DynProperties, view::*},
     graph::node::NodeView,
 };
-use std::collections::HashSet;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Node {
@@ -149,88 +146,27 @@ impl Node {
         self.vv.in_degree()
     }
 
-    async fn edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.edges().iter().map(|ee| ee.into()).collect(),
-        }
+    async fn edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.edges())
     }
 
-    async fn out_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .out_edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.out_edges().iter().map(|ee| ee.into()).collect(),
-        }
+    async fn out_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.out_edges())
     }
 
-    async fn in_edges(&self, filter: Option<EdgeFilter>) -> Vec<Edge> {
-        match filter {
-            Some(filter) => self
-                .vv
-                .in_edges()
-                .iter()
-                .map(|ev| ev.into())
-                .filter(|ev| filter.matches(ev))
-                .collect(),
-            None => self.vv.in_edges().iter().map(|ee| ee.into()).collect(),
-        }
+    async fn in_edges(&self) -> GqlEdges {
+        GqlEdges::new(self.vv.in_edges())
     }
 
-    async fn neighbours<'a>(&self) -> Vec<Node> {
-        self.vv.neighbours().iter().map(|vv| vv.into()).collect()
+    async fn neighbours<'a>(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.neighbours())
     }
 
-    async fn in_neighbours<'a>(&self) -> Vec<Node> {
-        self.vv.in_neighbours().iter().map(|vv| vv.into()).collect()
+    async fn in_neighbours<'a>(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.in_neighbours())
     }
 
-    async fn out_neighbours(&self) -> Vec<Node> {
-        self.vv
-            .out_neighbours()
-            .iter()
-            .map(|vv| vv.into())
-            .collect()
-    }
-
-    ////////////////////////
-    // GRAPHQL SPECIFIC ////
-    ////////////////////////
-    async fn expanded_edges(
-        &self,
-        graph_nodes: Vec<String>,
-        filter: Option<EdgeFilter>,
-    ) -> Vec<Edge> {
-        let all_graph_nodes: HashSet<String> = graph_nodes.into_iter().collect();
-
-        match filter {
-            Some(edge_filter) => {
-                let maybe_layers = edge_filter.clone().layer_names.map(|l| l.contains);
-                let fetched_edges =
-                    get_expanded_edges(all_graph_nodes, self.vv.clone(), maybe_layers)
-                        .iter()
-                        .map(|ee| ee.clone().into())
-                        .collect_vec();
-                fetched_edges
-                    .into_iter()
-                    .filter(|ev| edge_filter.matches(ev))
-                    .collect()
-            }
-            None => get_expanded_edges(all_graph_nodes, self.vv.clone(), None)
-                .iter()
-                .map(|ee| ee.clone().into())
-                .collect_vec(),
-        }
+    async fn out_neighbours(&self) -> GqlPathFromNode {
+        GqlPathFromNode::new(self.vv.out_neighbours())
     }
 }

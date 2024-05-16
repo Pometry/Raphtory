@@ -15,7 +15,6 @@ use crate::{
 };
 
 use crate::db::api::storage::locked::LockedGraph;
-use itertools::Itertools;
 use rayon::iter::ParallelIterator;
 use std::{marker::PhantomData, sync::Arc};
 

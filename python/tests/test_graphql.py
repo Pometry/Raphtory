@@ -243,57 +243,61 @@ def test_windows_and_layers():
     q = """
     query GetEdges {
       graph(name: "lotr") {
-        window(start:200,end:800){
-        node(name: "Frodo"){
-          after(time:500){
-            history
-            neighbours{
-              name
-              before(time:300){
-                history
+        window(start: 200, end: 800) {
+          node(name: "Frodo") {
+            after(time: 500) {
+              history
+              neighbours {
+                list {
+                  name
+                  before(time: 300) {
+                    history
+                  }
+                }
               }
             }
           }
         }
-      }
       }
     }
     """
     ra = """
     {
-        "graph": {
-          "window": {
-            "node": {
-              "after": {
-                "history": [
-                  555,
-                  562
-                ],
-                "neighbours": [
-                  {
-                    "name": "Gandalf",
-                    "before": {
-                      "history": [
-                        270
-                      ]
-                    }
-                  },
-                  {
-                    "name": "Bilbo",
-                    "before": {
-                      "history": [
-                        205,
-                        270,
-                        286
-                      ]
-                    }
+    "graph": {
+      "window": {
+        "node": {
+          "after": {
+            "history": [
+              555,
+              562
+            ],
+            "neighbours": {
+              "list": [
+                {
+                  "name": "Gandalf",
+                  "before": {
+                    "history": [
+                      270
+                    ]
                   }
-                ]
-              }
+                },
+                {
+                  "name": "Bilbo",
+                  "before": {
+                    "history": [
+                      205,
+                      270,
+                      286
+                    ]
+                  }
+                }
+              ]
             }
           }
         }
+      }
     }
+  }
     """
     a = json.dumps(server.query(q))
     json_a = json.loads(a)
@@ -301,52 +305,214 @@ def test_windows_and_layers():
     assert json_a == json_ra
 
     q = """
-    query GetEdges {
-      graph(name: "layers") {
-            node(name:"1"){
-          layer(name:"layer1"){
-            name
-            neighbours{
-              name
-              layer(name:"layer2"){
-               neighbours{
+        query GetEdges {
+          graph(name: "layers") {
+            node(name: "1") {
+              layer(name: "layer1") {
                 name
-              } 
+                neighbours {
+                  list {
+                    name
+                    layer(name: "layer2") {
+                      neighbours {
+                        list {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
-            }
+          }
         }
-      }
-    }
     """
-
     ra = """
     {
         "graph": {
-            "node": {
-                "layer": {
-                    "name": "1",
-                    "neighbours": [
-                        {
-                            "name": "2",
-                            "layer": {
-                                "neighbours": [
-                                    {
-                                        "name": "3"
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
+          "node": {
+            "layer": {
+              "name": "1",
+              "neighbours": {
+                "list": [
+                  {
+                    "name": "2",
+                    "layer": {
+                      "neighbours": {
+                        "list": [
+                          {
+                            "name": "3"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
             }
+          }
         }
-    }
+      }
       """
 
     a = json.dumps(server.query(q))
     json_a = json.loads(a)
     json_ra = json.loads(ra)
     assert json_a == json_ra
+    server.stop()
+    server.wait()
+
+
+def test_properties():
+    from raphtory import Graph
+    import json
+    from raphtory.graphql import RaphtoryServer
+
+    g = Graph()
+    g.add_node(
+        1,
+        1,
+        {
+            "prop1": "val1",
+            "prop2": "val1",
+            "prop3": "val1",
+            "prop4": "val1",
+        },
+    )
+    g.add_node(
+        2,
+        1,
+        {
+            "prop1": "val2",
+            "prop2": "val2",
+            "prop3": "val2",
+            "prop4": "val2",
+        },
+    )
+    n = g.add_node(
+        3,
+        1,
+        {
+            "prop1": "val3",
+            "prop2": "val3",
+            "prop3": "val3",
+            "prop4": "val3",
+        },
+    )
+    n.add_constant_properties(
+        {"prop5": "val4", "prop6": "val4", "prop7": "val4", "prop8": "val4"}
+    )
+    hm = {"graph": g}
+    server = RaphtoryServer(hm).start()
+    server.wait_for_online()
+    q = """
+    query GetEdges {
+      graph(name: "graph") {
+          nodes {
+            list{
+              properties{
+                values(keys:["prop1","prop2"]){
+                  key
+                  asString
+                }
+                temporal{
+                  values(keys:["prop3","prop4"]){
+                    key
+                    history
+                  }
+                }
+                constant{
+                  values(keys:["prop4","prop5","prop6"]){
+                    key
+                    value
+                  }
+                }
+              }
+            }
+        }
+      }
+    }
+    
+    """
+    r = """
+    {
+        "graph": {
+          "nodes": {
+            "list": [
+              {
+                "properties": {
+                  "values": [
+                    {
+                      "key": "prop2",
+                      "asString": "val3"
+                    },
+                    {
+                      "key": "prop1",
+                      "asString": "val3"
+                    }
+                  ],
+                  "temporal": {
+                    "values": [
+                      {
+                        "key": "prop3",
+                        "history": [
+                          1,
+                          2,
+                          3
+                        ]
+                      },
+                      {
+                        "key": "prop4",
+                        "history": [
+                          1,
+                          2,
+                          3
+                        ]
+                      }
+                    ]
+                  },
+                  "constant": {
+                    "values": [
+                      {
+                        "key": "prop6",
+                        "value": "val4"
+                      },
+                      {
+                        "key": "prop5",
+                        "value": "val4"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    """
+    s = server.query(q)
+    json_a = json.loads(json.dumps(s))
+    json_ra = json.loads(r)
+    assert sorted(
+        json_a["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
+        key=lambda x: x["key"],
+    ) == sorted(
+        json_ra["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
+        key=lambda x: x["key"],
+    )
+    assert sorted(
+        json_a["graph"]["nodes"]["list"][0]["properties"]["values"],
+        key=lambda x: x["key"],
+    ) == sorted(
+        json_ra["graph"]["nodes"]["list"][0]["properties"]["values"],
+        key=lambda x: x["key"],
+    )
+    assert sorted(
+        json_a["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
+        key=lambda x: x["key"],
+    ) == sorted(
+        json_ra["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
+        key=lambda x: x["key"],
+    )
     server.stop()
     server.wait()
