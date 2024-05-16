@@ -408,7 +408,6 @@ mod graphql_test {
         );
     }
 
-
     #[tokio::test]
     async fn test_ordered_dedupe_temporal_properties() {
         let g = Graph::new();
