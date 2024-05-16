@@ -69,22 +69,6 @@ impl PretendDF {
         Some(iter)
     }
 
-    pub fn bool(&self, name: &str) -> Option<impl Iterator<Item = Option<bool>> + '_> {
-        let idx = self.names.iter().position(|n| n == name)?;
-
-        let _ = (&self.arrays[0])[idx]
-            .as_any()
-            .downcast_ref::<BooleanArray>()?;
-
-        let iter = self.arrays.iter().flat_map(move |arr| {
-            let arr = &arr[idx];
-            let arr = arr.as_any().downcast_ref::<BooleanArray>().unwrap();
-            arr.iter()
-        });
-
-        Some(iter)
-    }
-
     pub fn time_iter_col(&self, name: &str) -> Option<impl Iterator<Item = Option<i64>> + '_> {
         let idx = self.names.iter().position(|n| n == name)?;
 

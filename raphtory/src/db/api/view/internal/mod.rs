@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 mod core_deletion_ops;
 mod core_edge_view;
 mod core_ops;

@@ -432,7 +432,7 @@ def test_properties():
         }
       }
     }
-
+    
     """
     r = """
     {

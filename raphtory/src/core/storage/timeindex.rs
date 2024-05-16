@@ -25,7 +25,7 @@ pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync + 'static {
 
     fn dt(&self) -> Option<DateTime<Utc>> {
         let t = self.t();
-        NaiveDateTime::from_timestamp_millis(t).map(|dt| dt.and_utc())
+        DateTime::from_timestamp_millis(t)
     }
 
     fn range(w: Range<i64>) -> Range<Self>;
