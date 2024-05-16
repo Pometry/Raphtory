@@ -6,7 +6,6 @@ use crate::{
             view::{
                 internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
-                NodeTypesFilter,
             },
         },
         graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
@@ -23,6 +22,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use crate::db::graph::path::PathFromNode;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -101,7 +101,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Nodes<'graph, G,
         ))
     }
 
-    pub fn filter_by_type<I: IntoIterator<Item = V>, V: AsRef<str>>(
+    pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         node_types: I,
     ) -> BoxedLIter<'graph, NodeView<G, G>>
@@ -219,11 +219,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
             _marker: PhantomData,
         }
     }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeTypesFilter<'graph>
-    for Nodes<'graph, G, GH>
-{
 }
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph, GH: GraphViewOps<'graph> + 'graph> IntoIterator

@@ -16,7 +16,7 @@ use crate::{
         graph::{node::NodeView, path::PathFromNode},
         task::{node::eval_node_state::EVState, task_state::Local2},
     },
-    prelude::{GraphViewOps, NodeTypesFilter},
+    prelude::{GraphViewOps},
 };
 
 use crate::db::{api::storage::locked::LockedGraph, task::edge::eval_edges::EvalEdges};
@@ -530,17 +530,6 @@ impl<
             ss,
         }
     }
-}
-
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-        GH: GraphViewOps<'graph>,
-    > NodeTypesFilter<'graph> for EvalPathFromNode<'graph, 'a, G, GH, CS, S>
-{
 }
 
 /// Represents an entry in the shuffle table.

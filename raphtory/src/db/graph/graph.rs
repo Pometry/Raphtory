@@ -2165,7 +2165,7 @@ mod db_tests {
         g.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(3, 3, 2, NO_PROPS, None).unwrap();
 
-        for node in g.nodes().filter_by_type(vec!["a"]) {
+        for node in g.nodes().type_filter(vec!["a"]) {
             assert_eq!(node.degree(), 1);
         }
 

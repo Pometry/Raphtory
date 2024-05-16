@@ -109,7 +109,7 @@ pub mod prelude {
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
                 view::{
-                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeTypesFilter, NodeViewOps,
+                    EdgeViewOps, GraphViewOps, Layer, LayerOps, NodeViewOps,
                     TimeOps,
                 },
             },

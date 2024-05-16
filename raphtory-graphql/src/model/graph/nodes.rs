@@ -122,8 +122,4 @@ impl GqlNodes {
     async fn ids(&self) -> Vec<String> {
         self.nn.name().collect()
     }
-
-    async fn type_filter(&self, node_types: Vec<String>) -> Self {
-        self.update(self.nn.type_filter(node_types))
-    }
 }
