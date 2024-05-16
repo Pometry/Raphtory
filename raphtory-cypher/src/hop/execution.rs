@@ -40,12 +40,12 @@ use futures::{Stream, StreamExt};
 
 use raphtory::{
     arrow::{
-        graph_fragment::TempColGraphFragment,
         graph_impl::ArrowGraph,
         prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
     },
     core::{entities::VID, Direction},
 };
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
 
 use crate::take_record_batch;
 

@@ -1,15 +1,15 @@
-use crate::arrow::Error;
-use crate::core::entities::VID;
-use crate::db::api::storage::tprop_storage_ops::TPropOps;
-use crate::db::api::view::internal::CoreGraphOps;
-use crate::prelude::Graph;
 use crate::{
+    arrow::Error,
     arrow2::{
         array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
         datatypes::{ArrowDataType as DataType, ArrowSchema as Schema, Field},
     },
-    core::{entities::properties::props::PropMapper, PropType},
-    prelude::{Prop, PropUnwrap},
+    core::{
+        entities::{properties::props::PropMapper, VID},
+        PropType,
+    },
+    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::CoreGraphOps},
+    prelude::{Graph, Prop, PropUnwrap},
 };
 use itertools::Itertools;
 use raphtory_arrow::properties::{node_ts, NodePropsBuilder, Properties};

@@ -1,8 +1,12 @@
-use crate::core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps};
-use crate::db::api::view::IntoDynBoxed;
-use crate::prelude::TimeIndexEntry;
-use raphtory_arrow::prelude::{ArrayOps, BaseArrayOps};
-use raphtory_arrow::timestamps::TimeStamps;
+use crate::{
+    core::storage::timeindex::{TimeIndexIntoOps, TimeIndexOps},
+    db::api::view::IntoDynBoxed,
+    prelude::TimeIndexEntry,
+};
+use raphtory_arrow::{
+    prelude::{ArrayOps, BaseArrayOps},
+    timestamps::TimeStamps,
+};
 use std::ops::Range;
 
 impl<'a> TimeIndexIntoOps for TimeStamps<'a, TimeIndexEntry> {
@@ -13,18 +17,18 @@ impl<'a> TimeIndexIntoOps for TimeStamps<'a, TimeIndexEntry> {
     fn into_range(self, w: Range<TimeIndexEntry>) -> Self {
         let start = self.position(&w.start);
         let end = self.position(&w.end);
+        let (timestamps, sec_index) = self.into_inner();
         TimeStamps::new(
-            self.timestamps().sliced(start..end),
-            self.sec_index()
-                .map(|sec_index| sec_index.sliced(start..end)),
+            timestamps.sliced(start..end),
+            sec_index.map(|sec_index| sec_index.sliced(start..end)),
         )
     }
     fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + 'static {
-        let sec_iter: Box<dyn Iterator<Item = usize> + Send> = self
-            .sec_index()
+        let (timestamps, sec_index) = self.into_inner();
+        let sec_iter: Box<dyn Iterator<Item = usize> + Send> = sec_index
             .map(|v| v.into_owned().map(|i| i as usize).into_dyn_boxed())
             .unwrap_or(self.timestamps().range().clone().into_dyn_boxed());
-        self.timestamps()
+        timestamps
             .into_owned()
             .zip(sec_iter)
             .map(|(t, s)| TimeIndexEntry(t, s))
@@ -38,7 +42,8 @@ impl<'a> TimeIndexIntoOps for TimeStamps<'a, i64> {
     fn into_range(self, w: Range<i64>) -> Self {
         let start = self.timestamps().partition_point(|i| i < w.start);
         let end = self.timestamps().partition_point(|i| i < w.end);
-        TimeStamps::new(self.timestamps().sliced(start..end), None)
+        let (timestamps, _) = self.into_inner();
+        TimeStamps::new(timestamps.sliced(start..end), None)
     }
     fn into_iter(self) -> impl Iterator<Item = i64> + 'a {
         let (timestamps, _) = self.into_inner();

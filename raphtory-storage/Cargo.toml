@@ -17,6 +17,7 @@ edition.workspace = true
 itertools.workspace = true
 parking_lot.workspace = true
 raphtory = { path = "../raphtory", features = ["io", "arrow", "python"] }
+raphtory-arrow.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 memmap2.workspace = true

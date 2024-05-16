@@ -33,8 +33,7 @@ use crate::{
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowDataType;
-use raphtory_arrow::properties::Properties;
-use raphtory_arrow::GID;
+use raphtory_arrow::{properties::Properties, GID};
 
 impl CoreGraphOps for ArrowGraph {
     fn unfiltered_num_nodes(&self) -> usize {
@@ -147,7 +146,7 @@ impl CoreGraphOps for ArrowGraph {
     }
 
     fn constant_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        match &self.inner.node_properties() {
+        match self.inner.node_properties() {
             None => Box::new(std::iter::empty()),
             Some(props) => Box::new(
                 (0..props.const_props.num_props())

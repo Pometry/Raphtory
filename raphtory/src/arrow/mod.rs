@@ -13,16 +13,19 @@ use crate::arrow2::{
 use itertools::Itertools;
 use num_traits::ToPrimitive;
 use polars_arrow::record_batch::RecordBatch;
-use raphtory_arrow::interop::AsVID;
-use raphtory_arrow::properties::{node_ts, NodePropsBuilder, Properties, TemporalProps};
+use raphtory_arrow::{
+    interop::AsVID,
+    properties::{node_ts, NodePropsBuilder, Properties, TemporalProps},
+};
 use serde::{Deserialize, Serialize};
 
-use crate::arrow::graph_impl::prop_conversion::arrow_array_from_props;
-use crate::core::entities::VID;
-use crate::db::api::storage::tprop_storage_ops::TPropOps;
-use crate::db::api::view::internal::CoreGraphOps;
-use crate::prelude::*;
-use crate::{arrow2::legacy::error, core::entities::nodes::input_node::parse_u64_strict};
+use crate::{
+    arrow::graph_impl::prop_conversion::arrow_array_from_props,
+    arrow2::legacy::error,
+    core::entities::{nodes::input_node::parse_u64_strict, VID},
+    db::api::{storage::tprop_storage_ops::TPropOps, view::internal::CoreGraphOps},
+    prelude::*,
+};
 
 // pub use raphtory_arrow as arrow;
 

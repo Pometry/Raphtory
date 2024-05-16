@@ -1,15 +1,18 @@
-use crate::arrow::graph_impl::tprops::read_tprop_column;
-use crate::core::entities::edges::edge_ref::EdgeRef;
-use crate::core::entities::{LayerIds, VID};
-use crate::core::storage::timeindex::{TimeIndex, TimeIndexOps};
-use crate::db::api::storage::edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef};
-use crate::db::api::storage::tprop_storage_ops::TPropOps;
-use crate::prelude::TimeIndexEntry;
-use raphtory_arrow::edge::Edge;
-use raphtory_arrow::tprops::ArrowTProp;
+use crate::{
+    arrow::graph_impl::tprops::read_tprop_column,
+    core::{
+        entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
+        storage::timeindex::{TimeIndex, TimeIndexOps},
+    },
+    db::api::storage::{
+        edges::edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+        tprop_storage_ops::TPropOps,
+    },
+    prelude::TimeIndexEntry,
+};
+use raphtory_arrow::{edge::Edge, tprops::ArrowTProp};
 use rayon::prelude::*;
-use std::iter;
-use std::ops::Range;
+use std::{iter, ops::Range};
 
 impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     fn in_ref(self) -> EdgeRef {

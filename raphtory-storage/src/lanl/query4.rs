@@ -1,8 +1,6 @@
 use itertools::Itertools;
-use raphtory::{
-    arrow::graph::TemporalGraph,
-    core::{entities::VID, Direction},
-};
+use raphtory::core::Direction;
+use raphtory_arrow::{graph::TemporalGraph, interop::VID};
 use rayon::prelude::*;
 
 use ahash::HashMap;

@@ -3,13 +3,13 @@ use raphtory::{
         centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
     },
     arrow::{
-        algorithms::connected_components,
         graph_impl::{ArrowGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, state::NoState, ForwardState, NodeSource},
     },
     core::entities::VID,
     prelude::GraphViewOps,
 };
+use raphtory_arrow::algorithms::connected_components;
 use raphtory_storage::lanl::*;
 use std::{any::Any, env, io::Write, num::NonZeroUsize, vec};
 
@@ -96,7 +96,9 @@ fn main() {
 
     measure_without_print_results("Iterate All Edges", || iterate_all_edges(&graph));
 
-    measure_without_print_results("CC", || connected_components::connected_components(&graph));
+    measure_without_print_results("CC", || {
+        connected_components::connected_components(graph.as_ref())
+    });
     measure_without_print_results("Weakly CC", || {
         weakly_connected_components(&graph, 20, None)
     });

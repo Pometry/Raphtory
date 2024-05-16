@@ -1,4 +1,4 @@
-use raphtory::arrow::{graph::TemporalGraph, load::ExternalEdgeList};
+use raphtory_arrow::{graph::TemporalGraph, load::ExternalEdgeList};
 use raphtory_storage::lanl::exfiltration::list::query;
 use rayon::prelude::*;
 use std::time::Instant;

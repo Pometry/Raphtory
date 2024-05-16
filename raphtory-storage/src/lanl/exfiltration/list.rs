@@ -1,11 +1,9 @@
 use crate::lanl::exfiltration::find_active_nodes;
 use itertools::{kmerge_by, Itertools};
-use raphtory::{
-    arrow::{
-        edge::ExplodedEdge, global_order::GlobalOrder, graph::TemporalGraph,
-        graph_fragment::TempColGraphFragment, Time,
-    },
-    core::{entities::VID, Direction},
+use raphtory::core::{entities::VID, Direction};
+use raphtory_arrow::{
+    edge::ExplodedEdge, global_order::GlobalOrder, graph::TemporalGraph,
+    graph_fragment::TempColGraphFragment, Time,
 };
 use rayon::{iter::ParallelIterator, prelude::*};
 use std::{cmp::Ordering, collections::VecDeque, fmt::Debug};
@@ -395,7 +393,7 @@ mod test {
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
     };
-    use raphtory::arrow::{
+    use raphtory_arrow::{
         global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     };
     use rayon::prelude::*;

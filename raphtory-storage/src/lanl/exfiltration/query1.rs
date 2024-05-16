@@ -16,10 +16,7 @@ use rayon::{
     ThreadPoolBuilder,
 };
 
-use raphtory::{
-    arrow::{graph::TemporalGraph, prelude::*, Time},
-    core::entities::VID,
-};
+use raphtory_arrow::{graph::TemporalGraph, interop::VID, prelude::*, Time};
 
 pub fn run(g: &TemporalGraph) -> Option<usize> {
     // layer

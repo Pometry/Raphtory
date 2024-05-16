@@ -2171,6 +2171,7 @@ version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
+ "raphtory-arrow",
  "raphtory-storage",
  "serde_json",
 ]
@@ -2574,6 +2575,7 @@ version = "0.8.1"
 dependencies = [
  "pyo3",
  "raphtory",
+ "raphtory-arrow",
  "raphtory-storage",
 ]
 
@@ -4145,6 +4147,7 @@ dependencies = [
  "polars-arrow",
  "rand 0.8.5",
  "raphtory",
+ "raphtory-arrow",
  "rayon",
  "sorted_vector_map",
  "tempfile",
@@ -4173,6 +4176,7 @@ dependencies = [
  "proptest",
  "rand 0.8.5",
  "raphtory",
+ "raphtory-arrow",
  "rayon",
  "serde",
  "serde_json",
@@ -4267,6 +4271,7 @@ dependencies = [
  "pyo3",
  "rand 0.8.5",
  "raphtory",
+ "raphtory-arrow",
  "rayon",
  "serde",
  "serde_json",

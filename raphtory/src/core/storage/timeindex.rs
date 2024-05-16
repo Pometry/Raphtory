@@ -631,26 +631,15 @@ mod test {
         datatypes::{ArrowDataType as DataType, Field},
     };
     use itertools::Itertools;
-
-    use crate::{
-        arrow::chunked_array::chunked_array::NonNull,
-        core::{entities::LayerIds, storage::locked_view::LockedView},
+    use raphtory_arrow::{
+        chunked_array::chunked_array::{ChunkedArray, NonNull},
+        prelude::BaseArrayOps,
+        timestamps::TimeStamps,
     };
 
-    use crate::{
-        arrow::{
-            chunked_array::{
-                array_ops::{
-                    BaseArrayOps, IntoNonNullPrimitiveCol, NonNullPrimitiveCol, PrimitiveCol,
-                },
-                chunked_array::ChunkedArray,
-                ChunkedArraySlice,
-            },
-            timestamps::TimeStamps,
-            Time,
-        },
-        db::api::view::internal::EdgeUpdates,
-    };
+    use crate::core::{entities::LayerIds, storage::locked_view::LockedView};
+
+    use crate::{arrow::Time, db::api::view::internal::EdgeUpdates};
 
     use super::{LayeredIndex, LockedLayeredIndex, TimeIndex, TimeIndexEntry, TimeIndexOps};
 

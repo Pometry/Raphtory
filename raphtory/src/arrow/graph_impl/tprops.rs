@@ -1,9 +1,10 @@
-use raphtory_arrow::chunked_array::utf8_col::StringCol;
-use raphtory_arrow::edge::Edge;
-use raphtory_arrow::prelude::{ArrayOps, BaseArrayOps};
-use raphtory_arrow::timestamps::TimeStamps;
-use raphtory_arrow::tprops::{ArrowTProp, EmptyTProp};
-use raphtory_arrow::{chunked_array::col::ChunkedPrimitiveCol, tprops::TPropColumn};
+use raphtory_arrow::{
+    chunked_array::{col::ChunkedPrimitiveCol, utf8_col::StringCol},
+    edge::Edge,
+    prelude::{ArrayOps, BaseArrayOps},
+    timestamps::TimeStamps,
+    tprops::{ArrowTProp, EmptyTProp, TPropColumn},
+};
 use std::{iter, ops::Range};
 
 use crate::arrow2::{

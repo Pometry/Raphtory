@@ -62,6 +62,12 @@ impl AsVID for VID {
     }
 }
 
+impl PartialEq<VID> for raphtory_arrow::interop::VID {
+    fn eq(&self, other: &VID) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl Into<raphtory_arrow::interop::VID> for VID {
     #[inline]
     fn into(self) -> raphtory_arrow::interop::VID {

@@ -27,10 +27,8 @@ use datafusion::{
     physical_planner::create_physical_sort_expr,
 };
 use futures::Stream;
-use raphtory::arrow::{
-    chunked_array::array_ops::{ArrayOps, BaseArrayOps},
-    graph_impl::ArrowGraph,
-};
+use raphtory::arrow::graph_impl::ArrowGraph;
+use raphtory_arrow::prelude::*;
 
 use crate::executor::{arrow2_to_arrow_buf, ExecError};
 

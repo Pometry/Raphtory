@@ -1,4 +1,5 @@
-use raphtory::{arrow::graph_fragment::TempColGraphFragment, core::entities::VID};
+use raphtory::core::entities::VID;
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
 use rayon::iter::ParallelIterator;
 
 pub mod count;
@@ -10,14 +11,14 @@ fn find_active_nodes(layer: &TempColGraphFragment) -> Vec<VID> {
     layer
         .all_nodes_par()
         .filter(|v| v.out_degree() > 0)
-        .map(|node| node.vid())
+        .map(|node| node.vid().into())
         .collect()
 }
 
 #[cfg(test)]
 mod test {
     use super::{count::query as count, list::query_all_log_vertices as list};
-    use raphtory::arrow::graph::TemporalGraph;
+    use raphtory_arrow::graph::TemporalGraph;
     use rayon::prelude::*;
     use std::path::Path;
 

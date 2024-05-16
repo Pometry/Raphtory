@@ -1,14 +1,9 @@
-use crate::{
-    arrow::{
-        storage_interface::node::ArrowNode,
-    },
-    core::entities::VID,
+use crate::{arrow::storage_interface::node::ArrowNode, core::entities::VID};
+use raphtory_arrow::{
+    graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
 };
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use std::sync::Arc;
-use raphtory_arrow::graph::TemporalGraph;
-use raphtory_arrow::graph_fragment::TempColGraphFragment;
-use raphtory_arrow::properties::Properties;
 
 #[derive(Copy, Clone, Debug)]
 pub struct ArrowNodesRef<'a> {

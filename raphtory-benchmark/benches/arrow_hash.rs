@@ -1,8 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use polars_arrow::array::PrimitiveArray;
 use rand::{distributions::Uniform, seq::IteratorRandom, Rng};
-
-use raphtory::arrow::{
+use raphtory_arrow::{
     arrow_hmap::ArrowHashMap,
     global_order::{GlobalMap, GlobalOrder, SortedGIDs},
     GID,

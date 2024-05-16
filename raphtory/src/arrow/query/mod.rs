@@ -1,5 +1,4 @@
-use raphtory_arrow::edge::Edge;
-use raphtory_arrow::GID;
+use raphtory_arrow::{edge::Edge, GID};
 use std::sync::Arc;
 
 use crate::{

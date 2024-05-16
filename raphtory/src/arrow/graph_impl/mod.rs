@@ -4,16 +4,14 @@ use std::{
     sync::Arc,
 };
 
-use raphtory_arrow::arrow_hmap::ArrowHashMap;
-use raphtory_arrow::graph::TemporalGraph;
-use raphtory_arrow::graph_fragment::TempColGraphFragment;
-use raphtory_arrow::load::ExternalEdgeList;
-use raphtory_arrow::RAError;
+use raphtory_arrow::{
+    arrow_hmap::ArrowHashMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
+    load::ExternalEdgeList, RAError,
+};
 use rayon::prelude::*;
 
-use crate::arrow::graph_impl::prop_conversion::make_node_properties_from_graph;
-use crate::arrow::Error;
 use crate::{
+    arrow::{graph_impl::prop_conversion::make_node_properties_from_graph, Error},
     arrow2::{
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
@@ -31,6 +29,8 @@ pub mod core_ops;
 pub mod edge_filter_ops;
 mod edge_storage_ops;
 pub mod graph_ops;
+
+mod interop;
 pub mod layer_ops;
 mod list_ops;
 pub mod materialize;

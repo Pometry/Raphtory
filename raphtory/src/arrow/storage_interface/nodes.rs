@@ -1,14 +1,12 @@
 use crate::{
-    arrow::{
-        storage_interface::{node::ArrowNode, nodes_ref::ArrowNodesRef},
-    },
+    arrow::storage_interface::{node::ArrowNode, nodes_ref::ArrowNodesRef},
     core::entities::VID,
 };
 
+use raphtory_arrow::{
+    graph::TemporalGraph, graph_fragment::TempColGraphFragment, properties::Properties,
+};
 use std::sync::Arc;
-use raphtory_arrow::graph::TemporalGraph;
-use raphtory_arrow::graph_fragment::TempColGraphFragment;
-use raphtory_arrow::properties::Properties;
 
 #[derive(Clone, Debug)]
 pub struct ArrowNodesOwned {

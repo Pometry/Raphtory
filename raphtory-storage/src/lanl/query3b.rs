@@ -1,4 +1,5 @@
-use raphtory::arrow::{graph::TemporalGraph, prelude::ArrayOps};
+use raphtory::arrow::prelude::ArrayOps;
+use raphtory_arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 
 use crate::lanl::{thread_pool, NUM_THREADS};

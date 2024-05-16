@@ -15,6 +15,7 @@ edition.workspace = true
 
 [dependencies]
 raphtory = {path = "../../raphtory", features = ["python"]}
+raphtory-arrow.workspace = true
 raphtory-storage = {path = "../../raphtory-storage"}
 pyo3 = "0.20.0"
 serde_json.workspace = true

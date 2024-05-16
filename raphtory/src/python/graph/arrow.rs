@@ -1,20 +1,14 @@
 use std::{io::Write, sync::Arc};
 
-use crate::arrow2::{
-    array::StructArray,
-    datatypes::{ArrowDataType as DataType, Field},
-};
-use itertools::Itertools;
-/// A columnar temporal graph.
-use pyo3::{
-    prelude::*,
-    types::{IntoPyDict, PyDict, PyList, PyString},
-};
-use raphtory_arrow::{Error, GID};
 use crate::{
     arrow::{
         graph_impl::{ArrowGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, state::StaticGraphHopState, NodeSource},
+        Error,
+    },
+    arrow2::{
+        array::StructArray,
+        datatypes::{ArrowDataType as DataType, Field},
     },
     core::{
         entities::{nodes::node_ref::NodeRef, VID},
@@ -31,6 +25,13 @@ use crate::{
         utils::errors::adapt_err_value,
     },
 };
+use itertools::Itertools;
+/// A columnar temporal graph.
+use pyo3::{
+    prelude::*,
+    types::{IntoPyDict, PyDict, PyList, PyString},
+};
+use raphtory_arrow::GID;
 
 use super::pandas::dataframe::{process_pandas_py_df, PretendDF};
 

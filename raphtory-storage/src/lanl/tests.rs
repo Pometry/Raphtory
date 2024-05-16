@@ -7,12 +7,10 @@ mod tests {
         algorithms::{
             centrality::pagerank::unweighted_page_rank, components::weakly_connected_components,
         },
-        arrow::{
-            algorithms::connected_components::connected_components,
-            graph_impl::{ArrowGraph, ParquetLayerCols},
-        },
+        arrow::graph_impl::{ArrowGraph, ParquetLayerCols},
         prelude::{GraphViewOps, *},
     };
+    use raphtory_arrow::algorithms::connected_components::connected_components;
     use std::{cmp::Reverse, collections::HashMap, env, num::NonZeroUsize, path::Path};
     use tempfile::tempdir;
 
@@ -143,7 +141,7 @@ mod tests {
             .map(|(_, count)| count)
             .collect::<Vec<_>>();
 
-        let ccs2 = measure_without_print_results("CC", || connected_components(&graph))
+        let ccs2 = measure_without_print_results("CC", || connected_components(graph.as_ref()))
             .into_iter()
             .enumerate()
             .fold(HashMap::new(), |mut map, (_, c)| {

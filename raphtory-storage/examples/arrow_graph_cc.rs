@@ -1,13 +1,12 @@
 use raphtory::{
     arrow::{
-        algorithms::connected_components,
-        graph_fragment::TempColGraphFragment,
         graph_impl::{ArrowGraph, ParquetLayerCols},
         query::{ast::Query, executors::rayon2, ForwardState},
     },
     core::entities::VID,
     db::api::view::GraphViewOps,
 };
+use raphtory_arrow::{algorithms::connected_components, graph_fragment::TempColGraphFragment};
 use std::{io::Write, time::Instant};
 
 fn main() {
@@ -81,7 +80,7 @@ fn connected_components(tg: &ArrowGraph) {
 
     let now = Instant::now();
     // let ccs = weakly_connected_components(&graph2, 100, None).group_by();
-    let out = connected_components::connected_components(tg);
+    let out = connected_components::connected_components(tg.as_ref());
     println!(
         "########## Arrow CC took {:?} ########## len: {}",
         now.elapsed(),

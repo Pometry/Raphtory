@@ -1,14 +1,15 @@
 use crate::lanl::exfiltration::find_active_nodes;
 use itertools::kmerge_by;
 use raphtory::{
-    arrow::{
-        edge::Edge, global_order::GlobalOrder, graph::TemporalGraph,
-        graph_fragment::TempColGraphFragment, prelude::ArrayOps, Time,
-    },
+    arrow::Time,
     core::{
         entities::{EID, VID},
         Direction,
     },
+};
+use raphtory_arrow::{
+    edge::Edge, global_order::GlobalOrder, graph::TemporalGraph,
+    graph_fragment::TempColGraphFragment, prelude::*,
 };
 use rayon::prelude::*;
 use std::{
@@ -83,7 +84,7 @@ fn valid_netflow_events(
                 None
             } else {
                 valid_events.sort_by(|a, b| b.cmp(a)); // reverse sort
-                Some((e_vid, valid_events))
+                Some((e_vid.into(), valid_events))
             }
         })
         .collect();
@@ -313,7 +314,9 @@ pub fn query<GO: GlobalOrder>(
     let count_login_ms_ref = count_login_ms.clone();
 
     let count = log_nodes.into_par_iter().flat_map(move |b_vid| {
-        let login_edges = events_2v_graph.in_edges_par(b_vid);
+        let login_edges = events_2v_graph
+            .in_edges_par(b_vid)
+            .map(|(eid, a_vid)| (eid.into(), a_vid.into()));
         let (self_loop, _) = events_1v_graph
             .edges_iter(b_vid, Direction::OUT)
             .filter(|(_, n_vid)| *n_vid == b_vid)
@@ -375,7 +378,7 @@ mod test {
         array::{PrimitiveArray, StructArray},
         datatypes::{ArrowDataType as DataType, Field},
     };
-    use raphtory::arrow::{
+    use raphtory_arrow::{
         global_order::GlobalMap, graph::TemporalGraph, graph_fragment::TempColGraphFragment,
     };
     use std::sync::Arc;

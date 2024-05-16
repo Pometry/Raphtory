@@ -1,8 +1,6 @@
 use itertools::Itertools;
-use raphtory::arrow::{
-    graph::TemporalGraph,
-    prelude::{ArrayOps, BaseArrayOps},
-};
+use raphtory::arrow::prelude::{ArrayOps, BaseArrayOps};
+use raphtory_arrow::graph::TemporalGraph;
 use rayon::prelude::*;
 
 use crate::lanl::{thread_pool, NUM_THREADS};

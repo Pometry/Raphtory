@@ -26,6 +26,7 @@
 
 use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::{DateTime, NaiveDateTime, Utc};
+use raphtory_arrow::interop::AsDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -149,6 +150,17 @@ pub enum Direction {
     IN,
     #[default]
     BOTH,
+}
+
+#[cfg(feature = "arrow")]
+impl AsDir for Direction {
+    fn as_dir(&self) -> raphtory_arrow::interop::Direction {
+        match self {
+            Direction::OUT => raphtory_arrow::interop::Direction::OUT,
+            Direction::IN => raphtory_arrow::interop::Direction::IN,
+            Direction::BOTH => raphtory_arrow::interop::Direction::BOTH,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
