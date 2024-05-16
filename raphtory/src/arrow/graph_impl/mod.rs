@@ -1,3 +1,18 @@
+use std::{
+    fmt::{Display, Formatter},
+    path::Path,
+    sync::Arc,
+};
+
+use raphtory_arrow::arrow_hmap::ArrowHashMap;
+use raphtory_arrow::graph::TemporalGraph;
+use raphtory_arrow::graph_fragment::TempColGraphFragment;
+use raphtory_arrow::load::ExternalEdgeList;
+use raphtory_arrow::RAError;
+use rayon::prelude::*;
+
+use crate::arrow::graph_impl::prop_conversion::make_node_properties_from_graph;
+use crate::arrow::Error;
 use crate::{
     arrow2::{
         array::{PrimitiveArray, StructArray},
@@ -9,17 +24,6 @@ use crate::{
     },
     db::api::view::{internal::Immutable, DynamicGraph, IntoDynamic},
     prelude::{Graph, GraphViewOps},
-};
-use raphtory_arrow::arrow_hmap::ArrowHashMap;
-use raphtory_arrow::graph::TemporalGraph;
-use raphtory_arrow::graph_fragment::TempColGraphFragment;
-use raphtory_arrow::load::ExternalEdgeList;
-use raphtory_arrow::RAError;
-use rayon::prelude::*;
-use std::{
-    fmt::{Display, Formatter},
-    path::Path,
-    sync::Arc,
 };
 
 pub mod const_properties_ops;
@@ -72,7 +76,7 @@ impl AsRef<TemporalGraph> for ArrowGraph {
 }
 
 impl Graph {
-    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, RAError> {
+    pub fn persist_as_arrow(&self, graph_dir: impl AsRef<Path>) -> Result<ArrowGraph, Error> {
         ArrowGraph::from_graph(self, graph_dir)
     }
 }
@@ -193,8 +197,9 @@ impl ArrowGraph {
         }
     }
 
-    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, RAError> {
-        let inner_graph = TemporalGraph::from_graph(graph, graph_dir)?;
+    pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
+        let properties = make_node_properties_from_graph(graph, graph_dir.as_ref())?;
+        let inner_graph = TemporalGraph::from_graph(graph, graph_dir, properties)?;
         Ok(Self::new(inner_graph))
     }
 
@@ -311,16 +316,19 @@ impl ArrowGraph {
 
 #[cfg(test)]
 mod test {
-    use super::ArrowGraph;
+    use std::{cmp::Reverse, iter::once, path::Path};
+
+    use itertools::{chain, Itertools};
+    use proptest::{prelude::*, sample::size_range};
+    use rayon::prelude::*;
+    use tempfile::TempDir;
+
     use crate::{
         algorithms::components::weakly_connected_components, arrow::Time,
         db::api::view::StaticGraphViewOps, prelude::*,
     };
-    use itertools::{chain, Itertools};
-    use proptest::{prelude::*, sample::size_range};
-    use rayon::prelude::*;
-    use std::{cmp::Reverse, iter::once, path::Path};
-    use tempfile::TempDir;
+
+    use super::ArrowGraph;
 
     fn make_simple_graph(
         graph_dir: impl AsRef<Path>,

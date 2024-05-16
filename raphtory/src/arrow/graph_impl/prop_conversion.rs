@@ -1,3 +1,8 @@
+use crate::arrow::Error;
+use crate::core::entities::VID;
+use crate::db::api::storage::tprop_storage_ops::TPropOps;
+use crate::db::api::view::internal::CoreGraphOps;
+use crate::prelude::Graph;
 use crate::{
     arrow2::{
         array::{Array, BooleanArray, PrimitiveArray, Utf8Array},
@@ -6,7 +11,87 @@ use crate::{
     core::{entities::properties::props::PropMapper, PropType},
     prelude::{Prop, PropUnwrap},
 };
+use itertools::Itertools;
+use raphtory_arrow::properties::{node_ts, NodePropsBuilder, Properties};
+use std::path::Path;
 
+pub fn make_node_properties_from_graph(
+    graph: &Graph,
+    graph_dir: impl AsRef<Path>,
+) -> Result<Option<Properties<raphtory_arrow::interop::VID>>, Error> {
+    let graph_dir = graph_dir.as_ref();
+    let n = graph.unfiltered_num_nodes();
+
+    let temporal_meta = graph.node_meta().temporal_prop_meta();
+    let constant_meta = graph.node_meta().const_prop_meta();
+    if temporal_meta.is_empty() && constant_meta.is_empty() {
+        return Ok(None);
+    }
+
+    let nodes = graph.0.inner().storage.nodes.read_lock();
+
+    let temporal_prop_keys = temporal_meta
+        .get_keys()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    let const_prop_keys = constant_meta
+        .get_keys()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+
+    let builder = NodePropsBuilder::new(n, graph_dir)
+        .with_timestamps(|vid| {
+            let node = nodes.get(VID(vid.0));
+            let ts: Vec<_> = node
+                .props
+                .iter()
+                .flat_map(|props| {
+                    props
+                        .temporal_props
+                        .filled_values()
+                        .map(|tprop| tprop.iter().map(|(t, _)| t))
+                })
+                .kmerge()
+                .dedup()
+                .collect();
+            ts
+        })
+        .with_temporal_props(temporal_prop_keys, |prop_id, prop_key, ts, offsets| {
+            let prop_type = temporal_meta.get_dtype(prop_id).unwrap();
+            let col = arrow_array_from_props(
+                (0..n).flat_map(|vid| {
+                    let ts = node_ts(raphtory_arrow::interop::VID(vid), offsets, ts);
+                    let node = nodes.get(VID(vid));
+                    ts.iter()
+                        .map(move |t| node.temporal_property(prop_id).and_then(|prop| prop.at(t)))
+                }),
+                prop_type,
+            );
+            col.map(|col| {
+                let dtype = col.data_type().clone();
+                (Field::new(prop_key, dtype, true), col)
+            })
+        })
+        .with_const_props(const_prop_keys, |prop_id, prop_key| {
+            let prop_type = constant_meta.get_dtype(prop_id).unwrap();
+            let col = arrow_array_from_props(
+                (0..n).map(|vid| {
+                    let node = nodes.get(VID(vid));
+                    node.const_prop(prop_id).cloned()
+                }),
+                prop_type,
+            );
+            col.map(|col| {
+                let dtype = col.data_type().clone();
+                (Field::new(prop_key, dtype, true), col)
+            })
+        });
+    let props = builder.build().map(Some)?;
+    Ok(props)
+}
 pub fn arrow_dtype_from_prop_type(prop_type: PropType) -> DataType {
     match prop_type {
         PropType::Empty => panic!(),
