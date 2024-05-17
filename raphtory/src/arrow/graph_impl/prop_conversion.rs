@@ -12,13 +12,16 @@ use crate::{
     prelude::{Graph, Prop, PropUnwrap},
 };
 use itertools::Itertools;
-use raphtory_arrow::properties::{node_ts, NodePropsBuilder, Properties};
+use raphtory_arrow::{
+    properties::{node_ts, NodePropsBuilder, Properties},
+    RAError,
+};
 use std::path::Path;
 
 pub fn make_node_properties_from_graph(
     graph: &Graph,
     graph_dir: impl AsRef<Path>,
-) -> Result<Option<Properties<raphtory_arrow::interop::VID>>, Error> {
+) -> Result<Option<Properties<raphtory_arrow::interop::VID>>, RAError> {
     let graph_dir = graph_dir.as_ref();
     let n = graph.unfiltered_num_nodes();
 

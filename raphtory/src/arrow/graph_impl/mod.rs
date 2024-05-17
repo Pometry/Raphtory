@@ -198,8 +198,9 @@ impl ArrowGraph {
     }
 
     pub fn from_graph(graph: &Graph, graph_dir: impl AsRef<Path>) -> Result<Self, Error> {
-        let properties = make_node_properties_from_graph(graph, graph_dir.as_ref())?;
-        let inner_graph = TemporalGraph::from_graph(graph, graph_dir, properties)?;
+        let inner_graph = TemporalGraph::from_graph(graph, graph_dir.as_ref(), || {
+            make_node_properties_from_graph(graph, graph_dir.as_ref())
+        })?;
         Ok(Self::new(inner_graph))
     }
 
