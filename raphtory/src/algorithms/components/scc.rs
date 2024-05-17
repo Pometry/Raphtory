@@ -184,7 +184,6 @@ mod strongly_connected_components_tests {
         algorithms::components::scc::strongly_connected_components,
         prelude::{AdditionOps, Graph, NO_PROPS},
     };
-    use itertools::Itertools;
     use std::collections::HashSet;
 
     #[test]
