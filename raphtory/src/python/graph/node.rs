@@ -419,13 +419,6 @@ pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl_nodetypesfilter!(
-    PyNodes,
-    nodes,
-    Nodes<'static, DynamicGraph, DynamicGraph>,
-    "Nodes"
-);
-
 impl_nodeviewops!(
     PyNodes,
     nodes,
@@ -682,13 +675,6 @@ pub struct PyPathFromGraph {
     path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
 }
 
-impl_nodetypesfilter!(
-    PyPathFromGraph,
-    path,
-    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
-    "PathFromGraph"
-);
-
 impl_nodeviewops!(
     PyPathFromGraph,
     path,
@@ -818,13 +804,6 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic> 
 pub struct PyPathFromNode {
     path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
 }
-
-impl_nodetypesfilter!(
-    PyPathFromNode,
-    path,
-    PathFromNode<'static, DynamicGraph, DynamicGraph>,
-    "PathFromNode"
-);
 
 impl_nodeviewops!(
     PyPathFromNode,
