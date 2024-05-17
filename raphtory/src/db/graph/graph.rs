@@ -1343,7 +1343,7 @@ mod db_tests {
         fn try_into_time(self) -> Result<i64, ParseTimeError> {
             let CustomTime(time, fmt) = self;
             let time = NaiveDateTime::parse_from_str(time, fmt)?;
-            let time = time.timestamp_millis();
+            let time = time.and_utc().timestamp_millis();
             Ok(time)
         }
     }

@@ -59,7 +59,7 @@ pub enum SeedError {
         source: ParseTimeError,
     },
 }
-
+#[allow(unused)]
 trait NotIterator {}
 
 impl NotIterator for f64 {}

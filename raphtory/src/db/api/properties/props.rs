@@ -4,7 +4,6 @@ use crate::{
         constant_props::ConstProperties, internal::*, temporal_props::TemporalProperties,
     },
 };
-use itertools::Itertools;
 use std::collections::HashMap;
 
 /// View of the properties of an entity (graph|node|edge)
