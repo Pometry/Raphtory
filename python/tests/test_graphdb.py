@@ -2132,9 +2132,12 @@ def test_unique_temporal_properties():
     g.add_node(6, 3, {"list": [1, 2, 3]})
     g.add_node(6, 3, {"list": [1, 2, 3]})
     g.add_node(6, 3, {"list": [2, 3]})
-    g.add_node(6, 3, {"date": "2014-02-02"})
-    g.add_node(6, 3, {"date": "2014-02-02"})
-    g.add_node(6, 3, {"date": "2014-02-03"})
+    datetime_obj = datetime.strptime("2021-01-01 12:32:00", "%Y-%m-%d %H:%M:%S")
+    datetime_obj2 = datetime.strptime("2021-01-02 12:32:00", "%Y-%m-%d %H:%M:%S")
+    g.add_node(6, 3, {"date": datetime_obj})
+    g.add_node(6, 3, {"date": datetime_obj})
+    g.add_node(6, 3, {"date": datetime_obj2})
+    g.add_node(6, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
 
     assert list(g.edge(1,2).properties.temporal.get('status')) == [(1, 'open'), (2, 'open'), (3, 'review'), (4, 'open'), (5, 'in-progress'), (10, 'in-progress')]
     assert sorted(g.edge(1,2).properties.temporal.get('status').unique()) == ['in-progress', 'open', 'review']
@@ -2146,7 +2149,8 @@ def test_unique_temporal_properties():
     assert sorted(g.node(3).properties.temporal.get('f64').unique()) == [1.2, 1.3]
     assert sorted(g.node(3).properties.temporal.get('bool').unique()) == [False, True]
     assert sorted(g.node(3).properties.temporal.get('list').unique()) == [[1, 2, 3], [2, 3]]
-    assert sorted(g.node(3).properties.temporal.get('date').unique()) == ["2014-02-02", "2014-02-03"]
+    assert sorted(g.node(3).properties.temporal.get('date').unique()) == [datetime_obj, datetime_obj2]
+    assert sorted(g.node(3).properties.temporal.get('map').unique()) == [{"name": "bob", "value list": [1, 2, 3]}]
 
 
 def test_ordered_dedupe():
