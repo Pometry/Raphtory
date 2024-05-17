@@ -2138,6 +2138,7 @@ def test_unique_temporal_properties():
     g.add_node(6, 3, {"date": datetime_obj})
     g.add_node(6, 3, {"date": datetime_obj2})
     g.add_node(6, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
+    g.add_node(6, 3, {"map": {"name": "bob", "value list": [1, 2]}})
 
     assert list(g.edge(1,2).properties.temporal.get('status')) == [(1, 'open'), (2, 'open'), (3, 'review'), (4, 'open'), (5, 'in-progress'), (10, 'in-progress')]
     assert sorted(g.edge(1,2).properties.temporal.get('status').unique()) == ['in-progress', 'open', 'review']
@@ -2150,7 +2151,11 @@ def test_unique_temporal_properties():
     assert sorted(g.node(3).properties.temporal.get('bool').unique()) == [False, True]
     assert sorted(g.node(3).properties.temporal.get('list').unique()) == [[1, 2, 3], [2, 3]]
     assert sorted(g.node(3).properties.temporal.get('date').unique()) == [datetime_obj, datetime_obj2]
-    assert sorted(g.node(3).properties.temporal.get('map').unique()) == [{"name": "bob", "value list": [1, 2, 3]}]
+    actual_list = g.node(3).properties.temporal.get('map').unique()
+    expected_list = [{"name": "bob", "value list": [1, 2]}, {"name": "bob", "value list": [1, 2, 3]}]
+    sorted_actual_list = sorted(actual_list, key=lambda d: (d["name"], tuple(d["value list"])))
+    sorted_expected_list = sorted(expected_list, key=lambda d: (d["name"], tuple(d["value list"])))
+    assert sorted_actual_list == sorted_expected_list
 
 
 def test_ordered_dedupe():
