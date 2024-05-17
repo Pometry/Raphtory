@@ -234,9 +234,12 @@ def test_windows_and_layers():
     from raphtory.graphql import RaphtoryServer
 
     g_lotr = graph_loader.lotr_graph()
+    g_lotr.add_constant_properties({"name": "lotr"})
     g_layers = Graph()
+    g_layers.add_constant_properties({"name": "layers"})
     g_layers.add_edge(1, 1, 2, layer="layer1")
     g_layers.add_edge(1, 2, 3, layer="layer2")
+    g_layers.save_to_file("/tmp/graphs")
     hm = {"lotr": g_lotr, "layers": g_layers}
     server = RaphtoryServer(hm).start()
     server.wait_for_online()
@@ -248,9 +251,11 @@ def test_windows_and_layers():
             after(time: 500) {
               history
               neighbours {
-                name
-                before(time: 300) {
-                  history
+                list { 
+                    name
+                    before(time: 300) {
+                      history
+                    }
                 }
               }
             }
@@ -261,39 +266,41 @@ def test_windows_and_layers():
     """
     ra = """
     {
-    "graph": {
-      "window": {
-        "node": {
-          "after": {
-            "history": [
-              555,
-              562
-            ],
-            "neighbours": [
-                {
-                  "name": "Gandalf",
-                  "before": {
-                    "history": [
-                      270
-                    ]
-                  }
-                },
-                {
-                  "name": "Bilbo",
-                  "before": {
-                    "history": [
-                      205,
-                      270,
-                      286
-                    ]
-                  }
+        "graph": {
+          "window": {
+            "node": {
+              "after": {
+                "history": [
+                  555,
+                  562
+                ],
+                "neighbours": {
+                  "list": [
+                    {
+                      "name": "Gandalf",
+                      "before": {
+                        "history": [
+                          270
+                        ]
+                      }
+                    },
+                    {
+                      "name": "Bilbo",
+                      "before": {
+                        "history": [
+                          205,
+                          270,
+                          286
+                        ]
+                      }
+                    }
+                  ]
                 }
-              ]
+              }
+            }
           }
         }
-      }
     }
-  }
     """
     a = json.dumps(server.query(q))
     json_a = json.loads(a)
@@ -307,12 +314,16 @@ def test_windows_and_layers():
               layer(name: "layer1") {
                 name
                 neighbours {
+                  list {
                     name
                     layer(name: "layer2") {
                       neighbours {
+                        list {
                           name
+                        }
                       }
                     }
+                  }
                 }
               }
             }
@@ -325,20 +336,26 @@ def test_windows_and_layers():
           "node": {
             "layer": {
               "name": "1",
-              "neighbours": [
+              "neighbours": {
+                "list": [
                   {
                     "name": "2",
                     "layer": {
-                      "neighbours": [{
+                      "neighbours": {
+                        "list": [
+                          {
                             "name": "3"
-                      }]
+                          }
+                        ]
+                      }
                     }
                   }
                 ]
+              }
             }
           }
         }
-      }
+    }
       """
 
     a = json.dumps(server.query(q))
@@ -424,7 +441,6 @@ def test_properties():
     """
     r = """
     {
-      "data": {
         "graph": {
           "nodes": {
             "list": [
@@ -477,7 +493,6 @@ def test_properties():
             ]
           }
         }
-      }
     }
     """
     s = server.query(q)
