@@ -2,10 +2,12 @@ use crate::model::graph::node::Node;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::{api::view::DynamicGraph, graph::nodes::Nodes},
+    db::{
+        api::view::DynamicGraph,
+        graph::{node::NodeView, nodes::Nodes},
+    },
     prelude::*,
 };
-use raphtory::db::graph::node::NodeView;
 
 #[derive(ResolvedObject)]
 pub(crate) struct GqlNodes {
@@ -80,7 +82,11 @@ impl GqlNodes {
     }
 
     async fn type_filter(&self, node_types: Vec<String>) -> Vec<Node> {
-        self.nn.type_filter(node_types).into_iter().map(Node::from).collect_vec()
+        self.nn
+            .type_filter(node_types)
+            .into_iter()
+            .map(Node::from)
+            .collect_vec()
     }
 
     ////////////////////////
