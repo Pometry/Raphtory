@@ -239,7 +239,6 @@ def test_windows_and_layers():
     g_layers.add_constant_properties({"name": "layers"})
     g_layers.add_edge(1, 1, 2, layer="layer1")
     g_layers.add_edge(1, 2, 3, layer="layer2")
-    g_layers.save_to_file("/tmp/graphs")
     hm = {"lotr": g_lotr, "layers": g_layers}
     server = RaphtoryServer(hm).start()
     server.wait_for_online()
