@@ -2121,6 +2121,20 @@ def test_unique_temporal_properties():
     g.add_node(1, 3, {"name": "avatar1"})
     g.add_node(2, 3, {"name": "avatar2"})
     g.add_node(3, 3, {"name": "avatar2"})
+    g.add_node(4, 3, {"i64": 1})
+    g.add_node(4, 3, {"i64": 1})
+    g.add_node(4, 3, {"i64": 5})
+    g.add_node(5, 3, {"f64": 1.2})
+    g.add_node(5, 3, {"f64": 1.3})
+    g.add_node(6, 3, {"bool": True})
+    g.add_node(6, 3, {"bool": True})
+    g.add_node(6, 3, {"bool": False})
+    g.add_node(6, 3, {"list": [1, 2, 3]})
+    g.add_node(6, 3, {"list": [1, 2, 3]})
+    g.add_node(6, 3, {"list": [2, 3]})
+    g.add_node(6, 3, {"date": "2014-02-02"})
+    g.add_node(6, 3, {"date": "2014-02-02"})
+    g.add_node(6, 3, {"date": "2014-02-03"})
 
     assert list(g.edge(1,2).properties.temporal.get('status')) == [(1, 'open'), (2, 'open'), (3, 'review'), (4, 'open'), (5, 'in-progress'), (10, 'in-progress')]
     assert sorted(g.edge(1,2).properties.temporal.get('status').unique()) == ['in-progress', 'open', 'review']
@@ -2128,6 +2142,11 @@ def test_unique_temporal_properties():
     assert sorted(g.properties.temporal.get('name').unique()) == ['tarzan', 'tarzan2']
     assert list(g.node(3).properties.temporal.get('name')) == [(1, 'avatar1'), (2, 'avatar2'), (3, 'avatar2')]
     assert sorted(g.node(3).properties.temporal.get('name').unique()) == ['avatar1', 'avatar2']
+    assert sorted(g.node(3).properties.temporal.get('i64').unique()) == [1, 5]
+    assert sorted(g.node(3).properties.temporal.get('f64').unique()) == [1.2, 1.3]
+    assert sorted(g.node(3).properties.temporal.get('bool').unique()) == [False, True]
+    assert sorted(g.node(3).properties.temporal.get('list').unique()) == [[1, 2, 3], [2, 3]]
+    assert sorted(g.node(3).properties.temporal.get('date').unique()) == ["2014-02-02", "2014-02-03"]
 
 
 def test_ordered_dedupe():
