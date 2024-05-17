@@ -248,11 +248,9 @@ def test_windows_and_layers():
             after(time: 500) {
               history
               neighbours {
-                list {
-                  name
-                  before(time: 300) {
-                    history
-                  }
+                name
+                before(time: 300) {
+                  history
                 }
               }
             }
@@ -271,8 +269,7 @@ def test_windows_and_layers():
               555,
               562
             ],
-            "neighbours": {
-              "list": [
+            "neighbours": [
                 {
                   "name": "Gandalf",
                   "before": {
@@ -292,7 +289,6 @@ def test_windows_and_layers():
                   }
                 }
               ]
-            }
           }
         }
       }
@@ -311,16 +307,12 @@ def test_windows_and_layers():
               layer(name: "layer1") {
                 name
                 neighbours {
-                  list {
                     name
                     layer(name: "layer2") {
                       neighbours {
-                        list {
                           name
-                        }
                       }
                     }
-                  }
                 }
               }
             }
@@ -333,22 +325,16 @@ def test_windows_and_layers():
           "node": {
             "layer": {
               "name": "1",
-              "neighbours": {
-                "list": [
+              "neighbours": [
                   {
                     "name": "2",
                     "layer": {
-                      "neighbours": {
-                        "list": [
-                          {
+                      "neighbours": [{
                             "name": "3"
-                          }
-                        ]
-                      }
+                      }]
                     }
                   }
                 ]
-              }
             }
           }
         }
@@ -369,6 +355,7 @@ def test_properties():
     from raphtory.graphql import RaphtoryServer
 
     g = Graph()
+    g.add_constant_properties({"name": "graph"})
     g.add_node(
         1,
         1,
@@ -402,6 +389,7 @@ def test_properties():
     n.add_constant_properties(
         {"prop5": "val4", "prop6": "val4", "prop7": "val4", "prop8": "val4"}
     )
+
     hm = {"graph": g}
     server = RaphtoryServer(hm).start()
     server.wait_for_online()
@@ -410,7 +398,7 @@ def test_properties():
       graph(name: "graph") {
           nodes {
             list{
-              properties{
+              properties {
                 values(keys:["prop1","prop2"]){
                   key
                   asString
@@ -436,6 +424,7 @@ def test_properties():
     """
     r = """
     {
+      "data": {
         "graph": {
           "nodes": {
             "list": [
@@ -454,7 +443,7 @@ def test_properties():
                   "temporal": {
                     "values": [
                       {
-                        "key": "prop3",
+                        "key": "prop4",
                         "history": [
                           1,
                           2,
@@ -462,7 +451,7 @@ def test_properties():
                         ]
                       },
                       {
-                        "key": "prop4",
+                        "key": "prop3",
                         "history": [
                           1,
                           2,
@@ -474,11 +463,11 @@ def test_properties():
                   "constant": {
                     "values": [
                       {
-                        "key": "prop6",
+                        "key": "prop5",
                         "value": "val4"
                       },
                       {
-                        "key": "prop5",
+                        "key": "prop6",
                         "value": "val4"
                       }
                     ]
@@ -489,6 +478,7 @@ def test_properties():
           }
         }
       }
+    }
     """
     s = server.query(q)
     json_a = json.loads(json.dumps(s))
