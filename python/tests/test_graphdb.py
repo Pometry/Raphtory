@@ -1968,14 +1968,14 @@ def test_one_hop_filter_reset():
     assert len(out_out_2) == 0
 
 
-def test_node_types():
+def test_node_types_filter():
     g = Graph()
     g.add_node(1, 1, node_type="wallet")
     g.add_node(1, 2, node_type="timer")
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    assert g.nodes.type_filter(["wallet"]).node_type.collect() == ['1', '4']
+    assert [node.name for node in g.nodes.type_filter(["wallet"])] == ['1', '4']
     assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ['2', '3']
 
 

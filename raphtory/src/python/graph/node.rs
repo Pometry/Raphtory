@@ -42,6 +42,7 @@ use python::{
 };
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
+use itertools::Itertools;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]
@@ -661,6 +662,10 @@ impl PyNodes {
             let df_data = pandas.call_method("DataFrame", (node_tuples,), Some(kwargs))?;
             Ok(df_data.to_object(py))
         })
+    }
+
+    pub fn type_filter(&self, node_types: Vec<String>) -> Vec<NodeView<DynamicGraph>> {
+        self.nodes.type_filter(node_types).collect_vec()
     }
 }
 
