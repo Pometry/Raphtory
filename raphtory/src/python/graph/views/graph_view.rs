@@ -13,6 +13,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             edges::Edges,
+            graph::graph_equal,
             node::NodeView,
             nodes::Nodes,
             views::{
@@ -29,7 +30,6 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::{prelude::*, types::PyBytes};
-use crate::db::graph::graph::graph_equal;
 
 impl IntoPy<PyObject> for MaterializedGraph {
     fn into_py(self, py: Python<'_>) -> PyObject {
