@@ -13,16 +13,9 @@ use crate::{
     prelude::*,
 };
 
-use crate::{core::ArcStr, db::api::storage::locked::LockedGraph};
-use itertools::Itertools;
+use crate::db::api::storage::locked::LockedGraph;
 use rayon::iter::ParallelIterator;
-use std::{
-    borrow::Borrow,
-    iter::{FilterMap, FlatMap, Map},
-    marker::PhantomData,
-    sync::Arc,
-};
-use crate::db::graph::path::PathFromNode;
+use std::{borrow::Borrow, marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {

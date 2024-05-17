@@ -16,7 +16,7 @@ use crate::{
         graph::{node::NodeView, path::PathFromNode},
         task::{node::eval_node_state::EVState, task_state::Local2},
     },
-    prelude::{GraphViewOps},
+    prelude::GraphViewOps,
 };
 
 use crate::db::{api::storage::locked::LockedGraph, task::edge::eval_edges::EvalEdges};

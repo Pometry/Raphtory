@@ -27,6 +27,7 @@ use crate::{
     *,
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -42,7 +43,6 @@ use python::{
 };
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
-use itertools::Itertools;
 
 /// A node (or node) in the graph.
 #[pyclass(name = "Node", subclass)]
