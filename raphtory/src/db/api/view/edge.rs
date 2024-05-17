@@ -353,12 +353,21 @@ mod test_edge_view {
             .explode()
             .layer_name()
             .all(|l| l.is_ok()));
+        assert!(g
+            .edge(1, 2)
+            .unwrap()
+            .explode_layers()
+            .layer_name()
+            .all(|l| l.is_ok()));
         assert!(g.edges().explode().layer_name().all(|l| l.is_ok()));
+        assert!(g.edges().explode_layers().layer_name().all(|l| l.is_ok()));
 
         assert!(g.edge(1, 2).unwrap().time().is_err());
         assert!(g.edges().time().all(|l| l.is_err()));
         assert!(g.edge(1, 2).unwrap().explode().time().all(|l| l.is_ok()));
+        assert!(g.edge(1, 2).unwrap().explode_layers().time().all(|l| l.is_err()));
         assert!(g.edges().explode().time().all(|l| l.is_ok()));
+        assert!(g.edges().explode_layers().time().all(|l| l.is_err()));
     }
 
     #[test]

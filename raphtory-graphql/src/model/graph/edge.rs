@@ -9,6 +9,7 @@ use raphtory::{
     },
     prelude::{LayerOps, TimeOps},
 };
+use raphtory::core::utils::errors::GraphError;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {
@@ -95,11 +96,8 @@ impl Edge {
         self.ee.history().last().cloned()
     }
 
-    async fn time(&self) -> Result<i64, Error> {
-        match self.ee.time().map(|x| x.into()) {
-            Ok(name) => Ok(name),
-            Err(e) => Err(Error::new(e.to_string())),
-        }
+    async fn time(&self) -> Result<i64, GraphError> {
+        self.ee.time().map(|x| x.into())
     }
 
     async fn start(&self) -> Option<i64> {
@@ -126,11 +124,8 @@ impl Edge {
         self.ee.layer_names().map(|x| x.into()).collect()
     }
 
-    async fn layer_name(&self) -> Result<String, Error> {
-        match self.ee.layer_name().map(|x| x.into()) {
-            Ok(name) => Ok(name),
-            Err(e) => Err(Error::new(e.to_string())),
-        }
+    async fn layer_name(&self) -> Result<String, GraphError> {
+        self.ee.layer_name().map(|x| x.into())
     }
 
     async fn explode(&self) -> Vec<Edge> {

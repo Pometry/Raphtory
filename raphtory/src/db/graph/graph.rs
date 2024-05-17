@@ -1767,7 +1767,7 @@ mod db_tests {
                 e.explode().iter().filter_map(|e| {
                     e.edge
                         .layer()
-                        .zip(Some(e.time().unwrap()))
+                        .zip(e.time().ok())
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), *layer))
                 })
             })
