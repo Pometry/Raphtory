@@ -3,13 +3,13 @@ use async_graphql::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
+    core::utils::errors::GraphError,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
     prelude::{LayerOps, TimeOps},
 };
-use raphtory::core::utils::errors::GraphError;
 
 #[derive(ResolvedObject)]
 pub(crate) struct Edge {
