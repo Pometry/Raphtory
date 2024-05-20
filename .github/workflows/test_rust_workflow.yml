@@ -111,6 +111,10 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
+      - uses: webfactory/ssh-agent@v0.9.0
+        name: Load raphtory-arrow key
+        with:
+            ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
