@@ -32,6 +32,8 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
     steps:
+      - name: Show context
+        run: echo "$GITHUB_CONTEXT"
       - uses: actions/checkout@v3
         name: Checkout
       - uses: maxim-lobanov/setup-xcode@v1
