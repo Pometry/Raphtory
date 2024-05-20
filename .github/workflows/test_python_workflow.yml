@@ -14,8 +14,6 @@ on:
 jobs:
   select-strategy:
     runs-on: ubuntu-latest
-    env:
-      CARGO_NET_GIT_FETCH_WITH_CLI: true
     outputs:
       python-versions: ${{ steps.set-matrix.outputs.python-versions }}
     steps:
@@ -32,8 +30,6 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
     steps:
-      - name: Show context
-        run: echo "$CARGO_NET_GIT_FETCH_WITH_CLI"
       - uses: actions/checkout@v3
         name: Checkout
       - uses: maxim-lobanov/setup-xcode@v1
@@ -48,7 +44,7 @@ jobs:
           toolchain: 1.77.0
           override: true
           components: rustfmt, clippy
-      - uses: webfactory/ssh-agent@v0.7.0
+      - uses: webfactory/ssh-agent@v0.9.0
         name: Load raphtory-arrow key
         with:
             ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
@@ -65,15 +61,12 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: 'pip'
       - name: Run Maturin develop
-        run: |
-          python -m pip install maturin
-          cd python && maturin build --release
-        # with:
-        #   working-directory: ./python
-        #   command: build
-        #   target: ${{ matrix.target }}
-        #   container: off
-        #   args: --release
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: ./python
+          command: build
+          target: ${{ matrix.target }}
+          args: --release
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
