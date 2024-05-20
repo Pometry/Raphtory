@@ -65,13 +65,15 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: 'pip'
       - name: Run Maturin develop
-        uses: PyO3/maturin-action@v1
-        with:
-          working-directory: ./python
-          command: build
-          target: ${{ matrix.target }}
-          container: off
-          args: --release
+        run: |
+          python -m pip install maturin
+          cd python && maturin build --release --target ${{ matrix.target }}
+        # with:
+        #   working-directory: ./python
+        #   command: build
+        #   target: ${{ matrix.target }}
+        #   container: off
+        #   args: --release
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
         run: |
