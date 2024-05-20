@@ -279,6 +279,11 @@ impl<const N: usize> TemporalGraph<N> {
         self.node_meta.get_node_type_name_by_id(node.node_type)
     }
 
+    pub(crate) fn node_type_id(&self, v: VID) -> usize {
+        let node = self.storage.get_node(v);
+        node.node_type
+    }
+
     pub(crate) fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.node_meta.get_all_node_types()
     }

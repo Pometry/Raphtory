@@ -12,6 +12,7 @@ mod node_filter_ops;
 mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
+mod node_type_filter;
 
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},
@@ -32,6 +33,7 @@ pub use layer_ops::{DelegateLayerOps, InheritLayerOps, InternalLayerOps};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
+pub use node_type_filter::*;
 pub use one_hop_filter::*;
 pub use time_semantics::*;
 

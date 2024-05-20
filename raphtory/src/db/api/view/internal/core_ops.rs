@@ -70,6 +70,8 @@ pub trait CoreGraphOps {
     /// Returns the type of node
     fn node_type(&self, v: VID) -> Option<ArcStr>;
 
+    fn node_type_id(&self, v: VID) -> usize;
+
     /// Get all the addition timestamps for an edge
     /// (this should always be global and not affected by windowing as deletion semantics may need information outside the current view!)
     fn edge_additions(
@@ -419,5 +421,9 @@ impl<G: DelegateCoreOps + ?Sized> CoreGraphOps for G {
     #[inline]
     fn core_node_ref(&self, vid: VID) -> Entry<NodeStore> {
         self.graph().core_node_ref(vid)
+    }
+
+    fn node_type_id(&self, v: VID) -> usize {
+        self.graph().node_type_id(v)
     }
 }

@@ -238,6 +238,28 @@ impl LockedGraph {
         }
     }
 
+    pub fn filter_by_type<'graph, G>(
+        &self,
+        node_id: VID,
+        node_types: &'graph Vec<&str>,
+        g: G
+    ) -> Box<dyn Iterator<Item = VID> + Send + 'graph>
+        where
+            G: GraphViewOps<'graph>,
+    {
+        let node_type = g.node_type(node_id);
+
+        let has_type = node_type.map_or(false, |nt| {
+            node_types.iter().any(|ntype| ntype == &nt.as_ref())
+        });
+
+        if has_type {
+            Box::new(iter::once(node_id))
+        } else {
+            Box::new(iter::empty())
+        }
+    }
+
     #[inline]
     pub fn node_degree<'graph, G: GraphViewOps<'graph>>(
         &self,

@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{

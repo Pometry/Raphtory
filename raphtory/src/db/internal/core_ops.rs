@@ -95,6 +95,11 @@ impl<const N: usize> CoreGraphOps for InnerTemporalGraph<N> {
     }
 
     #[inline]
+    fn node_type_id(&self, v: VID) -> usize {
+        self.inner().node_type_id(v)
+    }
+
+    #[inline]
     fn edge_additions(
         &self,
         eref: EdgeRef,
