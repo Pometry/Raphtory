@@ -74,7 +74,12 @@ where
     #[inline]
     fn iter_refs(&self) -> impl Iterator<Item = VID> + 'graph {
         let g = self.graph.core_graph();
-        g.into_nodes_iter(self.graph.clone())
+        let base_graph = self.base_graph.clone();
+        let node_types = self.node_types.clone();
+        g.into_nodes_iter(self.graph.clone()).filter(move |v| {
+            let node_type = base_graph.node_type_id(*v);
+            node_types.is_empty() || node_types.contains(&node_type)
+        })
     }
 
     pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
