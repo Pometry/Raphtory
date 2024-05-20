@@ -32,6 +32,7 @@ pub trait AsTime: Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn range(w: Range<i64>) -> Range<Self>;
 }
 
+#[cfg(feature = "arrow")]
 impl raphtory_arrow::interop::AsTime for TimeIndexEntry {
     fn t(&self) -> i64 {
         self.0

@@ -26,6 +26,7 @@
 
 use crate::{db::graph::graph::Graph, prelude::GraphViewOps};
 use chrono::{DateTime, NaiveDateTime, Utc};
+#[cfg(feature = "arrow")]
 use raphtory_arrow::interop::AsDir;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

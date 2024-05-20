@@ -536,7 +536,7 @@ impl TemporalGraph {
             NodeRef::Internal(vid) => Some(vid),
             NodeRef::External(gid) => {
                 let v_id = self.logical_to_physical.get(&gid)?;
-                Some((*v_id))
+                Some(*v_id)
             }
             NodeRef::ExternalStr(string) => self.resolve_node_ref(NodeRef::External(string.id())),
         }

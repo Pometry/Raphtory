@@ -1,5 +1,4 @@
-#![allow(unused)]
-
+#[cfg(feature = "arrow")]
 use raphtory_arrow::interop::{AsEID, AsVID};
 use std::{ops::Deref, sync::Arc};
 
@@ -44,6 +43,7 @@ impl From<usize> for VID {
     }
 }
 
+#[cfg(feature = "arrow")]
 impl From<raphtory_arrow::interop::VID> for VID {
     fn from(vid: raphtory_arrow::interop::VID) -> Self {
         VID(vid.0)
@@ -56,18 +56,21 @@ impl From<VID> for usize {
     }
 }
 
+#[cfg(feature = "arrow")]
 impl AsVID for VID {
     fn as_vid(&self) -> raphtory_arrow::interop::VID {
         raphtory_arrow::interop::VID::from(self.0)
     }
 }
 
+#[cfg(feature = "arrow")]
 impl PartialEq<VID> for raphtory_arrow::interop::VID {
     fn eq(&self, other: &VID) -> bool {
         self.0 == other.0
     }
 }
 
+#[cfg(feature = "arrow")]
 impl Into<raphtory_arrow::interop::VID> for VID {
     #[inline]
     fn into(self) -> raphtory_arrow::interop::VID {
@@ -81,12 +84,14 @@ impl Into<raphtory_arrow::interop::VID> for VID {
 )]
 pub struct EID(pub usize);
 
+#[cfg(feature = "arrow")]
 impl From<raphtory_arrow::interop::EID> for EID {
     fn from(eid: raphtory_arrow::interop::EID) -> Self {
         EID(eid.0)
     }
 }
 
+#[cfg(feature = "arrow")]
 impl Into<raphtory_arrow::interop::EID> for EID {
     #[inline]
     fn into(self) -> raphtory_arrow::interop::EID {
@@ -94,6 +99,7 @@ impl Into<raphtory_arrow::interop::EID> for EID {
     }
 }
 
+#[cfg(feature = "arrow")]
 impl AsEID for EID {
     fn as_eid(&self) -> raphtory_arrow::interop::EID {
         raphtory_arrow::interop::EID(self.0)

@@ -4,6 +4,7 @@ use crate::{
     core::{entities::properties::tprop::TProp, storage::timeindex::AsTime, Prop},
     prelude::TimeIndexEntry,
 };
+#[cfg(feature = "arrow")]
 use raphtory_arrow::tprops::ArrowTProp;
 use std::ops::Range;
 
