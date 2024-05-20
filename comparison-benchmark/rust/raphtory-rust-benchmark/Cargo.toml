@@ -17,9 +17,6 @@ homepage.workspace = true
 [dependencies]
 raphtory = { path = "../../../raphtory", package = "raphtory", features = ["io"] }
 chrono = { workspace = true }
-serde = { workspace = true }
 clap = { workspace = true }
 csv = { workspace = true }
-tar = { workspace = true }
 flate2 = { workspace = true }
-ordered-float = { workspace = true }

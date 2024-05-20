@@ -19,15 +19,10 @@ parking_lot.workspace = true
 raphtory = { path = "../raphtory", features = ["io", "arrow", "python"] }
 raphtory-arrow.workspace = true
 rayon.workspace = true
-thiserror.workspace = true
-memmap2.workspace = true
 polars-arrow.workspace = true
 ahash.workspace = true
 tempfile.workspace = true
-clap.workspace = true
 dashmap.workspace = true
-rand.workspace = true
-csv.workspace = true
 serde_json.workspace = true
 pyo3.workspace = true
 

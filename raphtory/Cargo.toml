@@ -17,7 +17,6 @@ homepage.workspace = true
 [dependencies]
 bincode = { workspace = true }
 chrono = { workspace = true }
-genawaiter = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 parking_lot = { workspace = true }
@@ -60,7 +59,6 @@ async-openai = { workspace = true, optional = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
-pyo3-asyncio = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true, features = ["compute"] }
@@ -72,8 +70,6 @@ kdam = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
-xxhash-rust = { workspace = true }
-strum = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 rpds = { workspace = true, optional = true }
 thread_local = { workspace = true, optional = true }
@@ -108,7 +104,6 @@ python = [
     "io",
     "arrow",
     "dep:pyo3",
-    "dep:pyo3-asyncio",
     "dep:num",
     "dep:display-error-chain",
     "dep:polars-arrow",
@@ -134,5 +129,4 @@ arrow = [
     "polars-arrow?/io_ipc",
     "polars-arrow?/arrow_rs",
     "polars-parquet?/compression",
-    "dep:strum",
 ]
