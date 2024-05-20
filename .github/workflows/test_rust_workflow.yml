@@ -50,9 +50,6 @@ jobs:
         name: Load raphtory-arrow key
         with:
             ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
-      - name: Windows set cargo to use CLI git
-        if: contains(matrix.os, 'windows-latest')
-        run: Set-Content -Path $env:USERPROFILE\.cargo\config.toml "[net]`ngit-fetch-with-cli = true"
       - name: Rust version
         run: rustc --version --verbose
       - name: Disk space report
