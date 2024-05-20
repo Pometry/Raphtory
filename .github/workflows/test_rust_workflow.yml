@@ -12,6 +12,8 @@ jobs:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
     runs-on: '${{ matrix.os }}'
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: true
     strategy:
       matrix:
         include:
