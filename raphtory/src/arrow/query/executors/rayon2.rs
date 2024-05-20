@@ -97,7 +97,7 @@ fn lookup_layer(layer: &str, graph: &ArrowGraph) -> usize {
     graph.inner.find_layer_id(layer).expect("No layer")
 }
 
-fn get_writer<'a, S>(
+fn get_writer<'a>(
     dir: impl AsRef<Path>,
     tl: &'a thread_local::ThreadLocal<RefCell<BufWriter<File>>>,
 ) -> &'a RefCell<BufWriter<File>> {
@@ -261,7 +261,7 @@ fn do_sink<'a, 'b: 'a, 'c, S: Clone + std::fmt::Debug + Send + Sync>(
             println!("Node: {:?}, State: {:?}", vid, state);
         }
         Sink::Path(dir, writer_fn) => {
-            let local_writer = get_writer::<S>(dir, tl);
+            let local_writer = get_writer(dir, tl);
             let mut writer = local_writer.borrow_mut();
             (writer_fn)(&mut writer, state);
         }
