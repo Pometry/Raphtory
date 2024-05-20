@@ -50,8 +50,7 @@ jobs:
             ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}          
       - name: Windows set cargo to use CLI git
         if: matrix.os == 'windows-latest'
-        env:
-          CARGO_NET_GIT_FETCH_WITH_CLI: true
+        run: Set-Content -Path $env:USERPROFILE\.cargo\config.toml "[net]`ngit-fetch-with-cli = true"
       - name: Rust version
         run: rustc --version --verbose
       - name: Disk space report
