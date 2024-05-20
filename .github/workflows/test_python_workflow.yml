@@ -51,6 +51,9 @@ jobs:
       - name: Windows set cargo to use CLI git
         if: contains(matrix.os, 'windows-latest')
         run: Set-Content -Path $env:USERPROFILE\.cargo\config.toml "[net]`ngit-fetch-with-cli = true"
+      - name: Linux set cargo to use CLI git
+        if: contains(matrix.os, 'ubuntu-latest')
+        run: echo -e "\n[net]\ngit-fetch-with-cli = true" >> $env:USERPROFILE/.cargo/config.toml
       - uses: Swatinem/rust-cache@v2
         name: Cargo cache
         with:
