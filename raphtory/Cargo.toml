@@ -61,7 +61,7 @@ async-openai = { workspace = true, optional = true }
 pyo3 = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
-polars-arrow = { workspace = true, optional = true, features = ["compute"] }
+polars-arrow = { workspace = true, optional = true }
 polars-parquet = { workspace = true, optional = true }
 polars-utils = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
