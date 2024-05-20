@@ -33,7 +33,7 @@ jobs:
     runs-on: '${{ matrix.os }}'
     steps:
       - name: Show context
-        run: echo "$GITHUB_CONTEXT"
+        run: echo "$CARGO_NET_GIT_FETCH_WITH_CLI"
       - uses: actions/checkout@v3
         name: Checkout
       - uses: maxim-lobanov/setup-xcode@v1
@@ -70,6 +70,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          container: off
           args: --release
       - name: Install Python dependencies (Unix)
         if: "contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')"
