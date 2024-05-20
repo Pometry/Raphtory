@@ -9,10 +9,10 @@ mod layer_ops;
 mod list_ops;
 mod materialize;
 mod node_filter_ops;
+mod node_type_filter;
 mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
-mod node_type_filter;
 
 use crate::{
     db::api::properties::internal::{ConstPropertiesOps, InheritPropertiesOps, PropertiesOps},

@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
@@ -20,7 +19,7 @@ use crate::{
     },
     prelude::*,
 };
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
 #[derive(Clone)]
 pub struct PathFromGraph<'graph, G, GH> {

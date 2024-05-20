@@ -52,15 +52,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Graph - Returns clone of the graph
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
 
-    fn subgraph<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I)
-                                                           -> NodeSubgraph<Self>;
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I)
+        -> NodeSubgraph<Self>;
 
-    fn subgraph_node_types<I: IntoIterator<Item=V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
         &self,
         nodes_types: I,
     ) -> TypeFilteredSubgraph<Self>;
 
-    fn exclude_nodes<I: IntoIterator<Item=V>, V: Into<NodeRef>>(
+    fn exclude_nodes<I: IntoIterator<Item = V>, V: Into<NodeRef>>(
         &self,
         nodes: I,
     ) -> NodeSubgraph<Self>;
@@ -129,8 +129,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self, Self>
-    {
+    fn nodes(&self) -> Nodes<'graph, Self, Self> {
         let graph = self.clone();
         Nodes::new(graph)
     }
@@ -199,7 +198,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         Ok(self.new_base_graph(g))
     }
 
-    fn subgraph<I: IntoIterator<Item=V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
+    fn subgraph<I: IntoIterator<Item = V>, V: Into<NodeRef>>(&self, nodes: I) -> NodeSubgraph<G> {
         let _layer_ids = self.layer_ids();
         let nodes: FxHashSet<VID> = nodes
             .into_iter()
@@ -208,7 +207,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         NodeSubgraph::new(self.clone(), nodes)
     }
 
-    fn subgraph_node_types<I: IntoIterator<Item=V>, V: Borrow<str>>(
+    fn subgraph_node_types<I: IntoIterator<Item = V>, V: Borrow<str>>(
         &self,
         nodes_types: I,
     ) -> TypeFilteredSubgraph<Self> {
@@ -220,7 +219,7 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         TypeFilteredSubgraph::new(self.clone(), r)
     }
 
-    fn exclude_nodes<I: IntoIterator<Item=V>, V: Into<NodeRef>>(
+    fn exclude_nodes<I: IntoIterator<Item = V>, V: Into<NodeRef>>(
         &self,
         nodes: I,
     ) -> NodeSubgraph<G> {

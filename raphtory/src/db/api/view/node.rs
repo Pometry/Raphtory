@@ -164,10 +164,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// An iterator over the neighbours of this node that point out of this node.
     fn out_neighbours(&self) -> Self::PathType;
 
-    fn filter_by_type(
-        &self,
-        node_types: &'graph Vec<&str>,
-    ) -> Self::PathType;
+    fn filter_by_type(&self, node_types: &'graph Vec<&str>) -> Self::PathType;
 }
 
 impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
@@ -279,12 +276,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         })
     }
 
-    fn filter_by_type(
-        &self,
-        node_types: &'graph Vec<&str>
-    ) -> Self::PathType {
-        self.hop(move |cg, g, v| {
-            cg.clone().filter_by_type(v, node_types, g.clone())
-        })
+    fn filter_by_type(&self, node_types: &'graph Vec<&str>) -> Self::PathType {
+        self.hop(move |cg, g, v| cg.clone().filter_by_type(v, node_types, g.clone()))
     }
 }

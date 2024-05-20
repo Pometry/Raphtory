@@ -242,10 +242,10 @@ impl LockedGraph {
         &self,
         node_id: VID,
         node_types: &'graph Vec<&str>,
-        g: G
+        g: G,
     ) -> Box<dyn Iterator<Item = VID> + Send + 'graph>
-        where
-            G: GraphViewOps<'graph>,
+    where
+        G: GraphViewOps<'graph>,
     {
         let node_type = g.node_type(node_id);
 
